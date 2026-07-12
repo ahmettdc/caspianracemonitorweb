@@ -1,0 +1,1451 @@
+import { useState, useMemo, useEffect, useRef } from "react";
+import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ResponsiveContainer } from "recharts";
+import { roomGet, roomSet, roomSubscribe, firebaseReady } from "./storage";
+
+/* ============================================================
+   CASPIAN MOTORSPORT — RACE CONTROL  ·  Faz 2
+   Faz 2: Yarış odası + gerçek zamanlı takım senkronizasyonu.
+   - Oda verisi paylaşımlı depoda "room:KOD" anahtarında tutulur
+   - Yazma: değişiklikten 800ms sonra (debounce), rev sayacı ile
+   - Okuma: 3 sn'de bir poll; uzak rev daha yeniyse uygula
+   - Çakışma: son yazan kazanır (last-write-wins)
+   Faz 1 çekirdeği (aşağıda) değişmedi:
+   Excel V1.28 hesap mantığının birebir taşınması:
+   - STINT: stint süresi = tur × ort. tur süresi (veya manuel override)
+     pit = (yakıt? F9) + (pit lane? F8) + lastik sayısı × F10
+   - CODE80: aynı motor, lastik süresi F10/4
+   - SON STİNT YAKITI: kalan tur = countdown / tur süresi
+     yakıt = (kalan tur + extra lap) × tüketim
+   - TOPLAM TUR: stint sayısı × stint turu × traffic error rate
+   Tüm durum tek bir JSON objesinde tutulur (Faz 2 senkronizasyona hazır).
+   ============================================================ */
+
+/* ---------- zaman yardımcıları ---------- */
+const parseHMS = (s) => {
+  if (!s) return 0;
+  const p = String(s).trim().split(":").map((x) => parseFloat(x.replace(",", ".")) || 0);
+  if (p.length === 3) return p[0] * 3600 + p[1] * 60 + p[2];
+  if (p.length === 2) return p[0] * 60 + p[1];
+  return p[0] || 0;
+};
+const parseLap = (s) => {
+  // "3:59.50" veya "3:59,50" → saniye
+  if (!s) return 0;
+  const t = String(s).trim().replace(",", ".");
+  const p = t.split(":");
+  if (p.length === 2) return (parseFloat(p[0]) || 0) * 60 + (parseFloat(p[1]) || 0);
+  return parseFloat(t) || 0;
+};
+const fmtHMS = (sec) => {
+  const neg = sec < 0;
+  let s = Math.abs(Math.round(sec));
+  const h = Math.floor(s / 3600); s -= h * 3600;
+  const m = Math.floor(s / 60); s -= m * 60;
+  return `${neg ? "-" : ""}${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+};
+const fmtLap = (sec) => {
+  const m = Math.floor(sec / 60);
+  const s = sec - m * 60;
+  return `${m}:${s.toFixed(2).padStart(5, "0")}`;
+};
+
+/* ---------- varsayılan durum (Excel'deki mevcut değerler) ---------- */
+const DEFAULT_STATE = {
+  raceTime: "2:24:00",
+  avgLap: "3:59.50",
+  strategies: { A: 8, B: 9, C: 10, D: 11 },
+  chosen: "D",
+  trafficRate: 0.99,
+  pitLaneTime: 22,
+  fuelTime: 43,
+  tyreTime: 13,
+  fuelTank: 100,
+  refuelSpeed: 2.33,
+  fuelRatio: 0.86,
+  consumption: 8.97,
+  vConsumption: 8.97,
+  extraLap: 1,
+  lastStintCountdown: "0:08:10",
+  code80TimeLeft: "1:48:30",
+  code80LastStint: "0:18:11",
+  // Faz 3 — lastik stratejisi
+  tyreLimit: 26,
+  tyreQual: ["", "", "", ""],
+  tyreStints: Array.from({ length: 14 }, () => ["", "", "", ""]),
+  // Faz 3 — pilotlar
+  raceStart: "2026-05-09T12:20",
+  roster: [],
+  driverAssign: Array.from({ length: 14 }, () => ""),
+  // stint başına pit ayarları (index 0 = 1. pit)
+  pits: Array.from({ length: 14 }, () => ({
+    fuel: true, lane: true, tyres: [false, false, false, false],
+  })),
+  overrides: Array.from({ length: 14 }, () => ""), // opsiyonel stint süresi "hh:mm:ss"
+  // Faz 4 — telemetri (MoTeC)
+  telemetry: { A: null, B: null, C: null, D: null },
+};
+
+/* ---------- Faz 4: MoTeC telemetri ayrıştırma ---------- */
+const SLOT_COLORS = { A: "#40D68C", B: "#F0604D", C: "#F2A33C", D: "#6694FF" };
+const isLapLabel = (c) => /^(out ?lap|in ?lap|lap ?\d+)$/i.test(String(c).trim());
+
+const msFromCell = (v) => {
+  const t = String(v).trim().replace(",", ".");
+  if (/^\d+:\d{1,2}(\.\d+)?$/.test(t)) {
+    const [m, s] = t.split(":");
+    return Math.round(((+m) * 60 + (+s)) * 1000);
+  }
+  const n = parseFloat(t);
+  if (isNaN(n)) return null;
+  if (n > 20000) return Math.round(n);        // zaten milisaniye
+  if (n > 30 && n < 1200) return Math.round(n * 1000); // saniye
+  return null;
+};
+
+function parseTelemetryText(text) {
+  const lines = text.split(/\r?\n/).filter((l) => l.trim());
+  if (!lines.length) return null;
+  const cand = ["\t", ";", ","];
+  const delim = cand.map((d) => [d, lines.slice(0, 8).reduce((a, l) =>
+    a + (l.split(d).length - 1), 0)]).sort((a, b) => b[1] - a[1])[0][0];
+  const rows = lines.map((l) => l.split(delim).map((c) => c.trim()));
+  const firstLap = rows.findIndex((r) => r.some(isLapLabel));
+  if (firstLap === -1) return { error: "Tur satırı bulunamadı ('Out Lap', 'Lap 1'...)" };
+  const ncols = Math.max(...rows.map((r) => r.length));
+  const headers = Array.from({ length: ncols }, (_, i) =>
+    rows.slice(0, firstLap).map((h) => h[i] || "").join(" ").trim());
+  const lapRows = rows.slice(firstLap).filter((r) => r.some(isLapLabel));
+  return { headers, lapRows, ncols };
+}
+
+function guessMapping(parsed) {
+  const { headers, lapRows, ncols } = parsed;
+  const labelCol = (() => {
+    const scores = Array.from({ length: ncols }, (_, i) =>
+      lapRows.filter((r) => isLapLabel(r[i] || "")).length);
+    return scores.indexOf(Math.max(...scores));
+  })();
+  const numStats = Array.from({ length: ncols }, (_, i) => {
+    const vals = lapRows.map((r) => parseFloat(String(r[i] || "").replace(",", ".")))
+      .filter((n) => !isNaN(n));
+    if (!vals.length) return null;
+    const abs = vals.map(Math.abs);
+    return {
+      i, n: vals.length,
+      medAbs: abs.sort((a, b) => a - b)[Math.floor(abs.length / 2)],
+      negRatio: vals.filter((v) => v < 0).length / vals.length,
+    };
+  }).filter(Boolean);
+  const byHeader = (re) => headers.findIndex((h) => re.test(h));
+  let timeCol = numStats.find((s) => s.medAbs > 30000 && s.medAbs < 3600000)?.i ?? -1;
+  let fuelCol = byHeader(/fuel.*change/i);
+  if (fuelCol === -1)
+    fuelCol = numStats.find((s) => s.i !== timeCol && s.medAbs > 0.5 && s.medAbs < 40
+      && s.negRatio > 0.5)?.i ?? -1;
+  const wear = ["fl", "fr", "rl", "rr"].map((c) =>
+    byHeader(new RegExp(`wear\\s*${c}.*change`, "i")));
+  return { labelCol, timeCol, fuelCol, wear };
+}
+
+/* ---------- çekirdek motor ---------- */
+function computePlan(st, mode /* "race" | "code80" */) {
+  const raceSec = mode === "race" ? parseHMS(st.raceTime) : parseHMS(st.code80TimeLeft);
+  const lapSec = parseLap(st.avgLap);
+  const laps = st.strategies[st.chosen] || 0;
+  const tyreUnit = mode === "race" ? st.tyreTime : st.tyreTime / 4; // Excel CODE80: M6/4
+  const rows = [];
+  let cum = 0;
+  for (let i = 0; i < st.pits.length; i++) {
+    const ovr = parseHMS(st.overrides[i]);
+    const stintSec = ovr > 0 ? ovr : laps * lapSec;
+    const startLeft = raceSec - cum;
+    if (startLeft <= 0) break;
+    cum += stintSec;
+    const p = st.pits[i];
+    const tyreCount = p.tyres.filter(Boolean).length;
+    const isLast = raceSec - cum <= 0;
+    const pitSec = isLast ? 0
+      : (p.fuel ? st.fuelTime : 0) + (p.lane ? st.pitLaneTime : 0) + tyreCount * tyreUnit;
+    const endStint = cum + (isLast ? 0 : pitSec);
+    rows.push({
+      idx: i + 1,
+      stintSec, pitSec, tyreCount,
+      endSec: endStint,
+      timeLeft: raceSec - endStint,
+      lapsInStint: ovr > 0 ? Math.floor(stintSec / lapSec) : laps,
+      isLast,
+      fuelNeed: (ovr > 0 ? stintSec / lapSec : laps) * st.consumption,
+    });
+    cum = endStint;
+    if (isLast) break;
+  }
+  const fullStints = rows.length;
+  const totalLaps = fullStints * laps * st.trafficRate; // Excel C174 mantığı
+  return { rows, raceSec, lapSec, laps, fullStints, totalLaps };
+}
+
+/* eski oda kayıtlarına yeni alanları güvenle ekler */
+const migrate = (s) => ({ ...DEFAULT_STATE, ...s });
+
+function lastStintFuel(countdownStr, st) {
+  const lapSec = parseLap(st.avgLap);
+  const cd = parseHMS(countdownStr);
+  const lapsLeft = lapSec > 0 ? cd / lapSec : 0;
+  const refuel = (lapsLeft + st.extraLap) * st.consumption;
+  const vRefuel = (lapsLeft + st.extraLap) * st.vConsumption;
+  return { lapsLeft, refuel, vRefuel, refuelSec: refuel / st.refuelSpeed };
+}
+
+/* ---------- UI parçaları ---------- */
+const css = `
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
+:root{
+  --bg:#101418; --panel:#181E25; --panel2:#1F2731; --line:#2B3542;
+  --txt:#E9EDF2; --dim:#8C97A5; --teal:#35C7BE; --green:#40D68C;
+  --yellow:#F2C94C; --red:#F0604D; --purple:#BB8CF5;
+}
+.rc *{box-sizing:border-box}
+.rc{min-height:100vh;background:var(--bg);color:var(--txt);
+  font-family:'Inter',system-ui,sans-serif;font-size:13px;padding:0 0 40px}
+.rc .mono{font-family:'IBM Plex Mono',monospace}
+.rc .disp{font-family:'Barlow Condensed',sans-serif;letter-spacing:.04em}
+.rc header{display:flex;align-items:baseline;gap:14px;padding:16px 20px 12px;
+  border-bottom:1px solid var(--line)}
+.rc header h1{margin:0;font-size:26px;font-weight:700;text-transform:uppercase}
+.rc header h1 b{color:var(--teal)}
+.rc header .ver{color:var(--dim);font-size:12px}
+.rc .grid{display:grid;grid-template-columns:300px 1fr;gap:16px;padding:16px 20px;
+  align-items:start}
+@media(max-width:900px){.rc .grid{grid-template-columns:1fr}}
+.rc .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+.rc .card h2{margin:0 0 10px;font-size:15px;text-transform:uppercase;
+  font-family:'Barlow Condensed';letter-spacing:.08em;color:var(--teal)}
+.rc label{display:block;color:var(--dim);font-size:11px;margin:8px 0 3px;
+  text-transform:uppercase;letter-spacing:.05em}
+.rc input[type=text],.rc input[type=number]{width:100%;background:var(--panel2);
+  border:1px solid var(--line);border-radius:6px;color:var(--txt);
+  padding:6px 8px;font-family:'IBM Plex Mono',monospace;font-size:13px}
+.rc input:focus{outline:2px solid var(--teal);outline-offset:-1px}
+.rc .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.rc .row4{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.rc .strat{display:flex;gap:6px;margin-top:4px}
+.rc .strat button{flex:1;padding:7px 0;border-radius:6px;border:1px solid var(--line);
+  background:var(--panel2);color:var(--dim);font-family:'Barlow Condensed';
+  font-size:15px;font-weight:600;cursor:pointer}
+.rc .strat button.on{background:var(--teal);color:#08211F;border-color:var(--teal)}
+.rc .tabs{display:flex;gap:8px;margin-bottom:12px}
+.rc .tabs button{padding:8px 16px;border-radius:8px 8px 0 0;border:1px solid var(--line);
+  border-bottom:none;background:transparent;color:var(--dim);cursor:pointer;
+  font-family:'Barlow Condensed';font-size:16px;font-weight:600;letter-spacing:.05em;
+  text-transform:uppercase}
+.rc .tabs button.on{background:var(--panel);color:var(--txt);border-color:var(--teal)}
+.rc table{width:100%;border-collapse:collapse}
+.rc th{color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.06em;
+  text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+.rc td{padding:7px 8px;border-bottom:1px solid #222A34;font-family:'IBM Plex Mono',monospace;
+  font-size:12.5px}
+.rc tr.last td{background:rgba(64,214,140,.06)}
+.rc .neg{color:var(--red)} .rc .pos{color:var(--green)}
+.rc .chip{display:inline-block;padding:1px 7px;border-radius:99px;font-size:11px;
+  border:1px solid var(--line);color:var(--dim)}
+.rc .tyrebox{display:inline-flex;gap:3px;margin-right:8px}
+.rc .tyrebox button{width:26px;height:22px;border-radius:4px;border:1px solid var(--line);
+  background:var(--panel2);color:var(--dim);font-size:9px;cursor:pointer;
+  font-family:'IBM Plex Mono'}
+.rc .tyrebox button.on{background:var(--yellow);color:#3A2E00;border-color:var(--yellow)}
+.rc .pitopt{display:inline-flex;gap:4px}
+.rc .pitopt button{padding:2px 8px;border-radius:4px;border:1px solid var(--line);
+  background:var(--panel2);color:var(--dim);font-size:10px;cursor:pointer}
+.rc .pitopt button.on{background:var(--teal);color:#08211F;border-color:var(--teal)}
+.rc .ovr{width:82px!important;padding:3px 6px!important;font-size:11px!important}
+.rc .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));
+  gap:10px;margin-bottom:14px}
+.rc .kpi{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px}
+.rc .kpi .v{font-family:'Barlow Condensed';font-size:24px;font-weight:700;line-height:1}
+.rc .kpi .l{color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.06em;
+  margin-top:4px}
+.rc .timeline{height:34px;display:flex;border-radius:6px;overflow:hidden;
+  border:1px solid var(--line);margin:4px 0 14px}
+.rc .timeline .seg{position:relative;min-width:2px}
+.rc .timeline .seg span{position:absolute;inset:0;display:flex;align-items:center;
+  justify-content:center;font-family:'Barlow Condensed';font-size:13px;font-weight:600;
+  color:#062A26}
+.rc .timeline .pit{background:var(--yellow)}
+.rc .hint{color:var(--dim);font-size:11px;margin-top:6px;line-height:1.5}
+.rc .warn{color:var(--yellow)}
+.rc .fuelbig{font-family:'Barlow Condensed';font-size:52px;font-weight:700;
+  color:var(--green);line-height:1;margin:6px 0}
+.rc .teambar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;
+  padding:10px 20px;border-bottom:1px solid var(--line);background:var(--panel)}
+.rc .teambar input{width:110px;background:var(--panel2);border:1px solid var(--line);
+  border-radius:6px;color:var(--txt);padding:6px 8px;font-family:'IBM Plex Mono';
+  font-size:12px;text-transform:uppercase}
+.rc .teambar button{padding:6px 12px;border-radius:6px;border:1px solid var(--teal);
+  background:transparent;color:var(--teal);cursor:pointer;font-family:'Barlow Condensed';
+  font-size:14px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+.rc .teambar button.solid{background:var(--teal);color:#08211F}
+.rc .teambar button.leave{border-color:var(--red);color:var(--red)}
+.rc .dot{width:9px;height:9px;border-radius:99px;display:inline-block}
+.rc .dot.on{background:var(--green);box-shadow:0 0 6px var(--green)}
+.rc .dot.off{background:var(--dim)}
+.rc .roomcode{font-family:'IBM Plex Mono';font-weight:600;font-size:15px;
+  color:var(--yellow);letter-spacing:.15em}
+.rc .syncinfo{color:var(--dim);font-size:11px;margin-left:auto}
+.rc .viewonly input,.rc .viewonly .strat button,.rc .viewonly .tyrebox button,
+.rc .viewonly .pitopt button,.rc .viewonly select,.rc .viewonly .card .act
+{pointer-events:none;opacity:.55}
+.rc .viewonly .tabs button{pointer-events:auto;opacity:1}
+.rc .viewonly textarea,.rc .viewonly input[type=file],.rc .viewonly input[type=checkbox]{pointer-events:none;opacity:.55}
+.rc textarea:focus{outline:2px solid var(--teal)}
+.rc select{background:var(--panel2);border:1px solid var(--line);border-radius:6px;
+  color:var(--txt);padding:5px 6px;font-family:'IBM Plex Mono';font-size:12px}
+.rc .tin{width:56px!important;text-align:center}
+.rc .tsel{width:76px;text-align:center;background:transparent!important}
+.rc td.terr{background:rgba(240,96,77,.18);outline:2px solid var(--red);outline-offset:-2px}
+.rc td.t2{background:rgba(242,201,76,.22)}
+.rc td.tq{background:rgba(102,148,255,.25)}
+.rc td.t3{background:rgba(240,96,77,.28)}
+.rc td.t4{background:#05070A}
+.rc td.t4 input{color:var(--red);border-color:var(--red)}
+.rc .act{padding:6px 12px;border-radius:6px;border:1px solid var(--line);
+  background:var(--panel2);color:var(--txt);cursor:pointer;font-size:12px}
+.rc .act.danger{border-color:var(--red);color:var(--red)}
+.rc .rchip{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;
+  border-radius:99px;border:1px solid var(--line);background:var(--panel2);
+  margin:0 6px 6px 0;font-size:12px}
+.rc .rchip b{cursor:pointer;color:var(--red)}
+.rc .legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;font-size:11px;color:var(--dim)}
+.rc .legend i{display:inline-block;width:12px;height:12px;border-radius:3px;
+  margin-right:4px;vertical-align:-2px;border:1px solid var(--line)}
+/* --- canlı mod --- */
+.rc .livestrip{display:flex;flex-wrap:wrap;align-items:center;gap:16px;
+  padding:8px 20px;border-bottom:1px solid var(--line);background:#0B1E1C}
+.rc .livestrip .big{font-family:'Barlow Condensed';font-size:22px;font-weight:700}
+.rc .livestrip .lbl{color:var(--dim);font-size:10px;text-transform:uppercase;
+  letter-spacing:.07em;display:block}
+@keyframes rcpulse{0%,100%{opacity:1}50%{opacity:.35}}
+.rc .pulse{animation:rcpulse 1.1s ease-in-out infinite;color:var(--yellow)}
+@media (prefers-reduced-motion: reduce){.rc .pulse{animation:none}}
+.rc .timeline{position:relative}
+.rc .nowline{position:absolute;top:-4px;bottom:-4px;width:2px;background:#fff;
+  box-shadow:0 0 8px #fff;z-index:2}
+.rc tr.live td{background:rgba(53,199,190,.10);border-left:3px solid var(--teal)}
+.rc tr.pitsoon td{background:rgba(242,201,76,.12)}
+/* --- pit board --- */
+.rc .pitboard{position:fixed;inset:0;background:#05070A;z-index:50;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:4vh;text-align:center;padding:4vh 4vw}
+.rc .pitboard .huge{font-family:'Barlow Condensed';font-weight:700;
+  font-size:clamp(70px,18vw,220px);line-height:.95;color:var(--green);
+  font-variant-numeric:tabular-nums}
+.rc .pitboard .mid{font-family:'Barlow Condensed';font-weight:600;
+  font-size:clamp(28px,6vw,64px);color:var(--txt)}
+.rc .pitboard .plbl{color:var(--dim);font-size:clamp(12px,2vw,18px);
+  text-transform:uppercase;letter-spacing:.15em}
+.rc .pitboard .close{position:absolute;top:16px;right:20px;font-size:26px;
+  background:none;border:1px solid var(--line);border-radius:8px;color:var(--dim);
+  width:44px;height:44px;cursor:pointer}
+.rc .pbrow{display:flex;gap:6vw;flex-wrap:wrap;justify-content:center}
+/* --- dashboard --- */
+.rc .dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+`;
+
+function Num({ v, onC, step = 0.01, w }) {
+  return <input type="number" step={step} value={v} style={w ? { width: w } : {}}
+    onChange={(e) => onC(parseFloat(e.target.value) || 0)} />;
+}
+
+export default function App() {
+  const [st, setSt] = useState(DEFAULT_STATE);
+  const [tab, setTab] = useState("dash");
+
+  /* ---------- Faz 2: takım senkronizasyonu + yetki ---------- */
+  const [userName, setUserName] = useState("");
+  const [room, setRoom] = useState("");          // aktif oda kodu
+  const [joinCode, setJoinCode] = useState("");
+  const [joinPin, setJoinPin] = useState("");
+  const [role, setRole] = useState("editor");    // "editor" | "viewer"
+  const [roomPin, setRoomPin] = useState("");    // odanın PIN'i (sadece editörler bilir)
+  const [syncMsg, setSyncMsg] = useState("");
+  const [lastSync, setLastSync] = useState(null); // {by, at}
+  const sync = useRef({ rev: 0, applying: false, timer: null });
+  const stRef = useRef(st);
+  stRef.current = st;
+  const pinRef = useRef("");
+  pinRef.current = roomPin;
+
+  const pushState = async (code) => {
+    try {
+      const rev = sync.current.rev + 1;
+      const payload = {
+        stateJson: JSON.stringify(stRef.current), rev, pin: pinRef.current,
+        updatedBy: userName || "isimsiz",
+        updatedAt: Date.now(),
+      };
+      await roomSet(code, payload);
+      sync.current.rev = rev; setLastSync({ by: "sen", at: Date.now() }); setSyncMsg("");
+    } catch (e) { setSyncMsg("Yazma hatası — tekrar denenecek"); }
+  };
+
+  const schedulePush = () => {
+    if (!room || role !== "editor" || sync.current.applying) return;
+    clearTimeout(sync.current.timer);
+    sync.current.timer = setTimeout(() => pushState(room), 800);
+  };
+
+  // her state değişiminde (kullanıcı kaynaklı) paylaş
+  useEffect(() => { schedulePush(); /* eslint-disable-next-line */ }, [st]);
+
+  // odayı anlık dinle (Firebase onValue — polling'e gerek yok)
+  useEffect(() => {
+    if (!room) return;
+    const off = roomSubscribe(room, (remote) => {
+      if (remote.rev > sync.current.rev) {
+        sync.current.applying = true;
+        sync.current.rev = remote.rev;
+        setSt(migrate(JSON.parse(remote.stateJson)));
+        setLastSync({ by: remote.updatedBy, at: remote.updatedAt });
+        setTimeout(() => { sync.current.applying = false; }, 50);
+      }
+    });
+    return () => off();
+  }, [room]);
+
+  const createRoom = async () => {
+    const code = Array.from({ length: 5 }, () =>
+      "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random() * 32)]).join("");
+    const pin = String(Math.floor(1000 + Math.random() * 9000));
+    sync.current.rev = 0;
+    setRoomPin(pin);
+    pinRef.current = pin;
+    setRole("editor");
+    setRoom(code);
+    setSyncMsg("");
+    await pushState(code);
+  };
+
+  const joinRoom = async () => {
+    const code = joinCode.trim().toUpperCase();
+    if (code.length < 4) { setSyncMsg("Geçerli bir oda kodu gir"); return; }
+    try {
+      const remote = await roomGet(code);
+      if (!remote) { setSyncMsg(`"${code}" odası bulunamadı — kodu kontrol et`); return; }
+      const asEditor = joinPin.trim() !== "" && joinPin.trim() === remote.pin;
+      if (joinPin.trim() !== "" && !asEditor) {
+        setSyncMsg("PIN hatalı — izleyici olarak katılmak için PIN alanını boş bırak");
+        return;
+      }
+      sync.current.applying = true;
+      sync.current.rev = remote.rev;
+      setSt(migrate(JSON.parse(remote.stateJson)));
+      setLastSync({ by: remote.updatedBy, at: remote.updatedAt });
+      setTimeout(() => { sync.current.applying = false; }, 50);
+      setRole(asEditor ? "editor" : "viewer");
+      setRoomPin(asEditor ? remote.pin : "");
+      pinRef.current = asEditor ? remote.pin : "";
+      setRoom(code);
+      setJoinPin("");
+      setSyncMsg("");
+    } catch (e) { setSyncMsg(`"${code}" odası bulunamadı — kodu kontrol et`); }
+  };
+
+  const leaveRoom = () => {
+    setRoom(""); setRole("editor"); setRoomPin(""); pinRef.current = "";
+    setLastSync(null); setSyncMsg("");
+  };
+
+  const up = (patch) => setSt((s) => ({ ...s, ...patch }));
+  const upPit = (i, patch) => setSt((s) => {
+    const pits = s.pits.map((p, j) => (j === i ? { ...p, ...patch } : p));
+    return { ...s, pits };
+  });
+  const upTyre = (i, t) => setSt((s) => {
+    const pits = s.pits.map((p, j) => {
+      if (j !== i) return p;
+      const tyres = [...p.tyres]; tyres[t] = !tyres[t];
+      return { ...p, tyres };
+    });
+    return { ...s, pits };
+  });
+  const upOvr = (i, val) => setSt((s) => {
+    const overrides = [...s.overrides]; overrides[i] = val;
+    return { ...s, overrides };
+  });
+
+  const mode = tab === "code80" ? "code80" : "race";
+  const plan = useMemo(() => computePlan(st, mode), [st, mode]);
+  const racePlan = useMemo(() => computePlan(st, "race"), [st]);
+  const lsf = useMemo(() => lastStintFuel(st.lastStintCountdown, st), [st]);
+  const lsf80 = useMemo(() => lastStintFuel(st.code80LastStint, st), [st]);
+  const totalFuel = st.consumption * plan.totalLaps + st.extraLap * st.consumption; // DATA I2
+  const fuelTimeCalc = st.fuelTank / st.refuelSpeed; // DATA H19
+  const TY = ["FL", "FR", "RL", "RR"];
+
+  /* ---------- Faz 3: lastik stratejisi ---------- */
+  const upTyreCell = (row, col, val) => setSt((s) => {
+    if (row === -1) {
+      const tyreQual = [...s.tyreQual]; tyreQual[col] = val;
+      return { ...s, tyreQual };
+    }
+    const tyreStints = s.tyreStints.map((r, i) =>
+      i === row ? r.map((c, j) => (j === col ? val : c)) : r);
+    return { ...s, tyreStints };
+  });
+  const clearTyres = () => setSt((s) => ({
+    ...s,
+    tyreQual: ["", "", "", ""],
+    tyreStints: s.tyreStints.map(() => ["", "", "", ""]),
+  }));
+
+  const tyreInfo = useMemo(() => {
+    const rows = [{ label: "Qual", row: -1, vals: st.tyreQual }];
+    for (let i = 0; i < racePlan.rows.length; i++)
+      rows.push({ label: `S${i + 1}`, row: i, vals: st.tyreStints[i] || ["", "", "", ""] });
+    const counts = {}; const qualSets = new Set();
+    const posCols = {}; // set no → kullanıldığı sütunlar (köşe kilidi)
+    rows.forEach((r) => r.vals.forEach((v, ci) => {
+      const k = String(v).trim();
+      if (!k) return;
+      counts[k] = (counts[k] || 0) + 1;
+      if (r.row === -1) qualSets.add(k);
+      (posCols[k] = posCols[k] || new Set()).add(ci);
+    }));
+    const conflicts = Object.keys(posCols).filter((k) => posCols[k].size > 1);
+    const conflictSet = new Set(conflicts);
+    const cellCls = (v) => {
+      const k = String(v).trim();
+      if (!k) return "";
+      if (conflictSet.has(k)) return "terr";
+      const c = counts[k];
+      if (c >= 4) return "t4";
+      if (c === 3) return "t3";
+      if (c === 2) return qualSets.has(k) ? "tq" : "t2";
+      return "";
+    };
+    // sütun ci için seçilebilir mi: hiç kullanılmamış YA DA sadece bu sütunda kullanılmış
+    const allowedIn = (k, ci) => !posCols[k] || (posCols[k].size === 1 && posCols[k].has(ci));
+    const used = Object.keys(counts).length;
+    return { rows, cellCls, used, counts, allowedIn, conflicts, available: st.tyreLimit - used };
+  }, [st.tyreQual, st.tyreStints, st.tyreLimit, racePlan.rows.length]);
+
+  /* ---------- Faz 3: pilotlar ---------- */
+  const [newDriver, setNewDriver] = useState("");
+  const addDriver = () => {
+    const n = newDriver.trim();
+    if (!n || st.roster.includes(n)) return;
+    setSt((s) => ({ ...s, roster: [...s.roster, n] }));
+    setNewDriver("");
+  };
+  const removeDriver = (n) => setSt((s) => ({
+    ...s,
+    roster: s.roster.filter((x) => x !== n),
+    driverAssign: s.driverAssign.map((a) => (a === n ? "" : a)),
+  }));
+  const assignDriver = (i, n) => setSt((s) => {
+    const driverAssign = [...s.driverAssign]; driverAssign[i] = n;
+    return { ...s, driverAssign };
+  });
+  const clearAssign = () => setSt((s) => ({
+    ...s, driverAssign: s.driverAssign.map(() => ""),
+  }));
+
+  const driverPlan = useMemo(() => {
+    const startMs = Date.parse(st.raceStart);
+    if (isNaN(startMs)) return null;
+    const finishMs = startMs + racePlan.raceSec * 1000;
+    const rows = [];
+    let cur = startMs;
+    for (const r of racePlan.rows) {
+      const s0 = cur;
+      const f0 = s0 + r.stintSec * 1000;                 // Excel C: kapatılmamış bitiş
+      const dur = Math.max(0, Math.min(f0, finishMs) - s0); // Excel D (FARK): yarış bitişiyle kırpılır
+      rows.push({ idx: r.idx, start: s0, finish: f0, dur });
+      cur = f0 + r.pitSec * 1000;
+    }
+    const totals = {};
+    rows.forEach((r, i) => {
+      const d = st.driverAssign[i];
+      if (!d) return;
+      totals[d] = totals[d] || { stints: 0, ms: 0 };
+      totals[d].stints += 1; totals[d].ms += r.dur;
+    });
+    const grandMs = Object.values(totals).reduce((a, t) => a + t.ms, 0);
+    return { rows, startMs, finishMs, totals, grandMs };
+  }, [st.raceStart, st.driverAssign, racePlan]);
+
+  const fmtClock = (ms, refMs) => {
+    const d = new Date(ms);
+    const t = d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    if (refMs != null && new Date(refMs).getDate() !== d.getDate()) return `${t} (+1g)`;
+    return t;
+  };
+
+  /* ---------- Faz 4: telemetri ---------- */
+  const [slot, setSlot] = useState("A");
+  const [rawTele, setRawTele] = useState("");
+  const [parsed, setParsed] = useState(null);   // {headers, lapRows, ncols} | {error}
+  const [mapping, setMapping] = useState(null); // {labelCol,timeCol,fuelCol,wear:[4]}
+  const fmtMs = (ms) => fmtLap(ms / 1000);
+
+  const doParse = (text) => {
+    const p = parseTelemetryText(text);
+    setParsed(p);
+    if (p && !p.error) setMapping(guessMapping(p));
+  };
+  const onTeleFile = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const rd = new FileReader();
+    rd.onload = () => { setRawTele(String(rd.result)); doParse(String(rd.result)); };
+    rd.readAsText(f);
+  };
+
+  const saveSlot = () => {
+    if (!parsed || parsed.error || !mapping || mapping.timeCol < 0) return;
+    const laps = parsed.lapRows.map((r) => {
+      const label = String(r[mapping.labelCol] || "").trim();
+      const ms = msFromCell(r[mapping.timeCol]);
+      const fuelRaw = mapping.fuelCol >= 0
+        ? parseFloat(String(r[mapping.fuelCol] || "").replace(",", ".")) : NaN;
+      const w = mapping.wear.map((wi) => wi >= 0
+        ? parseFloat(String(r[wi] || "").replace(",", ".")) : NaN);
+      const refuel = !isNaN(fuelRaw) && fuelRaw > 0; // pozitif değişim = dolum turu
+      return {
+        label, ms,
+        fuel: isNaN(fuelRaw) ? null : Math.abs(fuelRaw),
+        w: w.map((x) => (isNaN(x) ? null : x)),
+        use: ms != null && !/^out/i.test(label) && !refuel,
+      };
+    }).filter((l) => l.ms != null);
+    if (!laps.length) return;
+    setSt((s) => ({ ...s, telemetry: { ...s.telemetry, [slot]: { laps, name: `Stint ${slot}` } } }));
+    setRawTele(""); setParsed(null); setMapping(null);
+  };
+
+  const toggleLap = (sl, li) => setSt((s) => {
+    const t = s.telemetry[sl]; if (!t) return s;
+    const laps = t.laps.map((l, i) => (i === li ? { ...l, use: !l.use } : l));
+    return { ...s, telemetry: { ...s.telemetry, [sl]: { ...t, laps } } };
+  });
+  const removeSlot = (sl) => setSt((s) => ({
+    ...s, telemetry: { ...s.telemetry, [sl]: null } }));
+
+  const slotStats = useMemo(() => {
+    const out = {};
+    for (const sl of ["A", "B", "C", "D"]) {
+      const t = st.telemetry[sl]; if (!t) continue;
+      const used = t.laps.filter((l) => l.use);
+      if (!used.length) { out[sl] = { empty: true }; continue; }
+      const avgMs = used.reduce((a, l) => a + l.ms, 0) / used.length;
+      const fuels = used.filter((l) => l.fuel != null);
+      const avgFuel = fuels.length ? fuels.reduce((a, l) => a + l.fuel, 0) / fuels.length : null;
+      const avgW = [0, 1, 2, 3].map((c) => {
+        const ws = used.filter((l) => l.w[c] != null);
+        return ws.length ? ws.reduce((a, l) => a + l.w[c], 0) / ws.length : null;
+      });
+      out[sl] = {
+        laps: used.length, totalMs: used.reduce((a, l) => a + l.ms, 0),
+        avgMs, avgFuel, avgW,
+        tankLaps: avgFuel ? st.fuelTank / avgFuel : null,
+      };
+    }
+    return out;
+  }, [st.telemetry, st.fuelTank]);
+
+  const chartData = useMemo(() => {
+    const maxLap = Math.max(0, ...["A", "B", "C", "D"]
+      .map((sl) => st.telemetry[sl]?.laps.length || 0));
+    return Array.from({ length: maxLap }, (_, i) => {
+      const row = { lap: i + 1 };
+      for (const sl of ["A", "B", "C", "D"]) {
+        const l = st.telemetry[sl]?.laps[i];
+        if (l && l.use) row[sl] = +(l.ms / 1000).toFixed(3);
+      }
+      return row;
+    });
+  }, [st.telemetry]);
+
+  const loadedSlots = ["A", "B", "C", "D"].filter((sl) => st.telemetry[sl]);
+  const baseSlot = loadedSlots[0];
+
+  /* ---------- canlı yarış modu ---------- */
+  const [now, setNow] = useState(Date.now());
+  const [pitboard, setPitboard] = useState(false);
+  useEffect(() => {
+    const iv = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(iv);
+  }, []);
+
+  const liveInfo = useMemo(() => {
+    const startMs = Date.parse(st.raceStart);
+    if (isNaN(startMs) || !racePlan.rows.length) return { status: "idle" };
+    const raceMs = racePlan.raceSec * 1000;
+    const finishMs = startMs + raceMs;
+    if (now < startMs) return { status: "pre", toStart: startMs - now, startMs, finishMs, raceMs };
+    if (now >= finishMs) return { status: "done", startMs, finishMs, raceMs };
+    let cur = startMs, phase = "stint", stintIdx = racePlan.rows.length - 1, phaseEnd = finishMs;
+    for (let i = 0; i < racePlan.rows.length; i++) {
+      const r = racePlan.rows[i];
+      const sEnd = cur + r.stintSec * 1000;
+      if (now < sEnd) { phase = "stint"; stintIdx = i; phaseEnd = sEnd; break; }
+      const pEnd = sEnd + r.pitSec * 1000;
+      if (now < pEnd) { phase = "pit"; stintIdx = i; phaseEnd = pEnd; break; }
+      cur = pEnd;
+    }
+    return {
+      status: "live", phase, stintIdx, phaseEnd,
+      remaining: finishMs - now, elapsed: now - startMs,
+      nextPitIn: phaseEnd - now, raceMs, startMs, finishMs,
+      driver: st.driverAssign[stintIdx] || "",
+      nextDriver: st.driverAssign[stintIdx + 1] || "",
+    };
+  }, [now, st.raceStart, st.driverAssign, racePlan]);
+  const pitSoon = liveInfo.status === "live" && liveInfo.phase === "stint"
+    && liveInfo.nextPitIn < 300000;
+  const upcomingPit = liveInfo.status === "live" ? st.pits[liveInfo.stintIdx] : null;
+  const upcomingIsLast = liveInfo.status === "live"
+    && liveInfo.stintIdx >= racePlan.rows.length - 2;
+
+  const timeline = plan.rows.flatMap((r) => {
+    const segs = [{
+      w: (r.stintSec / plan.raceSec) * 100, cls: "", label: `S${r.idx}`,
+      bg: r.idx % 2 ? "var(--teal)" : "#2A9E97",
+    }];
+    if (r.pitSec > 0) segs.push({ w: (r.pitSec / plan.raceSec) * 100, cls: "pit", label: "" });
+    return segs;
+  });
+
+  return (
+    <div className="rc">
+      <style>{css}</style>
+      <header>
+        <h1 className="disp"><b>CASPIAN</b> RACE CONTROL</h1>
+        <span className="ver">canlı yarış modu · v0.5</span>
+      </header>
+
+      <div className="teambar">
+        <span className={`dot ${room ? "on" : "off"}`} title={room ? "Bağlı" : "Solo mod"} />
+        {!room ? (firebaseReady ? (<>
+          <input type="text" placeholder="ADIN" value={userName}
+            onChange={(e) => setUserName(e.target.value)} style={{ textTransform: "none" }} />
+          <button className="solid" onClick={createRoom}>Oda Kur</button>
+          <input type="text" placeholder="ODA KODU" value={joinCode}
+            onChange={(e) => setJoinCode(e.target.value)} maxLength={6} />
+          <input type="text" placeholder="PIN (opsiyonel)" value={joinPin}
+            onChange={(e) => setJoinPin(e.target.value)} maxLength={4} style={{ width: 120 }} />
+          <button onClick={joinRoom}>Katıl</button>
+          <span className="syncinfo">PIN'siz katılan izler, PIN'li katılan düzenler</span>
+        </>) : (
+          <span className="syncinfo" style={{ marginLeft: 0 }}>
+            Solo mod — takım senkronizasyonu için <b>src/firebase-config.js</b> dosyasını doldur
+          </span>
+        )) : (<>
+          <span>ODA: <span className="roomcode">{room}</span></span>
+          <span className="chip" style={role === "viewer"
+            ? { borderColor: "var(--yellow)", color: "var(--yellow)" }
+            : { borderColor: "var(--green)", color: "var(--green)" }}>
+            {role === "viewer" ? "👁 İZLEYİCİ" : "✎ DÜZENLEYİCİ"}
+          </span>
+          {role === "editor" && roomPin &&
+            <span className="syncinfo" style={{ marginLeft: 0 }}>
+              Düzenleme PIN'i: <b className="roomcode" style={{ fontSize: 13 }}>{roomPin}</b> (sadece düzenleyecek kişilere ver)
+            </span>}
+          <button className="leave" onClick={leaveRoom}>Odadan Ayrıl</button>
+          <span className="syncinfo">
+            {lastSync ? `Son güncelleme: ${lastSync.by} · ${new Date(lastSync.at).toLocaleTimeString("tr-TR")}` : "Senkronize"}
+          </span>
+        </>)}
+        {syncMsg && <span style={{ color: "var(--yellow)" }}>{syncMsg}</span>}
+      </div>
+
+      {liveInfo.status !== "idle" && (
+        <div className="livestrip">
+          {liveInfo.status === "pre" && (<>
+            <div><span className="lbl">Start'a</span>
+              <span className="big mono" style={{ color: "var(--yellow)" }}>
+                {fmtHMS(liveInfo.toStart / 1000)}</span></div>
+          </>)}
+          {liveInfo.status === "live" && (<>
+            <div><span className="lbl">Kalan Süre</span>
+              <span className="big mono" style={{ color: "var(--green)" }}>
+                {fmtHMS(liveInfo.remaining / 1000)}</span></div>
+            <div><span className="lbl">Stint</span>
+              <span className="big">{liveInfo.stintIdx + 1}/{racePlan.fullStints}
+                {liveInfo.phase === "pit" && <span style={{ color: "var(--yellow)" }}> · PIT</span>}
+              </span></div>
+            <div><span className="lbl">{liveInfo.phase === "pit" ? "Pit Çıkışı" : "Sıradaki Pit"}</span>
+              <span className={`big mono ${pitSoon ? "pulse" : ""}`}>
+                {fmtHMS(liveInfo.nextPitIn / 1000)}</span></div>
+            {liveInfo.driver && <div><span className="lbl">Direksiyonda</span>
+              <span className="big">{liveInfo.driver}</span></div>}
+          </>)}
+          {liveInfo.status === "done" && (
+            <div><span className="lbl">Durum</span>
+              <span className="big" style={{ color: "var(--green)" }}>🏁 YARIŞ BİTTİ</span></div>
+          )}
+          <button className="act" style={{ marginLeft: "auto" }}
+            onClick={() => setPitboard(true)}>📟 Pit Board</button>
+        </div>
+      )}
+
+      {pitboard && (
+        <div className="pitboard" onClick={() => setPitboard(false)}>
+          <button className="close" onClick={() => setPitboard(false)}>✕</button>
+          {liveInfo.status === "pre" && (<>
+            <div className="plbl">Start'a</div>
+            <div className="huge" style={{ color: "var(--yellow)" }}>
+              {fmtHMS(liveInfo.toStart / 1000)}</div>
+          </>)}
+          {liveInfo.status === "done" && <div className="huge">🏁</div>}
+          {liveInfo.status === "idle" && (<>
+            <div className="plbl">Yarış zamanı ayarlanmadı</div>
+            <div className="mid">Pilotlar sekmesinden başlangıç zamanını gir</div>
+          </>)}
+          {liveInfo.status === "live" && (<>
+            <div>
+              <div className="plbl">Kalan Süre</div>
+              <div className="huge">{fmtHMS(liveInfo.remaining / 1000)}</div>
+            </div>
+            <div className="pbrow">
+              <div>
+                <div className="plbl">{liveInfo.phase === "pit" ? "Pit Çıkışı" : "Sıradaki Pit"}</div>
+                <div className={`mid mono ${pitSoon ? "pulse" : ""}`}
+                  style={{ color: pitSoon ? "var(--yellow)" : "var(--txt)" }}>
+                  {fmtHMS(liveInfo.nextPitIn / 1000)}</div>
+              </div>
+              <div>
+                <div className="plbl">Stint</div>
+                <div className="mid">{liveInfo.stintIdx + 1} / {racePlan.fullStints}</div>
+              </div>
+              {upcomingIsLast && (
+                <div>
+                  <div className="plbl">Son Pit Yakıtı</div>
+                  <div className="mid" style={{ color: "var(--green)" }}>
+                    {lsf.refuel.toFixed(1)} L</div>
+                </div>
+              )}
+            </div>
+            {(liveInfo.driver || liveInfo.nextDriver) && (
+              <div>
+                <div className="plbl">Pilot Değişimi</div>
+                <div className="mid">
+                  {liveInfo.driver || "?"} <span style={{ color: "var(--teal)" }}>→</span>{" "}
+                  {liveInfo.nextDriver || "?"}
+                </div>
+              </div>
+            )}
+            {upcomingPit && !racePlan.rows[liveInfo.stintIdx]?.isLast && (
+              <div className="plbl">
+                Sıradaki pit: {upcomingPit.fuel ? "FUEL " : ""}{upcomingPit.lane ? "· LANE " : ""}
+                {upcomingPit.tyres.some(Boolean) &&
+                  <>· 🛞 {TY.filter((_, i) => upcomingPit.tyres[i]).join(" ")}</>}
+              </div>
+            )}
+          </>)}
+        </div>
+      )}
+
+      <div className={`grid ${role === "viewer" && room ? "viewonly" : ""}`}>
+        {/* ================= SOL: DATA ================= */}
+        <div>
+          <div className="card">
+            <h2>Yarış · Data</h2>
+            <div className="row2">
+              <div><label>Race Time (h:mm:ss)</label>
+                <input type="text" value={st.raceTime} onChange={(e) => up({ raceTime: e.target.value })} /></div>
+              <div><label>Avg Lap (m:ss.00)</label>
+                <input type="text" value={st.avgLap} onChange={(e) => up({ avgLap: e.target.value })} /></div>
+            </div>
+            <label>Stint Turları — A / B / C / D</label>
+            <div className="row4">
+              {["A", "B", "C", "D"].map((k) => (
+                <Num key={k} v={st.strategies[k]} step={1}
+                  onC={(v) => up({ strategies: { ...st.strategies, [k]: v } })} />
+              ))}
+            </div>
+            <label>Seçili Strateji</label>
+            <div className="strat">
+              {["A", "B", "C", "D"].map((k) => (
+                <button key={k} className={st.chosen === k ? "on" : ""}
+                  onClick={() => up({ chosen: k })}>{k} · {st.strategies[k]}</button>
+              ))}
+            </div>
+            <div className="row2">
+              <div><label>Traffic Error Rate</label>
+                <Num v={st.trafficRate} onC={(v) => up({ trafficRate: v })} /></div>
+              <div><label>Extra Lap</label>
+                <Num v={st.extraLap} step={1} onC={(v) => up({ extraLap: v })} /></div>
+            </div>
+          </div>
+
+          <div className="card" style={{ marginTop: 12 }}>
+            <h2>Pit · Süreler (s)</h2>
+            <div className="row2">
+              <div><label>Pit Line</label><Num v={st.pitLaneTime} onC={(v) => up({ pitLaneTime: v })} /></div>
+              <div><label>Fuel</label><Num v={st.fuelTime} onC={(v) => up({ fuelTime: v })} /></div>
+            </div>
+            <div className="row2">
+              <div><label>Tyre (adet başı)</label><Num v={st.tyreTime} onC={(v) => up({ tyreTime: v })} /></div>
+              <div><label>Hesaplanan Fuel Süresi</label>
+                <div className="mono" style={{ padding: "6px 0" }}>{fuelTimeCalc.toFixed(1)} s</div></div>
+            </div>
+            <div className="hint">Fuel süresi ipucu = depo / dolum hızı ({st.fuelTank}L / {st.refuelSpeed} L/s). CODE80'de lastik süresi otomatik ÷4 uygulanır.</div>
+          </div>
+
+          <div className="card" style={{ marginTop: 12 }}>
+            <h2>Yakıt · Data</h2>
+            <div className="row2">
+              <div><label>Tüketim (L/tur)</label><Num v={st.consumption} onC={(v) => up({ consumption: v })} /></div>
+              <div><label>Virtual Tüketim</label><Num v={st.vConsumption} onC={(v) => up({ vConsumption: v })} /></div>
+            </div>
+            <div className="row2">
+              <div><label>Depo (L)</label><Num v={st.fuelTank} onC={(v) => up({ fuelTank: v })} /></div>
+              <div><label>Dolum (L/s)</label><Num v={st.refuelSpeed} onC={(v) => up({ refuelSpeed: v })} /></div>
+            </div>
+            <div className="row2">
+              <div><label>Fuel Ratio</label><Num v={st.fuelRatio} onC={(v) => up({ fuelRatio: v })} /></div>
+            </div>
+          </div>
+        </div>
+
+        {/* ================= SAĞ: SEKMELER ================= */}
+        <div>
+          <div className="tabs">
+            {[["dash", "Dashboard"], ["stint", "Stint"], ["code80", "Code 80"],
+              ["fuel", "Son Stint Yakıtı"], ["tyre", "Lastik"], ["drivers", "Pilotlar"],
+              ["tele", "Telemetri"]].map(([k, l]) => (
+              <button key={k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{l}</button>
+            ))}
+          </div>
+
+          {(tab === "stint" || tab === "code80") && (
+            <div className="card">
+              <div className="kpis">
+                <div className="kpi"><div className="v mono">{fmtHMS(plan.raceSec)}</div>
+                  <div className="l">{tab === "code80" ? "Code 80 Kalan" : "Yarış Süresi"}</div></div>
+                <div className="kpi"><div className="v" style={{ color: "var(--teal)" }}>{st.chosen}-{plan.laps}</div>
+                  <div className="l">Strateji</div></div>
+                <div className="kpi"><div className="v">{plan.fullStints}</div>
+                  <div className="l">Stint Sayısı</div></div>
+                <div className="kpi"><div className="v">{plan.totalLaps.toFixed(1)}</div>
+                  <div className="l">Tahmini Toplam Tur</div></div>
+                <div className="kpi"><div className="v" style={{ color: "var(--green)" }}>{totalFuel.toFixed(1)} L</div>
+                  <div className="l">Toplam Yarış Yakıtı</div></div>
+              </div>
+
+              <div className="timeline" role="img" aria-label="Stint zaman çizelgesi">
+                {timeline.map((s, i) => (
+                  <div key={i} className={`seg ${s.cls}`}
+                    style={{ width: `${s.w}%`, background: s.cls ? undefined : s.bg }}>
+                    {s.label && s.w > 4 && <span>{s.label}</span>}
+                  </div>
+                ))}
+                {liveInfo.status === "live" && mode === "race" && (
+                  <div className="nowline" style={{
+                    left: `${Math.min(100, (liveInfo.elapsed / liveInfo.raceMs) * 100)}%` }} />
+                )}
+              </div>
+
+              <table>
+                <thead><tr>
+                  <th>#</th><th>Stint</th><th>Tur</th><th>Yakıt İht.</th>
+                  <th>Pit Ayarı</th><th>Pit</th><th>End Stint</th><th>Time Left</th>
+                  <th>Override</th>
+                </tr></thead>
+                <tbody>
+                  {plan.rows.map((r, i) => (
+                    <tr key={i} className={[
+                      r.isLast ? "last" : "",
+                      liveInfo.status === "live" && mode === "race" && i === liveInfo.stintIdx
+                        ? (pitSoon ? "live pitsoon" : "live") : "",
+                    ].join(" ").trim()}>
+                      <td className="disp" style={{ fontSize: 15 }}>{r.idx}</td>
+                      <td>{fmtHMS(r.stintSec)}</td>
+                      <td>{r.lapsInStint}</td>
+                      <td className={r.fuelNeed > st.fuelTank ? "neg" : ""}>{r.fuelNeed.toFixed(1)} L</td>
+                      <td>
+                        {r.isLast ? <span className="chip">FINISH 🏁</span> : (<>
+                          <span className="tyrebox">
+                            {TY.map((t, ti) => (
+                              <button key={t} className={st.pits[i].tyres[ti] ? "on" : ""}
+                                onClick={() => upTyre(i, ti)}>{t}</button>
+                            ))}
+                          </span>
+                          <span className="pitopt">
+                            <button className={st.pits[i].fuel ? "on" : ""}
+                              onClick={() => upPit(i, { fuel: !st.pits[i].fuel })}>FUEL</button>
+                            <button className={st.pits[i].lane ? "on" : ""}
+                              onClick={() => upPit(i, { lane: !st.pits[i].lane })}>LANE</button>
+                          </span>
+                        </>)}
+                      </td>
+                      <td>{r.isLast ? "—" : fmtHMS(r.pitSec)}</td>
+                      <td>{fmtHMS(r.endSec)}</td>
+                      <td className={r.timeLeft < 0 ? "neg" : "pos"}>{fmtHMS(r.timeLeft)}</td>
+                      <td><input className="ovr" type="text" placeholder="h:mm:ss"
+                        value={st.overrides[i]} onChange={(e) => upOvr(i, e.target.value)} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="hint">
+                Pit süresi = FUEL({st.fuelTime}s) + LANE({st.pitLaneTime}s) + lastik ×
+                {tab === "code80" ? ` ${(st.tyreTime / 4).toFixed(2)}s (Code 80: ÷4)` : ` ${st.tyreTime}s`}.
+                Son stintte pit hesaplanmaz. Override girilirse stint süresi manuel değere kilitlenir.
+              </div>
+            </div>
+          )}
+
+          {tab === "dash" && (
+            <div className="dgrid">
+              <div className="card">
+                <h2>⏱ Yarış</h2>
+                <div className="kpis" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                  <div className="kpi"><div className="v mono" style={{ color: "var(--green)" }}>
+                    {liveInfo.status === "live" ? fmtHMS(liveInfo.remaining / 1000)
+                      : fmtHMS(racePlan.raceSec)}</div>
+                    <div className="l">{liveInfo.status === "live" ? "Kalan" : "Yarış Süresi"}</div></div>
+                  <div className="kpi"><div className="v" style={{ color: "var(--teal)" }}>
+                    {st.chosen}-{racePlan.laps}</div><div className="l">Strateji</div></div>
+                  <div className="kpi"><div className="v">{racePlan.fullStints}</div>
+                    <div className="l">Stint</div></div>
+                  <div className="kpi"><div className="v">{racePlan.totalLaps.toFixed(0)}</div>
+                    <div className="l">Tahmini Tur</div></div>
+                </div>
+                {liveInfo.status === "live" && (
+                  <div className="hint">
+                    Şu an: Stint {liveInfo.stintIdx + 1}
+                    {liveInfo.phase === "pit" ? " (PIT'te)" : ""} ·
+                    sıradaki pit <b className={pitSoon ? "pulse" : "mono"}>
+                      {fmtHMS(liveInfo.nextPitIn / 1000)}</b>
+                    {liveInfo.driver && <> · 🏎 {liveInfo.driver}</>}
+                  </div>
+                )}
+              </div>
+
+              <div className="card">
+                <h2>📋 Stint Programı</h2>
+                <table>
+                  <thead><tr><th>#</th><th>End</th><th>Left</th><th>Pilot</th></tr></thead>
+                  <tbody>
+                    {racePlan.rows.map((r, i) => (
+                      <tr key={i} className={[
+                        r.isLast ? "last" : "",
+                        liveInfo.status === "live" && i === liveInfo.stintIdx ? "live" : "",
+                      ].join(" ").trim()}>
+                        <td>{r.idx}</td>
+                        <td>{fmtHMS(r.endSec)}</td>
+                        <td className={r.timeLeft < 0 ? "neg" : "pos"}>{fmtHMS(r.timeLeft)}</td>
+                        <td>{st.driverAssign[i] || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="card">
+                <h2>🛞 Lastik</h2>
+                <div className="kpis" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                  <div className="kpi"><div className="v">{tyreInfo.used}/{st.tyreLimit}</div>
+                    <div className="l">Kullanılan</div></div>
+                  <div className="kpi"><div className="v"
+                    style={{ color: tyreInfo.available < 0 ? "var(--red)" : "var(--green)" }}>
+                    {tyreInfo.available}</div><div className="l">Kalan Set</div></div>
+                </div>
+                {liveInfo.status === "live" && st.tyreStints[liveInfo.stintIdx + 1] && (
+                  <div className="hint">Sıradaki stint setleri:{" "}
+                    <b className="mono">
+                      {st.tyreStints[liveInfo.stintIdx + 1].map((v) => v || "–").join(" / ")}
+                    </b></div>
+                )}
+                {tyreInfo.conflicts.length > 0 &&
+                  <div className="hint" style={{ color: "var(--red)" }}>
+                    ⚠ Köşe ihlali: set {tyreInfo.conflicts.join(", ")}</div>}
+              </div>
+
+              <div className="card">
+                <h2>⛽ Son Stint Yakıtı</h2>
+                <div className="fuelbig" style={{ fontSize: 40 }}>{lsf.refuel.toFixed(1)} L</div>
+                <div className="hint">
+                  {lsf.lapsLeft.toFixed(2)} tur + extra {st.extraLap} · dolum ≈ {lsf.refuelSec.toFixed(0)}s
+                </div>
+                {driverPlan && Object.keys(driverPlan.totals).length > 0 && (<>
+                  <label style={{ marginTop: 10 }}>Pilot Dağılımı</label>
+                  {st.roster.filter((n) => driverPlan.totals[n]).map((n) => {
+                    const t = driverPlan.totals[n];
+                    const pct = driverPlan.grandMs ? (t.ms / driverPlan.grandMs) * 100 : 0;
+                    return (
+                      <div key={n} style={{ marginBottom: 4 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                          <span>{n}</span><span className="mono">{pct.toFixed(1)}%</span>
+                        </div>
+                        <div style={{ height: 5, background: "var(--panel2)", borderRadius: 3 }}>
+                          <div style={{ width: `${pct}%`, height: "100%",
+                            background: "var(--teal)", borderRadius: 3 }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </>)}
+              </div>
+            </div>
+          )}
+
+          {tab === "tyre" && (
+            <div className="card">
+              <h2>Lastik Stratejisi</h2>
+              <div className="kpis">
+                <div className="kpi">
+                  <label style={{ margin: 0 }}>Lastik Limiti</label>
+                  <Num v={st.tyreLimit} step={1} onC={(v) => up({ tyreLimit: v })} />
+                </div>
+                <div className="kpi"><div className="v">{tyreInfo.used}</div>
+                  <div className="l">Kullanılan Set</div></div>
+                <div className="kpi"><div className="v"
+                  style={{ color: tyreInfo.available < 0 ? "var(--red)" : "var(--green)" }}>
+                  {tyreInfo.available}</div>
+                  <div className="l">Kalan Set</div></div>
+                <div className="kpi"><div className="v">{racePlan.fullStints}</div>
+                  <div className="l">Stint Sayısı</div></div>
+              </div>
+              <table>
+                <thead><tr><th>Stint</th><th>FL</th><th>FR</th><th>RL</th><th>RR</th></tr></thead>
+                <tbody>
+                  {tyreInfo.rows.map((r) => (
+                    <tr key={r.label}>
+                      <td className="disp" style={{ fontSize: 14 }}>{r.label}</td>
+                      {r.vals.map((v, ci) => (
+                        <td key={ci} className={tyreInfo.cellCls(v)}>
+                          <select className="tsel" value={String(v)}
+                            onChange={(e) => upTyreCell(r.row, ci, e.target.value)}>
+                            <option value="">—</option>
+                            {Array.from({ length: Math.max(0, st.tyreLimit) }, (_, n) => {
+                              const k = String(n + 1);
+                              const cur = String(v).trim() === k;
+                              if (!cur && !tyreInfo.allowedIn(k, ci)) return null; // köşe kilidi
+                              const c = tyreInfo.counts[k] || 0;
+                              const cls = tyreInfo.cellCls(k);
+                              const OPT = {
+                                t2:   { bg: "#8A6E1A", fg: "#FFE9A8", dot: "🟡" },
+                                tq:   { bg: "#2B4A8F", fg: "#CFE0FF", dot: "🔵" },
+                                t3:   { bg: "#7A2A20", fg: "#FFC9C0", dot: "🔴" },
+                                t4:   { bg: "#000000", fg: "#F0604D", dot: "⚫" },
+                                terr: { bg: "#7A2A20", fg: "#FFC9C0", dot: "⚠️" },
+                              }[cls];
+                              return <option key={k} value={k}
+                                style={OPT ? { background: OPT.bg, color: OPT.fg } : {}}>
+                                {OPT ? `${OPT.dot} ` : ""}{k}{c > 0 ? ` · ${c}x` : ""}
+                              </option>;
+                            })}
+                          </select>
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="legend">
+                <span><i style={{ background: "var(--panel2)" }} />Yeni (1 kez)</span>
+                <span><i style={{ background: "rgba(242,201,76,.5)" }} />2 kez (duplicate)</span>
+                <span><i style={{ background: "rgba(102,148,255,.5)" }} />Qual lastiği tekrar</span>
+                <span><i style={{ background: "rgba(240,96,77,.5)" }} />3 kez</span>
+                <span><i style={{ background: "#000" }} />4+ kez</span>
+              </div>
+              {tyreInfo.conflicts.length > 0 &&
+                <div className="hint" style={{ color: "var(--red)" }}>
+                  ⚠ Köşe kuralı ihlali — set {tyreInfo.conflicts.join(", ")} birden fazla
+                  köşede kullanılmış. Bir set ilk takıldığı köşeye kilitlenir; hatalı hücreyi düzelt.
+                </div>}
+              <div style={{ marginTop: 12 }}>
+                <button className="act danger" onClick={clearTyres}>Tüm Setleri Temizle</button>
+              </div>
+              <div className="hint">Bir set numarası ilk kullanıldığı köşeye (FL/FR/RL/RR) kilitlenir ve diğer köşelerin menülerinden otomatik kalkar. Aynı set aynı köşede tekrar kullanılırsa hücre kullanım sayısına göre renklenir.</div>
+            </div>
+          )}
+
+          {tab === "drivers" && (
+            <div className="card">
+              <h2>Pilotlar</h2>
+              <div className="row2" style={{ maxWidth: 420 }}>
+                <div>
+                  <label>Yarış Başlangıcı</label>
+                  <input type="datetime-local" value={st.raceStart}
+                    onChange={(e) => up({ raceStart: e.target.value })} />
+                </div>
+                <div>
+                  <label>Yarış Bitişi</label>
+                  <div className="mono" style={{ padding: "6px 0" }}>
+                    {driverPlan ? fmtClock(driverPlan.finishMs, driverPlan.startMs) : "—"}
+                  </div>
+                </div>
+              </div>
+
+              <label>Pilot Kadrosu</label>
+              <div style={{ marginBottom: 4 }}>
+                {st.roster.map((n) => (
+                  <span className="rchip" key={n}>{n}
+                    <b onClick={() => removeDriver(n)} title="Kadrodan çıkar">×</b></span>
+                ))}
+                {st.roster.length === 0 &&
+                  <span className="hint">Henüz pilot yok — aşağıdan ekle.</span>}
+              </div>
+              <div style={{ display: "flex", gap: 8, maxWidth: 340, marginBottom: 14 }}>
+                <input type="text" placeholder="Pilot adı" value={newDriver}
+                  onChange={(e) => setNewDriver(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && addDriver()} />
+                <button className="act" onClick={addDriver}>Ekle</button>
+              </div>
+
+              {driverPlan && (<>
+                <table>
+                  <thead><tr>
+                    <th>#</th><th>Start</th><th>Finish</th><th>Süre</th><th>Pilot</th>
+                  </tr></thead>
+                  <tbody>
+                    {driverPlan.rows.map((r, i) => (
+                      <tr key={i} style={r.dur === 0 ? { opacity: .45 } : {}}>
+                        <td className="disp" style={{ fontSize: 15 }}>{r.idx}</td>
+                        <td>{fmtClock(r.start, driverPlan.startMs)}</td>
+                        <td>{fmtClock(r.finish, driverPlan.startMs)}</td>
+                        <td>{fmtHMS(r.dur / 1000)}</td>
+                        <td>
+                          <select value={st.driverAssign[i] || ""}
+                            onChange={(e) => assignDriver(i, e.target.value)}>
+                            <option value="">— seç —</option>
+                            {st.roster.map((n) => <option key={n} value={n}>{n}</option>)}
+                          </select>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {Object.keys(driverPlan.totals).length > 0 && (
+                  <table style={{ marginTop: 16, maxWidth: 480 }}>
+                    <thead><tr><th>Pilot</th><th>Stint</th><th>Toplam Süre</th><th>%</th></tr></thead>
+                    <tbody>
+                      {st.roster.filter((n) => driverPlan.totals[n]).map((n) => {
+                        const t = driverPlan.totals[n];
+                        return (
+                          <tr key={n}>
+                            <td>{n}</td><td>{t.stints}</td>
+                            <td>{fmtHMS(t.ms / 1000)}</td>
+                            <td className="pos">
+                              {driverPlan.grandMs ? ((t.ms / driverPlan.grandMs) * 100).toFixed(1) : "0"}%
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+                <div style={{ marginTop: 12 }}>
+                  <button className="act danger" onClick={clearAssign}>Atamaları Temizle</button>
+                </div>
+                <div className="hint">Start/Finish zamanları stint planından otomatik zincirlenir (pit süreleri dahil). Yarış bitişini aşan kısım süreye sayılmaz; tamamen yarış dışı kalan stintler soluk görünür.</div>
+              </>)}
+              {!driverPlan && <div className="hint warn">Geçerli bir yarış başlangıç zamanı gir.</div>}
+            </div>
+          )}
+
+          {tab === "tele" && (
+            <div>
+              <div className="card">
+                <h2>Telemetri İçe Aktar (MoTeC)</h2>
+                <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                  {["A", "B", "C", "D"].map((sl) => (
+                    <button key={sl} className="act"
+                      style={slot === sl
+                        ? { borderColor: SLOT_COLORS[sl], color: SLOT_COLORS[sl], fontWeight: 700 }
+                        : {}}
+                      onClick={() => setSlot(sl)}>
+                      Stint {sl}{st.telemetry[sl] ? " ●" : ""}
+                    </button>
+                  ))}
+                </div>
+                <label>MoTeC tur istatistiklerini yapıştır veya dosya seç (CSV/TSV)</label>
+                <textarea value={rawTele}
+                  onChange={(e) => { setRawTele(e.target.value); doParse(e.target.value); }}
+                  placeholder={"Out Lap\t310127\t-6.403 ...\nLap 1\t237350\t-6.36 ..."}
+                  style={{ width: "100%", height: 90, background: "var(--panel2)",
+                    border: "1px solid var(--line)", borderRadius: 6, color: "var(--txt)",
+                    fontFamily: "IBM Plex Mono", fontSize: 11, padding: 8 }} />
+                <div style={{ margin: "6px 0" }}>
+                  <input type="file" accept=".csv,.tsv,.txt" onChange={onTeleFile} />
+                </div>
+                {parsed?.error && <div className="hint warn">⚠ {parsed.error}</div>}
+                {parsed && !parsed.error && mapping && (<>
+                  <div className="hint">
+                    {parsed.lapRows.length} tur satırı bulundu. Sütun eşleşmesini kontrol et:
+                  </div>
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", margin: "6px 0" }}>
+                    {[["Tur Süresi", "timeCol"], ["Yakıt Δ", "fuelCol"]].map(([lbl, key]) => (
+                      <div key={key}>
+                        <label style={{ margin: 0 }}>{lbl}</label>
+                        <select value={mapping[key]}
+                          onChange={(e) => setMapping({ ...mapping, [key]: +e.target.value })}>
+                          <option value={-1}>—</option>
+                          {parsed.headers.map((h, i) =>
+                            <option key={i} value={i}>{i}: {h || "(başlıksız)"}</option>)}
+                        </select>
+                      </div>
+                    ))}
+                    {["FL", "FR", "RL", "RR"].map((c, ci) => (
+                      <div key={c}>
+                        <label style={{ margin: 0 }}>Aşınma {c}</label>
+                        <select value={mapping.wear[ci]}
+                          onChange={(e) => {
+                            const wear = [...mapping.wear]; wear[ci] = +e.target.value;
+                            setMapping({ ...mapping, wear });
+                          }}>
+                          <option value={-1}>—</option>
+                          {parsed.headers.map((h, i) =>
+                            <option key={i} value={i}>{i}: {h || "(başlıksız)"}</option>)}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                  <button className="act" style={{ borderColor: SLOT_COLORS[slot],
+                    color: SLOT_COLORS[slot] }} onClick={saveSlot}
+                    disabled={mapping.timeCol < 0}>
+                    Stint {slot} olarak kaydet
+                  </button>
+                  {mapping.timeCol < 0 &&
+                    <span className="hint warn" style={{ marginLeft: 8 }}>Tur süresi sütunu seçilmeli</span>}
+                </>)}
+              </div>
+
+              {loadedSlots.length > 0 && (
+                <div className="card" style={{ marginTop: 12 }}>
+                  <h2>Stint Analizi</h2>
+                  <div className="kpis">
+                    {loadedSlots.map((sl) => {
+                      const s = slotStats[sl];
+                      if (!s || s.empty) return null;
+                      return (
+                        <div className="kpi" key={sl} style={{ borderColor: SLOT_COLORS[sl] }}>
+                          <div className="v" style={{ color: SLOT_COLORS[sl], fontSize: 19 }}>
+                            {fmtMs(s.avgMs)}</div>
+                          <div className="l">Stint {sl} ort. tur · {s.laps} tur</div>
+                          <div className="hint" style={{ marginTop: 4 }}>
+                            {s.avgFuel != null && <>⛽ {s.avgFuel.toFixed(2)} L/tur
+                              {s.tankLaps && <> · depo ≈ {Math.floor(s.tankLaps)} tur</>}<br /></>}
+                            {s.avgW.some((w) => w != null) &&
+                              <>🛞 {s.avgW.map((w) => w == null ? "–" : w.toFixed(1)).join(" / ")} %/tur</>}
+                          </div>
+                          <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                            <button className="act" style={{ fontSize: 11 }}
+                              onClick={() => up({
+                                avgLap: fmtMs(s.avgMs),
+                                ...(s.avgFuel != null
+                                  ? { consumption: +s.avgFuel.toFixed(2),
+                                      vConsumption: +s.avgFuel.toFixed(2) } : {}),
+                              })}>DATA'ya uygula</button>
+                            <button className="act danger" style={{ fontSize: 11 }}
+                              onClick={() => removeSlot(sl)}>Sil</button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div style={{ height: 260 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={chartData}>
+                        <CartesianGrid stroke="#2B3542" strokeDasharray="3 3" />
+                        <XAxis dataKey="lap" stroke="#8C97A5" fontSize={11} />
+                        <YAxis stroke="#8C97A5" fontSize={11} domain={["auto", "auto"]}
+                          tickFormatter={(v) => fmtLap(v)} width={70} />
+                        <Tooltip contentStyle={{ background: "#1F2731", border: "1px solid #2B3542" }}
+                          labelFormatter={(l) => `Tur ${l}`}
+                          formatter={(v, n) => [fmtLap(v), `Stint ${n}`]} />
+                        <Legend formatter={(v) => `Stint ${v}`} />
+                        {loadedSlots.map((sl) => (
+                          <Line key={sl} dataKey={sl} stroke={SLOT_COLORS[sl]}
+                            dot={false} strokeWidth={2} connectNulls />
+                        ))}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {loadedSlots.length > 1 && baseSlot && slotStats[baseSlot] && !slotStats[baseSlot].empty && (
+                    <table style={{ maxWidth: 460, marginTop: 10 }}>
+                      <thead><tr><th>Karşılaştırma</th><th>Ort. Fark</th><th>Hızlı Olan</th></tr></thead>
+                      <tbody>
+                        {loadedSlots.slice(1).map((sl) => {
+                          const a = slotStats[baseSlot], b = slotStats[sl];
+                          if (!b || b.empty) return null;
+                          const d = (a.avgMs - b.avgMs) / 1000; // + ise rakip hızlı
+                          return (
+                            <tr key={sl}>
+                              <td>Stint {baseSlot} vs Stint {sl}</td>
+                              <td className={d > 0 ? "neg" : "pos"}>{Math.abs(d).toFixed(3)}s/tur</td>
+                              <td style={{ color: SLOT_COLORS[d > 0 ? sl : baseSlot] }}>
+                                Stint {d > 0 ? sl : baseSlot}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+
+                  {loadedSlots.map((sl) => (
+                    <details key={sl} style={{ marginTop: 10 }}>
+                      <summary style={{ cursor: "pointer", color: SLOT_COLORS[sl] }}>
+                        Stint {sl} — tur listesi ({st.telemetry[sl].laps.length})</summary>
+                      <table style={{ maxWidth: 560 }}>
+                        <thead><tr>
+                          <th>Dahil</th><th>Tur</th><th>Süre</th><th>Yakıt</th><th>FL/FR/RL/RR</th>
+                        </tr></thead>
+                        <tbody>
+                          {st.telemetry[sl].laps.map((l, li) => (
+                            <tr key={li} style={l.use ? {} : { opacity: .4 }}>
+                              <td><input type="checkbox" checked={l.use}
+                                onChange={() => toggleLap(sl, li)} /></td>
+                              <td>{l.label}</td>
+                              <td>{fmtMs(l.ms)}</td>
+                              <td>{l.fuel != null ? l.fuel.toFixed(2) : "–"}</td>
+                              <td>{l.w.map((w) => w == null ? "–" : w.toFixed(1)).join(" / ")}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </details>
+                  ))}
+                  <div className="hint">Out lap ve dolum turları (yakıt Δ pozitif) otomatik hariç tutulur — Dahil kutusuyla elle değiştirebilirsin. Ortalamalar sadece dahil turlardan hesaplanır.</div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {tab === "fuel" && (
+            <div className="row2" style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 1fr" }}>
+              {[
+                ["YARIŞ SONU", st.lastStintCountdown, (v) => up({ lastStintCountdown: v }), lsf],
+                ["CODE 80 SONU", st.code80LastStint, (v) => up({ code80LastStint: v }), lsf80],
+              ].map(([title, val, setVal, r]) => (
+                <div className="card" key={title}>
+                  <h2>Son Stint Yakıtı · {title}</h2>
+                  <label>Session Countdown (h:mm:ss)</label>
+                  <input type="text" value={val} onChange={(e) => setVal(e.target.value)} />
+                  <div className="kpis" style={{ marginTop: 12 }}>
+                    <div className="kpi"><div className="v mono">{r.lapsLeft.toFixed(2)}</div>
+                      <div className="l">Kalan Tur</div></div>
+                    <div className="kpi"><div className="v mono">{r.refuelSec.toFixed(0)}s</div>
+                      <div className="l">Dolum Süresi</div></div>
+                  </div>
+                  <div className="fuelbig">{r.refuel.toFixed(1)} L</div>
+                  <div className="hint">
+                    (kalan tur {r.lapsLeft.toFixed(2)} + extra {st.extraLap}) × {st.consumption} L/tur
+                    {st.vConsumption !== st.consumption &&
+                      <> · vFuel: <b className="warn">{r.vRefuel.toFixed(1)} L</b></>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
