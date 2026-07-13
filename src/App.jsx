@@ -59,11 +59,12 @@ const DEFAULT_STATE = {
   pitLaneTime: 22,
   fuelTime: 43,
   tyreTime: 13,
-  fuelTank: 100,
-  refuelSpeed: 2.33,
-  fuelRatio: 0.86,
-  consumption: 8.97,
-  vConsumption: 8.97,
+  // --- Virtual Energy sistemi (LMU) ---
+  // Depo her zaman %100 VE'dir. Gerçek yakıt = VE% × fuelRatio.
+  // Örn: ratio 0.84 → %100 = 84.0 L taşınan yakıt.
+  refuelSpeed: 2.33,   // %/s — dolum hızı
+  fuelRatio: 0.86,     // L / %1 — gerçek yakıt karşılığı
+  consumption: 8.97,   // %/tur — virtual energy tüketimi
   extraLap: 1,
   lastStintCountdown: "0:08:10",
   code80TimeLeft: "1:48:30",
@@ -191,9 +192,9 @@ function lastStintFuel(countdownStr, st) {
   const lapSec = parseLap(st.avgLap);
   const cd = parseHMS(countdownStr);
   const lapsLeft = lapSec > 0 ? cd / lapSec : 0;
-  const refuel = (lapsLeft + st.extraLap) * st.consumption;
-  const vRefuel = (lapsLeft + st.extraLap) * st.vConsumption;
-  return { lapsLeft, refuel, vRefuel, refuelSec: refuel / st.refuelSpeed };
+  const refuel = (lapsLeft + st.extraLap) * st.consumption;   // % VE
+  const refuelL = refuel * st.fuelRatio;                      // gerçek litre
+  return { lapsLeft, refuel, refuelL, refuelSec: refuel / st.refuelSpeed };
 }
 
 /* ---------- UI parçaları ---------- */
@@ -477,8 +478,11 @@ export default function App() {
   const racePlan = useMemo(() => computePlan(st, "race"), [st]);
   const lsf = useMemo(() => lastStintFuel(st.lastStintCountdown, st), [st]);
   const lsf80 = useMemo(() => lastStintFuel(st.code80LastStint, st), [st]);
-  const totalFuel = st.consumption * plan.totalLaps + st.extraLap * st.consumption; // DATA I2
-  const fuelTimeCalc = st.fuelTank / st.refuelSpeed; // DATA H19
+  const totalVE = st.consumption * plan.totalLaps + st.extraLap * st.consumption; // % VE (DATA I2)
+  const totalFuelL = totalVE * st.fuelRatio;            // gerçek litre karşılığı
+  const fuelCarried = 100 * st.fuelRatio;               // %100 = taşınan yakıt (L)
+  const realPerLap = st.consumption * st.fuelRatio;     // gerçek tüketim L/tur
+  const fuelTimeCalc = 100 / st.refuelSpeed;            // boş→dolu süresi (DATA H19)
   const TY = ["FL", "FR", "RL", "RR"];
 
   /* ---------- Faz 3: lastik stratejisi ---------- */
@@ -646,11 +650,11 @@ export default function App() {
       out[sl] = {
         laps: used.length, totalMs: used.reduce((a, l) => a + l.ms, 0),
         avgMs, avgFuel, avgW,
-        tankLaps: avgFuel ? st.fuelTank / avgFuel : null,
+        tankLaps: avgFuel ? 100 / avgFuel : null, // %100 VE ile atılabilecek tur
       };
     }
     return out;
-  }, [st.telemetry, st.fuelTank]);
+  }, [st.telemetry]);
 
   const chartData = useMemo(() => {
     const maxLap = Math.max(0, ...["A", "B", "C", "D"]
@@ -720,7 +724,7 @@ export default function App() {
       <style>{css}</style>
       <header>
         <h1 className="disp"><b>CASPIAN</b> RACE CONTROL</h1>
-        <span className="ver">canlı yarış modu · v0.5</span>
+        <span className="ver">virtual energy · v0.6</span>
       </header>
 
       <div className="teambar">
@@ -819,9 +823,9 @@ export default function App() {
               </div>
               {upcomingIsLast && (
                 <div>
-                  <div className="plbl">Son Pit Yakıtı</div>
+                  <div className="plbl">Son Pit VE</div>
                   <div className="mid" style={{ color: "var(--green)" }}>
-                    {lsf.refuel.toFixed(1)} L</div>
+                    {lsf.refuel.toFixed(1)}%</div>
                 </div>
               )}
             </div>
@@ -889,21 +893,25 @@ export default function App() {
               <div><label>Hesaplanan Fuel Süresi</label>
                 <div className="mono" style={{ padding: "6px 0" }}>{fuelTimeCalc.toFixed(1)} s</div></div>
             </div>
-            <div className="hint">Fuel süresi ipucu = depo / dolum hızı ({st.fuelTank}L / {st.refuelSpeed} L/s). CODE80'de lastik süresi otomatik ÷4 uygulanır.</div>
+            <div className="hint">Fuel süresi ipucu = %100 VE / dolum hızı (100% / {st.refuelSpeed} %/s). CODE80'de lastik süresi otomatik ÷4 uygulanır.</div>
           </div>
 
           <div className="card" style={{ marginTop: 12 }}>
-            <h2>Yakıt · Data</h2>
+            <h2>Virtual Energy · Data</h2>
             <div className="row2">
-              <div><label>Tüketim (L/tur)</label><Num v={st.consumption} onC={(v) => up({ consumption: v })} /></div>
-              <div><label>Virtual Tüketim</label><Num v={st.vConsumption} onC={(v) => up({ vConsumption: v })} /></div>
+              <div><label>VE Tüketim (%/tur)</label><Num v={st.consumption} onC={(v) => up({ consumption: v })} /></div>
+              <div><label>Fuel Ratio (L / %1)</label><Num v={st.fuelRatio} onC={(v) => up({ fuelRatio: v })} /></div>
             </div>
             <div className="row2">
-              <div><label>Depo (L)</label><Num v={st.fuelTank} onC={(v) => up({ fuelTank: v })} /></div>
-              <div><label>Dolum (L/s)</label><Num v={st.refuelSpeed} onC={(v) => up({ refuelSpeed: v })} /></div>
+              <div><label>Dolum Hızı (%/s)</label><Num v={st.refuelSpeed} onC={(v) => up({ refuelSpeed: v })} /></div>
+              <div><label>%100 = Taşınan Yakıt</label>
+                <div className="mono" style={{ padding: "6px 0", color: "var(--green)" }}>
+                  {fuelCarried.toFixed(1)} L</div></div>
             </div>
-            <div className="row2">
-              <div><label>Fuel Ratio</label><Num v={st.fuelRatio} onC={(v) => up({ fuelRatio: v })} /></div>
+            <div className="hint">
+              Depo daima <b>%100 VE</b> kabul edilir. Gerçek yakıt = VE × ratio
+              → gerçek tüketim ≈ <b className="mono">{realPerLap.toFixed(2)} L/tur</b>.
+              Ratio'yu düşürmek daha az yakıt taşımak demektir (örn. 0.84 → %100 = 84.0 L).
             </div>
           </div>
         </div>
@@ -929,8 +937,8 @@ export default function App() {
                   <div className="l">Stint Sayısı</div></div>
                 <div className="kpi"><div className="v">{plan.totalLaps.toFixed(1)}</div>
                   <div className="l">Tahmini Toplam Tur</div></div>
-                <div className="kpi"><div className="v" style={{ color: "var(--green)" }}>{totalFuel.toFixed(1)} L</div>
-                  <div className="l">Toplam Yarış Yakıtı</div></div>
+                <div className="kpi"><div className="v" style={{ color: "var(--green)" }}>{totalVE.toFixed(0)}%</div>
+                  <div className="l">Toplam VE · {totalFuelL.toFixed(1)} L yakıt</div></div>
               </div>
 
               <div className="timeline" role="img" aria-label="Stint zaman çizelgesi">
@@ -948,7 +956,7 @@ export default function App() {
 
               <table>
                 <thead><tr>
-                  <th>#</th><th>Stint</th><th>Tur</th><th>Yakıt İht.</th>
+                  <th>#</th><th>Stint</th><th>Tur</th><th>VE İht.</th>
                   <th>Pit Ayarı</th><th>Pit</th><th>End Stint</th><th>Time Left</th>
                   <th>Override</th>
                 </tr></thead>
@@ -962,7 +970,9 @@ export default function App() {
                       <td className="disp" style={{ fontSize: 15 }}>{r.idx}</td>
                       <td>{fmtHMS(r.stintSec)}</td>
                       <td>{r.lapsInStint}</td>
-                      <td className={r.fuelNeed > st.fuelTank ? "neg" : ""}>{r.fuelNeed.toFixed(1)} L</td>
+                      <td className={r.fuelNeed > 100 ? "neg" : ""}
+                        title={`≈ ${(r.fuelNeed * st.fuelRatio).toFixed(1)} L`}>
+                        {r.fuelNeed.toFixed(1)}%</td>
                       <td>
                         {r.isLast ? <span className="chip">FINISH 🏁</span> : (<>
                           <span className="tyrebox">
@@ -1064,10 +1074,10 @@ export default function App() {
               </div>
 
               <div className="card">
-                <h2>⛽ Son Stint Yakıtı</h2>
-                <div className="fuelbig" style={{ fontSize: 40 }}>{lsf.refuel.toFixed(1)} L</div>
+                <h2>⛽ Son Stint VE</h2>
+                <div className="fuelbig" style={{ fontSize: 40 }}>{lsf.refuel.toFixed(1)}%</div>
                 <div className="hint">
-                  {lsf.lapsLeft.toFixed(2)} tur + extra {st.extraLap} · dolum ≈ {lsf.refuelSec.toFixed(0)}s
+                  ≈ {lsf.refuelL.toFixed(1)} L · {lsf.lapsLeft.toFixed(2)} tur + extra {st.extraLap} · dolum ≈ {lsf.refuelSec.toFixed(0)}s
                 </div>
                 {driverPlan && Object.keys(driverPlan.totals).length > 0 && (<>
                   <label style={{ marginTop: 10 }}>Pilot Dağılımı</label>
@@ -1279,7 +1289,7 @@ export default function App() {
                     {parsed.lapRows.length} tur satırı bulundu. Sütun eşleşmesini kontrol et:
                   </div>
                   <div style={{ display: "flex", gap: 10, flexWrap: "wrap", margin: "6px 0" }}>
-                    {[["Tur Süresi", "timeCol"], ["Yakıt Δ", "fuelCol"]].map(([lbl, key]) => (
+                    {[["Tur Süresi", "timeCol"], ["VE Δ (%)", "fuelCol"]].map(([lbl, key]) => (
                       <div key={key}>
                         <label style={{ margin: 0 }}>{lbl}</label>
                         <select value={mapping[key]}
@@ -1328,8 +1338,8 @@ export default function App() {
                             {fmtMs(s.avgMs)}</div>
                           <div className="l">Stint {sl} ort. tur · {s.laps} tur</div>
                           <div className="hint" style={{ marginTop: 4 }}>
-                            {s.avgFuel != null && <>⛽ {s.avgFuel.toFixed(2)} L/tur
-                              {s.tankLaps && <> · depo ≈ {Math.floor(s.tankLaps)} tur</>}<br /></>}
+                            {s.avgFuel != null && <>⚡ {s.avgFuel.toFixed(2)} %/tur VE
+                              {s.tankLaps && <> · %100 ≈ {Math.floor(s.tankLaps)} tur</>}<br /></>}
                             {s.avgW.some((w) => w != null) &&
                               <>🛞 {s.avgW.map((w) => w == null ? "–" : w.toFixed(1)).join(" / ")} %/tur</>}
                           </div>
@@ -1338,8 +1348,7 @@ export default function App() {
                               onClick={() => up({
                                 avgLap: fmtMs(s.avgMs),
                                 ...(s.avgFuel != null
-                                  ? { consumption: +s.avgFuel.toFixed(2),
-                                      vConsumption: +s.avgFuel.toFixed(2) } : {}),
+                                  ? { consumption: +s.avgFuel.toFixed(2) } : {}),
                               })}>DATA'ya uygula</button>
                             <button className="act danger" style={{ fontSize: 11 }}
                               onClick={() => removeSlot(sl)}>Sil</button>
@@ -1395,7 +1404,7 @@ export default function App() {
                         Stint {sl} — tur listesi ({st.telemetry[sl].laps.length})</summary>
                       <table style={{ maxWidth: 560 }}>
                         <thead><tr>
-                          <th>Dahil</th><th>Tur</th><th>Süre</th><th>Yakıt</th><th>FL/FR/RL/RR</th>
+                          <th>Dahil</th><th>Tur</th><th>Süre</th><th>VE %</th><th>FL/FR/RL/RR</th>
                         </tr></thead>
                         <tbody>
                           {st.telemetry[sl].laps.map((l, li) => (
@@ -1434,11 +1443,12 @@ export default function App() {
                     <div className="kpi"><div className="v mono">{r.refuelSec.toFixed(0)}s</div>
                       <div className="l">Dolum Süresi</div></div>
                   </div>
-                  <div className="fuelbig">{r.refuel.toFixed(1)} L</div>
+                  <div className="fuelbig">{r.refuel.toFixed(1)}%</div>
                   <div className="hint">
-                    (kalan tur {r.lapsLeft.toFixed(2)} + extra {st.extraLap}) × {st.consumption} L/tur
-                    {st.vConsumption !== st.consumption &&
-                      <> · vFuel: <b className="warn">{r.vRefuel.toFixed(1)} L</b></>}
+                    ≈ <b className="mono" style={{ color: "var(--green)" }}>{r.refuelL.toFixed(1)} L</b> gerçek yakıt ·
+                    (kalan tur {r.lapsLeft.toFixed(2)} + extra {st.extraLap}) × {st.consumption} %/tur
+                    {r.refuel > 100 &&
+                      <> · <b className="warn">⚠ %100'ü aşıyor — depo yetmez!</b></>}
                   </div>
                 </div>
               ))}
