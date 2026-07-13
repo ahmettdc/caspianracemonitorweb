@@ -386,6 +386,7 @@ export default function App() {
 
   /* ---------- Faz 2: takım senkronizasyonu + yetki ---------- */
   const [entered, setEntered] = useState(false); // lobi geçildi mi (solo/oda)
+  const [setupDone, setSetupDone] = useState(false); // data giriş adımı tamamlandı mı
   const [userName, setUserName] = useState("");
   const [room, setRoom] = useState("");          // aktif oda kodu
   const [joinCode, setJoinCode] = useState("");
@@ -472,12 +473,13 @@ export default function App() {
       setRoom(code);
       setJoinPin("");
       setSyncMsg("");
+      setSetupDone(true); // odaya katılan data girmez — mevcut oda verisi kullanılır
     } catch (e) { setSyncMsg(`"${code}" odası bulunamadı — kodu kontrol et`); }
   };
 
   const leaveRoom = () => {
     setRoom(""); setRole("editor"); setRoomPin(""); pinRef.current = "";
-    setLastSync(null); setSyncMsg(""); setEntered(false); // lobiye dön
+    setLastSync(null); setSyncMsg(""); setEntered(false); setSetupDone(false); // lobiye dön
   };
 
   const up = (patch) => setSt((s) => ({ ...s, ...patch }));
@@ -744,6 +746,72 @@ export default function App() {
     return segs;
   });
 
+  /* ---------- ortak data kartları (setup + ana arayüz sol kolon) ---------- */
+  const dataCards = (<>
+    <div className="card">
+      <h2>Yarış · Data</h2>
+      <div className="row2">
+        <div><label>Race Time (h:mm:ss)</label>
+          <input type="text" value={st.raceTime} onChange={(e) => up({ raceTime: e.target.value })} /></div>
+        <div><label>Avg Lap (m:ss.00)</label>
+          <input type="text" value={st.avgLap} onChange={(e) => up({ avgLap: e.target.value })} /></div>
+      </div>
+      <label>Stint Turları — A / B / C / D</label>
+      <div className="row4">
+        {["A", "B", "C", "D"].map((k) => (
+          <Num key={k} v={st.strategies[k]} step={1}
+            onC={(v) => up({ strategies: { ...st.strategies, [k]: v } })} />
+        ))}
+      </div>
+      <label>Seçili Strateji</label>
+      <div className="strat">
+        {["A", "B", "C", "D"].map((k) => (
+          <button key={k} className={st.chosen === k ? "on" : ""}
+            onClick={() => up({ chosen: k })}>{k} · {st.strategies[k]}</button>
+        ))}
+      </div>
+      <div className="row2">
+        <div><label>Traffic Error Rate</label>
+          <Num v={st.trafficRate} onC={(v) => up({ trafficRate: v })} /></div>
+        <div><label>Extra Lap</label>
+          <Num v={st.extraLap} step={1} onC={(v) => up({ extraLap: v })} /></div>
+      </div>
+    </div>
+
+    <div className="card" style={{ marginTop: 12 }}>
+      <h2>Pit · Süreler (s)</h2>
+      <div className="row2">
+        <div><label>Pit Line</label><Num v={st.pitLaneTime} onC={(v) => up({ pitLaneTime: v })} /></div>
+        <div><label>Fuel</label><Num v={st.fuelTime} onC={(v) => up({ fuelTime: v })} /></div>
+      </div>
+      <div className="row2">
+        <div><label>Tyre (adet başı)</label><Num v={st.tyreTime} onC={(v) => up({ tyreTime: v })} /></div>
+        <div><label>Hesaplanan Fuel Süresi</label>
+          <div className="mono" style={{ padding: "6px 0" }}>{fuelTimeCalc.toFixed(1)} s</div></div>
+      </div>
+      <div className="hint">Fuel süresi ipucu = %100 VE / dolum hızı (100% / {st.refuelSpeed} %/s). CODE80'de lastik süresi otomatik ÷4 uygulanır.</div>
+    </div>
+
+    <div className="card" style={{ marginTop: 12 }}>
+      <h2>Virtual Energy · Data</h2>
+      <div className="row2">
+        <div><label>VE Tüketim (%/tur)</label><Num v={st.consumption} onC={(v) => up({ consumption: v })} /></div>
+        <div><label>Fuel Ratio (L / %1)</label><Num v={st.fuelRatio} onC={(v) => up({ fuelRatio: v })} /></div>
+      </div>
+      <div className="row2">
+        <div><label>Dolum Hızı (%/s)</label><Num v={st.refuelSpeed} onC={(v) => up({ refuelSpeed: v })} /></div>
+        <div><label>%100 = Taşınan Yakıt</label>
+          <div className="mono" style={{ padding: "6px 0", color: "var(--green)" }}>
+            {fuelCarried.toFixed(1)} L</div></div>
+      </div>
+      <div className="hint">
+        Depo daima <b>%100 VE</b> kabul edilir. Gerçek yakıt = VE × ratio
+        → gerçek tüketim ≈ <b className="mono">{realPerLap.toFixed(2)} L/tur</b>.
+        Ratio'yu düşürmek daha az yakıt taşımak demektir (örn. 0.84 → %100 = 84.0 L).
+      </div>
+    </div>
+  </>);
+
   /* ---------- lobi: oda kur / katıl / solo ---------- */
   if (!room && !entered) {
     return (
@@ -796,6 +864,37 @@ export default function App() {
             <button className="solo" onClick={() => setEntered(true)}>
               Oda kullanmadan solo devam et →
             </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ---------- setup: yarış datalarını gir ---------- */
+  if (!setupDone) {
+    return (
+      <div className="rc">
+        <style>{css}</style>
+        <div className="lobby" style={{ alignItems: "flex-start", paddingTop: 40 }}>
+          <div className="box" style={{ maxWidth: 560 }}>
+            <h1><b>YARIŞ</b> DATALARI</h1>
+            <div className="sub">
+              {room ? (<>
+                Oda: <b className="roomcode">{room}</b>
+                {roomPin && <> · PIN: <b className="roomcode">{roomPin}</b></>}
+                {" — "}kodu takıma şimdiden gönderebilirsin
+              </>) : "Solo mod — datalar sadece bu cihazda"}
+            </div>
+
+            {dataCards}
+
+            <button className="bigbtn" style={{ marginTop: 18 }}
+              onClick={() => setSetupDone(true)}>
+              ✓ Devam Et — Arayüze Geç
+            </button>
+            <div className="hint" style={{ textAlign: "center", marginTop: 8 }}>
+              Merak etme, tüm bu değerleri arayüzün sol kolonundan her an değiştirebilirsin.
+            </div>
           </div>
         </div>
       </div>
@@ -935,68 +1034,7 @@ export default function App() {
       <div className={`grid ${role === "viewer" && room ? "viewonly" : ""}`}>
         {/* ================= SOL: DATA ================= */}
         <div>
-          <div className="card">
-            <h2>Yarış · Data</h2>
-            <div className="row2">
-              <div><label>Race Time (h:mm:ss)</label>
-                <input type="text" value={st.raceTime} onChange={(e) => up({ raceTime: e.target.value })} /></div>
-              <div><label>Avg Lap (m:ss.00)</label>
-                <input type="text" value={st.avgLap} onChange={(e) => up({ avgLap: e.target.value })} /></div>
-            </div>
-            <label>Stint Turları — A / B / C / D</label>
-            <div className="row4">
-              {["A", "B", "C", "D"].map((k) => (
-                <Num key={k} v={st.strategies[k]} step={1}
-                  onC={(v) => up({ strategies: { ...st.strategies, [k]: v } })} />
-              ))}
-            </div>
-            <label>Seçili Strateji</label>
-            <div className="strat">
-              {["A", "B", "C", "D"].map((k) => (
-                <button key={k} className={st.chosen === k ? "on" : ""}
-                  onClick={() => up({ chosen: k })}>{k} · {st.strategies[k]}</button>
-              ))}
-            </div>
-            <div className="row2">
-              <div><label>Traffic Error Rate</label>
-                <Num v={st.trafficRate} onC={(v) => up({ trafficRate: v })} /></div>
-              <div><label>Extra Lap</label>
-                <Num v={st.extraLap} step={1} onC={(v) => up({ extraLap: v })} /></div>
-            </div>
-          </div>
-
-          <div className="card" style={{ marginTop: 12 }}>
-            <h2>Pit · Süreler (s)</h2>
-            <div className="row2">
-              <div><label>Pit Line</label><Num v={st.pitLaneTime} onC={(v) => up({ pitLaneTime: v })} /></div>
-              <div><label>Fuel</label><Num v={st.fuelTime} onC={(v) => up({ fuelTime: v })} /></div>
-            </div>
-            <div className="row2">
-              <div><label>Tyre (adet başı)</label><Num v={st.tyreTime} onC={(v) => up({ tyreTime: v })} /></div>
-              <div><label>Hesaplanan Fuel Süresi</label>
-                <div className="mono" style={{ padding: "6px 0" }}>{fuelTimeCalc.toFixed(1)} s</div></div>
-            </div>
-            <div className="hint">Fuel süresi ipucu = %100 VE / dolum hızı (100% / {st.refuelSpeed} %/s). CODE80'de lastik süresi otomatik ÷4 uygulanır.</div>
-          </div>
-
-          <div className="card" style={{ marginTop: 12 }}>
-            <h2>Virtual Energy · Data</h2>
-            <div className="row2">
-              <div><label>VE Tüketim (%/tur)</label><Num v={st.consumption} onC={(v) => up({ consumption: v })} /></div>
-              <div><label>Fuel Ratio (L / %1)</label><Num v={st.fuelRatio} onC={(v) => up({ fuelRatio: v })} /></div>
-            </div>
-            <div className="row2">
-              <div><label>Dolum Hızı (%/s)</label><Num v={st.refuelSpeed} onC={(v) => up({ refuelSpeed: v })} /></div>
-              <div><label>%100 = Taşınan Yakıt</label>
-                <div className="mono" style={{ padding: "6px 0", color: "var(--green)" }}>
-                  {fuelCarried.toFixed(1)} L</div></div>
-            </div>
-            <div className="hint">
-              Depo daima <b>%100 VE</b> kabul edilir. Gerçek yakıt = VE × ratio
-              → gerçek tüketim ≈ <b className="mono">{realPerLap.toFixed(2)} L/tur</b>.
-              Ratio'yu düşürmek daha az yakıt taşımak demektir (örn. 0.84 → %100 = 84.0 L).
-            </div>
-          </div>
+          {dataCards}
         </div>
 
         {/* ================= SAĞ: SEKMELER ================= */}
