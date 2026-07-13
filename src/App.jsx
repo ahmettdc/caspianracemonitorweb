@@ -292,6 +292,30 @@ const css = `
 .rc .roomcode{font-family:'IBM Plex Mono';font-weight:600;font-size:15px;
   color:var(--yellow);letter-spacing:.15em}
 .rc .syncinfo{color:var(--dim);font-size:11px;margin-left:auto}
+/* --- lobi --- */
+.rc .lobby{min-height:100vh;display:flex;align-items:center;justify-content:center;
+  padding:20px;background:radial-gradient(ellipse at 50% 0%,#14202B 0%,var(--bg) 60%)}
+.rc .lobby .box{width:100%;max-width:430px;background:var(--panel);
+  border:1px solid var(--line);border-radius:14px;padding:30px 28px}
+.rc .lobby h1{margin:0;font-size:30px;font-weight:700;text-transform:uppercase;
+  text-align:center;font-family:'Barlow Condensed';letter-spacing:.04em}
+.rc .lobby h1 b{color:var(--teal)}
+.rc .lobby .sub{text-align:center;color:var(--dim);font-size:12px;margin:4px 0 22px}
+.rc .lobby .bigbtn{width:100%;padding:12px;border-radius:8px;border:1px solid var(--teal);
+  background:var(--teal);color:#08211F;cursor:pointer;font-family:'Barlow Condensed';
+  font-size:18px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-top:8px}
+.rc .lobby .bigbtn.ghost{background:transparent;color:var(--teal)}
+.rc .lobby .bigbtn:disabled{opacity:.5;cursor:wait}
+.rc .lobby .divider{display:flex;align-items:center;gap:10px;color:var(--dim);
+  margin:20px 0 8px;font-size:10px;text-transform:uppercase;letter-spacing:.12em}
+.rc .lobby .divider::before,.rc .lobby .divider::after{
+  content:"";flex:1;height:1px;background:var(--line)}
+.rc .lobby .solo{display:block;width:100%;margin-top:22px;background:none;border:none;
+  color:var(--dim);cursor:pointer;font-size:12px;text-decoration:underline;
+  text-underline-offset:3px}
+.rc .lobby .solo:hover{color:var(--txt)}
+.rc .lobby .lmsg{margin-top:12px;color:var(--yellow);font-size:12px;text-align:center;
+  min-height:16px}
 .rc .viewonly input,.rc .viewonly .strat button,.rc .viewonly .tyrebox button,
 .rc .viewonly .pitopt button,.rc .viewonly select,.rc .viewonly .card .act
 {pointer-events:none;opacity:.55}
@@ -361,6 +385,7 @@ export default function App() {
   const [tab, setTab] = useState("dash");
 
   /* ---------- Faz 2: takım senkronizasyonu + yetki ---------- */
+  const [entered, setEntered] = useState(false); // lobi geçildi mi (solo/oda)
   const [userName, setUserName] = useState("");
   const [room, setRoom] = useState("");          // aktif oda kodu
   const [joinCode, setJoinCode] = useState("");
@@ -452,7 +477,7 @@ export default function App() {
 
   const leaveRoom = () => {
     setRoom(""); setRole("editor"); setRoomPin(""); pinRef.current = "";
-    setLastSync(null); setSyncMsg("");
+    setLastSync(null); setSyncMsg(""); setEntered(false); // lobiye dön
   };
 
   const up = (patch) => setSt((s) => ({ ...s, ...patch }));
@@ -718,6 +743,64 @@ export default function App() {
     if (r.pitSec > 0) segs.push({ w: (r.pitSec / plan.raceSec) * 100, cls: "pit", label: "" });
     return segs;
   });
+
+  /* ---------- lobi: oda kur / katıl / solo ---------- */
+  if (!room && !entered) {
+    return (
+      <div className="rc">
+        <style>{css}</style>
+        <div className="lobby">
+          <div className="box">
+            <h1><b>CASPIAN</b> RACE CONTROL</h1>
+            <div className="sub">virtual energy · v0.6</div>
+
+            {firebaseReady ? (<>
+              <label>Adın</label>
+              <input type="text" placeholder="örn. Ahmet" value={userName}
+                onChange={(e) => setUserName(e.target.value)} />
+
+              <button className="bigbtn" onClick={createRoom}>
+                🏁 Yeni Oda Kur
+              </button>
+
+              <div className="divider">veya mevcut odaya katıl</div>
+
+              <div className="row2">
+                <div>
+                  <label>Oda Kodu</label>
+                  <input type="text" placeholder="ABC12" value={joinCode} maxLength={6}
+                    style={{ textTransform: "uppercase" }}
+                    onChange={(e) => setJoinCode(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && joinRoom()} />
+                </div>
+                <div>
+                  <label>PIN (düzenleme)</label>
+                  <input type="text" placeholder="boş = izleyici" value={joinPin} maxLength={4}
+                    onChange={(e) => setJoinPin(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && joinRoom()} />
+                </div>
+              </div>
+              <button className="bigbtn ghost" onClick={joinRoom}>
+                Odaya Katıl
+              </button>
+              <div className="lmsg">{syncMsg}</div>
+              <div className="hint" style={{ textAlign: "center" }}>
+                PIN'siz katılan izler, PIN'li katılan düzenler.
+              </div>
+            </>) : (
+              <div className="hint" style={{ textAlign: "center", marginBottom: 8 }}>
+                Takım senkronizasyonu kapalı — <b>src/firebase-config.js</b> dosyasını doldur.
+              </div>
+            )}
+
+            <button className="solo" onClick={() => setEntered(true)}>
+              Oda kullanmadan solo devam et →
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="rc">
