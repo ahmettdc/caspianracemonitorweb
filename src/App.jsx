@@ -297,7 +297,7 @@ const EN = {
   "Oda: ": "Room: ",
   "Solo mod — takım senkronizasyonu için ": "Solo mode — for team sync, ",
   "Kadrodan çıkar": "Remove from roster",
-  "✔ PIT YAPILDI": "✔ PIT DONE",
+  "✔ PIT": "✔ PIT",
   "Araç PİT YOLUNA GİRDİĞİ an bas. Pit süresi plandan otomatik eklenir, sonraki stint pit çıkışıyla başlar.":
     "Press the moment the car ENTERS the pit lane. Pit duration is added from the plan; the next stint starts at pit exit.", "↩ Geri Al": "↩ Undo", "⟲ Sıfırla": "⟲ Reset",
   "sonu işaretlenecek": "will be marked", "Plan": "Plan", "Gerçek": "Actual",
@@ -1589,7 +1589,7 @@ export default function App() {
                       background: "var(--car)", color: "#FFE9ED", border: "2px solid var(--teal)",
                       fontFamily: "'Barlow Condensed'", fontSize: 26, fontWeight: 700,
                       letterSpacing: ".06em" }}>
-                    {t("✔ PIT YAPILDI")} — S{liveInfo.pitsDone + 1}
+                    {t("✔ PIT")} — S{liveInfo.pitsDone + 1}
                   </button>
                 ) : (
                   <div className="plbl" style={{ color: "var(--green)" }}>
