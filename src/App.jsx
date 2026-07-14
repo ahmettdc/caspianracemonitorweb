@@ -343,6 +343,11 @@ const css = `
 /* --- lobi --- */
 .rc .lobby{min-height:100vh;display:flex;align-items:center;justify-content:center;
   padding:20px;background:radial-gradient(ellipse at 50% 0%,#2A0D14 0%,var(--bg) 60%)}
+.rc .logo{display:block;margin:0 auto 14px;max-width:280px;width:70%;height:auto;
+  filter:drop-shadow(0 6px 18px rgba(0,0,0,.5))}
+.rc header img.hlogo{height:40px;width:auto;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))}
+.rc .pitboard img.plogo{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);
+  height:34px;width:auto;opacity:.85}
 .rc .lobby .box{width:100%;max-width:430px;background:var(--panel);
   border:1px solid var(--line);border-radius:14px;padding:30px 28px}
 .rc .lobby h1{margin:0;font-size:30px;font-weight:700;text-transform:uppercase;
@@ -904,7 +909,8 @@ export default function App() {
         <style>{css}</style>
         <div className="lobby">
           <div className="box">
-            <h1><b>CASPIAN</b> RACE CONTROL</h1>
+            <img className="logo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
+            <h1><b>RACE</b> CONTROL</h1>
             <div className="sub">carmine · v0.7</div>
 
             {firebaseReady ? (<>
@@ -963,6 +969,7 @@ export default function App() {
         <style>{css}</style>
         <div className="lobby" style={{ alignItems: "flex-start", paddingTop: 40 }}>
           <div className="box" style={{ maxWidth: 720 }}>
+            <img className="logo" style={{ maxWidth: 190 }} src={`${ASSET}logo.png`} alt="" />
             <h1><b>PİST</b> & ARAÇ</h1>
             <div className="sub">
               {room ? (<>Oda: <b className="roomcode">{room}</b>
@@ -1031,6 +1038,7 @@ export default function App() {
         <style>{css}</style>
         <div className="lobby" style={{ alignItems: "flex-start", paddingTop: 40 }}>
           <div className="box" style={{ maxWidth: 560 }}>
+            <img className="logo" style={{ maxWidth: 190 }} src={`${ASSET}logo.png`} alt="" />
             <h1><b>YARIŞ</b> DATALARI</h1>
             <div className="sub">
               {st.track && <><img className="flag" style={{ width: 16, verticalAlign: -2, marginRight: 4 }}
@@ -1062,7 +1070,8 @@ export default function App() {
     <div className="rc">
       <style>{css}</style>
       <header>
-        <h1 className="disp"><b>CASPIAN</b> RACE CONTROL</h1>
+        <img className="hlogo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
+        <h1 className="disp" style={{ fontSize: 20 }}>RACE CONTROL</h1>
         <span className="ver">carmine · v0.7</span>
         {(st.track || st.car) && (
           <span className="hdsel">
@@ -1143,6 +1152,7 @@ export default function App() {
       {pitboard && (
         <div className="pitboard" onClick={() => setPitboard(false)}>
           <button className="close" onClick={() => setPitboard(false)}>✕</button>
+          <img className="plogo" src={`${ASSET}logo.png`} alt="" />
           {liveInfo.status === "pre" && (<>
             <div className="plbl">Start'a</div>
             <div className="huge" style={{ color: "var(--yellow)" }}>
