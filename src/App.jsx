@@ -1585,8 +1585,8 @@ export default function App() {
                   <span className="disp" style={{ fontSize: 14, letterSpacing: ".06em",
                     color: "var(--teal)" }}>{t("🛞 S1 START LASTİKLERİ")}</span>
                   <span className="mono" style={{ fontSize: 12 }}>
-                    {TY.map((t, ci) =>
-                      `${t}:${String(st.tyreStints[0]?.[ci] || "–")}`).join("  ")}
+                    {TY.map((corner, ci) =>
+                      `${corner}:${String(st.tyreStints[0]?.[ci] || "–")}`).join("  ")}
                   </span>
                   <span className="pitopt">
                     <button onClick={() => quickTyre(0, "carry")}>{t("QUAL İLE BAŞLA")}</button>
@@ -1650,12 +1650,12 @@ export default function App() {
                       <td>
                         {r.isLast ? <span className="chip">FINISH 🏁</span> : (<>
                           <span className="tyrebox">
-                            {TY.map((t, ti) => (
-                              <button key={t} className={(st.pits[i] || EMPTY_PIT).tyres[ti] ? "on" : ""}
+                            {TY.map((corner, ti) => (
+                              <button key={corner} className={(st.pits[i] || EMPTY_PIT).tyres[ti] ? "on" : ""}
                                 disabled={!(st.pits[i] || EMPTY_PIT).tyres[ti] && tyreInfo.available <= 0}
                                 title={!(st.pits[i] || EMPTY_PIT).tyres[ti] && tyreInfo.available <= 0
                                   ? t("⚠ Lastik limiti doldu — yeni lastik seçilemez") : undefined}
-                                onClick={() => upTyre(i, ti)}>{t}</button>
+                                onClick={() => upTyre(i, ti)}>{corner}</button>
                             ))}
                           </span>
                           <span className="pitopt">
