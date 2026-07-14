@@ -43,6 +43,12 @@ const fmtHMS = (sec) => {
   const m = Math.floor(s / 60); s -= m * 60;
   return `${neg ? "-" : ""}${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 };
+const nowLocal = () => {
+  // datetime-local formatında şu an (yerel saat): YYYY-MM-DDTHH:MM
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+};
 const fmtLap = (sec) => {
   const m = Math.floor(sec / 60);
   const s = sec - m * 60;
@@ -78,7 +84,7 @@ const DEFAULT_STATE = {
   tyreQual: ["1", "2", "3", "4"],
   tyreStints: Array.from({ length: 14 }, () => ["", "", "", ""]),
   // Faz 3 — pilotlar
-  raceStart: "2026-05-09T12:20",
+  raceStart: nowLocal(),
   roster: [],
   driverAssign: Array.from({ length: 14 }, () => ""),
   // stint başına pit ayarları (index 0 = 1. pit)
