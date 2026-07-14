@@ -578,12 +578,38 @@ export default function App() {
     return { ...s, pits };
   });
   const upTyre = (i, t) => setSt((s) => {
+    const turningOn = !s.pits[i].tyres[t];
     const pits = s.pits.map((p, j) => {
       if (j !== i) return p;
       const tyres = [...p.tyres]; tyres[t] = !tyres[t];
       return { ...p, tyres };
     });
-    return { ...s, pits };
+    /* Lastik tablosu senkronu: pit i = S(i+1) sonu → lastik S(i+2)'ye takılır
+       AÇIK: o köşeye yeni (kullanılmamış) numara · KAPALI: önceki stintten devam */
+    let tyreStints = s.tyreStints;
+    const next = i + 1; // tyreStints index'i (S(i+2) satırı)
+    if (next < s.tyreStints.length) {
+      const prevVal = String((s.tyreStints[i] || [])[t] || "").trim();
+      const curVal = String((s.tyreStints[next] || [])[t] || "").trim();
+      let val;
+      if (turningOn) {
+        if (curVal && curVal !== prevVal) {
+          val = curVal; // kullanıcı zaten farklı bir lastik atamış — dokunma
+        } else {
+          const used = new Set();
+          s.tyreQual.forEach((v) => { const k = String(v).trim(); if (k) used.add(k); });
+          s.tyreStints.forEach((r) => r.forEach((v) => {
+            const k = String(v).trim(); if (k) used.add(k); }));
+          let n = 1; while (used.has(String(n))) n++;
+          val = String(n);
+        }
+      } else {
+        val = prevVal; // değişim iptal → önceki stintin lastiğiyle devam
+      }
+      tyreStints = s.tyreStints.map((r, j) =>
+        j === next ? r.map((c, ci) => (ci === t ? val : c)) : r);
+    }
+    return { ...s, pits, tyreStints };
   });
   const upOvr = (i, val) => setSt((s) => {
     const overrides = [...s.overrides]; overrides[i] = val;
@@ -1336,6 +1362,8 @@ export default function App() {
                 Pit süresi = FUEL({st.fuelTime}s) + LANE({st.pitLaneTime}s) + lastik ×
                 {tab === "code80" ? ` ${(st.tyreTime / 4).toFixed(2)}s (Code 80: ÷4)` : ` ${st.tyreTime}s`}.
                 Son stintte pit hesaplanmaz. Override girilirse stint süresi manuel değere kilitlenir.
+                Pit'te seçilen lastikler (FL/FR/RL/RR) Lastik sekmesindeki tabloya otomatik işlenir:
+                seçilen köşeye sonraki stint için yeni lastik atanır, seçim kaldırılırsa önceki lastikle devam edilir.
               </div>
             </div>
           )}
