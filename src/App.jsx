@@ -271,7 +271,7 @@ const css = `
   font-family:'Barlow Condensed';letter-spacing:.08em;color:var(--teal)}
 .rc label{display:block;color:var(--dim);font-size:11px;margin:8px 0 3px;
   text-transform:uppercase;letter-spacing:.05em}
-.rc input[type=text],.rc input[type=number]{width:100%;background:var(--panel2);
+.rc input[type=text],.rc input[type=number],.rc input[type=datetime-local]{width:100%;background:var(--panel2);
   border:1px solid var(--line);border-radius:6px;color:var(--txt);
   padding:6px 8px;font-family:'IBM Plex Mono',monospace;font-size:13px}
 .rc input:focus{outline:2px solid var(--teal);outline-offset:-1px}
@@ -866,6 +866,19 @@ export default function App() {
         <div><label>Extra Lap</label>
           <Num v={st.extraLap} step={1} onC={(v) => up({ extraLap: v })} /></div>
       </div>
+    </div>
+
+    <div className="card" style={{ marginTop: 12 }}>
+      <h2>Yarış Başlangıcı</h2>
+      <div className="row2">
+        <div><label>Start Tarih & Saat</label>
+          <input type="datetime-local" value={st.raceStart}
+            onChange={(e) => up({ raceStart: e.target.value })} /></div>
+        <div><label>Hesaplanan Bitiş</label>
+          <div className="mono" style={{ padding: "6px 0" }}>
+            {driverPlan ? fmtClock(driverPlan.finishMs, driverPlan.startMs) : "—"}</div></div>
+      </div>
+      <div className="hint">Canlı yarış modu, pilot planı ve geri sayım bu zamana göre çalışır.</div>
     </div>
 
     <div className="card" style={{ marginTop: 12 }}>
