@@ -75,7 +75,7 @@ const DEFAULT_STATE = {
   code80LastStint: "0:18:11",
   // Faz 3 — lastik stratejisi
   tyreLimit: 26,
-  tyreQual: ["", "", "", ""],
+  tyreQual: ["1", "2", "3", "4"],
   tyreStints: Array.from({ length: 14 }, () => ["", "", "", ""]),
   // Faz 3 — pilotlar
   raceStart: "2026-05-09T12:20",
@@ -637,7 +637,7 @@ export default function App() {
   });
   const clearTyres = () => setSt((s) => ({
     ...s,
-    tyreQual: ["", "", "", ""],
+    tyreQual: ["1", "2", "3", "4"],
     tyreStints: s.tyreStints.map(() => ["", "", "", ""]),
   }));
 
