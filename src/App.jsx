@@ -140,6 +140,141 @@ const CARS = {
     { id: "aston", name: "Aston Martin Vantage GT3" },
   ],
 };
+/* ---------- i18n: Türkçe metin anahtar, EN sözlükten çevrilir ---------- */
+const EN = {
+  // lobi
+  "Adın": "Your Name", "örn. Ahmet": "e.g. John",
+  "🏁 Yeni Oda Kur": "🏁 Create New Room",
+  "veya mevcut odaya katıl": "or join an existing room",
+  "Oda Kodu": "Room Code", "PIN (düzenleme)": "PIN (edit access)",
+  "boş = izleyici": "empty = viewer", "Odaya Katıl": "Join Room",
+  "PIN'siz katılan izler, PIN'li katılan düzenler.": "Join without PIN to view, with PIN to edit.",
+  "Oda kullanmadan solo devam et →": "Continue solo without a room →",
+  // pist & araç
+  "1 · Pist Seç": "1 · Select Track", "2 · Sınıf Seç": "2 · Select Class",
+  "3 · Araç Seç": "3 · Select Car",
+  "✓ Devam Et — Yarış Dataları": "✓ Continue — Race Data",
+  "Devam etmek için pist ve araç seç": "Select a track and car to continue",
+  "Seçim yapmadan geç →": "Skip selection →", "Solo mod": "Solo mode",
+  // data ekranı
+  "— kodu takıma şimdiden gönderebilirsin": "— you can share the code with your team now",
+  "Solo mod — datalar sadece bu cihazda": "Solo mode — data stays on this device",
+  "✓ Devam Et — Arayüze Geç": "✓ Continue — Open Interface",
+  "Merak etme, tüm bu değerleri arayüzün sol kolonundan her an değiştirebilirsin.":
+    "Don't worry — you can change all of these anytime from the left column.",
+  // data kartları
+  "Yarış · Data": "Race · Data", "Stint Turları — A / B / C / D": "Stint Laps — A / B / C / D",
+  "Seçili Strateji": "Selected Strategy", "Yarış Başlangıcı": "Race Start",
+  "Start Tarih & Saat": "Start Date & Time", "Hesaplanan Bitiş": "Calculated Finish",
+  "Canlı yarış modu, pilot planı ve geri sayım bu zamana göre çalışır.":
+    "Live race mode, driver plan and countdown are based on this time.",
+  "Pit · Süreler (s)": "Pit · Times (s)", "Tyre (adet başı)": "Tyre (per tyre)",
+  "Hesaplanan Fuel Süresi": "Calculated Fuel Time",
+  "VE Tüketim (%/tur)": "VE Usage (%/lap)", "Dolum Hızı (%/s)": "Refuel Rate (%/s)",
+  "%100 = Taşınan Yakıt": "100% = Fuel Carried",
+  // teambar
+  "ADIN": "NAME", "Oda Kur": "Create Room", "ODA KODU": "ROOM CODE",
+  "PIN (opsiyonel)": "PIN (optional)", "Katıl": "Join",
+  "👁 İZLEYİCİ": "👁 VIEWER", "✎ DÜZENLEYİCİ": "✎ EDITOR",
+  "Odadan Ayrıl": "Leave Room", "Senkronize": "In sync",
+  "Düzenleme PIN'i: ": "Edit PIN: ",
+  " (sadece düzenleyecek kişilere ver)": " (share only with editors)",
+  "Son güncelleme: ": "Last update: ", "sen": "you",
+  "Yazma hatası — tekrar denenecek": "Write error — will retry",
+  "Geçerli bir oda kodu gir": "Enter a valid room code",
+  "PIN hatalı — izleyici olarak katılmak için PIN alanını boş bırak":
+    "Wrong PIN — leave PIN empty to join as viewer",
+  // canlı şerit & pit board
+  "Start'a": "To Start", "Kalan Süre": "Time Remaining", "Pit Çıkışı": "Pit Exit",
+  "Sıradaki Pit": "Next Pit", "Direksiyonda": "At the Wheel", "Durum": "Status",
+  "🏁 YARIŞ BİTTİ": "🏁 RACE FINISHED", "Yarış zamanı ayarlanmadı": "Race time not set",
+  "Pilotlar sekmesinden başlangıç zamanını gir": "Set the start time in the Drivers tab",
+  "Son Pit VE": "Final Pit VE", "Pilot Değişimi": "Driver Change",
+  "Sıradaki pit: ": "Next pit: ",
+  // sekmeler
+  "Son Stint Yakıtı": "Final Stint Fuel", "Lastik": "Tyres", "Pilotlar": "Drivers",
+  "Telemetri": "Telemetry",
+  // stint kartı
+  "Code 80 Kalan": "Code 80 Remaining", "Yarış Süresi": "Race Time",
+  "Strateji": "Strategy", "Stint Sayısı": "Stint Count",
+  "Tahmini Toplam Tur": "Est. Total Laps",
+  "🛞 S1 START LASTİKLERİ": "🛞 S1 STARTING TYRES",
+  "QUAL İLE BAŞLA": "START ON QUAL", "4 YENİ": "4 NEW",
+  "2 YENİ ÖN": "2 NEW FRONT", "2 YENİ ARKA": "2 NEW REAR",
+  "2 YENİ SOL": "2 NEW LEFT", "2 YENİ SAĞ": "2 NEW RIGHT", "TEMİZLE": "CLEAR",
+  "⚠ Başlangıç lastiği seçilmedi — önce buradan başla, pit seçimleri buna zincirlenir":
+    "⚠ No starting tyres selected — start here first, pit choices chain from this",
+  "Tur": "Laps", "VE İht.": "VE Req.", "Pit Ayarı": "Pit Setup",
+  "Toplam VE": "Total VE", "yakıt": "fuel",
+  // dashboard
+  "⏱ Yarış": "⏱ Race", "Kalan": "Remaining", "Tahmini Tur": "Est. Laps",
+  "📋 Stint Programı": "📋 Stint Schedule", "🛞 Lastik": "🛞 Tyres",
+  "Kullanılan Lastik": "Tyres Used", "Kalan Lastik": "Tyres Left",
+  "⛽ Son Stint VE": "⛽ Final Stint VE", "Pilot Dağılımı": "Driver Split",
+  "Sıradaki stint lastikleri:": "Next stint tyres:",
+  // lastik sekmesi
+  "Lastik Stratejisi": "Tyre Strategy", "Lastik Limiti (adet)": "Tyre Limit (count)",
+  "— hızlı —": "— quick —", "🆕 4 Yeni": "🆕 4 New",
+  "⟳ Öncekiyle Devam": "⟳ Carry Over", "Önler Yeni": "New Fronts",
+  "Arkalar Yeni": "New Rears", "Sollar Yeni": "New Lefts", "Sağlar Yeni": "New Rights",
+  "✕ Temizle": "✕ Clear", "Tümünü Temizle": "Clear All", "Hızlı Atama": "Quick Assign",
+  "Yeni lastik (1 kez)": "New tyre (1 use)", "2 kez (duplicate)": "2 uses (duplicate)",
+  "Qual lastiği tekrar": "Qual tyre reused", "3 kez": "3 uses", "4+ kez": "4+ uses",
+  // pilotlar
+  "Yarış Bitişi": "Race Finish", "Pilot Kadrosu": "Driver Roster",
+  "Henüz pilot yok — aşağıdan ekle.": "No drivers yet — add below.",
+  "Pilot adı": "Driver name", "Ekle": "Add", "Süre": "Duration", "Pilot": "Driver",
+  "— seç —": "— select —", "Toplam Süre": "Total Time",
+  "Atamaları Temizle": "Clear Assignments",
+  "Geçerli bir yarış başlangıç zamanı gir.": "Enter a valid race start time.",
+  // telemetri
+  "Telemetri İçe Aktar (MoTeC)": "Import Telemetry (MoTeC)",
+  "MoTeC tur istatistiklerini yapıştır veya dosya seç (CSV/TSV)":
+    "Paste MoTeC lap statistics or choose a file (CSV/TSV)",
+  "Tur Süresi": "Lap Time", "(başlıksız)": "(untitled)",
+  "Tur süresi sütunu seçilmeli": "Select the lap time column",
+  "Stint Analizi": "Stint Analysis", "DATA'ya uygula": "Apply to DATA", "Sil": "Delete",
+  "Karşılaştırma": "Comparison", "Ort. Fark": "Avg. Gap", "Hızlı Olan": "Faster",
+  "Dahil": "Incl.",
+  "Tur satırı bulunamadı ('Out Lap', 'Lap 1'...)": "No lap rows found ('Out Lap', 'Lap 1'...)",
+  // son stint yakıtı
+  "YARIŞ SONU": "RACE END", "CODE 80 SONU": "CODE 80 END",
+  "Kalan Tur": "Laps Left", "Dolum Süresi": "Refuel Time",
+  "⚠ %100'ü aşıyor — depo yetmez!": "⚠ Exceeds 100% — tank won't fit!",
+  "gerçek yakıt": "real fuel",
+  // ipuçları
+  "Fuel süresi ipucu = %100 VE / dolum hızı": "Fuel time hint = 100% VE / refuel rate",
+  "CODE80'de lastik süresi otomatik ÷4 uygulanır.": "In CODE80 tyre time is automatically ÷4.",
+  "Depo daima": "The tank is always treated as",
+  "kabul edilir. Gerçek yakıt = VE × ratio → gerçek tüketim ≈":
+    "VE. Real fuel = VE × ratio → real usage ≈",
+  "L/tur": "L/lap", "%/tur": "%/lap", "tur + extra": "laps + extra", "dolum ≈": "refuel ≈",
+  "Ratio'yu düşürmek daha az yakıt taşımak demektir (örn. 0.84 → %100 = 84.0 L).":
+    "Lowering the ratio means carrying less fuel (e.g. 0.84 → 100% = 84.0 L).",
+  "Pit süresi = FUEL": "Pit time = FUEL", "lastik ×": "tyres ×",
+  "Son stintte pit hesaplanmaz. Override girilirse stint süresi manuel değere kilitlenir.":
+    "No pit is calculated for the final stint. If an override is set, the stint time locks to it.",
+  "Pit'te seçilen lastikler (FL/FR/RL/RR) Lastik sekmesindeki tabloya otomatik işlenir:":
+    "Tyres selected at a pit (FL/FR/RL/RR) are written to the Tyres tab automatically:",
+  "seçilen köşeye sonraki stint için yeni lastik atanır, seçim kaldırılırsa önceki lastikle devam edilir.":
+    "the selected corner gets a new tyre for the next stint; deselecting carries the previous tyre over.",
+  "Şu an: Stint": "Now: Stint", "(PIT'te)": "(in PIT)", "sıradaki pit": "next pit",
+  "Her numara TEK bir lastiği temsil eder (set değil) — limit adet bazlıdır. Bir lastik ilk takıldığı köşeye kilitlenir ve diğer köşelerin menülerinden otomatik kalkar. Aynı lastik aynı köşede tekrar kullanılırsa hücre kullanım sayısına göre renklenir. Hızlı Atama ile tek tıkla 4 yeni / öncekiyle devam / kısmi değişim yapabilirsin.":
+    "Each number represents ONE tyre (not a set) — the limit is per tyre. A tyre locks to the corner it is first fitted on and disappears from other corners' menus. Reusing a tyre on the same corner colors the cell by usage count. Quick Assign gives one-click 4 new / carry over / partial change.",
+  "⚠ Köşe kuralı ihlali — lastik": "⚠ Corner rule violation — tyre",
+  "birden fazla": "used on more than one corner.",
+  "köşede kullanılmış. Bir lastik ilk takıldığı köşeye kilitlenir; hatalı hücreyi düzelt.":
+    "A tyre locks to its first corner; fix the offending cell.",
+  "⚠ Köşe ihlali: lastik": "⚠ Corner violation: tyre",
+  "Start/Finish zamanları stint planından otomatik zincirlenir (pit süreleri dahil). Yarış bitişini aşan kısım süreye sayılmaz; tamamen yarış dışı kalan stintler soluk görünür.":
+    "Start/Finish times chain automatically from the stint plan (pit times included). Time past the race finish doesn't count; fully out-of-race stints appear dimmed.",
+  "Out lap ve dolum turları (yakıt Δ pozitif) otomatik hariç tutulur — Dahil kutusuyla elle değiştirebilirsin. Ortalamalar sadece dahil turlardan hesaplanır.":
+    "Out laps and refuel laps (positive fuel Δ) are excluded automatically — override with the Incl. checkbox. Averages use included laps only.",
+  "tur satırı bulundu. Sütun eşleşmesini kontrol et:": "lap rows found. Check the column mapping:",
+  "ort. tur": "avg lap", "tur listesi": "lap list", "kalan tur": "laps left",
+  "Aşınma": "Wear",
+};
+
 const trackName = (id) => TRACKS.find((t) => t.id === id)?.name || "";
 const carName = (cls, id) => CARS[cls]?.find((c) => c.id === id)?.name || "";
 const isLapLabel = (c) => /^(out ?lap|in ?lap|lap ?\d+)$/i.test(String(c).trim());
@@ -401,6 +536,10 @@ const css = `
   filter:drop-shadow(0 4px 8px rgba(0,0,0,.45))}
 .rc .cargrid button.on{border-color:var(--teal);background:rgba(150,0,24,.20);
   color:var(--txt);font-weight:600}
+.rc .langsw{display:inline-flex;gap:4px;margin-left:auto}
+.rc .langsw button{padding:3px 9px;border-radius:5px;border:1px solid var(--line);
+  background:var(--panel2);color:var(--dim);font-size:11px;cursor:pointer;font-weight:600}
+.rc .langsw button.on{border-color:var(--teal);color:var(--teal)}
 .rc .hdsel{display:inline-flex;align-items:center;gap:7px;color:var(--dim);font-size:12px}
 .rc .hdsel img.flag{width:18px;height:auto;border-radius:2px}
 .rc .hdsel img.car{height:22px;width:auto}
@@ -479,6 +618,14 @@ export default function App() {
   const [tab, setTab] = useState("dash");
 
   /* ---------- Faz 2: takım senkronizasyonu + yetki ---------- */
+  const [lang, setLang] = useState(() => {
+    try { return localStorage.getItem("crm-lang") || "tr"; } catch { return "tr"; }
+  });
+  const t = (str) => (lang === "en" ? (EN[str] ?? str) : str);
+  const switchLang = (l) => {
+    setLang(l);
+    try { localStorage.setItem("crm-lang", l); } catch {}
+  };
   const [entered, setEntered] = useState(false); // lobi geçildi mi (solo/oda)
   const [pickDone, setPickDone] = useState(false); // pist/araç seçimi tamamlandı mı
   const [setupDone, setSetupDone] = useState(false); // data giriş adımı tamamlandı mı
@@ -505,8 +652,8 @@ export default function App() {
         updatedAt: Date.now(),
       };
       await roomSet(code, payload);
-      sync.current.rev = rev; setLastSync({ by: "sen", at: Date.now() }); setSyncMsg("");
-    } catch (e) { setSyncMsg("Yazma hatası — tekrar denenecek"); }
+      sync.current.rev = rev; setLastSync({ by: t("sen"), at: Date.now() }); setSyncMsg("");
+    } catch (e) { setSyncMsg(t("Yazma hatası — tekrar denenecek")); }
   };
 
   const schedulePush = () => {
@@ -548,13 +695,13 @@ export default function App() {
 
   const joinRoom = async () => {
     const code = joinCode.trim().toUpperCase();
-    if (code.length < 4) { setSyncMsg("Geçerli bir oda kodu gir"); return; }
+    if (code.length < 4) { setSyncMsg(t("Geçerli bir oda kodu gir")); return; }
     try {
       const remote = await roomGet(code);
       if (!remote) { setSyncMsg(`"${code}" odası bulunamadı — kodu kontrol et`); return; }
       const asEditor = joinPin.trim() !== "" && joinPin.trim() === remote.pin;
       if (joinPin.trim() !== "" && !asEditor) {
-        setSyncMsg("PIN hatalı — izleyici olarak katılmak için PIN alanını boş bırak");
+        setSyncMsg(t("PIN hatalı — izleyici olarak katılmak için PIN alanını boş bırak"));
         return;
       }
       sync.current.applying = true;
@@ -774,8 +921,8 @@ export default function App() {
 
   const fmtClock = (ms, refMs) => {
     const d = new Date(ms);
-    const t = d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-    if (refMs != null && new Date(refMs).getDate() !== d.getDate()) return `${t} (+1g)`;
+    const t = d.toLocaleTimeString(lang === "en" ? "en-GB" : "tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    if (refMs != null && new Date(refMs).getDate() !== d.getDate()) return `${t}${lang === "en" ? " (+1d)" : " (+1g)"}`;
     return t;
   };
 
@@ -917,21 +1064,21 @@ export default function App() {
   /* ---------- ortak data kartları (setup + ana arayüz sol kolon) ---------- */
   const dataCards = (<>
     <div className="card">
-      <h2>Yarış · Data</h2>
+      <h2>{t("Yarış · Data")}</h2>
       <div className="row2">
         <div><label>Race Time (h:mm:ss)</label>
           <input type="text" value={st.raceTime} onChange={(e) => up({ raceTime: e.target.value })} /></div>
         <div><label>Avg Lap (m:ss.00)</label>
           <input type="text" value={st.avgLap} onChange={(e) => up({ avgLap: e.target.value })} /></div>
       </div>
-      <label>Stint Turları — A / B / C / D</label>
+      <label>{t("Stint Turları — A / B / C / D")}</label>
       <div className="row4">
         {["A", "B", "C", "D"].map((k) => (
           <Num key={k} v={st.strategies[k]} step={1}
             onC={(v) => up({ strategies: { ...st.strategies, [k]: v } })} />
         ))}
       </div>
-      <label>Seçili Strateji</label>
+      <label>{t("Seçili Strateji")}</label>
       <div className="strat">
         {["A", "B", "C", "D"].map((k) => (
           <button key={k} className={st.chosen === k ? "on" : ""}
@@ -947,48 +1094,48 @@ export default function App() {
     </div>
 
     <div className="card" style={{ marginTop: 12 }}>
-      <h2>Yarış Başlangıcı</h2>
+      <h2>{t("Yarış Başlangıcı")}</h2>
       <div className="row2">
-        <div><label>Start Tarih & Saat</label>
+        <div><label>{t("Start Tarih & Saat")}</label>
           <input type="datetime-local" value={st.raceStart}
             onChange={(e) => up({ raceStart: e.target.value })} /></div>
-        <div><label>Hesaplanan Bitiş</label>
+        <div><label>{t("Hesaplanan Bitiş")}</label>
           <div className="mono" style={{ padding: "6px 0" }}>
             {driverPlan ? fmtClock(driverPlan.finishMs, driverPlan.startMs) : "—"}</div></div>
       </div>
-      <div className="hint">Canlı yarış modu, pilot planı ve geri sayım bu zamana göre çalışır.</div>
+      <div className="hint">{t("Canlı yarış modu, pilot planı ve geri sayım bu zamana göre çalışır.")}</div>
     </div>
 
     <div className="card" style={{ marginTop: 12 }}>
-      <h2>Pit · Süreler (s)</h2>
+      <h2>{t("Pit · Süreler (s)")}</h2>
       <div className="row2">
         <div><label>Pit Line</label><Num v={st.pitLaneTime} onC={(v) => up({ pitLaneTime: v })} /></div>
         <div><label>Fuel</label><Num v={st.fuelTime} onC={(v) => up({ fuelTime: v })} /></div>
       </div>
       <div className="row2">
-        <div><label>Tyre (adet başı)</label><Num v={st.tyreTime} onC={(v) => up({ tyreTime: v })} /></div>
-        <div><label>Hesaplanan Fuel Süresi</label>
+        <div><label>{t("Tyre (adet başı)")}</label><Num v={st.tyreTime} onC={(v) => up({ tyreTime: v })} /></div>
+        <div><label>{t("Hesaplanan Fuel Süresi")}</label>
           <div className="mono" style={{ padding: "6px 0" }}>{fuelTimeCalc.toFixed(1)} s</div></div>
       </div>
-      <div className="hint">Fuel süresi ipucu = %100 VE / dolum hızı (100% / {st.refuelSpeed} %/s). CODE80'de lastik süresi otomatik ÷4 uygulanır.</div>
+      <div className="hint">{t("Fuel süresi ipucu = %100 VE / dolum hızı")} (100% / {st.refuelSpeed} %/s). {t("CODE80'de lastik süresi otomatik ÷4 uygulanır.")}</div>
     </div>
 
     <div className="card" style={{ marginTop: 12 }}>
       <h2>Virtual Energy · Data</h2>
       <div className="row2">
-        <div><label>VE Tüketim (%/tur)</label><Num v={st.consumption} onC={(v) => up({ consumption: v })} /></div>
+        <div><label>{t("VE Tüketim (%/tur)")}</label><Num v={st.consumption} onC={(v) => up({ consumption: v })} /></div>
         <div><label>Fuel Ratio (L / %1)</label><Num v={st.fuelRatio} onC={(v) => up({ fuelRatio: v })} /></div>
       </div>
       <div className="row2">
-        <div><label>Dolum Hızı (%/s)</label><Num v={st.refuelSpeed} onC={(v) => up({ refuelSpeed: v })} /></div>
-        <div><label>%100 = Taşınan Yakıt</label>
+        <div><label>{t("Dolum Hızı (%/s)")}</label><Num v={st.refuelSpeed} onC={(v) => up({ refuelSpeed: v })} /></div>
+        <div><label>{t("%100 = Taşınan Yakıt")}</label>
           <div className="mono" style={{ padding: "6px 0", color: "var(--green)" }}>
             {fuelCarried.toFixed(1)} L</div></div>
       </div>
       <div className="hint">
-        Depo daima <b>%100 VE</b> kabul edilir. Gerçek yakıt = VE × ratio
-        → gerçek tüketim ≈ <b className="mono">{realPerLap.toFixed(2)} L/tur</b>.
-        Ratio'yu düşürmek daha az yakıt taşımak demektir (örn. 0.84 → %100 = 84.0 L).
+        {t("Depo daima")} <b>%100 VE</b> {t("kabul edilir. Gerçek yakıt = VE × ratio → gerçek tüketim ≈")}{" "}
+        <b className="mono">{realPerLap.toFixed(2)} {t("L/tur")}</b>.{" "}
+        {t("Ratio'yu düşürmek daha az yakıt taşımak demektir (örn. 0.84 → %100 = 84.0 L).")}
       </div>
     </div>
   </>);
@@ -1000,32 +1147,38 @@ export default function App() {
         <style>{css}</style>
         <div className="lobby">
           <div className="box">
+            <div className="langsw" style={{ display: "flex", justifyContent: "flex-end", marginBottom: 6 }}>
+              {["tr", "en"].map((l) => (
+                <button key={l} className={lang === l ? "on" : ""}
+                  onClick={() => switchLang(l)}>{l.toUpperCase()}</button>
+              ))}
+            </div>
             <img className="logo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
             <h1><b>RACE</b> CONTROL</h1>
-            <div className="sub">carmine · v0.7</div>
+            <div className="sub">carmine · v0.8</div>
 
             {firebaseReady ? (<>
-              <label>Adın</label>
-              <input type="text" placeholder="örn. Ahmet" value={userName}
+              <label>{t("Adın")}</label>
+              <input type="text" placeholder={t("örn. Ahmet")} value={userName}
                 onChange={(e) => setUserName(e.target.value)} />
 
               <button className="bigbtn" onClick={createRoom}>
                 🏁 Yeni Oda Kur
               </button>
 
-              <div className="divider">veya mevcut odaya katıl</div>
+              <div className="divider">{t("veya mevcut odaya katıl")}</div>
 
               <div className="row2">
                 <div>
-                  <label>Oda Kodu</label>
+                  <label>{t("Oda Kodu")}</label>
                   <input type="text" placeholder="ABC12" value={joinCode} maxLength={6}
                     style={{ textTransform: "uppercase" }}
                     onChange={(e) => setJoinCode(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && joinRoom()} />
                 </div>
                 <div>
-                  <label>PIN (düzenleme)</label>
-                  <input type="text" placeholder="boş = izleyici" value={joinPin} maxLength={4}
+                  <label>{t("PIN (düzenleme)")}</label>
+                  <input type="text" placeholder={t("boş = izleyici")} value={joinPin} maxLength={4}
                     onChange={(e) => setJoinPin(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && joinRoom()} />
                 </div>
@@ -1035,7 +1188,7 @@ export default function App() {
               </button>
               <div className="lmsg">{syncMsg}</div>
               <div className="hint" style={{ textAlign: "center" }}>
-                PIN'siz katılan izler, PIN'li katılan düzenler.
+                {t("PIN'siz katılan izler, PIN'li katılan düzenler.")}
               </div>
             </>) : (
               <div className="hint" style={{ textAlign: "center", marginBottom: 8 }}>
@@ -1065,11 +1218,11 @@ export default function App() {
             <div className="sub">
               {room ? (<>Oda: <b className="roomcode">{room}</b>
                 {roomPin && <> · PIN: <b className="roomcode">{roomPin}</b></>}</>)
-                : "Solo mod"}
+                : t("Solo mod")}
             </div>
 
             <div className="picksec">
-              <h3>1 · Pist Seç</h3>
+              <h3>{t("1 · Pist Seç")}</h3>
               <div className="trackgrid">
                 {TRACKS.map((t) => (
                   <button key={t.id} className={st.track === t.id ? "on" : ""}
@@ -1081,7 +1234,7 @@ export default function App() {
             </div>
 
             <div className="picksec">
-              <h3>2 · Sınıf Seç</h3>
+              <h3>{t("2 · Sınıf Seç")}</h3>
               <div className="classtoggle">
                 {[["hypercar", "Hypercar"], ["gt3", "GT3"]].map(([id, name]) => (
                   <button key={id} className={cls === id ? "on" : ""}
@@ -1093,7 +1246,7 @@ export default function App() {
             </div>
 
             <div className="picksec">
-              <h3>3 · Araç Seç</h3>
+              <h3>{t("3 · Araç Seç")}</h3>
               <div className="cargrid">
                 {CARS[cls].map((c) => (
                   <button key={c.id} className={st.car === c.id ? "on" : ""}
@@ -1111,7 +1264,7 @@ export default function App() {
               ✓ Devam Et — Yarış Dataları
             </button>
             <div className="lmsg">
-              {(!st.track || !st.car) && "Devam etmek için pist ve araç seç"}
+              {(!st.track || !st.car) && t("Devam etmek için pist ve araç seç")}
             </div>
             <button className="solo" onClick={() => setPickDone(true)}>
               Seçim yapmadan geç →
@@ -1138,8 +1291,8 @@ export default function App() {
               {room ? (<>
                 Oda: <b className="roomcode">{room}</b>
                 {roomPin && <> · PIN: <b className="roomcode">{roomPin}</b></>}
-                {" — "}kodu takıma şimdiden gönderebilirsin
-              </>) : "Solo mod — datalar sadece bu cihazda"}
+                {" "}{t("— kodu takıma şimdiden gönderebilirsin")}
+              </>) : t("Solo mod — datalar sadece bu cihazda")}
             </div>
 
             {dataCards}
@@ -1149,7 +1302,7 @@ export default function App() {
               ✓ Devam Et — Arayüze Geç
             </button>
             <div className="hint" style={{ textAlign: "center", marginTop: 8 }}>
-              Merak etme, tüm bu değerleri arayüzün sol kolonundan her an değiştirebilirsin.
+              {t("Merak etme, tüm bu değerleri arayüzün sol kolonundan her an değiştirebilirsin.")}
             </div>
           </div>
         </div>
@@ -1163,7 +1316,13 @@ export default function App() {
       <header>
         <img className="hlogo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
         <h1 className="disp" style={{ fontSize: 20 }}>RACE CONTROL</h1>
-        <span className="ver">carmine · v0.7</span>
+        <span className="ver">carmine · v0.8</span>
+        <span className="langsw">
+          {["tr", "en"].map((l) => (
+            <button key={l} className={lang === l ? "on" : ""}
+              onClick={() => switchLang(l)}>{l.toUpperCase()}</button>
+          ))}
+        </span>
         {(st.track || st.car) && (
           <span className="hdsel">
             {st.track && <><img className="flag" src={`${ASSET}flags/${st.track}.png`} alt="" />
@@ -1176,17 +1335,17 @@ export default function App() {
       </header>
 
       <div className="teambar">
-        <span className={`dot ${room ? "on" : "off"}`} title={room ? "Bağlı" : "Solo mod"} />
+        <span className={`dot ${room ? "on" : "off"}`} title={room ? "Bağlı" : t("Solo mod")} />
         {!room ? (firebaseReady ? (<>
-          <input type="text" placeholder="ADIN" value={userName}
+          <input type="text" placeholder={t("ADIN")} value={userName}
             onChange={(e) => setUserName(e.target.value)} style={{ textTransform: "none" }} />
-          <button className="solid" onClick={createRoom}>Oda Kur</button>
-          <input type="text" placeholder="ODA KODU" value={joinCode}
+          <button className="solid" onClick={createRoom}>{t("Oda Kur")}</button>
+          <input type="text" placeholder={t("ODA KODU")} value={joinCode}
             onChange={(e) => setJoinCode(e.target.value)} maxLength={6} />
-          <input type="text" placeholder="PIN (opsiyonel)" value={joinPin}
+          <input type="text" placeholder={t("PIN (opsiyonel)")} value={joinPin}
             onChange={(e) => setJoinPin(e.target.value)} maxLength={4} style={{ width: 120 }} />
-          <button onClick={joinRoom}>Katıl</button>
-          <span className="syncinfo">PIN'siz katılan izler, PIN'li katılan düzenler</span>
+          <button onClick={joinRoom}>{t("Katıl")}</button>
+          <span className="syncinfo">{t("PIN'siz katılan izler, PIN'li katılan düzenler.")}</span>
         </>) : (
           <span className="syncinfo" style={{ marginLeft: 0 }}>
             Solo mod — takım senkronizasyonu için <b>src/firebase-config.js</b> dosyasını doldur
@@ -1200,11 +1359,11 @@ export default function App() {
           </span>
           {role === "editor" && roomPin &&
             <span className="syncinfo" style={{ marginLeft: 0 }}>
-              Düzenleme PIN'i: <b className="roomcode" style={{ fontSize: 13 }}>{roomPin}</b> (sadece düzenleyecek kişilere ver)
+              {t("Düzenleme PIN'i: ")}<b className="roomcode" style={{ fontSize: 13 }}>{roomPin}</b>{t(" (sadece düzenleyecek kişilere ver)")}
             </span>}
-          <button className="leave" onClick={leaveRoom}>Odadan Ayrıl</button>
+          <button className="leave" onClick={leaveRoom}>{t("Odadan Ayrıl")}</button>
           <span className="syncinfo">
-            {lastSync ? `Son güncelleme: ${lastSync.by} · ${new Date(lastSync.at).toLocaleTimeString("tr-TR")}` : "Senkronize"}
+            {lastSync ? `${t("Son güncelleme: ")}${lastSync.by} · ${new Date(lastSync.at).toLocaleTimeString(lang === "en" ? "en-GB" : "tr-TR")}` : t("Senkronize")}
           </span>
         </>)}
         {syncMsg && <span style={{ color: "var(--yellow)" }}>{syncMsg}</span>}
@@ -1213,12 +1372,12 @@ export default function App() {
       {liveInfo.status !== "idle" && (
         <div className="livestrip">
           {liveInfo.status === "pre" && (<>
-            <div><span className="lbl">Start'a</span>
+            <div><span className="lbl">{t("Start'a")}</span>
               <span className="big mono" style={{ color: "var(--yellow)" }}>
                 {fmtHMS(liveInfo.toStart / 1000)}</span></div>
           </>)}
           {liveInfo.status === "live" && (<>
-            <div><span className="lbl">Kalan Süre</span>
+            <div><span className="lbl">{t("Kalan Süre")}</span>
               <span className="big mono" style={{ color: "var(--green)" }}>
                 {fmtHMS(liveInfo.remaining / 1000)}</span></div>
             <div><span className="lbl">Stint</span>
@@ -1228,12 +1387,12 @@ export default function App() {
             <div><span className="lbl">{liveInfo.phase === "pit" ? "Pit Çıkışı" : "Sıradaki Pit"}</span>
               <span className={`big mono ${pitSoon ? "pulse" : ""}`}>
                 {fmtHMS(liveInfo.nextPitIn / 1000)}</span></div>
-            {liveInfo.driver && <div><span className="lbl">Direksiyonda</span>
+            {liveInfo.driver && <div><span className="lbl">{t("Direksiyonda")}</span>
               <span className="big">{liveInfo.driver}</span></div>}
           </>)}
           {liveInfo.status === "done" && (
-            <div><span className="lbl">Durum</span>
-              <span className="big" style={{ color: "var(--green)" }}>🏁 YARIŞ BİTTİ</span></div>
+            <div><span className="lbl">{t("Durum")}</span>
+              <span className="big" style={{ color: "var(--green)" }}>{t("🏁 YARIŞ BİTTİ")}</span></div>
           )}
           <button className="act" style={{ marginLeft: "auto" }}
             onClick={() => setPitboard(true)}>📟 Pit Board</button>
@@ -1245,18 +1404,18 @@ export default function App() {
           <button className="close" onClick={() => setPitboard(false)}>✕</button>
           <img className="plogo" src={`${ASSET}logo.png`} alt="" />
           {liveInfo.status === "pre" && (<>
-            <div className="plbl">Start'a</div>
+            <div className="plbl">{t("Start'a")}</div>
             <div className="huge" style={{ color: "var(--yellow)" }}>
               {fmtHMS(liveInfo.toStart / 1000)}</div>
           </>)}
           {liveInfo.status === "done" && <div className="huge">🏁</div>}
           {liveInfo.status === "idle" && (<>
-            <div className="plbl">Yarış zamanı ayarlanmadı</div>
-            <div className="mid">Pilotlar sekmesinden başlangıç zamanını gir</div>
+            <div className="plbl">{t("Yarış zamanı ayarlanmadı")}</div>
+            <div className="mid">{t("Pilotlar sekmesinden başlangıç zamanını gir")}</div>
           </>)}
           {liveInfo.status === "live" && (<>
             <div>
-              <div className="plbl">Kalan Süre</div>
+              <div className="plbl">{t("Kalan Süre")}</div>
               <div className="huge">{fmtHMS(liveInfo.remaining / 1000)}</div>
             </div>
             <div className="pbrow">
@@ -1272,7 +1431,7 @@ export default function App() {
               </div>
               {upcomingIsLast && (
                 <div>
-                  <div className="plbl">Son Pit VE</div>
+                  <div className="plbl">{t("Son Pit VE")}</div>
                   <div className="mid" style={{ color: "var(--green)" }}>
                     {lsf.refuel.toFixed(1)}%</div>
                 </div>
@@ -1280,7 +1439,7 @@ export default function App() {
             </div>
             {(liveInfo.driver || liveInfo.nextDriver) && (
               <div>
-                <div className="plbl">Pilot Değişimi</div>
+                <div className="plbl">{t("Pilot Değişimi")}</div>
                 <div className="mid">
                   {liveInfo.driver || "?"} <span style={{ color: "var(--teal)" }}>→</span>{" "}
                   {liveInfo.nextDriver || "?"}
@@ -1289,7 +1448,7 @@ export default function App() {
             )}
             {upcomingPit && !racePlan.rows[liveInfo.stintIdx]?.isLast && (
               <div className="plbl">
-                Sıradaki pit: {upcomingPit.fuel ? "FUEL " : ""}{upcomingPit.lane ? "· LANE " : ""}
+                {t("Sıradaki pit: ")}{upcomingPit.fuel ? "FUEL " : ""}{upcomingPit.lane ? "· LANE " : ""}
                 {upcomingPit.tyres.some(Boolean) &&
                   <>· 🛞 {TY.filter((_, i) => upcomingPit.tyres[i]).join(" ")}</>}
               </div>
@@ -1308,8 +1467,8 @@ export default function App() {
         <div>
           <div className="tabs">
             {[["dash", "Dashboard"], ["stint", "Stint"], ["code80", "Code 80"],
-              ["fuel", "Son Stint Yakıtı"], ["tyre", "Lastik"], ["drivers", "Pilotlar"],
-              ["tele", "Telemetri"]].map(([k, l]) => (
+              ["fuel", t("Son Stint Yakıtı")], ["tyre", t("Lastik")], ["drivers", t("Pilotlar")],
+              ["tele", t("Telemetri")]].map(([k, l]) => (
               <button key={k} className={`${tab === k ? "on" : ""} ${k === "code80" && tab === k ? "c80t" : ""}`}
                 onClick={() => setTab(k)}>{l}</button>
             ))}
@@ -1321,13 +1480,13 @@ export default function App() {
                 <div className="kpi"><div className="v mono">{fmtHMS(plan.raceSec)}</div>
                   <div className="l">{tab === "code80" ? "Code 80 Kalan" : "Yarış Süresi"}</div></div>
                 <div className="kpi"><div className="v" style={{ color: "var(--teal)" }}>{st.chosen}-{plan.laps}</div>
-                  <div className="l">Strateji</div></div>
+                  <div className="l">{t("Strateji")}</div></div>
                 <div className="kpi"><div className="v">{plan.fullStints}</div>
-                  <div className="l">Stint Sayısı</div></div>
+                  <div className="l">{t("Stint Sayısı")}</div></div>
                 <div className="kpi"><div className="v">{plan.totalLaps.toFixed(1)}</div>
-                  <div className="l">Tahmini Toplam Tur</div></div>
+                  <div className="l">{t("Tahmini Toplam Tur")}</div></div>
                 <div className="kpi"><div className="v" style={{ color: "var(--green)" }}>{totalVE.toFixed(0)}%</div>
-                  <div className="l">Toplam VE · {totalFuelL.toFixed(1)} L yakıt</div></div>
+                  <div className="l">{t("Toplam VE")} · {totalFuelL.toFixed(1)} L {t("yakıt")}</div></div>
               </div>
 
               {tab === "stint" && (
@@ -1335,23 +1494,23 @@ export default function App() {
                   border: "1px solid var(--line)", borderRadius: 8, padding: "8px 12px",
                   marginBottom: 12, background: "var(--panel2)" }}>
                   <span className="disp" style={{ fontSize: 14, letterSpacing: ".06em",
-                    color: "var(--teal)" }}>🛞 S1 START LASTİKLERİ</span>
+                    color: "var(--teal)" }}>{t("🛞 S1 START LASTİKLERİ")}</span>
                   <span className="mono" style={{ fontSize: 12 }}>
                     {TY.map((t, ci) =>
                       `${t}:${String(st.tyreStints[0]?.[ci] || "–")}`).join("  ")}
                   </span>
                   <span className="pitopt">
-                    <button onClick={() => quickTyre(0, "carry")}>QUAL İLE BAŞLA</button>
-                    <button onClick={() => quickTyre(0, "new4")}>4 YENİ</button>
-                    <button onClick={() => quickTyre(0, "fronts")}>2 YENİ ÖN</button>
-                    <button onClick={() => quickTyre(0, "rears")}>2 YENİ ARKA</button>
-                    <button onClick={() => quickTyre(0, "lefts")}>2 YENİ SOL</button>
-                    <button onClick={() => quickTyre(0, "rights")}>2 YENİ SAĞ</button>
-                    <button onClick={() => quickTyre(0, "clear")}>TEMİZLE</button>
+                    <button onClick={() => quickTyre(0, "carry")}>{t("QUAL İLE BAŞLA")}</button>
+                    <button onClick={() => quickTyre(0, "new4")}>{t("4 YENİ")}</button>
+                    <button onClick={() => quickTyre(0, "fronts")}>{t("2 YENİ ÖN")}</button>
+                    <button onClick={() => quickTyre(0, "rears")}>{t("2 YENİ ARKA")}</button>
+                    <button onClick={() => quickTyre(0, "lefts")}>{t("2 YENİ SOL")}</button>
+                    <button onClick={() => quickTyre(0, "rights")}>{t("2 YENİ SAĞ")}</button>
+                    <button onClick={() => quickTyre(0, "clear")}>{t("TEMİZLE")}</button>
                   </span>
                   {!(st.tyreStints[0] || []).some((v) => String(v).trim()) && (
                     <span className="hint warn" style={{ margin: 0 }}>
-                      ⚠ Başlangıç lastiği seçilmedi — önce buradan başla, pit seçimleri buna zincirlenir
+                      {t("⚠ Başlangıç lastiği seçilmedi — önce buradan başla, pit seçimleri buna zincirlenir")}
                     </span>
                   )}
                 </div>
@@ -1372,8 +1531,8 @@ export default function App() {
 
               <table>
                 <thead><tr>
-                  <th>#</th><th>Stint</th><th>Tur</th><th>VE İht.</th>
-                  <th>Pit Ayarı</th><th>Pit</th><th>End Stint</th><th>Time Left</th>
+                  <th>#</th><th>Stint</th><th>{t("Tur")}</th><th>{t("VE İht.")}</th>
+                  <th>{t("Pit Ayarı")}</th><th>Pit</th><th>End Stint</th><th>Time Left</th>
                   <th>Override</th>
                 </tr></thead>
                 <tbody>
@@ -1415,11 +1574,11 @@ export default function App() {
                 </tbody>
               </table>
               <div className="hint">
-                Pit süresi = FUEL({st.fuelTime}s) + LANE({st.pitLaneTime}s) + lastik ×
+                {t("Pit süresi = FUEL")}({st.fuelTime}s) + LANE({st.pitLaneTime}s) {t("lastik ×")}
                 {tab === "code80" ? ` ${(st.tyreTime / 4).toFixed(2)}s (Code 80: ÷4)` : ` ${st.tyreTime}s`}.
-                Son stintte pit hesaplanmaz. Override girilirse stint süresi manuel değere kilitlenir.
-                Pit'te seçilen lastikler (FL/FR/RL/RR) Lastik sekmesindeki tabloya otomatik işlenir:
-                seçilen köşeye sonraki stint için yeni lastik atanır, seçim kaldırılırsa önceki lastikle devam edilir.
+                {t("Son stintte pit hesaplanmaz. Override girilirse stint süresi manuel değere kilitlenir.")}{" "}
+                {t("Pit'te seçilen lastikler (FL/FR/RL/RR) Lastik sekmesindeki tabloya otomatik işlenir:")}{" "}
+                {t("seçilen köşeye sonraki stint için yeni lastik atanır, seçim kaldırılırsa önceki lastikle devam edilir.")}
               </div>
             </div>
           )}
@@ -1427,24 +1586,24 @@ export default function App() {
           {tab === "dash" && (
             <div className="dgrid">
               <div className="card">
-                <h2>⏱ Yarış</h2>
+                <h2>{t("⏱ Yarış")}</h2>
                 <div className="kpis" style={{ gridTemplateColumns: "1fr 1fr" }}>
                   <div className="kpi"><div className="v mono" style={{ color: "var(--green)" }}>
                     {liveInfo.status === "live" ? fmtHMS(liveInfo.remaining / 1000)
                       : fmtHMS(racePlan.raceSec)}</div>
                     <div className="l">{liveInfo.status === "live" ? "Kalan" : "Yarış Süresi"}</div></div>
                   <div className="kpi"><div className="v" style={{ color: "var(--teal)" }}>
-                    {st.chosen}-{racePlan.laps}</div><div className="l">Strateji</div></div>
+                    {st.chosen}-{racePlan.laps}</div><div className="l">{t("Strateji")}</div></div>
                   <div className="kpi"><div className="v">{racePlan.fullStints}</div>
                     <div className="l">Stint</div></div>
                   <div className="kpi"><div className="v">{racePlan.totalLaps.toFixed(0)}</div>
-                    <div className="l">Tahmini Tur</div></div>
+                    <div className="l">{t("Tahmini Tur")}</div></div>
                 </div>
                 {liveInfo.status === "live" && (
                   <div className="hint">
-                    Şu an: Stint {liveInfo.stintIdx + 1}
-                    {liveInfo.phase === "pit" ? " (PIT'te)" : ""} ·
-                    sıradaki pit <b className={pitSoon ? "pulse" : "mono"}>
+                    {t("Şu an: Stint")} {liveInfo.stintIdx + 1}
+                    {liveInfo.phase === "pit" ? " " + t("(PIT'te)") : ""} ·{" "}
+                    {t("sıradaki pit")} <b className={pitSoon ? "pulse" : "mono"}>
                       {fmtHMS(liveInfo.nextPitIn / 1000)}</b>
                     {liveInfo.driver && <> · 🏎 {liveInfo.driver}</>}
                   </div>
@@ -1452,9 +1611,9 @@ export default function App() {
               </div>
 
               <div className="card">
-                <h2>📋 Stint Programı</h2>
+                <h2>{t("📋 Stint Programı")}</h2>
                 <table>
-                  <thead><tr><th>#</th><th>End</th><th>Left</th><th>Pilot</th></tr></thead>
+                  <thead><tr><th>#</th><th>End</th><th>Left</th><th>{t("Pilot")}</th></tr></thead>
                   <tbody>
                     {racePlan.rows.map((r, i) => (
                       <tr key={i} className={[
@@ -1472,33 +1631,33 @@ export default function App() {
               </div>
 
               <div className="card">
-                <h2>🛞 Lastik</h2>
+                <h2>{t("🛞 Lastik")}</h2>
                 <div className="kpis" style={{ gridTemplateColumns: "1fr 1fr" }}>
                   <div className="kpi"><div className="v">{tyreInfo.used}/{st.tyreLimit}</div>
-                    <div className="l">Kullanılan Lastik</div></div>
+                    <div className="l">{t("Kullanılan Lastik")}</div></div>
                   <div className="kpi"><div className="v"
                     style={{ color: tyreInfo.available < 0 ? "var(--red)" : "var(--green)" }}>
-                    {tyreInfo.available}</div><div className="l">Kalan Lastik</div></div>
+                    {tyreInfo.available}</div><div className="l">{t("Kalan Lastik")}</div></div>
                 </div>
                 {liveInfo.status === "live" && st.tyreStints[liveInfo.stintIdx + 1] && (
-                  <div className="hint">Sıradaki stint lastikleri:{" "}
+                  <div className="hint">{t("Sıradaki stint lastikleri:")}{" "}
                     <b className="mono">
                       {st.tyreStints[liveInfo.stintIdx + 1].map((v) => v || "–").join(" / ")}
                     </b></div>
                 )}
                 {tyreInfo.conflicts.length > 0 &&
                   <div className="hint" style={{ color: "var(--red)" }}>
-                    ⚠ Köşe ihlali: lastik {tyreInfo.conflicts.join(", ")}</div>}
+                    {t("⚠ Köşe ihlali: lastik")} {tyreInfo.conflicts.join(", ")}</div>}
               </div>
 
               <div className="card">
-                <h2>⛽ Son Stint VE</h2>
+                <h2>{t("⛽ Son Stint VE")}</h2>
                 <div className="fuelbig" style={{ fontSize: 40 }}>{lsf.refuel.toFixed(1)}%</div>
                 <div className="hint">
-                  ≈ {lsf.refuelL.toFixed(1)} L · {lsf.lapsLeft.toFixed(2)} tur + extra {st.extraLap} · dolum ≈ {lsf.refuelSec.toFixed(0)}s
+                  ≈ {lsf.refuelL.toFixed(1)} L · {lsf.lapsLeft.toFixed(2)} {t("tur + extra")} {st.extraLap} · {t("dolum ≈")} {lsf.refuelSec.toFixed(0)}s
                 </div>
                 {driverPlan && Object.keys(driverPlan.totals).length > 0 && (<>
-                  <label style={{ marginTop: 10 }}>Pilot Dağılımı</label>
+                  <label style={{ marginTop: 10 }}>{t("Pilot Dağılımı")}</label>
                   {st.roster.filter((n) => driverPlan.totals[n]).map((n) => {
                     const t = driverPlan.totals[n];
                     const pct = driverPlan.grandMs ? (t.ms / driverPlan.grandMs) * 100 : 0;
@@ -1521,23 +1680,23 @@ export default function App() {
 
           {tab === "tyre" && (
             <div className="card">
-              <h2>Lastik Stratejisi</h2>
+              <h2>{t("Lastik Stratejisi")}</h2>
               <div className="kpis">
                 <div className="kpi">
-                  <label style={{ margin: 0 }}>Lastik Limiti (adet)</label>
+                  <label style={{ margin: 0 }}>{t("Lastik Limiti (adet)")}</label>
                   <Num v={st.tyreLimit} step={1} onC={(v) => up({ tyreLimit: v })} />
                 </div>
                 <div className="kpi"><div className="v">{tyreInfo.used}</div>
-                  <div className="l">Kullanılan Lastik</div></div>
+                  <div className="l">{t("Kullanılan Lastik")}</div></div>
                 <div className="kpi"><div className="v"
                   style={{ color: tyreInfo.available < 0 ? "var(--red)" : "var(--green)" }}>
                   {tyreInfo.available}</div>
-                  <div className="l">Kalan Lastik</div></div>
+                  <div className="l">{t("Kalan Lastik")}</div></div>
                 <div className="kpi"><div className="v">{racePlan.fullStints}</div>
-                  <div className="l">Stint Sayısı</div></div>
+                  <div className="l">{t("Stint Sayısı")}</div></div>
               </div>
               <table>
-                <thead><tr><th>Stint</th><th>FL</th><th>FR</th><th>RL</th><th>RR</th><th>Hızlı Atama</th></tr></thead>
+                <thead><tr><th>Stint</th><th>FL</th><th>FR</th><th>RL</th><th>RR</th><th>{t("Hızlı Atama")}</th></tr></thead>
                 <tbody>
                   {tyreInfo.rows.map((r) => (
                     <tr key={r.label}>
@@ -1574,14 +1733,14 @@ export default function App() {
                             value="" onChange={(e) => {
                               if (e.target.value) quickTyre(r.row, e.target.value);
                             }}>
-                            <option value="">— hızlı —</option>
-                            <option value="new4">🆕 4 Yeni</option>
-                            <option value="carry">⟳ Öncekiyle Devam</option>
-                            <option value="fronts">Önler Yeni</option>
-                            <option value="rears">Arkalar Yeni</option>
-                            <option value="lefts">Sollar Yeni</option>
-                            <option value="rights">Sağlar Yeni</option>
-                            <option value="clear">✕ Temizle</option>
+                            <option value="">{t("— hızlı —")}</option>
+                            <option value="new4">{t("🆕 4 Yeni")}</option>
+                            <option value="carry">{t("⟳ Öncekiyle Devam")}</option>
+                            <option value="fronts">{t("Önler Yeni")}</option>
+                            <option value="rears">{t("Arkalar Yeni")}</option>
+                            <option value="lefts">{t("Sollar Yeni")}</option>
+                            <option value="rights">{t("Sağlar Yeni")}</option>
+                            <option value="clear">{t("✕ Temizle")}</option>
                           </select>
                         )}
                       </td>
@@ -1590,21 +1749,21 @@ export default function App() {
                 </tbody>
               </table>
               <div className="legend">
-                <span><i style={{ background: "var(--panel2)" }} />Yeni lastik (1 kez)</span>
-                <span><i style={{ background: "rgba(242,201,76,.5)" }} />2 kez (duplicate)</span>
-                <span><i style={{ background: "rgba(102,148,255,.5)" }} />Qual lastiği tekrar</span>
-                <span><i style={{ background: "rgba(240,96,77,.5)" }} />3 kez</span>
-                <span><i style={{ background: "#000" }} />4+ kez</span>
+                <span><i style={{ background: "var(--panel2)" }} />{t("Yeni lastik (1 kez)")}</span>
+                <span><i style={{ background: "rgba(242,201,76,.5)" }} />{t("2 kez (duplicate)")}</span>
+                <span><i style={{ background: "rgba(102,148,255,.5)" }} />{t("Qual lastiği tekrar")}</span>
+                <span><i style={{ background: "rgba(240,96,77,.5)" }} />{t("3 kez")}</span>
+                <span><i style={{ background: "#000" }} />{t("4+ kez")}</span>
               </div>
               {tyreInfo.conflicts.length > 0 &&
                 <div className="hint" style={{ color: "var(--red)" }}>
-                  ⚠ Köşe kuralı ihlali — lastik {tyreInfo.conflicts.join(", ")} birden fazla
-                  köşede kullanılmış. Bir lastik ilk takıldığı köşeye kilitlenir; hatalı hücreyi düzelt.
+                  {t("⚠ Köşe kuralı ihlali — lastik")} {tyreInfo.conflicts.join(", ")} {t("birden fazla")}{" "}
+                  {t("köşede kullanılmış. Bir lastik ilk takıldığı köşeye kilitlenir; hatalı hücreyi düzelt.")}
                 </div>}
               <div style={{ marginTop: 12 }}>
-                <button className="act danger" onClick={clearTyres}>Tümünü Temizle</button>
+                <button className="act danger" onClick={clearTyres}>{t("Tümünü Temizle")}</button>
               </div>
-              <div className="hint">Her numara TEK bir lastiği temsil eder (set değil) — limit adet bazlıdır. Bir lastik ilk takıldığı köşeye kilitlenir ve diğer köşelerin menülerinden otomatik kalkar. Aynı lastik aynı köşede tekrar kullanılırsa hücre kullanım sayısına göre renklenir. Hızlı Atama ile tek tıkla 4 yeni / öncekiyle devam / kısmi değişim yapabilirsin.</div>
+              <div className="hint">{t("Her numara TEK bir lastiği temsil eder (set değil) — limit adet bazlıdır. Bir lastik ilk takıldığı köşeye kilitlenir ve diğer köşelerin menülerinden otomatik kalkar. Aynı lastik aynı köşede tekrar kullanılırsa hücre kullanım sayısına göre renklenir. Hızlı Atama ile tek tıkla 4 yeni / öncekiyle devam / kısmi değişim yapabilirsin.")}</div>
             </div>
           )}
 
@@ -1613,38 +1772,38 @@ export default function App() {
               <h2>Pilotlar</h2>
               <div className="row2" style={{ maxWidth: 420 }}>
                 <div>
-                  <label>Yarış Başlangıcı</label>
+                  <label>{t("Yarış Başlangıcı")}</label>
                   <input type="datetime-local" value={st.raceStart}
                     onChange={(e) => up({ raceStart: e.target.value })} />
                 </div>
                 <div>
-                  <label>Yarış Bitişi</label>
+                  <label>{t("Yarış Bitişi")}</label>
                   <div className="mono" style={{ padding: "6px 0" }}>
                     {driverPlan ? fmtClock(driverPlan.finishMs, driverPlan.startMs) : "—"}
                   </div>
                 </div>
               </div>
 
-              <label>Pilot Kadrosu</label>
+              <label>{t("Pilot Kadrosu")}</label>
               <div style={{ marginBottom: 4 }}>
                 {st.roster.map((n) => (
                   <span className="rchip" key={n}>{n}
                     <b onClick={() => removeDriver(n)} title="Kadrodan çıkar">×</b></span>
                 ))}
                 {st.roster.length === 0 &&
-                  <span className="hint">Henüz pilot yok — aşağıdan ekle.</span>}
+                  <span className="hint">{t("Henüz pilot yok — aşağıdan ekle.")}</span>}
               </div>
               <div style={{ display: "flex", gap: 8, maxWidth: 340, marginBottom: 14 }}>
-                <input type="text" placeholder="Pilot adı" value={newDriver}
+                <input type="text" placeholder={t("Pilot adı")} value={newDriver}
                   onChange={(e) => setNewDriver(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && addDriver()} />
-                <button className="act" onClick={addDriver}>Ekle</button>
+                <button className="act" onClick={addDriver}>{t("Ekle")}</button>
               </div>
 
               {driverPlan && (<>
                 <table>
                   <thead><tr>
-                    <th>#</th><th>Start</th><th>Finish</th><th>Süre</th><th>Pilot</th>
+                    <th>#</th><th>Start</th><th>Finish</th><th>{t("Süre")}</th><th>{t("Pilot")}</th>
                   </tr></thead>
                   <tbody>
                     {driverPlan.rows.map((r, i) => (
@@ -1656,7 +1815,7 @@ export default function App() {
                         <td>
                           <select value={st.driverAssign[i] || ""}
                             onChange={(e) => assignDriver(i, e.target.value)}>
-                            <option value="">— seç —</option>
+                            <option value="">{t("— seç —")}</option>
                             {st.roster.map((n) => <option key={n} value={n}>{n}</option>)}
                           </select>
                         </td>
@@ -1667,7 +1826,7 @@ export default function App() {
 
                 {Object.keys(driverPlan.totals).length > 0 && (
                   <table style={{ marginTop: 16, maxWidth: 480 }}>
-                    <thead><tr><th>Pilot</th><th>Stint</th><th>Toplam Süre</th><th>%</th></tr></thead>
+                    <thead><tr><th>{t("Pilot")}</th><th>Stint</th><th>{t("Toplam Süre")}</th><th>%</th></tr></thead>
                     <tbody>
                       {st.roster.filter((n) => driverPlan.totals[n]).map((n) => {
                         const t = driverPlan.totals[n];
@@ -1685,18 +1844,18 @@ export default function App() {
                   </table>
                 )}
                 <div style={{ marginTop: 12 }}>
-                  <button className="act danger" onClick={clearAssign}>Atamaları Temizle</button>
+                  <button className="act danger" onClick={clearAssign}>{t("Atamaları Temizle")}</button>
                 </div>
-                <div className="hint">Start/Finish zamanları stint planından otomatik zincirlenir (pit süreleri dahil). Yarış bitişini aşan kısım süreye sayılmaz; tamamen yarış dışı kalan stintler soluk görünür.</div>
+                <div className="hint">{t("Start/Finish zamanları stint planından otomatik zincirlenir (pit süreleri dahil). Yarış bitişini aşan kısım süreye sayılmaz; tamamen yarış dışı kalan stintler soluk görünür.")}</div>
               </>)}
-              {!driverPlan && <div className="hint warn">Geçerli bir yarış başlangıç zamanı gir.</div>}
+              {!driverPlan && <div className="hint warn">{t("Geçerli bir yarış başlangıç zamanı gir.")}</div>}
             </div>
           )}
 
           {tab === "tele" && (
             <div>
               <div className="card">
-                <h2>Telemetri İçe Aktar (MoTeC)</h2>
+                <h2>{t("Telemetri İçe Aktar (MoTeC)")}</h2>
                 <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
                   {["A", "B", "C", "D"].map((sl) => (
                     <button key={sl} className="act"
@@ -1708,7 +1867,7 @@ export default function App() {
                     </button>
                   ))}
                 </div>
-                <label>MoTeC tur istatistiklerini yapıştır veya dosya seç (CSV/TSV)</label>
+                <label>{t("MoTeC tur istatistiklerini yapıştır veya dosya seç (CSV/TSV)")}</label>
                 <textarea value={rawTele}
                   onChange={(e) => { setRawTele(e.target.value); doParse(e.target.value); }}
                   placeholder={"Out Lap\t310127\t-6.403 ...\nLap 1\t237350\t-6.36 ..."}
@@ -1718,10 +1877,10 @@ export default function App() {
                 <div style={{ margin: "6px 0" }}>
                   <input type="file" accept=".csv,.tsv,.txt" onChange={onTeleFile} />
                 </div>
-                {parsed?.error && <div className="hint warn">⚠ {parsed.error}</div>}
+                {parsed?.error && <div className="hint warn">⚠ {t(parsed.error)}</div>}
                 {parsed && !parsed.error && mapping && (<>
                   <div className="hint">
-                    {parsed.lapRows.length} tur satırı bulundu. Sütun eşleşmesini kontrol et:
+                    {parsed.lapRows.length} {t("tur satırı bulundu. Sütun eşleşmesini kontrol et:")}
                   </div>
                   <div style={{ display: "flex", gap: 10, flexWrap: "wrap", margin: "6px 0" }}>
                     {[["Tur Süresi", "timeCol"], ["VE Δ (%)", "fuelCol"]].map(([lbl, key]) => (
@@ -1731,13 +1890,13 @@ export default function App() {
                           onChange={(e) => setMapping({ ...mapping, [key]: +e.target.value })}>
                           <option value={-1}>—</option>
                           {parsed.headers.map((h, i) =>
-                            <option key={i} value={i}>{i}: {h || "(başlıksız)"}</option>)}
+                            <option key={i} value={i}>{i}: {h || t("(başlıksız)")}</option>)}
                         </select>
                       </div>
                     ))}
                     {["FL", "FR", "RL", "RR"].map((c, ci) => (
                       <div key={c}>
-                        <label style={{ margin: 0 }}>Aşınma {c}</label>
+                        <label style={{ margin: 0 }}>{t("Aşınma")} {c}</label>
                         <select value={mapping.wear[ci]}
                           onChange={(e) => {
                             const wear = [...mapping.wear]; wear[ci] = +e.target.value;
@@ -1745,7 +1904,7 @@ export default function App() {
                           }}>
                           <option value={-1}>—</option>
                           {parsed.headers.map((h, i) =>
-                            <option key={i} value={i}>{i}: {h || "(başlıksız)"}</option>)}
+                            <option key={i} value={i}>{i}: {h || t("(başlıksız)")}</option>)}
                         </select>
                       </div>
                     ))}
@@ -1756,13 +1915,13 @@ export default function App() {
                     Stint {slot} olarak kaydet
                   </button>
                   {mapping.timeCol < 0 &&
-                    <span className="hint warn" style={{ marginLeft: 8 }}>Tur süresi sütunu seçilmeli</span>}
+                    <span className="hint warn" style={{ marginLeft: 8 }}>{t("Tur süresi sütunu seçilmeli")}</span>}
                 </>)}
               </div>
 
               {loadedSlots.length > 0 && (
                 <div className="card" style={{ marginTop: 12 }}>
-                  <h2>Stint Analizi</h2>
+                  <h2>{t("Stint Analizi")}</h2>
                   <div className="kpis">
                     {loadedSlots.map((sl) => {
                       const s = slotStats[sl];
@@ -1771,7 +1930,7 @@ export default function App() {
                         <div className="kpi" key={sl} style={{ borderColor: SLOT_COLORS[sl] }}>
                           <div className="v" style={{ color: SLOT_COLORS[sl], fontSize: 19 }}>
                             {fmtMs(s.avgMs)}</div>
-                          <div className="l">Stint {sl} ort. tur · {s.laps} tur</div>
+                          <div className="l">Stint {sl} {t("ort. tur")} · {s.laps} {t("Tur")}</div>
                           <div className="hint" style={{ marginTop: 4 }}>
                             {s.avgFuel != null && <>⚡ {s.avgFuel.toFixed(2)} %/tur VE
                               {s.tankLaps && <> · %100 ≈ {Math.floor(s.tankLaps)} tur</>}<br /></>}
@@ -1784,9 +1943,9 @@ export default function App() {
                                 avgLap: fmtMs(s.avgMs),
                                 ...(s.avgFuel != null
                                   ? { consumption: +s.avgFuel.toFixed(2) } : {}),
-                              })}>DATA'ya uygula</button>
+                              })}>{t("DATA'ya uygula")}</button>
                             <button className="act danger" style={{ fontSize: 11 }}
-                              onClick={() => removeSlot(sl)}>Sil</button>
+                              onClick={() => removeSlot(sl)}>{t("Sil")}</button>
                           </div>
                         </div>
                       );
@@ -1814,7 +1973,7 @@ export default function App() {
 
                   {loadedSlots.length > 1 && baseSlot && slotStats[baseSlot] && !slotStats[baseSlot].empty && (
                     <table style={{ maxWidth: 460, marginTop: 10 }}>
-                      <thead><tr><th>Karşılaştırma</th><th>Ort. Fark</th><th>Hızlı Olan</th></tr></thead>
+                      <thead><tr><th>{t("Karşılaştırma")}</th><th>{t("Ort. Fark")}</th><th>{t("Hızlı Olan")}</th></tr></thead>
                       <tbody>
                         {loadedSlots.slice(1).map((sl) => {
                           const a = slotStats[baseSlot], b = slotStats[sl];
@@ -1836,10 +1995,10 @@ export default function App() {
                   {loadedSlots.map((sl) => (
                     <details key={sl} style={{ marginTop: 10 }}>
                       <summary style={{ cursor: "pointer", color: SLOT_COLORS[sl] }}>
-                        Stint {sl} — tur listesi ({st.telemetry[sl].laps.length})</summary>
+                        Stint {sl} — {t("tur listesi")} ({st.telemetry[sl].laps.length})</summary>
                       <table style={{ maxWidth: 560 }}>
                         <thead><tr>
-                          <th>Dahil</th><th>Tur</th><th>Süre</th><th>VE %</th><th>FL/FR/RL/RR</th>
+                          <th>{t("Dahil")}</th><th>{t("Tur")}</th><th>{t("Süre")}</th><th>VE %</th><th>FL/FR/RL/RR</th>
                         </tr></thead>
                         <tbody>
                           {st.telemetry[sl].laps.map((l, li) => (
@@ -1856,7 +2015,7 @@ export default function App() {
                       </table>
                     </details>
                   ))}
-                  <div className="hint">Out lap ve dolum turları (yakıt Δ pozitif) otomatik hariç tutulur — Dahil kutusuyla elle değiştirebilirsin. Ortalamalar sadece dahil turlardan hesaplanır.</div>
+                  <div className="hint">{t("Out lap ve dolum turları (yakıt Δ pozitif) otomatik hariç tutulur — Dahil kutusuyla elle değiştirebilirsin. Ortalamalar sadece dahil turlardan hesaplanır.")}</div>
                 </div>
               )}
             </div>
@@ -1865,25 +2024,25 @@ export default function App() {
           {tab === "fuel" && (
             <div className="row2" style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 1fr" }}>
               {[
-                ["YARIŞ SONU", st.lastStintCountdown, (v) => up({ lastStintCountdown: v }), lsf],
-                ["CODE 80 SONU", st.code80LastStint, (v) => up({ code80LastStint: v }), lsf80],
+                [t("YARIŞ SONU"), st.lastStintCountdown, (v) => up({ lastStintCountdown: v }), lsf],
+                [t("CODE 80 SONU"), st.code80LastStint, (v) => up({ code80LastStint: v }), lsf80],
               ].map(([title, val, setVal, r]) => (
                 <div className={`card ${title.includes("CODE 80") ? "c80" : ""}`} key={title}>
-                  <h2>Son Stint Yakıtı · {title}</h2>
-                  <label>Session Countdown (h:mm:ss)</label>
+                  <h2>{t("Son Stint Yakıtı")} · {title}</h2>
+                  <label>{t("Session Countdown (h:mm:ss)")}</label>
                   <input type="text" value={val} onChange={(e) => setVal(e.target.value)} />
                   <div className="kpis" style={{ marginTop: 12 }}>
                     <div className="kpi"><div className="v mono">{r.lapsLeft.toFixed(2)}</div>
-                      <div className="l">Kalan Tur</div></div>
+                      <div className="l">{t("Kalan Tur")}</div></div>
                     <div className="kpi"><div className="v mono">{r.refuelSec.toFixed(0)}s</div>
-                      <div className="l">Dolum Süresi</div></div>
+                      <div className="l">{t("Dolum Süresi")}</div></div>
                   </div>
                   <div className="fuelbig">{r.refuel.toFixed(1)}%</div>
                   <div className="hint">
-                    ≈ <b className="mono" style={{ color: "var(--green)" }}>{r.refuelL.toFixed(1)} L</b> gerçek yakıt ·
-                    (kalan tur {r.lapsLeft.toFixed(2)} + extra {st.extraLap}) × {st.consumption} %/tur
+                    ≈ <b className="mono" style={{ color: "var(--green)" }}>{r.refuelL.toFixed(1)} L</b> {t("gerçek yakıt")} ·
+                    ({t("kalan tur")} {r.lapsLeft.toFixed(2)} + extra {st.extraLap}) × {st.consumption} {t("%/tur")}
                     {r.refuel > 100 &&
-                      <> · <b className="warn">⚠ %100'ü aşıyor — depo yetmez!</b></>}
+                      <> · <b className="warn">{t("⚠ %100'ü aşıyor — depo yetmez!")}</b></>}
                   </div>
                 </div>
               ))}
