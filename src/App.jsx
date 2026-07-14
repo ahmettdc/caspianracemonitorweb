@@ -116,6 +116,12 @@ const TRACKS = [
   { id: "cota", name: "COTA" },
   { id: "sebring", name: "Sebring" },
   { id: "interlagos", name: "Interlagos" },
+  { id: "daytona", name: "Daytona" },
+  { id: "lagunaseca", name: "Laguna Seca" },
+  { id: "watkinsglen", name: "Watkins Glen" },
+  { id: "roadatlanta", name: "Road Atlanta" },
+  { id: "longbeach", name: "Long Beach" },
+  { id: "indianapolis", name: "Indianapolis" },
 ];
 const CARS = {
   hypercar: [
@@ -210,7 +216,7 @@ const EN = {
   "⏱ Yarış": "⏱ Race", "Kalan": "Remaining", "Tahmini Tur": "Est. Laps",
   "📋 Stint Programı": "📋 Stint Schedule", "🛞 Lastik": "🛞 Tyres",
   "Kullanılan Lastik": "Tyres Used", "Kalan Lastik": "Tyres Left",
-  "⛽ Son Stint VE": "⛽ Final Stint VE", "Pilot Dağılımı": "Driver Split",
+  "Son Stint VE": "Final Stint VE", "Pilot Dağılımı": "Driver Split",
   "Sıradaki stint lastikleri:": "Next stint tyres:",
   // lastik sekmesi
   "Lastik Stratejisi": "Tyre Strategy", "Lastik Limiti (adet)": "Tyre Limit (count)",
@@ -277,6 +283,8 @@ const EN = {
   "Oda: ": "Room: ",
   "Solo mod — takım senkronizasyonu için ": "Solo mode — for team sync, ",
   "Kadrodan çıkar": "Remove from roster",
+  "🔴 CANLI": "🔴 LIVE", "Canlıdan otomatik — yarış saatinden hesaplanıyor":
+    "Auto from live — calculated from the race clock",
   "odası bulunamadı — kodu kontrol et": "room not found — check the code",
   "Takım senkronizasyonu kapalı — ": "Team sync is off — ",
   " dosyasını doldur.": " needs to be filled in.",
@@ -345,6 +353,9 @@ function guessMapping(parsed) {
 }
 
 /* ---------- çekirdek motor ---------- */
+const EMPTY_PIT = { fuel: true, lane: true, tyres: [false, false, false, false] };
+const MAX_STINTS = 64; // güvenlik tavanı (24h+ yarışlar için yeterli)
+
 function computePlan(st, mode /* "race" | "code80" */) {
   const raceSec = mode === "race" ? parseHMS(st.raceTime) : parseHMS(st.code80TimeLeft);
   const lapSec = parseLap(st.avgLap);
@@ -352,13 +363,13 @@ function computePlan(st, mode /* "race" | "code80" */) {
   const tyreUnit = mode === "race" ? st.tyreTime : st.tyreTime / 4; // Excel CODE80: M6/4
   const rows = [];
   let cum = 0;
-  for (let i = 0; i < st.pits.length; i++) {
-    const ovr = parseHMS(st.overrides[i]);
+  for (let i = 0; i < MAX_STINTS; i++) {
+    const ovr = parseHMS(st.overrides[i] || "");
     const stintSec = ovr > 0 ? ovr : laps * lapSec;
     const startLeft = raceSec - cum;
     if (startLeft <= 0) break;
     cum += stintSec;
-    const p = st.pits[i];
+    const p = st.pits[i] || EMPTY_PIT;
     const tyreCount = p.tyres.filter(Boolean).length;
     const isLast = raceSec - cum <= 0;
     const pitSec = isLast ? 0
@@ -733,11 +744,27 @@ export default function App() {
   };
 
   const up = (patch) => setSt((s) => ({ ...s, ...patch }));
-  const upPit = (i, patch) => setSt((s) => {
+  /* dizileri gerektiği kadar uzatır (14 stint sınırını kaldırır) */
+  const grow = (s, n) => ({
+    ...s,
+    pits: s.pits.length >= n ? s.pits
+      : [...s.pits, ...Array.from({ length: n - s.pits.length },
+          () => ({ fuel: true, lane: true, tyres: [false, false, false, false] }))],
+    overrides: s.overrides.length >= n ? s.overrides
+      : [...s.overrides, ...Array(n - s.overrides.length).fill("")],
+    tyreStints: s.tyreStints.length >= n ? s.tyreStints
+      : [...s.tyreStints, ...Array.from({ length: n - s.tyreStints.length }, () => ["", "", "", ""])],
+    driverAssign: s.driverAssign.length >= n ? s.driverAssign
+      : [...s.driverAssign, ...Array(n - s.driverAssign.length).fill("")],
+  });
+
+  const upPit = (i, patch) => setSt((s0) => {
+    const s = grow(s0, i + 2);
     const pits = s.pits.map((p, j) => (j === i ? { ...p, ...patch } : p));
     return { ...s, pits };
   });
-  const upTyre = (i, t) => setSt((s) => {
+  const upTyre = (i, t) => setSt((s0) => {
+    const s = grow(s0, i + 3); // i+1 satırına lastik yazılabilir
     const turningOn = !s.pits[i].tyres[t];
     const pits = s.pits.map((p, j) => {
       if (j !== i) return p;
@@ -771,7 +798,8 @@ export default function App() {
     }
     return { ...s, pits, tyreStints };
   });
-  const upOvr = (i, val) => setSt((s) => {
+  const upOvr = (i, val) => setSt((s0) => {
+    const s = grow(s0, i + 2);
     const overrides = [...s.overrides]; overrides[i] = val;
     return { ...s, overrides };
   });
@@ -791,7 +819,8 @@ export default function App() {
   /* ---------- Faz 3: lastik stratejisi ---------- */
   /* stint bazlı hızlı lastik atama
      FL=0 FR=1 RL=2 RR=3 · fresh: kullanılmamış en küçük numaralar */
-  const quickTyre = (rowIdx, action) => setSt((s) => {
+  const quickTyre = (rowIdx, action) => setSt((s0) => {
+    const s = grow(s0, rowIdx + 2);
     const used = new Set();
     s.tyreQual.forEach((v) => { const k = String(v).trim(); if (k) used.add(k); });
     s.tyreStints.forEach((r) => r.forEach((v) => {
@@ -823,7 +852,8 @@ export default function App() {
     return { ...s, tyreStints, pits };
   });
 
-  const upTyreCell = (row, col, val) => setSt((s) => {
+  const upTyreCell = (row, col, val) => setSt((s0) => {
+    const s = grow(s0, row + 2);
     if (row === -1) {
       const tyreQual = [...s.tyreQual]; tyreQual[col] = val;
       return { ...s, tyreQual };
@@ -894,7 +924,8 @@ export default function App() {
     roster: s.roster.filter((x) => x !== n),
     driverAssign: s.driverAssign.map((a) => (a === n ? "" : a)),
   }));
-  const assignDriver = (i, n) => setSt((s) => {
+  const assignDriver = (i, n) => setSt((s0) => {
+    const s = grow(s0, i + 2);
     const driverAssign = [...s.driverAssign]; driverAssign[i] = n;
     return { ...s, driverAssign };
   });
@@ -929,7 +960,11 @@ export default function App() {
   const fmtClock = (ms, refMs) => {
     const d = new Date(ms);
     const t = d.toLocaleTimeString(lang === "en" ? "en-GB" : "tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-    if (refMs != null && new Date(refMs).getDate() !== d.getDate()) return `${t}${lang === "en" ? " (+1d)" : " (+1g)"}`;
+    if (refMs != null && new Date(refMs).toDateString() !== d.toDateString()) {
+      const date = d.toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR",
+        { day: "2-digit", month: "2-digit" });
+      return `${date} ${t}`; // gün değişti → tarih + saat
+    }
     return t;
   };
 
@@ -1055,7 +1090,17 @@ export default function App() {
   }, [now, st.raceStart, st.driverAssign, racePlan]);
   const pitSoon = liveInfo.status === "live" && liveInfo.phase === "stint"
     && liveInfo.nextPitIn < 300000;
-  const upcomingPit = liveInfo.status === "live" ? st.pits[liveInfo.stintIdx] : null;
+  /* canlı yarışta kalan süre (sn) — son stint yakıtı otomatik countdown için */
+  const liveRemainSec = useMemo(() => {
+    const start = new Date(st.raceStart).getTime();
+    if (isNaN(start)) return null;
+    const end = start + plan.raceSec * 1000;
+    if (now < start || now >= end) return null;
+    return Math.floor((end - now) / 1000);
+  }, [st.raceStart, plan.raceSec, now]);
+  const [autoCd, setAutoCd] = useState(true); // canlıdan otomatik countdown
+
+  const upcomingPit = liveInfo.status === "live" ? (st.pits[liveInfo.stintIdx] || EMPTY_PIT) : null;
   const upcomingIsLast = liveInfo.status === "live"
     && liveInfo.stintIdx >= racePlan.rows.length - 2;
 
@@ -1117,25 +1162,30 @@ export default function App() {
       <h2>{t("Pit · Süreler (s)")}</h2>
       <div className="row2">
         <div><label>Pit Line</label><Num v={st.pitLaneTime} onC={(v) => up({ pitLaneTime: v })} /></div>
-        <div><label>Fuel</label><Num v={st.fuelTime} onC={(v) => up({ fuelTime: v })} /></div>
+        <div><label>⛽ Fuel</label><Num v={st.fuelTime} onC={(v) => up({ fuelTime: v })} /></div>
       </div>
       <div className="row2">
         <div><label>{t("Tyre (adet başı)")}</label><Num v={st.tyreTime} onC={(v) => up({ tyreTime: v })} /></div>
         <div><label>{t("Hesaplanan Fuel Süresi")}</label>
           <div className="mono" style={{ padding: "6px 0" }}>{fuelTimeCalc.toFixed(1)} s</div></div>
       </div>
+      <div className="row2">
+        <div><label>🛞 {t("Lastik Limiti (adet)")}</label>
+          <Num v={st.tyreLimit} step={1} onC={(v) => up({ tyreLimit: v })} /></div>
+        <div />
+      </div>
       <div className="hint">{t("Fuel süresi ipucu = %100 VE / dolum hızı")} (100% / {st.refuelSpeed} %/s). {t("CODE80'de lastik süresi otomatik ÷4 uygulanır.")}</div>
     </div>
 
     <div className="card" style={{ marginTop: 12 }}>
-      <h2>Virtual Energy · Data</h2>
+      <h2>⚡ Virtual Energy · Data</h2>
       <div className="row2">
-        <div><label>{t("VE Tüketim (%/tur)")}</label><Num v={st.consumption} onC={(v) => up({ consumption: v })} /></div>
+        <div><label>⚡ {t("VE Tüketim (%/tur)")}</label><Num v={st.consumption} onC={(v) => up({ consumption: v })} /></div>
         <div><label>Fuel Ratio (L / %1)</label><Num v={st.fuelRatio} onC={(v) => up({ fuelRatio: v })} /></div>
       </div>
       <div className="row2">
-        <div><label>{t("Dolum Hızı (%/s)")}</label><Num v={st.refuelSpeed} onC={(v) => up({ refuelSpeed: v })} /></div>
-        <div><label>{t("%100 = Taşınan Yakıt")}</label>
+        <div><label>⛽ {t("Dolum Hızı (%/s)")}</label><Num v={st.refuelSpeed} onC={(v) => up({ refuelSpeed: v })} /></div>
+        <div><label>⛽ {t("%100 = Taşınan Yakıt")}</label>
           <div className="mono" style={{ padding: "6px 0", color: "var(--green)" }}>
             {fuelCarried.toFixed(1)} L</div></div>
       </div>
@@ -1438,7 +1488,7 @@ export default function App() {
               </div>
               {upcomingIsLast && (
                 <div>
-                  <div className="plbl">{t("Son Pit VE")}</div>
+                  <div className="plbl">⚡ {t("Son Pit VE")}</div>
                   <div className="mid" style={{ color: "var(--green)" }}>
                     {lsf.refuel.toFixed(1)}%</div>
                 </div>
@@ -1493,7 +1543,7 @@ export default function App() {
                 <div className="kpi"><div className="v">{plan.totalLaps.toFixed(1)}</div>
                   <div className="l">{t("Tahmini Toplam Tur")}</div></div>
                 <div className="kpi"><div className="v" style={{ color: "var(--green)" }}>{totalVE.toFixed(0)}%</div>
-                  <div className="l">{t("Toplam VE")} · {totalFuelL.toFixed(1)} L {t("yakıt")}</div></div>
+                  <div className="l">⚡ {t("Toplam VE")} · {totalFuelL.toFixed(1)} L {t("yakıt")}</div></div>
               </div>
 
               {tab === "stint" && (
@@ -1538,7 +1588,7 @@ export default function App() {
 
               <table>
                 <thead><tr>
-                  <th>#</th><th>Stint</th><th>{t("Tur")}</th><th>{t("VE İht.")}</th>
+                  <th>#</th><th>Stint</th><th>{t("Tur")}</th><th>⚡ {t("VE İht.")}</th>
                   <th>{t("Pit Ayarı")}</th><th>Pit</th><th>End Stint</th><th>Time Left</th>
                   <th>Override</th>
                 </tr></thead>
@@ -1559,15 +1609,15 @@ export default function App() {
                         {r.isLast ? <span className="chip">FINISH 🏁</span> : (<>
                           <span className="tyrebox">
                             {TY.map((t, ti) => (
-                              <button key={t} className={st.pits[i].tyres[ti] ? "on" : ""}
+                              <button key={t} className={(st.pits[i] || EMPTY_PIT).tyres[ti] ? "on" : ""}
                                 onClick={() => upTyre(i, ti)}>{t}</button>
                             ))}
                           </span>
                           <span className="pitopt">
-                            <button className={st.pits[i].fuel ? "on" : ""}
-                              onClick={() => upPit(i, { fuel: !st.pits[i].fuel })}>FUEL</button>
-                            <button className={st.pits[i].lane ? "on" : ""}
-                              onClick={() => upPit(i, { lane: !st.pits[i].lane })}>LANE</button>
+                            <button className={(st.pits[i] || EMPTY_PIT).fuel ? "on" : ""}
+                              onClick={() => upPit(i, { fuel: !(st.pits[i] || EMPTY_PIT).fuel })}>FUEL</button>
+                            <button className={(st.pits[i] || EMPTY_PIT).lane ? "on" : ""}
+                              onClick={() => upPit(i, { lane: !(st.pits[i] || EMPTY_PIT).lane })}>LANE</button>
                           </span>
                         </>)}
                       </td>
@@ -1575,7 +1625,7 @@ export default function App() {
                       <td>{fmtHMS(r.endSec)}</td>
                       <td className={r.timeLeft < 0 ? "neg" : "pos"}>{fmtHMS(r.timeLeft)}</td>
                       <td><input className="ovr" type="text" placeholder="h:mm:ss"
-                        value={st.overrides[i]} onChange={(e) => upOvr(i, e.target.value)} /></td>
+                        value={st.overrides[i] || ""} onChange={(e) => upOvr(i, e.target.value)} /></td>
                     </tr>
                   ))}
                 </tbody>
@@ -1658,7 +1708,7 @@ export default function App() {
               </div>
 
               <div className="card">
-                <h2>{t("⛽ Son Stint VE")}</h2>
+                <h2>⚡ {t("Son Stint VE")}</h2>
                 <div className="fuelbig" style={{ fontSize: 40 }}>{lsf.refuel.toFixed(1)}%</div>
                 <div className="hint">
                   ≈ {lsf.refuelL.toFixed(1)} L · {lsf.lapsLeft.toFixed(2)} {t("tur + extra")} {st.extraLap} · {t("dolum ≈")} {lsf.refuelSec.toFixed(0)}s
@@ -2033,11 +2083,28 @@ export default function App() {
               {[
                 [t("YARIŞ SONU"), st.lastStintCountdown, (v) => up({ lastStintCountdown: v }), lsf],
                 [t("CODE 80 SONU"), st.code80LastStint, (v) => up({ code80LastStint: v }), lsf80],
-              ].map(([title, val, setVal, r]) => (
+              ].map(([title, val, setVal, r]) => {
+                const isAuto = autoCd && liveRemainSec != null;
+                const eff = isAuto ? fmtHMS(liveRemainSec) : val;
+                const rr = isAuto ? lastStintFuel(eff, st) : r;
+                return ([title, eff, setVal, rr]);
+              }).map(([title, val, setVal, r]) => (
                 <div className={`card ${title.includes("CODE 80") ? "c80" : ""}`} key={title}>
-                  <h2>{t("Son Stint Yakıtı")} · {title}</h2>
-                  <label>{t("Session Countdown (h:mm:ss)")}</label>
-                  <input type="text" value={val} onChange={(e) => setVal(e.target.value)} />
+                  <h2>⛽ {t("Son Stint Yakıtı")} · {title}</h2>
+                  <label>{t("Session Countdown (h:mm:ss)")}{" "}
+                    {liveRemainSec != null && (
+                      <button className={autoCd ? "chip" : ""}
+                        style={{ marginLeft: 6, padding: "2px 8px", borderRadius: 6, fontSize: 10,
+                          border: "1px solid var(--line)", cursor: "pointer",
+                          background: autoCd ? "var(--car)" : "var(--panel2)",
+                          color: autoCd ? "#FFE9ED" : "var(--dim)" }}
+                        title={t("Canlıdan otomatik — yarış saatinden hesaplanıyor")}
+                        onClick={() => setAutoCd(!autoCd)}>{t("🔴 CANLI")}</button>
+                    )}
+                  </label>
+                  <input type="text" value={val} readOnly={autoCd && liveRemainSec != null}
+                    style={autoCd && liveRemainSec != null ? { opacity: .7 } : undefined}
+                    onChange={(e) => setVal(e.target.value)} />
                   <div className="kpis" style={{ marginTop: 12 }}>
                     <div className="kpi"><div className="v mono">{r.lapsLeft.toFixed(2)}</div>
                       <div className="l">{t("Kalan Tur")}</div></div>
