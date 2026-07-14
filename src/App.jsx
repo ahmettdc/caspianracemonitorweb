@@ -1337,6 +1337,10 @@ export default function App() {
                   <span className="pitopt">
                     <button onClick={() => quickTyre(0, "carry")}>QUAL İLE BAŞLA</button>
                     <button onClick={() => quickTyre(0, "new4")}>4 YENİ</button>
+                    <button onClick={() => quickTyre(0, "fronts")}>2 YENİ ÖN</button>
+                    <button onClick={() => quickTyre(0, "rears")}>2 YENİ ARKA</button>
+                    <button onClick={() => quickTyre(0, "lefts")}>2 YENİ SOL</button>
+                    <button onClick={() => quickTyre(0, "rights")}>2 YENİ SAĞ</button>
                     <button onClick={() => quickTyre(0, "clear")}>TEMİZLE</button>
                   </span>
                   {!(st.tyreStints[0] || []).some((v) => String(v).trim()) && (
