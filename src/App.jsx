@@ -249,8 +249,8 @@ function lastStintFuel(countdownStr, st) {
 const css = `
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
 :root{
-  --bg:#101418; --panel:#181E25; --panel2:#1F2731; --line:#2B3542;
-  --txt:#E9EDF2; --dim:#8C97A5; --teal:#35C7BE; --green:#40D68C;
+  --bg:#120C0E; --panel:#1C1315; --panel2:#261719; --line:#3D242B;
+  --txt:#F2E9EB; --dim:#A78F95; --teal:#D24357; --car:#960018; --green:#40D68C;
   --yellow:#F2C94C; --red:#F0604D; --purple:#BB8CF5;
 }
 .rc *{box-sizing:border-box}
@@ -281,7 +281,7 @@ const css = `
 .rc .strat button{flex:1;padding:7px 0;border-radius:6px;border:1px solid var(--line);
   background:var(--panel2);color:var(--dim);font-family:'Barlow Condensed';
   font-size:15px;font-weight:600;cursor:pointer}
-.rc .strat button.on{background:var(--teal);color:#08211F;border-color:var(--teal)}
+.rc .strat button.on{background:var(--car);color:#FFE9ED;border-color:var(--teal)}
 .rc .tabs{display:flex;gap:8px;margin-bottom:12px}
 .rc .tabs button{padding:8px 16px;border-radius:8px 8px 0 0;border:1px solid var(--line);
   border-bottom:none;background:transparent;color:var(--dim);cursor:pointer;
@@ -291,7 +291,7 @@ const css = `
 .rc table{width:100%;border-collapse:collapse}
 .rc th{color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.06em;
   text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
-.rc td{padding:7px 8px;border-bottom:1px solid #222A34;font-family:'IBM Plex Mono',monospace;
+.rc td{padding:7px 8px;border-bottom:1px solid #2E1D21;font-family:'IBM Plex Mono',monospace;
   font-size:12.5px}
 .rc tr.last td{background:rgba(64,214,140,.06)}
 .rc .neg{color:var(--red)} .rc .pos{color:var(--green)}
@@ -305,7 +305,7 @@ const css = `
 .rc .pitopt{display:inline-flex;gap:4px}
 .rc .pitopt button{padding:2px 8px;border-radius:4px;border:1px solid var(--line);
   background:var(--panel2);color:var(--dim);font-size:10px;cursor:pointer}
-.rc .pitopt button.on{background:var(--teal);color:#08211F;border-color:var(--teal)}
+.rc .pitopt button.on{background:var(--car);color:#FFE9ED;border-color:var(--teal)}
 .rc .ovr{width:82px!important;padding:3px 6px!important;font-size:11px!important}
 .rc .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));
   gap:10px;margin-bottom:14px}
@@ -318,7 +318,7 @@ const css = `
 .rc .timeline .seg{position:relative;min-width:2px}
 .rc .timeline .seg span{position:absolute;inset:0;display:flex;align-items:center;
   justify-content:center;font-family:'Barlow Condensed';font-size:13px;font-weight:600;
-  color:#062A26}
+  color:#FFE3E8}
 .rc .timeline .pit{background:var(--yellow)}
 .rc .hint{color:var(--dim);font-size:11px;margin-top:6px;line-height:1.5}
 .rc .warn{color:var(--yellow)}
@@ -332,7 +332,7 @@ const css = `
 .rc .teambar button{padding:6px 12px;border-radius:6px;border:1px solid var(--teal);
   background:transparent;color:var(--teal);cursor:pointer;font-family:'Barlow Condensed';
   font-size:14px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
-.rc .teambar button.solid{background:var(--teal);color:#08211F}
+.rc .teambar button.solid{background:var(--car);color:#FFE9ED}
 .rc .teambar button.leave{border-color:var(--red);color:var(--red)}
 .rc .dot{width:9px;height:9px;border-radius:99px;display:inline-block}
 .rc .dot.on{background:var(--green);box-shadow:0 0 6px var(--green)}
@@ -342,7 +342,7 @@ const css = `
 .rc .syncinfo{color:var(--dim);font-size:11px;margin-left:auto}
 /* --- lobi --- */
 .rc .lobby{min-height:100vh;display:flex;align-items:center;justify-content:center;
-  padding:20px;background:radial-gradient(ellipse at 50% 0%,#14202B 0%,var(--bg) 60%)}
+  padding:20px;background:radial-gradient(ellipse at 50% 0%,#2A0D14 0%,var(--bg) 60%)}
 .rc .lobby .box{width:100%;max-width:430px;background:var(--panel);
   border:1px solid var(--line);border-radius:14px;padding:30px 28px}
 .rc .lobby h1{margin:0;font-size:30px;font-weight:700;text-transform:uppercase;
@@ -350,9 +350,9 @@ const css = `
 .rc .lobby h1 b{color:var(--teal)}
 .rc .lobby .sub{text-align:center;color:var(--dim);font-size:12px;margin:4px 0 22px}
 .rc .lobby .bigbtn{width:100%;padding:12px;border-radius:8px;border:1px solid var(--teal);
-  background:var(--teal);color:#08211F;cursor:pointer;font-family:'Barlow Condensed';
+  background:var(--car);color:#FFE9ED;cursor:pointer;font-family:'Barlow Condensed';
   font-size:18px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-top:8px}
-.rc .lobby .bigbtn.ghost{background:transparent;color:var(--teal)}
+.rc .lobby .bigbtn.ghost{background:transparent;color:var(--teal);border-color:var(--teal)}
 .rc .lobby .bigbtn:disabled{opacity:.5;cursor:wait}
 .rc .lobby .divider{display:flex;align-items:center;gap:10px;color:var(--dim);
   margin:20px 0 8px;font-size:10px;text-transform:uppercase;letter-spacing:.12em}
@@ -373,7 +373,7 @@ const css = `
   border-radius:8px;border:1px solid var(--line);background:var(--panel2);
   color:var(--txt);cursor:pointer;font-size:12px;text-align:left}
 .rc .trackgrid button img{width:22px;height:auto;border-radius:2px;flex-shrink:0}
-.rc .trackgrid button.on{border-color:var(--teal);background:rgba(53,199,190,.14);
+.rc .trackgrid button.on{border-color:var(--teal);background:rgba(150,0,24,.25);
   color:var(--teal);font-weight:600}
 .rc .classtoggle{display:flex;gap:8px}
 .rc .classtoggle button{flex:1;display:flex;align-items:center;justify-content:center;
@@ -381,14 +381,14 @@ const css = `
   background:var(--panel2);color:var(--dim);cursor:pointer;
   font-family:'Barlow Condensed';font-size:16px;font-weight:600;letter-spacing:.05em}
 .rc .classtoggle button img{width:26px;height:auto}
-.rc .classtoggle button.on{border-color:var(--teal);background:rgba(53,199,190,.14);
+.rc .classtoggle button.on{border-color:var(--teal);background:rgba(150,0,24,.25);
   color:var(--teal)}
 .rc .cargrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
 .rc .cargrid button{padding:10px 10px 8px;border-radius:10px;border:1px solid var(--line);
   background:var(--panel2);cursor:pointer;color:var(--dim);font-size:11.5px}
 .rc .cargrid button img{width:100%;height:auto;margin-bottom:6px;
   filter:drop-shadow(0 4px 8px rgba(0,0,0,.45))}
-.rc .cargrid button.on{border-color:var(--teal);background:rgba(53,199,190,.10);
+.rc .cargrid button.on{border-color:var(--teal);background:rgba(150,0,24,.20);
   color:var(--txt);font-weight:600}
 .rc .hdsel{display:inline-flex;align-items:center;gap:7px;color:var(--dim);font-size:12px}
 .rc .hdsel img.flag{width:18px;height:auto;border-radius:2px}
@@ -419,9 +419,15 @@ const css = `
 .rc .legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;font-size:11px;color:var(--dim)}
 .rc .legend i{display:inline-block;width:12px;height:12px;border-radius:3px;
   margin-right:4px;vertical-align:-2px;border:1px solid var(--line)}
+/* --- code 80 sarı efekt --- */
+.rc .card.c80{border-color:rgba(242,201,76,.55);
+  box-shadow:0 0 0 1px rgba(242,201,76,.18),0 0 26px rgba(242,201,76,.08)}
+.rc .card.c80 h2{color:var(--yellow)}
+.rc .card.c80 .kpi{border-color:rgba(242,201,76,.30)}
+.rc .tabs button.on.c80t{border-color:var(--yellow);color:var(--yellow)}
 /* --- canlı mod --- */
 .rc .livestrip{display:flex;flex-wrap:wrap;align-items:center;gap:16px;
-  padding:8px 20px;border-bottom:1px solid var(--line);background:#0B1E1C}
+  padding:8px 20px;border-bottom:1px solid var(--line);background:#210B10}
 .rc .livestrip .big{font-family:'Barlow Condensed';font-size:22px;font-weight:700}
 .rc .livestrip .lbl{color:var(--dim);font-size:10px;text-transform:uppercase;
   letter-spacing:.07em;display:block}
@@ -431,7 +437,7 @@ const css = `
 .rc .timeline{position:relative}
 .rc .nowline{position:absolute;top:-4px;bottom:-4px;width:2px;background:#fff;
   box-shadow:0 0 8px #fff;z-index:2}
-.rc tr.live td{background:rgba(53,199,190,.10);border-left:3px solid var(--teal)}
+.rc tr.live td{background:rgba(150,0,24,.16);border-left:3px solid var(--teal)}
 .rc tr.pitsoon td{background:rgba(242,201,76,.12)}
 /* --- pit board --- */
 .rc .pitboard{position:fixed;inset:0;background:#05070A;z-index:50;
@@ -819,7 +825,7 @@ export default function App() {
   const timeline = plan.rows.flatMap((r) => {
     const segs = [{
       w: (r.stintSec / plan.raceSec) * 100, cls: "", label: `S${r.idx}`,
-      bg: r.idx % 2 ? "var(--teal)" : "#2A9E97",
+      bg: r.idx % 2 ? "var(--car)" : "#5E0B18",
     }];
     if (r.pitSec > 0) segs.push({ w: (r.pitSec / plan.raceSec) * 100, cls: "pit", label: "" });
     return segs;
@@ -899,7 +905,7 @@ export default function App() {
         <div className="lobby">
           <div className="box">
             <h1><b>CASPIAN</b> RACE CONTROL</h1>
-            <div className="sub">virtual energy · v0.6</div>
+            <div className="sub">carmine · v0.7</div>
 
             {firebaseReady ? (<>
               <label>Adın</label>
@@ -1057,7 +1063,7 @@ export default function App() {
       <style>{css}</style>
       <header>
         <h1 className="disp"><b>CASPIAN</b> RACE CONTROL</h1>
-        <span className="ver">virtual energy · v0.6</span>
+        <span className="ver">carmine · v0.7</span>
         {(st.track || st.car) && (
           <span className="hdsel">
             {st.track && <><img className="flag" src={`${ASSET}flags/${st.track}.png`} alt="" />
@@ -1203,12 +1209,13 @@ export default function App() {
             {[["dash", "Dashboard"], ["stint", "Stint"], ["code80", "Code 80"],
               ["fuel", "Son Stint Yakıtı"], ["tyre", "Lastik"], ["drivers", "Pilotlar"],
               ["tele", "Telemetri"]].map(([k, l]) => (
-              <button key={k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{l}</button>
+              <button key={k} className={`${tab === k ? "on" : ""} ${k === "code80" && tab === k ? "c80t" : ""}`}
+                onClick={() => setTab(k)}>{l}</button>
             ))}
           </div>
 
           {(tab === "stint" || tab === "code80") && (
-            <div className="card">
+            <div className={`card ${tab === "code80" ? "c80" : ""}`}>
               <div className="kpis">
                 <div className="kpi"><div className="v mono">{fmtHMS(plan.raceSec)}</div>
                   <div className="l">{tab === "code80" ? "Code 80 Kalan" : "Yarış Süresi"}</div></div>
@@ -1714,7 +1721,7 @@ export default function App() {
                 ["YARIŞ SONU", st.lastStintCountdown, (v) => up({ lastStintCountdown: v }), lsf],
                 ["CODE 80 SONU", st.code80LastStint, (v) => up({ code80LastStint: v }), lsf80],
               ].map(([title, val, setVal, r]) => (
-                <div className="card" key={title}>
+                <div className={`card ${title.includes("CODE 80") ? "c80" : ""}`} key={title}>
                   <h2>Son Stint Yakıtı · {title}</h2>
                   <label>Session Countdown (h:mm:ss)</label>
                   <input type="text" value={val} onChange={(e) => setVal(e.target.value)} />
