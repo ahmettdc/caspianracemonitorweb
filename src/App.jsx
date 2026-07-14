@@ -297,7 +297,9 @@ const EN = {
   "Oda: ": "Room: ",
   "Solo mod — takım senkronizasyonu için ": "Solo mode — for team sync, ",
   "Kadrodan çıkar": "Remove from roster",
-  "✔ PIT YAPILDI": "✔ PIT DONE", "↩ Geri Al": "↩ Undo", "⟲ Sıfırla": "⟲ Reset",
+  "✔ PIT YAPILDI": "✔ PIT DONE",
+  "Araç PİT YOLUNA GİRDİĞİ an bas. Pit süresi plandan otomatik eklenir, sonraki stint pit çıkışıyla başlar.":
+    "Press the moment the car ENTERS the pit lane. Pit duration is added from the plan; the next stint starts at pit exit.", "↩ Geri Al": "↩ Undo", "⟲ Sıfırla": "⟲ Reset",
   "sonu işaretlenecek": "will be marked", "Plan": "Plan", "Gerçek": "Actual",
   "geç": "late", "erken": "early", "Tüm pitler yapıldı": "All pits done",
   "Gerçek pit işaretlemelerini sıfırla?": "Reset all actual pit marks?",
@@ -1582,6 +1584,7 @@ export default function App() {
                 style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
                 {liveInfo.pitsDone < racePlan.rows.length - 1 ? (
                   <button onClick={markPit}
+                    title={t("Araç PİT YOLUNA GİRDİĞİ an bas. Pit süresi plandan otomatik eklenir, sonraki stint pit çıkışıyla başlar.")}
                     style={{ padding: "16px 34px", borderRadius: 12, cursor: "pointer",
                       background: "var(--car)", color: "#FFE9ED", border: "2px solid var(--teal)",
                       fontFamily: "'Barlow Condensed'", fontSize: 26, fontWeight: 700,
