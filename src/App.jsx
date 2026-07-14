@@ -1307,6 +1307,13 @@ export default function App() {
               </div>
             </div>
 
+            {st.track && (
+              <img key={st.track} src={`${ASSET}tracks/${st.track}.png`} alt=""
+                style={{ display: "block", margin: "14px auto 0", maxWidth: "100%",
+                  maxHeight: 220, filter: "drop-shadow(0 4px 12px rgba(0,0,0,.5))" }}
+                onError={(e) => { e.currentTarget.style.display = "none"; }} />
+            )}
+
             <div className="picksec">
               <h3>{t("2 · Sınıf Seç")}</h3>
               <div className="classtoggle">
