@@ -65,6 +65,7 @@ const DEFAULT_STATE = {
   pitLaneTime: 22,
   fuelTime: 43,
   tyreTime: 13,
+  actualPits: [], // gerçekleşen pit giriş zamanları (ms) — canlı plan düzeltme
   // --- pist & araç seçimi ---
   track: "",        // TRACKS id
   carClass: "",     // "hypercar" | "gt3"
@@ -296,6 +297,10 @@ const EN = {
   "Oda: ": "Room: ",
   "Solo mod — takım senkronizasyonu için ": "Solo mode — for team sync, ",
   "Kadrodan çıkar": "Remove from roster",
+  "✔ PIT YAPILDI": "✔ PIT DONE", "↩ Geri Al": "↩ Undo", "⟲ Sıfırla": "⟲ Reset",
+  "sonu işaretlenecek": "will be marked", "Plan": "Plan", "Gerçek": "Actual",
+  "geç": "late", "erken": "early", "Tüm pitler yapıldı": "All pits done",
+  "Gerçek pit işaretlemelerini sıfırla?": "Reset all actual pit marks?",
   "⚠ Lastik limiti doldu — yeni lastik seçilemez": "⚠ Tyre limit reached — no new tyres available",
   "🔴 CANLI": "🔴 LIVE", "Canlıdan otomatik — yarış saatinden hesaplanıyor":
     "Auto from live — calculated from the race clock",
@@ -1093,23 +1098,51 @@ export default function App() {
     const finishMs = startMs + raceMs;
     if (now < startMs) return { status: "pre", toStart: startMs - now, startMs, finishMs, raceMs };
     if (now >= finishMs) return { status: "done", startMs, finishMs, raceMs };
+    const ap = (st.actualPits || []).filter(Number.isFinite);
+    /* planlanan pit başlangıçları (saf plan, sapma hesabı için) */
+    const plannedPitStart = [];
+    { let c = startMs;
+      for (const r of racePlan.rows) {
+        c += r.stintSec * 1000; plannedPitStart.push(c); c += r.pitSec * 1000;
+      } }
+    /* zincir: yapılmış pitlerde GERÇEK zaman esas alınır, kalan plan oradan akar */
     let cur = startMs, phase = "stint", stintIdx = racePlan.rows.length - 1, phaseEnd = finishMs;
     for (let i = 0; i < racePlan.rows.length; i++) {
       const r = racePlan.rows[i];
+      if (i < ap.length) { // bu pit gerçekleşti → gerçek giriş + plan pit süresi
+        cur = ap[i] + r.pitSec * 1000;
+        if (now < cur) { phase = "pit"; stintIdx = i; phaseEnd = cur; break; }
+        continue;
+      }
       const sEnd = cur + r.stintSec * 1000;
       if (now < sEnd) { phase = "stint"; stintIdx = i; phaseEnd = sEnd; break; }
       const pEnd = sEnd + r.pitSec * 1000;
       if (now < pEnd) { phase = "pit"; stintIdx = i; phaseEnd = pEnd; break; }
       cur = pEnd;
     }
+    const lastDev = ap.length
+      ? ap[ap.length - 1] - plannedPitStart[ap.length - 1] : null;
     return {
       status: "live", phase, stintIdx, phaseEnd,
+      pitsDone: ap.length, plannedPitStart, lastDev,
       remaining: finishMs - now, elapsed: now - startMs,
       nextPitIn: phaseEnd - now, raceMs, startMs, finishMs,
       driver: st.driverAssign[stintIdx] || "",
       nextDriver: st.driverAssign[stintIdx + 1] || "",
     };
-  }, [now, st.raceStart, st.driverAssign, racePlan]);
+  }, [now, st.raceStart, st.driverAssign, st.actualPits, racePlan]);
+
+  /* --- gerçek pit işaretleme (sadece düzenleyici) --- */
+  const canEdit = !room || role === "editor";
+  const markPit = () => up({ actualPits: [...(st.actualPits || []), Date.now()] });
+  const unmarkPit = () => up({ actualPits: (st.actualPits || []).slice(0, -1) });
+  const resetPits = () => {
+    if (confirm(t("Gerçek pit işaretlemelerini sıfırla?"))) up({ actualPits: [] });
+  };
+  const fmtDev = (ms) => {
+    const a = Math.abs(ms) / 1000, m = Math.floor(a / 60), sec = Math.floor(a % 60);
+    return `${m}:${String(sec).padStart(2, "0")} ${ms >= 0 ? t("geç") : t("erken")}`;
+  };
   const pitSoon = liveInfo.status === "live" && liveInfo.phase === "stint"
     && liveInfo.nextPitIn < 300000;
   /* canlı yarışta kalan süre (sn) — son stint yakıtı otomatik countdown için */
@@ -1540,6 +1573,51 @@ export default function App() {
                 {t("Sıradaki pit: ")}{upcomingPit.fuel ? "FUEL " : ""}{upcomingPit.lane ? "· LANE " : ""}
                 {upcomingPit.tyres.some(Boolean) &&
                   <>· 🛞 {TY.filter((_, i) => upcomingPit.tyres[i]).join(" ")}</>}
+              </div>
+            )}
+
+            {/* --- gerçek pit işaretleme: sadece düzenleyici --- */}
+            {canEdit && (
+              <div onClick={(e) => e.stopPropagation()}
+                style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                {liveInfo.pitsDone < racePlan.rows.length - 1 ? (
+                  <button onClick={markPit}
+                    style={{ padding: "16px 34px", borderRadius: 12, cursor: "pointer",
+                      background: "var(--car)", color: "#FFE9ED", border: "2px solid var(--teal)",
+                      fontFamily: "'Barlow Condensed'", fontSize: 26, fontWeight: 700,
+                      letterSpacing: ".06em" }}>
+                    {t("✔ PIT YAPILDI")} — S{liveInfo.pitsDone + 1}
+                  </button>
+                ) : (
+                  <div className="plbl" style={{ color: "var(--green)" }}>
+                    ✔ {t("Tüm pitler yapıldı")}</div>
+                )}
+                {liveInfo.lastDev != null && (
+                  <div className="plbl" style={{ textTransform: "none" }}>
+                    P{liveInfo.pitsDone}: {t("Plan")}{" "}
+                    <span className="mono">{fmtClock(liveInfo.plannedPitStart[liveInfo.pitsDone - 1])}</span>
+                    {" · "}{t("Gerçek")}{" "}
+                    <span className="mono">{fmtClock(st.actualPits[liveInfo.pitsDone - 1])}</span>
+                    {" → "}
+                    <b style={{ color: Math.abs(liveInfo.lastDev) > 60000
+                      ? "var(--yellow)" : "var(--green)" }}>
+                      {fmtDev(liveInfo.lastDev)}</b>
+                  </div>
+                )}
+                {liveInfo.pitsDone > 0 && (
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={unmarkPit}
+                      style={{ padding: "4px 12px", borderRadius: 6, cursor: "pointer",
+                        background: "var(--panel2)", color: "var(--dim)",
+                        border: "1px solid var(--line)", fontSize: 12 }}>
+                      {t("↩ Geri Al")}</button>
+                    <button onClick={resetPits}
+                      style={{ padding: "4px 12px", borderRadius: 6, cursor: "pointer",
+                        background: "var(--panel2)", color: "var(--dim)",
+                        border: "1px solid var(--line)", fontSize: 12 }}>
+                      {t("⟲ Sıfırla")}</button>
+                  </div>
+                )}
               </div>
             )}
           </>)}
