@@ -59,6 +59,10 @@ const DEFAULT_STATE = {
   pitLaneTime: 22,
   fuelTime: 43,
   tyreTime: 13,
+  // --- pist & araç seçimi ---
+  track: "",        // TRACKS id
+  carClass: "",     // "hypercar" | "gt3"
+  car: "",          // CARS[carClass] id
   // --- Virtual Energy sistemi (LMU) ---
   // Depo her zaman %100 VE'dir. Gerçek yakıt = VE% × fuelRatio.
   // Örn: ratio 0.84 → %100 = 84.0 L taşınan yakıt.
@@ -88,6 +92,50 @@ const DEFAULT_STATE = {
 
 /* ---------- Faz 4: MoTeC telemetri ayrıştırma ---------- */
 const SLOT_COLORS = { A: "#40D68C", B: "#F0604D", C: "#F2A33C", D: "#6694FF" };
+
+/* ---------- pist & araç seçimi ---------- */
+const ASSET = import.meta.env.BASE_URL + "assets/";
+const TRACKS = [
+  { id: "lemans", name: "Le Mans" },
+  { id: "spa", name: "Spa-Francorchamps" },
+  { id: "monza", name: "Monza" },
+  { id: "imola", name: "Imola" },
+  { id: "silverstone", name: "Silverstone" },
+  { id: "paulricard", name: "Paul Ricard" },
+  { id: "portimao", name: "Portimão" },
+  { id: "barcelona", name: "Barcelona" },
+  { id: "bahrain", name: "Bahrain" },
+  { id: "lusail", name: "Lusail" },
+  { id: "fuji", name: "Fuji" },
+  { id: "cota", name: "COTA" },
+  { id: "sebring", name: "Sebring" },
+  { id: "interlagos", name: "Interlagos" },
+];
+const CARS = {
+  hypercar: [
+    { id: "toyota", name: "Toyota GR010" },
+    { id: "ferrari", name: "Ferrari 499P" },
+    { id: "porsche", name: "Porsche 963" },
+    { id: "cadillac", name: "Cadillac V-Series.R" },
+    { id: "bmw", name: "BMW M Hybrid V8" },
+    { id: "alpine", name: "Alpine A424" },
+    { id: "peugeot", name: "Peugeot 9X8" },
+    { id: "astonmartin", name: "Aston Martin Valkyrie" },
+  ],
+  gt3: [
+    { id: "ferrari", name: "Ferrari 296 GT3" },
+    { id: "porsche", name: "Porsche 911 GT3 R" },
+    { id: "bmw", name: "BMW M4 GT3" },
+    { id: "mercedes", name: "Mercedes-AMG GT3" },
+    { id: "mclaren", name: "McLaren 720S GT3" },
+    { id: "corvette", name: "Corvette Z06 GT3.R" },
+    { id: "lexus", name: "Lexus RC F GT3" },
+    { id: "ford", name: "Ford Mustang GT3" },
+    { id: "aston", name: "Aston Martin Vantage GT3" },
+  ],
+};
+const trackName = (id) => TRACKS.find((t) => t.id === id)?.name || "";
+const carName = (cls, id) => CARS[cls]?.find((c) => c.id === id)?.name || "";
 const isLapLabel = (c) => /^(out ?lap|in ?lap|lap ?\d+)$/i.test(String(c).trim());
 
 const msFromCell = (v) => {
@@ -316,6 +364,35 @@ const css = `
 .rc .lobby .solo:hover{color:var(--txt)}
 .rc .lobby .lmsg{margin-top:12px;color:var(--yellow);font-size:12px;text-align:center;
   min-height:16px}
+/* --- pist & araç seçimi --- */
+.rc .picksec{margin-top:18px}
+.rc .picksec h3{margin:0 0 8px;font-size:12px;text-transform:uppercase;
+  letter-spacing:.08em;color:var(--dim);font-family:'Barlow Condensed';font-size:15px}
+.rc .trackgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.rc .trackgrid button{display:flex;align-items:center;gap:8px;padding:9px 10px;
+  border-radius:8px;border:1px solid var(--line);background:var(--panel2);
+  color:var(--txt);cursor:pointer;font-size:12px;text-align:left}
+.rc .trackgrid button img{width:22px;height:auto;border-radius:2px;flex-shrink:0}
+.rc .trackgrid button.on{border-color:var(--teal);background:rgba(53,199,190,.14);
+  color:var(--teal);font-weight:600}
+.rc .classtoggle{display:flex;gap:8px}
+.rc .classtoggle button{flex:1;display:flex;align-items:center;justify-content:center;
+  gap:8px;padding:10px;border-radius:8px;border:1px solid var(--line);
+  background:var(--panel2);color:var(--dim);cursor:pointer;
+  font-family:'Barlow Condensed';font-size:16px;font-weight:600;letter-spacing:.05em}
+.rc .classtoggle button img{width:26px;height:auto}
+.rc .classtoggle button.on{border-color:var(--teal);background:rgba(53,199,190,.14);
+  color:var(--teal)}
+.rc .cargrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+.rc .cargrid button{padding:10px 10px 8px;border-radius:10px;border:1px solid var(--line);
+  background:var(--panel2);cursor:pointer;color:var(--dim);font-size:11.5px}
+.rc .cargrid button img{width:100%;height:auto;margin-bottom:6px;
+  filter:drop-shadow(0 4px 8px rgba(0,0,0,.45))}
+.rc .cargrid button.on{border-color:var(--teal);background:rgba(53,199,190,.10);
+  color:var(--txt);font-weight:600}
+.rc .hdsel{display:inline-flex;align-items:center;gap:7px;color:var(--dim);font-size:12px}
+.rc .hdsel img.flag{width:18px;height:auto;border-radius:2px}
+.rc .hdsel img.car{height:22px;width:auto}
 .rc .viewonly input,.rc .viewonly .strat button,.rc .viewonly .tyrebox button,
 .rc .viewonly .pitopt button,.rc .viewonly select,.rc .viewonly .card .act
 {pointer-events:none;opacity:.55}
@@ -386,6 +463,7 @@ export default function App() {
 
   /* ---------- Faz 2: takım senkronizasyonu + yetki ---------- */
   const [entered, setEntered] = useState(false); // lobi geçildi mi (solo/oda)
+  const [pickDone, setPickDone] = useState(false); // pist/araç seçimi tamamlandı mı
   const [setupDone, setSetupDone] = useState(false); // data giriş adımı tamamlandı mı
   const [userName, setUserName] = useState("");
   const [room, setRoom] = useState("");          // aktif oda kodu
@@ -474,12 +552,13 @@ export default function App() {
       setJoinPin("");
       setSyncMsg("");
       setSetupDone(true); // odaya katılan data girmez — mevcut oda verisi kullanılır
+      setPickDone(true);  // pist/araç seçimi de odadan gelir
     } catch (e) { setSyncMsg(`"${code}" odası bulunamadı — kodu kontrol et`); }
   };
 
   const leaveRoom = () => {
     setRoom(""); setRole("editor"); setRoomPin(""); pinRef.current = "";
-    setLastSync(null); setSyncMsg(""); setEntered(false); setSetupDone(false); // lobiye dön
+    setLastSync(null); setSyncMsg(""); setEntered(false); setPickDone(false); setSetupDone(false); // lobiye dön
   };
 
   const up = (patch) => setSt((s) => ({ ...s, ...patch }));
@@ -870,7 +949,76 @@ export default function App() {
     );
   }
 
-  /* ---------- setup: yarış datalarını gir ---------- */
+  /* ---------- setup 1: pist & araç seçimi ---------- */
+  if (!pickDone) {
+    const cls = st.carClass || "hypercar";
+    return (
+      <div className="rc">
+        <style>{css}</style>
+        <div className="lobby" style={{ alignItems: "flex-start", paddingTop: 40 }}>
+          <div className="box" style={{ maxWidth: 720 }}>
+            <h1><b>PİST</b> & ARAÇ</h1>
+            <div className="sub">
+              {room ? (<>Oda: <b className="roomcode">{room}</b>
+                {roomPin && <> · PIN: <b className="roomcode">{roomPin}</b></>}</>)
+                : "Solo mod"}
+            </div>
+
+            <div className="picksec">
+              <h3>1 · Pist Seç</h3>
+              <div className="trackgrid">
+                {TRACKS.map((t) => (
+                  <button key={t.id} className={st.track === t.id ? "on" : ""}
+                    onClick={() => up({ track: t.id })}>
+                    <img src={`${ASSET}flags/${t.id}.png`} alt="" />{t.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="picksec">
+              <h3>2 · Sınıf Seç</h3>
+              <div className="classtoggle">
+                {[["hypercar", "Hypercar"], ["gt3", "GT3"]].map(([id, name]) => (
+                  <button key={id} className={cls === id ? "on" : ""}
+                    onClick={() => up({ carClass: id, car: "" })}>
+                    <img src={`${ASSET}class/${id}.png`} alt="" />{name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="picksec">
+              <h3>3 · Araç Seç</h3>
+              <div className="cargrid">
+                {CARS[cls].map((c) => (
+                  <button key={c.id} className={st.car === c.id ? "on" : ""}
+                    onClick={() => up({ carClass: cls, car: c.id })}>
+                    <img src={`${ASSET}cars/${cls}/${c.id}.png`} alt="" loading="lazy" />
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button className="bigbtn" style={{ marginTop: 20 }}
+              disabled={!st.track || !st.car}
+              onClick={() => setPickDone(true)}>
+              ✓ Devam Et — Yarış Dataları
+            </button>
+            <div className="lmsg">
+              {(!st.track || !st.car) && "Devam etmek için pist ve araç seç"}
+            </div>
+            <button className="solo" onClick={() => setPickDone(true)}>
+              Seçim yapmadan geç →
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ---------- setup 2: yarış datalarını gir ---------- */
   if (!setupDone) {
     return (
       <div className="rc">
@@ -879,6 +1027,9 @@ export default function App() {
           <div className="box" style={{ maxWidth: 560 }}>
             <h1><b>YARIŞ</b> DATALARI</h1>
             <div className="sub">
+              {st.track && <><img className="flag" style={{ width: 16, verticalAlign: -2, marginRight: 4 }}
+                src={`${ASSET}flags/${st.track}.png`} alt="" />
+                {trackName(st.track)}{st.car && <> · {carName(st.carClass, st.car)}</>} — </>}
               {room ? (<>
                 Oda: <b className="roomcode">{room}</b>
                 {roomPin && <> · PIN: <b className="roomcode">{roomPin}</b></>}
@@ -907,6 +1058,15 @@ export default function App() {
       <header>
         <h1 className="disp"><b>CASPIAN</b> RACE CONTROL</h1>
         <span className="ver">virtual energy · v0.6</span>
+        {(st.track || st.car) && (
+          <span className="hdsel">
+            {st.track && <><img className="flag" src={`${ASSET}flags/${st.track}.png`} alt="" />
+              {trackName(st.track)}</>}
+            {st.car && <>
+              <img className="car" src={`${ASSET}cars/${st.carClass}/${st.car}.png`} alt="" />
+              {carName(st.carClass, st.car)}</>}
+          </span>
+        )}
       </header>
 
       <div className="teambar">
