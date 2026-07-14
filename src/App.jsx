@@ -603,6 +603,29 @@ export default function App() {
   const TY = ["FL", "FR", "RL", "RR"];
 
   /* ---------- Faz 3: lastik stratejisi ---------- */
+  /* stint bazlı hızlı lastik atama
+     FL=0 FR=1 RL=2 RR=3 · fresh: kullanılmamış en küçük numaralar */
+  const quickTyre = (rowIdx, action) => setSt((s) => {
+    const used = new Set();
+    s.tyreQual.forEach((v) => { const k = String(v).trim(); if (k) used.add(k); });
+    s.tyreStints.forEach((r) => r.forEach((v) => {
+      const k = String(v).trim(); if (k) used.add(k); }));
+    let n = 1;
+    const fresh = () => { while (used.has(String(n))) n++; used.add(String(n)); return String(n); };
+    const prev = rowIdx === 0 ? s.tyreQual : (s.tyreStints[rowIdx - 1] || ["", "", "", ""]);
+    const FRESH_AT = {
+      new4: [0, 1, 2, 3], fronts: [0, 1], rears: [2, 3],
+      lefts: [0, 2], rights: [1, 3],
+    }[action];
+    let row;
+    if (action === "clear") row = ["", "", "", ""];
+    else if (action === "carry") row = [...prev];
+    else row = [0, 1, 2, 3].map((ci) =>
+      FRESH_AT.includes(ci) ? fresh() : String(prev[ci] || "").trim());
+    const tyreStints = s.tyreStints.map((r, i) => (i === rowIdx ? row : r));
+    return { ...s, tyreStints };
+  });
+
   const upTyreCell = (row, col, val) => setSt((s) => {
     if (row === -1) {
       const tyreQual = [...s.tyreQual]; tyreQual[col] = val;
@@ -1368,20 +1391,20 @@ export default function App() {
                 <h2>🛞 Lastik</h2>
                 <div className="kpis" style={{ gridTemplateColumns: "1fr 1fr" }}>
                   <div className="kpi"><div className="v">{tyreInfo.used}/{st.tyreLimit}</div>
-                    <div className="l">Kullanılan</div></div>
+                    <div className="l">Kullanılan Lastik</div></div>
                   <div className="kpi"><div className="v"
                     style={{ color: tyreInfo.available < 0 ? "var(--red)" : "var(--green)" }}>
-                    {tyreInfo.available}</div><div className="l">Kalan Set</div></div>
+                    {tyreInfo.available}</div><div className="l">Kalan Lastik</div></div>
                 </div>
                 {liveInfo.status === "live" && st.tyreStints[liveInfo.stintIdx + 1] && (
-                  <div className="hint">Sıradaki stint setleri:{" "}
+                  <div className="hint">Sıradaki stint lastikleri:{" "}
                     <b className="mono">
                       {st.tyreStints[liveInfo.stintIdx + 1].map((v) => v || "–").join(" / ")}
                     </b></div>
                 )}
                 {tyreInfo.conflicts.length > 0 &&
                   <div className="hint" style={{ color: "var(--red)" }}>
-                    ⚠ Köşe ihlali: set {tyreInfo.conflicts.join(", ")}</div>}
+                    ⚠ Köşe ihlali: lastik {tyreInfo.conflicts.join(", ")}</div>}
               </div>
 
               <div className="card">
@@ -1417,20 +1440,20 @@ export default function App() {
               <h2>Lastik Stratejisi</h2>
               <div className="kpis">
                 <div className="kpi">
-                  <label style={{ margin: 0 }}>Lastik Limiti</label>
+                  <label style={{ margin: 0 }}>Lastik Limiti (adet)</label>
                   <Num v={st.tyreLimit} step={1} onC={(v) => up({ tyreLimit: v })} />
                 </div>
                 <div className="kpi"><div className="v">{tyreInfo.used}</div>
-                  <div className="l">Kullanılan Set</div></div>
+                  <div className="l">Kullanılan Lastik</div></div>
                 <div className="kpi"><div className="v"
                   style={{ color: tyreInfo.available < 0 ? "var(--red)" : "var(--green)" }}>
                   {tyreInfo.available}</div>
-                  <div className="l">Kalan Set</div></div>
+                  <div className="l">Kalan Lastik</div></div>
                 <div className="kpi"><div className="v">{racePlan.fullStints}</div>
                   <div className="l">Stint Sayısı</div></div>
               </div>
               <table>
-                <thead><tr><th>Stint</th><th>FL</th><th>FR</th><th>RL</th><th>RR</th></tr></thead>
+                <thead><tr><th>Stint</th><th>FL</th><th>FR</th><th>RL</th><th>RR</th><th>Hızlı Atama</th></tr></thead>
                 <tbody>
                   {tyreInfo.rows.map((r) => (
                     <tr key={r.label}>
@@ -1461,12 +1484,29 @@ export default function App() {
                           </select>
                         </td>
                       ))}
+                      <td>
+                        {r.row >= 0 && (
+                          <select className="tsel" style={{ width: 118, textAlign: "left" }}
+                            value="" onChange={(e) => {
+                              if (e.target.value) quickTyre(r.row, e.target.value);
+                            }}>
+                            <option value="">— hızlı —</option>
+                            <option value="new4">🆕 4 Yeni</option>
+                            <option value="carry">⟳ Öncekiyle Devam</option>
+                            <option value="fronts">Önler Yeni</option>
+                            <option value="rears">Arkalar Yeni</option>
+                            <option value="lefts">Sollar Yeni</option>
+                            <option value="rights">Sağlar Yeni</option>
+                            <option value="clear">✕ Temizle</option>
+                          </select>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
               <div className="legend">
-                <span><i style={{ background: "var(--panel2)" }} />Yeni (1 kez)</span>
+                <span><i style={{ background: "var(--panel2)" }} />Yeni lastik (1 kez)</span>
                 <span><i style={{ background: "rgba(242,201,76,.5)" }} />2 kez (duplicate)</span>
                 <span><i style={{ background: "rgba(102,148,255,.5)" }} />Qual lastiği tekrar</span>
                 <span><i style={{ background: "rgba(240,96,77,.5)" }} />3 kez</span>
@@ -1474,13 +1514,13 @@ export default function App() {
               </div>
               {tyreInfo.conflicts.length > 0 &&
                 <div className="hint" style={{ color: "var(--red)" }}>
-                  ⚠ Köşe kuralı ihlali — set {tyreInfo.conflicts.join(", ")} birden fazla
-                  köşede kullanılmış. Bir set ilk takıldığı köşeye kilitlenir; hatalı hücreyi düzelt.
+                  ⚠ Köşe kuralı ihlali — lastik {tyreInfo.conflicts.join(", ")} birden fazla
+                  köşede kullanılmış. Bir lastik ilk takıldığı köşeye kilitlenir; hatalı hücreyi düzelt.
                 </div>}
               <div style={{ marginTop: 12 }}>
-                <button className="act danger" onClick={clearTyres}>Tüm Setleri Temizle</button>
+                <button className="act danger" onClick={clearTyres}>Tümünü Temizle</button>
               </div>
-              <div className="hint">Bir set numarası ilk kullanıldığı köşeye (FL/FR/RL/RR) kilitlenir ve diğer köşelerin menülerinden otomatik kalkar. Aynı set aynı köşede tekrar kullanılırsa hücre kullanım sayısına göre renklenir.</div>
+              <div className="hint">Her numara TEK bir lastiği temsil eder (set değil) — limit adet bazlıdır. Bir lastik ilk takıldığı köşeye kilitlenir ve diğer köşelerin menülerinden otomatik kalkar. Aynı lastik aynı köşede tekrar kullanılırsa hücre kullanım sayısına göre renklenir. Hızlı Atama ile tek tıkla 4 yeni / öncekiyle devam / kısmi değişim yapabilirsin.</div>
             </div>
           )}
 
