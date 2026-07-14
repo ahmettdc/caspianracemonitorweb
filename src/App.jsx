@@ -1324,6 +1324,29 @@ export default function App() {
                   <div className="l">Toplam VE · {totalFuelL.toFixed(1)} L yakıt</div></div>
               </div>
 
+              {tab === "stint" && (
+                <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
+                  border: "1px solid var(--line)", borderRadius: 8, padding: "8px 12px",
+                  marginBottom: 12, background: "var(--panel2)" }}>
+                  <span className="disp" style={{ fontSize: 14, letterSpacing: ".06em",
+                    color: "var(--teal)" }}>🛞 S1 START LASTİKLERİ</span>
+                  <span className="mono" style={{ fontSize: 12 }}>
+                    {TY.map((t, ci) =>
+                      `${t}:${String(st.tyreStints[0]?.[ci] || "–")}`).join("  ")}
+                  </span>
+                  <span className="pitopt">
+                    <button onClick={() => quickTyre(0, "carry")}>QUAL İLE BAŞLA</button>
+                    <button onClick={() => quickTyre(0, "new4")}>4 YENİ</button>
+                    <button onClick={() => quickTyre(0, "clear")}>TEMİZLE</button>
+                  </span>
+                  {!(st.tyreStints[0] || []).some((v) => String(v).trim()) && (
+                    <span className="hint warn" style={{ margin: 0 }}>
+                      ⚠ Başlangıç lastiği seçilmedi — önce buradan başla, pit seçimleri buna zincirlenir
+                    </span>
+                  )}
+                </div>
+              )}
+
               <div className="timeline" role="img" aria-label="Stint zaman çizelgesi">
                 {timeline.map((s, i) => (
                   <div key={i} className={`seg ${s.cls}`}
