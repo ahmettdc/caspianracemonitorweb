@@ -296,6 +296,7 @@ const EN = {
   "Oda: ": "Room: ",
   "Solo mod — takım senkronizasyonu için ": "Solo mode — for team sync, ",
   "Kadrodan çıkar": "Remove from roster",
+  "⚠ Lastik limiti doldu — yeni lastik seçilemez": "⚠ Tyre limit reached — no new tyres available",
   "🔴 CANLI": "🔴 LIVE", "Canlıdan otomatik — yarış saatinden hesaplanıyor":
     "Auto from live — calculated from the race clock",
   "odası bulunamadı — kodu kontrol et": "room not found — check the code",
@@ -481,6 +482,7 @@ const css = `
 .rc .pitopt{display:inline-flex;gap:4px}
 .rc .pitopt button{padding:2px 8px;border-radius:4px;border:1px solid var(--line);
   background:var(--panel2);color:var(--dim);font-size:10px;cursor:pointer}
+.rc .pitopt button:disabled{opacity:.35;cursor:not-allowed}
 .rc .pitopt button.on{background:var(--car);color:#FFE9ED;border-color:var(--teal)}
 .rc .ovr{width:82px!important;padding:3px 6px!important;font-size:11px!important}
 .rc .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));
@@ -804,6 +806,7 @@ export default function App() {
           s.tyreQual.forEach((v) => { const k = String(v).trim(); if (k) used.add(k); });
           s.tyreStints.forEach((r) => r.forEach((v) => {
             const k = String(v).trim(); if (k) used.add(k); }));
+          if (used.size >= s.tyreLimit) return s0; // lastik kalmadı → seçim engellenir
           let n = 1; while (used.has(String(n))) n++;
           val = String(n);
         }
@@ -849,6 +852,8 @@ export default function App() {
       new4: [0, 1, 2, 3], fronts: [0, 1], rears: [2, 3],
       lefts: [0, 2], rights: [1, 3],
     }[action];
+    if (FRESH_AT && used.size + FRESH_AT.length > s.tyreLimit)
+      return s0; // yeterli yeni lastik yok → aksiyon engellenir
     let row;
     if (action === "clear") row = ["", "", "", ""];
     else if (action === "carry") row = [...prev];
@@ -1585,13 +1590,23 @@ export default function App() {
                   </span>
                   <span className="pitopt">
                     <button onClick={() => quickTyre(0, "carry")}>{t("QUAL İLE BAŞLA")}</button>
-                    <button onClick={() => quickTyre(0, "new4")}>{t("4 YENİ")}</button>
-                    <button onClick={() => quickTyre(0, "fronts")}>{t("2 YENİ ÖN")}</button>
-                    <button onClick={() => quickTyre(0, "rears")}>{t("2 YENİ ARKA")}</button>
-                    <button onClick={() => quickTyre(0, "lefts")}>{t("2 YENİ SOL")}</button>
-                    <button onClick={() => quickTyre(0, "rights")}>{t("2 YENİ SAĞ")}</button>
+                    <button disabled={tyreInfo.available < 4}
+                      onClick={() => quickTyre(0, "new4")}>{t("4 YENİ")}</button>
+                    <button disabled={tyreInfo.available < 2}
+                      onClick={() => quickTyre(0, "fronts")}>{t("2 YENİ ÖN")}</button>
+                    <button disabled={tyreInfo.available < 2}
+                      onClick={() => quickTyre(0, "rears")}>{t("2 YENİ ARKA")}</button>
+                    <button disabled={tyreInfo.available < 2}
+                      onClick={() => quickTyre(0, "lefts")}>{t("2 YENİ SOL")}</button>
+                    <button disabled={tyreInfo.available < 2}
+                      onClick={() => quickTyre(0, "rights")}>{t("2 YENİ SAĞ")}</button>
                     <button onClick={() => quickTyre(0, "clear")}>{t("TEMİZLE")}</button>
                   </span>
+                  {tyreInfo.available <= 0 && (
+                    <span className="hint warn" style={{ margin: 0 }}>
+                      {t("⚠ Lastik limiti doldu — yeni lastik seçilemez")}
+                    </span>
+                  )}
                   {!(st.tyreStints[0] || []).some((v) => String(v).trim()) && (
                     <span className="hint warn" style={{ margin: 0 }}>
                       {t("⚠ Başlangıç lastiği seçilmedi — önce buradan başla, pit seçimleri buna zincirlenir")}
@@ -1637,6 +1652,9 @@ export default function App() {
                           <span className="tyrebox">
                             {TY.map((t, ti) => (
                               <button key={t} className={(st.pits[i] || EMPTY_PIT).tyres[ti] ? "on" : ""}
+                                disabled={!(st.pits[i] || EMPTY_PIT).tyres[ti] && tyreInfo.available <= 0}
+                                title={!(st.pits[i] || EMPTY_PIT).tyres[ti] && tyreInfo.available <= 0
+                                  ? t("⚠ Lastik limiti doldu — yeni lastik seçilemez") : undefined}
                                 onClick={() => upTyre(i, ti)}>{t}</button>
                             ))}
                           </span>
@@ -1818,12 +1836,12 @@ export default function App() {
                               if (e.target.value) quickTyre(r.row, e.target.value);
                             }}>
                             <option value="">{t("— hızlı —")}</option>
-                            <option value="new4">{t("🆕 4 Yeni")}</option>
+                            <option value="new4" disabled={tyreInfo.available < 4}>{t("🆕 4 Yeni")}</option>
                             <option value="carry">{t("⟳ Öncekiyle Devam")}</option>
-                            <option value="fronts">{t("Önler Yeni")}</option>
-                            <option value="rears">{t("Arkalar Yeni")}</option>
-                            <option value="lefts">{t("Sollar Yeni")}</option>
-                            <option value="rights">{t("Sağlar Yeni")}</option>
+                            <option value="fronts" disabled={tyreInfo.available < 2}>{t("Önler Yeni")}</option>
+                            <option value="rears" disabled={tyreInfo.available < 2}>{t("Arkalar Yeni")}</option>
+                            <option value="lefts" disabled={tyreInfo.available < 2}>{t("Sollar Yeni")}</option>
+                            <option value="rights" disabled={tyreInfo.available < 2}>{t("Sağlar Yeni")}</option>
                             <option value="clear">{t("✕ Temizle")}</option>
                           </select>
                         )}
