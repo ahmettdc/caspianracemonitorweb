@@ -273,6 +273,13 @@ const EN = {
   "tur satırı bulundu. Sütun eşleşmesini kontrol et:": "lap rows found. Check the column mapping:",
   "ort. tur": "avg lap", "tur listesi": "lap list", "kalan tur": "laps left",
   "Aşınma": "Wear",
+  "PİST": "TRACK", "& ARAÇ": "& CAR", "YARIŞ": "RACE", "DATALARI": "DATA",
+  "Oda: ": "Room: ",
+  "Solo mod — takım senkronizasyonu için ": "Solo mode — for team sync, ",
+  "Kadrodan çıkar": "Remove from roster",
+  "odası bulunamadı — kodu kontrol et": "room not found — check the code",
+  "Takım senkronizasyonu kapalı — ": "Team sync is off — ",
+  " dosyasını doldur.": " needs to be filled in.",
 };
 
 const trackName = (id) => TRACKS.find((t) => t.id === id)?.name || "";
@@ -698,7 +705,7 @@ export default function App() {
     if (code.length < 4) { setSyncMsg(t("Geçerli bir oda kodu gir")); return; }
     try {
       const remote = await roomGet(code);
-      if (!remote) { setSyncMsg(`"${code}" odası bulunamadı — kodu kontrol et`); return; }
+      if (!remote) { setSyncMsg(`"${code}" ${t("odası bulunamadı — kodu kontrol et")}`); return; }
       const asEditor = joinPin.trim() !== "" && joinPin.trim() === remote.pin;
       if (joinPin.trim() !== "" && !asEditor) {
         setSyncMsg(t("PIN hatalı — izleyici olarak katılmak için PIN alanını boş bırak"));
@@ -717,7 +724,7 @@ export default function App() {
       setSyncMsg("");
       setSetupDone(true); // odaya katılan data girmez — mevcut oda verisi kullanılır
       setPickDone(true);  // pist/araç seçimi de odadan gelir
-    } catch (e) { setSyncMsg(`"${code}" odası bulunamadı — kodu kontrol et`); }
+    } catch (e) { setSyncMsg(`"${code}" ${t("odası bulunamadı — kodu kontrol et")}`); }
   };
 
   const leaveRoom = () => {
@@ -1163,7 +1170,7 @@ export default function App() {
                 onChange={(e) => setUserName(e.target.value)} />
 
               <button className="bigbtn" onClick={createRoom}>
-                🏁 Yeni Oda Kur
+                {t("🏁 Yeni Oda Kur")}
               </button>
 
               <div className="divider">{t("veya mevcut odaya katıl")}</div>
@@ -1184,7 +1191,7 @@ export default function App() {
                 </div>
               </div>
               <button className="bigbtn ghost" onClick={joinRoom}>
-                Odaya Katıl
+                {t("Odaya Katıl")}
               </button>
               <div className="lmsg">{syncMsg}</div>
               <div className="hint" style={{ textAlign: "center" }}>
@@ -1192,12 +1199,12 @@ export default function App() {
               </div>
             </>) : (
               <div className="hint" style={{ textAlign: "center", marginBottom: 8 }}>
-                Takım senkronizasyonu kapalı — <b>src/firebase-config.js</b> dosyasını doldur.
+                {t("Takım senkronizasyonu kapalı — ")}<b>src/firebase-config.js</b>{t(" dosyasını doldur.")}
               </div>
             )}
 
             <button className="solo" onClick={() => setEntered(true)}>
-              Oda kullanmadan solo devam et →
+              {t("Oda kullanmadan solo devam et →")}
             </button>
           </div>
         </div>
@@ -1214,9 +1221,9 @@ export default function App() {
         <div className="lobby" style={{ alignItems: "flex-start", paddingTop: 40 }}>
           <div className="box" style={{ maxWidth: 720 }}>
             <img className="logo" style={{ maxWidth: 190 }} src={`${ASSET}logo.png`} alt="" />
-            <h1><b>PİST</b> & ARAÇ</h1>
+            <h1><b>{t("PİST")}</b> {t("& ARAÇ")}</h1>
             <div className="sub">
-              {room ? (<>Oda: <b className="roomcode">{room}</b>
+              {room ? (<>{t("Oda: ")}<b className="roomcode">{room}</b>
                 {roomPin && <> · PIN: <b className="roomcode">{roomPin}</b></>}</>)
                 : t("Solo mod")}
             </div>
@@ -1261,13 +1268,13 @@ export default function App() {
             <button className="bigbtn" style={{ marginTop: 20 }}
               disabled={!st.track || !st.car}
               onClick={() => setPickDone(true)}>
-              ✓ Devam Et — Yarış Dataları
+              {t("✓ Devam Et — Yarış Dataları")}
             </button>
             <div className="lmsg">
               {(!st.track || !st.car) && t("Devam etmek için pist ve araç seç")}
             </div>
             <button className="solo" onClick={() => setPickDone(true)}>
-              Seçim yapmadan geç →
+              {t("Seçim yapmadan geç →")}
             </button>
           </div>
         </div>
@@ -1283,7 +1290,7 @@ export default function App() {
         <div className="lobby" style={{ alignItems: "flex-start", paddingTop: 40 }}>
           <div className="box" style={{ maxWidth: 560 }}>
             <img className="logo" style={{ maxWidth: 190 }} src={`${ASSET}logo.png`} alt="" />
-            <h1><b>YARIŞ</b> DATALARI</h1>
+            <h1><b>{t("YARIŞ")}</b> {t("DATALARI")}</h1>
             <div className="sub">
               {st.track && <><img className="flag" style={{ width: 16, verticalAlign: -2, marginRight: 4 }}
                 src={`${ASSET}flags/${st.track}.png`} alt="" />
@@ -1299,7 +1306,7 @@ export default function App() {
 
             <button className="bigbtn" style={{ marginTop: 18 }}
               onClick={() => setSetupDone(true)}>
-              ✓ Devam Et — Arayüze Geç
+              {t("✓ Devam Et — Arayüze Geç")}
             </button>
             <div className="hint" style={{ textAlign: "center", marginTop: 8 }}>
               {t("Merak etme, tüm bu değerleri arayüzün sol kolonundan her an değiştirebilirsin.")}
@@ -1348,7 +1355,7 @@ export default function App() {
           <span className="syncinfo">{t("PIN'siz katılan izler, PIN'li katılan düzenler.")}</span>
         </>) : (
           <span className="syncinfo" style={{ marginLeft: 0 }}>
-            Solo mod — takım senkronizasyonu için <b>src/firebase-config.js</b> dosyasını doldur
+            {t("Solo mod — takım senkronizasyonu için ")}<b>src/firebase-config.js</b>{t(" dosyasını doldur.")}
           </span>
         )) : (<>
           <span>ODA: <span className="roomcode">{room}</span></span>
@@ -1788,7 +1795,7 @@ export default function App() {
               <div style={{ marginBottom: 4 }}>
                 {st.roster.map((n) => (
                   <span className="rchip" key={n}>{n}
-                    <b onClick={() => removeDriver(n)} title="Kadrodan çıkar">×</b></span>
+                    <b onClick={() => removeDriver(n)} title={t("Kadrodan çıkar")}>×</b></span>
                 ))}
                 {st.roster.length === 0 &&
                   <span className="hint">{t("Henüz pilot yok — aşağıdan ekle.")}</span>}
@@ -1912,7 +1919,7 @@ export default function App() {
                   <button className="act" style={{ borderColor: SLOT_COLORS[slot],
                     color: SLOT_COLORS[slot] }} onClick={saveSlot}
                     disabled={mapping.timeCol < 0}>
-                    Stint {slot} olarak kaydet
+                    {lang === "en" ? <>Save as Stint {slot}</> : <>Stint {slot} olarak kaydet</>}
                   </button>
                   {mapping.timeCol < 0 &&
                     <span className="hint warn" style={{ marginLeft: 8 }}>{t("Tur süresi sütunu seçilmeli")}</span>}
@@ -1935,7 +1942,7 @@ export default function App() {
                             {s.avgFuel != null && <>⚡ {s.avgFuel.toFixed(2)} %/tur VE
                               {s.tankLaps && <> · %100 ≈ {Math.floor(s.tankLaps)} tur</>}<br /></>}
                             {s.avgW.some((w) => w != null) &&
-                              <>🛞 {s.avgW.map((w) => w == null ? "–" : w.toFixed(1)).join(" / ")} %/tur</>}
+                              <>🛞 {s.avgW.map((w) => w == null ? "–" : w.toFixed(1)).join(" / ")} {t("%/tur")}</>}
                           </div>
                           <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
                             <button className="act" style={{ fontSize: 11 }}
