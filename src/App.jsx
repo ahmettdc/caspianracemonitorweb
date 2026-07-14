@@ -649,7 +649,18 @@ export default function App() {
     else row = [0, 1, 2, 3].map((ci) =>
       FRESH_AT.includes(ci) ? fresh() : String(prev[ci] || "").trim());
     const tyreStints = s.tyreStints.map((r, i) => (i === rowIdx ? row : r));
-    return { ...s, tyreStints };
+    /* pit butonu senkronu: S(rowIdx+1)'den önceki pit = pits[rowIdx-1]
+       önceki stintten farklı lastik taşıyan köşe = o pitte değişim var */
+    let pits = s.pits;
+    if (rowIdx >= 1) {
+      const pv = prev.map((v) => String(v || "").trim());
+      const flags = row.map((v, ci) => {
+        const k = String(v || "").trim();
+        return k !== "" && k !== pv[ci];
+      });
+      pits = s.pits.map((p, j) => (j === rowIdx - 1 ? { ...p, tyres: flags } : p));
+    }
+    return { ...s, tyreStints, pits };
   });
 
   const upTyreCell = (row, col, val) => setSt((s) => {
@@ -659,7 +670,19 @@ export default function App() {
     }
     const tyreStints = s.tyreStints.map((r, i) =>
       i === row ? r.map((c, j) => (j === col ? val : c)) : r);
-    return { ...s, tyreStints };
+    /* pit butonu senkronu (S1'in öncesinde pit yok, o hariç) */
+    let pits = s.pits;
+    if (row >= 1) {
+      const prevV = String((s.tyreStints[row - 1] || [])[col] ?? "").trim();
+      const k = String(val).trim();
+      const flag = k !== "" && k !== prevV;
+      pits = s.pits.map((p, j) => {
+        if (j !== row - 1) return p;
+        const tyres = [...p.tyres]; tyres[col] = flag;
+        return { ...p, tyres };
+      });
+    }
+    return { ...s, tyreStints, pits };
   });
   const clearTyres = () => setSt((s) => ({
     ...s,
