@@ -134,6 +134,19 @@ const CARS = {
     { id: "peugeot", name: "Peugeot 9X8" },
     { id: "astonmartin", name: "Aston Martin Valkyrie" },
   ],
+  lmp2: [
+    { id: "oreca", name: "Oreca 07 Gibson" },
+  ],
+  lmp3: [
+    { id: "ligier", name: "Ligier JS P320" },
+    { id: "duqueine", name: "Duqueine D08" },
+  ],
+  gte: [
+    { id: "ferrari", name: "Ferrari 488 GTE Evo" },
+    { id: "porsche", name: "Porsche 911 RSR-19" },
+    { id: "aston", name: "Aston Martin Vantage AMR" },
+    { id: "corvette", name: "Corvette C8.R" },
+  ],
   gt3: [
     { id: "ferrari", name: "Ferrari 296 GT3" },
     { id: "porsche", name: "Porsche 911 GT3 R" },
@@ -290,6 +303,10 @@ const EN = {
   " dosyasını doldur.": " needs to be filled in.",
 };
 
+const CAR_CLASSES = [
+  ["hypercar", "Hypercar"], ["lmp2", "LMP2"], ["lmp3", "LMP3"],
+  ["gte", "GTE"], ["gt3", "GT3"],
+];
 const trackName = (id) => TRACKS.find((t) => t.id === id)?.name || "";
 const carName = (cls, id) => CARS[cls]?.find((c) => c.id === id)?.name || "";
 const isLapLabel = (c) => /^(out ?lap|in ?lap|lap ?\d+)$/i.test(String(c).trim());
@@ -1293,10 +1310,11 @@ export default function App() {
             <div className="picksec">
               <h3>{t("2 · Sınıf Seç")}</h3>
               <div className="classtoggle">
-                {[["hypercar", "Hypercar"], ["gt3", "GT3"]].map(([id, name]) => (
+                {CAR_CLASSES.map(([id, name]) => (
                   <button key={id} className={cls === id ? "on" : ""}
                     onClick={() => up({ carClass: id, car: "" })}>
-                    <img src={`${ASSET}class/${id}.png`} alt="" />{name}
+                    <img src={`${ASSET}class/${id}.png`} alt=""
+                      onError={(e) => { e.currentTarget.style.display = "none"; }} />{name}
                   </button>
                 ))}
               </div>
@@ -1308,7 +1326,8 @@ export default function App() {
                 {CARS[cls].map((c) => (
                   <button key={c.id} className={st.car === c.id ? "on" : ""}
                     onClick={() => up({ carClass: cls, car: c.id })}>
-                    <img src={`${ASSET}cars/${cls}/${c.id}.png`} alt="" loading="lazy" />
+                    <img src={`${ASSET}cars/${cls}/${c.id}.png`} alt="" loading="lazy"
+                      onError={(e) => { e.currentTarget.style.display = "none"; }} />
                     {c.name}
                   </button>
                 ))}
@@ -1385,7 +1404,8 @@ export default function App() {
             {st.track && <><img className="flag" src={`${ASSET}flags/${st.track}.png`} alt="" />
               {trackName(st.track)}</>}
             {st.car && <>
-              <img className="car" src={`${ASSET}cars/${st.carClass}/${st.car}.png`} alt="" />
+              <img className="car" src={`${ASSET}cars/${st.carClass}/${st.car}.png`} alt=""
+                onError={(e) => { e.currentTarget.style.display = "none"; }} />
               {carName(st.carClass, st.car)}</>}
           </span>
         )}
