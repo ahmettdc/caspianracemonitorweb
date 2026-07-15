@@ -136,13 +136,19 @@ const CARS = {
     { id: "alpine", name: "Alpine A424" },
     { id: "peugeot", name: "Peugeot 9X8" },
     { id: "astonmartin", name: "Aston Martin Valkyrie" },
+    { id: "lamborghini", name: "Lamborghini SC63" },
+    { id: "isotta", name: "Isotta Fraschini Tipo 6" },
+    { id: "glickenhaus", name: "Glickenhaus SCG 007" },
+    { id: "vanderwell", name: "Vanwall Vandervell 680" },
+    { id: "genesis", name: "Genesis GMR-001" },
   ],
   lmp2: [
-    { id: "oreca", name: "Oreca 07 Gibson" },
+    { id: "oreca", img: "oreca07", name: "Oreca 07 Gibson" },
   ],
   lmp3: [
     { id: "ligier", name: "Ligier JS P320" },
     { id: "duqueine", name: "Duqueine D08" },
+    { id: "adess", name: "ADESS AD25" },
   ],
   gte: [
     { id: "ferrari", name: "Ferrari 488 GTE Evo" },
@@ -326,6 +332,11 @@ const CAR_CLASSES = [
 ];
 const trackName = (id) => TRACKS.find((t) => t.id === id)?.name || "";
 const carName = (cls, id) => CARS[cls]?.find((c) => c.id === id)?.name || "";
+/* araç görseli: dosya adı id'den farklıysa CARS girişindeki img alanı kullanılır */
+const carImg = (cls, id) => {
+  const c = CARS[cls]?.find((x) => x.id === id);
+  return `${ASSET}cars/${cls}/${c?.img || id}.png`;
+};
 const isLapLabel = (c) => /^(out ?lap|in ?lap|lap ?\d+)$/i.test(String(c).trim());
 
 const msFromCell = (v) => {
@@ -1491,7 +1502,7 @@ ${html}
                 {CARS[cls].map((c) => (
                   <button key={c.id} className={st.car === c.id ? "on" : ""}
                     onClick={() => up({ carClass: cls, car: c.id })}>
-                    <img src={`${ASSET}cars/${cls}/${c.id}.png`} alt="" loading="lazy"
+                    <img src={carImg(cls, c.id)} alt="" loading="lazy"
                       onError={(e) => { e.currentTarget.style.display = "none"; }} />
                     {c.name}
                   </button>
@@ -1569,7 +1580,7 @@ ${html}
             {st.track && <><img className="flag" src={`${ASSET}flags/${st.track}.png`} alt="" />
               {trackName(st.track)}</>}
             {st.car && <>
-              <img className="car" src={`${ASSET}cars/${st.carClass}/${st.car}.png`} alt=""
+              <img className="car" src={carImg(st.carClass, st.car)} alt=""
                 onError={(e) => { e.currentTarget.style.display = "none"; }} />
               {carName(st.carClass, st.car)}</>}
           </span>
