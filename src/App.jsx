@@ -420,26 +420,35 @@ function computePlan(st, mode /* "race" | "code80" */) {
   const tyreUnit = mode === "race" ? st.tyreTime : st.tyreTime / 4; // Excel CODE80: M6/4
   const rows = [];
   let cum = 0;
+  const repairs = st.pitRepairs || [];
   for (let i = 0; i < MAX_STINTS; i++) {
     const ovr = parseHMS(st.overrides[i] || "");
-    const stintSec = ovr > 0 ? ovr : laps * lapSec;
-    const startLeft = raceSec - cum;
+    const nominalSec = ovr > 0 ? ovr : laps * lapSec;   // planlanan tam stint
+    const startLeft = raceSec - cum;                     // stint başında kalan süre
     if (startLeft <= 0) break;
+    /* tam stint kalan süreye sığmıyorsa bu son stinttir → süreyi kalan süreye kısalt
+       (yarış eksi süre göstermesin), tur sayısı = sığan tam tur + 1 bayrak turu */
+    const isLast = nominalSec >= startLeft - 0.5;
+    const stintSec = isLast ? startLeft : nominalSec;
+    const lapsInStint = isLast
+      ? Math.max(1, Math.floor(startLeft / lapSec) + 1)
+      : (ovr > 0 ? Math.floor(nominalSec / lapSec) : laps);
     cum += stintSec;
     const p = st.pits[i] || EMPTY_PIT;
     const tyreCount = p.tyres.filter(Boolean).length;
-    const isLast = raceSec - cum <= 0;
+    const repairSec = Number(repairs[i]) || 0;
+    /* pit süresi: LANE her zaman dahil (her pit pit yolundan geçer) + fuel + lastik + hasar/tamir */
     const pitSec = isLast ? 0
-      : (p.fuel ? st.fuelTime : 0) + (p.lane ? st.pitLaneTime : 0) + tyreCount * tyreUnit;
+      : st.pitLaneTime + (p.fuel ? st.fuelTime : 0) + tyreCount * tyreUnit + repairSec;
     const endStint = cum + (isLast ? 0 : pitSec);
     rows.push({
       idx: i + 1,
-      stintSec, pitSec, tyreCount,
+      stintSec, pitSec, tyreCount, repairSec,
       endSec: endStint,
       timeLeft: raceSec - endStint,
-      lapsInStint: ovr > 0 ? Math.floor(stintSec / lapSec) : laps,
+      lapsInStint,
       isLast,
-      fuelNeed: (ovr > 0 ? stintSec / lapSec : laps) * st.consumption,
+      fuelNeed: (isLast ? lapsInStint : (ovr > 0 ? stintSec / lapSec : laps)) * st.consumption,
     });
     cum = endStint;
     if (isLast) break;
@@ -491,6 +500,12 @@ const css = `
   border:1px solid var(--line);border-radius:6px;color:var(--txt);
   padding:6px 8px;font-family:'IBM Plex Mono',monospace;font-size:13px}
 .rc input:focus{outline:2px solid var(--teal);outline-offset:-1px}
+/* sayı alanlarında yukarı/aşağı ok her zaman görünür (madde: elle girme yerine tıkla) */
+.rc input[type=number]{-moz-appearance:auto;appearance:auto}
+.rc input[type=number]::-webkit-inner-spin-button,
+.rc input[type=number]::-webkit-outer-spin-button{
+  -webkit-appearance:inner-spin-button;appearance:auto;opacity:1;
+  height:24px;cursor:pointer;filter:invert(.85) hue-rotate(300deg)}
 .rc .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .rc .row4{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .rc .strat{display:flex;gap:6px;margin-top:4px}
@@ -534,8 +549,8 @@ const css = `
   border:1px solid var(--line);margin:4px 0 14px}
 .rc .timeline .seg{position:relative;min-width:2px}
 .rc .timeline .seg span{position:absolute;inset:0;display:flex;align-items:center;
-  justify-content:center;font-family:'Barlow Condensed';font-size:13px;font-weight:600;
-  color:#FFE3E8}
+  justify-content:center;font-family:'Barlow Condensed';font-size:12px;font-weight:700;
+  color:#FFE3E8;letter-spacing:.02em;overflow:hidden}
 .rc .timeline .pit{background:var(--yellow)}
 .rc .hint{color:var(--dim);font-size:11px;margin-top:6px;line-height:1.5}
 .rc .warn{color:var(--yellow)}
@@ -628,6 +643,7 @@ const css = `
 .rc select{background:var(--panel2);border:1px solid var(--line);border-radius:6px;
   color:var(--txt);padding:5px 6px;font-family:'IBM Plex Mono';font-size:12px}
 .rc .tin{width:56px!important;text-align:center}
+.rc .drvsel{min-width:96px;max-width:120px;padding:4px 6px}
 .rc .tsel{width:76px;text-align:center;background:transparent!important}
 .rc td.terr{background:rgba(240,96,77,.18);outline:2px solid var(--red);outline-offset:-2px}
 .rc td.t2{background:rgba(242,201,76,.22)}
@@ -687,6 +703,16 @@ const css = `
 function Num({ v, onC, step = 0.01, w }) {
   return <input type="number" step={step} value={v} style={w ? { width: w } : {}}
     onChange={(e) => onC(parseFloat(e.target.value) || 0)} />;
+}
+
+/* marka şimşek logosu (favicon.svg) — Virtual Energy simgesi olarak ⚡ yerine kullanılır */
+function Bolt({ size = 16, color = "var(--green)" }) {
+  return (
+    <svg width={size} height={size * 46 / 48} viewBox="0 0 48 46" fill="none"
+      style={{ verticalAlign: "-2px", flexShrink: 0 }} aria-hidden="true">
+      <path fill={color} d="M25.946 44.938c-.664.845-2.021.375-2.021-.698V33.937a2.26 2.26 0 0 0-2.262-2.262H10.287c-.92 0-1.456-1.04-.92-1.788l7.48-10.471c1.07-1.497 0-3.578-1.842-3.578H1.237c-.92 0-1.456-1.04-.92-1.788L10.013.474c.214-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.579 1.842 3.579h11.377c.943 0 1.473 1.088.89 1.83L25.947 44.94z" />
+    </svg>
+  );
 }
 
 export default function App() {
@@ -1133,7 +1159,6 @@ export default function App() {
     if (now < startMs) return { status: "pre", toStart: startMs - now, startMs, finishMs, raceMs };
     if (now >= finishMs) return { status: "done", startMs, finishMs, raceMs };
     const ap = (st.actualPits || []).filter(Number.isFinite);
-    const rep = st.pitRepairs || []; // pit başına ek tamir (sn)
     /* planlanan pit başlangıçları (saf plan, sapma hesabı için)
        — pit tuşunun otomatik yazdığı override'lar saf plana dahil edilmez */
     const auto = st.autoOvr || [];
@@ -1147,8 +1172,8 @@ export default function App() {
     let cur = startMs, phase = "stint", stintIdx = racePlan.rows.length - 1, phaseEnd = finishMs;
     for (let i = 0; i < racePlan.rows.length; i++) {
       const r = racePlan.rows[i];
-      if (i < ap.length) { // bu pit gerçekleşti → gerçek giriş + plan pit süresi + tamir
-        cur = ap[i] + (r.pitSec + (Number(rep[i]) || 0)) * 1000;
+      if (i < ap.length) { // bu pit gerçekleşti → gerçek giriş + plan pit süresi (tamir dahil)
+        cur = ap[i] + r.pitSec * 1000;
         if (now < cur) { phase = "pit"; stintIdx = i; phaseEnd = cur; break; }
         continue;
       }
@@ -1183,8 +1208,7 @@ export default function App() {
       let stintStart = startMs;
       if (i > 0) {
         const prev = racePlan.rows[i - 1];
-        const rep = Number((st.pitRepairs || [])[i - 1]) || 0;
-        stintStart = ap[i - 1] + ((prev?.pitSec || 0) + rep) * 1000;
+        stintStart = ap[i - 1] + (prev?.pitSec || 0) * 1000; // pitSec zaten tamiri içerir
       }
       const durSec = Math.round((nowMs - stintStart) / 1000);
       if (durSec > 0) {
@@ -1232,30 +1256,42 @@ export default function App() {
   const exportPdf = (kind) => {
     const esc = (x) => String(x ?? "").replace(/[&<>]/g,
       (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
-    const mkTable = (head, rows) =>
-      `<table><thead><tr>${head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead>` +
-      `<tbody>${rows.map((r) =>
-        `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+    /* cols: her sütun için hücre class'ı (renk tonu); rowCls: satır class'ı üreten fn */
+    const mkTable = (head, rows, cols = [], rowCls = null) => {
+      const hh = head.map((h, i) => `<th class="${cols[i] || ""}">${esc(h)}</th>`).join("");
+      const bb = rows.map((r, ri) => {
+        const cls = rowCls ? rowCls(ri) : "";
+        return `<tr class="${cls}">${r.map((c, i) =>
+          `<td class="${cols[i] || ""}">${esc(c)}</td>`).join("")}</tr>`;
+      }).join("");
+      return `<table><thead><tr>${hh}</tr></thead><tbody>${bb}</tbody></table>`;
+    };
     let title, html;
     if (kind === "stint") {
       title = `${t("Stint Programı")} · ${st.chosen}-${racePlan.laps}`;
+      const rows = racePlan.rows;
       html = mkTable(
-        ["#", "Stint", t("Tur"), "⚡ VE", "≈ L", "Pit", "End Stint", "Time Left", t("Pilot")],
-        racePlan.rows.map((r, i) => [
+        ["#", "Stint", t("Tur"), "VE %", "≈ L", t("Pilot"), "Pit", "End Stint", "Time Left"],
+        rows.map((r, i) => [
           r.idx, fmtHMS(r.stintSec), r.lapsInStint, `${r.fuelNeed.toFixed(1)}%`,
-          (r.fuelNeed * st.fuelRatio).toFixed(1),
-          r.isLast ? "FINISH 🏁" : fmtHMS(r.pitSec), fmtHMS(r.endSec), fmtHMS(r.timeLeft),
-          st.driverAssign[i] || "—",
-        ]));
+          (r.fuelNeed * st.fuelRatio).toFixed(1), st.driverAssign[i] || "—",
+          r.isLast ? "🏁 FINISH" : fmtHMS(r.pitSec) + (r.repairSec > 0 ? ` (+${r.repairSec}s)` : ""),
+          fmtHMS(r.endSec), fmtHMS(r.timeLeft),
+        ]),
+        ["c-idx", "", "c-lap", "c-ve", "c-ve", "c-drv", "c-pit", "", "c-left"],
+        (ri) => rows[ri].isLast ? "r-last" : "");
     } else {
       if (!driverPlan) { alert(t("Pilotlar sekmesinden başlangıç zamanını gir")); return; }
       title = t("Pilot Programı");
+      const rows = driverPlan.rows;
       html = mkTable(
         ["#", "Start", "Finish", t("Süre"), t("Pilot")],
-        driverPlan.rows.map((r, i) => [
+        rows.map((r, i) => [
           r.idx, fmtClock(r.start, driverPlan.startMs), fmtClock(r.finish, driverPlan.startMs),
           fmtHMS(r.dur / 1000), st.driverAssign[i] || "—",
-        ]));
+        ]),
+        ["c-idx", "", "", "c-lap", "c-drv"],
+        (ri) => rows[ri].isLast ? "r-last" : "");
       const tot = (st.roster || []).filter((n) => driverPlan.totals[n]);
       if (tot.length) {
         html += `<h2>${esc(t("Pilot Toplamları"))}</h2>` + mkTable(
@@ -1264,7 +1300,8 @@ export default function App() {
             const d = driverPlan.totals[n];
             return [n, d.stints, fmtHMS(d.ms / 1000), driverPlan.grandMs
               ? `${((d.ms / driverPlan.grandMs) * 100).toFixed(1)}%` : "—"];
-          }));
+          }),
+          ["c-drv", "c-idx", "", "c-ve"]);
       }
     }
     const w = window.open("", "_blank", "width=900,height=700");
@@ -1272,19 +1309,34 @@ export default function App() {
     w.document.write(`<!doctype html><html><head><meta charset="utf-8">
 <title>${esc(title)}</title>
 <style>
- body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:28px;font-size:12px}
- h1{font-size:18px;margin:0 0 2px;letter-spacing:.04em;text-transform:uppercase}
- h1 b{color:#960018} h2{font-size:13px;margin:18px 0 4px;text-transform:uppercase}
- .sub{color:#666;margin:0 0 14px;font-size:11px}
+ *{box-sizing:border-box}
+ body{font-family:Arial,Helvetica,sans-serif;color:#1a1113;margin:26px;font-size:12px}
+ h1{font-size:19px;margin:0 0 2px;letter-spacing:.04em;text-transform:uppercase}
+ h1 b{color:#960018} h2{font-size:13px;margin:20px 0 4px;text-transform:uppercase;color:#960018}
+ .sub{color:#777;margin:0 0 16px;font-size:11px;border-bottom:2px solid #960018;padding-bottom:8px}
  table{border-collapse:collapse;width:100%;margin-top:6px}
- th,td{border:1px solid #bbb;padding:4px 8px;text-align:left;font-variant-numeric:tabular-nums}
- th{background:#f0e6e8;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
- tr:nth-child(even) td{background:#fafafa}
- @media print{body{margin:10mm}}
+ th,td{border:1px solid #d9c9cd;padding:5px 9px;text-align:left;font-variant-numeric:tabular-nums}
+ th{background:#960018;color:#fff;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em}
+ tbody tr:nth-child(even) td{background:#faf6f7}
+ /* sütun tonları */
+ td.c-idx,th.c-idx{text-align:center;font-weight:700;background:#f2e6e8}
+ td.c-lap,th.c-lap{text-align:center}
+ td.c-ve{background:#eafaf1;color:#0d7a43;font-weight:600}
+ th.c-ve{background:#2c9c63}
+ td.c-drv{background:#eef4fb;font-weight:600}
+ th.c-drv{background:#2f6fb0}
+ td.c-pit{background:#fef7e6}
+ th.c-pit{background:#c9982a}
+ td.c-left{font-weight:600}
+ th.c-left{background:#5a3d8a}
+ tbody tr.r-last td{background:#fde8ea!important;font-weight:700;color:#960018}
+ @media print{body{margin:9mm}th{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+   td{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 </style></head><body>
 <h1><b>CASPIAN</b> RACE MONITOR — ${esc(title)}</h1>
 <p class="sub">${esc(new Date().toLocaleString(lang === "en" ? "en-GB" : "tr-TR"))}${
-      st.raceStart ? " · Start: " + esc(String(st.raceStart).replace("T", " ")) : ""}</p>
+      st.raceStart ? " · Start: " + esc(String(st.raceStart).replace("T", " ")) : ""}${
+      st.track ? " · " + esc(trackName(st.track)) : ""}</p>
 ${html}
 <script>window.onload=function(){window.print()}<\/script></body></html>`);
     w.document.close();
@@ -1296,6 +1348,8 @@ ${html}
   const planLastCd = racePlan.rows.length >= 2
     ? racePlan.rows[racePlan.rows.length - 2].timeLeft
     : racePlan.raceSec;
+  /* son stint VE — plandan (elle girilen countdown yerine gerçek kalan süreden) */
+  const planLsf = lastStintFuel(fmtHMS(planLastCd), st);
   const [autoCd, setAutoCd] = useState(true); // plandan otomatik countdown
 
   const upcomingPit = liveInfo.status === "live" ? (st.pits[liveInfo.stintIdx] || EMPTY_PIT) : null;
@@ -1700,9 +1754,10 @@ ${html}
               </div>
               {upcomingIsLast && (
                 <div>
-                  <div className="plbl">⚡ {t("Son Pit VE")}</div>
+                  <div className="plbl" style={{ display: "flex", alignItems: "center",
+                    justifyContent: "center", gap: 4 }}><Bolt size={14} /> {t("Son Pit VE")}</div>
                   <div className="mid" style={{ color: "var(--green)" }}>
-                    {lsf.refuel.toFixed(1)}%</div>
+                    {planLsf.refuel.toFixed(1)}%</div>
                 </div>
               )}
             </div>
@@ -1805,7 +1860,8 @@ ${html}
         {/* ================= SAĞ: SEKMELER ================= */}
         <div>
           <div className="tabs">
-            {[["dash", "Dashboard"], ["stint", "Stint"], ["code80", "Code 80"],
+            {[["dash", "Dashboard"], ["stint", "Stint"],
+              /* ["code80", "Code 80"], — şimdilik arayüzden gizli, kod korunuyor */
               ["fuel", t("Son Stint Yakıtı")], ["tyre", t("Lastik")], ["drivers", t("Pilotlar")],
               ["tele", t("Telemetri")]].map(([k, l]) => (
               <button key={k} className={`${tab === k ? "on" : ""} ${k === "code80" && tab === k ? "c80t" : ""}`}
@@ -1869,7 +1925,7 @@ ${html}
                 {timeline.map((s, i) => (
                   <div key={i} className={`seg ${s.cls}`}
                     style={{ width: `${s.w}%`, background: s.cls ? undefined : s.bg }}>
-                    {s.label && s.w > 4 && <span>{s.label}</span>}
+                    {s.label && s.w > 1.8 && <span>{s.label}</span>}
                   </div>
                 ))}
                 {liveInfo.status === "live" && mode === "race" && (
@@ -1889,7 +1945,7 @@ ${html}
               <table>
                 <thead><tr>
                   <th>#</th><th>Stint</th><th>{t("Tur")}</th><th>⚡ {t("VE İht.")}</th>
-                  <th>{t("Pit Ayarı")}</th><th>Pit</th><th>End Stint</th><th>Time Left</th>
+                  <th>{t("Pit Ayarı")}</th><th>{t("Pilot")}</th><th>Pit</th><th>End Stint</th><th>Time Left</th>
                   <th>Override</th>
                 </tr></thead>
                 <tbody>
@@ -1919,12 +1975,21 @@ ${html}
                           <span className="pitopt">
                             <button className={(st.pits[i] || EMPTY_PIT).fuel ? "on" : ""}
                               onClick={() => upPit(i, { fuel: !(st.pits[i] || EMPTY_PIT).fuel })}>FUEL</button>
-                            <button className={(st.pits[i] || EMPTY_PIT).lane ? "on" : ""}
-                              onClick={() => upPit(i, { lane: !(st.pits[i] || EMPTY_PIT).lane })}>LANE</button>
                           </span>
                         </>)}
                       </td>
-                      <td>{r.isLast ? "—" : fmtHMS(r.pitSec)}</td>
+                      <td>
+                        <select className="drvsel" value={st.driverAssign[i] || ""}
+                          onChange={(e) => assignDriver(i, e.target.value)}>
+                          <option value="">—</option>
+                          {(st.roster || []).map((n) => <option key={n} value={n}>{n}</option>)}
+                        </select>
+                      </td>
+                      <td>{r.isLast ? "—" : (<>
+                        {fmtHMS(r.pitSec)}
+                        {r.repairSec > 0 && <span style={{ color: "var(--yellow)",
+                          fontSize: 11, marginLeft: 4 }}>🔧+{r.repairSec}s</span>}
+                      </>)}</td>
                       <td>{fmtHMS(r.endSec)}</td>
                       <td className={r.timeLeft < 0 ? "neg" : "pos"}>{fmtHMS(r.timeLeft)}</td>
                       <td><input className="ovr" type="text" placeholder="h:mm:ss"
@@ -2011,10 +2076,11 @@ ${html}
               </div>
 
               <div className="card">
-                <h2>⚡ {t("Son Stint VE")}</h2>
-                <div className="fuelbig" style={{ fontSize: 40 }}>{lsf.refuel.toFixed(1)}%</div>
+                <h2 style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <Bolt /> {t("Son Stint VE")}</h2>
+                <div className="fuelbig" style={{ fontSize: 40 }}>{planLsf.refuel.toFixed(1)}%</div>
                 <div className="hint">
-                  ≈ {lsf.refuelL.toFixed(1)} L · {lsf.lapsLeft.toFixed(2)} {t("tur + extra")} {st.extraLap} · {t("dolum ≈")} {lsf.refuelSec.toFixed(0)}s
+                  ≈ {planLsf.refuelL.toFixed(1)} L · {planLsf.lapsLeft.toFixed(2)} {t("tur + extra")} {st.extraLap} · {t("dolum ≈")} {planLsf.refuelSec.toFixed(0)}s
                 </div>
                 {driverPlan && Object.keys(driverPlan.totals).length > 0 && (<>
                   <label style={{ marginTop: 10 }}>{t("Pilot Dağılımı")}</label>
@@ -2391,7 +2457,7 @@ ${html}
             <div className="row2" style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 1fr" }}>
               {[
                 [t("YARIŞ SONU"), st.lastStintCountdown, (v) => up({ lastStintCountdown: v }), lsf, true],
-                [t("CODE 80 SONU"), st.code80LastStint, (v) => up({ code80LastStint: v }), lsf80, false],
+                /* [t("CODE 80 SONU"), ...] — şimdilik gizli, kod korunuyor (lsf80) */
               ].map(([title, val, setVal, r, canAuto]) => {
                 const isAuto = canAuto && autoCd;
                 const eff = isAuto ? fmtHMS(planLastCd) : val;
@@ -2420,7 +2486,8 @@ ${html}
                     <div className="kpi"><div className="v mono">{r.refuelSec.toFixed(0)}s</div>
                       <div className="l">{t("Dolum Süresi")}</div></div>
                   </div>
-                  <div className="fuelbig">{r.refuel.toFixed(1)}%</div>
+                  <div className="fuelbig" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Bolt size={30} />{r.refuel.toFixed(1)}%</div>
                   <div className="hint">
                     ≈ <b className="mono" style={{ color: "var(--green)" }}>{r.refuelL.toFixed(1)} L</b> {t("gerçek yakıt")} ·
                     ({t("kalan tur")} {r.lapsLeft.toFixed(2)} + extra {st.extraLap}) × {st.consumption} {t("%/tur")}
