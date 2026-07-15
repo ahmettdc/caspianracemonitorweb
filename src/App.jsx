@@ -107,6 +107,7 @@ const ASSET = import.meta.env.BASE_URL + "assets/";
 const TRACKS = [
   { id: "lemans", name: "Le Mans" },
   { id: "spa", name: "Spa-Francorchamps" },
+  { id: "spa-endurance", name: "Spa (Endurance)" },
   { id: "monza", name: "Monza" },
   { id: "imola", name: "Imola" },
   { id: "silverstone", name: "Silverstone" },
@@ -126,6 +127,16 @@ const TRACKS = [
   { id: "longbeach", name: "Long Beach" },
   { id: "indianapolis", name: "Indianapolis" },
 ];
+/* Pit yolu geçiş süreleri (sn) — LMU Endurance Planner v1.3 verisi.
+   Pist seçilince pitLaneTime otomatik bu değere ayarlanır (elle değiştirilebilir).
+   Listede olmayan pistlerde (Daytona vb.) mevcut değer korunur. */
+const PIT_LANE_TIMES = {
+  bahrain: 27, cota: 23, fuji: 33, imola: 34, interlagos: 27,
+  lemans: 31, lusail: 28, monza: 28, portimao: 31, sebring: 32,
+  silverstone: 23, spa: 21, "spa-endurance": 53, paulricard: 23, barcelona: 23,
+};
+/* Layout varyantları için görsel eşlemesi (spa-endurance → spa görselleri) */
+const TRACK_ASSET = (id) => ({ "spa-endurance": "spa" }[id] || id);
 const CARS = {
   hypercar: [
     { id: "toyota", name: "Toyota GR010" },
@@ -180,6 +191,7 @@ const EN = {
   "Oda kullanmadan solo devam et →": "Continue solo without a room →",
   // pist & araç
   "1 · Pist Seç": "1 · Select Track", "2 · Sınıf Seç": "2 · Select Class",
+  "Pist verisi": "Track data",
   "3 · Araç Seç": "3 · Select Car",
   "✓ Devam Et — Yarış Dataları": "✓ Continue — Race Data",
   "Devam etmek için pist ve araç seç": "Select a track and car to continue",
@@ -1347,7 +1359,10 @@ ${html}
     <div className="card" style={{ marginTop: 12 }}>
       <h2>{t("Pit · Süreler (s)")}</h2>
       <div className="row2">
-        <div><label>Pit Line</label><Num v={st.pitLaneTime} onC={(v) => up({ pitLaneTime: v })} /></div>
+        <div><label>Pit Line</label><Num v={st.pitLaneTime} onC={(v) => up({ pitLaneTime: v })} />
+          {st.track && PIT_LANE_TIMES[st.track] != null && (
+            <div className="hint">{t("Pist verisi")}: {PIT_LANE_TIMES[st.track]}s · {trackName(st.track)}</div>
+          )}</div>
         <div><label>⛽ Fuel</label><Num v={st.fuelTime} onC={(v) => up({ fuelTime: v })} /></div>
       </div>
       <div className="row2">
@@ -1469,15 +1484,16 @@ ${html}
               <div className="trackgrid">
                 {TRACKS.map((t) => (
                   <button key={t.id} className={st.track === t.id ? "on" : ""}
-                    onClick={() => up({ track: t.id })}>
-                    <img src={`${ASSET}flags/${t.id}.png`} alt="" />{t.name}
+                    onClick={() => up({ track: t.id,
+                      ...(PIT_LANE_TIMES[t.id] != null ? { pitLaneTime: PIT_LANE_TIMES[t.id] } : {}) })}>
+                    <img src={`${ASSET}flags/${TRACK_ASSET(t.id)}.png`} alt="" />{t.name}
                   </button>
                 ))}
               </div>
             </div>
 
             {st.track && (
-              <img key={st.track} src={`${ASSET}tracks/${st.track}.png`} alt=""
+              <img key={st.track} src={`${ASSET}tracks/${TRACK_ASSET(st.track)}.png`} alt=""
                 style={{ display: "block", margin: "14px auto 0", maxWidth: "100%",
                   maxHeight: 220, filter: "drop-shadow(0 4px 12px rgba(0,0,0,.5))" }}
                 onError={(e) => { e.currentTarget.style.display = "none"; }} />
