@@ -292,6 +292,7 @@ const EN = {
   "kabul edilir. Gerçek yakıt = VE × ratio → gerçek tüketim ≈":
     "VE. Real fuel = VE × ratio → real usage ≈",
   "L/tur": "L/lap", "%/tur": "%/lap", "tur + extra": "laps + extra", "dolum ≈": "refuel ≈",
+  "lap": "lap",
   "Ratio'yu düşürmek daha az yakıt taşımak demektir (örn. 0.84 → %100 = 84.0 L).":
     "Lowering the ratio means carrying less fuel (e.g. 0.84 → 100% = 84.0 L).",
   "Pit süresi = FUEL": "Pit time = FUEL", "lastik ×": "tyres ×",
@@ -2130,7 +2131,11 @@ ${html}
               <div className="card">
                 <h2 style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <Bolt /> {t("Son Stint VE")}</h2>
-                <div className="fuelbig" style={{ fontSize: 40 }}>{planLsf.refuel.toFixed(1)}%</div>
+                <div className="fuelbig" style={{ fontSize: 40 }}>
+                  {planLsf.refuel.toFixed(1)}%
+                  <span style={{ fontSize: 18, color: "var(--dim)", marginLeft: 8 }}>
+                    (+{st.extraLap} {t("lap")})</span>
+                </div>
                 <div className="hint">
                   ≈ {planLsf.refuelL.toFixed(1)} L · {planLsf.lapsLeft.toFixed(2)} {t("tur + extra")} {st.extraLap} · {t("dolum ≈")} {planLsf.refuelSec.toFixed(0)}s
                 </div>
@@ -2545,7 +2550,9 @@ ${html}
                       <div className="l">{t("Dolum Süresi")}</div></div>
                   </div>
                   <div className="fuelbig" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <Bolt size={30} />{r.refuel.toFixed(1)}%</div>
+                    <Bolt size={30} />{r.refuel.toFixed(1)}%
+                    <span style={{ fontSize: 18, color: "var(--dim)" }}>
+                      (+{st.extraLap} {t("lap")})</span></div>
                   <div className="hint">
                     ≈ <b className="mono" style={{ color: "var(--green)" }}>{r.refuelL.toFixed(1)} L</b> {t("gerçek yakıt")} ·
                     ({t("kalan tur")} {r.lapsLeft.toFixed(2)} + extra {st.extraLap}) × {st.consumption} {t("%/tur")}
