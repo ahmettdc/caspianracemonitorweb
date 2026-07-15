@@ -251,6 +251,7 @@ const EN = {
   "📋 Stint Programı": "📋 Stint Schedule", "🛞 Lastik": "🛞 Tyres",
   "Kullanılan Lastik": "Tyres Used", "Kalan Lastik": "Tyres Left",
   "Son Stint VE": "Final Stint VE", "Pilot Dağılımı": "Driver Split",
+  "Araç": "Car", "Pist": "Track", "Pit lane": "Pit lane",
   "Sıradaki stint lastikleri:": "Next stint tyres:",
   // lastik sekmesi
   "Lastik Stratejisi": "Tyre Strategy", "Lastik Limiti (adet)": "Tyre Limit (count)",
@@ -700,6 +701,9 @@ const css = `
 .rc .pbrow{display:flex;gap:6vw;flex-wrap:wrap;justify-content:center}
 /* --- dashboard --- */
 .rc .dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.rc .infocard{text-align:center}
+.rc .infocard .disp{justify-content:center}
+.rc .infocard .hint{text-align:center}
 `;
 
 function Num({ v, onC, step = 0.01, w }) {
@@ -2021,6 +2025,39 @@ ${html}
 
           {tab === "dash" && (
             <div className="dgrid">
+              {st.car && (
+                <div className="card infocard">
+                  <h2>🏎 {t("Araç")}</h2>
+                  <img src={carImg(st.carClass, st.car)} alt=""
+                    style={{ display: "block", width: "100%", maxHeight: 140,
+                      objectFit: "contain", margin: "8px 0 10px",
+                      filter: "drop-shadow(0 4px 12px rgba(0,0,0,.5))" }}
+                    onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                  <div className="disp" style={{ fontSize: 17 }}>{carName(st.carClass, st.car)}</div>
+                  <div className="hint">
+                    {(CAR_CLASSES.find(([id]) => id === st.carClass) || [, st.carClass])[1]}</div>
+                </div>
+              )}
+
+              {st.track && (
+                <div className="card infocard">
+                  <h2>📍 {t("Pist")}</h2>
+                  <img key={st.track} src={`${ASSET}tracks/${TRACK_ASSET(st.track)}.png`} alt=""
+                    style={{ display: "block", width: "100%", maxHeight: 160,
+                      objectFit: "contain", margin: "8px 0 10px",
+                      filter: "drop-shadow(0 4px 12px rgba(0,0,0,.5))" }}
+                    onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                  <div className="disp" style={{ fontSize: 17, display: "flex",
+                    alignItems: "center", gap: 6 }}>
+                    <img className="flag" style={{ width: 22 }} src={`${ASSET}flags/${st.track}.png`}
+                      alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                    {trackName(st.track)}</div>
+                  {PIT_LANE_TIMES[st.track] != null && (
+                    <div className="hint">{t("Pit lane")}: {PIT_LANE_TIMES[st.track]}s</div>
+                  )}
+                </div>
+              )}
+
               <div className="card">
                 <h2>{t("⏱ Yarış")}</h2>
                 <div className="kpis" style={{ gridTemplateColumns: "1fr 1fr" }}>
