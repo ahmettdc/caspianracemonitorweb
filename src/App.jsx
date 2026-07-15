@@ -135,7 +135,7 @@ const CARS = {
     { id: "bmw", name: "BMW M Hybrid V8" },
     { id: "alpine", name: "Alpine A424" },
     { id: "peugeot", name: "Peugeot 9X8" },
-    { id: "astonmartin", name: "Aston Martin Valkyrie" },
+    { id: "astonmartin", img: "aston", name: "Aston Martin Valkyrie" },
     { id: "lamborghini", name: "Lamborghini SC63" },
     { id: "isotta", name: "Isotta Fraschini Tipo 6" },
     { id: "glickenhaus", name: "Glickenhaus SCG 007" },
