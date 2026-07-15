@@ -104,6 +104,7 @@ const SLOT_COLORS = { A: "#40D68C", B: "#F0604D", C: "#F2A33C", D: "#6694FF" };
 
 /* ---------- pist & araç seçimi ---------- */
 const ASSET = import.meta.env.BASE_URL + "assets/";
+const AV = "?v=2"; // görsel sürümü — dosya güncellenince artır (önbellek kırma)
 const TRACKS = [
   { id: "lemans", name: "Le Mans" },
   { id: "spa", name: "Spa-Francorchamps" },
@@ -1562,7 +1563,7 @@ ${html}
             </div>
 
             {st.track && (
-              <img key={st.track} src={`${ASSET}tracks/${TRACK_ASSET(st.track)}.png`} alt=""
+              <img key={st.track} src={`${ASSET}tracks/${TRACK_ASSET(st.track)}.png${AV}`} alt=""
                 style={{ display: "block", margin: "14px auto 0", maxWidth: "100%",
                   maxHeight: 220, filter: "drop-shadow(0 4px 12px rgba(0,0,0,.5))" }}
                 onError={(e) => { e.currentTarget.style.display = "none"; }} />
@@ -2042,7 +2043,7 @@ ${html}
               {st.track && (
                 <div className="card infocard">
                   <h2>📍 {t("Pist")}</h2>
-                  <img key={st.track} src={`${ASSET}tracks/${TRACK_ASSET(st.track)}.png`} alt=""
+                  <img key={st.track} src={`${ASSET}tracks/${TRACK_ASSET(st.track)}.png${AV}`} alt=""
                     style={{ display: "block", width: "100%", maxHeight: 160,
                       objectFit: "contain", margin: "8px 0 10px",
                       filter: "drop-shadow(0 4px 12px rgba(0,0,0,.5))" }}
