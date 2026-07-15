@@ -66,6 +66,7 @@ const DEFAULT_STATE = {
   fuelTime: 43,
   tyreTime: 13,
   actualPits: [], // gerçekleşen pit giriş zamanları (ms) — canlı plan düzeltme
+  pitRepairs: [], // işaretli pit başına manuel tamir süresi (sn) — plan pit süresine eklenir
   // --- pist & araç seçimi ---
   track: "",        // TRACKS id
   carClass: "",     // "hypercar" | "gt3"
@@ -303,6 +304,7 @@ const EN = {
   "sonu işaretlenecek": "will be marked", "Plan": "Plan", "Gerçek": "Actual",
   "geç": "late", "erken": "early", "Tüm pitler yapıldı": "All pits done",
   "Gerçek pit işaretlemelerini sıfırla?": "Reset all actual pit marks?",
+  "Tamir (s)": "Repair (s)",
   "⚠ Lastik limiti doldu — yeni lastik seçilemez": "⚠ Tyre limit reached — no new tyres available",
   "🔴 CANLI": "🔴 LIVE", "Canlıdan otomatik — yarış saatinden hesaplanıyor":
     "Auto from live — calculated from the race clock",
@@ -1101,6 +1103,7 @@ export default function App() {
     if (now < startMs) return { status: "pre", toStart: startMs - now, startMs, finishMs, raceMs };
     if (now >= finishMs) return { status: "done", startMs, finishMs, raceMs };
     const ap = (st.actualPits || []).filter(Number.isFinite);
+    const rep = st.pitRepairs || []; // pit başına ek tamir (sn)
     /* planlanan pit başlangıçları (saf plan, sapma hesabı için) */
     const plannedPitStart = [];
     { let c = startMs;
@@ -1111,8 +1114,8 @@ export default function App() {
     let cur = startMs, phase = "stint", stintIdx = racePlan.rows.length - 1, phaseEnd = finishMs;
     for (let i = 0; i < racePlan.rows.length; i++) {
       const r = racePlan.rows[i];
-      if (i < ap.length) { // bu pit gerçekleşti → gerçek giriş + plan pit süresi
-        cur = ap[i] + r.pitSec * 1000;
+      if (i < ap.length) { // bu pit gerçekleşti → gerçek giriş + plan pit süresi + tamir
+        cur = ap[i] + (r.pitSec + (Number(rep[i]) || 0)) * 1000;
         if (now < cur) { phase = "pit"; stintIdx = i; phaseEnd = cur; break; }
         continue;
       }
@@ -1132,14 +1135,23 @@ export default function App() {
       driver: st.driverAssign[stintIdx] || "",
       nextDriver: st.driverAssign[stintIdx + 1] || "",
     };
-  }, [now, st.raceStart, st.driverAssign, st.actualPits, racePlan]);
+  }, [now, st.raceStart, st.driverAssign, st.actualPits, st.pitRepairs, racePlan]);
 
   /* --- gerçek pit işaretleme (sadece düzenleyici) --- */
   const canEdit = !room || role === "editor";
   const markPit = () => up({ actualPits: [...(st.actualPits || []), Date.now()] });
-  const unmarkPit = () => up({ actualPits: (st.actualPits || []).slice(0, -1) });
+  const unmarkPit = () => up({
+    actualPits: (st.actualPits || []).slice(0, -1),
+    pitRepairs: (st.pitRepairs || []).slice(0, (st.actualPits || []).length - 1),
+  });
   const resetPits = () => {
-    if (confirm(t("Gerçek pit işaretlemelerini sıfırla?"))) up({ actualPits: [] });
+    if (confirm(t("Gerçek pit işaretlemelerini sıfırla?"))) up({ actualPits: [], pitRepairs: [] });
+  };
+  const setRepair = (i, v) => {
+    const arr = [...(st.pitRepairs || [])];
+    while (arr.length <= i) arr.push(0);
+    arr[i] = Math.max(0, Number(v) || 0);
+    up({ pitRepairs: arr });
   };
   const fmtDev = (ms) => {
     const a = Math.abs(ms) / 1000, m = Math.floor(a / 60), sec = Math.floor(a % 60);
@@ -1605,6 +1617,30 @@ export default function App() {
                     <b style={{ color: Math.abs(liveInfo.lastDev) > 60000
                       ? "var(--yellow)" : "var(--green)" }}>
                       {fmtDev(liveInfo.lastDev)}</b>
+                  </div>
+                )}
+                {liveInfo.pitsDone > 0 && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4,
+                    alignItems: "center" }}>
+                    {(st.actualPits || []).map((_, i) => (
+                      <div key={i} className="plbl"
+                        style={{ display: "flex", alignItems: "center", gap: 6,
+                          textTransform: "none" }}>
+                        P{i + 1} 🔧 {t("Tamir (s)")}
+                        <input type="number" min="0" step="1"
+                          value={(st.pitRepairs || [])[i] || ""}
+                          placeholder="0"
+                          onChange={(e) => setRepair(i, e.target.value)}
+                          style={{ width: 64, padding: "3px 6px", borderRadius: 6,
+                            background: "var(--panel2)", color: "var(--text)",
+                            border: "1px solid var(--line)", fontSize: 13,
+                            textAlign: "right" }} />
+                        {(Number((st.pitRepairs || [])[i]) || 0) > 0 && (
+                          <span style={{ color: "var(--yellow)", fontSize: 12 }}>
+                            +{Number(st.pitRepairs[i])}s</span>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 )}
                 {liveInfo.pitsDone > 0 && (
