@@ -67,6 +67,7 @@ const DEFAULT_STATE = {
   tyreTime: 13,
   actualPits: [], // gerçekleşen pit giriş zamanları (ms) — canlı plan düzeltme
   pitRepairs: [], // işaretli pit başına manuel tamir süresi (sn) — plan pit süresine eklenir
+  autoOvr: [],    // pit tuşuyla otomatik yazılan override'ların işareti (geri al/sıfırla için)
   // --- pist & araç seçimi ---
   track: "",        // TRACKS id
   carClass: "",     // "hypercar" | "gt3"
@@ -305,6 +306,12 @@ const EN = {
   "geç": "late", "erken": "early", "Tüm pitler yapıldı": "All pits done",
   "Gerçek pit işaretlemelerini sıfırla?": "Reset all actual pit marks?",
   "Tamir (s)": "Repair (s)",
+  "Stint Programı": "Stint Program", "Pilot Programı": "Driver Schedule",
+  "Pilot Toplamları": "Driver Totals",
+  "Açılır pencere engellendi — tarayıcıdan izin ver": "Pop-up blocked — allow it in your browser",
+  "📋 PLAN": "📋 PLAN",
+  "Stint planından otomatik — sondan önceki stintin Time Left değeri":
+    "Auto from the stint plan — Time Left of the second-to-last stint",
   "⚠ Lastik limiti doldu — yeni lastik seçilemez": "⚠ Tyre limit reached — no new tyres available",
   "🔴 CANLI": "🔴 LIVE", "Canlıdan otomatik — yarış saatinden hesaplanıyor":
     "Auto from live — calculated from the race clock",
@@ -1104,11 +1111,14 @@ export default function App() {
     if (now >= finishMs) return { status: "done", startMs, finishMs, raceMs };
     const ap = (st.actualPits || []).filter(Number.isFinite);
     const rep = st.pitRepairs || []; // pit başına ek tamir (sn)
-    /* planlanan pit başlangıçları (saf plan, sapma hesabı için) */
+    /* planlanan pit başlangıçları (saf plan, sapma hesabı için)
+       — pit tuşunun otomatik yazdığı override'lar saf plana dahil edilmez */
+    const auto = st.autoOvr || [];
     const plannedPitStart = [];
     { let c = startMs;
       for (const r of racePlan.rows) {
-        c += r.stintSec * 1000; plannedPitStart.push(c); c += r.pitSec * 1000;
+        const sSec = auto[r.idx - 1] ? racePlan.laps * racePlan.lapSec : r.stintSec;
+        c += sSec * 1000; plannedPitStart.push(c); c += r.pitSec * 1000;
       } }
     /* zincir: yapılmış pitlerde GERÇEK zaman esas alınır, kalan plan oradan akar */
     let cur = startMs, phase = "stint", stintIdx = racePlan.rows.length - 1, phaseEnd = finishMs;
@@ -1135,17 +1145,55 @@ export default function App() {
       driver: st.driverAssign[stintIdx] || "",
       nextDriver: st.driverAssign[stintIdx + 1] || "",
     };
-  }, [now, st.raceStart, st.driverAssign, st.actualPits, st.pitRepairs, racePlan]);
+  }, [now, st.raceStart, st.driverAssign, st.actualPits, st.pitRepairs, st.autoOvr, racePlan]);
 
   /* --- gerçek pit işaretleme (sadece düzenleyici) --- */
   const canEdit = !room || role === "editor";
-  const markPit = () => up({ actualPits: [...(st.actualPits || []), Date.now()] });
-  const unmarkPit = () => up({
-    actualPits: (st.actualPits || []).slice(0, -1),
-    pitRepairs: (st.pitRepairs || []).slice(0, (st.actualPits || []).length - 1),
-  });
+  const markPit = () => {
+    const nowMs = Date.now();
+    const ap = (st.actualPits || []).filter(Number.isFinite);
+    const i = ap.length; // biten stintin indexi
+    const patch = { actualPits: [...(st.actualPits || []), nowMs] };
+    /* gerçek stint süresini biten stintin override'ına yaz → plan gerçeğe kilitlenir */
+    const startMs = Date.parse(st.raceStart);
+    if (!isNaN(startMs) && racePlan.rows[i]) {
+      let stintStart = startMs;
+      if (i > 0) {
+        const prev = racePlan.rows[i - 1];
+        const rep = Number((st.pitRepairs || [])[i - 1]) || 0;
+        stintStart = ap[i - 1] + ((prev?.pitSec || 0) + rep) * 1000;
+      }
+      const durSec = Math.round((nowMs - stintStart) / 1000);
+      if (durSec > 0) {
+        const overrides = [...(st.overrides || [])];
+        while (overrides.length <= i) overrides.push("");
+        overrides[i] = fmtHMS(durSec);
+        const autoOvr = [...(st.autoOvr || [])];
+        while (autoOvr.length <= i) autoOvr.push(false);
+        autoOvr[i] = true;
+        patch.overrides = overrides;
+        patch.autoOvr = autoOvr;
+      }
+    }
+    up(patch);
+  };
+  const unmarkPit = () => {
+    const n = (st.actualPits || []).length;
+    const patch = {
+      actualPits: (st.actualPits || []).slice(0, -1),
+      pitRepairs: (st.pitRepairs || []).slice(0, n - 1),
+    };
+    if ((st.autoOvr || [])[n - 1]) { // sadece otomatik yazılan override silinir
+      const overrides = [...(st.overrides || [])]; overrides[n - 1] = "";
+      const autoOvr = [...(st.autoOvr || [])]; autoOvr[n - 1] = false;
+      patch.overrides = overrides; patch.autoOvr = autoOvr;
+    }
+    up(patch);
+  };
   const resetPits = () => {
-    if (confirm(t("Gerçek pit işaretlemelerini sıfırla?"))) up({ actualPits: [], pitRepairs: [] });
+    if (!confirm(t("Gerçek pit işaretlemelerini sıfırla?"))) return;
+    const overrides = (st.overrides || []).map((v, i) => ((st.autoOvr || [])[i] ? "" : v));
+    up({ actualPits: [], pitRepairs: [], autoOvr: [], overrides });
   };
   const setRepair = (i, v) => {
     const arr = [...(st.pitRepairs || [])];
@@ -1157,17 +1205,75 @@ export default function App() {
     const a = Math.abs(ms) / 1000, m = Math.floor(a / 60), sec = Math.floor(a % 60);
     return `${m}:${String(sec).padStart(2, "0")} ${ms >= 0 ? t("geç") : t("erken")}`;
   };
+  /* --- PDF çıktısı: yazdırma penceresi açar, tarayıcının "PDF olarak kaydet"i kullanılır --- */
+  const exportPdf = (kind) => {
+    const esc = (x) => String(x ?? "").replace(/[&<>]/g,
+      (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+    const mkTable = (head, rows) =>
+      `<table><thead><tr>${head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead>` +
+      `<tbody>${rows.map((r) =>
+        `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+    let title, html;
+    if (kind === "stint") {
+      title = `${t("Stint Programı")} · ${st.chosen}-${racePlan.laps}`;
+      html = mkTable(
+        ["#", "Stint", t("Tur"), "⚡ VE", "≈ L", "Pit", "End Stint", "Time Left", t("Pilot")],
+        racePlan.rows.map((r, i) => [
+          r.idx, fmtHMS(r.stintSec), r.lapsInStint, `${r.fuelNeed.toFixed(1)}%`,
+          (r.fuelNeed * st.fuelRatio).toFixed(1),
+          r.isLast ? "FINISH 🏁" : fmtHMS(r.pitSec), fmtHMS(r.endSec), fmtHMS(r.timeLeft),
+          st.driverAssign[i] || "—",
+        ]));
+    } else {
+      if (!driverPlan) { alert(t("Pilotlar sekmesinden başlangıç zamanını gir")); return; }
+      title = t("Pilot Programı");
+      html = mkTable(
+        ["#", "Start", "Finish", t("Süre"), t("Pilot")],
+        driverPlan.rows.map((r, i) => [
+          r.idx, fmtClock(r.start, driverPlan.startMs), fmtClock(r.finish, driverPlan.startMs),
+          fmtHMS(r.dur / 1000), st.driverAssign[i] || "—",
+        ]));
+      const tot = (st.roster || []).filter((n) => driverPlan.totals[n]);
+      if (tot.length) {
+        html += `<h2>${esc(t("Pilot Toplamları"))}</h2>` + mkTable(
+          [t("Pilot"), "Stint", t("Toplam Süre"), "%"],
+          tot.map((n) => {
+            const d = driverPlan.totals[n];
+            return [n, d.stints, fmtHMS(d.ms / 1000), driverPlan.grandMs
+              ? `${((d.ms / driverPlan.grandMs) * 100).toFixed(1)}%` : "—"];
+          }));
+      }
+    }
+    const w = window.open("", "_blank", "width=900,height=700");
+    if (!w) { alert(t("Açılır pencere engellendi — tarayıcıdan izin ver")); return; }
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8">
+<title>${esc(title)}</title>
+<style>
+ body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:28px;font-size:12px}
+ h1{font-size:18px;margin:0 0 2px;letter-spacing:.04em;text-transform:uppercase}
+ h1 b{color:#960018} h2{font-size:13px;margin:18px 0 4px;text-transform:uppercase}
+ .sub{color:#666;margin:0 0 14px;font-size:11px}
+ table{border-collapse:collapse;width:100%;margin-top:6px}
+ th,td{border:1px solid #bbb;padding:4px 8px;text-align:left;font-variant-numeric:tabular-nums}
+ th{background:#f0e6e8;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+ tr:nth-child(even) td{background:#fafafa}
+ @media print{body{margin:10mm}}
+</style></head><body>
+<h1><b>CASPIAN</b> RACE MONITOR — ${esc(title)}</h1>
+<p class="sub">${esc(new Date().toLocaleString(lang === "en" ? "en-GB" : "tr-TR"))}${
+      st.raceStart ? " · Start: " + esc(String(st.raceStart).replace("T", " ")) : ""}</p>
+${html}
+<script>window.onload=function(){window.print()}<\/script></body></html>`);
+    w.document.close();
+  };
   const pitSoon = liveInfo.status === "live" && liveInfo.phase === "stint"
     && liveInfo.nextPitIn < 300000;
-  /* canlı yarışta kalan süre (sn) — son stint yakıtı otomatik countdown için */
-  const liveRemainSec = useMemo(() => {
-    const start = new Date(st.raceStart).getTime();
-    if (isNaN(start)) return null;
-    const end = start + plan.raceSec * 1000;
-    if (now < start || now >= end) return null;
-    return Math.floor((end - now) / 1000);
-  }, [st.raceStart, plan.raceSec, now]);
-  const [autoCd, setAutoCd] = useState(true); // canlıdan otomatik countdown
+  /* son stint countdown — canlıdan DEĞİL, stint planından: sondan önceki stintin Time Left'i.
+     Pit tuşu override yazdıkça racePlan güncellenir, bu değer gerçeğe göre kayar. */
+  const planLastCd = racePlan.rows.length >= 2
+    ? racePlan.rows[racePlan.rows.length - 2].timeLeft
+    : racePlan.raceSec;
+  const [autoCd, setAutoCd] = useState(true); // plandan otomatik countdown
 
   const upcomingPit = liveInfo.status === "live" ? (st.pits[liveInfo.stintIdx] || EMPTY_PIT) : null;
   const upcomingIsLast = liveInfo.status === "live"
@@ -1745,6 +1851,14 @@ export default function App() {
                 )}
               </div>
 
+              {tab === "stint" && (
+                <div style={{ display: "flex", justifyContent: "flex-end", margin: "8px 0 0" }}>
+                  <button onClick={() => exportPdf("stint")}
+                    style={{ padding: "4px 14px", borderRadius: 6, cursor: "pointer",
+                      background: "var(--panel2)", color: "var(--txt)",
+                      border: "1px solid var(--line)", fontSize: 12 }}>🖨 PDF</button>
+                </div>
+              )}
               <table>
                 <thead><tr>
                   <th>#</th><th>Stint</th><th>{t("Tur")}</th><th>⚡ {t("VE İht.")}</th>
@@ -2020,6 +2134,12 @@ export default function App() {
               </div>
 
               {driverPlan && (<>
+                <div style={{ display: "flex", justifyContent: "flex-end", margin: "8px 0 0" }}>
+                  <button onClick={() => exportPdf("drivers")}
+                    style={{ padding: "4px 14px", borderRadius: 6, cursor: "pointer",
+                      background: "var(--panel2)", color: "var(--txt)",
+                      border: "1px solid var(--line)", fontSize: 12 }}>🖨 PDF</button>
+                </div>
                 <table>
                   <thead><tr>
                     <th>#</th><th>Start</th><th>Finish</th><th>{t("Süre")}</th><th>{t("Pilot")}</th>
@@ -2243,29 +2363,29 @@ export default function App() {
           {tab === "fuel" && (
             <div className="row2" style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 1fr" }}>
               {[
-                [t("YARIŞ SONU"), st.lastStintCountdown, (v) => up({ lastStintCountdown: v }), lsf],
-                [t("CODE 80 SONU"), st.code80LastStint, (v) => up({ code80LastStint: v }), lsf80],
-              ].map(([title, val, setVal, r]) => {
-                const isAuto = autoCd && liveRemainSec != null;
-                const eff = isAuto ? fmtHMS(liveRemainSec) : val;
+                [t("YARIŞ SONU"), st.lastStintCountdown, (v) => up({ lastStintCountdown: v }), lsf, true],
+                [t("CODE 80 SONU"), st.code80LastStint, (v) => up({ code80LastStint: v }), lsf80, false],
+              ].map(([title, val, setVal, r, canAuto]) => {
+                const isAuto = canAuto && autoCd;
+                const eff = isAuto ? fmtHMS(planLastCd) : val;
                 const rr = isAuto ? lastStintFuel(eff, st) : r;
-                return ([title, eff, setVal, rr]);
-              }).map(([title, val, setVal, r]) => (
+                return ([title, eff, setVal, rr, isAuto, canAuto]);
+              }).map(([title, val, setVal, r, isAuto, canAuto]) => (
                 <div className={`card ${title.includes("CODE 80") ? "c80" : ""}`} key={title}>
                   <h2>⛽ {t("Son Stint Yakıtı")} · {title}</h2>
                   <label>{t("Session Countdown (h:mm:ss)")}{" "}
-                    {liveRemainSec != null && (
+                    {canAuto && (
                       <button className={autoCd ? "chip" : ""}
                         style={{ marginLeft: 6, padding: "2px 8px", borderRadius: 6, fontSize: 10,
                           border: "1px solid var(--line)", cursor: "pointer",
                           background: autoCd ? "var(--car)" : "var(--panel2)",
                           color: autoCd ? "#FFE9ED" : "var(--dim)" }}
-                        title={t("Canlıdan otomatik — yarış saatinden hesaplanıyor")}
-                        onClick={() => setAutoCd(!autoCd)}>{t("🔴 CANLI")}</button>
+                        title={t("Stint planından otomatik — sondan önceki stintin Time Left değeri")}
+                        onClick={() => setAutoCd(!autoCd)}>{t("📋 PLAN")}</button>
                     )}
                   </label>
-                  <input type="text" value={val} readOnly={autoCd && liveRemainSec != null}
-                    style={autoCd && liveRemainSec != null ? { opacity: .7 } : undefined}
+                  <input type="text" value={val} readOnly={isAuto}
+                    style={isAuto ? { opacity: .7 } : undefined}
                     onChange={(e) => setVal(e.target.value)} />
                   <div className="kpis" style={{ marginTop: 12 }}>
                     <div className="kpi"><div className="v mono">{r.lapsLeft.toFixed(2)}</div>
