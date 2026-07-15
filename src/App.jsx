@@ -260,6 +260,7 @@ const EN = {
   "✕ Temizle": "✕ Clear", "Tümünü Temizle": "Clear All", "Hızlı Atama": "Quick Assign",
   "Yeni lastik (1 kez)": "New tyre (1 use)", "2 kez (duplicate)": "2 uses (duplicate)",
   "Qual lastiği tekrar": "Qual tyre reused", "3 kez": "3 uses", "4+ kez": "4+ uses",
+  "Değişmedi — önceki lastikle devam": "Unchanged — carries previous tyre",
   // pilotlar
   "Yarış Bitişi": "Race Finish", "Pilot Kadrosu": "Driver Roster",
   "Henüz pilot yok — aşağıdan ekle.": "No drivers yet — add below.",
@@ -645,6 +646,7 @@ const css = `
 .rc .tin{width:56px!important;text-align:center}
 .rc .drvsel{min-width:96px;max-width:120px;padding:4px 6px}
 .rc .tsel{width:76px;text-align:center;background:transparent!important}
+.rc td.tcarry .tsel{color:var(--dim);font-style:italic;opacity:.75}
 .rc td.terr{background:rgba(240,96,77,.18);outline:2px solid var(--red);outline-offset:-2px}
 .rc td.t2{background:rgba(242,201,76,.22)}
 .rc td.tq{background:rgba(102,148,255,.25)}
@@ -967,6 +969,15 @@ export default function App() {
     tyreStints: s.tyreStints.map(() => ["", "", "", ""]),
   }));
 
+  /* boş hücre = o köşede lastik değişmedi → önceki stintten (yoksa Qual'dan) taşınan lastik.
+     Depoya yazılmaz, sadece görsel; fiziksel olarak aynı lastik olduğu için sayıma girmez. */
+  const carriedAt = (rowIndex, col) => {
+    for (let j = rowIndex - 1; j >= 0; j--) {
+      const v = String((st.tyreStints[j] || [])[col] || "").trim();
+      if (v) return v;
+    }
+    return String((st.tyreQual || [])[col] || "").trim();
+  };
   const tyreInfo = useMemo(() => {
     const rows = [{ label: "Qual", row: -1, vals: st.tyreQual }];
     for (let i = 0; i < racePlan.rows.length; i++)
@@ -2064,10 +2075,13 @@ ${html}
                     style={{ color: tyreInfo.available < 0 ? "var(--red)" : "var(--green)" }}>
                     {tyreInfo.available}</div><div className="l">{t("Kalan Lastik")}</div></div>
                 </div>
-                {liveInfo.status === "live" && st.tyreStints[liveInfo.stintIdx + 1] && (
+                {liveInfo.status === "live" && racePlan.rows[liveInfo.stintIdx + 1] && (
                   <div className="hint">{t("Sıradaki stint lastikleri:")}{" "}
                     <b className="mono">
-                      {st.tyreStints[liveInfo.stintIdx + 1].map((v) => v || "–").join(" / ")}
+                      {[0, 1, 2, 3].map((ci) => {
+                        const raw = String((st.tyreStints[liveInfo.stintIdx + 1] || [])[ci] || "").trim();
+                        return raw || `⟳${carriedAt(liveInfo.stintIdx + 1, ci) || "–"}`;
+                      }).join(" / ")}
                     </b></div>
                 )}
                 {tyreInfo.conflicts.length > 0 &&
@@ -2127,11 +2141,14 @@ ${html}
                   {tyreInfo.rows.map((r) => (
                     <tr key={r.label}>
                       <td className="disp" style={{ fontSize: 14 }}>{r.label}</td>
-                      {r.vals.map((v, ci) => (
-                        <td key={ci} className={tyreInfo.cellCls(v)}>
+                      {r.vals.map((v, ci) => {
+                        const empty = !String(v).trim();
+                        const carried = r.row >= 0 && empty ? carriedAt(r.row, ci) : "";
+                        return (
+                        <td key={ci} className={`${tyreInfo.cellCls(v)} ${carried ? "tcarry" : ""}`}>
                           <select className="tsel" value={String(v)}
                             onChange={(e) => upTyreCell(r.row, ci, e.target.value)}>
-                            <option value="">—</option>
+                            <option value="">{carried ? `⟳ ${carried}` : "—"}</option>
                             {Array.from({ length: Math.max(0, st.tyreLimit) }, (_, n) => {
                               const k = String(n + 1);
                               const cur = String(v).trim() === k;
@@ -2152,7 +2169,8 @@ ${html}
                             })}
                           </select>
                         </td>
-                      ))}
+                        );
+                      })}
                       <td>
                         {r.row >= 0 && (
                           <select className="tsel" style={{ width: 118, textAlign: "left" }}
@@ -2180,6 +2198,8 @@ ${html}
                 <span><i style={{ background: "rgba(102,148,255,.5)" }} />{t("Qual lastiği tekrar")}</span>
                 <span><i style={{ background: "rgba(240,96,77,.5)" }} />{t("3 kez")}</span>
                 <span><i style={{ background: "#000" }} />{t("4+ kez")}</span>
+                <span><i style={{ background: "transparent", border: "1px dashed var(--dim)" }} />
+                  ⟳ {t("Değişmedi — önceki lastikle devam")}</span>
               </div>
               {tyreInfo.conflicts.length > 0 &&
                 <div className="hint" style={{ color: "var(--red)" }}>
