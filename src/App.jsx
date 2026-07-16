@@ -1348,6 +1348,7 @@ export default function App() {
     const abs = (p) => new URL(p, window.location.href).href;
     const carUrl = st.car ? abs(carImg(st.carClass, st.car)) : "";
     const trackUrl = st.track ? abs(`${ASSET}tracks/${TRACK_ASSET(st.track)}.png`) : "";
+    const logoUrl = abs(`${ASSET}logo.png`);
     /* cols: her sütun için hücre class'ı (renk tonu); rowCls: satır class'ı üreten fn */
     const mkTable = (head, rows, cols = [], rowCls = null) => {
       const hh = head.map((h, i) => `<th class="${cols[i] || ""}">${esc(h)}</th>`).join("");
@@ -1422,23 +1423,30 @@ export default function App() {
  td.c-left{font-weight:600}
  th.c-left{background:#5a3d8a}
  tbody tr.r-last td{background:#fde8ea!important;font-weight:700;color:#960018}
- /* üst başlık + araç/pist görselleri */
- .hd{display:flex;align-items:center;gap:18px;border-bottom:2px solid #960018;
+ /* üst başlık: logo + araç; pist sağ altta büyük sabit kutu */
+ .hd{display:flex;align-items:center;gap:16px;border-bottom:2px solid #960018;
    padding-bottom:12px;margin-bottom:14px}
+ .hd .logo{height:52px;width:auto;flex:0 0 auto}
  .hd .txt{flex:1 1 auto}
- .hd .imgs{display:flex;align-items:center;gap:12px}
- .hd .carbox{width:190px;height:80px;display:flex;align-items:center;justify-content:center}
- .hd .carbox img{max-width:100%;max-height:80px;object-fit:contain}
- .hd .trackbox{width:120px;height:88px;background:#14101a;border-radius:8px;
-   padding:6px;display:flex;align-items:center;justify-content:center}
- .hd .trackbox img{max-width:100%;max-height:76px;object-fit:contain}
+ .hd .carbox{width:210px;height:88px;display:flex;align-items:center;justify-content:center;
+   flex:0 0 auto}
+ .hd .carbox img{max-width:100%;max-height:88px;object-fit:contain}
+ .trackcorner{position:fixed;right:0;bottom:0;width:320px;background:#14101a;
+   border-radius:12px 0 0 0;padding:14px 16px 10px;text-align:center;
+   -webkit-print-color-adjust:exact;print-color-adjust:exact}
+ .trackcorner img{max-width:100%;max-height:210px;object-fit:contain}
+ .trackcorner .tcap{color:#e8dfe2;font-size:11px;letter-spacing:.08em;
+   text-transform:uppercase;margin-top:6px}
+ body{padding-bottom:250px} /* sağ alt pist kutusuna yer bırak */
  .brand{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#960018;font-weight:700}
  .brand b{color:#1a1113}
  .ptitle{font-size:22px;font-weight:800;margin:2px 0 4px;letter-spacing:.01em}
- @media print{body{margin:9mm}th{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-   td,.trackbox{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+ @media print{body{margin:9mm;padding-bottom:250px}
+   th{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+   td,.trackcorner{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 </style></head><body>
 <div class="hd">
+ <img class="logo" src="${logoUrl}" alt="" onerror="this.style.display='none'">
  <div class="txt">
   <div class="brand"><b>CASPIAN</b> MOTORSPORT · RACE CONTROL</div>
   <div class="ptitle">${esc(userTitle || title)}</div>
@@ -1447,12 +1455,11 @@ export default function App() {
       st.track ? " · " + esc(trackName(st.track)) : ""}${
       st.car ? " · " + esc(carName(st.carClass, st.car)) : ""}</div>
  </div>
- <div class="imgs">
-  ${carUrl ? `<div class="carbox"><img src="${carUrl}" alt=""></div>` : ""}
-  ${trackUrl ? `<div class="trackbox"><img src="${trackUrl}" alt=""></div>` : ""}
- </div>
+ ${carUrl ? `<div class="carbox"><img src="${carUrl}" alt=""></div>` : ""}
 </div>
 ${html}
+${trackUrl ? `<div class="trackcorner"><img src="${trackUrl}" alt="">
+ <div class="tcap">${esc(trackName(st.track))}</div></div>` : ""}
 <script>window.onload=function(){window.print()}<\/script></body></html>`);
     w.document.close();
   };
