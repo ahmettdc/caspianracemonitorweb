@@ -563,7 +563,7 @@ const css = `
 .rc .warn{color:var(--yellow)}
 .rc .fuelbig{font-family:'Barlow Condensed';font-size:52px;font-weight:700;
   color:var(--green);line-height:1;margin:6px 0}
-.rc .teambar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;
+.rc .teambar{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:8px;
   padding:10px 20px;border-bottom:1px solid var(--line);background:var(--panel)}
 .rc .teambar.collapsed{padding:5px 20px}
 .rc .bartoggle{background:var(--panel2);border:1px solid var(--line);border-radius:6px;
