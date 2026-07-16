@@ -104,7 +104,7 @@ const SLOT_COLORS = { A: "#40D68C", B: "#F0604D", C: "#F2A33C", D: "#6694FF" };
 
 /* ---------- pist & araç seçimi ---------- */
 const ASSET = import.meta.env.BASE_URL + "assets/";
-const AV = "?v=2"; // görsel sürümü — dosya güncellenince artır (önbellek kırma)
+const AV = "?v=3"; // görsel sürümü — dosya güncellenince artır (önbellek kırma)
 const TRACKS = [
   { id: "lemans", name: "Le Mans" },
   { id: "spa", name: "Spa-Francorchamps" },
