@@ -294,6 +294,7 @@ const EN = {
   "L/tur": "L/lap", "%/tur": "%/lap", "tur + extra": "laps + extra", "dolum ≈": "refuel ≈",
   "lap": "lap", "gerçek": "actual",
   "Katılım çubuğunu gizle": "Hide join bar", "Katılım çubuğunu göster": "Show join bar",
+  "Büyütmek için tıkla": "Click to enlarge",
   "Ratio'yu düşürmek daha az yakıt taşımak demektir (örn. 0.84 → %100 = 84.0 L).":
     "Lowering the ratio means carrying less fuel (e.g. 0.84 → 100% = 84.0 L).",
   "Pit süresi = FUEL": "Pit time = FUEL", "lastik ×": "tyres ×",
@@ -714,6 +715,26 @@ const css = `
 .rc .infocard{text-align:center}
 .rc .infocard .disp{justify-content:center}
 .rc .infocard .hint{text-align:center}
+/* tıklanabilir kart + büyütme (lightbox) animasyonları */
+.rc .infocard.clickable{cursor:zoom-in;transition:transform .18s ease,border-color .18s ease,
+  box-shadow .18s ease}
+.rc .infocard.clickable:hover{transform:translateY(-3px) scale(1.02);border-color:var(--teal);
+  box-shadow:0 8px 24px rgba(0,0,0,.45)}
+.rc .infocard.clickable:active{transform:scale(.98)}
+.rc .lightbox{position:fixed;inset:0;z-index:1000;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:14px;padding:32px;cursor:zoom-out;
+  background:rgba(10,6,10,.88);backdrop-filter:blur(5px);animation:lbfade .22s ease}
+.rc .lightbox img{max-width:90vw;max-height:78vh;object-fit:contain;
+  animation:lbzoom .3s cubic-bezier(.2,.85,.3,1.12);
+  filter:drop-shadow(0 16px 48px rgba(0,0,0,.75))}
+.rc .lightbox .lbcap{font-family:'Barlow Condensed';font-size:20px;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--txt);animation:lbfade .4s ease}
+.rc .lightbox .lbclose{position:absolute;top:18px;right:22px;background:var(--panel2);
+  border:1px solid var(--line);border-radius:8px;color:var(--txt);font-size:16px;
+  padding:6px 12px;cursor:pointer}
+.rc .lightbox .lbclose:hover{border-color:var(--car);color:#FFE9ED}
+@keyframes lbfade{from{opacity:0}to{opacity:1}}
+@keyframes lbzoom{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
 `;
 
 function Num({ v, onC, step = 0.01, w }) {
@@ -1446,6 +1467,13 @@ ${html}
   const planLsf = lastStintFuel(fmtHMS(planLastCd), st);
   const [autoCd, setAutoCd] = useState(true); // plandan otomatik countdown
   const [barOpen, setBarOpen] = useState(true); // oda katılım çubuğu aç/kapa
+  const [zoom, setZoom] = useState(null); // "car" | "track" | null — kart büyütme (lightbox)
+  useEffect(() => {
+    if (!zoom) return;
+    const onKey = (e) => { if (e.key === "Escape") setZoom(null); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [zoom]);
 
   const upcomingPit = liveInfo.status === "live" ? (st.pits[liveInfo.stintIdx] || EMPTY_PIT) : null;
   const upcomingIsLast = liveInfo.status === "live"
@@ -2115,7 +2143,8 @@ ${html}
           {tab === "dash" && (
             <div className="dgrid">
               {st.car && (
-                <div className="card infocard">
+                <div className="card infocard clickable" onClick={() => setZoom("car")}
+                  title={t("Büyütmek için tıkla")}>
                   <h2>🏎 {t("Araç")}</h2>
                   <img src={carImg(st.carClass, st.car)} alt=""
                     style={{ display: "block", width: "100%", maxHeight: 140,
@@ -2129,7 +2158,8 @@ ${html}
               )}
 
               {st.track && (
-                <div className="card infocard">
+                <div className="card infocard clickable" onClick={() => setZoom("track")}
+                  title={t("Büyütmek için tıkla")}>
                   <h2>📍 {t("Pist")}</h2>
                   <img key={st.track} src={`${ASSET}tracks/${TRACK_ASSET(st.track)}.png${AV}`} alt=""
                     style={{ display: "block", width: "100%", maxHeight: 160,
@@ -2144,6 +2174,21 @@ ${html}
                   {PIT_LANE_TIMES[st.track] != null && (
                     <div className="hint">{t("Pit lane")}: {PIT_LANE_TIMES[st.track]}s</div>
                   )}
+                </div>
+              )}
+
+              {zoom && (
+                <div className="lightbox" onClick={() => setZoom(null)}>
+                  <button className="lbclose" onClick={() => setZoom(null)}>✕</button>
+                  <img src={zoom === "car"
+                      ? carImg(st.carClass, st.car)
+                      : `${ASSET}tracks/${TRACK_ASSET(st.track)}.png${AV}`}
+                    alt="" onError={() => setZoom(null)} />
+                  <div className="lbcap">
+                    {zoom === "car"
+                      ? `${carName(st.carClass, st.car)} · ${(CAR_CLASSES.find(([id]) => id === st.carClass) || [, st.carClass])[1]}`
+                      : `${trackName(st.track)}${PIT_LANE_TIMES[st.track] != null ? ` · Pit lane ${PIT_LANE_TIMES[st.track]}s` : ""}`}
+                  </div>
                 </div>
               )}
 
