@@ -329,6 +329,7 @@ const EN = {
   "Gerçek pit işaretlemelerini sıfırla?": "Reset all actual pit marks?",
   "Tamir (s)": "Repair (s)",
   "Stint Programı": "Stint Program", "Pilot Programı": "Driver Schedule",
+  "PDF başlığı:": "PDF title:",
   "Pilot Toplamları": "Driver Totals",
   "Açılır pencere engellendi — tarayıcıdan izin ver": "Pop-up blocked — allow it in your browser",
   "📋 PLAN": "📋 PLAN",
@@ -1309,6 +1310,16 @@ export default function App() {
   const exportPdf = (kind) => {
     const esc = (x) => String(x ?? "").replace(/[&<>]/g,
       (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+    /* kullanıcıdan PDF başlığı iste (iptal → çıkış) */
+    const defTitle = kind === "stint"
+      ? `${t("Stint Programı")} · ${st.chosen}-${racePlan.laps}`
+      : t("Pilot Programı");
+    const userTitle = window.prompt(t("PDF başlığı:"), defTitle);
+    if (userTitle === null) return;
+    /* araç + pist görselleri için mutlak URL (yeni pencerede relatif çözülmez) */
+    const abs = (p) => new URL(p, window.location.href).href;
+    const carUrl = st.car ? abs(carImg(st.carClass, st.car)) : "";
+    const trackUrl = st.track ? abs(`${ASSET}tracks/${TRACK_ASSET(st.track)}.png`) : "";
     /* cols: her sütun için hücre class'ı (renk tonu); rowCls: satır class'ı üreten fn */
     const mkTable = (head, rows, cols = [], rowCls = null) => {
       const hh = head.map((h, i) => `<th class="${cols[i] || ""}">${esc(h)}</th>`).join("");
@@ -1360,7 +1371,7 @@ export default function App() {
     const w = window.open("", "_blank", "width=900,height=700");
     if (!w) { alert(t("Açılır pencere engellendi — tarayıcıdan izin ver")); return; }
     w.document.write(`<!doctype html><html><head><meta charset="utf-8">
-<title>${esc(title)}</title>
+<title>${esc(userTitle || title)}</title>
 <style>
  *{box-sizing:border-box}
  body{font-family:Arial,Helvetica,sans-serif;color:#1a1113;margin:26px;font-size:12px}
@@ -1383,13 +1394,36 @@ export default function App() {
  td.c-left{font-weight:600}
  th.c-left{background:#5a3d8a}
  tbody tr.r-last td{background:#fde8ea!important;font-weight:700;color:#960018}
+ /* üst başlık + araç/pist görselleri */
+ .hd{display:flex;align-items:center;gap:18px;border-bottom:2px solid #960018;
+   padding-bottom:12px;margin-bottom:14px}
+ .hd .txt{flex:1 1 auto}
+ .hd .imgs{display:flex;align-items:center;gap:12px}
+ .hd .carbox{width:190px;height:80px;display:flex;align-items:center;justify-content:center}
+ .hd .carbox img{max-width:100%;max-height:80px;object-fit:contain}
+ .hd .trackbox{width:120px;height:88px;background:#14101a;border-radius:8px;
+   padding:6px;display:flex;align-items:center;justify-content:center}
+ .hd .trackbox img{max-width:100%;max-height:76px;object-fit:contain}
+ .brand{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#960018;font-weight:700}
+ .brand b{color:#1a1113}
+ .ptitle{font-size:22px;font-weight:800;margin:2px 0 4px;letter-spacing:.01em}
  @media print{body{margin:9mm}th{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-   td{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+   td,.trackbox{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 </style></head><body>
-<h1><b>CASPIAN</b> RACE MONITOR — ${esc(title)}</h1>
-<p class="sub">${esc(new Date().toLocaleString(lang === "en" ? "en-GB" : "tr-TR"))}${
+<div class="hd">
+ <div class="txt">
+  <div class="brand"><b>CASPIAN</b> MOTORSPORT · RACE CONTROL</div>
+  <div class="ptitle">${esc(userTitle || title)}</div>
+  <div style="color:#777;font-size:11px">${esc(new Date().toLocaleString(lang === "en" ? "en-GB" : "tr-TR"))}${
       st.raceStart ? " · Start: " + esc(String(st.raceStart).replace("T", " ")) : ""}${
-      st.track ? " · " + esc(trackName(st.track)) : ""}</p>
+      st.track ? " · " + esc(trackName(st.track)) : ""}${
+      st.car ? " · " + esc(carName(st.carClass, st.car)) : ""}</div>
+ </div>
+ <div class="imgs">
+  ${carUrl ? `<div class="carbox"><img src="${carUrl}" alt=""></div>` : ""}
+  ${trackUrl ? `<div class="trackbox"><img src="${trackUrl}" alt=""></div>` : ""}
+ </div>
+</div>
 ${html}
 <script>window.onload=function(){window.print()}<\/script></body></html>`);
     w.document.close();
