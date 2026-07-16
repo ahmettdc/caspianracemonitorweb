@@ -1757,7 +1757,7 @@ ${html}
         {!barOpen && room && <span>ODA: <span className="roomcode">{room}</span></span>}
         {!barOpen && !room && <span className="syncinfo" style={{ marginLeft: 0 }}>
           {room ? "" : t("Solo mod")}</span>}
-        <button className="bartoggle" style={{ marginLeft: "auto" }}
+        <button className="bartoggle"
           onClick={() => setBarOpen(!barOpen)}
           title={barOpen ? t("Katılım çubuğunu gizle") : t("Katılım çubuğunu göster")}>
           {barOpen ? "▲" : "▼"}</button>
