@@ -292,7 +292,7 @@ const EN = {
   "kabul edilir. Gerçek yakıt = VE × ratio → gerçek tüketim ≈":
     "VE. Real fuel = VE × ratio → real usage ≈",
   "L/tur": "L/lap", "%/tur": "%/lap", "tur + extra": "laps + extra", "dolum ≈": "refuel ≈",
-  "lap": "lap",
+  "lap": "lap", "gerçek": "actual",
   "Ratio'yu düşürmek daha az yakıt taşımak demektir (örn. 0.84 → %100 = 84.0 L).":
     "Lowering the ratio means carrying less fuel (e.g. 0.84 → 100% = 84.0 L).",
   "Pit süresi = FUEL": "Pit time = FUEL", "lastik ×": "tyres ×",
@@ -469,10 +469,11 @@ const migrate = (s) => ({ ...DEFAULT_STATE, ...s });
 function lastStintFuel(countdownStr, st) {
   const lapSec = parseLap(st.avgLap);
   const cd = parseHMS(countdownStr);
-  const lapsLeft = lapSec > 0 ? cd / lapSec : 0;
+  const lapsRaw = lapSec > 0 ? cd / lapSec : 0;
+  const lapsLeft = Math.ceil(lapsRaw - 1e-6);  // ondalık tur yukarı yuvarlanır (trafik riski payı)
   const refuel = (lapsLeft + st.extraLap) * st.consumption;   // % VE
   const refuelL = refuel * st.fuelRatio;                      // gerçek litre
-  return { lapsLeft, refuel, refuelL, refuelSec: refuel / st.refuelSpeed };
+  return { lapsLeft, lapsRaw, refuel, refuelL, refuelSec: refuel / st.refuelSpeed };
 }
 
 /* ---------- UI parçaları ---------- */
@@ -2207,7 +2208,7 @@ ${html}
                     (+{st.extraLap} {t("lap")})</span>
                 </div>
                 <div className="hint">
-                  ≈ {planLsf.refuelL.toFixed(1)} L · {planLsf.lapsLeft.toFixed(2)} {t("tur + extra")} {st.extraLap} · {t("dolum ≈")} {planLsf.refuelSec.toFixed(0)}s
+                  ≈ {planLsf.refuelL.toFixed(1)} L · {planLsf.lapsLeft} {t("tur + extra")} {st.extraLap} <span style={{ color: "var(--dim)" }}>({planLsf.lapsRaw.toFixed(2)} {t("gerçek")})</span> · {t("dolum ≈")} {planLsf.refuelSec.toFixed(0)}s
                 </div>
                 {driverPlan && Object.keys(driverPlan.totals).length > 0 && (<>
                   <label style={{ marginTop: 10 }}>{t("Pilot Dağılımı")}</label>
@@ -2629,8 +2630,8 @@ ${html}
                     style={isAuto ? { opacity: .7 } : undefined}
                     onChange={(e) => setVal(e.target.value)} />
                   <div className="kpis" style={{ marginTop: 12 }}>
-                    <div className="kpi"><div className="v mono">{r.lapsLeft.toFixed(2)}</div>
-                      <div className="l">{t("Kalan Tur")}</div></div>
+                    <div className="kpi"><div className="v mono">{r.lapsLeft}</div>
+                      <div className="l">{t("Kalan Tur")} <span style={{ color: "var(--dim)" }}>({r.lapsRaw.toFixed(2)})</span></div></div>
                     <div className="kpi"><div className="v mono">{r.refuelSec.toFixed(0)}s</div>
                       <div className="l">{t("Dolum Süresi")}</div></div>
                   </div>
@@ -2640,7 +2641,7 @@ ${html}
                       (+{st.extraLap} {t("lap")})</span></div>
                   <div className="hint">
                     ≈ <b className="mono" style={{ color: "var(--green)" }}>{r.refuelL.toFixed(1)} L</b> {t("gerçek yakıt")} ·
-                    ({t("kalan tur")} {r.lapsLeft.toFixed(2)} + extra {st.extraLap}) × {st.consumption} {t("%/tur")}
+                    ({t("kalan tur")} {r.lapsLeft} + extra {st.extraLap}) × {st.consumption} {t("%/tur")}
                     {r.refuel > 100 &&
                       <> · <b className="warn">{t("⚠ %100'ü aşıyor — depo yetmez!")}</b></>}
                   </div>
