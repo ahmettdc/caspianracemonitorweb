@@ -293,6 +293,7 @@ const EN = {
     "VE. Real fuel = VE × ratio → real usage ≈",
   "L/tur": "L/lap", "%/tur": "%/lap", "tur + extra": "laps + extra", "dolum ≈": "refuel ≈",
   "lap": "lap", "gerçek": "actual",
+  "Katılım çubuğunu gizle": "Hide join bar", "Katılım çubuğunu göster": "Show join bar",
   "Ratio'yu düşürmek daha az yakıt taşımak demektir (örn. 0.84 → %100 = 84.0 L).":
     "Lowering the ratio means carrying less fuel (e.g. 0.84 → 100% = 84.0 L).",
   "Pit süresi = FUEL": "Pit time = FUEL", "lastik ×": "tyres ×",
@@ -564,6 +565,11 @@ const css = `
   color:var(--green);line-height:1;margin:6px 0}
 .rc .teambar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;
   padding:10px 20px;border-bottom:1px solid var(--line);background:var(--panel)}
+.rc .teambar.collapsed{padding:5px 20px}
+.rc .bartoggle{background:var(--panel2);border:1px solid var(--line);border-radius:6px;
+  color:var(--dim);cursor:pointer;padding:2px 12px;font-size:11px;line-height:1.4;
+  font-family:'IBM Plex Mono'}
+.rc .bartoggle:hover{color:var(--txt);border-color:var(--teal)}
 .rc .teambar input{width:110px;background:var(--panel2);border:1px solid var(--line);
   border-radius:6px;color:var(--txt);padding:6px 8px;font-family:'IBM Plex Mono';
   font-size:12px;text-transform:uppercase}
@@ -1439,6 +1445,7 @@ ${html}
   /* son stint VE — plandan (elle girilen countdown yerine gerçek kalan süreden) */
   const planLsf = lastStintFuel(fmtHMS(planLastCd), st);
   const [autoCd, setAutoCd] = useState(true); // plandan otomatik countdown
+  const [barOpen, setBarOpen] = useState(true); // oda katılım çubuğu aç/kapa
 
   const upcomingPit = liveInfo.status === "live" ? (st.pits[liveInfo.stintIdx] || EMPTY_PIT) : null;
   const upcomingIsLast = liveInfo.status === "live"
@@ -1745,8 +1752,16 @@ ${html}
         )}
       </header>
 
-      <div className="teambar">
+      <div className={`teambar ${barOpen ? "" : "collapsed"}`}>
         <span className={`dot ${room ? "on" : "off"}`} title={room ? "Bağlı" : t("Solo mod")} />
+        {!barOpen && room && <span>ODA: <span className="roomcode">{room}</span></span>}
+        {!barOpen && !room && <span className="syncinfo" style={{ marginLeft: 0 }}>
+          {room ? "" : t("Solo mod")}</span>}
+        <button className="bartoggle" style={{ marginLeft: "auto" }}
+          onClick={() => setBarOpen(!barOpen)}
+          title={barOpen ? t("Katılım çubuğunu gizle") : t("Katılım çubuğunu göster")}>
+          {barOpen ? "▲" : "▼"}</button>
+        {barOpen && (<>
         {!room ? (firebaseReady ? (<>
           <input type="text" placeholder={t("ADIN")} value={userName}
             onChange={(e) => setUserName(e.target.value)} style={{ textTransform: "none" }} />
@@ -1778,6 +1793,7 @@ ${html}
           </span>
         </>)}
         {syncMsg && <span style={{ color: "var(--yellow)" }}>{syncMsg}</span>}
+        </>)}
       </div>
 
       {liveInfo.status !== "idle" && (
