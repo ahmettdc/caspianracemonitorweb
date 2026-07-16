@@ -713,6 +713,42 @@ function Num({ v, onC, step = 0.01, w }) {
     onChange={(e) => onC(parseFloat(e.target.value) || 0)} />;
 }
 
+/* pilot dağılımı için donut grafik */
+const PIE_COLORS = ["#2DD4BF", "#F2C94C", "#960018", "#9B6DFF", "#4C9AFF",
+  "#FF8A3D", "#59C36A", "#EC5CA6", "#00B8D9", "#C0CA33"];
+function Donut({ data, size = 190, thickness = 34 }) {
+  const total = data.reduce((a, d) => a + d.value, 0) || 1;
+  const r = (size - thickness) / 2;
+  const c = 2 * Math.PI * r;
+  let acc = 0;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none"
+        stroke="rgba(255,255,255,.06)" strokeWidth={thickness} />
+      <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
+        {data.map((d, i) => {
+          const dash = (d.value / total) * c;
+          const el = (
+            <circle key={i} cx={size / 2} cy={size / 2} r={r} fill="none"
+              stroke={d.color} strokeWidth={thickness}
+              strokeDasharray={`${dash} ${c - dash}`} strokeDashoffset={-acc}>
+              <title>{`${d.name}: ${((d.value / total) * 100).toFixed(1)}%`}</title>
+            </circle>
+          );
+          acc += dash;
+          return el;
+        })}
+      </g>
+      <text x="50%" y="47%" textAnchor="middle" fill="var(--txt)"
+        style={{ fontFamily: "'Barlow Condensed'", fontSize: 30, fontWeight: 700 }}>
+        {data.length}</text>
+      <text x="50%" y="60%" textAnchor="middle" fill="var(--dim)"
+        style={{ fontFamily: "'Barlow Condensed'", fontSize: 12, letterSpacing: ".1em" }}>
+        PİLOT</text>
+    </svg>
+  );
+}
+
 /* marka şimşek logosu (favicon.svg) — Virtual Energy simgesi olarak ⚡ yerine kullanılır */
 function Bolt({ size = 16, color = "var(--green)" }) {
   return (
@@ -2319,25 +2355,40 @@ ${html}
                   </tbody>
                 </table>
 
-                {Object.keys(driverPlan.totals).length > 0 && (
-                  <table style={{ marginTop: 16, maxWidth: 480 }}>
-                    <thead><tr><th>{t("Pilot")}</th><th>Stint</th><th>{t("Toplam Süre")}</th><th>%</th></tr></thead>
-                    <tbody>
-                      {st.roster.filter((n) => driverPlan.totals[n]).map((n) => {
-                        const t = driverPlan.totals[n];
-                        return (
-                          <tr key={n}>
-                            <td>{n}</td><td>{t.stints}</td>
-                            <td>{fmtHMS(t.ms / 1000)}</td>
-                            <td className="pos">
-                              {driverPlan.grandMs ? ((t.ms / driverPlan.grandMs) * 100).toFixed(1) : "0"}%
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                )}
+                {Object.keys(driverPlan.totals).length > 0 && (() => {
+                  const names = st.roster.filter((n) => driverPlan.totals[n]);
+                  const colorOf = (n) => PIE_COLORS[names.indexOf(n) % PIE_COLORS.length];
+                  const pieData = names.map((n) => ({
+                    name: n, value: driverPlan.totals[n].ms, color: colorOf(n),
+                  }));
+                  return (
+                  <div style={{ display: "flex", gap: 22, marginTop: 16, flexWrap: "wrap",
+                    alignItems: "center" }}>
+                    <Donut data={pieData} />
+                    <table style={{ maxWidth: 480, flex: "1 1 340px", margin: 0 }}>
+                      <thead><tr><th></th><th>{t("Pilot")}</th><th>Stint</th>
+                        <th>{t("Toplam Süre")}</th><th>%</th></tr></thead>
+                      <tbody>
+                        {names.map((n) => {
+                          const d = driverPlan.totals[n];
+                          return (
+                            <tr key={n}>
+                              <td style={{ width: 18, padding: "0 0 0 6px" }}>
+                                <span style={{ display: "inline-block", width: 12, height: 12,
+                                  borderRadius: 3, background: colorOf(n) }} /></td>
+                              <td>{n}</td><td>{d.stints}</td>
+                              <td>{fmtHMS(d.ms / 1000)}</td>
+                              <td className="pos">
+                                {driverPlan.grandMs ? ((d.ms / driverPlan.grandMs) * 100).toFixed(1) : "0"}%
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  );
+                })()}
                 <div style={{ marginTop: 12 }}>
                   <button className="act danger" onClick={clearAssign}>{t("Atamaları Temizle")}</button>
                 </div>
