@@ -1565,9 +1565,11 @@ ${bottomBar}
       {lmuSuggest && (
         <div className="hint" style={{ display: "flex", alignItems: "center", gap: 8,
           flexWrap: "wrap" }} title={lmuData?.source}>
-          📊 LMU: <b className="mono">{lmuSuggest.avgLap}</b> · ⚡ {lmuSuggest.consumption}%/{t("tur")}
+          📊 LMU: <b className="mono">{lmuSuggest.avgLap}</b>
+          {lmuSuggest.consumption != null && <> · ⚡ {lmuSuggest.consumption}%/{t("tur")}</>}
           <button onClick={() => up({ avgLap: lmuSuggest.avgLap,
-              consumption: lmuSuggest.consumption })}
+              ...(lmuSuggest.consumption != null
+                ? { consumption: lmuSuggest.consumption } : {}) })}
             style={{ padding: "2px 10px", borderRadius: 6, cursor: "pointer", fontSize: 11,
               background: "var(--panel2)", color: "var(--teal)",
               border: "1px solid var(--teal)" }}>{t("Doldur")}</button>

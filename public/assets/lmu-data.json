@@ -1,6 +1,259 @@
 {
-  "source": "Ohne Speed's LMU laptimes spreadsheet",
-  "updated": "2026-07-17",
-  "note": "data[pistId][aracId veya sinifId] = { avgLap: 'm:ss.00', consumption: %/tur }. Arac id sinif id'den once denenir.",
-  "data": {}
+ "source": "Ohne Speed's LMU laptimes spreadsheet",
+ "updated": "2026-07-17",
+ "note": "avgLap = 'Good ~1.02' yaris temposu (Laptimes). 'calculated' tahmin satirlari haric. VE tuketimi tabloda yok.",
+ "data": {
+  "bahrain": {
+   "gt3": {
+    "avgLap": "2:01.47"
+   },
+   "hypercar": {
+    "avgLap": "1:47.92"
+   },
+   "lmp3": {
+    "avgLap": "1:54.02"
+   },
+   "gte": {
+    "avgLap": "2:01.05"
+   },
+   "lmp2": {
+    "avgLap": "1:49.99"
+   }
+  },
+  "barcelona": {
+   "gt3": {
+    "avgLap": "1:43.07"
+   },
+   "hypercar": {
+    "avgLap": "1:30.75"
+   },
+   "lmp3": {
+    "avgLap": "1:35.24"
+   },
+   "gte": {
+    "avgLap": "1:42.22"
+   },
+   "lmp2": {
+    "avgLap": "1:31.85"
+   }
+  },
+  "lemans": {
+   "gt3": {
+    "avgLap": "4:01.01"
+   },
+   "hypercar": {
+    "avgLap": "3:28.30"
+   },
+   "lmp3": {
+    "avgLap": "3:45.20"
+   },
+   "gte": {
+    "avgLap": "3:56.17"
+   },
+   "lmp2": {
+    "avgLap": "3:34.58"
+   }
+  },
+  "cota": {
+   "gt3": {
+    "avgLap": "2:08.65"
+   },
+   "hypercar": {
+    "avgLap": "1:54.63"
+   },
+   "lmp3": {
+    "avgLap": "2:00.51"
+   },
+   "gte": {
+    "avgLap": "2:05.77"
+   },
+   "lmp2": {
+    "avgLap": "1:56.61"
+   }
+  },
+  "fuji": {
+   "gt3": {
+    "avgLap": "1:42.30"
+   },
+   "hypercar": {
+    "avgLap": "1:30.53"
+   },
+   "lmp3": {
+    "avgLap": "1:34.94"
+   },
+   "gte": {
+    "avgLap": "1:41.23"
+   },
+   "lmp2": {
+    "avgLap": "1:31.82"
+   }
+  },
+  "imola": {
+   "gt3": {
+    "avgLap": "1:44.36"
+   },
+   "hypercar": {
+    "avgLap": "1:31.84"
+   },
+   "lmp3": {
+    "avgLap": "1:37.79"
+   },
+   "gte": {
+    "avgLap": "1:42.69"
+   },
+   "lmp2": {
+    "avgLap": "1:34.42"
+   }
+  },
+  "interlagos": {
+   "gt3": {
+    "avgLap": "1:35.64"
+   },
+   "hypercar": {
+    "avgLap": "1:24.55"
+   },
+   "lmp3": {
+    "avgLap": "1:29.18"
+   },
+   "gte": {
+    "avgLap": "1:34.82"
+   },
+   "lmp2": {
+    "avgLap": "1:26.40"
+   }
+  },
+  "monza": {
+   "gt3": {
+    "avgLap": "1:51.14"
+   },
+   "hypercar": {
+    "avgLap": "1:37.19"
+   },
+   "lmp3": {
+    "avgLap": "1:43.93"
+   },
+   "gte": {
+    "avgLap": "1:48.93"
+   },
+   "lmp2": {
+    "avgLap": "1:39.66"
+   }
+  },
+  "paulricard": {
+   "gt3": {
+    "avgLap": "2:06.28"
+   },
+   "hypercar": {
+    "avgLap": "1:51.25"
+   },
+   "lmp3": {
+    "avgLap": "1:57.45"
+   },
+   "gte": {
+    "avgLap": "2:06.17"
+   },
+   "lmp2": {
+    "avgLap": "1:53.22"
+   }
+  },
+  "portimao": {
+   "gt3": {
+    "avgLap": "1:45.71"
+   },
+   "hypercar": {
+    "avgLap": "1:33.42"
+   },
+   "lmp3": {
+    "avgLap": "1:38.49"
+   },
+   "gte": {
+    "avgLap": "1:44.15"
+   },
+   "lmp2": {
+    "avgLap": "1:35.51"
+   }
+  },
+  "lusail": {
+   "gt3": {
+    "avgLap": "1:56.56"
+   },
+   "hypercar": {
+    "avgLap": "1:41.93"
+   },
+   "lmp3": {
+    "avgLap": "1:47.27"
+   },
+   "gte": {
+    "avgLap": "1:54.65"
+   },
+   "lmp2": {
+    "avgLap": "1:43.27"
+   }
+  },
+  "silverstone": {
+   "gt3": {
+    "avgLap": "2:00.81"
+   },
+   "hypercar": {
+    "avgLap": "1:44.93"
+   },
+   "lmp3": {
+    "avgLap": "1:51.29"
+   },
+   "lmp2": {
+    "avgLap": "1:46.67"
+   }
+  },
+  "sebring": {
+   "gt3": {
+    "avgLap": "2:02.85"
+   },
+   "hypercar": {
+    "avgLap": "1:48.25"
+   },
+   "lmp3": {
+    "avgLap": "1:54.29"
+   },
+   "gte": {
+    "avgLap": "2:01.17"
+   },
+   "lmp2": {
+    "avgLap": "1:50.41"
+   }
+  },
+  "spa": {
+   "gt3": {
+    "avgLap": "2:20.54"
+   },
+   "hypercar": {
+    "avgLap": "2:02.83"
+   },
+   "lmp3": {
+    "avgLap": "2:11.17"
+   },
+   "gte": {
+    "avgLap": "2:18.36"
+   },
+   "lmp2": {
+    "avgLap": "2:05.57"
+   }
+  },
+  "spa-endurance": {
+   "gt3": {
+    "avgLap": "2:20.54"
+   },
+   "hypercar": {
+    "avgLap": "2:02.83"
+   },
+   "lmp3": {
+    "avgLap": "2:11.17"
+   },
+   "gte": {
+    "avgLap": "2:18.36"
+   },
+   "lmp2": {
+    "avgLap": "2:05.57"
+   }
+  }
+ }
 }
