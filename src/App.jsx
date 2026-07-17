@@ -1362,6 +1362,7 @@ export default function App() {
     const carUrl = st.car ? abs(carImg(st.carClass, st.car)) : "";
     const trackUrl = st.track ? abs(`${ASSET}tracks/${TRACK_ASSET(st.track)}.png`) : "";
     const logoUrl = abs(`${ASSET}logo.png`);
+    const classUrl = st.carClass ? abs(`${ASSET}class/${st.carClass}.png`) : "";
     /* cols: her sütun için hücre class'ı (renk tonu); rowCls: satır class'ı üreten fn */
     const mkTable = (head, rows, cols = [], rowCls = null) => {
       const hh = head.map((h, i) => `<th class="${cols[i] || ""}">${esc(h)}</th>`).join("");
@@ -1514,6 +1515,8 @@ export default function App() {
       st.track ? " · " + esc(trackName(st.track)) : ""}${
       st.car ? " · " + esc(carName(st.carClass, st.car)) : ""}</div>
  </div>
+ ${classUrl ? `<img src="${classUrl}" alt="" style="height:30px;flex:0 0 auto"
+   onerror="this.style.display='none'">` : ""}
  ${carUrl ? `<div class="carbox"><img src="${carUrl}" alt=""></div>` : ""}
 </div>
 ${html}
@@ -2237,7 +2240,10 @@ ${bottomBar}
                       filter: "drop-shadow(0 4px 12px rgba(0,0,0,.5))" }}
                     onError={(e) => { e.currentTarget.style.display = "none"; }} />
                   <div className="disp" style={{ fontSize: 17 }}>{carName(st.carClass, st.car)}</div>
-                  <div className="hint">
+                  <div className="hint" style={{ display: "flex", alignItems: "center",
+                    justifyContent: "center", gap: 6 }}>
+                    <img src={`${ASSET}class/${st.carClass}.png`} alt="" style={{ height: 16 }}
+                      onError={(e) => { e.currentTarget.style.display = "none"; }} />
                     {(CAR_CLASSES.find(([id]) => id === st.carClass) || [, st.carClass])[1]}</div>
                 </div>
               )}
@@ -2270,7 +2276,11 @@ ${bottomBar}
                       : `${ASSET}tracks/${TRACK_ASSET(st.track)}.png${AV}`}
                     alt="" style={zoom === "car" ? { maxHeight: "40vh" } : undefined}
                     onError={() => setZoom(null)} />
-                  <div className="lbcap">
+                  <div className="lbcap" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {zoom === "car" && (
+                      <img src={`${ASSET}class/${st.carClass}.png`} alt="" style={{ height: 20 }}
+                        onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                    )}
                     {zoom === "car"
                       ? `${carName(st.carClass, st.car)} · ${(CAR_CLASSES.find(([id]) => id === st.carClass) || [, st.carClass])[1]}`
                       : `${trackName(st.track)}${PIT_LANE_TIMES[st.track] != null ? ` · Pit lane ${PIT_LANE_TIMES[st.track]}s` : ""}`}
