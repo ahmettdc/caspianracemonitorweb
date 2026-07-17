@@ -295,7 +295,7 @@ const EN = {
   "lap": "lap", "gerçek": "actual",
   "Katılım çubuğunu gizle": "Hide join bar", "Katılım çubuğunu göster": "Show join bar",
   "Büyütmek için tıkla": "Click to enlarge",
-  "tur": "laps", "Doldur": "Fill",
+  "tur": "laps", "Doldur": "Fill", "Sadece geçiş": "Pass-through only",
   "Ratio'yu düşürmek daha az yakıt taşımak demektir (örn. 0.84 → %100 = 84.0 L).":
     "Lowering the ratio means carrying less fuel (e.g. 0.84 → 100% = 84.0 L).",
   "Pit süresi = FUEL": "Pit time = FUEL", "lastik ×": "tyres ×",
@@ -697,9 +697,10 @@ const css = `
 .rc tr.live td{background:rgba(150,0,24,.16);border-left:3px solid var(--teal)}
 .rc tr.pitsoon td{background:rgba(242,201,76,.12)}
 /* --- pit board --- */
-.rc .pitboard{position:fixed;inset:0;background:#05070A;z-index:50;
+.rc .pitboard{position:fixed;inset:0;z-index:50;
+  background:radial-gradient(1100px 550px at 50% -12%,#131820 0%,#05070A 62%);
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:4vh;text-align:center;padding:4vh 4vw}
+  gap:3vh;text-align:center;padding:4vh 4vw}
 .rc .pitboard .huge{font-family:'Barlow Condensed';font-weight:700;
   font-size:clamp(70px,18vw,220px);line-height:.95;color:var(--green);
   font-variant-numeric:tabular-nums}
@@ -710,7 +711,20 @@ const css = `
 .rc .pitboard .close{position:absolute;top:16px;right:20px;font-size:26px;
   background:none;border:1px solid var(--line);border-radius:8px;color:var(--dim);
   width:44px;height:44px;cursor:pointer}
-.rc .pbrow{display:flex;gap:6vw;flex-wrap:wrap;justify-content:center}
+.rc .pbrow{display:flex;gap:1.6vw;flex-wrap:wrap;justify-content:center}
+.rc .pitboard .pbcard{background:rgba(255,255,255,.035);border:1px solid var(--line);
+  border-radius:16px;padding:1.4vh 2.6vw;min-width:170px}
+.rc .pitboard .chips{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;
+  align-items:center}
+.rc .pitboard .chip2{font-family:'Barlow Condensed';font-weight:700;letter-spacing:.08em;
+  padding:5px 16px;border-radius:9px;font-size:clamp(15px,2.4vw,22px);line-height:1;
+  border:1px solid}
+.rc .pitboard .chip2.fuel{color:var(--green);border-color:var(--green);
+  background:rgba(46,204,113,.12)}
+.rc .pitboard .chip2.tyre{color:var(--teal);border-color:var(--teal);
+  background:rgba(38,198,218,.10)}
+.rc .pitboard .chip2.none{color:var(--dim);border-color:var(--line);
+  background:rgba(255,255,255,.03)}
 /* --- dashboard --- */
 .rc .dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
 .rc .infocard{text-align:center}
@@ -1964,18 +1978,18 @@ ${bottomBar}
               <div className="huge">{fmtHMS(liveInfo.remaining / 1000)}</div>
             </div>
             <div className="pbrow">
-              <div>
+              <div className="pbcard">
                 <div className="plbl">{liveInfo.phase === "pit" ? "Pit Çıkışı" : "Sıradaki Pit"}</div>
                 <div className={`mid mono ${pitSoon ? "pulse" : ""}`}
                   style={{ color: pitSoon ? "var(--yellow)" : "var(--txt)" }}>
                   {fmtHMS(liveInfo.nextPitIn / 1000)}</div>
               </div>
-              <div>
+              <div className="pbcard">
                 <div className="plbl">Stint</div>
                 <div className="mid">{liveInfo.stintIdx + 1} / {racePlan.fullStints}</div>
               </div>
               {upcomingIsLast && (
-                <div>
+                <div className="pbcard">
                   <div className="plbl" style={{ display: "flex", alignItems: "center",
                     justifyContent: "center", gap: 4 }}><Bolt size={14} /> {t("Son Pit VE")}</div>
                   <div className="mid" style={{ color: "var(--green)" }}>
@@ -1984,7 +1998,7 @@ ${bottomBar}
               )}
             </div>
             {(liveInfo.driver || liveInfo.nextDriver) && (
-              <div>
+              <div className="pbcard">
                 <div className="plbl">{t("Pilot Değişimi")}</div>
                 <div className="mid">
                   {liveInfo.driver || "?"} <span style={{ color: "var(--teal)" }}>→</span>{" "}
@@ -1993,10 +2007,15 @@ ${bottomBar}
               </div>
             )}
             {upcomingPit && !racePlan.rows[liveInfo.stintIdx]?.isLast && (
-              <div className="plbl">
-                {t("Sıradaki pit: ")}{upcomingPit.fuel ? "FUEL " : ""}{upcomingPit.lane ? "· LANE " : ""}
-                {upcomingPit.tyres.some(Boolean) &&
-                  <>· 🛞 {TY.filter((_, i) => upcomingPit.tyres[i]).join(" ")}</>}
+              <div className="chips">
+                <span className="plbl">{t("Sıradaki pit: ")}</span>
+                {upcomingPit.fuel && <span className="chip2 fuel">⛽ FUEL</span>}
+                {TY.filter((_, i) => upcomingPit.tyres[i]).map((c) => (
+                  <span key={c} className="chip2 tyre">🛞 {c}</span>
+                ))}
+                {!upcomingPit.fuel && !upcomingPit.tyres.some(Boolean) && (
+                  <span className="chip2 none">{t("Sadece geçiş")}</span>
+                )}
               </div>
             )}
 
