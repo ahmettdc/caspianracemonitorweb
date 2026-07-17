@@ -1430,6 +1430,8 @@ export default function App() {
   <div class="bv" style="color:#0d7a43">${planLsf.refuel.toFixed(1)}%</div>
   <div class="bv"><span>+${st.extraLap} lap · ≈ ${planLsf.refuelL.toFixed(1)} L · ${esc(t("dolum ≈"))} ${planLsf.refuelSec.toFixed(0)}s</span></div></div>
  ${donutCard}
+ ${trackUrl ? `<div class="trackcard"><img src="${trackUrl}" alt="">
+  <div class="tcap">${esc(trackName(st.track))}</div></div>` : ""}
 </div>`;
     const w = window.open("", "_blank", "width=900,height=700");
     if (!w) { alert(t("Açılır pencere engellendi — tarayıcıdan izin ver")); return; }
@@ -1465,16 +1467,11 @@ export default function App() {
  .hd .carbox{width:210px;height:88px;display:flex;align-items:center;justify-content:center;
    flex:0 0 auto}
  .hd .carbox img{max-width:100%;max-height:88px;object-fit:contain}
- .trackcorner{position:fixed;right:0;bottom:0;width:320px;background:#14101a;
-   border-radius:12px 0 0 0;padding:14px 16px 10px;text-align:center;
-   -webkit-print-color-adjust:exact;print-color-adjust:exact}
- .trackcorner img{max-width:100%;max-height:210px;object-fit:contain}
- .trackcorner .tcap{color:#e8dfe2;font-size:11px;letter-spacing:.08em;
-   text-transform:uppercase;margin-top:6px}
- body{padding-bottom:265px} /* sağ alt pist kutusu + alt kartlara yer bırak */
- .bbar{position:fixed;left:0;bottom:0;width:calc(100% - 335px);display:flex;gap:10px;
-   align-items:stretch}
+ /* alt şerit: bilgi kartları + pist kutusu tek hizalı satır */
+ .bbar{position:fixed;left:0;right:0;bottom:0;display:flex;gap:10px;align-items:stretch;
+   height:185px}
  .bcard{flex:1;border:1px solid #d9c9cd;border-radius:10px;padding:10px 12px;background:#faf6f7;
+   display:flex;flex-direction:column;justify-content:center;
    -webkit-print-color-adjust:exact;print-color-adjust:exact}
  .bcard .bt{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#960018;
    font-weight:700;margin-bottom:6px}
@@ -1482,12 +1479,19 @@ export default function App() {
  .bcard .bv span{font-size:10.5px;color:#777;font-weight:600}
  .bcard .lg{font-size:10px;display:flex;align-items:center;gap:4px;margin:2px 0;white-space:nowrap}
  .bcard .lg i{display:inline-block;width:9px;height:9px;border-radius:2px}
+ .trackcard{flex:0 0 300px;background:#14101a;border-radius:10px;padding:10px 12px;
+   display:flex;flex-direction:column;align-items:center;justify-content:center;
+   -webkit-print-color-adjust:exact;print-color-adjust:exact}
+ .trackcard img{max-width:100%;max-height:140px;object-fit:contain}
+ .trackcard .tcap{color:#e8dfe2;font-size:10px;letter-spacing:.08em;
+   text-transform:uppercase;margin-top:6px}
+ body{padding-bottom:205px} /* alt şeride yer bırak */
  .brand{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#960018;font-weight:700}
  .brand b{color:#1a1113}
  .ptitle{font-size:22px;font-weight:800;margin:2px 0 4px;letter-spacing:.01em}
- @media print{body{margin:9mm;padding-bottom:265px}
+ @media print{body{margin:9mm;padding-bottom:205px}
    th{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-   td,.trackcorner,.bcard{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+   td,.trackcard,.bcard{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 </style></head><body>
 <div class="hd">
  <img class="logo" src="${logoUrl}" alt="" onerror="this.style.display='none'">
@@ -1503,8 +1507,6 @@ export default function App() {
 </div>
 ${html}
 ${bottomBar}
-${trackUrl ? `<div class="trackcorner"><img src="${trackUrl}" alt="">
- <div class="tcap">${esc(trackName(st.track))}</div></div>` : ""}
 <script>window.onload=function(){window.print()}<\/script></body></html>`);
     w.document.close();
   };
