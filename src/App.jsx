@@ -295,7 +295,7 @@ const EN = {
   "lap": "lap", "gerçek": "actual",
   "Katılım çubuğunu gizle": "Hide join bar", "Katılım çubuğunu göster": "Show join bar",
   "Büyütmek için tıkla": "Click to enlarge",
-  "tur": "laps",
+  "tur": "laps", "Doldur": "Fill",
   "Ratio'yu düşürmek daha az yakıt taşımak demektir (örn. 0.84 → %100 = 84.0 L).":
     "Lowering the ratio means carrying less fuel (e.g. 0.84 → 100% = 84.0 L).",
   "Pit süresi = FUEL": "Pit time = FUEL", "lastik ×": "tyres ×",
@@ -1521,6 +1521,17 @@ ${bottomBar}
   const [autoCd, setAutoCd] = useState(true); // plandan otomatik countdown
   const [barOpen, setBarOpen] = useState(true); // oda katılım çubuğu aç/kapa
   const [zoom, setZoom] = useState(null); // "car" | "track" | null — kart büyütme (lightbox)
+  /* LMU referans verisi (Ohne Speed tablosundan gömülü JSON) */
+  const [lmuData, setLmuData] = useState(null);
+  useEffect(() => {
+    fetch(`${ASSET}lmu-data.json`).then((r) => (r.ok ? r.json() : null))
+      .then((j) => setLmuData(j)).catch(() => {});
+  }, []);
+  const lmuSuggest = (() => {
+    const d = lmuData?.data?.[st.track];
+    if (!d) return null;
+    return d[st.car] || d[st.carClass] || null;
+  })();
   useEffect(() => {
     if (!zoom) return;
     const onKey = (e) => { if (e.key === "Escape") setZoom(null); };
@@ -1551,6 +1562,17 @@ ${bottomBar}
         <div><label>Avg Lap (m:ss.00)</label>
           <input type="text" value={st.avgLap} onChange={(e) => up({ avgLap: e.target.value })} /></div>
       </div>
+      {lmuSuggest && (
+        <div className="hint" style={{ display: "flex", alignItems: "center", gap: 8,
+          flexWrap: "wrap" }} title={lmuData?.source}>
+          📊 LMU: <b className="mono">{lmuSuggest.avgLap}</b> · ⚡ {lmuSuggest.consumption}%/{t("tur")}
+          <button onClick={() => up({ avgLap: lmuSuggest.avgLap,
+              consumption: lmuSuggest.consumption })}
+            style={{ padding: "2px 10px", borderRadius: 6, cursor: "pointer", fontSize: 11,
+              background: "var(--panel2)", color: "var(--teal)",
+              border: "1px solid var(--teal)" }}>{t("Doldur")}</button>
+        </div>
+      )}
       <label>{t("Stint Turları — A / B / C / D")}</label>
       <div className="row4">
         {["A", "B", "C", "D"].map((k) => (

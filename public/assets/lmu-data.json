@@ -1,0 +1,6 @@
+{
+  "source": "Ohne Speed's LMU laptimes spreadsheet",
+  "updated": "2026-07-17",
+  "note": "data[pistId][aracId veya sinifId] = { avgLap: 'm:ss.00', consumption: %/tur }. Arac id sinif id'den once denenir.",
+  "data": {}
+}
