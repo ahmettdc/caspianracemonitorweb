@@ -2009,7 +2009,9 @@ ${bottomBar}
             {upcomingPit && !racePlan.rows[liveInfo.stintIdx]?.isLast && (
               <div className="chips">
                 <span className="plbl">{t("Sıradaki pit: ")}</span>
-                {upcomingPit.fuel && <span className="chip2 fuel">⛽ FUEL</span>}
+                {upcomingPit.fuel && <span className="chip2 fuel"
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <Bolt size={17} /> VE</span>}
                 {TY.filter((_, i) => upcomingPit.tyres[i]).map((c) => (
                   <span key={c} className="chip2 tyre">🛞 {c}</span>
                 ))}
