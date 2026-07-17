@@ -295,6 +295,7 @@ const EN = {
   "lap": "lap", "gerçek": "actual",
   "Katılım çubuğunu gizle": "Hide join bar", "Katılım çubuğunu göster": "Show join bar",
   "Büyütmek için tıkla": "Click to enlarge",
+  "tur": "laps",
   "Ratio'yu düşürmek daha az yakıt taşımak demektir (örn. 0.84 → %100 = 84.0 L).":
     "Lowering the ratio means carrying less fuel (e.g. 0.84 → 100% = 84.0 L).",
   "Pit süresi = FUEL": "Pit time = FUEL", "lastik ×": "tyres ×",
@@ -1397,6 +1398,39 @@ export default function App() {
           ["c-drv", "c-idx", "", "c-ve"]);
       }
     }
+    /* A4 alt bilgi kartları: stint/tur, son stint VE, pilot dağılım donut'u */
+    const donutCard = (() => {
+      if (!driverPlan || !Object.keys(driverPlan.totals).length) return "";
+      const names = (st.roster || []).filter((n) => driverPlan.totals[n]);
+      const size = 110, th2 = 20, r2 = (size - th2) / 2, c2 = 2 * Math.PI * r2;
+      let acc = 0;
+      const segs = names.map((n, i) => {
+        const dash = (driverPlan.totals[n].ms / (driverPlan.grandMs || 1)) * c2;
+        const s = `<circle cx="${size / 2}" cy="${size / 2}" r="${r2}" fill="none"
+          stroke="${PIE_COLORS[i % PIE_COLORS.length]}" stroke-width="${th2}"
+          stroke-dasharray="${dash} ${c2 - dash}" stroke-dashoffset="${-acc}"/>`;
+        acc += dash; return s;
+      }).join("");
+      const legend = names.map((n, i) => {
+        const p = driverPlan.grandMs
+          ? ((driverPlan.totals[n].ms / driverPlan.grandMs) * 100).toFixed(0) : "0";
+        return `<div class="lg"><i style="background:${PIE_COLORS[i % PIE_COLORS.length]}"></i>${esc(n)} ${p}%</div>`;
+      }).join("");
+      return `<div class="bcard"><div class="bt">${esc(t("Pilot Dağılımı"))}</div>
+       <div style="display:flex;align-items:center;gap:12px;justify-content:center">
+        <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+         <g transform="rotate(-90 ${size / 2} ${size / 2})">${segs}</g></svg>
+        <div>${legend}</div></div></div>`;
+    })();
+    const bottomBar = `<div class="bbar">
+ <div class="bcard"><div class="bt">Stint · ${esc(t("Tahmini Tur"))}</div>
+  <div class="bv">${racePlan.fullStints} <span>stint</span></div>
+  <div class="bv">${racePlan.totalLaps.toFixed(0)} <span>${esc(t("tur"))}</span></div></div>
+ <div class="bcard"><div class="bt">⚡ ${esc(t("Son Stint VE"))}</div>
+  <div class="bv" style="color:#0d7a43">${planLsf.refuel.toFixed(1)}%</div>
+  <div class="bv"><span>+${st.extraLap} lap · ≈ ${planLsf.refuelL.toFixed(1)} L · ${esc(t("dolum ≈"))} ${planLsf.refuelSec.toFixed(0)}s</span></div></div>
+ ${donutCard}
+</div>`;
     const w = window.open("", "_blank", "width=900,height=700");
     if (!w) { alert(t("Açılır pencere engellendi — tarayıcıdan izin ver")); return; }
     w.document.write(`<!doctype html><html><head><meta charset="utf-8">
@@ -1437,13 +1471,23 @@ export default function App() {
  .trackcorner img{max-width:100%;max-height:210px;object-fit:contain}
  .trackcorner .tcap{color:#e8dfe2;font-size:11px;letter-spacing:.08em;
    text-transform:uppercase;margin-top:6px}
- body{padding-bottom:250px} /* sağ alt pist kutusuna yer bırak */
+ body{padding-bottom:265px} /* sağ alt pist kutusu + alt kartlara yer bırak */
+ .bbar{position:fixed;left:0;bottom:0;width:calc(100% - 335px);display:flex;gap:10px;
+   align-items:stretch}
+ .bcard{flex:1;border:1px solid #d9c9cd;border-radius:10px;padding:10px 12px;background:#faf6f7;
+   -webkit-print-color-adjust:exact;print-color-adjust:exact}
+ .bcard .bt{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#960018;
+   font-weight:700;margin-bottom:6px}
+ .bcard .bv{font-size:21px;font-weight:800;line-height:1.25}
+ .bcard .bv span{font-size:10.5px;color:#777;font-weight:600}
+ .bcard .lg{font-size:10px;display:flex;align-items:center;gap:4px;margin:2px 0;white-space:nowrap}
+ .bcard .lg i{display:inline-block;width:9px;height:9px;border-radius:2px}
  .brand{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#960018;font-weight:700}
  .brand b{color:#1a1113}
  .ptitle{font-size:22px;font-weight:800;margin:2px 0 4px;letter-spacing:.01em}
- @media print{body{margin:9mm;padding-bottom:250px}
+ @media print{body{margin:9mm;padding-bottom:265px}
    th{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-   td,.trackcorner{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+   td,.trackcorner,.bcard{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 </style></head><body>
 <div class="hd">
  <img class="logo" src="${logoUrl}" alt="" onerror="this.style.display='none'">
@@ -1458,6 +1502,7 @@ export default function App() {
  ${carUrl ? `<div class="carbox"><img src="${carUrl}" alt=""></div>` : ""}
 </div>
 ${html}
+${bottomBar}
 ${trackUrl ? `<div class="trackcorner"><img src="${trackUrl}" alt="">
  <div class="tcap">${esc(trackName(st.track))}</div></div>` : ""}
 <script>window.onload=function(){window.print()}<\/script></body></html>`);
