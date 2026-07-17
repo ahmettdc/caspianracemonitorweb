@@ -239,7 +239,7 @@ const EN = {
   "Code 80 Kalan": "Code 80 Remaining", "Yarış Süresi": "Race Time",
   "Strateji": "Strategy", "Stint Sayısı": "Stint Count",
   "Tahmini Toplam Tur": "Est. Total Laps",
-  "🛞 S1 START LASTİKLERİ": "🛞 S1 STARTING TYRES",
+  "S1 START LASTİKLERİ": "S1 STARTING TYRES",
   "QUAL İLE BAŞLA": "START ON QUAL", "4 YENİ": "4 NEW",
   "2 YENİ ÖN": "2 NEW FRONT", "2 YENİ ARKA": "2 NEW REAR",
   "2 YENİ SOL": "2 NEW LEFT", "2 YENİ SAĞ": "2 NEW RIGHT", "TEMİZLE": "CLEAR",
@@ -249,7 +249,7 @@ const EN = {
   "Toplam VE": "Total VE", "yakıt": "fuel",
   // dashboard
   "⏱ Yarış": "⏱ Race", "Kalan": "Remaining", "Tahmini Tur": "Est. Laps",
-  "📋 Stint Programı": "📋 Stint Schedule", "🛞 Lastik": "🛞 Tyres",
+  "📋 Stint Programı": "📋 Stint Schedule", 
   "Kullanılan Lastik": "Tyres Used", "Kalan Lastik": "Tyres Left",
   "Son Stint VE": "Final Stint VE", "Pilot Dağılımı": "Driver Split",
   "Araç": "Car", "Pist": "Track", "Pit lane": "Pit lane",
@@ -812,6 +812,14 @@ function Bolt({ size = 16, color = "var(--green)" }) {
       style={{ verticalAlign: "-2px", flexShrink: 0 }} aria-hidden="true">
       <path fill={color} d="M25.946 44.938c-.664.845-2.021.375-2.021-.698V33.937a2.26 2.26 0 0 0-2.262-2.262H10.287c-.92 0-1.456-1.04-.92-1.788l7.48-10.471c1.07-1.497 0-3.578-1.842-3.578H1.237c-.92 0-1.456-1.04-.92-1.788L10.013.474c.214-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.579 1.842 3.579h11.377c.943 0 1.473 1.088.89 1.83L25.947 44.94z" />
     </svg>
+  );
+}
+
+function Tyre({ size = 16 }) {
+  return (
+    <img src={`${ASSET}tyre.png`} alt="" aria-hidden="true"
+      style={{ height: size, width: "auto", verticalAlign: "-2px", flexShrink: 0 }}
+      onError={(e) => { e.currentTarget.style.display = "none"; }} />
   );
 }
 
@@ -1652,7 +1660,7 @@ ${bottomBar}
           <div className="mono" style={{ padding: "6px 0" }}>{fuelTimeCalc.toFixed(1)} s</div></div>
       </div>
       <div className="row2">
-        <div><label>🛞 {t("Lastik Limiti (adet)")}</label>
+        <div><label style={{ display: "flex", alignItems: "center", gap: 5 }}><Tyre size={15} /> {t("Lastik Limiti (adet)")}</label>
           <Num v={st.tyreLimit} step={1} onC={(v) => up({ tyreLimit: v })} /></div>
         <div />
       </div>
@@ -2013,7 +2021,9 @@ ${bottomBar}
                   style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                   <Bolt size={17} /> VE</span>}
                 {TY.filter((_, i) => upcomingPit.tyres[i]).map((c) => (
-                  <span key={c} className="chip2 tyre">🛞 {c}</span>
+                  <span key={c} className="chip2 tyre"
+                    style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <Tyre size={17} /> {c}</span>
                 ))}
                 {!upcomingPit.fuel && !upcomingPit.tyres.some(Boolean) && (
                   <span className="chip2 none">{t("Sadece geçiş")}</span>
@@ -2132,7 +2142,7 @@ ${bottomBar}
                   border: "1px solid var(--line)", borderRadius: 8, padding: "8px 12px",
                   marginBottom: 12, background: "var(--panel2)" }}>
                   <span className="disp" style={{ fontSize: 14, letterSpacing: ".06em",
-                    color: "var(--teal)" }}>{t("🛞 S1 START LASTİKLERİ")}</span>
+                    color: "var(--teal)" }}><Tyre size={13} /> {t("S1 START LASTİKLERİ")}</span>
                   <span className="mono" style={{ fontSize: 12 }}>
                     {TY.map((corner, ci) =>
                       `${corner}:${String(st.tyreStints[0]?.[ci] || "–")}`).join("  ")}
@@ -2387,7 +2397,7 @@ ${bottomBar}
               </div>
 
               <div className="card">
-                <h2>{t("🛞 Lastik")}</h2>
+                <h2 style={{ display: "flex", alignItems: "center", gap: 7 }}><Tyre size={18} /> {t("Lastik")}</h2>
                 <div className="kpis" style={{ gridTemplateColumns: "1fr 1fr" }}>
                   <div className="kpi"><div className="v">{tyreInfo.used}/{st.tyreLimit}</div>
                     <div className="l">{t("Kullanılan Lastik")}</div></div>
@@ -2720,7 +2730,7 @@ ${bottomBar}
                             {s.avgFuel != null && <>⚡ {s.avgFuel.toFixed(2)} %/tur VE
                               {s.tankLaps && <> · %100 ≈ {Math.floor(s.tankLaps)} tur</>}<br /></>}
                             {s.avgW.some((w) => w != null) &&
-                              <>🛞 {s.avgW.map((w) => w == null ? "–" : w.toFixed(1)).join(" / ")} {t("%/tur")}</>}
+                              <><Tyre size={13} /> {s.avgW.map((w) => w == null ? "–" : w.toFixed(1)).join(" / ")} {t("%/tur")}</>}
                           </div>
                           <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
                             <button className="act" style={{ fontSize: 11 }}
