@@ -1468,8 +1468,8 @@ export default function App() {
    flex:0 0 auto}
  .hd .carbox img{max-width:100%;max-height:88px;object-fit:contain}
  /* alt şerit: bilgi kartları + pist kutusu tek hizalı satır */
- .bbar{position:fixed;left:0;right:0;bottom:0;display:flex;gap:10px;align-items:stretch;
-   height:185px}
+ .bbar{display:flex;gap:10px;align-items:stretch;margin-top:16px;min-height:170px;
+   page-break-inside:avoid;break-inside:avoid}
  .bcard{flex:1;border:1px solid #d9c9cd;border-radius:10px;padding:10px 12px;background:#faf6f7;
    display:flex;flex-direction:column;justify-content:center;
    -webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -1485,11 +1485,10 @@ export default function App() {
  .trackcard img{max-width:100%;max-height:140px;object-fit:contain}
  .trackcard .tcap{color:#e8dfe2;font-size:10px;letter-spacing:.08em;
    text-transform:uppercase;margin-top:6px}
- body{padding-bottom:205px} /* alt şeride yer bırak */
  .brand{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#960018;font-weight:700}
  .brand b{color:#1a1113}
  .ptitle{font-size:22px;font-weight:800;margin:2px 0 4px;letter-spacing:.01em}
- @media print{body{margin:9mm;padding-bottom:205px}
+ @media print{body{margin:9mm}
    th{-webkit-print-color-adjust:exact;print-color-adjust:exact}
    td,.trackcard,.bcard{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 </style></head><body>
