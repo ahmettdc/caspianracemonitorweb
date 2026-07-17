@@ -736,6 +736,18 @@ const css = `
 .rc .lightbox .lbclose:hover{border-color:var(--car);color:#FFE9ED}
 @keyframes lbfade{from{opacity:0}to{opacity:1}}
 @keyframes lbzoom{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
+/* lightbox tempo kademeleri paneli */
+.rc .lbtiers{background:var(--panel2);border:1px solid var(--line);border-radius:12px;
+  padding:12px 18px;min-width:320px;cursor:default;animation:lbzoom .3s cubic-bezier(.2,.85,.3,1.12)}
+.rc .lbtr{display:flex;align-items:center;gap:10px;padding:3px 0;font-size:13px}
+.rc .lbtr i{width:10px;height:10px;border-radius:3px;flex:0 0 auto}
+.rc .lbtr .lbl{flex:1;letter-spacing:.06em;font-size:11px;color:var(--muted);
+  text-transform:uppercase}
+.rc .lbtr b{font-size:14px}
+.rc .lbtr:first-child .lbl{color:var(--txt);font-weight:700}
+.rc .lbtr:first-child{border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:4px}
+.rc .lbsrc{margin-top:8px;padding-top:6px;border-top:1px solid var(--line);font-size:9.5px;
+  color:var(--muted);letter-spacing:.04em}
 `;
 
 function Num({ v, onC, step = 0.01, w }) {
@@ -1532,6 +1544,17 @@ ${bottomBar}
     if (!d) return null;
     return d[`${st.carClass}:${st.car}`] || d[st.carClass] || null;
   })();
+  /* pist/araç değişince LMU temposunu varsayılan olarak yaz (ilk yüklemede
+     kayıtlı değeri ezmez; kullanıcı sonradan elle değiştirebilir) */
+  const lmuPrevSel = useRef(null);
+  useEffect(() => {
+    const sel = `${st.track}|${st.carClass}|${st.car}`;
+    if (lmuPrevSel.current === null) { lmuPrevSel.current = sel; return; }
+    if (lmuPrevSel.current === sel) return;
+    lmuPrevSel.current = sel;
+    if (lmuSuggest?.avgLap) up({ avgLap: lmuSuggest.avgLap,
+      ...(lmuSuggest.consumption != null ? { consumption: lmuSuggest.consumption } : {}) });
+  }, [st.track, st.carClass, st.car, lmuData]);
   useEffect(() => {
     if (!zoom) return;
     const onKey = (e) => { if (e.key === "Escape") setZoom(null); };
@@ -1562,19 +1585,6 @@ ${bottomBar}
         <div><label>Avg Lap (m:ss.00)</label>
           <input type="text" value={st.avgLap} onChange={(e) => up({ avgLap: e.target.value })} /></div>
       </div>
-      {lmuSuggest && (
-        <div className="hint" style={{ display: "flex", alignItems: "center", gap: 8,
-          flexWrap: "wrap" }} title={lmuData?.source}>
-          📊 LMU: <b className="mono">{lmuSuggest.avgLap}</b>
-          {lmuSuggest.consumption != null && <> · ⚡ {lmuSuggest.consumption}%/{t("tur")}</>}
-          <button onClick={() => up({ avgLap: lmuSuggest.avgLap,
-              ...(lmuSuggest.consumption != null
-                ? { consumption: lmuSuggest.consumption } : {}) })}
-            style={{ padding: "2px 10px", borderRadius: 6, cursor: "pointer", fontSize: 11,
-              background: "var(--panel2)", color: "var(--teal)",
-              border: "1px solid var(--teal)" }}>{t("Doldur")}</button>
-        </div>
-      )}
       <label>{t("Stint Turları — A / B / C / D")}</label>
       <div className="row4">
         {["A", "B", "C", "D"].map((k) => (
@@ -2258,12 +2268,45 @@ ${bottomBar}
                   <img src={zoom === "car"
                       ? carImg(st.carClass, st.car)
                       : `${ASSET}tracks/${TRACK_ASSET(st.track)}.png${AV}`}
-                    alt="" onError={() => setZoom(null)} />
+                    alt="" style={zoom === "car" ? { maxHeight: "40vh" } : undefined}
+                    onError={() => setZoom(null)} />
                   <div className="lbcap">
                     {zoom === "car"
                       ? `${carName(st.carClass, st.car)} · ${(CAR_CLASSES.find(([id]) => id === st.carClass) || [, st.carClass])[1]}`
                       : `${trackName(st.track)}${PIT_LANE_TIMES[st.track] != null ? ` · Pit lane ${PIT_LANE_TIMES[st.track]}s` : ""}`}
                   </div>
+                  {zoom === "car" && (() => {
+                    const d = lmuData?.data?.[st.track];
+                    const carE = d?.[`${st.carClass}:${st.car}`];
+                    const clsE = d?.[st.carClass];
+                    const tiers = clsE?.tiers;
+                    const hot = carE?.hot || clsE?.hot;
+                    if (!tiers && !hot) return null;
+                    const ROWS = [
+                      ["HOTLAP", hot, "#b06ffc"],
+                      ["ALIEN · 100%", tiers?.alien, "#16a34a"],
+                      ["COMPETITIVE · 1.01", tiers?.c101, "#65a30d"],
+                      ["GOOD · 1.02", tiers?.c102, "#ca8a04"],
+                      ["· 1.03", tiers?.c103, "#d97706"],
+                      ["MIDPACK · 1.04", tiers?.c104, "#ea580c"],
+                      ["· 1.05", tiers?.c105, "#f05252"],
+                      ["TAIL-ENDER · 1.06", tiers?.c106, "#dc2626"],
+                      ["OFFLINE · 1.07", tiers?.c107, "#991b1b"],
+                    ].filter(([, v]) => v);
+                    return (
+                      <div className="lbtiers" onClick={(e) => e.stopPropagation()}
+                        title={lmuData?.source}>
+                        {ROWS.map(([lbl, v, col]) => (
+                          <div key={lbl} className="lbtr">
+                            <i style={{ background: col }} />
+                            <span className="lbl">{lbl}</span>
+                            <b className="mono" style={{ color: col }}>{v}</b>
+                          </div>
+                        ))}
+                        <div className="lbsrc">{trackName(st.track)} · {lmuData?.source}</div>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 
