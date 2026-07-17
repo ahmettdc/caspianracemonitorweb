@@ -183,7 +183,7 @@ const CARS = {
 /* ---------- i18n: Türkçe metin anahtar, EN sözlükten çevrilir ---------- */
 const EN = {
   // lobi
-  "Oda Adı": "Room Name", "örn. Caspian": "e.g. Caspian",
+  "Adın": "Your Name", "örn. Ahmet": "e.g. John",
   "🏁 Yeni Oda Kur": "🏁 Create New Room",
   "veya mevcut odaya katıl": "or join an existing room",
   "Oda Kodu": "Room Code", "PIN (düzenleme)": "PIN (edit access)",
@@ -214,7 +214,7 @@ const EN = {
   "VE Tüketim (%/tur)": "VE Usage (%/lap)", "Dolum Hızı (%/s)": "Refuel Rate (%/s)",
   "%100 = Taşınan Yakıt": "100% = Fuel Carried",
   // teambar
-  "ODA ADI": "ROOM NAME", "Oda Kur": "Create Room", "ODA KODU": "ROOM CODE",
+  "ADIN": "NAME", "Oda Kur": "Create Room", "ODA KODU": "ROOM CODE",
   "PIN (opsiyonel)": "PIN (optional)", "Katıl": "Join",
   "👁 İZLEYİCİ": "👁 VIEWER", "✎ DÜZENLEYİCİ": "✎ EDITOR",
   "Odadan Ayrıl": "Leave Room", "Senkronize": "In sync",
@@ -1670,8 +1670,8 @@ ${bottomBar}
             <div className="sub">carmine · v0.8</div>
 
             {firebaseReady ? (<>
-              <label>{t("Oda Adı")}</label>
-              <input type="text" placeholder={t("örn. Caspian")} value={userName}
+              <label>{t("Adın")}</label>
+              <input type="text" placeholder={t("örn. Ahmet")} value={userName}
                 onChange={(e) => setUserName(e.target.value)} />
 
               <button className="bigbtn" onClick={createRoom}>
@@ -1868,7 +1868,7 @@ ${bottomBar}
           {barOpen ? "▲" : "▼"}</button>
         {barOpen && (<>
         {!room ? (firebaseReady ? (<>
-          <input type="text" placeholder={t("ODA ADI")} value={userName}
+          <input type="text" placeholder={t("ADIN")} value={userName}
             onChange={(e) => setUserName(e.target.value)} style={{ textTransform: "none" }} />
           <button className="solid" onClick={createRoom}>{t("Oda Kur")}</button>
           <input type="text" placeholder={t("ODA KODU")} value={joinCode}
