@@ -2119,14 +2119,6 @@ ${bottomBar}
                 )}
               </div>
 
-              {tab === "stint" && (
-                <div style={{ display: "flex", justifyContent: "flex-end", margin: "8px 0 0" }}>
-                  <button onClick={() => exportPdf("stint")}
-                    style={{ padding: "4px 14px", borderRadius: 6, cursor: "pointer",
-                      background: "var(--panel2)", color: "var(--txt)",
-                      border: "1px solid var(--line)", fontSize: 12 }}>🖨 PDF</button>
-                </div>
-              )}
               <table>
                 <thead><tr>
                   <th>#</th><th>Stint</th><th>{t("Tur")}</th><th>⚡ {t("VE İht.")}</th>
@@ -2193,7 +2185,13 @@ ${bottomBar}
             </div>
           )}
 
-          {tab === "dash" && (
+          {tab === "dash" && (<>
+            <div style={{ display: "flex", justifyContent: "flex-end", margin: "0 0 10px" }}>
+              <button onClick={() => exportPdf("stint")}
+                style={{ padding: "5px 16px", borderRadius: 6, cursor: "pointer",
+                  background: "var(--panel2)", color: "var(--txt)",
+                  border: "1px solid var(--line)", fontSize: 12 }}>🖨 PDF</button>
+            </div>
             <div className="dgrid">
               {st.car && (
                 <div className="card infocard clickable" onClick={() => setZoom("car")}
@@ -2344,7 +2342,7 @@ ${bottomBar}
                 </>)}
               </div>
             </div>
-          )}
+          </>)}
 
           {tab === "tyre" && (
             <div className="card">
@@ -2475,12 +2473,6 @@ ${bottomBar}
               </div>
 
               {driverPlan && (<>
-                <div style={{ display: "flex", justifyContent: "flex-end", margin: "8px 0 0" }}>
-                  <button onClick={() => exportPdf("drivers")}
-                    style={{ padding: "4px 14px", borderRadius: 6, cursor: "pointer",
-                      background: "var(--panel2)", color: "var(--txt)",
-                      border: "1px solid var(--line)", fontSize: 12 }}>🖨 PDF</button>
-                </div>
                 <table>
                   <thead><tr>
                     <th>#</th><th>Start</th><th>Finish</th><th>{t("Süre")}</th><th>{t("Pilot")}</th>
