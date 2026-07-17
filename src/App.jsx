@@ -1530,7 +1530,7 @@ ${bottomBar}
   const lmuSuggest = (() => {
     const d = lmuData?.data?.[st.track];
     if (!d) return null;
-    return d[st.car] || d[st.carClass] || null;
+    return d[`${st.carClass}:${st.car}`] || d[st.carClass] || null;
   })();
   useEffect(() => {
     if (!zoom) return;
