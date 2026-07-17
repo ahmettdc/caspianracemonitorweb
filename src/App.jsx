@@ -3,7 +3,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, Responsi
 import { roomGet, roomSet, roomSubscribe, firebaseReady } from "./storage";
 
 /* ============================================================
-   CASPIAN MOTORSPORT — RACE CONTROL  ·  Faz 2
+   CASPIAN MOTORSPORT — RACE MONITOR  ·  Faz 2
    Faz 2: Yarış odası + gerçek zamanlı takım senkronizasyonu.
    - Oda verisi paylaşımlı depoda "room:KOD" anahtarında tutulur
    - Yazma: değişiklikten 800ms sonra (debounce), rev sayacı ile
@@ -183,7 +183,7 @@ const CARS = {
 /* ---------- i18n: Türkçe metin anahtar, EN sözlükten çevrilir ---------- */
 const EN = {
   // lobi
-  "Adın": "Your Name", "örn. Ahmet": "e.g. John",
+  "Oda Adı": "Room Name", "örn. Caspian": "e.g. Caspian",
   "🏁 Yeni Oda Kur": "🏁 Create New Room",
   "veya mevcut odaya katıl": "or join an existing room",
   "Oda Kodu": "Room Code", "PIN (düzenleme)": "PIN (edit access)",
@@ -214,7 +214,7 @@ const EN = {
   "VE Tüketim (%/tur)": "VE Usage (%/lap)", "Dolum Hızı (%/s)": "Refuel Rate (%/s)",
   "%100 = Taşınan Yakıt": "100% = Fuel Carried",
   // teambar
-  "ADIN": "NAME", "Oda Kur": "Create Room", "ODA KODU": "ROOM CODE",
+  "ODA ADI": "ROOM NAME", "Oda Kur": "Create Room", "ODA KODU": "ROOM CODE",
   "PIN (opsiyonel)": "PIN (optional)", "Katıl": "Join",
   "👁 İZLEYİCİ": "👁 VIEWER", "✎ DÜZENLEYİCİ": "✎ EDITOR",
   "Odadan Ayrıl": "Leave Room", "Senkronize": "In sync",
@@ -1495,7 +1495,7 @@ export default function App() {
 <div class="hd">
  <img class="logo" src="${logoUrl}" alt="" onerror="this.style.display='none'">
  <div class="txt">
-  <div class="brand"><b>CASPIAN</b> MOTORSPORT · RACE CONTROL</div>
+  <div class="brand"><b>CASPIAN</b> MOTORSPORT · RACE MONITOR</div>
   <div class="ptitle">${esc(userTitle || title)}</div>
   <div style="color:#777;font-size:11px">${esc(new Date().toLocaleString(lang === "en" ? "en-GB" : "tr-TR"))}${
       st.raceStart ? " · Start: " + esc(String(st.raceStart).replace("T", " ")) : ""}${
@@ -1666,12 +1666,12 @@ ${bottomBar}
               ))}
             </div>
             <img className="logo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
-            <h1><b>RACE</b> CONTROL</h1>
+            <h1><b>RACE</b> MONITOR</h1>
             <div className="sub">carmine · v0.8</div>
 
             {firebaseReady ? (<>
-              <label>{t("Adın")}</label>
-              <input type="text" placeholder={t("örn. Ahmet")} value={userName}
+              <label>{t("Oda Adı")}</label>
+              <input type="text" placeholder={t("örn. Caspian")} value={userName}
                 onChange={(e) => setUserName(e.target.value)} />
 
               <button className="bigbtn" onClick={createRoom}>
@@ -1837,7 +1837,7 @@ ${bottomBar}
       <style>{css}</style>
       <header>
         <img className="hlogo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
-        <h1 className="disp" style={{ fontSize: 20 }}>RACE CONTROL</h1>
+        <h1 className="disp" style={{ fontSize: 20 }}>RACE MONITOR</h1>
         <span className="ver">carmine · v0.8</span>
         <span className="langsw">
           {["tr", "en"].map((l) => (
@@ -1868,7 +1868,7 @@ ${bottomBar}
           {barOpen ? "▲" : "▼"}</button>
         {barOpen && (<>
         {!room ? (firebaseReady ? (<>
-          <input type="text" placeholder={t("ADIN")} value={userName}
+          <input type="text" placeholder={t("ODA ADI")} value={userName}
             onChange={(e) => setUserName(e.target.value)} style={{ textTransform: "none" }} />
           <button className="solid" onClick={createRoom}>{t("Oda Kur")}</button>
           <input type="text" placeholder={t("ODA KODU")} value={joinCode}
