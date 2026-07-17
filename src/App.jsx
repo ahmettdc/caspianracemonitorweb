@@ -1424,9 +1424,9 @@ export default function App() {
         acc += dash; return s;
       }).join("");
       const legend = names.map((n, i) => {
-        const p = driverPlan.grandMs
-          ? ((driverPlan.totals[n].ms / driverPlan.grandMs) * 100).toFixed(0) : "0";
-        return `<div class="lg"><i style="background:${PIE_COLORS[i % PIE_COLORS.length]}"></i>${esc(n)} ${p}%</div>`;
+        const ms = driverPlan.totals[n].ms;
+        const p = driverPlan.grandMs ? ((ms / driverPlan.grandMs) * 100).toFixed(0) : "0";
+        return `<div class="lg"><i style="background:${PIE_COLORS[i % PIE_COLORS.length]}"></i>${esc(n)} ${p}% · <b class="mono">${fmtHMS(Math.round(ms / 1000))}</b></div>`;
       }).join("");
       return `<div class="bcard"><div class="bt">${esc(t("Pilot Dağılımı"))}</div>
        <div style="display:flex;align-items:center;gap:12px;justify-content:center">
