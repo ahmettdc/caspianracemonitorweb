@@ -61,7 +61,7 @@ const DEFAULT_STATE = {
   avgLap: "3:59.50",
   strategies: { A: 8, B: 9, C: 10, D: 11 },
   chosen: "D",
-  trafficRate: 0.99,
+  leaderLap: "",       // lider (en hızlı sınıf) tur zamanı — yarış sonu bayrağı bundan
   pitLaneTime: 22,
   fuelTime: 43,
   tyreTime: 13,
@@ -295,6 +295,8 @@ const EN = {
   "Büyütmek için tıkla": "Click to enlarge",
   "tur": "laps", "Doldur": "Fill", "Sadece geçiş": "Pass-through only",
   "Paneli gizle": "Hide panel", "Paneli göster": "Show panel",
+  "Lider Tur (m:ss.00)": "Leader Lap (m:ss.00)", "Lider bayrağı": "Leader flag",
+  "son tur otomatik eklenir": "final lap added automatically",
   "Ratio'yu düşürmek daha az yakıt taşımak demektir (örn. 0.84 → %100 = 84.0 L).":
     "Lowering the ratio means carrying less fuel (e.g. 0.84 → 100% = 84.0 L).",
   "Pit süresi = FUEL": "Pit time = FUEL", "lastik ×": "tyres ×",
@@ -461,16 +463,22 @@ function computePlan(st, mode /* "race" | "code80" */) {
     if (isLast) break;
   }
   const fullStints = rows.length;
-  const totalLaps = fullStints * laps * st.trafficRate; // Excel C174 mantığı
-  return { rows, raceSec, lapSec, laps, fullStints, totalLaps };
+  /* lider bitiş modeli: süre dolunca lider turunu tamamlar (T_flag),
+     biz T_flag'ten sonraki ilk geçişte biteriz */
+  const leadSec = parseLap(st.leaderLap) || lapSec;
+  const flagExtra = leadSec > 0
+    ? Math.ceil(raceSec / leadSec - 1e-9) * leadSec - raceSec : 0;
+  const totalLaps = lapSec > 0
+    ? Math.ceil((raceSec + flagExtra) / lapSec - 1e-9) : 0;
+  return { rows, raceSec, lapSec, laps, fullStints, totalLaps, flagExtra };
 }
 
 /* eski oda kayıtlarına yeni alanları güvenle ekler */
 const migrate = (s) => ({ ...DEFAULT_STATE, ...s });
 
-function lastStintFuel(countdownStr, st) {
+function lastStintFuel(countdownStr, st, flagExtra = 0) {
   const lapSec = parseLap(st.avgLap);
-  const cd = parseHMS(countdownStr);
+  const cd = parseHMS(countdownStr) + flagExtra; // lider bayrağına kadar geçen ek süre
   const lapsRaw = lapSec > 0 ? cd / lapSec : 0;
   const lapsLeft = Math.ceil(lapsRaw - 1e-6);  // ondalık tur yukarı yuvarlanır (trafik riski payı)
   const refuel = (lapsLeft + st.extraLap) * st.consumption;   // % VE
@@ -1008,7 +1016,7 @@ export default function App() {
   const mode = tab === "code80" ? "code80" : "race";
   const plan = useMemo(() => computePlan(st, mode), [st, mode]);
   const racePlan = useMemo(() => computePlan(st, "race"), [st]);
-  const lsf = useMemo(() => lastStintFuel(st.lastStintCountdown, st), [st]);
+  const lsf = useMemo(() => lastStintFuel(st.lastStintCountdown, st, computePlan(st, "race").flagExtra), [st]);
   const lsf80 = useMemo(() => lastStintFuel(st.code80LastStint, st), [st]);
   const totalVE = st.consumption * plan.totalLaps + st.extraLap * st.consumption; // % VE (DATA I2)
   const totalFuelL = totalVE * st.fuelRatio;            // gerçek litre karşılığı
@@ -1561,7 +1569,7 @@ ${bottomBar}
     ? racePlan.rows[racePlan.rows.length - 2].timeLeft
     : racePlan.raceSec;
   /* son stint VE — plandan (elle girilen countdown yerine gerçek kalan süreden) */
-  const planLsf = lastStintFuel(fmtHMS(planLastCd), st);
+  const planLsf = lastStintFuel(fmtHMS(planLastCd), st, racePlan.flagExtra);
   const [autoCd, setAutoCd] = useState(true); // plandan otomatik countdown
   const [barOpen, setBarOpen] = useState(true); // oda katılım çubuğu aç/kapa
   const [sideOpen, setSideOpen] = useState(true); // sol data sidebar aç/kapa
@@ -1585,8 +1593,18 @@ ${bottomBar}
     if (lmuPrevSel.current === null) { lmuPrevSel.current = sel; return; }
     if (lmuPrevSel.current === sel) return;
     lmuPrevSel.current = sel;
-    if (lmuSuggest?.avgLap) up({ avgLap: lmuSuggest.avgLap,
-      ...(lmuSuggest.consumption != null ? { consumption: lmuSuggest.consumption } : {}) });
+    if (lmuSuggest?.avgLap) {
+      /* lider = bu pistteki en hızlı sınıf temposu (LMU) */
+      const d = lmuData?.data?.[st.track] || {};
+      let lead = null;
+      for (const cls of ["hypercar", "lmp2", "lmp3", "gte", "gt3"]) {
+        const v = d[cls]?.avgLap;
+        if (v && (lead === null || parseLap(v) < parseLap(lead))) lead = v;
+      }
+      up({ avgLap: lmuSuggest.avgLap,
+        ...(lead ? { leaderLap: lead } : {}),
+        ...(lmuSuggest.consumption != null ? { consumption: lmuSuggest.consumption } : {}) });
+    }
   }, [st.track, st.carClass, st.car, lmuData]);
   useEffect(() => {
     if (!zoom) return;
@@ -1633,11 +1651,15 @@ ${bottomBar}
         ))}
       </div>
       <div className="row2">
-        <div><label>Traffic Error Rate</label>
-          <Num v={st.trafficRate} onC={(v) => up({ trafficRate: v })} /></div>
+        <div><label>{t("Lider Tur (m:ss.00)")}</label>
+          <input type="text" value={st.leaderLap} placeholder={st.avgLap}
+            onChange={(e) => up({ leaderLap: e.target.value })} /></div>
         <div><label>Extra Lap</label>
           <Num v={st.extraLap} step={1} onC={(v) => up({ extraLap: v })} /></div>
       </div>
+      {racePlan.flagExtra > 0.5 && (
+        <div className="hint">🏁 {t("Lider bayrağı")}: +{racePlan.flagExtra.toFixed(0)}s → {t("son tur otomatik eklenir")}</div>
+      )}
     </div>
 
     <div className="card" style={{ marginTop: 12 }}>
@@ -2833,7 +2855,7 @@ ${bottomBar}
               ].map(([title, val, setVal, r, canAuto]) => {
                 const isAuto = canAuto && autoCd;
                 const eff = isAuto ? fmtHMS(planLastCd) : val;
-                const rr = isAuto ? lastStintFuel(eff, st) : r;
+                const rr = isAuto ? lastStintFuel(eff, st, racePlan.flagExtra) : r;
                 return ([title, eff, setVal, rr, isAuto, canAuto]);
               }).map(([title, val, setVal, r, isAuto, canAuto]) => (
                 <div className={`card ${title.includes("CODE 80") ? "c80" : ""}`} key={title}>
