@@ -64,6 +64,7 @@ const DEFAULT_STATE = {
   chosen: "D",
   multiclass: false,   // multiclass yarış — lider bitiş modeli devrede
   leaderClass: "hypercar", // multiclass'ta en hızlı sınıf
+  streamUrl: "",       // canlı yayın (YouTube) linki
   leaderLap: "",       // lider tur zamanı (competitive) — yarış sonu bayrağı bundan
   pitLaneTime: 22,
   fuelTime: 42,
@@ -285,6 +286,10 @@ const EN = {
   "Tur satırı bulunamadı ('Out Lap', 'Lap 1'...)": "No lap rows found ('Out Lap', 'Lap 1'...)",
   // son stint yakıtı
   "YARIŞ SONU": "RACE END", "CODE 80 SONU": "CODE 80 END",
+  "Canlı Yayın": "Live Stream", "YouTube linki": "YouTube link",
+  "Yayın Dashboard'da gösteriliyor.": "Stream is shown on the Dashboard.",
+  "Geçerli bir YouTube linki yapıştırın; Dashboard'da oynatıcı açılır.": "Paste a valid YouTube link; a player opens on the Dashboard.",
+  "YouTube'da aç": "Open on YouTube",
   "Kalan Tur": "Laps Left", "Kullanılan kuru lastik no": "Used dry tyre no",
   "wet (limitsiz)": "wet (unlimited)",
   "⚠ %100'ü aşıyor — depo yetmez!": "⚠ Exceeds 100% — tank won't fit!",
@@ -893,6 +898,13 @@ function Bolt({ size = 16, color = "var(--green)" }) {
       <path fill={color} d="M25.946 44.938c-.664.845-2.021.375-2.021-.698V33.937a2.26 2.26 0 0 0-2.262-2.262H10.287c-.92 0-1.456-1.04-.92-1.788l7.48-10.471c1.07-1.497 0-3.578-1.842-3.578H1.237c-.92 0-1.456-1.04-.92-1.788L10.013.474c.214-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.579 1.842 3.579h11.377c.943 0 1.473 1.088.89 1.83L25.947 44.94z" />
     </svg>
   );
+}
+
+function ytId(url) {
+  if (!url) return null;
+  const m = String(url).match(
+    /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|live\/|embed\/|shorts\/)|v=)([\w-]{11})/);
+  return m ? m[1] : null;
 }
 
 function Tyre({ size = 16 }) {
@@ -1875,6 +1887,18 @@ ${bottomBar}
         {t("Ratio'yu düşürmek daha az yakıt taşımak demektir (örn. 0.84 → %100 = 84.0 L).")}
       </div>
     </div>
+
+    <div className="card" style={{ marginTop: 12 }}>
+      <h2>📺 {t("Canlı Yayın")}</h2>
+      <label>{t("YouTube linki")}</label>
+      <input type="text" value={st.streamUrl} placeholder="https://youtube.com/watch?v=..."
+        onChange={(e) => up({ streamUrl: e.target.value })} />
+      <div className="hint">
+        {ytId(st.streamUrl)
+          ? <>✅ {t("Yayın Dashboard'da gösteriliyor.")}</>
+          : t("Geçerli bir YouTube linki yapıştırın; Dashboard'da oynatıcı açılır.")}
+      </div>
+    </div>
   </>);
 
   /* ---------- lobi: oda kur / katıl / solo ---------- */
@@ -2652,6 +2676,26 @@ ${bottomBar}
                 </>)}
               </div>
             </div>
+
+            {ytId(st.streamUrl) && (
+              <div className="card" style={{ marginTop: 16 }}>
+                <h2 style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                  📺 {t("Canlı Yayın")}
+                  <a href={st.streamUrl} target="_blank" rel="noreferrer"
+                    style={{ marginLeft: "auto", fontSize: 12, color: "var(--teal)",
+                      textDecoration: "none" }}>{t("YouTube'da aç")} ↗</a>
+                </h2>
+                <div style={{ position: "relative", width: "100%", paddingTop: "56.25%",
+                  borderRadius: 8, overflow: "hidden", background: "#000" }}>
+                  <iframe title="stream"
+                    src={`https://www.youtube.com/embed/${ytId(st.streamUrl)}`}
+                    style={{ position: "absolute", inset: 0, width: "100%", height: "100%",
+                      border: 0 }}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen />
+                </div>
+              </div>
+            )}
           </>)}
 
           {tab === "tyre" && (
