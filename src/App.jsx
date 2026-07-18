@@ -1710,7 +1710,9 @@ ${bottomBar}
           {st.track && PIT_LANE_TIMES[st.track] != null && (
             <div className="hint">{t("Pist verisi")}: {PIT_LANE_TIMES[st.track]}s · {trackName(st.track)}</div>
           )}</div>
-        <div><label>⛽ Fuel</label><Num v={st.fuelTime} onC={(v) => up({ fuelTime: v })} /></div>
+        <div><label style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          ⛽ Fuel &amp; <Bolt size={13} /> VE</label>
+          <Num v={st.fuelTime} onC={(v) => up({ fuelTime: v })} /></div>
       </div>
       <div className="row2">
         <div><label>{t("Tyre (adet başı)")}</label><Num v={st.tyreTime} onC={(v) => up({ tyreTime: v })} /></div>
