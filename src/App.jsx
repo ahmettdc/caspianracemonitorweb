@@ -742,8 +742,8 @@ const css = `
 .rc td.terr{background:rgba(240,96,77,.18);outline:2px solid var(--red);outline-offset:-2px}
 .rc td.t2{background:rgba(242,201,76,.22)}
 .rc td.tq{background:rgba(102,148,255,.25)}
-.rc td.t3{background:rgba(240,96,77,.28)}
-.rc td.t4{background:#05070A}
+.rc td.t3{background:rgba(232,132,42,.30)}
+.rc td.t4{background:rgba(220,38,38,.42)}
 .rc td.tw{background:rgba(127,227,160,.22)}
 .rc td.t4 input{color:var(--red);border-color:var(--red)}
 .rc .act{padding:6px 12px;border-radius:6px;border:1px solid var(--line);
@@ -2691,6 +2691,8 @@ ${bottomBar}
                           <select className="tsel" value={String(v)}
                             onChange={(e) => upTyreCell(r.row, ci, e.target.value)}>
                             <option value="">{carried ? `⟳ ${carried}` : "—"}</option>
+                            <option value="W" style={{ background: "#0C3A1F", color: "#7FE3A0" }}>
+                              🌧 W</option>
                             {Array.from({ length: Math.max(0, st.tyreLimit) }, (_, n) => {
                               const k = String(n + 1);
                               const cur = String(v).trim() === k;
@@ -2700,8 +2702,8 @@ ${bottomBar}
                               const OPT = {
                                 t2:   { bg: "#8A6E1A", fg: "#FFE9A8", dot: "🟡" },
                                 tq:   { bg: "#2B4A8F", fg: "#CFE0FF", dot: "🔵" },
-                                t3:   { bg: "#7A2A20", fg: "#FFC9C0", dot: "🔴" },
-                                t4:   { bg: "#000000", fg: "#F0604D", dot: "⚫" },
+                                t3:   { bg: "#8A5A1A", fg: "#FFDCA8", dot: "🟠" },
+                                t4:   { bg: "#7A2020", fg: "#FFC9C0", dot: "🔴" },
                                 terr: { bg: "#7A2A20", fg: "#FFC9C0", dot: "⚠️" },
                               }[cls];
                               return <option key={k} value={k}
