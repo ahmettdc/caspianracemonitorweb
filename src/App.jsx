@@ -61,7 +61,9 @@ const DEFAULT_STATE = {
   avgLap: "3:59.50",
   strategies: { A: 8, B: 9, C: 10, D: 11 },
   chosen: "D",
-  leaderLap: "",       // lider (en hızlı sınıf) tur zamanı — yarış sonu bayrağı bundan
+  multiclass: false,   // multiclass yarış — lider bitiş modeli devrede
+  leaderClass: "hypercar", // multiclass'ta en hızlı sınıf
+  leaderLap: "",       // lider tur zamanı (competitive) — yarış sonu bayrağı bundan
   pitLaneTime: 22,
   fuelTime: 43,
   tyreTime: 13,
@@ -296,6 +298,7 @@ const EN = {
   "tur": "laps", "Doldur": "Fill", "Sadece geçiş": "Pass-through only",
   "Paneli gizle": "Hide panel", "Paneli göster": "Show panel",
   "Lider Tur (m:ss.00)": "Leader Lap (m:ss.00)", "Lider bayrağı": "Leader flag",
+  "Multiclass Yarış": "Multiclass Race",
   "son tur otomatik eklenir": "final lap added automatically",
   "Ratio'yu düşürmek daha az yakıt taşımak demektir (örn. 0.84 → %100 = 84.0 L).":
     "Lowering the ratio means carrying less fuel (e.g. 0.84 → 100% = 84.0 L).",
@@ -465,7 +468,7 @@ function computePlan(st, mode /* "race" | "code80" */) {
   const fullStints = rows.length;
   /* lider bitiş modeli: süre dolunca lider turunu tamamlar (T_flag),
      biz T_flag'ten sonraki ilk geçişte biteriz */
-  const leadSec = parseLap(st.leaderLap) || lapSec;
+  const leadSec = st.multiclass ? (parseLap(st.leaderLap) || lapSec) : lapSec;
   const flagExtra = leadSec > 0
     ? Math.ceil(raceSec / leadSec - 1e-9) * leadSec - raceSec : 0;
   const totalLaps = lapSec > 0
@@ -1593,19 +1596,16 @@ ${bottomBar}
     if (lmuPrevSel.current === null) { lmuPrevSel.current = sel; return; }
     if (lmuPrevSel.current === sel) return;
     lmuPrevSel.current = sel;
-    if (lmuSuggest?.avgLap) {
-      /* lider = bu pistteki en hızlı sınıf temposu (LMU) */
-      const d = lmuData?.data?.[st.track] || {};
-      let lead = null;
-      for (const cls of ["hypercar", "lmp2", "lmp3", "gte", "gt3"]) {
-        const v = d[cls]?.avgLap;
-        if (v && (lead === null || parseLap(v) < parseLap(lead))) lead = v;
-      }
-      up({ avgLap: lmuSuggest.avgLap,
-        ...(lead ? { leaderLap: lead } : {}),
-        ...(lmuSuggest.consumption != null ? { consumption: lmuSuggest.consumption } : {}) });
-    }
+    if (lmuSuggest?.avgLap) up({ avgLap: lmuSuggest.avgLap,
+      ...(lmuSuggest.consumption != null ? { consumption: lmuSuggest.consumption } : {}) });
   }, [st.track, st.carClass, st.car, lmuData]);
+  /* multiclass: lider turu = seçili lider sınıfın COMPETITIVE (1.01) temposu */
+  useEffect(() => {
+    if (!st.multiclass) return;
+    const e = lmuData?.data?.[st.track]?.[st.leaderClass];
+    const v = e?.tiers?.c101 || e?.avgLap;
+    if (v && v !== st.leaderLap) up({ leaderLap: v });
+  }, [st.multiclass, st.leaderClass, st.track, lmuData]);
   useEffect(() => {
     if (!zoom) return;
     const onKey = (e) => { if (e.key === "Escape") setZoom(null); };
@@ -1651,13 +1651,32 @@ ${bottomBar}
         ))}
       </div>
       <div className="row2">
-        <div><label>{t("Lider Tur (m:ss.00)")}</label>
-          <input type="text" value={st.leaderLap} placeholder={st.avgLap}
-            onChange={(e) => up({ leaderLap: e.target.value })} /></div>
+        <div>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+            <input type="checkbox" checked={st.multiclass} style={{ width: "auto", margin: 0 }}
+              onChange={(e) => up({ multiclass: e.target.checked })} />
+            {t("Multiclass Yarış")}
+          </label>
+          <select value={st.leaderClass} disabled={!st.multiclass}
+            style={!st.multiclass ? { opacity: .45 } : undefined}
+            onChange={(e) => up({ leaderClass: e.target.value })}>
+            {CAR_CLASSES.map(([id, name]) => (
+              <option key={id} value={id}>{name}</option>
+            ))}
+          </select>
+        </div>
         <div><label>Extra Lap</label>
           <Num v={st.extraLap} step={1} onC={(v) => up({ extraLap: v })} /></div>
       </div>
-      {racePlan.flagExtra > 0.5 && (
+      {st.multiclass && (
+        <div className="row2">
+          <div><label>🏁 {t("Lider Tur (m:ss.00)")}</label>
+            <input type="text" value={st.leaderLap} placeholder={st.avgLap}
+              onChange={(e) => up({ leaderLap: e.target.value })} /></div>
+          <div />
+        </div>
+      )}
+      {st.multiclass && racePlan.flagExtra > 0.5 && (
         <div className="hint">🏁 {t("Lider bayrağı")}: +{racePlan.flagExtra.toFixed(0)}s → {t("son tur otomatik eklenir")}</div>
       )}
     </div>
