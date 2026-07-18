@@ -300,6 +300,15 @@ const EN = {
   "Paneli gizle": "Hide panel", "Paneli göster": "Show panel",
   "Lider Tur (m:ss.00)": "Leader Lap (m:ss.00)", "Lider bayrağı": "Leader flag",
   "Multiclass Yarış": "Multiclass Race", "Servis": "Service", "geçiş": "pass",
+  "🌧 4 Wet": "🌧 4 Wet", "Qual'a Dön": "Back to Qual", "⟳ Devam": "⟳ Carry",
+  "🆕 4 Yeni": "🆕 4 New", "Önler": "Fronts", "Arkalar": "Rears", "Sollar": "Lefts",
+  "Sağlar": "Rights", "Q Qual": "Q Qual",
+  "Yeni kuru": "New dry", "Qual'a dönüş": "Back to Qual",
+  "Wet — limitten bağımsız, sınırsız": "Wet — unlimited, not counted in limit",
+  "Taşı — tıkla: yeni kuru": "Carry — click: new dry",
+  "Yeni kuru — tıkla: Qual'a dön": "New dry — click: back to Qual",
+  "Qual lastiği — tıkla: wet": "Qual tyre — click: wet",
+  "Wet (sınırsız) — tıkla: taşı": "Wet (unlimited) — click: carry",
   "Saat her üyeye kendi yerel diliminde gösterilir.": "Times are shown to each member in their own timezone.",
   "son tur otomatik eklenir": "final lap added automatically",
   "Ratio'yu düşürmek daha az yakıt taşımak demektir (örn. 0.84 → %100 = 84.0 L).":
@@ -424,7 +433,10 @@ function guessMapping(parsed) {
 }
 
 /* ---------- çekirdek motor ---------- */
-const EMPTY_PIT = { fuel: true, lane: true, tyres: [false, false, false, false] };
+const EMPTY_PIT = { fuel: true, lane: true, tyres: [0, 0, 0, 0] };
+/* lastik köşe durumu: 0 taşı · 1 yeni kuru (sarı) · 2 Qual'a dön (mavi) · 3 wet (yeşil).
+   Eski odalarda boolean olabilir → tyState normalize eder. */
+const tyState = (v) => (v === true ? 1 : v === false ? 0 : Number(v) || 0);
 const MAX_STINTS = 64; // güvenlik tavanı (24h+ yarışlar için yeterli)
 
 function computePlan(st, mode /* "race" | "code80" */) {
@@ -435,50 +447,69 @@ function computePlan(st, mode /* "race" | "code80" */) {
     const base = cnt <= 0 ? 0 : cnt <= 2 ? st.tyre2Time : st.tyre4Time; // LMU kademeli
     return mode === "race" ? base : base / 4; // CODE80: ÷4
   };
-  const rows = [];
-  let cum = 0;
   const repairs = st.pitRepairs || [];
-  for (let i = 0; i < MAX_STINTS; i++) {
-    const ovr = parseHMS(st.overrides[i] || "");
-    const nominalSec = ovr > 0 ? ovr : laps * lapSec;   // planlanan tam stint
-    const startLeft = raceSec - cum;                     // stint başında kalan süre
-    if (startLeft <= 0) break;
-    /* tam stint kalan süreye sığmıyorsa bu son stinttir → süreyi kalan süreye kısalt
-       (yarış eksi süre göstermesin), tur sayısı = sığan tam tur + 1 bayrak turu */
-    const isLast = nominalSec >= startLeft - 0.5;
-    const stintSec = isLast ? startLeft : nominalSec;
-    const lapsInStint = isLast
-      ? Math.max(1, Math.floor(startLeft / lapSec) + 1)
-      : (ovr > 0 ? Math.floor(nominalSec / lapSec) : laps);
-    cum += stintSec;
-    const p = st.pits[i] || EMPTY_PIT;
-    const tyreCount = p.tyres.filter(Boolean).length;
-    const repairSec = Number(repairs[i]) || 0;
-    /* pit süresi: LANE her zaman dahil (her pit pit yolundan geçer) + fuel + lastik + hasar/tamir */
-    const pitSec = isLast ? 0
-      : st.pitLaneTime + (p.fuel ? st.fuelTime : 0) + tyreSecOf(tyreCount) + repairSec;
-    const endStint = cum + (isLast ? 0 : pitSec);
-    rows.push({
-      idx: i + 1,
-      stintSec, pitSec, tyreCount, repairSec,
-      endSec: endStint,
-      timeLeft: raceSec - endStint,
-      lapsInStint,
-      isLast,
-      fuelNeed: (isLast ? lapsInStint : (ovr > 0 ? stintSec / lapSec : laps)) * st.consumption,
-    });
-    cum = endStint;
-    if (isLast) break;
-  }
-  const fullStints = rows.length;
+  const buildRows = (scaledPitIdx, scaledFuelSec) => {
+    const rows = [];
+    let cum = 0;
+    for (let i = 0; i < MAX_STINTS; i++) {
+      const ovr = parseHMS(st.overrides[i] || "");
+      const nominalSec = ovr > 0 ? ovr : laps * lapSec;   // planlanan tam stint
+      const startLeft = raceSec - cum;                     // stint başında kalan süre
+      if (startLeft <= 0) break;
+      /* tam stint kalan süreye sığmıyorsa bu son stinttir → süreyi kalan süreye kısalt
+         (yarış eksi süre göstermesin), tur sayısı = sığan tam tur + 1 bayrak turu */
+      const isLast = nominalSec >= startLeft - 0.5;
+      const stintSec = isLast ? startLeft : nominalSec;
+      const lapsInStint = isLast
+        ? Math.max(1, Math.floor(startLeft / lapSec) + 1)
+        : (ovr > 0 ? Math.floor(nominalSec / lapSec) : laps);
+      cum += stintSec;
+      const p = st.pits[i] || EMPTY_PIT;
+      const tyreCount = p.tyres.reduce((a, v) => a + (tyState(v) > 0 ? 1 : 0), 0);
+      const repairSec = Number(repairs[i]) || 0;
+      /* pit süresi: LANE her zaman dahil + fuel (son pitte VE %'sine ölçekli) + lastik + tamir */
+      const fuelSec = p.fuel ? (i === scaledPitIdx ? scaledFuelSec : st.fuelTime) : 0;
+      const pitSec = isLast ? 0
+        : st.pitLaneTime + fuelSec + tyreSecOf(tyreCount) + repairSec;
+      const endStint = cum + (isLast ? 0 : pitSec);
+      rows.push({
+        idx: i + 1,
+        stintSec, pitSec, tyreCount, repairSec,
+        endSec: endStint,
+        timeLeft: raceSec - endStint,
+        lapsInStint,
+        isLast,
+        fuelNeed: (isLast ? lapsInStint : (ovr > 0 ? stintSec / lapSec : laps)) * st.consumption,
+      });
+      cum = endStint;
+      if (isLast) break;
+    }
+    return rows;
+  };
   /* lider bitiş modeli: süre dolunca lider turunu tamamlar (T_flag),
      biz T_flag'ten sonraki ilk geçişte biteriz */
   const leadSec = st.multiclass ? (parseLap(st.leaderLap) || lapSec) : lapSec;
   const flagExtra = leadSec > 0
     ? Math.ceil(raceSec / leadSec - 1e-9) * leadSec - raceSec : 0;
+  /* son pit dolumu tam depo sürmez: son stint VE ihtiyacına ölçeklenir (42s × pct/100).
+     Süre kazancı son stinti uzatabileceği için sabitlenene dek yinele (≤3 tur). */
+  let rows = buildRows(-1, 0);
+  let lastRefuelPct = null;
+  for (let iter = 0; iter < 3 && rows.length >= 2; iter++) {
+    const pIdx = rows.length - 2;
+    const pPit = st.pits[pIdx] || EMPTY_PIT;
+    if (!pPit.fuel || lapSec <= 0) break;
+    const cd = rows[pIdx].timeLeft + flagExtra;
+    const lapsLeft = Math.max(1, Math.ceil(cd / lapSec - 1e-9));
+    const pct = Math.min(100, Math.max(0, (lapsLeft + st.extraLap) * st.consumption));
+    if (lastRefuelPct !== null && Math.abs(pct - lastRefuelPct) < 0.05) break;
+    lastRefuelPct = pct;
+    rows = buildRows(pIdx, st.fuelTime * pct / 100);
+  }
+  const fullStints = rows.length;
   const totalLaps = lapSec > 0
     ? Math.ceil((raceSec + flagExtra) / lapSec - 1e-9) : 0;
-  return { rows, raceSec, lapSec, laps, fullStints, totalLaps, flagExtra };
+  return { rows, raceSec, lapSec, laps, fullStints, totalLaps, flagExtra, lastRefuelPct };
 }
 
 /* eski oda kayıtlarına yeni alanları güvenle ekler */
@@ -573,6 +604,8 @@ const css = `
   background:var(--panel2);color:var(--dim);font-size:9px;cursor:pointer;
   font-family:'IBM Plex Mono'}
 .rc .tyrebox button.on{background:var(--yellow);color:#3A2E00;border-color:var(--yellow)}
+.rc .tyrebox button.qual{background:#4D9FFF;color:#04213F;border-color:#4D9FFF}
+.rc .tyrebox button.wet{background:#7FE3A0;color:#0C3A1F;border-color:#7FE3A0}
 .rc .pitopt{display:inline-flex;gap:4px}
 .rc .pitopt button{padding:2px 8px;border-radius:4px;border:1px solid var(--line);
   background:var(--panel2);color:var(--dim);font-size:10px;cursor:pointer}
@@ -696,6 +729,7 @@ const css = `
 .rc td.tq{background:rgba(102,148,255,.25)}
 .rc td.t3{background:rgba(240,96,77,.28)}
 .rc td.t4{background:#05070A}
+.rc td.tw{background:rgba(127,227,160,.22)}
 .rc td.t4 input{color:var(--red);border-color:var(--red)}
 .rc .act{padding:6px 12px;border-radius:6px;border:1px solid var(--line);
   background:var(--panel2);color:var(--txt);cursor:pointer;font-size:12px}
@@ -988,34 +1022,36 @@ export default function App() {
   });
   const upTyre = (i, t) => setSt((s0) => {
     const s = grow(s0, i + 3); // i+1 satırına lastik yazılabilir
-    const turningOn = !s.pits[i].tyres[t];
+    /* tık döngüsü: 0 taşı → 1 yeni kuru → 2 Qual'a dön → 3 wet → 0.
+       Yeni kuru için limit doluysa 1 atlanır (2'ye geçilir). */
+    const cur = tyState(s.pits[i].tyres[t]);
+    const usedDry = new Set();
+    s.tyreQual.forEach((v) => { const k = String(v).trim(); if (k && k !== "W") usedDry.add(k); });
+    s.tyreStints.forEach((r) => r.forEach((v) => {
+      const k = String(v).trim(); if (k && k !== "W") usedDry.add(k); }));
+    let nextState = (cur + 1) % 4;
+    if (nextState === 1 && usedDry.size >= s.tyreLimit) nextState = 2;
     const pits = s.pits.map((p, j) => {
       if (j !== i) return p;
-      const tyres = [...p.tyres]; tyres[t] = !tyres[t];
+      const tyres = [...p.tyres]; tyres[t] = nextState;
       return { ...p, tyres };
     });
     /* Lastik tablosu senkronu: pit i = S(i+1) sonu → lastik S(i+2)'ye takılır
-       AÇIK: o köşeye yeni (kullanılmamış) numara · KAPALI: önceki stintten devam */
+       1: yeni numara · 2: o köşenin Qual numarası · 3: "W" · 0: önceki stintten devam */
     let tyreStints = s.tyreStints;
     const next = i + 1; // tyreStints index'i (S(i+2) satırı)
     if (next < s.tyreStints.length) {
       const prevVal = String((s.tyreStints[i] || [])[t] || "").trim();
-      const curVal = String((s.tyreStints[next] || [])[t] || "").trim();
       let val;
-      if (turningOn) {
-        if (curVal && curVal !== prevVal) {
-          val = curVal; // kullanıcı zaten farklı bir lastik atamış — dokunma
-        } else {
-          const used = new Set();
-          s.tyreQual.forEach((v) => { const k = String(v).trim(); if (k) used.add(k); });
-          s.tyreStints.forEach((r) => r.forEach((v) => {
-            const k = String(v).trim(); if (k) used.add(k); }));
-          if (used.size >= s.tyreLimit) return s0; // lastik kalmadı → seçim engellenir
-          let n = 1; while (used.has(String(n))) n++;
-          val = String(n);
-        }
+      if (nextState === 1) {
+        let n = 1; while (usedDry.has(String(n))) n++;
+        val = String(n);
+      } else if (nextState === 2) {
+        val = String((s.tyreQual || [])[t] || "").trim();
+      } else if (nextState === 3) {
+        val = "W";
       } else {
-        val = prevVal; // değişim iptal → önceki stintin lastiğiyle devam
+        val = prevVal; // taşı
       }
       tyreStints = s.tyreStints.map((r, j) =>
         j === next ? r.map((c, ci) => (ci === t ? val : c)) : r);
@@ -1045,9 +1081,9 @@ export default function App() {
   const quickTyre = (rowIdx, action) => setSt((s0) => {
     const s = grow(s0, rowIdx + 2);
     const used = new Set();
-    s.tyreQual.forEach((v) => { const k = String(v).trim(); if (k) used.add(k); });
+    s.tyreQual.forEach((v) => { const k = String(v).trim(); if (k && k !== "W") used.add(k); });
     s.tyreStints.forEach((r) => r.forEach((v) => {
-      const k = String(v).trim(); if (k) used.add(k); }));
+      const k = String(v).trim(); if (k && k !== "W") used.add(k); }));
     let n = 1;
     const fresh = () => { while (used.has(String(n))) n++; used.add(String(n)); return String(n); };
     const prev = rowIdx === 0 ? s.tyreQual : (s.tyreStints[rowIdx - 1] || ["", "", "", ""]);
@@ -1060,6 +1096,8 @@ export default function App() {
     let row;
     if (action === "clear") row = ["", "", "", ""];
     else if (action === "carry") row = [...prev];
+    else if (action === "wet4") row = ["W", "W", "W", "W"];
+    else if (action === "qual4") row = s.tyreQual.map((v) => String(v || "").trim());
     else row = [0, 1, 2, 3].map((ci) =>
       FRESH_AT.includes(ci) ? fresh() : String(prev[ci] || "").trim());
     const tyreStints = s.tyreStints.map((r, i) => (i === rowIdx ? row : r));
@@ -1070,7 +1108,8 @@ export default function App() {
       const pv = prev.map((v) => String(v || "").trim());
       const flags = row.map((v, ci) => {
         const k = String(v || "").trim();
-        return k !== "" && k !== pv[ci];
+        const qualV = String((s.tyreQual || [])[ci] || "").trim();
+        return k === "" || k === pv[ci] ? 0 : k === "W" ? 3 : k === qualV ? 2 : 1;
       });
       pits = s.pits.map((p, j) => (j === rowIdx - 1 ? { ...p, tyres: flags } : p));
     }
@@ -1090,7 +1129,8 @@ export default function App() {
     if (row >= 1) {
       const prevV = String((s.tyreStints[row - 1] || [])[col] ?? "").trim();
       const k = String(val).trim();
-      const flag = k !== "" && k !== prevV;
+      const qualV = String((s.tyreQual || [])[col] || "").trim();
+      const flag = k === "" || k === prevV ? 0 : k === "W" ? 3 : k === qualV ? 2 : 1;
       pits = s.pits.map((p, j) => {
         if (j !== row - 1) return p;
         const tyres = [...p.tyres]; tyres[col] = flag;
@@ -1124,6 +1164,7 @@ export default function App() {
       const k = String(v).trim();
       if (!k) return;
       counts[k] = (counts[k] || 0) + 1;
+      if (k === "W") return; // wet: sınırsız — limit/çakışma dışında
       if (r.row === -1) qualSets.add(k);
       (posCols[k] = posCols[k] || new Set()).add(ci);
     }));
@@ -1132,6 +1173,7 @@ export default function App() {
     const cellCls = (v) => {
       const k = String(v).trim();
       if (!k) return "";
+      if (k === "W") return "tw";
       if (conflictSet.has(k)) return "terr";
       const c = counts[k];
       if (c >= 4) return "t4";
@@ -1141,9 +1183,16 @@ export default function App() {
     };
     // sütun ci için seçilebilir mi: hiç kullanılmamış YA DA sadece bu sütunda kullanılmış
     const allowedIn = (k, ci) => !posCols[k] || (posCols[k].size === 1 && posCols[k].has(ci));
-    const used = Object.keys(counts).length;
+    const used = Object.keys(counts).filter((k) => k !== "W").length;
     return { rows, cellCls, used, counts, allowedIn, conflicts, available: st.tyreLimit - used };
   }, [st.tyreQual, st.tyreStints, st.tyreLimit, racePlan.rows.length]);
+
+  /* hızlı lastik atamada satır başına son seçilen aksiyon (rozet gösterimi) */
+  const [qsel, setQsel] = useState({});
+  const QSEL_LBL = {
+    new4: "🆕 4 Yeni", carry: "⟳ Devam", fronts: "Önler", rears: "Arkalar",
+    lefts: "Sollar", rights: "Sağlar", wet4: "🌧 4 Wet", qual4: "Q Qual", clear: "✕",
+  };
 
   /* ---------- Faz 3: pilotlar ---------- */
   const [newDriver, setNewDriver] = useState("");
@@ -1435,7 +1484,12 @@ export default function App() {
         if (isLast) return { html: `<span class="svc n">🏁</span>` };
         const pit = st.pits[i] || EMPTY_PIT;
         const parts = [];
-        TYN.forEach((c, ti) => { if (pit.tyres[ti]) parts.push(`<span class="svc t">${c}</span>`); });
+        TYN.forEach((c, ti) => {
+          const sv = tyState(pit.tyres[ti]);
+          if (sv === 1) parts.push(`<span class="svc t">${c}</span>`);
+          else if (sv === 2) parts.push(`<span class="svc q">${c}</span>`);
+          else if (sv === 3) parts.push(`<span class="svc w">${c}</span>`);
+        });
         if (pit.fuel) parts.push(`<span class="svc f">⚡VE</span>`);
         return { html: parts.length ? parts.join("") : `<span class="svc n">${esc(t("geçiş"))}</span>` };
       };
@@ -1542,6 +1596,8 @@ export default function App() {
  .svc.t{background:#f5c84c;color:#4a3200;border:1px solid #d9a92c}
  .svc.f{background:#c01030;color:#fff;border:1px solid #8e0a22}
  .svc.n{background:#efe9ea;color:#8a7f81;border:1px solid #d9c9cd}
+ .svc.q{background:#4d9fff;color:#04213f;border:1px solid #2b7fe0}
+ .svc.w{background:#7fe3a0;color:#0c3a1f;border:1px solid #4fc47e}
  td.c-drv{background:#eef4fb;font-weight:600}
  th.c-drv{background:#2f6fb0}
  td.c-pit{background:#fef7e6}
@@ -2305,13 +2361,18 @@ ${bottomBar}
                       <td>
                         {r.isLast ? <span className="chip">FINISH 🏁</span> : (<>
                           <span className="tyrebox">
-                            {TY.map((corner, ti) => (
-                              <button key={corner} className={(st.pits[i] || EMPTY_PIT).tyres[ti] ? "on" : ""}
-                                disabled={!(st.pits[i] || EMPTY_PIT).tyres[ti] && tyreInfo.available <= 0}
-                                title={!(st.pits[i] || EMPTY_PIT).tyres[ti] && tyreInfo.available <= 0
-                                  ? t("⚠ Lastik limiti doldu — yeni lastik seçilemez") : undefined}
-                                onClick={() => upTyre(i, ti)}>{corner}</button>
-                            ))}
+                            {TY.map((corner, ti) => {
+                              const stv = tyState((st.pits[i] || EMPTY_PIT).tyres[ti]);
+                              return (
+                                <button key={corner}
+                                  className={["", "on", "qual", "wet"][stv]}
+                                  title={[t("Taşı — tıkla: yeni kuru"),
+                                    t("Yeni kuru — tıkla: Qual'a dön"),
+                                    t("Qual lastiği — tıkla: wet"),
+                                    t("Wet (sınırsız) — tıkla: taşı")][stv]}
+                                  onClick={() => upTyre(i, ti)}>{corner}</button>
+                              );
+                            })}
                           </span>
                           <span className="pitopt">
                             <button className={(st.pits[i] || EMPTY_PIT).fuel ? "on" : ""}
@@ -2604,13 +2665,19 @@ ${bottomBar}
                         );
                       })}
                       <td>
-                        {r.row >= 0 && (
+                        {r.row >= 0 && (<span style={{ display: "inline-flex",
+                          alignItems: "center", gap: 6 }}>
                           <select className="tsel" style={{ width: 118, textAlign: "left" }}
                             value="" onChange={(e) => {
-                              if (e.target.value) quickTyre(r.row, e.target.value);
+                              if (e.target.value) {
+                                quickTyre(r.row, e.target.value);
+                                setQsel((q) => ({ ...q, [r.row]: e.target.value }));
+                              }
                             }}>
                             <option value="">{t("— hızlı —")}</option>
                             <option value="new4" disabled={tyreInfo.available < 4}>{t("🆕 4 Yeni")}</option>
+                            <option value="wet4">{t("🌧 4 Wet")}</option>
+                            <option value="qual4">{t("Qual'a Dön")}</option>
                             <option value="carry">{t("⟳ Öncekiyle Devam")}</option>
                             <option value="fronts" disabled={tyreInfo.available < 2}>{t("Önler Yeni")}</option>
                             <option value="rears" disabled={tyreInfo.available < 2}>{t("Arkalar Yeni")}</option>
@@ -2618,6 +2685,11 @@ ${bottomBar}
                             <option value="rights" disabled={tyreInfo.available < 2}>{t("Sağlar Yeni")}</option>
                             <option value="clear">{t("✕ Temizle")}</option>
                           </select>
+                          {qsel[r.row] && (
+                            <span className="chip" style={{ fontSize: 10, opacity: .85 }}>
+                              {t(QSEL_LBL[qsel[r.row]] || qsel[r.row])}</span>
+                          )}
+                        </span>
                         )}
                       </td>
                     </tr>
@@ -2632,6 +2704,15 @@ ${bottomBar}
                 <span><i style={{ background: "#000" }} />{t("4+ kez")}</span>
                 <span><i style={{ background: "transparent", border: "1px dashed var(--dim)" }} />
                   ⟳ {t("Değişmedi — önceki lastikle devam")}</span>
+                <span style={{ marginLeft: 10 }}>
+                  <i style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3,
+                    background: "var(--yellow)", marginRight: 4 }} />{t("Yeni kuru")}</span>
+                <span style={{ marginLeft: 10 }}>
+                  <i style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3,
+                    background: "#4D9FFF", marginRight: 4 }} />{t("Qual'a dönüş")}</span>
+                <span style={{ marginLeft: 10 }}>
+                  <i style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3,
+                    background: "#7FE3A0", marginRight: 4 }} />{t("Wet — limitten bağımsız, sınırsız")}</span>
               </div>
               {tyreInfo.conflicts.length > 0 &&
                 <div className="hint" style={{ color: "var(--red)" }}>
