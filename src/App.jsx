@@ -294,6 +294,7 @@ const EN = {
   "Katılım çubuğunu gizle": "Hide join bar", "Katılım çubuğunu göster": "Show join bar",
   "Büyütmek için tıkla": "Click to enlarge",
   "tur": "laps", "Doldur": "Fill", "Sadece geçiş": "Pass-through only",
+  "Paneli gizle": "Hide panel", "Paneli göster": "Show panel",
   "Ratio'yu düşürmek daha az yakıt taşımak demektir (örn. 0.84 → %100 = 84.0 L).":
     "Lowering the ratio means carrying less fuel (e.g. 0.84 → 100% = 84.0 L).",
   "Pit süresi = FUEL": "Pit time = FUEL", "lastik ×": "tyres ×",
@@ -496,8 +497,17 @@ const css = `
 .rc header h1 b{color:var(--teal)}
 .rc header .ver{color:var(--dim);font-size:12px}
 .rc .grid{display:grid;grid-template-columns:300px 1fr;gap:16px;padding:16px 20px;
-  align-items:start}
-@media(max-width:900px){.rc .grid{grid-template-columns:1fr}}
+  align-items:start;transition:grid-template-columns .28s ease,gap .28s ease}
+.rc .grid.noside{grid-template-columns:0px 1fr;gap:0}
+.rc .sidecol{overflow:hidden;min-width:0}
+.rc .sideinner{width:300px;transition:opacity .22s ease}
+.rc .grid.noside .sideinner{opacity:0;pointer-events:none}
+.rc .sidetoggle{position:fixed;left:0;top:50%;transform:translateY(-50%);z-index:40;
+  width:20px;height:72px;padding:0;border:1px solid var(--line);border-left:none;
+  border-radius:0 10px 10px 0;background:var(--panel2);color:var(--dim);
+  cursor:pointer;font-size:11px;line-height:1;transition:color .15s,border-color .15s}
+.rc .sidetoggle:hover{color:var(--teal);border-color:var(--teal)}
+@media(max-width:900px){.rc .grid{grid-template-columns:1fr}.rc .sidetoggle{display:none}}
 .rc .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
 .rc .card h2{margin:0 0 10px;font-size:15px;text-transform:uppercase;
   font-family:'Barlow Condensed';letter-spacing:.08em;color:var(--teal)}
@@ -1554,6 +1564,7 @@ ${bottomBar}
   const planLsf = lastStintFuel(fmtHMS(planLastCd), st);
   const [autoCd, setAutoCd] = useState(true); // plandan otomatik countdown
   const [barOpen, setBarOpen] = useState(true); // oda katılım çubuğu aç/kapa
+  const [sideOpen, setSideOpen] = useState(true); // sol data sidebar aç/kapa
   const [zoom, setZoom] = useState(null); // "car" | "track" | null — kart büyütme (lightbox)
   /* LMU referans verisi (Ohne Speed tablosundan gömülü JSON) */
   const [lmuData, setLmuData] = useState(null);
@@ -2098,10 +2109,14 @@ ${bottomBar}
         </div>
       )}
 
-      <div className={`grid ${role === "viewer" && room ? "viewonly" : ""}`}>
+      <div className={`grid ${sideOpen ? "" : "noside"} ${role === "viewer" && room ? "viewonly" : ""}`}>
+        <button className={`sidetoggle ${sideOpen ? "" : "closed"}`}
+          onClick={() => setSideOpen(!sideOpen)}
+          title={sideOpen ? t("Paneli gizle") : t("Paneli göster")}>
+          {sideOpen ? "◀" : "▶"}</button>
         {/* ================= SOL: DATA ================= */}
-        <div>
-          {dataCards}
+        <div className="sidecol">
+          <div className="sideinner">{dataCards}</div>
         </div>
 
         {/* ================= SAĞ: SEKMELER ================= */}
