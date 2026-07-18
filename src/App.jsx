@@ -2677,8 +2677,8 @@ ${bottomBar}
                     style={{ marginLeft: "auto", fontSize: 12, color: "var(--teal)",
                       textDecoration: "none" }}>{t("YouTube'da aç")} ↗</a>
                 </h2>
-                <div style={{ position: "relative", width: "25%", minWidth: 260,
-                  paddingTop: "min(14.06%, 146px)",
+                <div style={{ position: "relative", width: 360, maxWidth: "100%",
+                  aspectRatio: "16 / 9",
                   borderRadius: 8, overflow: "hidden", background: "#000" }}>
                   <iframe title="stream"
                     src={`https://www.youtube.com/embed/${ytId(st.streamUrl)}`}
