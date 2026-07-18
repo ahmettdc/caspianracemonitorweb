@@ -68,8 +68,6 @@ const DEFAULT_STATE = {
   leaderLap: "",       // lider tur zamanı (competitive) — yarış sonu bayrağı bundan
   pitLaneTime: 22,
   fuelTime: 42,
-  tyre2Time: 5,        // 1-2 lastik değişim süresi (LMU)
-  tyre4Time: 12,       // 3-4 lastik değişim süresi (LMU)
   actualPits: [], // gerçekleşen pit giriş zamanları (ms) — canlı plan düzeltme
   pitRepairs: [], // işaretli pit başına manuel tamir süresi (sn) — plan pit süresine eklenir
   autoOvr: [],    // pit tuşuyla otomatik yazılan override'ların işareti (geri al/sıfırla için)
@@ -213,7 +211,7 @@ const EN = {
   "Start Tarih & Saat": "Start Date & Time", "Hesaplanan Bitiş": "Calculated Finish",
   "Canlı yarış modu, pilot planı ve geri sayım bu zamana göre çalışır.":
     "Live race mode, driver plan and countdown are based on this time.",
-  "Pit · Süreler (s)": "Pit · Times (s)", "1-2 Lastik (s)": "1-2 Tyres (s)", "3-4 Lastik (s)": "3-4 Tyres (s)", "lastik": "tyres",
+  "Pit · Süreler (s)": "Pit · Times (s)", "lastik": "tyres",
   
   "VE Tüketim (%/tur)": "VE Usage (%/lap)",
   "%100 = Taşınan Yakıt": "100% = Fuel Carried",
@@ -442,6 +440,8 @@ function guessMapping(parsed) {
 
 /* ---------- çekirdek motor ---------- */
 const EMPTY_PIT = { fuel: true, lane: true, tyres: [0, 0, 0, 0] };
+const TYRE_2_SEC = 5;  // 1-2 lastik değişim süresi (LMU, sabit)
+const TYRE_4_SEC = 12; // 3-4 lastik değişim süresi (LMU, sabit)
 /* lastik köşe durumu: 0 taşı · 1 yeni kuru (sarı) · 2 Qual'a dön (mavi) · 3 wet (yeşil)
    · 4 eski kuru tekrar (siyah). Eski odalarda boolean olabilir → tyState normalize eder. */
 const tyState = (v) => (v === true ? 1 : v === false ? 0 : Number(v) || 0);
@@ -452,7 +452,7 @@ function computePlan(st, mode /* "race" | "code80" */) {
   const lapSec = parseLap(st.avgLap);
   const laps = st.strategies[st.chosen] || 0;
   const tyreSecOf = (cnt) => {
-    const base = cnt <= 0 ? 0 : cnt <= 2 ? st.tyre2Time : st.tyre4Time; // LMU kademeli
+    const base = cnt <= 0 ? 0 : cnt <= 2 ? TYRE_2_SEC : TYRE_4_SEC; // LMU sabit kademe
     return mode === "race" ? base : base / 4; // CODE80: ÷4
   };
   const repairs = st.pitRepairs || [];
@@ -1856,14 +1856,6 @@ ${bottomBar}
           <Num v={st.fuelTime} onC={(v) => up({ fuelTime: v })} /></div>
       </div>
       <div className="row2">
-        <div><label style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <Tyre size={14} /> {t("1-2 Lastik (s)")}</label>
-          <Num v={st.tyre2Time} onC={(v) => up({ tyre2Time: v })} /></div>
-        <div><label style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <Tyre size={14} /> {t("3-4 Lastik (s)")}</label>
-          <Num v={st.tyre4Time} onC={(v) => up({ tyre4Time: v })} /></div>
-      </div>
-      <div className="row2">
         <div><label style={{ display: "flex", alignItems: "center", gap: 5 }}><Tyre size={15} /> {t("Lastik Limiti (adet)")}</label>
           <Num v={st.tyreLimit} step={1} onC={(v) => up({ tyreLimit: v })} /></div>
         <div />
@@ -2470,8 +2462,8 @@ ${bottomBar}
               <div className="hint">
                 {t("Pit süresi = FUEL")}({st.fuelTime}s) + LANE({st.pitLaneTime}s) + {t("lastik")}
                 {tab === "code80"
-                  ? ` (1-2: ${(st.tyre2Time / 4).toFixed(2)}s · 3-4: ${(st.tyre4Time / 4).toFixed(2)}s · Code 80: ÷4)`
-                  : ` (1-2: ${st.tyre2Time}s · 3-4: ${st.tyre4Time}s)`}.
+                  ? ` (1-2: ${(TYRE_2_SEC / 4).toFixed(2)}s · 3-4: ${(TYRE_4_SEC / 4).toFixed(2)}s · Code 80: ÷4)`
+                  : ` (1-2: ${TYRE_2_SEC}s · 3-4: ${TYRE_4_SEC}s)`}.
                 {t("Son stintte pit hesaplanmaz. Override girilirse stint süresi manuel değere kilitlenir.")}{" "}
                 {t("Pit'te seçilen lastikler (FL/FR/RL/RR) Lastik sekmesindeki tabloya otomatik işlenir:")}{" "}
                 {t("seçilen köşeye sonraki stint için yeni lastik atanır, seçim kaldırılırsa önceki lastikle devam edilir.")}
