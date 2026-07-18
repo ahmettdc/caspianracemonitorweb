@@ -1418,14 +1418,19 @@ export default function App() {
       title = `${t("Stint Programı")} · ${st.chosen}-${racePlan.laps}`;
       const rows = racePlan.rows;
       html = mkTable(
-        ["#", "Stint", t("Tur"), "VE %", "≈ L", t("Pilot"), "Pit", "End Stint", "Time Left"],
-        rows.map((r, i) => [
-          r.idx, fmtHMS(r.stintSec), r.lapsInStint, `${r.fuelNeed.toFixed(1)}%`,
-          (r.fuelNeed * st.fuelRatio).toFixed(1), st.driverAssign[i] || "—",
-          r.isLast ? "🏁 FINISH" : fmtHMS(r.pitSec) + (r.repairSec > 0 ? ` (+${r.repairSec}s)` : ""),
-          fmtHMS(r.endSec), fmtHMS(r.timeLeft),
-        ]),
-        ["c-idx", "", "c-lap", "c-ve", "c-ve", "c-drv", "c-pit", "", "c-left"],
+        ["#", "Stint", t("Tur"), "Start", "Finish", t("Pilot"), "Pit", "End Stint", "Time Left"],
+        rows.map((r, i) => {
+          const dp = driverPlan?.rows?.[i];
+          return [
+            r.idx, fmtHMS(r.stintSec), r.lapsInStint,
+            dp ? fmtClock(dp.start, driverPlan.startMs) : "—",
+            dp ? fmtClock(dp.finish, driverPlan.startMs) : "—",
+            st.driverAssign[i] || "—",
+            r.isLast ? "🏁 FINISH" : fmtHMS(r.pitSec) + (r.repairSec > 0 ? ` (+${r.repairSec}s)` : ""),
+            fmtHMS(r.endSec), fmtHMS(r.timeLeft),
+          ];
+        }),
+        ["c-idx", "", "c-lap", "c-clk", "c-clk", "c-drv", "c-pit", "", "c-left"],
         (ri) => rows[ri].isLast ? "r-last" : "");
     } else {
       if (!driverPlan) { alert(t("Pilotlar sekmesinden başlangıç zamanını gir")); return; }
@@ -1505,6 +1510,8 @@ export default function App() {
  td.c-lap,th.c-lap{text-align:center}
  td.c-ve{background:#eafaf1;color:#0d7a43;font-weight:600}
  th.c-ve{background:#2c9c63}
+ td.c-clk{background:#eaf1fb;color:#1b5fae;font-weight:600}
+ th.c-clk{background:#3b78c2}
  td.c-drv{background:#eef4fb;font-weight:600}
  th.c-drv{background:#2f6fb0}
  td.c-pit{background:#fef7e6}
