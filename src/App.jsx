@@ -65,6 +65,7 @@ const DEFAULT_STATE = {
   multiclass: false,   // multiclass yarış — lider bitiş modeli devrede
   leaderClass: "hypercar", // multiclass'ta en hızlı sınıf
   streamUrl: "",       // canlı yayın (YouTube) linki
+  weather: "dry",      // zemin durumu: dry | damp | slwet | wet
   leaderLap: "",       // lider tur zamanı (competitive) — yarış sonu bayrağı bundan
   pitLaneTime: 22,
   fuelTime: 42,
@@ -284,6 +285,8 @@ const EN = {
   "Tur satırı bulunamadı ('Out Lap', 'Lap 1'...)": "No lap rows found ('Out Lap', 'Lap 1'...)",
   // son stint yakıtı
   "YARIŞ SONU": "RACE END", "CODE 80 SONU": "CODE 80 END",
+  "Zemin / Hava": "Track / Weather", "Efektif tur": "Effective lap", "yakıt": "fuel",
+  "Dry": "Dry", "Damp": "Damp", "Slightly Wet": "Slightly Wet", "Wet": "Wet",
   "Canlı Yayın": "Live Stream", "YouTube linki": "YouTube link",
   "Yayın Dashboard'da gösteriliyor.": "Stream is shown on the Dashboard.",
   "Geçerli bir YouTube linki yapıştırın; Dashboard'da oynatıcı açılır.": "Paste a valid YouTube link; a player opens on the Dashboard.",
@@ -442,6 +445,16 @@ function guessMapping(parsed) {
 const EMPTY_PIT = { fuel: true, lane: true, tyres: [0, 0, 0, 0] };
 const TYRE_2_SEC = 5;  // 1-2 lastik değişim süresi (LMU, sabit)
 const TYRE_4_SEC = 12; // 3-4 lastik değişim süresi (LMU, sabit)
+/* zemin/hava durumu: tur süresi çarpanı + yakıt tüketim çarpanı (LMU) */
+const WEATHER = {
+  dry:   { lbl: "Dry",          ico: "☀️", lap: 1.00, fuel: 1.00, col: "#F5C84C" },
+  damp:  { lbl: "Damp",         ico: "🌦", lap: 1.07, fuel: 1.00, col: "#8FD0E8" },
+  slwet: { lbl: "Slightly Wet", ico: "🌧", lap: 1.09, fuel: 0.96, col: "#4D9FFF" },
+  wet:   { lbl: "Wet",          ico: "⛈", lap: 1.13, fuel: 0.92, col: "#7B8FF7" },
+};
+const WX = (st) => WEATHER[st.weather] || WEATHER.dry;
+const effLapSec = (st) => parseLap(st.avgLap) * WX(st).lap;
+const effCons = (st) => st.consumption * WX(st).fuel;
 /* lastik köşe durumu: 0 taşı · 1 yeni kuru (sarı) · 2 Qual'a dön (mavi) · 3 wet (yeşil)
    · 4 eski kuru tekrar (siyah). Eski odalarda boolean olabilir → tyState normalize eder. */
 const tyState = (v) => (v === true ? 1 : v === false ? 0 : Number(v) || 0);
@@ -449,7 +462,8 @@ const MAX_STINTS = 64; // güvenlik tavanı (24h+ yarışlar için yeterli)
 
 function computePlan(st, mode /* "race" | "code80" */) {
   const raceSec = mode === "race" ? parseHMS(st.raceTime) : parseHMS(st.code80TimeLeft);
-  const lapSec = parseLap(st.avgLap);
+  const lapSec = effLapSec(st);
+  const cons = effCons(st);
   const laps = st.strategies[st.chosen] || 0;
   const tyreSecOf = (cnt) => {
     const base = cnt <= 0 ? 0 : cnt <= 2 ? TYRE_2_SEC : TYRE_4_SEC; // LMU sabit kademe
@@ -487,7 +501,7 @@ function computePlan(st, mode /* "race" | "code80" */) {
         timeLeft: raceSec - endStint,
         lapsInStint,
         isLast,
-        fuelNeed: (isLast ? lapsInStint : (ovr > 0 ? stintSec / lapSec : laps)) * st.consumption,
+        fuelNeed: (isLast ? lapsInStint : (ovr > 0 ? stintSec / lapSec : laps)) * cons,
       });
       cum = endStint;
       if (isLast) break;
@@ -508,7 +522,7 @@ function computePlan(st, mode /* "race" | "code80" */) {
     if (next.isLast) {
       const cd = rws[i].timeLeft + flagExtra;
       const lapsLeft = Math.max(1, Math.ceil(cd / lapSec - 1e-9));
-      return Math.min(100, Math.max(0, (lapsLeft + st.extraLap) * st.consumption));
+      return Math.min(100, Math.max(0, (lapsLeft + st.extraLap) * cons));
     }
     return Math.min(100, Math.max(0, next.fuelNeed));
   };
@@ -541,11 +555,11 @@ const migrate = (s) => {
 };
 
 function lastStintFuel(countdownStr, st, flagExtra = 0) {
-  const lapSec = parseLap(st.avgLap);
+  const lapSec = effLapSec(st);
   const cd = parseHMS(countdownStr) + flagExtra; // lider bayrağına kadar geçen ek süre
   const lapsRaw = lapSec > 0 ? cd / lapSec : 0;
   const lapsLeft = Math.ceil(lapsRaw - 1e-6);  // ondalık tur yukarı yuvarlanır (trafik riski payı)
-  const refuel = (lapsLeft + st.extraLap) * st.consumption;   // % VE
+  const refuel = (lapsLeft + st.extraLap) * effCons(st);   // % VE
   const refuelL = refuel * st.fuelRatio;                      // gerçek litre
   return { lapsLeft, lapsRaw, refuel, refuelL };
 }
@@ -711,6 +725,12 @@ const css = `
 .rc .trackgrid button.on{border-color:var(--teal);background:rgba(150,0,24,.25);
   color:var(--teal);font-weight:600}
 .rc .classtoggle{display:flex;gap:8px}
+.rc .wxsel{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:4px 0 2px}
+.rc .wxsel button{padding:6px 2px;border:1px solid var(--line);border-radius:8px;
+  background:var(--panel2);color:var(--dim);cursor:pointer;font-size:11px;line-height:1.3;
+  text-align:center;transition:border-color .15s,color .15s}
+.rc .wxsel button small{font-family:'DM Mono',monospace;opacity:.8;font-size:10px}
+.rc .wxsel button.on{background:rgba(255,255,255,.05)}
 .rc .classtoggle button{flex:1;display:flex;align-items:center;justify-content:center;
   gap:8px;padding:10px;border-radius:8px;border:1px solid var(--line);
   background:var(--panel2);color:var(--dim);cursor:pointer;
@@ -1108,7 +1128,7 @@ export default function App() {
   const racePlan = useMemo(() => computePlan(st, "race"), [st]);
   const lsf = useMemo(() => lastStintFuel(st.lastStintCountdown, st, computePlan(st, "race").flagExtra), [st]);
   const lsf80 = useMemo(() => lastStintFuel(st.code80LastStint, st), [st]);
-  const totalVE = st.consumption * plan.totalLaps + st.extraLap * st.consumption; // % VE (DATA I2)
+  const totalVE = effCons(st) * plan.totalLaps + st.extraLap * effCons(st); // % VE (DATA I2)
   const totalFuelL = totalVE * st.fuelRatio;            // gerçek litre karşılığı
   const fuelCarried = 100 * st.fuelRatio;               // %100 = taşınan yakıt (L)
   const realPerLap = st.consumption * st.fuelRatio;     // gerçek tüketim L/tur
@@ -1783,7 +1803,23 @@ ${bottomBar}
         <div><label>Avg Lap (m:ss.00)</label>
           <input type="text" value={st.avgLap} onChange={(e) => up({ avgLap: e.target.value })} /></div>
       </div>
-      <label>{t("Stint Turları — A / B / C / D")}</label>
+      <label style={{ display: "flex", alignItems: "center", gap: 6 }}>🌦 {t("Zemin / Hava")}</label>
+      <div className="wxsel">
+        {Object.entries(WEATHER).map(([id, w]) => (
+          <button key={id} className={st.weather === id ? "on" : ""}
+            style={st.weather === id ? { borderColor: w.col, color: w.col } : undefined}
+            onClick={() => up({ weather: id })}>
+            {w.ico} {t(w.lbl)}<br /><small>×{w.lap.toFixed(2)}</small>
+          </button>
+        ))}
+      </div>
+      {st.weather !== "dry" && (
+        <div className="hint">
+          {t("Efektif tur")}: <b className="mono">{st.avgLap}</b> ×{WX(st).lap.toFixed(2)} ={" "}
+          <b className="mono" style={{ color: WX(st).col }}>{fmtLap(effLapSec(st))}</b>
+          {WX(st).fuel < 1 && <> · ⚡ {t("yakıt")} ×{WX(st).fuel.toFixed(2)} (−{((1 - WX(st).fuel) * 100).toFixed(0)}%)</>}
+        </div>
+      )}
       <div className="row4">
         {["A", "B", "C", "D"].map((k) => (
           <Num key={k} v={st.strategies[k]} step={1}
@@ -2513,6 +2549,10 @@ ${bottomBar}
                     {trackName(st.track)}</div>
                   {PIT_LANE_TIMES[st.track] != null && (
                     <div className="hint">{t("Pit lane")}: {PIT_LANE_TIMES[st.track]}s</div>
+                  )}
+                  {st.weather !== "dry" && (
+                    <div className="hint" style={{ color: WX(st).col, fontWeight: 600 }}>
+                      {WX(st).ico} {t(WX(st).lbl)} · ×{WX(st).lap.toFixed(2)}</div>
                   )}
                 </div>
               )}
