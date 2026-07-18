@@ -298,7 +298,7 @@ const EN = {
   "tur": "laps", "Doldur": "Fill", "Sadece geçiş": "Pass-through only",
   "Paneli gizle": "Hide panel", "Paneli göster": "Show panel",
   "Lider Tur (m:ss.00)": "Leader Lap (m:ss.00)", "Lider bayrağı": "Leader flag",
-  "Multiclass Yarış": "Multiclass Race",
+  "Multiclass Yarış": "Multiclass Race", "Servis": "Service", "geçiş": "pass",
   "son tur otomatik eklenir": "final lap added automatically",
   "Ratio'yu düşürmek daha az yakıt taşımak demektir (örn. 0.84 → %100 = 84.0 L).":
     "Lowering the ratio means carrying less fuel (e.g. 0.84 → 100% = 84.0 L).",
@@ -1409,7 +1409,8 @@ export default function App() {
       const bb = rows.map((r, ri) => {
         const cls = rowCls ? rowCls(ri) : "";
         return `<tr class="${cls}">${r.map((c, i) =>
-          `<td class="${cols[i] || ""}">${esc(c)}</td>`).join("")}</tr>`;
+          `<td class="${cols[i] || ""}">${
+            c && typeof c === "object" && "html" in c ? c.html : esc(c)}</td>`).join("")}</tr>`;
       }).join("");
       return `<table><thead><tr>${hh}</tr></thead><tbody>${bb}</tbody></table>`;
     };
@@ -1417,8 +1418,17 @@ export default function App() {
     if (kind === "stint") {
       title = `${t("Stint Programı")} · ${st.chosen}-${racePlan.laps}`;
       const rows = racePlan.rows;
+      const TYN = ["FL", "FR", "RL", "RR"];
+      const svcCell = (i, isLast) => {
+        if (isLast) return { html: `<span class="svc n">🏁</span>` };
+        const pit = st.pits[i] || EMPTY_PIT;
+        const parts = [];
+        TYN.forEach((c, ti) => { if (pit.tyres[ti]) parts.push(`<span class="svc t">${c}</span>`); });
+        if (pit.fuel) parts.push(`<span class="svc f">⚡VE</span>`);
+        return { html: parts.length ? parts.join("") : `<span class="svc n">${esc(t("geçiş"))}</span>` };
+      };
       html = mkTable(
-        ["#", "Stint", t("Tur"), "Start", "Finish", t("Pilot"), "Pit", "End Stint", "Time Left"],
+        ["#", "Stint", t("Tur"), "Start", "Finish", t("Pilot"), t("Servis"), "Pit", "End Stint", "Time Left"],
         rows.map((r, i) => {
           const dp = driverPlan?.rows?.[i];
           return [
@@ -1426,11 +1436,12 @@ export default function App() {
             dp ? fmtClock(dp.start, driverPlan.startMs) : "—",
             dp ? fmtClock(dp.finish, driverPlan.startMs) : "—",
             st.driverAssign[i] || "—",
+            svcCell(i, r.isLast),
             r.isLast ? "🏁 FINISH" : fmtHMS(r.pitSec) + (r.repairSec > 0 ? ` (+${r.repairSec}s)` : ""),
             fmtHMS(r.endSec), fmtHMS(r.timeLeft),
           ];
         }),
-        ["c-idx", "", "c-lap", "c-clk", "c-clk", "c-drv", "c-pit", "", "c-left"],
+        ["c-idx", "", "c-lap", "c-clk", "c-clk", "c-drv", "c-svc", "c-pit", "", "c-left"],
         (ri) => rows[ri].isLast ? "r-last" : "");
     } else {
       if (!driverPlan) { alert(t("Pilotlar sekmesinden başlangıç zamanını gir")); return; }
@@ -1512,6 +1523,13 @@ export default function App() {
  th.c-ve{background:#2c9c63}
  td.c-clk{background:#eaf1fb;color:#1b5fae;font-weight:600}
  th.c-clk{background:#3b78c2}
+ td.c-svc{white-space:nowrap}
+ th.c-svc{background:#7a4dbc}
+ .svc{display:inline-block;border-radius:5px;padding:1px 6px;font-size:9px;font-weight:700;
+   margin:0 1px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+ .svc.t{background:#f5c84c;color:#4a3200;border:1px solid #d9a92c}
+ .svc.f{background:#c01030;color:#fff;border:1px solid #8e0a22}
+ .svc.n{background:#efe9ea;color:#8a7f81;border:1px solid #d9c9cd}
  td.c-drv{background:#eef4fb;font-weight:600}
  th.c-drv{background:#2f6fb0}
  td.c-pit{background:#fef7e6}
