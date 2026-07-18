@@ -1683,13 +1683,15 @@ ${bottomBar}
 
     <div className="card" style={{ marginTop: 12 }}>
       <h2>{t("Yarış Başlangıcı")}</h2>
-      <div className="row2">
-        <div><label>{t("Start Tarih & Saat")}</label>
-          <input type="datetime-local" value={st.raceStart}
-            onChange={(e) => up({ raceStart: e.target.value })} /></div>
-        <div><label>{t("Hesaplanan Bitiş")}</label>
-          <div className="mono" style={{ padding: "6px 0" }}>
-            {driverPlan ? fmtClock(driverPlan.finishMs, driverPlan.startMs) : "—"}</div></div>
+      <label>{t("Start Tarih & Saat")}</label>
+      <input type="datetime-local" value={st.raceStart}
+        onChange={(e) => up({ raceStart: e.target.value })} />
+      <div style={{ marginTop: 10, background: "var(--panel2)",
+        border: "1px solid var(--line)", borderRadius: 8, padding: "8px 12px",
+        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        <span className="hint" style={{ margin: 0 }}>🏁 {t("Hesaplanan Bitiş")}</span>
+        <b className="mono" style={{ fontSize: 15, color: "var(--green)" }}>
+          {driverPlan ? fmtClock(driverPlan.finishMs, driverPlan.startMs) : "—"}</b>
       </div>
       <div className="hint">{t("Canlı yarış modu, pilot planı ve geri sayım bu zamana göre çalışır.")}</div>
     </div>
