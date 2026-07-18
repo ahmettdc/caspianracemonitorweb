@@ -75,7 +75,6 @@ const DEFAULT_STATE = {
   // --- Virtual Energy sistemi (LMU) ---
   // Depo her zaman %100 VE'dir. Gerçek yakıt = VE% × fuelRatio.
   // Örn: ratio 0.84 → %100 = 84.0 L taşınan yakıt.
-  refuelSpeed: 2.33,   // %/s — dolum hızı
   fuelRatio: 0.86,     // L / %1 — gerçek yakıt karşılığı
   consumption: 8.97,   // %/tur — virtual energy tüketimi
   extraLap: 1,
@@ -210,8 +209,8 @@ const EN = {
   "Canlı yarış modu, pilot planı ve geri sayım bu zamana göre çalışır.":
     "Live race mode, driver plan and countdown are based on this time.",
   "Pit · Süreler (s)": "Pit · Times (s)", "Tyre (adet başı)": "Tyre (per tyre)",
-  "Hesaplanan Fuel Süresi": "Calculated Fuel Time",
-  "VE Tüketim (%/tur)": "VE Usage (%/lap)", "Dolum Hızı (%/s)": "Refuel Rate (%/s)",
+  
+  "VE Tüketim (%/tur)": "VE Usage (%/lap)",
   "%100 = Taşınan Yakıt": "100% = Fuel Carried",
   // teambar
   "ADIN": "NAME", "Oda Kur": "Create Room", "ODA KODU": "ROOM CODE",
@@ -282,16 +281,15 @@ const EN = {
   "Tur satırı bulunamadı ('Out Lap', 'Lap 1'...)": "No lap rows found ('Out Lap', 'Lap 1'...)",
   // son stint yakıtı
   "YARIŞ SONU": "RACE END", "CODE 80 SONU": "CODE 80 END",
-  "Kalan Tur": "Laps Left", "Dolum Süresi": "Refuel Time",
+  "Kalan Tur": "Laps Left",
   "⚠ %100'ü aşıyor — depo yetmez!": "⚠ Exceeds 100% — tank won't fit!",
   "gerçek yakıt": "real fuel",
   // ipuçları
-  "Fuel süresi ipucu = %100 VE / dolum hızı": "Fuel time hint = 100% VE / refuel rate",
   "CODE80'de lastik süresi otomatik ÷4 uygulanır.": "In CODE80 tyre time is automatically ÷4.",
   "Depo daima": "The tank is always treated as",
   "kabul edilir. Gerçek yakıt = VE × ratio → gerçek tüketim ≈":
     "VE. Real fuel = VE × ratio → real usage ≈",
-  "L/tur": "L/lap", "%/tur": "%/lap", "tur + extra": "laps + extra", "dolum ≈": "refuel ≈",
+  "L/tur": "L/lap", "%/tur": "%/lap", "tur + extra": "laps + extra",
   "lap": "lap", "gerçek": "actual",
   "Katılım çubuğunu gizle": "Hide join bar", "Katılım çubuğunu göster": "Show join bar",
   "Büyütmek için tıkla": "Click to enlarge",
@@ -476,7 +474,7 @@ function lastStintFuel(countdownStr, st) {
   const lapsLeft = Math.ceil(lapsRaw - 1e-6);  // ondalık tur yukarı yuvarlanır (trafik riski payı)
   const refuel = (lapsLeft + st.extraLap) * st.consumption;   // % VE
   const refuelL = refuel * st.fuelRatio;                      // gerçek litre
-  return { lapsLeft, lapsRaw, refuel, refuelL, refuelSec: refuel / st.refuelSpeed };
+  return { lapsLeft, lapsRaw, refuel, refuelL };
 }
 
 /* ---------- UI parçaları ---------- */
@@ -1006,7 +1004,6 @@ export default function App() {
   const totalFuelL = totalVE * st.fuelRatio;            // gerçek litre karşılığı
   const fuelCarried = 100 * st.fuelRatio;               // %100 = taşınan yakıt (L)
   const realPerLap = st.consumption * st.fuelRatio;     // gerçek tüketim L/tur
-  const fuelTimeCalc = 100 / st.refuelSpeed;            // boş→dolu süresi (DATA H19)
   const TY = ["FL", "FR", "RL", "RR"];
 
   /* ---------- Faz 3: lastik stratejisi ---------- */
@@ -1463,7 +1460,7 @@ export default function App() {
   <div class="bv">${racePlan.totalLaps.toFixed(0)} <span>${esc(t("tur"))}</span></div></div>
  <div class="bcard"><div class="bt">⚡ ${esc(t("Son Stint VE"))}</div>
   <div class="bv" style="color:#0d7a43">${planLsf.refuel.toFixed(1)}%</div>
-  <div class="bv"><span>+${st.extraLap} lap · ≈ ${planLsf.refuelL.toFixed(1)} L · ${esc(t("dolum ≈"))} ${planLsf.refuelSec.toFixed(0)}s</span></div></div>
+  <div class="bv"><span>+${st.extraLap} lap · ≈ ${planLsf.refuelL.toFixed(1)} L</span></div></div>
  ${donutCard}
  ${trackUrl ? `<div class="trackcard"><img src="${trackUrl}" alt="">
   <div class="tcap">${esc(trackName(st.track))}</div></div>` : ""}
@@ -1656,15 +1653,13 @@ ${bottomBar}
       </div>
       <div className="row2">
         <div><label>{t("Tyre (adet başı)")}</label><Num v={st.tyreTime} onC={(v) => up({ tyreTime: v })} /></div>
-        <div><label>{t("Hesaplanan Fuel Süresi")}</label>
-          <div className="mono" style={{ padding: "6px 0" }}>{fuelTimeCalc.toFixed(1)} s</div></div>
       </div>
       <div className="row2">
         <div><label style={{ display: "flex", alignItems: "center", gap: 5 }}><Tyre size={15} /> {t("Lastik Limiti (adet)")}</label>
           <Num v={st.tyreLimit} step={1} onC={(v) => up({ tyreLimit: v })} /></div>
         <div />
       </div>
-      <div className="hint">{t("Fuel süresi ipucu = %100 VE / dolum hızı")} (100% / {st.refuelSpeed} %/s). {t("CODE80'de lastik süresi otomatik ÷4 uygulanır.")}</div>
+      <div className="hint">{t("CODE80'de lastik süresi otomatik ÷4 uygulanır.")}</div>
     </div>
 
     <div className="card" style={{ marginTop: 12 }}>
@@ -1674,7 +1669,6 @@ ${bottomBar}
         <div><label>Fuel Ratio (L / %1)</label><Num v={st.fuelRatio} onC={(v) => up({ fuelRatio: v })} /></div>
       </div>
       <div className="row2">
-        <div><label>⛽ {t("Dolum Hızı (%/s)")}</label><Num v={st.refuelSpeed} onC={(v) => up({ refuelSpeed: v })} /></div>
         <div><label>⛽ {t("%100 = Taşınan Yakıt")}</label>
           <div className="mono" style={{ padding: "6px 0", color: "var(--green)" }}>
             {fuelCarried.toFixed(1)} L</div></div>
@@ -2428,7 +2422,7 @@ ${bottomBar}
                     (+{st.extraLap} {t("lap")})</span>
                 </div>
                 <div className="hint">
-                  ≈ {planLsf.refuelL.toFixed(1)} L · {planLsf.lapsLeft} {t("tur + extra")} {st.extraLap} <span style={{ color: "var(--dim)" }}>({planLsf.lapsRaw.toFixed(2)} {t("gerçek")})</span> · {t("dolum ≈")} {planLsf.refuelSec.toFixed(0)}s
+                  ≈ {planLsf.refuelL.toFixed(1)} L · {planLsf.lapsLeft} {t("tur + extra")} {st.extraLap} <span style={{ color: "var(--dim)" }}>({planLsf.lapsRaw.toFixed(2)} {t("gerçek")})</span>
                 </div>
                 {driverPlan && Object.keys(driverPlan.totals).length > 0 && (<>
                   <label style={{ marginTop: 10 }}>{t("Pilot Dağılımı")}</label>
@@ -2846,8 +2840,6 @@ ${bottomBar}
                   <div className="kpis" style={{ marginTop: 12 }}>
                     <div className="kpi"><div className="v mono">{r.lapsLeft}</div>
                       <div className="l">{t("Kalan Tur")} <span style={{ color: "var(--dim)" }}>({r.lapsRaw.toFixed(2)})</span></div></div>
-                    <div className="kpi"><div className="v mono">{r.refuelSec.toFixed(0)}s</div>
-                      <div className="l">{t("Dolum Süresi")}</div></div>
                   </div>
                   <div className="fuelbig" style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <Bolt size={30} />{r.refuel.toFixed(1)}%
