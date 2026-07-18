@@ -450,7 +450,7 @@ function computePlan(st, mode /* "race" | "code80" */) {
     return mode === "race" ? base : base / 4; // CODE80: ÷4
   };
   const repairs = st.pitRepairs || [];
-  const buildRows = (scaledPitIdx, scaledFuelSec) => {
+  const buildRows = (fuelSecFn) => {
     const rows = [];
     let cum = 0;
     for (let i = 0; i < MAX_STINTS; i++) {
@@ -469,8 +469,8 @@ function computePlan(st, mode /* "race" | "code80" */) {
       const p = st.pits[i] || EMPTY_PIT;
       const tyreCount = p.tyres.reduce((a, v) => a + (tyState(v) > 0 ? 1 : 0), 0);
       const repairSec = Number(repairs[i]) || 0;
-      /* pit süresi: LANE her zaman dahil + fuel (son pitte VE %'sine ölçekli) + lastik + tamir */
-      const fuelSec = p.fuel ? (i === scaledPitIdx ? scaledFuelSec : st.fuelTime) : 0;
+      /* pit süresi: LANE her zaman dahil + fuel (doldurduğu sonraki stintin VE %'sine ölçekli) + lastik + tamir */
+      const fuelSec = p.fuel ? (fuelSecFn ? fuelSecFn(i) : st.fuelTime) : 0;
       const pitSec = isLast ? 0
         : st.pitLaneTime + fuelSec + tyreSecOf(tyreCount) + repairSec;
       const endStint = cum + (isLast ? 0 : pitSec);
@@ -493,20 +493,30 @@ function computePlan(st, mode /* "race" | "code80" */) {
   const leadSec = st.multiclass ? (parseLap(st.leaderLap) || lapSec) : lapSec;
   const flagExtra = leadSec > 0
     ? Math.ceil(raceSec / leadSec - 1e-9) * leadSec - raceSec : 0;
-  /* son pit dolumu tam depo sürmez: son stint VE ihtiyacına ölçeklenir (42s × pct/100).
-     Süre kazancı son stinti uzatabileceği için sabitlenene dek yinele (≤3 tur). */
-  let rows = buildRows(-1, 0);
+  /* pit dolum süresi = 42s × (doldurulan stintin VE ihtiyacı %). Her pit, kendisinden
+     SONRAKİ stintin VE'sini yükler; son stint için extra lap + bayrak payı dahil edilir.
+     Pit süreleri son stint sınırını kaydırabildiği için sabitlenene dek yinele. */
+  const pctForPit = (rws, i) => {
+    const next = rws[i + 1];
+    if (!next || lapSec <= 0) return 100;
+    if (next.isLast) {
+      const cd = rws[i].timeLeft + flagExtra;
+      const lapsLeft = Math.max(1, Math.ceil(cd / lapSec - 1e-9));
+      return Math.min(100, Math.max(0, (lapsLeft + st.extraLap) * st.consumption));
+    }
+    return Math.min(100, Math.max(0, next.fuelNeed));
+  };
+  let rows = buildRows(null);
   let lastRefuelPct = null;
-  for (let iter = 0; iter < 3 && rows.length >= 2; iter++) {
-    const pIdx = rows.length - 2;
-    const pPit = st.pits[pIdx] || EMPTY_PIT;
-    if (!pPit.fuel || lapSec <= 0) break;
-    const cd = rows[pIdx].timeLeft + flagExtra;
-    const lapsLeft = Math.max(1, Math.ceil(cd / lapSec - 1e-9));
-    const pct = Math.min(100, Math.max(0, (lapsLeft + st.extraLap) * st.consumption));
-    if (lastRefuelPct !== null && Math.abs(pct - lastRefuelPct) < 0.05) break;
+  for (let iter = 0; iter < 5; iter++) {
+    const prev = rows;
+    rows = buildRows((i) => st.fuelTime * pctForPit(prev, i) / 100);
+    const li = rows.length - 2;
+    const pct = li >= 0 ? pctForPit(rows, li) : null;
+    if (lastRefuelPct !== null && pct !== null && Math.abs(pct - lastRefuelPct) < 0.05) {
+      lastRefuelPct = pct; break;
+    }
     lastRefuelPct = pct;
-    rows = buildRows(pIdx, st.fuelTime * pct / 100);
   }
   const fullStints = rows.length;
   const totalLaps = lapSec > 0
@@ -1380,9 +1390,9 @@ export default function App() {
     const finishMs = startMs + raceMs;
     if (now < startMs) return { status: "pre", toStart: startMs - now, startMs, finishMs, raceMs };
     if (now >= finishMs) return { status: "done", startMs, finishMs, raceMs };
-    const ap = (st.actualPits || []).filter(Number.isFinite);
-    /* planlanan pit başlangıçları (saf plan, sapma hesabı için)
-       — pit tuşunun otomatik yazdığı override'lar saf plana dahil edilmez */
+    /* actualPits SEYREK: ap[i] = stint i sonunda gerçek pit girişi (ms) veya boş.
+       İşaretlenmeyen pitler otomatik plandan ilerler (kayma olmaz). */
+    const ap = st.actualPits || [];
     const auto = st.autoOvr || [];
     const plannedPitStart = [];
     { let c = startMs;
@@ -1390,26 +1400,26 @@ export default function App() {
         const sSec = auto[r.idx - 1] ? racePlan.laps * racePlan.lapSec : r.stintSec;
         c += sSec * 1000; plannedPitStart.push(c); c += r.pitSec * 1000;
       } }
-    /* zincir: yapılmış pitlerde GERÇEK zaman esas alınır, kalan plan oradan akar */
-    let cur = startMs, phase = "stint", stintIdx = racePlan.rows.length - 1, phaseEnd = finishMs;
+    /* zincir: her stint gerçek pit varsa oradan biter, yoksa plandan */
+    let cur = startMs, phase = "stint", stintIdx = racePlan.rows.length - 1;
+    let phaseEnd = finishMs, stintStartMs = startMs;
     for (let i = 0; i < racePlan.rows.length; i++) {
       const r = racePlan.rows[i];
-      if (i < ap.length) { // bu pit gerçekleşti → gerçek giriş + plan pit süresi (tamir dahil)
-        cur = ap[i] + r.pitSec * 1000;
-        if (now < cur) { phase = "pit"; stintIdx = i; phaseEnd = cur; break; }
-        continue;
-      }
-      const sEnd = cur + r.stintSec * 1000;
-      if (now < sEnd) { phase = "stint"; stintIdx = i; phaseEnd = sEnd; break; }
+      const realEnd = Number.isFinite(ap[i]) ? ap[i] : null;
+      const sEnd = realEnd != null ? realEnd : cur + r.stintSec * 1000;
+      if (now < sEnd) { phase = "stint"; stintIdx = i; phaseEnd = sEnd; stintStartMs = cur; break; }
       const pEnd = sEnd + r.pitSec * 1000;
-      if (now < pEnd) { phase = "pit"; stintIdx = i; phaseEnd = pEnd; break; }
+      if (now < pEnd) { phase = "pit"; stintIdx = i; phaseEnd = pEnd; stintStartMs = cur; break; }
       cur = pEnd;
     }
-    const lastDev = ap.length
-      ? ap[ap.length - 1] - plannedPitStart[ap.length - 1] : null;
+    let lastPitIdx = -1;
+    for (let i = 0; i < ap.length; i++) if (Number.isFinite(ap[i])) lastPitIdx = i;
+    const lastDev = lastPitIdx >= 0 && plannedPitStart[lastPitIdx] != null
+      ? ap[lastPitIdx] - plannedPitStart[lastPitIdx] : null;
+    const pitsDone = ap.filter(Number.isFinite).length;
     return {
-      status: "live", phase, stintIdx, phaseEnd,
-      pitsDone: ap.length, plannedPitStart, lastDev,
+      status: "live", phase, stintIdx, phaseEnd, stintStartMs,
+      pitsDone, lastPitIdx, plannedPitStart, lastDev,
       remaining: finishMs - now, elapsed: now - startMs,
       nextPitIn: phaseEnd - now, raceMs, startMs, finishMs,
       driver: st.driverAssign[stintIdx] || "",
@@ -1420,41 +1430,38 @@ export default function App() {
   /* --- gerçek pit işaretleme (sadece düzenleyici) --- */
   const canEdit = !room || role === "editor";
   const markPit = () => {
+    if (liveInfo.status !== "live") return;
     const nowMs = Date.now();
-    const ap = (st.actualPits || []).filter(Number.isFinite);
-    const i = ap.length; // biten stintin indexi
-    const patch = { actualPits: [...(st.actualPits || []), nowMs] };
-    /* gerçek stint süresini biten stintin override'ına yaz → plan gerçeğe kilitlenir */
-    const startMs = st.raceStartMs;
-    if (!isNaN(startMs) && racePlan.rows[i]) {
-      let stintStart = startMs;
-      if (i > 0) {
-        const prev = racePlan.rows[i - 1];
-        stintStart = ap[i - 1] + (prev?.pitSec || 0) * 1000; // pitSec zaten tamiri içerir
-      }
-      const durSec = Math.round((nowMs - stintStart) / 1000);
-      if (durSec > 0) {
-        const overrides = [...(st.overrides || [])];
-        while (overrides.length <= i) overrides.push("");
-        overrides[i] = fmtHMS(durSec);
-        const autoOvr = [...(st.autoOvr || [])];
-        while (autoOvr.length <= i) autoOvr.push(false);
-        autoOvr[i] = true;
-        patch.overrides = overrides;
-        patch.autoOvr = autoOvr;
-      }
+    const i = liveInfo.stintIdx; // şu an sürülen (bitirilmekte olan) stint
+    const actualPits = [...(st.actualPits || [])];
+    while (actualPits.length <= i) actualPits.push(null);
+    actualPits[i] = nowMs;
+    const patch = { actualPits };
+    /* gerçek stint süresini o stintin override'ına yaz → plan gerçeğe kilitlenir */
+    const durSec = Math.round((nowMs - liveInfo.stintStartMs) / 1000);
+    if (durSec > 0) {
+      const overrides = [...(st.overrides || [])];
+      while (overrides.length <= i) overrides.push("");
+      overrides[i] = fmtHMS(durSec);
+      const autoOvr = [...(st.autoOvr || [])];
+      while (autoOvr.length <= i) autoOvr.push(false);
+      autoOvr[i] = true;
+      patch.overrides = overrides;
+      patch.autoOvr = autoOvr;
     }
     up(patch);
   };
   const unmarkPit = () => {
-    const n = (st.actualPits || []).length;
-    const patch = {
-      actualPits: (st.actualPits || []).slice(0, -1),
-      pitRepairs: (st.pitRepairs || []).slice(0, n - 1),
-    };
-    if ((st.autoOvr || [])[n - 1]) { // sadece otomatik yazılan override silinir
-      const overrides = [...(st.overrides || [])]; overrides[n - 1] = "";
-      const autoOvr = [...(st.autoOvr || [])]; autoOvr[n - 1] = false;
+    const ap = [...(st.actualPits || [])];
+    let idx = -1;
+    for (let i = 0; i < ap.length; i++) if (Number.isFinite(ap[i])) idx = i;
+    if (idx < 0) return;
+    ap[idx] = null;
+    while (ap.length && !Number.isFinite(ap[ap.length - 1])) ap.pop();
+    const patch = { actualPits: ap };
+    if ((st.autoOvr || [])[idx]) { // sadece otomatik yazılan override silinir
+      const overrides = [...(st.overrides || [])]; overrides[idx] = "";
+      const autoOvr = [...(st.autoOvr || [])]; autoOvr[idx] = false;
       patch.overrides = overrides; patch.autoOvr = autoOvr;
     }
     up(patch);
@@ -2218,7 +2225,7 @@ ${bottomBar}
                       background: "var(--car)", color: "#FFE9ED", border: "2px solid var(--teal)",
                       fontFamily: "'Barlow Condensed'", fontSize: 26, fontWeight: 700,
                       letterSpacing: ".06em" }}>
-                    {t("✔ PIT")} — S{liveInfo.pitsDone + 1}
+                    {t("✔ PIT")} — S{liveInfo.stintIdx + 1}
                   </button>
                 ) : (
                   <div className="plbl" style={{ color: "var(--green)" }}>
@@ -2226,10 +2233,10 @@ ${bottomBar}
                 )}
                 {liveInfo.lastDev != null && (
                   <div className="plbl" style={{ textTransform: "none" }}>
-                    P{liveInfo.pitsDone}: {t("Plan")}{" "}
-                    <span className="mono">{fmtClock(liveInfo.plannedPitStart[liveInfo.pitsDone - 1])}</span>
+                    P{liveInfo.lastPitIdx + 1}: {t("Plan")}{" "}
+                    <span className="mono">{fmtClock(liveInfo.plannedPitStart[liveInfo.lastPitIdx])}</span>
                     {" · "}{t("Gerçek")}{" "}
-                    <span className="mono">{fmtClock(st.actualPits[liveInfo.pitsDone - 1])}</span>
+                    <span className="mono">{fmtClock(st.actualPits[liveInfo.lastPitIdx])}</span>
                     {" → "}
                     <b style={{ color: Math.abs(liveInfo.lastDev) > 60000
                       ? "var(--yellow)" : "var(--green)" }}>
@@ -2239,7 +2246,7 @@ ${bottomBar}
                 {liveInfo.pitsDone > 0 && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 4,
                     alignItems: "center" }}>
-                    {(st.actualPits || []).map((_, i) => (
+                    {(st.actualPits || []).map((v, i) => Number.isFinite(v) ? (
                       <div key={i} className="plbl"
                         style={{ display: "flex", alignItems: "center", gap: 6,
                           textTransform: "none" }}>
@@ -2257,7 +2264,7 @@ ${bottomBar}
                             +{Number(st.pitRepairs[i])}s</span>
                         )}
                       </div>
-                    ))}
+                    ) : null)}
                   </div>
                 )}
                 {liveInfo.pitsDone > 0 && (
