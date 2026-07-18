@@ -43,9 +43,10 @@ const fmtHMS = (sec) => {
   const m = Math.floor(s / 60); s -= m * 60;
   return `${neg ? "-" : ""}${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 };
-const nowLocal = () => {
-  // datetime-local formatında şu an (yerel saat): YYYY-MM-DDTHH:MM
-  const d = new Date();
+const msToLocalInput = (ms) => {
+  // epoch → izleyicinin yerel saatinde datetime-local metni (YYYY-MM-DDTHH:MM)
+  if (!ms || isNaN(ms)) return "";
+  const d = new Date(ms);
   const p = (n) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 };
@@ -88,7 +89,7 @@ const DEFAULT_STATE = {
   tyreQual: ["1", "2", "3", "4"],
   tyreStints: Array.from({ length: 14 }, () => ["", "", "", ""]),
   // Faz 3 — pilotlar
-  raceStart: nowLocal(),
+  raceStartMs: Math.floor(Date.now() / 60000) * 60000, // mutlak epoch — her istemci kendi yerelinde gösterir
   roster: [],
   driverAssign: Array.from({ length: 14 }, () => ""),
   // stint başına pit ayarları (index 0 = 1. pit)
@@ -299,6 +300,7 @@ const EN = {
   "Paneli gizle": "Hide panel", "Paneli göster": "Show panel",
   "Lider Tur (m:ss.00)": "Leader Lap (m:ss.00)", "Lider bayrağı": "Leader flag",
   "Multiclass Yarış": "Multiclass Race", "Servis": "Service", "geçiş": "pass",
+  "Saat her üyeye kendi yerel diliminde gösterilir.": "Times are shown to each member in their own timezone.",
   "son tur otomatik eklenir": "final lap added automatically",
   "Ratio'yu düşürmek daha az yakıt taşımak demektir (örn. 0.84 → %100 = 84.0 L).":
     "Lowering the ratio means carrying less fuel (e.g. 0.84 → 100% = 84.0 L).",
@@ -477,7 +479,14 @@ function computePlan(st, mode /* "race" | "code80" */) {
 }
 
 /* eski oda kayıtlarına yeni alanları güvenle ekler */
-const migrate = (s) => ({ ...DEFAULT_STATE, ...s });
+const migrate = (s) => {
+  const m = { ...DEFAULT_STATE, ...s };
+  if (!m.raceStartMs && s && s.raceStart) {
+    const t = Date.parse(s.raceStart);
+    if (!isNaN(t)) m.raceStartMs = t;
+  }
+  return m;
+};
 
 function lastStintFuel(countdownStr, st, flagExtra = 0) {
   const lapSec = parseLap(st.avgLap);
@@ -1156,7 +1165,7 @@ export default function App() {
   }));
 
   const driverPlan = useMemo(() => {
-    const startMs = Date.parse(st.raceStart);
+    const startMs = st.raceStartMs;
     if (isNaN(startMs)) return null;
     const finishMs = startMs + racePlan.raceSec * 1000;
     const rows = [];
@@ -1177,7 +1186,7 @@ export default function App() {
     });
     const grandMs = Object.values(totals).reduce((a, t) => a + t.ms, 0);
     return { rows, startMs, finishMs, totals, grandMs };
-  }, [st.raceStart, st.driverAssign, racePlan]);
+  }, [st.raceStartMs, st.driverAssign, racePlan]);
 
   const fmtClock = (ms, refMs) => {
     const d = new Date(ms);
@@ -1287,7 +1296,7 @@ export default function App() {
   }, []);
 
   const liveInfo = useMemo(() => {
-    const startMs = Date.parse(st.raceStart);
+    const startMs = st.raceStartMs;
     if (isNaN(startMs) || !racePlan.rows.length) return { status: "idle" };
     const raceMs = racePlan.raceSec * 1000;
     const finishMs = startMs + raceMs;
@@ -1328,7 +1337,7 @@ export default function App() {
       driver: st.driverAssign[stintIdx] || "",
       nextDriver: st.driverAssign[stintIdx + 1] || "",
     };
-  }, [now, st.raceStart, st.driverAssign, st.actualPits, st.pitRepairs, st.autoOvr, racePlan]);
+  }, [now, st.raceStartMs, st.driverAssign, st.actualPits, st.pitRepairs, st.autoOvr, racePlan]);
 
   /* --- gerçek pit işaretleme (sadece düzenleyici) --- */
   const canEdit = !room || role === "editor";
@@ -1338,7 +1347,7 @@ export default function App() {
     const i = ap.length; // biten stintin indexi
     const patch = { actualPits: [...(st.actualPits || []), nowMs] };
     /* gerçek stint süresini biten stintin override'ına yaz → plan gerçeğe kilitlenir */
-    const startMs = Date.parse(st.raceStart);
+    const startMs = st.raceStartMs;
     if (!isNaN(startMs) && racePlan.rows[i]) {
       let stintStart = startMs;
       if (i > 0) {
@@ -1576,7 +1585,7 @@ export default function App() {
   <div class="brand"><b>CASPIAN</b> MOTORSPORT · RACE MONITOR</div>
   <div class="ptitle">${esc(userTitle || title)}</div>
   <div style="color:#777;font-size:11px">${esc(new Date().toLocaleString(lang === "en" ? "en-GB" : "tr-TR"))}${
-      st.raceStart ? " · Start: " + esc(String(st.raceStart).replace("T", " ")) : ""}${
+      st.raceStartMs ? " · Start: " + esc(new Date(st.raceStartMs).toLocaleString(lang === "en" ? "en-GB" : "tr-TR")) : ""}${
       st.track ? " · " + esc(trackName(st.track)) : ""}${
       st.car ? " · " + esc(carName(st.carClass, st.car)) : ""}</div>
  </div>
@@ -1709,8 +1718,9 @@ ${bottomBar}
     <div className="card" style={{ marginTop: 12 }}>
       <h2>{t("Yarış Başlangıcı")}</h2>
       <label>{t("Start Tarih & Saat")}</label>
-      <input type="datetime-local" value={st.raceStart}
-        onChange={(e) => up({ raceStart: e.target.value })} />
+      <input type="datetime-local" value={msToLocalInput(st.raceStartMs)}
+        onChange={(e) => { const t = new Date(e.target.value).getTime();
+          if (!isNaN(t)) up({ raceStartMs: t }); }} />
       <div style={{ marginTop: 10, background: "var(--panel2)",
         border: "1px solid var(--line)", borderRadius: 8, padding: "8px 12px",
         display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
@@ -1718,7 +1728,7 @@ ${bottomBar}
         <b className="mono" style={{ fontSize: 15, color: "var(--green)" }}>
           {driverPlan ? fmtClock(driverPlan.finishMs, driverPlan.startMs) : "—"}</b>
       </div>
-      <div className="hint">{t("Canlı yarış modu, pilot planı ve geri sayım bu zamana göre çalışır.")}</div>
+      <div className="hint">{t("Canlı yarış modu, pilot planı ve geri sayım bu zamana göre çalışır.")} 🌍 {t("Saat her üyeye kendi yerel diliminde gösterilir.")}</div>
     </div>
 
     <div className="card" style={{ marginTop: 12 }}>
@@ -2632,8 +2642,9 @@ ${bottomBar}
               <div className="row2" style={{ maxWidth: 420 }}>
                 <div>
                   <label>{t("Yarış Başlangıcı")}</label>
-                  <input type="datetime-local" value={st.raceStart}
-                    onChange={(e) => up({ raceStart: e.target.value })} />
+                  <input type="datetime-local" value={msToLocalInput(st.raceStartMs)}
+                    onChange={(e) => { const t = new Date(e.target.value).getTime();
+                      if (!isNaN(t)) up({ raceStartMs: t }); }} />
                 </div>
                 <div>
                   <label>{t("Yarış Bitişi")}</label>
