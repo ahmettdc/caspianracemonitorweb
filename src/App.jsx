@@ -288,7 +288,6 @@ const EN = {
   "⚠ %100'ü aşıyor — depo yetmez!": "⚠ Exceeds 100% — tank won't fit!",
   "gerçek yakıt": "real fuel",
   // ipuçları
-  "CODE80'de lastik süresi otomatik ÷4 uygulanır.": "In CODE80 tyre time is automatically ÷4.",
   "Depo daima": "The tank is always treated as",
   "kabul edilir. Gerçek yakıt = VE × ratio → gerçek tüketim ≈":
     "VE. Real fuel = VE × ratio → real usage ≈",
@@ -1750,7 +1749,6 @@ ${bottomBar}
           <Num v={st.tyreLimit} step={1} onC={(v) => up({ tyreLimit: v })} /></div>
         <div />
       </div>
-      <div className="hint">{t("CODE80'de lastik süresi otomatik ÷4 uygulanır.")}</div>
     </div>
 
     <div className="card" style={{ marginTop: 12 }}>
