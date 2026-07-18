@@ -285,7 +285,8 @@ const EN = {
   "Tur satırı bulunamadı ('Out Lap', 'Lap 1'...)": "No lap rows found ('Out Lap', 'Lap 1'...)",
   // son stint yakıtı
   "YARIŞ SONU": "RACE END", "CODE 80 SONU": "CODE 80 END",
-  "Kalan Tur": "Laps Left",
+  "Kalan Tur": "Laps Left", "Kullanılan kuru lastik no": "Used dry tyre no",
+  "wet (limitsiz)": "wet (unlimited)",
   "⚠ %100'ü aşıyor — depo yetmez!": "⚠ Exceeds 100% — tank won't fit!",
   "gerçek yakıt": "real fuel",
   // ipuçları
@@ -1039,9 +1040,10 @@ export default function App() {
     /* tık döngüsü: 0 taşı → 1 yeni kuru → 2 Qual'a dön → 3 wet → 0.
        Yeni kuru için limit doluysa 1 atlanır (2'ye geçilir). */
     const cur = tyState(s.pits[i].tyres[t]);
+    const planLen = computePlan(s, "race").rows.length;
     const usedDry = new Set();
     s.tyreQual.forEach((v) => { const k = String(v).trim(); if (k && k !== "W") usedDry.add(k); });
-    s.tyreStints.forEach((r) => r.forEach((v) => {
+    s.tyreStints.slice(0, planLen).forEach((r) => r.forEach((v) => {
       const k = String(v).trim(); if (k && k !== "W") usedDry.add(k); }));
     let nextState = (cur + 1) % 5;
     if (nextState === 1 && usedDry.size >= s.tyreLimit) nextState = 2;
@@ -1105,9 +1107,10 @@ export default function App() {
      FL=0 FR=1 RL=2 RR=3 · fresh: kullanılmamış en küçük numaralar */
   const quickTyre = (rowIdx, action) => setSt((s0) => {
     const s = grow(s0, rowIdx + 2);
+    const planLen = computePlan(s, "race").rows.length;
     const used = new Set();
     s.tyreQual.forEach((v) => { const k = String(v).trim(); if (k && k !== "W") used.add(k); });
-    s.tyreStints.forEach((r) => r.forEach((v) => {
+    s.tyreStints.slice(0, planLen).forEach((r) => r.forEach((v) => {
       const k = String(v).trim(); if (k && k !== "W") used.add(k); }));
     let n = 1;
     const fresh = () => { while (used.has(String(n))) n++; used.add(String(n)); return String(n); };
@@ -1219,8 +1222,12 @@ export default function App() {
     };
     // sütun ci için seçilebilir mi: hiç kullanılmamış YA DA sadece bu sütunda kullanılmış
     const allowedIn = (k, ci) => !posCols[k] || (posCols[k].size === 1 && posCols[k].has(ci));
-    const used = Object.keys(counts).filter((k) => k !== "W").length;
-    return { rows, cellCls, used, counts, allowedIn, conflicts, available: st.tyreLimit - used };
+    const usedList = Object.keys(counts).filter((k) => k !== "W")
+      .sort((a, b) => (Number(a) || 0) - (Number(b) || 0));
+    const used = usedList.length;
+    const wetUsed = counts["W"] || 0;
+    return { rows, cellCls, used, usedList, wetUsed, counts, allowedIn, conflicts,
+      available: st.tyreLimit - used };
   }, [st.tyreQual, st.tyreStints, st.tyreLimit, racePlan.rows.length]);
 
   /* hızlı lastik atamada satır başına son seçilen aksiyon (rozet gösterimi) */
@@ -2663,6 +2670,12 @@ ${bottomBar}
                   <div className="l">{t("Kalan Lastik")}</div></div>
                 <div className="kpi"><div className="v">{racePlan.fullStints}</div>
                   <div className="l">{t("Stint Sayısı")}</div></div>
+              </div>
+              <div className="hint" style={{ marginTop: 2 }}>
+                {t("Kullanılan kuru lastik no")}: {tyreInfo.usedList.length
+                  ? tyreInfo.usedList.join(", ") : "—"}
+                {" "}<b>({tyreInfo.used}/{st.tyreLimit})</b>
+                {tyreInfo.wetUsed > 0 && <> · 🌧 {t("wet (limitsiz)")}: {tyreInfo.wetUsed}</>}
               </div>
               <table>
                 <thead><tr><th>Stint</th><th>FL</th><th>FR</th><th>RL</th><th>RR</th><th>{t("Hızlı Atama")}</th></tr></thead>
