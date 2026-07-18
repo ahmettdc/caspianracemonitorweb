@@ -308,7 +308,9 @@ const EN = {
   "Taşı — tıkla: yeni kuru": "Carry — click: new dry",
   "Yeni kuru — tıkla: Qual'a dön": "New dry — click: back to Qual",
   "Qual lastiği — tıkla: wet": "Qual tyre — click: wet",
-  "Wet (sınırsız) — tıkla: taşı": "Wet (unlimited) — click: carry",
+  "Wet (sınırsız) — tıkla: eski kuru": "Wet (unlimited) — click: used dry",
+  "Eski kuru tekrar — tıkla: taşı": "Refit used dry — click: carry",
+  "Eski kuru tekrar": "Refit used dry",
   "Saat her üyeye kendi yerel diliminde gösterilir.": "Times are shown to each member in their own timezone.",
   "son tur otomatik eklenir": "final lap added automatically",
   "Ratio'yu düşürmek daha az yakıt taşımak demektir (örn. 0.84 → %100 = 84.0 L).":
@@ -434,8 +436,8 @@ function guessMapping(parsed) {
 
 /* ---------- çekirdek motor ---------- */
 const EMPTY_PIT = { fuel: true, lane: true, tyres: [0, 0, 0, 0] };
-/* lastik köşe durumu: 0 taşı · 1 yeni kuru (sarı) · 2 Qual'a dön (mavi) · 3 wet (yeşil).
-   Eski odalarda boolean olabilir → tyState normalize eder. */
+/* lastik köşe durumu: 0 taşı · 1 yeni kuru (sarı) · 2 Qual'a dön (mavi) · 3 wet (yeşil)
+   · 4 eski kuru tekrar (siyah). Eski odalarda boolean olabilir → tyState normalize eder. */
 const tyState = (v) => (v === true ? 1 : v === false ? 0 : Number(v) || 0);
 const MAX_STINTS = 64; // güvenlik tavanı (24h+ yarışlar için yeterli)
 
@@ -606,6 +608,8 @@ const css = `
 .rc .tyrebox button.on{background:var(--yellow);color:#3A2E00;border-color:var(--yellow)}
 .rc .tyrebox button.qual{background:#4D9FFF;color:#04213F;border-color:#4D9FFF}
 .rc .tyrebox button.wet{background:#7FE3A0;color:#0C3A1F;border-color:#7FE3A0}
+.rc .tyrebox button.used{background:#0B0D12;color:#E8E8EE;border-color:#6B7280;
+  box-shadow:inset 0 0 0 1px #2a2e38}
 .rc .pitopt{display:inline-flex;gap:4px}
 .rc .pitopt button{padding:2px 8px;border-radius:4px;border:1px solid var(--line);
   background:var(--panel2);color:var(--dim);font-size:10px;cursor:pointer}
@@ -1029,7 +1033,7 @@ export default function App() {
     s.tyreQual.forEach((v) => { const k = String(v).trim(); if (k && k !== "W") usedDry.add(k); });
     s.tyreStints.forEach((r) => r.forEach((v) => {
       const k = String(v).trim(); if (k && k !== "W") usedDry.add(k); }));
-    let nextState = (cur + 1) % 4;
+    let nextState = (cur + 1) % 5;
     if (nextState === 1 && usedDry.size >= s.tyreLimit) nextState = 2;
     const pits = s.pits.map((p, j) => {
       if (j !== i) return p;
@@ -1050,6 +1054,17 @@ export default function App() {
         val = String((s.tyreQual || [])[t] || "").trim();
       } else if (nextState === 3) {
         val = "W";
+      } else if (nextState === 4) {
+        /* eski (kullanılmış) kuru lastiği tekrar tak:
+           bu köşenin geçmişinde en son kullanılan, öncekinden farklı numara */
+        const hist = [];
+        for (let j = i; j >= 0; j--) {
+          const v = String((s.tyreStints[j] || [])[t] || "").trim();
+          if (v && v !== "W") hist.push(v);
+        }
+        const q = String((s.tyreQual || [])[t] || "").trim();
+        if (q) hist.push(q);
+        val = hist.find((v) => v !== prevVal) || q || prevVal;
       } else {
         val = prevVal; // taşı
       }
@@ -1109,7 +1124,11 @@ export default function App() {
       const flags = row.map((v, ci) => {
         const k = String(v || "").trim();
         const qualV = String((s.tyreQual || [])[ci] || "").trim();
-        return k === "" || k === pv[ci] ? 0 : k === "W" ? 3 : k === qualV ? 2 : 1;
+        const seen = s.tyreQual.some((x) => String(x).trim() === k) ||
+          s.tyreStints.slice(0, rowIdx).some((r2) =>
+            (r2 || []).some((x) => String(x).trim() === k));
+        return k === "" || k === pv[ci] ? 0 : k === "W" ? 3
+          : k === qualV ? 2 : seen ? 4 : 1;
       });
       pits = s.pits.map((p, j) => (j === rowIdx - 1 ? { ...p, tyres: flags } : p));
     }
@@ -1130,7 +1149,14 @@ export default function App() {
       const prevV = String((s.tyreStints[row - 1] || [])[col] ?? "").trim();
       const k = String(val).trim();
       const qualV = String((s.tyreQual || [])[col] || "").trim();
-      const flag = k === "" || k === prevV ? 0 : k === "W" ? 3 : k === qualV ? 2 : 1;
+      const seenBefore = (kk) => {
+        if (s.tyreQual.some((v) => String(v).trim() === kk)) return true;
+        for (let j = 0; j < row; j++)
+          if ((s.tyreStints[j] || []).some((v) => String(v).trim() === kk)) return true;
+        return false;
+      };
+      const flag = k === "" || k === prevV ? 0 : k === "W" ? 3
+        : k === qualV ? 2 : seenBefore(k) ? 4 : 1;
       pits = s.pits.map((p, j) => {
         if (j !== row - 1) return p;
         const tyres = [...p.tyres]; tyres[col] = flag;
@@ -1489,6 +1515,7 @@ export default function App() {
           if (sv === 1) parts.push(`<span class="svc t">${c}</span>`);
           else if (sv === 2) parts.push(`<span class="svc q">${c}</span>`);
           else if (sv === 3) parts.push(`<span class="svc w">${c}</span>`);
+          else if (sv === 4) parts.push(`<span class="svc u">${c}</span>`);
         });
         if (pit.fuel) parts.push(`<span class="svc f">⚡VE</span>`);
         return { html: parts.length ? parts.join("") : `<span class="svc n">${esc(t("geçiş"))}</span>` };
@@ -1598,6 +1625,7 @@ export default function App() {
  .svc.n{background:#efe9ea;color:#8a7f81;border:1px solid #d9c9cd}
  .svc.q{background:#4d9fff;color:#04213f;border:1px solid #2b7fe0}
  .svc.w{background:#7fe3a0;color:#0c3a1f;border:1px solid #4fc47e}
+ .svc.u{background:#1a1c22;color:#e8e8ee;border:1px solid #3a3d46}
  td.c-drv{background:#eef4fb;font-weight:600}
  th.c-drv{background:#2f6fb0}
  td.c-pit{background:#fef7e6}
@@ -2365,11 +2393,12 @@ ${bottomBar}
                               const stv = tyState((st.pits[i] || EMPTY_PIT).tyres[ti]);
                               return (
                                 <button key={corner}
-                                  className={["", "on", "qual", "wet"][stv]}
+                                  className={["", "on", "qual", "wet", "used"][stv]}
                                   title={[t("Taşı — tıkla: yeni kuru"),
                                     t("Yeni kuru — tıkla: Qual'a dön"),
                                     t("Qual lastiği — tıkla: wet"),
-                                    t("Wet (sınırsız) — tıkla: taşı")][stv]}
+                                    t("Wet (sınırsız) — tıkla: eski kuru"),
+                                    t("Eski kuru tekrar — tıkla: taşı")][stv]}
                                   onClick={() => upTyre(i, ti)}>{corner}</button>
                               );
                             })}
@@ -2713,6 +2742,9 @@ ${bottomBar}
                 <span style={{ marginLeft: 10 }}>
                   <i style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3,
                     background: "#7FE3A0", marginRight: 4 }} />{t("Wet — limitten bağımsız, sınırsız")}</span>
+                <span style={{ marginLeft: 10 }}>
+                  <i style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3,
+                    background: "#0B0D12", border: "1px solid #6B7280", marginRight: 4 }} />{t("Eski kuru tekrar")}</span>
               </div>
               {tyreInfo.conflicts.length > 0 &&
                 <div className="hint" style={{ color: "var(--red)" }}>
