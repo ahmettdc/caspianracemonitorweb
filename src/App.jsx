@@ -760,6 +760,15 @@ const css = `
 .rc .minibtn{width:22px;height:22px;padding:0;border:1px solid var(--line);border-radius:6px;
   background:var(--panel2);color:var(--txt);cursor:pointer;font-size:13px;line-height:1}
 .rc .minibtn:hover{border-color:var(--teal);color:var(--teal)}
+.rc .wxbar{position:relative;display:flex;height:16px;margin-top:4px;border-radius:6px;
+  overflow:hidden;border:1px solid var(--line)}
+.rc .wxbar .wseg{position:relative;min-width:2px;display:flex;align-items:center;
+  justify-content:center;font-size:9px;transition:width .4s ease}
+.rc .wxbar .wseg span{opacity:.85;filter:drop-shadow(0 0 1px rgba(0,0,0,.5))}
+.rc .wxbar .wseg.rain::after{content:"";position:absolute;inset:0;
+  background:repeating-linear-gradient(115deg,rgba(255,255,255,.22) 0 2px,
+    transparent 2px 9px);background-size:200% 100%;animation:wxrain 1.1s linear infinite}
+@keyframes wxrain{from{background-position:0 0}to{background-position:-36px 0}}
 .rc .classtoggle button{flex:1;display:flex;align-items:center;justify-content:center;
   gap:8px;padding:10px;border-radius:8px;border:1px solid var(--line);
   background:var(--panel2);color:var(--dim);cursor:pointer;
@@ -2482,6 +2491,43 @@ ${bottomBar}
                     left: `${Math.min(100, (liveInfo.elapsed / liveInfo.raceMs) * 100)}%` }} />
                 )}
               </div>
+
+              {(() => {
+                /* hava kronolojisi çubuğu: her stintin havası + geçiş stintinde bölme */
+                const wxFrom = Math.max(0, st.weatherFromStint || 0);
+                const wp = WEATHER[st.weatherPrev] || WEATHER.dry;
+                const wc = WX(st);
+                const switchRel = st.weatherFromMs && st.raceStartMs
+                  ? (st.weatherFromMs - st.raceStartMs) / 1000 : null;
+                const total = plan.raceSec || 1;
+                const segs = []; let cum = 0;
+                plan.rows.forEach((r, i) => {
+                  const start = cum, dur = r.stintSec;
+                  if (i === wxFrom && switchRel != null && st.weatherPrev !== st.weather
+                      && switchRel > start && switchRel < start + dur) {
+                    segs.push({ w: (switchRel - start) / total * 100, wx: wp });
+                    segs.push({ w: (start + dur - switchRel) / total * 100, wx: wc });
+                  } else {
+                    segs.push({ w: dur / total * 100, wx: i >= wxFrom ? wc : wp });
+                  }
+                  cum += dur + (r.pitSec || 0);
+                });
+                return (
+                  <div className="wxbar" role="img" aria-label="Hava zaman çizelgesi">
+                    {segs.map((s, i) => (
+                      <div key={i} className={`wseg ${s.wx.lap > 1 ? "rain" : ""}`}
+                        style={{ width: `${s.w}%`, background: s.wx.col }}
+                        title={`${t(s.wx.lbl)} ×${s.wx.lap.toFixed(2)}`}>
+                        {s.w > 6 && <span>{s.wx.ico}</span>}
+                      </div>
+                    ))}
+                    {liveInfo.status === "live" && mode === "race" && (
+                      <div className="nowline" style={{
+                        left: `${Math.min(100, (liveInfo.elapsed / liveInfo.raceMs) * 100)}%` }} />
+                    )}
+                  </div>
+                );
+              })()}
 
               <table>
                 <thead><tr>
