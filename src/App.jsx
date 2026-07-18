@@ -67,6 +67,8 @@ const DEFAULT_STATE = {
   streamUrl: "",       // canlı yayın (YouTube) linki
   weather: "dry",      // zemin durumu: dry | damp | slwet | wet
   weatherFromStint: 0, // hava bu stint indexinden itibaren geçerli (0 = tüm yarış)
+  weatherPrev: "dry",  // geçişten önceki hava (bölünen stintin ilk yarısı)
+  weatherFromMs: 0,    // geçiş anı (epoch) — bölünen stinti ikiye ayırmak için
   leaderLap: "",       // lider tur zamanı (competitive) — yarış sonu bayrağı bundan
   pitLaneTime: 22,
   fuelTime: 42,
@@ -288,7 +290,7 @@ const EN = {
   "YARIŞ SONU": "RACE END", "CODE 80 SONU": "CODE 80 END",
   "Zemin / Hava": "Track / Weather", "Efektif tur": "Effective lap", "yakıt": "fuel",
   "Geçerli": "Active", "ve sonrası": "onward", "öncesi Dry": "before: Dry",
-  "Tüm yarışa uygulanır": "Applies to whole race",
+  "Tüm yarışa uygulanır": "Applies to whole race", "bölünür": "split",
   "Dry": "Dry", "Damp": "Damp", "Slightly Wet": "Slightly Wet", "Wet": "Wet",
   "Canlı Yayın": "Live Stream", "YouTube linki": "YouTube link",
   "Yayın Dashboard'da gösteriliyor.": "Stream is shown on the Dashboard.",
@@ -467,12 +469,18 @@ function computePlan(st, mode /* "race" | "code80" */) {
   const raceSec = mode === "race" ? parseHMS(st.raceTime) : parseHMS(st.code80TimeLeft);
   const baseLap = parseLap(st.avgLap);
   const baseCons = st.consumption;
-  const w = WX(st);
-  const wxFrom = Math.max(0, st.weatherFromStint || 0); // bu stintten itibaren hava geçerli
-  const lapOf = (i) => baseLap * (i >= wxFrom ? w.lap : 1);   // stint i'nin efektif tur süresi
-  const consOf = (i) => baseCons * (i >= wxFrom ? w.fuel : 1);
-  const lapSec = baseLap * w.lap;   // "şu an/gelecek" temposu (bayrak & pct için)
-  const cons = baseCons * w.fuel;
+  const w = WX(st);                                    // mevcut hava
+  const wp = WEATHER[st.weatherPrev] || WEATHER.dry;   // geçiş öncesi hava
+  const wxFrom = Math.max(0, st.weatherFromStint || 0); // bu stintten itibaren mevcut hava
+  const prevLap = baseLap * wp.lap, curLap = baseLap * w.lap;
+  const prevCons = baseCons * wp.fuel, curCons = baseCons * w.fuel;
+  const lapOf = (i) => i >= wxFrom ? curLap : prevLap;   // stint i'nin efektif tur süresi
+  const consOf = (i) => i >= wxFrom ? curCons : prevCons;
+  const lapSec = curLap;   // "şu an/gelecek" temposu (bayrak & pct için)
+  const cons = curCons;
+  /* geçiş stinti (wxFrom): anahtar basıldığı ana kadar eski havada, sonrası yeni havada */
+  const switchRel = st.weatherFromMs && st.raceStartMs
+    ? (st.weatherFromMs - st.raceStartMs) / 1000 : null;
   const laps = st.strategies[st.chosen] || 0;
   const tyreSecOf = (cnt) => {
     const base = cnt <= 0 ? 0 : cnt <= 2 ? TYRE_2_SEC : TYRE_4_SEC; // LMU sabit kademe
@@ -485,7 +493,14 @@ function computePlan(st, mode /* "race" | "code80" */) {
     for (let i = 0; i < MAX_STINTS; i++) {
       const ovr = parseHMS(st.overrides[i] || "");
       const lSec = lapOf(i);                               // bu stintin tur süresi (hava)
-      const nominalSec = ovr > 0 ? ovr : laps * lSec;      // planlanan tam stint
+      /* geçiş stintinin bölünmüş süresi: eski hızda geçen + yeni hızda kalan */
+      let splitSec = null, splitLapsOld = 0;
+      if (i === wxFrom && switchRel != null && ovr <= 0 && st.weatherPrev !== st.weather) {
+        const off = Math.max(0, Math.min(laps * prevLap, switchRel - cum)); // stint içi geçen süre
+        splitLapsOld = prevLap > 0 ? off / prevLap : 0;
+        splitSec = off + Math.max(0, laps - splitLapsOld) * curLap;
+      }
+      const nominalSec = ovr > 0 ? ovr : (splitSec != null ? splitSec : laps * lSec);
       const startLeft = raceSec - cum;                     // stint başında kalan süre
       if (startLeft <= 0) break;
       /* tam stint kalan süreye sığmıyorsa bu son stinttir → süreyi kalan süreye kısalt
@@ -511,7 +526,9 @@ function computePlan(st, mode /* "race" | "code80" */) {
         timeLeft: raceSec - endStint,
         lapsInStint,
         isLast,
-        fuelNeed: (isLast ? lapsInStint : (ovr > 0 ? stintSec / lSec : laps)) * consOf(i),
+        fuelNeed: (splitSec != null && !isLast)
+          ? splitLapsOld * prevCons + Math.max(0, laps - splitLapsOld) * curCons
+          : (isLast ? lapsInStint : (ovr > 0 ? stintSec / lSec : laps)) * consOf(i),
       });
       cum = endStint;
       if (isLast) break;
@@ -1821,8 +1838,11 @@ ${bottomBar}
           <button key={id} className={st.weather === id ? "on" : ""}
             style={st.weather === id ? { borderColor: w.col, color: w.col } : undefined}
             onClick={() => up({ weather: id,
+              weatherPrev: st.weather,
               weatherFromStint: id === "dry" ? 0
-                : (liveInfo.status === "live" ? liveInfo.stintIdx : 0) })}>
+                : (liveInfo.status === "live" ? liveInfo.stintIdx : 0),
+              weatherFromMs: (id !== "dry" && liveInfo.status === "live")
+                ? Date.now() : 0 })}>
             {w.ico} {t(w.lbl)}<br /><small>×{w.lap.toFixed(2)}</small>
           </button>
         ))}
@@ -1837,7 +1857,10 @@ ${bottomBar}
           flexWrap: "wrap" }}>
           {(st.weatherFromStint || 0) > 0
             ? <>🕒 {t("Geçerli")}: <b>S{st.weatherFromStint + 1}</b> {t("ve sonrası")}
-                <span style={{ color: "var(--dim)" }}>({t("öncesi Dry")})</span></>
+                <span style={{ color: "var(--dim)" }}>
+                  ({st.weatherFromMs > 0
+                    ? `S${st.weatherFromStint + 1} ${t("bölünür")}: ${t(WEATHER[st.weatherPrev]?.lbl || "Dry")} → ${t(WX(st).lbl)}`
+                    : t("öncesi Dry")})</span></>
             : <>🌍 {t("Tüm yarışa uygulanır")}</>}
           <span style={{ marginLeft: "auto", display: "inline-flex", gap: 4 }}>
             <button className="minibtn" onClick={() => up({ weatherFromStint:
