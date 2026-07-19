@@ -2664,23 +2664,18 @@ ${bottomBar}
               </div>
 
               {(() => {
-                /* hava kronolojisi: her stinti içindeki tüm log geçişlerinde böl */
+                /* hava kronolojisi: doğrudan log'dan, yarış süresi üzerinden
+                   (stint sınırlarından bağımsız → canlı + planlı her geçiş görünür) */
                 const log = wxLog(st);
-                const wxAt = (rel) => wxAtRel(log, rel);
-                const total = plan.raceSec || 1;
-                const segs = []; let cum = 0;
-                plan.rows.forEach((r) => {
-                  const a = cum, end = cum + r.stintSec;
-                  const bs = log.map((e) => e.t).filter((tt) => tt > a + 1e-6 && tt < end - 1e-6)
-                    .sort((x, y) => x - y);
-                  let prev = a;
-                  [...bs, end].forEach((b) => {
-                    const wx = wxAt((prev + b) / 2);
-                    segs.push({ w: (b - prev) / total * 100, wx });
-                    prev = b;
-                  });
-                  cum = end + (r.pitSec || 0);
-                });
+                const total = plan.raceSec || parseHMS(st.raceTime) || 1;
+                const cuts = [0, ...log.map((e) => e.t).filter((tt) => tt > 0.5 && tt < total - 0.5),
+                  total].sort((a, b) => a - b);
+                const segs = [];
+                for (let i = 0; i < cuts.length - 1; i++) {
+                  const a = cuts[i], b = cuts[i + 1];
+                  if (b - a < 0.5) continue;
+                  segs.push({ w: (b - a) / total * 100, wx: wxAtRel(log, (a + b) / 2) });
+                }
                 if (!segs.some((x) => x.wx.lap > 1)) return null; // hep dry → çubuk gizli
                 return (
                   <div className="wxbar" role="img" aria-label="Hava zaman çizelgesi">
