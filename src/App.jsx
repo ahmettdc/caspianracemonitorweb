@@ -821,6 +821,18 @@ const css = `
 .rc .wxrow .wxat{margin-left:auto;color:var(--muted);font-size:12px}
 .rc .wxmfoot{padding:10px 16px;border-top:1px solid var(--line);display:flex;
   justify-content:flex-end}
+.rc .wxsrc{font-size:9px;text-transform:uppercase;letter-spacing:.06em;padding:1px 6px;
+  border-radius:5px;border:1px solid}
+.rc .wxsrc.live{color:var(--teal);border-color:rgba(38,198,218,.4);background:rgba(38,198,218,.1)}
+.rc .wxsrc.plan{color:#c9a227;border-color:rgba(201,162,39,.4);background:rgba(201,162,39,.1)}
+.rc .wxrow .wxat{margin-left:auto}
+.rc .wxmplan{padding:10px 16px;border-top:1px solid var(--line)}
+.rc .wxmptitle{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);
+  margin-bottom:7px}
+.rc .wxmprow{display:flex;gap:6px;align-items:center}
+.rc .wxmprow select{flex:1}
+.rc .wxmprow input{width:90px;text-align:center}
+.rc .wxmquick{display:flex;gap:6px;margin-top:7px}
 .rc .wxbar{position:relative;display:flex;height:16px;margin-top:4px;border-radius:6px;
   overflow:hidden;border:1px solid var(--line)}
 .rc .wxbar .wseg{position:relative;min-width:2px;display:flex;align-items:center;
@@ -1861,6 +1873,8 @@ ${bottomBar}
   const [barOpen, setBarOpen] = useState(true); // oda katılım çubuğu aç/kapa
   const [sideOpen, setSideOpen] = useState(true); // sol data sidebar aç/kapa
   const [wxHist, setWxHist] = useState(false); // hava geçmişi penceresi
+  const [wxPlanW, setWxPlanW] = useState("wet"); // planlı geçiş: hava
+  const [wxPlanT, setWxPlanT] = useState("");    // planlı geçiş: yarış saati
   const [zoom, setZoom] = useState(null); // "car" | "track" | null — kart büyütme (lightbox)
   /* LMU referans verisi (Ohne Speed tablosundan gömülü JSON) */
   const [lmuData, setLmuData] = useState(null);
@@ -1929,10 +1943,16 @@ ${bottomBar}
             onClick={() => {
               const el = liveInfo.status === "live"
                 ? Math.max(0, Math.round(liveInfo.elapsed / 1000)) : 0;
-              let log = (st.weatherLog || []).filter((e) => e.t < el - 0.5);
-              if (el < 1) log = []; // yarış öncesi: bazı sıfırla
-              log.push({ t: el, w: id });
-              up({ weather: id, weatherLog: log });
+              /* canlı komut SADECE şu an ve öncesini etkiler; gelecekteki
+                 planlı geçişler korunur (çakışma yok) */
+              let past = (st.weatherLog || []).filter((e) => e.t < el - 0.5);
+              const future = (st.weatherLog || []).filter((e) => e.t > el + 0.5);
+              if (el < 1) past = []; // yarış öncesi: bazı sıfırla
+              const log = [...past, { t: el, w: id, src: "live" }, ...future]
+                .sort((a, b) => a.t - b.t);
+              const cur = wxAtRel(log, el);
+              up({ weather: Object.keys(WEATHER).find((k) => WEATHER[k] === cur) || id,
+                weatherLog: log });
             }}>
             {w.ico} {t(w.lbl)}<br /><small>×{w.lap.toFixed(2)}</small>
           </button>
@@ -2251,14 +2271,22 @@ ${bottomBar}
               <button className="lbclose" onClick={() => setWxHist(false)}>✕</button>
             </div>
             <div className="wxmlist">
+              {!(st.weatherLog || []).length && (
+                <div className="hint" style={{ padding: "10px 6px" }}>
+                  {t("Henüz hava geçişi yok. Aşağıdan planlı geçiş ekleyin veya soldaki butonlarla canlı değiştirin.")}
+                </div>
+              )}
               {(st.weatherLog || []).map((e, i) => {
                 const wx = WEATHER[e.w] || WEATHER.dry;
+                const isFuture = liveInfo.status === "live"
+                  && e.t > liveInfo.elapsed / 1000 + 1;
                 return (
                   <div key={i} className="wxrow">
                     <span className="wxdot" style={{ background: wx.col }} />
                     <span className="wxnm" style={{ color: wx.col }}>{wx.ico} {t(wx.lbl)}</span>
-                    <span className="wxml">×{wx.lap.toFixed(2)}
-                      {wx.fuel < 1 && ` · ⚡−${((1 - wx.fuel) * 100).toFixed(0)}%`}</span>
+                    <span className={`wxsrc ${e.src === "plan" ? "plan" : "live"}`}>
+                      {e.src === "plan" ? t("planlı") : t("canlı")}
+                      {isFuture ? " ⏳" : ""}</span>
                     <span className="wxat mono">@{fmtHMS(e.t)}</span>
                     <button className="minibtn" title={t("Sil")}
                       onClick={() => {
@@ -2269,6 +2297,38 @@ ${bottomBar}
                   </div>
                 );
               })}
+            </div>
+            <div className="wxmplan">
+              <div className="wxmptitle">➕ {t("Planlı geçiş ekle")}</div>
+              <div className="wxmprow">
+                <select value={wxPlanW} onChange={(e) => setWxPlanW(e.target.value)}>
+                  {Object.entries(WEATHER).map(([id, w]) => (
+                    <option key={id} value={id}>{w.ico} {t(w.lbl)}</option>
+                  ))}
+                </select>
+                <input type="text" placeholder="s:dd:ss" value={wxPlanT}
+                  onChange={(e) => setWxPlanT(e.target.value)}
+                  title={t("Yarış saati (başlangıçtan itibaren)")} />
+                <button className="histbtn" onClick={() => {
+                  const tt = parseHMS(wxPlanT);
+                  if (tt <= 0) return;
+                  const log = [...(st.weatherLog || []).filter((e) => Math.abs(e.t - tt) > 0.5),
+                    { t: tt, w: wxPlanW, src: "plan" }].sort((a, b) => a.t - b.t);
+                  up({ weather: WX({ weatherLog: log }).lap ? st.weather : st.weather,
+                    weatherLog: log });
+                  setWxPlanT("");
+                }}>{t("Ekle")}</button>
+              </div>
+              <div className="wxmquick">
+                {[["30 dk", 30], ["60 dk", 60], ["90 dk", 90]].map(([lbl, mn]) => (
+                  <button key={mn} className="minibtn" style={{ width: "auto", padding: "0 8px" }}
+                    title={t("Son X dk için geçiş zamanı")}
+                    onClick={() => {
+                      const tt = Math.max(0, parseHMS(st.raceTime) - mn * 60);
+                      setWxPlanT(fmtHMS(tt));
+                    }}>{t("Son")} {lbl}</button>
+                ))}
+              </div>
             </div>
             <div className="wxmfoot">
               <button className="histbtn" onClick={() => {
