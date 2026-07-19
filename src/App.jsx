@@ -287,7 +287,7 @@ const EN = {
   // son stint yakıtı
   "YARIŞ SONU": "RACE END", "CODE 80 SONU": "CODE 80 END",
   "Zemin / Hava": "Track / Weather", "Efektif tur": "Effective lap", "yakıt": "fuel",
-  "şu an": "now", "değişim": "changes",
+  "şu an": "now", "değişim": "changes", "Hava Geçmişi": "Weather History", "Tümünü Sıfırla": "Reset All", "Sil": "Delete",
   "Dry": "Dry", "Damp": "Damp", "Slightly Wet": "Slightly Wet", "Wet": "Wet",
   "Canlı Yayın": "Live Stream", "YouTube linki": "YouTube link",
   "Yayın Dashboard'da gösteriliyor.": "Stream is shown on the Dashboard.",
@@ -782,6 +782,27 @@ const css = `
 .rc .minibtn{width:22px;height:22px;padding:0;border:1px solid var(--line);border-radius:6px;
   background:var(--panel2);color:var(--txt);cursor:pointer;font-size:13px;line-height:1}
 .rc .minibtn:hover{border-color:var(--teal);color:var(--teal)}
+.rc .histbtn{border:1px solid var(--line);border-radius:8px;background:var(--panel2);
+  color:var(--txt);cursor:pointer;font-size:12px;padding:5px 12px;transition:border-color .15s}
+.rc .histbtn:hover{border-color:var(--teal);color:var(--teal)}
+.rc .wxmodal{position:fixed;inset:0;z-index:1000;background:rgba(10,6,10,.72);
+  backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;
+  padding:20px;animation:lbfade .18s ease}
+.rc .wxmbox{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+  width:min(440px,94vw);max-height:80vh;display:flex;flex-direction:column;overflow:hidden;
+  animation:lbzoom .26s cubic-bezier(.2,.85,.3,1.12)}
+.rc .wxmhead{display:flex;align-items:center;justify-content:space-between;
+  padding:12px 16px;border-bottom:1px solid var(--line);font-family:'Barlow Condensed';
+  font-size:18px;letter-spacing:.04em;text-transform:uppercase}
+.rc .wxmlist{overflow:auto;padding:8px}
+.rc .wxrow{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px}
+.rc .wxrow:nth-child(odd){background:rgba(255,255,255,.03)}
+.rc .wxrow .wxdot{width:11px;height:11px;border-radius:3px;flex:0 0 auto}
+.rc .wxrow .wxnm{font-weight:600;min-width:96px}
+.rc .wxrow .wxml{color:var(--dim);font-size:12px}
+.rc .wxrow .wxat{margin-left:auto;color:var(--muted);font-size:12px}
+.rc .wxmfoot{padding:10px 16px;border-top:1px solid var(--line);display:flex;
+  justify-content:flex-end}
 .rc .wxbar{position:relative;display:flex;height:16px;margin-top:4px;border-radius:6px;
   overflow:hidden;border:1px solid var(--line)}
 .rc .wxbar .wseg{position:relative;min-width:2px;display:flex;align-items:center;
@@ -1803,6 +1824,7 @@ ${bottomBar}
   const [autoCd, setAutoCd] = useState(true); // plandan otomatik countdown
   const [barOpen, setBarOpen] = useState(true); // oda katılım çubuğu aç/kapa
   const [sideOpen, setSideOpen] = useState(true); // sol data sidebar aç/kapa
+  const [wxHist, setWxHist] = useState(false); // hava geçmişi penceresi
   const [zoom, setZoom] = useState(null); // "car" | "track" | null — kart büyütme (lightbox)
   /* LMU referans verisi (Ohne Speed tablosundan gömülü JSON) */
   const [lmuData, setLmuData] = useState(null);
@@ -1888,17 +1910,9 @@ ${bottomBar}
         </div>
       )}
       {(st.weatherLog || []).length > 0 && (
-        <div className="hint" style={{ display: "flex", alignItems: "center", gap: 6,
-          flexWrap: "wrap" }}>
-          🕒 {(st.weatherLog || []).map((e, i) => (
-            <span key={i} style={{ color: (WEATHER[e.w] || WEATHER.dry).col }}>
-              {(WEATHER[e.w] || WEATHER.dry).ico} {t((WEATHER[e.w] || WEATHER.dry).lbl)}
-              <span style={{ color: "var(--dim)" }}> @{fmtHMS(e.t)}</span>
-              {i < st.weatherLog.length - 1 ? " →" : ""}
-            </span>
-          ))}
-          <button className="minibtn" style={{ marginLeft: "auto", width: "auto", padding: "0 8px" }}
-            onClick={() => up({ weather: "dry", weatherLog: [] })}>{t("Sıfırla")}</button>
+        <div className="hint" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button className="histbtn" onClick={() => setWxHist(true)}>
+            🕒 {t("Hava Geçmişi")} ({st.weatherLog.length})</button>
         </div>
       )}
       <div className="row4">
@@ -2193,6 +2207,41 @@ ${bottomBar}
   return (
     <div className="rc">
       <style>{css}</style>
+      {wxHist && (
+        <div className="wxmodal" onClick={() => setWxHist(false)}>
+          <div className="wxmbox" onClick={(e) => e.stopPropagation()}>
+            <div className="wxmhead">
+              <span>🕒 {t("Hava Geçmişi")}</span>
+              <button className="lbclose" onClick={() => setWxHist(false)}>✕</button>
+            </div>
+            <div className="wxmlist">
+              {(st.weatherLog || []).map((e, i) => {
+                const wx = WEATHER[e.w] || WEATHER.dry;
+                return (
+                  <div key={i} className="wxrow">
+                    <span className="wxdot" style={{ background: wx.col }} />
+                    <span className="wxnm" style={{ color: wx.col }}>{wx.ico} {t(wx.lbl)}</span>
+                    <span className="wxml">×{wx.lap.toFixed(2)}
+                      {wx.fuel < 1 && ` · ⚡−${((1 - wx.fuel) * 100).toFixed(0)}%`}</span>
+                    <span className="wxat mono">@{fmtHMS(e.t)}</span>
+                    <button className="minibtn" title={t("Sil")}
+                      onClick={() => {
+                        const log = st.weatherLog.filter((_, j) => j !== i);
+                        up({ weather: log.length ? log[log.length - 1].w : "dry",
+                          weatherLog: log });
+                      }}>✕</button>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="wxmfoot">
+              <button className="histbtn" onClick={() => {
+                up({ weather: "dry", weatherLog: [] }); setWxHist(false);
+              }}>{t("Tümünü Sıfırla")}</button>
+            </div>
+          </div>
+        </div>
+      )}
       <header>
         <img className="hlogo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
         <h1 className="disp" style={{ fontSize: 20 }}>RACE MONITOR</h1>
