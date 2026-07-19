@@ -287,7 +287,9 @@ const EN = {
   // son stint yakıtı
   "YARIŞ SONU": "RACE END", "CODE 80 SONU": "CODE 80 END",
   "Zemin / Hava": "Track / Weather", "Efektif tur": "Effective lap", "yakıt": "fuel",
-  "şu an": "now", "değişim": "changes", "Tur −1": "Lap −1", "Tur +1": "Lap +1",
+  "şu an": "now", "değişim": "changes", "Hava Durumu": "Weather",
+  "Şu anki zemin — canlı değişim buradan": "Current surface — switch live here",
+  "Geçmiş / Planlı geçişler": "History / Planned changes", "Tur −1": "Lap −1", "Tur +1": "Lap +1",
   "Otomatiğe dön": "Back to auto", "Önce süre override'ı temizle": "Clear time override first",
   "Tur override aktif — önce onu temizle": "Lap override active — clear it first", "Hava Geçmişi": "Weather History", "Tümünü Sıfırla": "Reset All", "Sil": "Delete",
   "Dry": "Dry", "Damp": "Damp", "Slightly Wet": "Slightly Wet", "Wet": "Wet",
@@ -1935,42 +1937,6 @@ ${bottomBar}
         <div><label>Avg Lap (m:ss.00)</label>
           <input type="text" value={st.avgLap} onChange={(e) => up({ avgLap: e.target.value })} /></div>
       </div>
-      <label style={{ display: "flex", alignItems: "center", gap: 6 }}>🌦 {t("Zemin / Hava")}</label>
-      <div className="wxsel">
-        {Object.entries(WEATHER).map(([id, w]) => (
-          <button key={id} className={st.weather === id ? "on" : ""}
-            style={st.weather === id ? { borderColor: w.col, color: w.col } : undefined}
-            onClick={() => {
-              const el = liveInfo.status === "live"
-                ? Math.max(0, Math.round(liveInfo.elapsed / 1000)) : 0;
-              /* canlı komut SADECE şu an ve öncesini etkiler; gelecekteki
-                 planlı geçişler korunur (çakışma yok) */
-              let past = (st.weatherLog || []).filter((e) => e.t < el - 0.5);
-              const future = (st.weatherLog || []).filter((e) => e.t > el + 0.5);
-              if (el < 1) past = []; // yarış öncesi: bazı sıfırla
-              const log = [...past, { t: el, w: id, src: "live" }, ...future]
-                .sort((a, b) => a.t - b.t);
-              const cur = wxAtRel(log, el);
-              up({ weather: Object.keys(WEATHER).find((k) => WEATHER[k] === cur) || id,
-                weatherLog: log });
-            }}>
-            {w.ico} {t(w.lbl)}<br /><small>×{w.lap.toFixed(2)}</small>
-          </button>
-        ))}
-      </div>
-      {WX(st).lap > 1 && (
-        <div className="hint">
-          {t("Efektif tur")} ({t("şu an")}): <b className="mono">{st.avgLap}</b> ×{WX(st).lap.toFixed(2)} ={" "}
-          <b className="mono" style={{ color: WX(st).col }}>{fmtLap(effLapSec(st))}</b>
-          {WX(st).fuel < 1 && <> · ⚡ {t("yakıt")} −{((1 - WX(st).fuel) * 100).toFixed(0)}%</>}
-        </div>
-      )}
-      {(st.weatherLog || []).length > 0 && (
-        <div className="hint" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <button className="histbtn" onClick={() => setWxHist(true)}>
-            🕒 {t("Hava Geçmişi")} ({st.weatherLog.length})</button>
-        </div>
-      )}
       <div className="row4">
         {["A", "B", "C", "D"].map((k) => (
           <Num key={k} v={st.strategies[k]} step={1}
@@ -2029,6 +1995,44 @@ ${bottomBar}
           {driverPlan ? fmtClock(driverPlan.finishMs, driverPlan.startMs) : "—"}</b>
       </div>
       <div className="hint">{t("Canlı yarış modu, pilot planı ve geri sayım bu zamana göre çalışır.")} 🌍 {t("Saat her üyeye kendi yerel diliminde gösterilir.")}</div>
+    </div>
+
+    <div className="card" style={{ marginTop: 12 }}>
+      <h2>🌦 {t("Hava Durumu")}</h2>
+      <div className="hint" style={{ marginTop: 0, marginBottom: 6 }}>
+        {t("Şu anki zemin — canlı değişim buradan")}</div>
+      <div className="wxsel">
+        {Object.entries(WEATHER).map(([id, w]) => (
+          <button key={id} className={st.weather === id ? "on" : ""}
+            style={st.weather === id ? { borderColor: w.col, color: w.col } : undefined}
+            onClick={() => {
+              const el = liveInfo.status === "live"
+                ? Math.max(0, Math.round(liveInfo.elapsed / 1000)) : 0;
+              let past = (st.weatherLog || []).filter((e) => e.t < el - 0.5);
+              const future = (st.weatherLog || []).filter((e) => e.t > el + 0.5);
+              if (el < 1) past = [];
+              const log = [...past, { t: el, w: id, src: "live" }, ...future]
+                .sort((a, b) => a.t - b.t);
+              const cur = wxAtRel(log, el);
+              up({ weather: Object.keys(WEATHER).find((k) => WEATHER[k] === cur) || id,
+                weatherLog: log });
+            }}>
+            {w.ico} {t(w.lbl)}<br /><small>×{w.lap.toFixed(2)}</small>
+          </button>
+        ))}
+      </div>
+      {WX(st).lap > 1 && (
+        <div className="hint">
+          {t("Efektif tur")} ({t("şu an")}): <b className="mono">{st.avgLap}</b> ×{WX(st).lap.toFixed(2)} ={" "}
+          <b className="mono" style={{ color: WX(st).col }}>{fmtLap(effLapSec(st))}</b>
+          {WX(st).fuel < 1 && <> · ⚡ {t("yakıt")} −{((1 - WX(st).fuel) * 100).toFixed(0)}%</>}
+        </div>
+      )}
+      <div className="hint" style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+        <button className="histbtn" onClick={() => setWxHist(true)}>
+          🕒 {t("Geçmiş / Planlı geçişler")}
+          {(st.weatherLog || []).length > 0 ? ` (${st.weatherLog.length})` : ""}</button>
+      </div>
     </div>
 
     <div className="card" style={{ marginTop: 12 }}>
