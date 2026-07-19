@@ -287,7 +287,9 @@ const EN = {
   // son stint yakıtı
   "YARIŞ SONU": "RACE END", "CODE 80 SONU": "CODE 80 END",
   "Zemin / Hava": "Track / Weather", "Efektif tur": "Effective lap", "yakıt": "fuel",
-  "şu an": "now", "değişim": "changes", "Hava Geçmişi": "Weather History", "Tümünü Sıfırla": "Reset All", "Sil": "Delete",
+  "şu an": "now", "değişim": "changes", "Tur −1": "Lap −1", "Tur +1": "Lap +1",
+  "Otomatiğe dön": "Back to auto", "Önce süre override'ı temizle": "Clear time override first",
+  "Tur override aktif — önce onu temizle": "Lap override active — clear it first", "Hava Geçmişi": "Weather History", "Tümünü Sıfırla": "Reset All", "Sil": "Delete",
   "Dry": "Dry", "Damp": "Damp", "Slightly Wet": "Slightly Wet", "Wet": "Wet",
   "Canlı Yayın": "Live Stream", "YouTube linki": "YouTube link",
   "Yayın Dashboard'da gösteriliyor.": "Stream is shown on the Dashboard.",
@@ -520,6 +522,11 @@ function computePlan(st, mode /* "race" | "code80" */) {
         stintSec = isLast ? startLeft : ovr;
         const wb = walkByTime(cum, stintSec, isLast);
         lapsInStint = Math.max(1, wb.laps); fuelUnits = wb.fuel;
+      } else if ((Number(st.lapOverrides?.[i]) || 0) > 0) { // manuel tur sayısı
+        const nl = Math.max(1, Math.round(Number(st.lapOverrides[i])));
+        const full = walkFull(cum, nl);
+        isLast = (cum + full.sec) >= raceSec - 0.5;
+        stintSec = full.sec; lapsInStint = nl; fuelUnits = full.fuel;
       } else {
         const full = walkFull(cum, laps);                 // tam stint (tur limitli)
         isLast = full.sec >= startLeft - 0.5;
@@ -596,6 +603,7 @@ const migrate = (s) => {
     const t = Date.parse(s.raceStart);
     if (!isNaN(t)) m.raceStartMs = t;
   }
+  if (!Array.isArray(m.lapOverrides)) m.lapOverrides = Array(MAX_STINTS).fill("");
   if (!Array.isArray(m.weatherLog)) m.weatherLog = [];
   if (!m.weatherLog.length && s && s.weather && s.weather !== "dry")
     m.weatherLog = [{ t: 0, w: s.weather }]; // eski "tüm yarış" seçimi
@@ -785,6 +793,16 @@ const css = `
 .rc .histbtn{border:1px solid var(--line);border-radius:8px;background:var(--panel2);
   color:var(--txt);cursor:pointer;font-size:12px;padding:5px 12px;transition:border-color .15s}
 .rc .histbtn:hover{border-color:var(--teal);color:var(--teal)}
+.rc .lapcell{display:inline-flex;align-items:center;gap:4px}
+.rc .lapcell b{min-width:20px;text-align:center;font-variant-numeric:tabular-nums}
+.rc .lapcell b.lapman{color:var(--teal)}
+.rc .lapstep{width:18px;height:18px;padding:0;border:1px solid var(--line);border-radius:5px;
+  background:var(--panel2);color:var(--txt);cursor:pointer;font-size:12px;line-height:1}
+.rc .lapstep:hover:not(:disabled){border-color:var(--teal);color:var(--teal)}
+.rc .lapstep:disabled{opacity:.3;cursor:not-allowed}
+.rc .lapclr{width:16px;height:16px;padding:0;border:none;border-radius:4px;
+  background:transparent;color:var(--dim);cursor:pointer;font-size:11px}
+.rc .lapclr:hover{color:var(--car)}
 .rc .wxmodal{position:fixed;inset:0;z-index:1000;background:rgba(10,6,10,.72);
   backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;
   padding:20px;animation:lbfade .18s ease}
@@ -1201,7 +1219,25 @@ export default function App() {
   const upOvr = (i, val) => setSt((s0) => {
     const s = grow(s0, i + 2);
     const overrides = [...s.overrides]; overrides[i] = val;
-    return { ...s, overrides };
+    const patch = { overrides };
+    if (parseHMS(val) > 0) { // time override girildi → lap override'ı temizle
+      const lapOverrides = [...(s.lapOverrides || [])]; lapOverrides[i] = "";
+      patch.lapOverrides = lapOverrides;
+    }
+    return { ...s, ...patch };
+  });
+  /* Tur manuel override: computed'dan başlayıp ±adım; time override'ı temizler */
+  const bumpLaps = (i, curLaps, delta) => setSt((s0) => {
+    const s = grow(s0, i + 2);
+    const lapOverrides = [...(s.lapOverrides || [])];
+    const base = Number(lapOverrides[i]) || curLaps;
+    lapOverrides[i] = String(Math.max(1, base + delta));
+    const overrides = [...s.overrides]; overrides[i] = ""; // karşılıklı dışlama
+    return { ...s, lapOverrides, overrides };
+  });
+  const clearLaps = (i) => setSt((s0) => {
+    const lapOverrides = [...(s0.lapOverrides || [])]; lapOverrides[i] = "";
+    return { ...s0, lapOverrides };
   });
 
   const mode = tab === "code80" ? "code80" : "race";
@@ -2614,7 +2650,24 @@ ${bottomBar}
                     ].join(" ").trim()}>
                       <td className="disp" style={{ fontSize: 15 }}>{r.idx}</td>
                       <td>{fmtHMS(r.stintSec)}</td>
-                      <td>{r.lapsInStint}</td>
+                      <td>{(() => {
+                        const timeLocked = parseHMS(st.overrides[i] || "") > 0;
+                        const lapOvr = (Number(st.lapOverrides?.[i]) || 0) > 0;
+                        if (r.isLast) return r.lapsInStint;
+                        return (
+                          <span className="lapcell">
+                            <button className="lapstep" disabled={timeLocked}
+                              title={timeLocked ? t("Önce süre override'ı temizle") : t("Tur −1")}
+                              onClick={() => bumpLaps(i, r.lapsInStint, -1)}>−</button>
+                            <b className={lapOvr ? "lapman" : ""}>{r.lapsInStint}</b>
+                            <button className="lapstep" disabled={timeLocked}
+                              title={timeLocked ? t("Önce süre override'ı temizle") : t("Tur +1")}
+                              onClick={() => bumpLaps(i, r.lapsInStint, 1)}>+</button>
+                            {lapOvr && <button className="lapclr" title={t("Otomatiğe dön")}
+                              onClick={() => clearLaps(i)}>✕</button>}
+                          </span>
+                        );
+                      })()}</td>
                       <td className={r.fuelNeed > 100 ? "neg" : ""}
                         title={`≈ ${(r.fuelNeed * st.fuelRatio).toFixed(1)} L`}>
                         {r.fuelNeed.toFixed(1)}%</td>
@@ -2656,6 +2709,9 @@ ${bottomBar}
                       <td>{fmtHMS(r.endSec)}</td>
                       <td className={r.timeLeft < 0 ? "neg" : "pos"}>{fmtHMS(r.timeLeft)}</td>
                       <td><input className="ovr" type="text" placeholder="h:mm:ss"
+                        disabled={(Number(st.lapOverrides?.[i]) || 0) > 0}
+                        title={(Number(st.lapOverrides?.[i]) || 0) > 0
+                          ? t("Tur override aktif — önce onu temizle") : undefined}
                         value={st.overrides[i] || ""} onChange={(e) => upOvr(i, e.target.value)} /></td>
                     </tr>
                   ))}
