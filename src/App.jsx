@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ResponsiveContainer } from "recharts";
-import { roomGet, roomSet, roomSubscribe, firebaseReady, touchUserProfile, watchUserDoc, requestAccess } from "./storage";
+import { roomGet, roomSet, roomSubscribe, firebaseReady, touchUserProfile, watchUserDoc, requestAccess, watchAllUsers, setUserAllowed } from "./storage";
 import { signInGoogle, signOut, watchAuth, authReady } from "./auth";
 
 /* ============================================================
@@ -291,6 +291,10 @@ const EN = {
   "şu an": "now", "değişim": "changes", "Hava Durumu": "Weather",
   "Yükleniyor…": "Loading…", "Devam etmek için giriş yapın.": "Sign in to continue.",
   "Erişim izni bekleniyor": "Access pending",
+  "Üyeler": "Members", "Üye Yönetimi": "Member Management", "Kullanıcı yönetimi": "User management",
+  "Kayıt yok.": "No records.", "erişim var": "has access", "beklemede": "pending",
+  "talep yok": "no request", "Onayla": "Approve", "İzni Al": "Revoke",
+  "Onaylanan kişi sayfayı yenilemeden erişir.": "Approved users get access without refreshing.",
   "Tarayıcı açılır pencereyi engelledi. Bu site için açılır pencerelere izin verip tekrar deneyin.": "Your browser blocked the popup. Allow popups for this site and try again.",
   "Hesabınız kayıtlı ancak bu araç için henüz yetkilendirilmedi. Takım yöneticisiyle iletişime geçin.": "Your account is registered but not yet authorised for this tool. Contact your team manager.",
   "Google ile giriş yap": "Sign in with Google", "Çıkış yap": "Sign out",
@@ -814,7 +818,27 @@ const css = `
   font-weight:600;cursor:pointer;transition:box-shadow .18s,transform .12s}
 .rc .gbtn:hover{box-shadow:0 6px 20px rgba(0,0,0,.45);transform:translateY(-1px)}
 .rc .gbtn:active{transform:scale(.98)}
-.rc .userchip{display:inline-flex;align-items:center;gap:7px;margin-left:auto;
+.rc .adminbtn{margin-left:auto;position:relative;display:inline-flex;align-items:center;gap:5px;
+  background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--txt);
+  cursor:pointer;font-size:12px;padding:5px 11px}
+.rc .adminbtn:hover{border-color:var(--teal);color:var(--teal)}
+.rc .adminbtn .badge{position:absolute;top:-6px;right:-6px;background:var(--car);color:#fff;
+  border-radius:9px;font-size:10px;padding:1px 6px;line-height:1.4}
+.rc .urow{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px}
+.rc .urow:nth-child(odd){background:rgba(255,255,255,.03)}
+.rc .urow img,.rc .urow .uav{width:32px;height:32px;border-radius:50%;object-fit:cover;flex:0 0 auto;
+  background:var(--panel2);display:flex;align-items:center;justify-content:center;color:var(--dim)}
+.rc .urow .uinfo{display:flex;flex-direction:column;min-width:0;flex:1}
+.rc .urow .uinfo b{font-size:13px}
+.rc .urow .umail{font-size:11px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+.rc .urow .unote{font-size:11px;color:var(--muted);font-style:italic}
+.rc .urow .ustat{font-size:10px;text-transform:uppercase;letter-spacing:.05em;padding:2px 8px;
+  border-radius:6px;border:1px solid var(--line);color:var(--dim);white-space:nowrap}
+.rc .urow .ustat.ok{color:var(--green);border-color:rgba(46,204,113,.4)}
+.rc .urow .ustat.wait{color:var(--yellow);border-color:rgba(242,201,76,.4)}
+.rc .urow .ubtn{padding:5px 14px;font-size:12px;background:var(--green);color:#04240F;border:none}
+.rc .userchip{display:inline-flex;align-items:center;gap:7px;margin-left:8px;
   background:var(--panel2);border:1px solid var(--line);border-radius:20px;padding:3px 5px 3px 3px}
 .rc .userchip img{width:24px;height:24px;border-radius:50%;object-fit:cover}
 .rc .userchip .uname{font-size:12px;color:var(--txt);max-width:150px;overflow:hidden;
@@ -1915,6 +1939,13 @@ ${bottomBar}
     return watchUserDoc(user.uid, (d) => setUdoc(d));
   }, [user]);
   const access = udoc?.allowed === true;
+  const isAdmin = udoc?.admin === true;
+  const [adminOpen, setAdminOpen] = useState(false);
+  const [allUsers, setAllUsers] = useState({});
+  useEffect(() => {
+    if (!isAdmin || !adminOpen) return;
+    return watchAllUsers((u) => setAllUsers(u || {}));
+  }, [isAdmin, adminOpen]);
   const doSignIn = async (mode = "in") => {
     setAuthErr(""); setAuthMode(mode);
     try { await signInGoogle(); }
@@ -2413,6 +2444,49 @@ ${bottomBar}
   return (
     <div className="rc">
       <style>{css}</style>
+      {adminOpen && isAdmin && (
+        <div className="wxmodal" onClick={() => setAdminOpen(false)}>
+          <div className="wxmbox" style={{ width: "min(620px,95vw)" }}
+            onClick={(e) => e.stopPropagation()}>
+            <div className="wxmhead">
+              <span>👥 {t("Üye Yönetimi")}</span>
+              <button className="lbclose" onClick={() => setAdminOpen(false)}>✕</button>
+            </div>
+            <div className="wxmlist">
+              {Object.entries(allUsers).length === 0 && (
+                <div className="hint" style={{ padding: 12 }}>{t("Kayıt yok.")}</div>
+              )}
+              {Object.entries(allUsers)
+                .sort(([, a], [, b]) => (b?.requestedAt || 0) - (a?.requestedAt || 0))
+                .map(([uid, u]) => (
+                  <div key={uid} className="urow">
+                    {u?.photo
+                      ? <img src={u.photo} alt="" referrerPolicy="no-referrer" />
+                      : <span className="uav">?</span>}
+                    <span className="uinfo">
+                      <b>{u?.name || "—"}</b>
+                      <span className="umail">{u?.email || uid}</span>
+                      {u?.note && <span className="unote">“{u.note}”</span>}
+                    </span>
+                    <span className={`ustat ${u?.allowed ? "ok" : u?.requested ? "wait" : ""}`}>
+                      {u?.allowed ? t("erişim var") : u?.requested ? t("beklemede") : t("talep yok")}
+                    </span>
+                    {uid !== user.uid && (
+                      <button className={u?.allowed ? "histbtn" : "gbtn ubtn"}
+                        onClick={() => setUserAllowed(uid, !u?.allowed).catch(() => {})}>
+                        {u?.allowed ? t("İzni Al") : t("Onayla")}
+                      </button>
+                    )}
+                  </div>
+                ))}
+            </div>
+            <div className="wxmfoot">
+              <span className="hint" style={{ marginRight: "auto", fontSize: 11 }}>
+                {t("Onaylanan kişi sayfayı yenilemeden erişir.")}</span>
+            </div>
+          </div>
+        </div>
+      )}
       {wxHist && (
         <div className="wxmodal" onClick={() => setWxHist(false)}>
           <div className="wxmbox" onClick={(e) => e.stopPropagation()}>
@@ -2507,6 +2581,15 @@ ${bottomBar}
                 onError={(e) => { e.currentTarget.style.display = "none"; }} />
               {carName(st.carClass, st.car)}</>}
           </span>
+        )}
+        {isAdmin && (
+          <button className="adminbtn" onClick={() => setAdminOpen(true)}
+            title={t("Kullanıcı yönetimi")}>
+            👥 {t("Üyeler")}
+            {Object.values(allUsers).filter((u) => u?.requested && u?.allowed !== true).length > 0 &&
+              <b className="badge">{Object.values(allUsers)
+                .filter((u) => u?.requested && u?.allowed !== true).length}</b>}
+          </button>
         )}
         {user && (
           <span className="userchip" title={user.email || ""}>

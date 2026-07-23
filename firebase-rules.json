@@ -1,10 +1,11 @@
 {
   "rules": {
     "users": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('admin').val() == true",
       "$uid": {
         ".read": "auth != null && auth.uid == $uid",
-        ".write": "auth != null && auth.uid == $uid",
-        "allowed": { ".write": false }
+        ".write": "auth != null && (auth.uid == $uid || root.child('users').child(auth.uid).child('admin').val() == true)",
+        ".validate": "root.child('users').child(auth.uid).child('admin').val() == true || (newData.child('allowed').val() == data.child('allowed').val() && newData.child('admin').val() == data.child('admin').val())"
       }
     },
     "rooms": {

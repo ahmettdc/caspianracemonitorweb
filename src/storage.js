@@ -99,3 +99,16 @@ export function watchAccess(uid, cb) {
   );
   return () => { clearTimeout(timer); off(); };
 }
+
+/* ---- ADMIN: kullanıcı listesi ve izin yönetimi ---- */
+export function watchAllUsers(cb) {
+  if (!db) { cb({}); return () => {}; }
+  return onValue(ref(db, "users"),
+    (snap) => cb(snap.exists() ? snap.val() : {}),
+    (err) => { console.warn("users read failed:", err?.message); cb({}); });
+}
+
+export async function setUserAllowed(uid, allowed) {
+  if (!db || !uid) return;
+  await update(ref(db, `users/${uid}`), { allowed: !!allowed, allowedAt: Date.now() });
+}
