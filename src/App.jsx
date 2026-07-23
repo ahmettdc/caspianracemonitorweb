@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ResponsiveContainer } from "recharts";
-import { roomGet, roomSet, roomSubscribe, firebaseReady, touchUserProfile, watchAccess } from "./storage";
+import { roomGet, roomSet, roomSubscribe, firebaseReady, touchUserProfile, watchUserDoc, requestAccess } from "./storage";
 import { signInGoogle, signOut, watchAuth, authReady } from "./auth";
 
 /* ============================================================
@@ -1905,15 +1905,18 @@ ${bottomBar}
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authErr, setAuthErr] = useState("");
-  const [access, setAccess] = useState(null); // null=bilinmiyor, true/false
+  const [udoc, setUdoc] = useState(null);   // null=yükleniyor, {}=kayıt yok
+  const [authMode, setAuthMode] = useState("in"); // "in" giriş | "up" kayıt
+  const [regNote, setRegNote] = useState("");
   useEffect(() => watchAuth((u) => { setUser(u); setAuthLoading(false); }), []);
   useEffect(() => {
-    if (!user) { setAccess(null); return; }
+    if (!user) { setUdoc(null); return; }
     touchUserProfile(user).catch(() => {});
-    return watchAccess(user.uid, (ok) => setAccess(ok));
+    return watchUserDoc(user.uid, (d) => setUdoc(d));
   }, [user]);
-  const doSignIn = async () => {
-    setAuthErr("");
+  const access = udoc?.allowed === true;
+  const doSignIn = async (mode = "in") => {
+    setAuthErr(""); setAuthMode(mode);
     try { await signInGoogle(); }
     catch (e) {
       setAuthErr(e?.message === "POPUP_BLOCKED"
@@ -2145,8 +2148,8 @@ ${bottomBar}
               <div className="hint" style={{ marginTop: 22 }}>{t("Yükleniyor…")}</div>
             ) : (<>
               <div className="hint" style={{ margin: "18px 0 14px" }}>
-                {t("Devam etmek için giriş yapın.")}</div>
-              <button className="gbtn" onClick={doSignIn}>
+                {t("Devam etmek için giriş yapın veya kayıt olun.")}</div>
+              <button className="gbtn" onClick={() => doSignIn("in")}>
                 <svg width="17" height="17" viewBox="0 0 48 48" aria-hidden="true">
                   <path fill="#4285F4" d="M45.1 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h11.8c-.5 2.7-2 5-4.4 6.6v5.5h7.1c4.2-3.8 6.6-9.5 6.6-16.1z"/>
                   <path fill="#34A853" d="M24 46c6 0 11-2 14.6-5.4l-7.1-5.5c-2 1.3-4.5 2.1-7.5 2.1-5.8 0-10.7-3.9-12.4-9.1H4.3v5.7C7.9 41 15.4 46 24 46z"/>
@@ -2155,6 +2158,10 @@ ${bottomBar}
                 </svg>
                 {t("Google ile giriş yap")}
               </button>
+              <div style={{ marginTop: 10 }}>
+                <button className="histbtn" onClick={() => doSignIn("up")}>
+                  {t("Google ile kayıt ol")}</button>
+              </div>
               {authErr && <div className="hint" style={{ color: "var(--red)", marginTop: 10 }}>
                 {authErr}</div>}
               <div className="hint" style={{ marginTop: 18, fontSize: 11 }}>
@@ -2167,7 +2174,7 @@ ${bottomBar}
   }
 
   /* ---------- erişim kapısı: giriş var ama izin yok ---------- */
-  if (authReady && user && access !== true) {
+  if (authReady && user && !access) {
     return (
       <div className="rc">
         <style>{css}</style>
@@ -2175,14 +2182,35 @@ ${bottomBar}
           <div className="box" style={{ textAlign: "center" }}>
             <img className="logo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
             <h1><b>RACE</b> MONITOR</h1>
-            {access === null ? (
+            {udoc === null ? (
               <div className="hint" style={{ marginTop: 22 }}>{t("Yükleniyor…")}</div>
-            ) : (<>
+            ) : !udoc.requested ? (<>
+              {/* henüz kayıt talebi göndermemiş */}
+              <div style={{ fontSize: 34, margin: "14px 0 6px" }}>📝</div>
+              <div className="disp" style={{ fontSize: 18, marginBottom: 8 }}>
+                {t("Kayıt talebi gönder")}</div>
+              <div className="hint" style={{ marginBottom: 12 }}>
+                {t("Talebiniz yöneticiye iletilecek. Onaylandığında e-posta ile bilgilendirileceksiniz.")}
+              </div>
+              <div className="userchip" style={{ margin: "0 auto 12px", display: "inline-flex" }}>
+                {user.photoURL && <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />}
+                <span className="uname" style={{ maxWidth: 230 }}>{user.email}</span>
+              </div>
+              <input type="text" placeholder={t("Takım / not (opsiyonel)")}
+                value={regNote} onChange={(e) => setRegNote(e.target.value)}
+                style={{ marginBottom: 12 }} />
+              <button className="gbtn" style={{ background: "var(--car)", color: "#fff" }}
+                onClick={() => requestAccess(user, regNote).catch(() => {})}>
+                {t("Talebi Gönder")}</button>
+              <div style={{ marginTop: 12 }}>
+                <button className="histbtn" onClick={signOut}>{t("Çıkış yap")}</button>
+              </div>
+            </>) : (<>
               <div style={{ fontSize: 34, margin: "14px 0 6px" }}>🔒</div>
               <div className="disp" style={{ fontSize: 18, marginBottom: 8 }}>
                 {t("Erişim izni bekleniyor")}</div>
               <div className="hint" style={{ marginBottom: 16 }}>
-                {t("Hesabınız kayıtlı ancak bu araç için henüz yetkilendirilmedi. Takım yöneticisiyle iletişime geçin.")}
+                {t("Talebiniz alındı. Onaylandığında e-posta ile bilgilendirileceksiniz.")}
               </div>
               <div className="userchip" style={{ margin: "0 auto 10px", display: "inline-flex" }}>
                 {user.photoURL && <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />}

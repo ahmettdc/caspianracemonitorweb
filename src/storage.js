@@ -44,7 +44,7 @@ export function roomSubscribe(code, cb) {
    Kullanıcı giriş yapınca profili yazılır (kim başvurdu görünsün),
    erişim izni `allowed: true` alanıyla verilir (Firebase konsolundan).
    ============================================================ */
-export async function touchUserProfile(user) {
+export async function touchUserProfile(user, extra = {}) {
   if (!db || !user) return;
   /* `allowed` alanına DOKUNULMAZ — yalnızca profil alanları güncellenir
      (güvenlik kuralı da istemcinin allowed yazmasını engeller) */
@@ -53,7 +53,36 @@ export async function touchUserProfile(user) {
     name: user.displayName || "",
     photo: user.photoURL || "",
     lastSeen: Date.now(),
+    ...extra,
   });
+}
+
+/* Kayıt talebi: kullanıcı "kayıt ol" akışını tamamlayınca işaretlenir */
+export async function requestAccess(user, note = "") {
+  if (!db || !user) return;
+  await update(ref(db, `users/${user.uid}`), {
+    email: user.email || "",
+    name: user.displayName || "",
+    photo: user.photoURL || "",
+    requested: true,
+    requestedAt: Date.now(),
+    note: String(note || "").slice(0, 200),
+    notified: false,          // onay maili gönderildi mi (Functions kuracak)
+  });
+}
+
+/* Kullanıcının kendi kaydını izler (talep durumu + izin) */
+export function watchUserDoc(uid, cb) {
+  if (!db || !uid) { cb(null); return () => {}; }
+  let settled = false;
+  const timer = setTimeout(() => { if (!settled) cb({}); }, 8000);
+  const off = onValue(
+    ref(db, `users/${uid}`),
+    (snap) => { settled = true; clearTimeout(timer); cb(snap.exists() ? snap.val() : {}); },
+    (err) => { settled = true; clearTimeout(timer);
+      console.warn("user doc read failed:", err?.message); cb({}); },
+  );
+  return () => { clearTimeout(timer); off(); };
 }
 
 /* cb(allowed:boolean) — izin değişince anında tetiklenir.
