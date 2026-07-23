@@ -4,8 +4,8 @@
    ============================================================ */
 import { initializeApp, getApps, getApp } from "firebase/app";
 import {
-  getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect,
-  getRedirectResult, signOut as fbSignOut, onAuthStateChanged,
+  getAuth, GoogleAuthProvider, signInWithPopup, getRedirectResult,
+  signOut as fbSignOut, onAuthStateChanged,
 } from "firebase/auth";
 import { firebaseConfig } from "./firebase-config";
 
@@ -21,7 +21,8 @@ if (authReady) {
 const provider = new GoogleAuthProvider();
 provider.setCustomParameters({ prompt: "select_account" });
 
-/* Google ile giriş — popup engellenirse redirect'e düşer */
+/* Google ile giriş — popup (iOS/Safari'de redirect, depolama bölümleme
+   nedeniyle "missing initial state" hatası verdiği için kullanılmıyor) */
 export async function signInGoogle() {
   if (!auth) throw new Error("Firebase Auth yapılandırılmamış");
   try {
@@ -29,10 +30,13 @@ export async function signInGoogle() {
     return res.user;
   } catch (e) {
     const code = e?.code || "";
-    if (code.includes("popup-blocked") || code.includes("popup-closed")
-        || code.includes("cancelled-popup")) {
-      await signInWithRedirect(auth, provider);
-      return null;
+    if (code.includes("popup-closed") || code.includes("cancelled-popup")) {
+      return null;                       // kullanıcı vazgeçti — sessizce geç
+    }
+    if (code.includes("popup-blocked")) {
+      const err = new Error("POPUP_BLOCKED");
+      err.code = code;
+      throw err;
     }
     throw e;
   }

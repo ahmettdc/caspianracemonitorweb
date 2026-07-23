@@ -291,6 +291,7 @@ const EN = {
   "şu an": "now", "değişim": "changes", "Hava Durumu": "Weather",
   "Yükleniyor…": "Loading…", "Devam etmek için giriş yapın.": "Sign in to continue.",
   "Erişim izni bekleniyor": "Access pending",
+  "Tarayıcı açılır pencereyi engelledi. Bu site için açılır pencerelere izin verip tekrar deneyin.": "Your browser blocked the popup. Allow popups for this site and try again.",
   "Hesabınız kayıtlı ancak bu araç için henüz yetkilendirilmedi. Takım yöneticisiyle iletişime geçin.": "Your account is registered but not yet authorised for this tool. Contact your team manager.",
   "Google ile giriş yap": "Sign in with Google", "Çıkış yap": "Sign out",
   "Caspian Motorsport · pit wall aracı": "Caspian Motorsport · pit wall tool",
@@ -1914,7 +1915,11 @@ ${bottomBar}
   const doSignIn = async () => {
     setAuthErr("");
     try { await signInGoogle(); }
-    catch (e) { setAuthErr(e?.message || String(e)); }
+    catch (e) {
+      setAuthErr(e?.message === "POPUP_BLOCKED"
+        ? t("Tarayıcı açılır pencereyi engelledi. Bu site için açılır pencerelere izin verip tekrar deneyin.")
+        : (e?.message || String(e)));
+    }
   };
   const [wxHist, setWxHist] = useState(false); // hava geçmişi penceresi
   const [wxPlanW, setWxPlanW] = useState("wet"); // planlı geçiş: hava
