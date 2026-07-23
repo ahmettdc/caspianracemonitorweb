@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ResponsiveContainer } from "recharts";
 import { roomGet, roomSet, roomSubscribe, firebaseReady } from "./storage";
+import { signInGoogle, signOut, watchAuth, authReady } from "./auth";
 
 /* ============================================================
    CASPIAN MOTORSPORT — RACE MONITOR  ·  Faz 2
@@ -288,6 +289,9 @@ const EN = {
   "YARIŞ SONU": "RACE END", "CODE 80 SONU": "CODE 80 END",
   "Zemin / Hava": "Track / Weather", "Efektif tur": "Effective lap", "yakıt": "fuel",
   "şu an": "now", "değişim": "changes", "Hava Durumu": "Weather",
+  "Yükleniyor…": "Loading…", "Devam etmek için giriş yapın.": "Sign in to continue.",
+  "Google ile giriş yap": "Sign in with Google", "Çıkış yap": "Sign out",
+  "Caspian Motorsport · pit wall aracı": "Caspian Motorsport · pit wall tool",
   "Planlı geçiş ekle": "Add planned change", "Ekle": "Add",
   "canlı": "live", "planlı": "planned", "Son": "Last",
   "Yarış saati (başlangıçtan itibaren)": "Race time (from start)",
@@ -801,6 +805,20 @@ const css = `
 .rc .histbtn{border:1px solid var(--line);border-radius:8px;background:var(--panel2);
   color:var(--txt);cursor:pointer;font-size:12px;padding:5px 12px;transition:border-color .15s}
 .rc .histbtn:hover{border-color:var(--teal);color:var(--teal)}
+.rc .gbtn{display:inline-flex;align-items:center;gap:10px;margin:0 auto;padding:11px 22px;
+  border:1px solid var(--line);border-radius:10px;background:#fff;color:#1f1f1f;
+  font-family:'Barlow Condensed';font-size:16px;letter-spacing:.04em;text-transform:uppercase;
+  font-weight:600;cursor:pointer;transition:box-shadow .18s,transform .12s}
+.rc .gbtn:hover{box-shadow:0 6px 20px rgba(0,0,0,.45);transform:translateY(-1px)}
+.rc .gbtn:active{transform:scale(.98)}
+.rc .userchip{display:inline-flex;align-items:center;gap:7px;margin-left:auto;
+  background:var(--panel2);border:1px solid var(--line);border-radius:20px;padding:3px 5px 3px 3px}
+.rc .userchip img{width:24px;height:24px;border-radius:50%;object-fit:cover}
+.rc .userchip .uname{font-size:12px;color:var(--txt);max-width:150px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.rc .userchip button{background:none;border:none;color:var(--dim);cursor:pointer;
+  font-size:13px;padding:2px 6px;border-radius:6px}
+.rc .userchip button:hover{color:var(--car);background:rgba(150,0,24,.15)}
 .rc .lapcell{display:inline-flex;align-items:center;gap:4px}
 .rc .lapcell b{min-width:20px;text-align:center;font-variant-numeric:tabular-nums}
 .rc .lapcell b.lapman{color:var(--teal)}
@@ -1880,6 +1898,16 @@ ${bottomBar}
   const [autoCd, setAutoCd] = useState(true); // plandan otomatik countdown
   const [barOpen, setBarOpen] = useState(true); // oda katılım çubuğu aç/kapa
   const [sideOpen, setSideOpen] = useState(true); // sol data sidebar aç/kapa
+  /* ---- kimlik doğrulama (Google) ---- */
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authErr, setAuthErr] = useState("");
+  useEffect(() => watchAuth((u) => { setUser(u); setAuthLoading(false); }), []);
+  const doSignIn = async () => {
+    setAuthErr("");
+    try { await signInGoogle(); }
+    catch (e) { setAuthErr(e?.message || String(e)); }
+  };
   const [wxHist, setWxHist] = useState(false); // hava geçmişi penceresi
   const [wxPlanW, setWxPlanW] = useState("wet"); // planlı geçiş: hava
   const [wxPlanT, setWxPlanT] = useState("");    // planlı geçiş: yarış saati
@@ -2089,6 +2117,41 @@ ${bottomBar}
       </div>
     </div>
   </>);
+
+  /* ---------- giriş kapısı: oturum yoksa uygulama açılmaz ---------- */
+  if (authReady && (authLoading || !user)) {
+    return (
+      <div className="rc">
+        <style>{css}</style>
+        <div className="lobby">
+          <div className="box" style={{ textAlign: "center" }}>
+            <img className="logo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
+            <h1><b>RACE</b> MONITOR</h1>
+            <div className="sub">carmine · v0.8</div>
+            {authLoading ? (
+              <div className="hint" style={{ marginTop: 22 }}>{t("Yükleniyor…")}</div>
+            ) : (<>
+              <div className="hint" style={{ margin: "18px 0 14px" }}>
+                {t("Devam etmek için giriş yapın.")}</div>
+              <button className="gbtn" onClick={doSignIn}>
+                <svg width="17" height="17" viewBox="0 0 48 48" aria-hidden="true">
+                  <path fill="#4285F4" d="M45.1 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h11.8c-.5 2.7-2 5-4.4 6.6v5.5h7.1c4.2-3.8 6.6-9.5 6.6-16.1z"/>
+                  <path fill="#34A853" d="M24 46c6 0 11-2 14.6-5.4l-7.1-5.5c-2 1.3-4.5 2.1-7.5 2.1-5.8 0-10.7-3.9-12.4-9.1H4.3v5.7C7.9 41 15.4 46 24 46z"/>
+                  <path fill="#FBBC05" d="M11.6 28.1c-.4-1.3-.7-2.7-.7-4.1s.3-2.8.7-4.1v-5.7H4.3C2.8 17.1 2 20.4 2 24s.8 6.9 2.3 9.8l7.3-5.7z"/>
+                  <path fill="#EA4335" d="M24 10.8c3.3 0 6.2 1.1 8.5 3.3l6.3-6.3C35 4.2 30 2 24 2 15.4 2 7.9 7 4.3 14.2l7.3 5.7c1.7-5.2 6.6-9.1 12.4-9.1z"/>
+                </svg>
+                {t("Google ile giriş yap")}
+              </button>
+              {authErr && <div className="hint" style={{ color: "var(--red)", marginTop: 10 }}>
+                {authErr}</div>}
+              <div className="hint" style={{ marginTop: 18, fontSize: 11 }}>
+                {t("Caspian Motorsport · pit wall aracı")}</div>
+            </>)}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   /* ---------- lobi: oda kur / katıl / solo ---------- */
   if (!room && !entered) {
@@ -2366,6 +2429,13 @@ ${bottomBar}
               <img className="car" src={carImg(st.carClass, st.car)} alt=""
                 onError={(e) => { e.currentTarget.style.display = "none"; }} />
               {carName(st.carClass, st.car)}</>}
+          </span>
+        )}
+        {user && (
+          <span className="userchip" title={user.email || ""}>
+            {user.photoURL && <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />}
+            <span className="uname">{user.displayName || user.email}</span>
+            <button onClick={signOut} title={t("Çıkış yap")}>⏻</button>
           </span>
         )}
       </header>
