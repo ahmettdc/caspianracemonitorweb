@@ -652,11 +652,12 @@ const css = `
   font-family:'Inter',system-ui,sans-serif;font-size:13px;padding:0 0 40px}
 .rc .mono{font-family:'IBM Plex Mono',monospace}
 .rc .disp{font-family:'Barlow Condensed',sans-serif;letter-spacing:.04em}
-.rc header{display:flex;align-items:baseline;gap:14px;padding:16px 20px 12px;
+.rc header{display:flex;align-items:center;gap:12px;padding:14px 20px;
   border-bottom:1px solid var(--line)}
-.rc header h1{margin:0;font-size:26px;font-weight:700;text-transform:uppercase}
+.rc header h1{margin:0;font-size:26px;font-weight:700;text-transform:uppercase;line-height:1}
 .rc header h1 b{color:var(--teal)}
-.rc header .ver{color:var(--dim);font-size:12px}
+.rc header .ver{color:var(--dim);font-size:12px;margin-left:-4px;align-self:flex-end;
+  padding-bottom:2px}
 .rc .grid{display:grid;grid-template-columns:300px 1fr;gap:16px;padding:16px 20px;
   align-items:start;transition:grid-template-columns .28s ease,gap .28s ease}
 .rc .grid.noside{grid-template-columns:0px 1fr;gap:0}
@@ -764,7 +765,7 @@ const css = `
   padding:20px;background:radial-gradient(ellipse at 50% 0%,#2A0D14 0%,var(--bg) 60%)}
 .rc .logo{display:block;margin:0 auto 14px;max-width:280px;width:70%;height:auto;
   filter:drop-shadow(0 6px 18px rgba(0,0,0,.5))}
-.rc header img.hlogo{height:40px;width:auto;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))}
+.rc header img.hlogo{height:38px;width:auto;display:block;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))}
 .rc .pitboard img.plogo{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);
   height:34px;width:auto;opacity:.85}
 .rc .lobby .box{width:100%;max-width:430px;background:var(--panel);
