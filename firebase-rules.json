@@ -1,0 +1,15 @@
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null && auth.uid == $uid",
+        "allowed": { ".write": false }
+      }
+    },
+    "rooms": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true"
+    }
+  }
+}

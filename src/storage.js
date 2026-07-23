@@ -5,7 +5,7 @@
    Bonus: 3sn polling yerine onValue ile anlık senkronizasyon.
    ============================================================ */
 import { initializeApp } from "firebase/app";
-import { getDatabase, ref, get, set, onValue } from "firebase/database";
+import { getDatabase, ref, get, set, update, onValue } from "firebase/database";
 import { firebaseConfig } from "./firebase-config";
 
 export const firebaseReady =
@@ -37,4 +37,27 @@ export function roomSubscribe(code, cb) {
   return onValue(roomRef(code), (snap) => {
     if (snap.exists()) cb(snap.val());
   });
+}
+
+/* ============================================================
+   ERİŞİM KONTROLÜ — users/{uid}
+   Kullanıcı giriş yapınca profili yazılır (kim başvurdu görünsün),
+   erişim izni `allowed: true` alanıyla verilir (Firebase konsolundan).
+   ============================================================ */
+export async function touchUserProfile(user) {
+  if (!db || !user) return;
+  /* `allowed` alanına DOKUNULMAZ — yalnızca profil alanları güncellenir
+     (güvenlik kuralı da istemcinin allowed yazmasını engeller) */
+  await update(ref(db, `users/${user.uid}`), {
+    email: user.email || "",
+    name: user.displayName || "",
+    photo: user.photoURL || "",
+    lastSeen: Date.now(),
+  });
+}
+
+/* cb(allowed:boolean) — izin değişince anında tetiklenir */
+export function watchAccess(uid, cb) {
+  if (!db || !uid) { cb(false); return () => {}; }
+  return onValue(ref(db, `users/${uid}/allowed`), (snap) => cb(snap.val() === true));
 }

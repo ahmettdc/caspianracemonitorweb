@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ResponsiveContainer } from "recharts";
-import { roomGet, roomSet, roomSubscribe, firebaseReady } from "./storage";
+import { roomGet, roomSet, roomSubscribe, firebaseReady, touchUserProfile, watchAccess } from "./storage";
 import { signInGoogle, signOut, watchAuth, authReady } from "./auth";
 
 /* ============================================================
@@ -290,6 +290,8 @@ const EN = {
   "Zemin / Hava": "Track / Weather", "Efektif tur": "Effective lap", "yakıt": "fuel",
   "şu an": "now", "değişim": "changes", "Hava Durumu": "Weather",
   "Yükleniyor…": "Loading…", "Devam etmek için giriş yapın.": "Sign in to continue.",
+  "Erişim izni bekleniyor": "Access pending",
+  "Hesabınız kayıtlı ancak bu araç için henüz yetkilendirilmedi. Takım yöneticisiyle iletişime geçin.": "Your account is registered but not yet authorised for this tool. Contact your team manager.",
   "Google ile giriş yap": "Sign in with Google", "Çıkış yap": "Sign out",
   "Caspian Motorsport · pit wall aracı": "Caspian Motorsport · pit wall tool",
   "Planlı geçiş ekle": "Add planned change", "Ekle": "Add",
@@ -1902,7 +1904,13 @@ ${bottomBar}
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authErr, setAuthErr] = useState("");
+  const [access, setAccess] = useState(null); // null=bilinmiyor, true/false
   useEffect(() => watchAuth((u) => { setUser(u); setAuthLoading(false); }), []);
+  useEffect(() => {
+    if (!user) { setAccess(null); return; }
+    touchUserProfile(user).catch(() => {});
+    return watchAccess(user.uid, (ok) => setAccess(ok));
+  }, [user]);
   const doSignIn = async () => {
     setAuthErr("");
     try { await signInGoogle(); }
@@ -2146,6 +2154,38 @@ ${bottomBar}
                 {authErr}</div>}
               <div className="hint" style={{ marginTop: 18, fontSize: 11 }}>
                 {t("Caspian Motorsport · pit wall aracı")}</div>
+            </>)}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ---------- erişim kapısı: giriş var ama izin yok ---------- */
+  if (authReady && user && access !== true) {
+    return (
+      <div className="rc">
+        <style>{css}</style>
+        <div className="lobby">
+          <div className="box" style={{ textAlign: "center" }}>
+            <img className="logo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
+            <h1><b>RACE</b> MONITOR</h1>
+            {access === null ? (
+              <div className="hint" style={{ marginTop: 22 }}>{t("Yükleniyor…")}</div>
+            ) : (<>
+              <div style={{ fontSize: 34, margin: "14px 0 6px" }}>🔒</div>
+              <div className="disp" style={{ fontSize: 18, marginBottom: 8 }}>
+                {t("Erişim izni bekleniyor")}</div>
+              <div className="hint" style={{ marginBottom: 16 }}>
+                {t("Hesabınız kayıtlı ancak bu araç için henüz yetkilendirilmedi. Takım yöneticisiyle iletişime geçin.")}
+              </div>
+              <div className="userchip" style={{ margin: "0 auto 16px", display: "inline-flex" }}>
+                {user.photoURL && <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />}
+                <span className="uname" style={{ maxWidth: 230 }}>{user.email}</span>
+              </div>
+              <div>
+                <button className="histbtn" onClick={signOut}>{t("Çıkış yap")}</button>
+              </div>
             </>)}
           </div>
         </div>
