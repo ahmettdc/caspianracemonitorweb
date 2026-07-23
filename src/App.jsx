@@ -818,7 +818,7 @@ const css = `
   font-weight:600;cursor:pointer;transition:box-shadow .18s,transform .12s}
 .rc .gbtn:hover{box-shadow:0 6px 20px rgba(0,0,0,.45);transform:translateY(-1px)}
 .rc .gbtn:active{transform:scale(.98)}
-.rc .adminbtn{margin-left:auto;position:relative;display:inline-flex;align-items:center;gap:5px;
+.rc .adminbtn{position:relative;align-self:center;display:inline-flex;align-items:center;gap:5px;
   background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--txt);
   cursor:pointer;font-size:12px;padding:5px 11px}
 .rc .adminbtn:hover{border-color:var(--teal);color:var(--teal)}
@@ -838,7 +838,7 @@ const css = `
 .rc .urow .ustat.ok{color:var(--green);border-color:rgba(46,204,113,.4)}
 .rc .urow .ustat.wait{color:var(--yellow);border-color:rgba(242,201,76,.4)}
 .rc .urow .ubtn{padding:5px 14px;font-size:12px;background:var(--green);color:#04240F;border:none}
-.rc .userchip{display:inline-flex;align-items:center;gap:7px;margin-left:8px;
+.rc .userchip{display:inline-flex;align-items:center;gap:7px;align-self:center;
   background:var(--panel2);border:1px solid var(--line);border-radius:20px;padding:3px 5px 3px 3px}
 .rc .userchip img{width:24px;height:24px;border-radius:50%;object-fit:cover}
 .rc .userchip .uname{font-size:12px;color:var(--txt);max-width:150px;overflow:hidden;
@@ -909,11 +909,11 @@ const css = `
   filter:drop-shadow(0 4px 8px rgba(0,0,0,.45))}
 .rc .cargrid button.on{border-color:var(--teal);background:rgba(150,0,24,.20);
   color:var(--txt);font-weight:600}
-.rc .langsw{display:inline-flex;gap:4px;margin-left:auto}
+.rc .langsw{display:inline-flex;gap:4px;margin-left:auto;align-self:center}
 .rc .langsw button{padding:3px 9px;border-radius:5px;border:1px solid var(--line);
   background:var(--panel2);color:var(--dim);font-size:11px;cursor:pointer;font-weight:600}
 .rc .langsw button.on{border-color:var(--teal);color:var(--teal)}
-.rc .hdsel{display:inline-flex;align-items:center;gap:7px;color:var(--dim);font-size:12px}
+.rc .hdsel{display:inline-flex;align-items:center;gap:7px;color:var(--dim);font-size:12px;align-self:center}
 .rc .hdsel img.flag{width:18px;height:auto;border-radius:2px}
 .rc .hdsel img.car{height:22px;width:auto}
 .rc .viewonly input,.rc .viewonly .strat button,.rc .viewonly .tyrebox button,
