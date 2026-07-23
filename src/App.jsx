@@ -2184,9 +2184,13 @@ ${bottomBar}
               <div className="hint" style={{ marginBottom: 16 }}>
                 {t("Hesabınız kayıtlı ancak bu araç için henüz yetkilendirilmedi. Takım yöneticisiyle iletişime geçin.")}
               </div>
-              <div className="userchip" style={{ margin: "0 auto 16px", display: "inline-flex" }}>
+              <div className="userchip" style={{ margin: "0 auto 10px", display: "inline-flex" }}>
                 {user.photoURL && <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />}
                 <span className="uname" style={{ maxWidth: 230 }}>{user.email}</span>
+              </div>
+              <div className="hint mono" style={{ fontSize: 10, wordBreak: "break-all",
+                marginBottom: 14 }}>
+                UID: {user.uid}
               </div>
               <div>
                 <button className="histbtn" onClick={signOut}>{t("Çıkış yap")}</button>

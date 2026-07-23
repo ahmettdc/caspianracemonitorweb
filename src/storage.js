@@ -56,8 +56,17 @@ export async function touchUserProfile(user) {
   });
 }
 
-/* cb(allowed:boolean) — izin değişince anında tetiklenir */
+/* cb(allowed:boolean) — izin değişince anında tetiklenir.
+   Okuma reddedilirse/başarısız olursa "izin yok" kabul edilir (asılı kalmaz). */
 export function watchAccess(uid, cb) {
   if (!db || !uid) { cb(false); return () => {}; }
-  return onValue(ref(db, `users/${uid}/allowed`), (snap) => cb(snap.val() === true));
+  let settled = false;
+  const done = (v) => { settled = true; cb(v); };
+  const timer = setTimeout(() => { if (!settled) cb(false); }, 8000); // ağ takılırsa
+  const off = onValue(
+    ref(db, `users/${uid}/allowed`),
+    (snap) => { clearTimeout(timer); done(snap.val() === true); },
+    (err) => { clearTimeout(timer); console.warn("access read failed:", err?.message); done(false); },
+  );
+  return () => { clearTimeout(timer); off(); };
 }
