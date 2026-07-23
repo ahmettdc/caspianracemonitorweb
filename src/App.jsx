@@ -108,6 +108,7 @@ const DEFAULT_STATE = {
 const SLOT_COLORS = { A: "#40D68C", B: "#F0604D", C: "#F2A33C", D: "#6694FF" };
 
 /* ---------- pist & araç seçimi ---------- */
+const APP_VERSION = "v1.0";   // tek kaynak — sürüm yazısı buradan
 const ASSET = import.meta.env.BASE_URL + "assets/";
 const AV = "?v=3"; // görsel sürümü — dosya güncellenince artır (önbellek kırma)
 const TRACKS = [
@@ -2175,7 +2176,7 @@ ${bottomBar}
           <div className="box" style={{ textAlign: "center" }}>
             <img className="logo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
             <h1><b>RACE</b> MONITOR</h1>
-            <div className="sub">carmine · v0.8</div>
+            <div className="sub">carmine · {APP_VERSION}</div>
             {authLoading ? (
               <div className="hint" style={{ marginTop: 22 }}>{t("Yükleniyor…")}</div>
             ) : (<>
@@ -2277,7 +2278,7 @@ ${bottomBar}
             </div>
             <img className="logo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
             <h1><b>RACE</b> MONITOR</h1>
-            <div className="sub">carmine · v0.8</div>
+            <div className="sub">carmine · {APP_VERSION}</div>
 
             {firebaseReady ? (<>
               <label>{t("Adın")}</label>
@@ -2566,7 +2567,7 @@ ${bottomBar}
       <header>
         <img className="hlogo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
         <h1 className="disp" style={{ fontSize: 20 }}>RACE MONITOR</h1>
-        <span className="ver">carmine · v0.8</span>
+        <span className="ver">carmine · {APP_VERSION}</span>
         <span className="langsw">
           {["tr", "en"].map((l) => (
             <button key={l} className={lang === l ? "on" : ""}
