@@ -208,3 +208,9 @@ export async function leaveTeam(tid, uid) {
   await remove(ref(db, `teams/${tid}/members/${uid}`));
   await remove(ref(db, `users/${uid}/teams/${tid}`));
 }
+
+/* Rozet (admin atar): "admin" | "driver" | "engineer" */
+export async function setUserBadge(uid, badge) {
+  if (!db || !uid) return;
+  await update(ref(db, `users/${uid}`), { badge: badge || null });
+}

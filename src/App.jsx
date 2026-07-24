@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ResponsiveContainer } from "recharts";
 import { roomGet, roomSet, roomSubscribe, firebaseReady, touchUserProfile, watchUserDoc,
-  requestAccess, watchAllUsers, setUserAllowed, updateProfile,
+  requestAccess, watchAllUsers, setUserAllowed, setUserBadge, updateProfile,
   createTeam, joinTeam, watchMyTeams, watchTeam, watchTeamSecrets,
   addTeamRoom, removeTeamRoom, setTeamRole, leaveTeam } from "./storage";
 import { signInGoogle, signOut, watchAuth, authReady } from "./auth";
@@ -473,6 +473,14 @@ const EMPTY_PIT = { fuel: true, lane: true, tyres: [0, 0, 0, 0] };
 const TYRE_2_SEC = 5;  // 1-2 lastik değişim süresi (LMU, sabit)
 const TYRE_4_SEC = 12; // 3-4 lastik değişim süresi (LMU, sabit)
 /* zemin/hava durumu: tur süresi çarpanı + yakıt tüketim çarpanı (LMU) */
+/* kullanıcı rozetleri */
+const BADGES = {
+  admin:    { lbl: "Admin",            ico: "🛡", col: "#E11D2E", bg: "rgba(225,29,46,.14)" },
+  driver:   { lbl: "Sürücü",           ico: "🏎", col: "#26C6DA", bg: "rgba(38,198,218,.14)" },
+  engineer: { lbl: "Yarış Mühendisi",  ico: "📐", col: "#F2C94C", bg: "rgba(242,201,76,.14)" },
+};
+const badgeOf = (d) => BADGES[d?.badge] || (d?.admin ? BADGES.admin : null);
+
 const WEATHER = {
   dry:   { lbl: "Dry",          ico: "☀️", lap: 1.00, fuel: 1.00, col: "#F5C84C" },
   damp:  { lbl: "Damp",         ico: "🌦", lap: 1.07, fuel: 1.00, col: "#8FD0E8" },
@@ -880,6 +888,10 @@ const css = `
 .rc .userchip{display:inline-flex;align-items:center;gap:7px;align-self:center;
   background:var(--panel2);border:1px solid var(--line);border-radius:20px;padding:3px 5px 3px 3px}
 .rc .userchip img{width:24px;height:24px;border-radius:50%;object-fit:cover}
+.rc .ubadge{font-size:12px;line-height:1;padding:3px 6px;border-radius:6px;border:1px solid}
+.rc .bchip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
+  padding:5px 12px;border-radius:8px;border:1px solid;margin-bottom:14px;letter-spacing:.03em}
+.rc .bsel{width:auto;min-width:130px;font-size:11px;padding:3px 6px;margin:0}
 .rc .userchip .unamebtn{background:none;border:none;color:var(--txt);font-size:12px;cursor:pointer;
   max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:2px 2px}
 .rc .userchip .unamebtn:hover{color:var(--teal);text-decoration:underline}
@@ -2737,6 +2749,12 @@ ${bottomBar}
                 {user.photoURL && <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />}
                 <span className="uname" style={{ maxWidth: 260 }}>{user.email}</span>
               </div>
+              {badgeOf(udoc) && (
+                <div className="bchip" style={{ color: badgeOf(udoc).col,
+                  background: badgeOf(udoc).bg, borderColor: badgeOf(udoc).col }}>
+                  {badgeOf(udoc).ico} {t(badgeOf(udoc).lbl)}
+                </div>
+              )}
               <label>{t("Ad Soyad")}</label>
               <input type="text" value={profName} style={{ textTransform: "none" }}
                 onChange={(e) => setProfName(e.target.value)} />
@@ -2780,6 +2798,16 @@ ${bottomBar}
                       <span className="umail">{u?.email || uid}</span>
                       {u?.note && <span className="unote">“{u.note}”</span>}
                     </span>
+                    <select className="bsel" value={u?.badge || ""}
+                      title={t("Rozet")}
+                      onChange={(e) => setUserBadge(uid, e.target.value).catch(() => {})}
+                      style={badgeOf(u) ? { color: badgeOf(u).col,
+                        borderColor: badgeOf(u).col } : undefined}>
+                      <option value="">— {t("rozet yok")} —</option>
+                      {Object.entries(BADGES).map(([id, b]) => (
+                        <option key={id} value={id}>{b.ico} {t(b.lbl)}</option>
+                      ))}
+                    </select>
                     <span className={`ustat ${u?.allowed ? "ok" : u?.requested ? "wait" : ""}`}>
                       {u?.allowed ? t("erişim var") : u?.requested ? t("beklemede") : t("talep yok")}
                     </span>
@@ -2912,6 +2940,12 @@ ${bottomBar}
         {user && (
           <span className="userchip" title={user.email || ""}>
             {user.photoURL && <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />}
+            {badgeOf(udoc) && (
+              <span className="ubadge" title={t(badgeOf(udoc).lbl)}
+                style={{ color: badgeOf(udoc).col, background: badgeOf(udoc).bg,
+                  borderColor: badgeOf(udoc).col }}>
+                {badgeOf(udoc).ico}</span>
+            )}
             <button className="unamebtn" title={t("Profili düzenle")}
               onClick={() => { setProfName(userName || user.displayName || ""); setProfOpen(true); }}>
               {userName || user.displayName || user.email}</button>
