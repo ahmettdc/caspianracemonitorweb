@@ -2757,8 +2757,7 @@ ${bottomBar}
             <img className="logo" style={{ maxWidth: 190 }} src={`${ASSET}logo.png`} alt="" />
             <h1><b>{t("PİST")}</b> {t("& ARAÇ")}</h1>
             <div className="sub">
-              {curRace ? (<>{t("Oda: ")}<b className="roomcode">{room}</b>
-                {roomPin && <> · PIN: <b className="roomcode">{roomPin}</b></>}</>)
+              {curRace ? (<>{t("Yarış")}: <b className="roomcode">{races[curRace]?.name || curRace}</b></>)
                 : t("Solo mod")}
             </div>
 
@@ -2841,8 +2840,6 @@ ${bottomBar}
                 {trackName(st.track)}{st.car && <> · {carName(st.carClass, st.car)}</>} — </>}
               {curRace ? (<>
                 {t("Yarış")}: <b className="roomcode">{races[curRace]?.name || curRace}</b>
-                {roomPin && <> · PIN: <b className="roomcode">{roomPin}</b></>}
-                {" "}{t("— kodu takıma şimdiden gönderebilirsin")}
               </>) : t("Solo mod — datalar sadece bu cihazda")}
             </div>
 
@@ -3077,10 +3074,9 @@ ${bottomBar}
       </header>
 
       <div className={`teambar ${barOpen ? "" : "collapsed"}`}>
-        <span className={`dot ${room ? "on" : "off"}`} title={room ? "Bağlı" : t("Solo mod")} />
-        {!barOpen && room && <span>ODA: <span className="roomcode">{room}</span></span>}
-        {!barOpen && !room && <span className="syncinfo" style={{ marginLeft: 0 }}>
-          {room ? "" : t("Solo mod")}</span>}
+        <span className={`dot ${curRace ? "on" : "off"}`} title={curRace ? "Bağlı" : t("Solo mod")} />
+        {!barOpen && !curRace && <span className="syncinfo" style={{ marginLeft: 0 }}>
+          {t("Solo mod")}</span>}
         <button className="bartoggle"
           onClick={() => setBarOpen(!barOpen)}
           title={barOpen ? t("Katılım çubuğunu gizle") : t("Katılım çubuğunu göster")}>
@@ -3279,7 +3275,7 @@ ${bottomBar}
         </div>
       )}
 
-      <div className={`grid ${sideOpen ? "" : "noside"} ${role === "viewer" && room ? "viewonly" : ""}`}>
+      <div className={`grid ${sideOpen ? "" : "noside"} ${role === "viewer" && curRace ? "viewonly" : ""}`}>
         <button className={`sidetoggle ${sideOpen ? "" : "closed"}`}
           onClick={() => setSideOpen(!sideOpen)}
           title={sideOpen ? t("Paneli gizle") : t("Paneli göster")}>
