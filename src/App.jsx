@@ -1118,11 +1118,6 @@ export default function App() {
   const [pickDone, setPickDone] = useState(false); // pist/araç seçimi tamamlandı mı
   const [setupDone, setSetupDone] = useState(false); // data giriş adımı tamamlandı mı
   const [userName, setUserName] = useState("");
-  /* oda üyelik adı: kayıtta verilen ad soyad (yoksa Google adı) */
-  useEffect(() => {
-    const n = (udoc?.fullName || user?.displayName || "").trim();
-    if (n) setUserName(n);
-  }, [udoc?.fullName, user]);
   const [room, setRoom] = useState("");          // aktif oda kodu
   const [joinCode, setJoinCode] = useState("");
   const [joinPin, setJoinPin] = useState("");
@@ -1947,6 +1942,11 @@ ${bottomBar}
     touchUserProfile(user).catch(() => {});
     return watchUserDoc(user.uid, (d) => setUdoc(d));
   }, [user]);
+  /* oda üyelik adı: kayıtta verilen ad soyad (yoksa Google adı) */
+  useEffect(() => {
+    const n = (udoc?.fullName || user?.displayName || "").trim();
+    if (n) setUserName(n);
+  }, [udoc, user]);
   const access = udoc?.allowed === true;
   const isAdmin = udoc?.admin === true;
   const [adminOpen, setAdminOpen] = useState(false);
