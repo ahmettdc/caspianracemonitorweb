@@ -829,6 +829,18 @@ const css = `
 .rc .adminbtn:hover{border-color:var(--teal);color:var(--teal)}
 .rc .adminbtn .badge{position:absolute;top:-6px;right:-6px;background:var(--car);color:#fff;
   border-radius:9px;font-size:10px;padding:1px 6px;line-height:1.4}
+.rc .lobbyteams{margin-bottom:14px;text-align:left}
+.rc .lroom{display:flex;align-items:center;gap:9px;width:100%;padding:10px 12px;margin-bottom:6px;
+  border:1px solid var(--line);border-radius:10px;background:var(--panel2);cursor:pointer;
+  transition:border-color .15s,transform .12s}
+.rc .lroom:hover{border-color:var(--teal);transform:translateX(2px)}
+.rc .lroom .rcode{font-weight:700;color:var(--teal);letter-spacing:.08em;font-size:13px}
+.rc .lroom .rlabel{flex:1;font-size:12px;color:var(--txt);overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;text-align:left}
+.rc .lroom .rrole{font-size:9px;text-transform:uppercase;letter-spacing:.05em;padding:2px 7px;
+  border-radius:5px;border:1px solid var(--line);color:var(--dim)}
+.rc .lroom .rrole.ed{color:var(--green);border-color:rgba(46,204,113,.4)}
+.rc .lroom .rgo{color:var(--dim);font-size:15px}
 .rc .tmtabs{display:flex;gap:6px;padding:10px 14px 0;flex-wrap:wrap}
 .rc .tmtabs button{padding:5px 12px;border:1px solid var(--line);border-radius:8px;
   background:var(--panel2);color:var(--dim);cursor:pointer;font-size:12px}
@@ -2372,11 +2384,53 @@ ${bottomBar}
               <div className="hint" style={{ marginBottom: 10 }}>
                 👤 {userName || t("isimsiz")}</div>
 
+              {/* ---- TAKIM ODALARI: girişten hemen sonra ---- */}
+              {Object.keys(myTeams).length > 0 && (
+                <div className="lobbyteams">
+                  {Object.keys(myTeams).length > 1 && (
+                    <div className="tmtabs" style={{ padding: "0 0 8px" }}>
+                      {Object.entries(myTeams).map(([tid, nm]) => (
+                        <button key={tid} className={curTeam === tid ? "on" : ""}
+                          onClick={() => setCurTeam(tid)}>{nm}</button>
+                      ))}
+                    </div>
+                  )}
+                  <div className="tmsec">🏢 {teamData?.meta?.name || t("Takım Odaları")}</div>
+                  {Object.entries(teamData?.rooms || {}).length === 0 ? (
+                    <div className="hint">{t("Bu takımda kayıtlı oda yok.")}</div>
+                  ) : Object.entries(teamData.rooms)
+                      .sort(([, a], [, b]) => (b?.createdAt || 0) - (a?.createdAt || 0))
+                      .map(([code, r]) => {
+                        const pin = teamSecrets?.[code]?.pin || "";
+                        return (
+                          <button key={code} className="lroom"
+                            onClick={() => quickJoin(code, pin)}>
+                            <span className="rcode mono">{code}</span>
+                            <span className="rlabel">{r?.label || "—"}</span>
+                            <span className={`rrole ${pin ? "ed" : ""}`}>
+                              {pin ? t("düzenleyici") : t("izleyici")}</span>
+                            <span className="rgo">→</span>
+                          </button>
+                        );
+                      })}
+                  <button className="histbtn" style={{ marginTop: 8, width: "100%" }}
+                    onClick={() => setTeamOpen(true)}>⚙ {t("Takımı Yönet")}</button>
+                </div>
+              )}
+
+              {Object.keys(myTeams).length === 0 && (
+                <button className="bigbtn ghost" onClick={() => setTeamOpen(true)}>
+                  🏢 {t("Takım Kur / Katıl")}
+                </button>
+              )}
+
+              <div className="divider">{t("veya")}</div>
+
               <button className="bigbtn" onClick={createRoom}>
                 {t("🏁 Yeni Oda Kur")}
               </button>
 
-              <div className="divider">{t("veya mevcut odaya katıl")}</div>
+              <div className="divider">{t("kodla katıl")}</div>
 
               <div className="row2">
                 <div>
