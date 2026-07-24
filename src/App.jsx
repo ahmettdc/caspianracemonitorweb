@@ -1,6 +1,9 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ResponsiveContainer } from "recharts";
-import { roomGet, roomSet, roomSubscribe, firebaseReady, touchUserProfile, watchUserDoc, requestAccess, watchAllUsers, setUserAllowed, updateProfile } from "./storage";
+import { roomGet, roomSet, roomSubscribe, firebaseReady, touchUserProfile, watchUserDoc,
+  requestAccess, watchAllUsers, setUserAllowed, updateProfile,
+  createTeam, joinTeam, watchMyTeams, watchTeam, watchTeamSecrets,
+  addTeamRoom, removeTeamRoom, setTeamRole, leaveTeam } from "./storage";
 import { signInGoogle, signOut, watchAuth, authReady } from "./auth";
 
 /* ============================================================
@@ -826,6 +829,28 @@ const css = `
 .rc .adminbtn:hover{border-color:var(--teal);color:var(--teal)}
 .rc .adminbtn .badge{position:absolute;top:-6px;right:-6px;background:var(--car);color:#fff;
   border-radius:9px;font-size:10px;padding:1px 6px;line-height:1.4}
+.rc .tmtabs{display:flex;gap:6px;padding:10px 14px 0;flex-wrap:wrap}
+.rc .tmtabs button{padding:5px 12px;border:1px solid var(--line);border-radius:8px;
+  background:var(--panel2);color:var(--dim);cursor:pointer;font-size:12px}
+.rc .tmtabs button.on{border-color:var(--car);color:#FFD9E0;background:rgba(150,0,24,.22)}
+.rc .tmsec{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--car);
+  font-weight:700;margin:6px 0 7px}
+.rc .tmroom{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:8px;
+  background:rgba(255,255,255,.03);margin-bottom:5px}
+.rc .tmroom .rcode{font-weight:700;color:var(--teal);letter-spacing:.08em}
+.rc .tmroom .rlabel{flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rc .tmroom .rpin{font-size:11px;color:var(--yellow)}
+.rc .tmroom .rpin.dim{color:var(--dim)}
+.rc .tmroom .ubtn{padding:4px 12px;font-size:11px}
+.rc .tmadd{display:flex;gap:6px;margin-top:8px;align-items:center}
+.rc .tmadd input{margin:0}
+.rc .tmmem{display:flex;align-items:center;gap:9px;padding:5px 9px;font-size:12px}
+.rc .tmmem .mrole{font-size:10px;text-transform:uppercase;letter-spacing:.05em;padding:2px 8px;
+  border-radius:6px;border:1px solid var(--line);color:var(--dim)}
+.rc .tmmem .muid{color:var(--muted);font-size:11px}
+.rc .tmfoot{display:flex;gap:6px;padding:10px 14px;border-top:1px solid var(--line);
+  align-items:center;flex-wrap:wrap}
+.rc .tmfoot input{margin:0;flex:1;min-width:120px}
 .rc .urow{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px}
 .rc .urow:nth-child(odd){background:rgba(255,255,255,.03)}
 .rc .urow img,.rc .urow .uav{width:32px;height:32px;border-radius:50%;object-fit:cover;flex:0 0 auto;
@@ -1184,6 +1209,28 @@ export default function App() {
     await pushState(code);
   };
 
+  /* takım listesinden tek tıkla odaya bağlan */
+  const quickJoin = (code, pin) => {
+    setJoinCode(code); setJoinPin(pin || "");
+    setTeamOpen(false);
+    setTimeout(() => joinRoomWith(code, pin || ""), 0);
+  };
+  const joinRoomWith = async (codeIn, pinIn) => {
+    const code = String(codeIn).trim().toUpperCase();
+    try {
+      const remote = await roomGet(code);
+      if (!remote) { setSyncMsg(`"${code}" ${t("odası bulunamadı — kodu kontrol et")}`); return; }
+      const asEditor = pinIn && pinIn === remote.pin;
+      sync.current.applying = true;
+      sync.current.rev = remote.rev;
+      setSt(migrate(JSON.parse(remote.state)));
+      setRoom(code); setRole(asEditor ? "editor" : "viewer");
+      setRoomPin(asEditor ? remote.pin : "");
+      setEntered(true);
+      setSyncMsg(asEditor ? t("Düzenleyici olarak bağlandın") : t("İzleyici olarak bağlandın"));
+      setTimeout(() => { sync.current.applying = false; }, 60);
+    } catch (e) { setSyncMsg(t("Bağlantı hatası: ") + e.message); }
+  };
   const joinRoom = async () => {
     const code = joinCode.trim().toUpperCase();
     if (code.length < 4) { setSyncMsg(t("Geçerli bir oda kodu gir")); return; }
@@ -1951,9 +1998,32 @@ ${bottomBar}
     if (n) setUserName(n);
   }, [udoc, user]);
   const access = udoc?.allowed === true;
+  useEffect(() => {
+    if (!user || !access) return;
+    return watchMyTeams(user.uid, (t) => {
+      setMyTeams(t || {});
+      setCurTeam((c) => c || Object.keys(t || {})[0] || "");
+    });
+  }, [user, access]);
+  useEffect(() => {
+    if (!curTeam) { setTeamData(null); setTeamSecrets({}); return; }
+    const o1 = watchTeam(curTeam, setTeamData);
+    const o2 = watchTeamSecrets(curTeam, (x) => setTeamSecrets(x || {}));
+    return () => { o1(); o2(); };
+  }, [curTeam]);
+  const myRole = teamData?.members?.[user?.uid] || "";
+  const canEditTeam = myRole === "owner" || myRole === "editor";
   const isAdmin = udoc?.admin === true;
   const [adminOpen, setAdminOpen] = useState(false);
   const [profOpen, setProfOpen] = useState(false);
+  /* ---- takımlar ---- */
+  const [teamOpen, setTeamOpen] = useState(false);
+  const [myTeams, setMyTeams] = useState({});
+  const [curTeam, setCurTeam] = useState("");      // seçili takım id
+  const [teamData, setTeamData] = useState(null);
+  const [teamSecrets, setTeamSecrets] = useState({});
+  const [tForm, setTForm] = useState({ name: "", join: "", code: "", label: "", pin: "" });
+  const [tErr, setTErr] = useState("");
   const [profName, setProfName] = useState("");
   const [allUsers, setAllUsers] = useState({});
   useEffect(() => {
@@ -2462,6 +2532,143 @@ ${bottomBar}
   return (
     <div className="rc">
       <style>{css}</style>
+      {teamOpen && user && (
+        <div className="wxmodal" onClick={() => setTeamOpen(false)}>
+          <div className="wxmbox" style={{ width: "min(680px,95vw)" }}
+            onClick={(e) => e.stopPropagation()}>
+            <div className="wxmhead">
+              <span>🏢 {t("Takımlar")}</span>
+              <button className="lbclose" onClick={() => setTeamOpen(false)}>✕</button>
+            </div>
+
+            {/* takım seçici */}
+            {Object.keys(myTeams).length > 0 && (
+              <div className="tmtabs">
+                {Object.entries(myTeams).map(([tid, nm]) => (
+                  <button key={tid} className={curTeam === tid ? "on" : ""}
+                    onClick={() => setCurTeam(tid)}>{nm}</button>
+                ))}
+              </div>
+            )}
+
+            <div className="wxmlist" style={{ padding: "10px 14px" }}>
+              {!curTeam && (
+                <div className="hint" style={{ marginBottom: 12 }}>
+                  {t("Henüz bir takımın yok. Yeni takım kur ya da katılım kodu ile katıl.")}
+                </div>
+              )}
+
+              {curTeam && teamData && (<>
+                {/* odalar */}
+                <div className="tmsec">{t("Odalar")}</div>
+                {Object.entries(teamData.rooms || {}).length === 0 && (
+                  <div className="hint">{t("Bu takımda kayıtlı oda yok.")}</div>
+                )}
+                {Object.entries(teamData.rooms || {})
+                  .sort(([, a], [, b]) => (b?.createdAt || 0) - (a?.createdAt || 0))
+                  .map(([code, r]) => {
+                    const pin = teamSecrets?.[code]?.pin || "";
+                    return (
+                      <div key={code} className="tmroom">
+                        <span className="rcode mono">{code}</span>
+                        <span className="rlabel">{r?.label || "—"}</span>
+                        {pin
+                          ? <span className="rpin mono" title={t("Düzenleyici PIN'i")}>🔑 {pin}</span>
+                          : <span className="rpin dim">🔒 {t("gizli")}</span>}
+                        <button className="gbtn ubtn" onClick={() => quickJoin(code, pin)}>
+                          {pin ? t("Düzenleyici Gir") : t("İzleyici Gir")}
+                        </button>
+                        {canEditTeam && (
+                          <button className="minibtn" title={t("Sil")}
+                            onClick={() => removeTeamRoom(curTeam, code).catch(() => {})}>✕</button>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                {canEditTeam && (
+                  <div className="tmadd">
+                    <input placeholder={t("ODA KODU")} maxLength={6} value={tForm.code}
+                      onChange={(e) => setTForm({ ...tForm, code: e.target.value.toUpperCase() })}
+                      style={{ width: 110 }} />
+                    <input placeholder={t("Etiket (örn. Spa 6h)")} value={tForm.label}
+                      onChange={(e) => setTForm({ ...tForm, label: e.target.value })}
+                      style={{ textTransform: "none", flex: 1 }} />
+                    <input placeholder="PIN" maxLength={4} value={tForm.pin}
+                      onChange={(e) => setTForm({ ...tForm, pin: e.target.value })}
+                      style={{ width: 90 }} />
+                    <button className="histbtn" disabled={tForm.code.trim().length < 4}
+                      onClick={async () => {
+                        await addTeamRoom(curTeam, tForm.code, tForm.label, tForm.pin, user.uid)
+                          .catch(() => {});
+                        setTForm({ ...tForm, code: "", label: "", pin: "" });
+                      }}>{t("Ekle")}</button>
+                  </div>
+                )}
+
+                {/* üyeler */}
+                <div className="tmsec" style={{ marginTop: 16 }}>{t("Takım Üyeleri")}</div>
+                {Object.entries(teamData.members || {}).map(([uid, role]) => (
+                  <div key={uid} className="tmmem">
+                    <span className="mrole">{t(role)}</span>
+                    <span className="muid mono">{uid === user.uid ? t("(sen)") : uid.slice(0, 10) + "…"}</span>
+                    {myRole === "owner" && uid !== user.uid && (
+                      <span style={{ marginLeft: "auto", display: "flex", gap: 5 }}>
+                        <button className="minibtn" style={{ width: "auto", padding: "0 8px" }}
+                          onClick={() => setTeamRole(curTeam, uid,
+                            role === "editor" ? "viewer" : "editor").catch(() => {})}>
+                          {role === "editor" ? t("İzleyici yap") : t("Düzenleyici yap")}
+                        </button>
+                      </span>
+                    )}
+                  </div>
+                ))}
+                <div className="hint" style={{ marginTop: 8 }}>
+                  {t("Katılım kodu")}: <b className="mono">{teamData?.meta?.joinCode || "—"}</b>
+                  {" · "}{t("PIN'leri yalnız düzenleyiciler görür.")}
+                </div>
+                {myRole !== "owner" && (
+                  <div style={{ marginTop: 10 }}>
+                    <button className="histbtn" onClick={() => {
+                      leaveTeam(curTeam, user.uid).catch(() => {}); setCurTeam("");
+                    }}>{t("Takımdan ayrıl")}</button>
+                  </div>
+                )}
+              </>)}
+            </div>
+
+            {/* kur / katıl */}
+            <div className="tmfoot">
+              <input placeholder={t("Yeni takım adı")} value={tForm.name}
+                onChange={(e) => setTForm({ ...tForm, name: e.target.value })}
+                style={{ textTransform: "none" }} />
+              <button className="histbtn" disabled={!tForm.name.trim()}
+                onClick={async () => {
+                  setTErr("");
+                  try {
+                    const tid = await createTeam(user, tForm.name.trim());
+                    setCurTeam(tid); setTForm({ ...tForm, name: "" });
+                  } catch (e) { setTErr(t("Takım kurulamadı")); }
+                }}>{t("Takım Kur")}</button>
+              <input placeholder={t("KATILIM KODU")} maxLength={6} value={tForm.join}
+                onChange={(e) => setTForm({ ...tForm, join: e.target.value.toUpperCase() })}
+                style={{ width: 130 }} />
+              <button className="histbtn" disabled={tForm.join.trim().length < 4}
+                onClick={async () => {
+                  setTErr("");
+                  try {
+                    const tid = await joinTeam(user, tForm.join);
+                    setCurTeam(tid); setTForm({ ...tForm, join: "" });
+                  } catch (e) {
+                    setTErr(e.message === "NOT_FOUND" ? t("Takım bulunamadı") : t("Katılınamadı"));
+                  }
+                }}>{t("Katıl")}</button>
+            </div>
+            {tErr && <div className="hint" style={{ color: "var(--red)", padding: "0 14px 10px" }}>
+              {tErr}</div>}
+          </div>
+        </div>
+      )}
       {profOpen && user && (
         <div className="wxmodal" onClick={() => setProfOpen(false)}>
           <div className="wxmbox" style={{ width: "min(420px,94vw)" }}
@@ -2631,6 +2838,12 @@ ${bottomBar}
                 onError={(e) => { e.currentTarget.style.display = "none"; }} />
               {carName(st.carClass, st.car)}</>}
           </span>
+        )}
+        {access && (
+          <button className="adminbtn" onClick={() => setTeamOpen(true)}
+            title={t("Takımlarım")}>
+            🏢 {teamData?.meta?.name || t("Takımlar")}
+          </button>
         )}
         {isAdmin && (
           <button className="adminbtn" onClick={() => setAdminOpen(true)}

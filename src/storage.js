@@ -5,7 +5,7 @@
    Bonus: 3sn polling yerine onValue ile anlık senkronizasyon.
    ============================================================ */
 import { initializeApp } from "firebase/app";
-import { getDatabase, ref, get, set, update, onValue } from "firebase/database";
+import { getDatabase, ref, get, set, update, remove, onValue } from "firebase/database";
 import { firebaseConfig } from "./firebase-config";
 
 export const firebaseReady =
@@ -118,4 +118,93 @@ export async function setUserAllowed(uid, allowed) {
 export async function updateProfile(uid, patch) {
   if (!db || !uid) return;
   await update(ref(db, `users/${uid}`), patch);
+}
+
+/* ============================================================
+   TAKIMLAR — teams/{tid}
+     meta    : { name, ownerUid, joinCode, createdAt }
+     members : { uid: "owner" | "editor" | "viewer" }
+     rooms   : { code: { label, createdAt, createdBy } }
+     secrets : { code: { pin } }   ← yalnız owner/editor okuyabilir (kural)
+   users/{uid}/teams/{tid} = takım adı  (kendi takımlarını listelemek için)
+   teamCodes/{joinCode} = tid           (katılım kodundan takımı bulmak için)
+   ============================================================ */
+const rnd = (n, set = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789") =>
+  Array.from({ length: n }, () => set[Math.floor(Math.random() * set.length)]).join("");
+
+export async function createTeam(user, name) {
+  if (!db || !user) throw new Error("no-db");
+  const tid = rnd(8).toLowerCase();
+  const joinCode = rnd(6);
+  await update(ref(db), {
+    [`teams/${tid}/meta`]: {
+      name: String(name).slice(0, 40), ownerUid: user.uid, joinCode, createdAt: Date.now(),
+    },
+    [`teams/${tid}/members/${user.uid}`]: "owner",
+    [`users/${user.uid}/teams/${tid}`]: String(name).slice(0, 40),
+    [`teamCodes/${joinCode}`]: tid,
+  });
+  return tid;
+}
+
+export async function joinTeam(user, joinCode) {
+  if (!db || !user) throw new Error("no-db");
+  const code = String(joinCode).trim().toUpperCase();
+  const snap = await get(ref(db, `teamCodes/${code}`));
+  if (!snap.exists()) throw new Error("NOT_FOUND");
+  const tid = snap.val();
+  const meta = await get(ref(db, `teams/${tid}/meta`));
+  await update(ref(db), {
+    [`teams/${tid}/members/${user.uid}`]: "viewer",
+    [`users/${user.uid}/teams/${tid}`]: meta.exists() ? meta.val().name : tid,
+  });
+  return tid;
+}
+
+export function watchMyTeams(uid, cb) {
+  if (!db || !uid) { cb({}); return () => {}; }
+  return onValue(ref(db, `users/${uid}/teams`),
+    (s) => cb(s.exists() ? s.val() : {}), () => cb({}));
+}
+
+export function watchTeam(tid, cb) {
+  if (!db || !tid) { cb(null); return () => {}; }
+  return onValue(ref(db, `teams/${tid}`),
+    (s) => cb(s.exists() ? s.val() : null), () => cb(null));
+}
+
+/* PIN'ler ayrı düğümde — okuma yetkisi yoksa sessizce boş döner */
+export function watchTeamSecrets(tid, cb) {
+  if (!db || !tid) { cb({}); return () => {}; }
+  return onValue(ref(db, `teams/${tid}/secrets`),
+    (s) => cb(s.exists() ? s.val() : {}), () => cb({}));
+}
+
+export async function addTeamRoom(tid, code, label, pin, uid) {
+  if (!db) return;
+  const c = String(code).trim().toUpperCase();
+  const up = {
+    [`teams/${tid}/rooms/${c}`]: {
+      label: String(label || "").slice(0, 40), createdAt: Date.now(), createdBy: uid || "",
+    },
+  };
+  if (pin) up[`teams/${tid}/secrets/${c}`] = { pin: String(pin).slice(0, 8) };
+  await update(ref(db), up);
+}
+
+export async function removeTeamRoom(tid, code) {
+  if (!db) return;
+  await remove(ref(db, `teams/${tid}/rooms/${code}`));
+  await remove(ref(db, `teams/${tid}/secrets/${code}`)).catch(() => {});
+}
+
+export async function setTeamRole(tid, uid, role) {
+  if (!db) return;
+  await set(ref(db, `teams/${tid}/members/${uid}`), role);
+}
+
+export async function leaveTeam(tid, uid) {
+  if (!db) return;
+  await remove(ref(db, `teams/${tid}/members/${uid}`));
+  await remove(ref(db, `users/${uid}/teams/${tid}`));
 }
