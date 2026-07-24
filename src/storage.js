@@ -119,14 +119,16 @@ export async function updateProfile(uid, patch) {
 const rnd = (n, set = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789") =>
   Array.from({ length: n }, () => set[Math.floor(Math.random() * set.length)]).join("");
 
-export async function createTeam(user, name) {
+export async function createTeam(user, name, memberName = "") {
   if (!db || !user) throw new Error("no-db");
   const tid = rnd(8).toLowerCase();
   const joinCode = rnd(6);
+  const nm = String(memberName || user.displayName || user.email || "").slice(0, 60);
   await update(ref(db), {
     [`teams/${tid}/meta`]: {
       name: String(name).slice(0, 40), ownerUid: user.uid, joinCode, createdAt: Date.now(),
     },
+    [`teams/${tid}/names/${user.uid}`]: nm,
     [`teams/${tid}/members/${user.uid}`]: "owner",
     [`users/${user.uid}/teams/${tid}`]: String(name).slice(0, 40),
     [`teamCodes/${joinCode}`]: tid,
@@ -134,14 +136,16 @@ export async function createTeam(user, name) {
   return tid;
 }
 
-export async function joinTeam(user, joinCode) {
+export async function joinTeam(user, joinCode, memberName = "") {
   if (!db || !user) throw new Error("no-db");
   const code = String(joinCode).trim().toUpperCase();
   const snap = await get(ref(db, `teamCodes/${code}`));
   if (!snap.exists()) throw new Error("NOT_FOUND");
   const tid = snap.val();
   const meta = await get(ref(db, `teams/${tid}/meta`));
+  const nm = String(memberName || user.displayName || user.email || "").slice(0, 60);
   await update(ref(db), {
+    [`teams/${tid}/names/${user.uid}`]: nm,
     [`teams/${tid}/members/${user.uid}`]: "viewer",
     [`users/${user.uid}/teams/${tid}`]: meta.exists() ? meta.val().name : tid,
   });
@@ -159,12 +163,12 @@ export function watchMyTeams(uid, cb) {
    kalsın diye teams/$tid seviyesinde .read yok — bu yüzden çocuklar ayrı.) */
 export function watchTeam(tid, cb) {
   if (!db || !tid) { cb(null); return () => {}; }
-  const acc = { meta: null, members: null, badges: null, rooms: null };
+  const acc = { meta: null, members: null, badges: null, rooms: null, names: null };
   const emit = () => cb({ ...acc });
   const sub = (key) => onValue(ref(db, `teams/${tid}/${key}`),
     (s) => { acc[key] = s.exists() ? s.val() : (key === "meta" ? null : {}); emit(); },
     () => { acc[key] = key === "meta" ? null : {}; emit(); });
-  const offs = ["meta", "members", "badges", "rooms"].map(sub);
+  const offs = ["meta", "members", "badges", "rooms", "names"].map(sub);
   return () => offs.forEach((o) => o());
 }
 
@@ -175,6 +179,12 @@ export function watchTeam(tid, cb) {
 
 
 
+/* Uye kendi gorunen adini takim dugumune yazar (pilot listesi icin) */
+export async function setTeamMemberName(tid, uid, name) {
+  if (!db || !tid || !uid) return;
+  await set(ref(db, `teams/${tid}/names/${uid}`), String(name || "").slice(0, 60));
+}
+
 export async function setTeamRole(tid, uid, role) {
   if (!db) return;
   await set(ref(db, `teams/${tid}/members/${uid}`), role);
@@ -183,6 +193,7 @@ export async function setTeamRole(tid, uid, role) {
 export async function leaveTeam(tid, uid) {
   if (!db) return;
   await remove(ref(db, `teams/${tid}/members/${uid}`));
+  await remove(ref(db, `teams/${tid}/names/${uid}`));
   await remove(ref(db, `users/${uid}/teams/${tid}`));
 }
 

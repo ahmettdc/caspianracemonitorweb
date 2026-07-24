@@ -3,7 +3,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, Responsi
 import { firebaseReady, touchUserProfile, watchUserDoc,
   requestAccess, watchAllUsers, setUserAllowed, updateProfile,
   createTeam, joinTeam, watchMyTeams, watchTeam,
-  setTeamRole, toggleTeamBadge, leaveTeam,
+  setTeamRole, toggleTeamBadge, leaveTeam, setTeamMemberName,
   createSeason, deleteSeason, watchSeasons,
   createRace, updateRace, deleteRace, watchRaces,
   raceStateGet, raceStateSet, raceStateSubscribe } from "./storage";
@@ -472,6 +472,9 @@ const EN = {
   "👁 İZLEYİCİ": "👁 VIEWER",
   "✎ DÜZENLEYİCİ": "✎ EDITOR",
   "Stint zaman çizelgesi": "Stint timeline",
+  "Kadro": "Roster",
+  "Takım": "Team",
+  "Takımdan ekle": "Add from team",
   "Hava zaman çizelgesi": "Weather timeline",
 };
 
@@ -1605,7 +1608,10 @@ export default function App() {
   const assignDriver = (i, n) => setSt((s0) => {
     const s = grow(s0, i + 2);
     const driverAssign = [...s.driverAssign]; driverAssign[i] = n;
-    return { ...s, driverAssign };
+    /* takımdan seçilen isim kadroda yoksa otomatik kadroya eklensin
+       (toplam süre / dağılım tablosu kadro üzerinden hesaplanıyor) */
+    const roster = n && !s.roster.includes(n) ? [...s.roster, n] : s.roster;
+    return { ...s, driverAssign, roster };
   });
   const clearAssign = () => setSt((s) => ({
     ...s, driverAssign: s.driverAssign.map(() => ""),
@@ -2119,6 +2125,29 @@ ${bottomBar}
   const canEditTeam = myRole === "owner" || myRole === "editor";
   const myBadges = teamBadgesOf(teamData, user?.uid, udoc);
 
+  /* Kendi görünen adımı takım düğümüne yaz — diğer üyeler pilot listesinde görsün */
+  useEffect(() => {
+    if (!curTeam || !user?.uid || !teamData?.members?.[user.uid]) return;
+    const nm = (userName || "").trim();
+    if (!nm || teamData?.names?.[user.uid] === nm) return;
+    setTeamMemberName(curTeam, user.uid, nm).catch(() => {});
+  }, [curTeam, user, userName, teamData]);
+
+  /* Takımdaki pilotlar — rozetli olanlar önce, kadroda olmayanlar ayrı grupta */
+  const teamDrivers = useMemo(() => {
+    const names = teamData?.names || {};
+    const list = Object.entries(names)
+      .map(([uid, nm]) => ({ uid, nm: String(nm || "").trim() }))
+      .filter((x) => x.nm)
+      .sort((a, b) => {
+        const da = hasBadge(teamData, a.uid, "driver") ? 0 : 1;
+        const db2 = hasBadge(teamData, b.uid, "driver") ? 0 : 1;
+        return da - db2 || a.nm.localeCompare(b.nm, "tr");
+      })
+      .map((x) => x.nm);
+    return Array.from(new Set(list));
+  }, [teamData]);
+
   const [allUsers, setAllUsers] = useState({});
   useEffect(() => {
     if (!isAdmin || !adminOpen) return;
@@ -2437,7 +2466,7 @@ ${bottomBar}
                 onClick={async () => {
                   setTErr("");
                   try {
-                    const tid = await createTeam(user, tForm.name.trim());
+                    const tid = await createTeam(user, tForm.name.trim(), userName);
                     setCurTeam(tid); setTForm({ ...tForm, name: "" });
                   } catch (e) { setTErr(t("Takım kurulamadı")); }
                 }}>{t("Takım Kur")}</button>
@@ -2448,7 +2477,7 @@ ${bottomBar}
                 onClick={async () => {
                   setTErr("");
                   try {
-                    const tid = await joinTeam(user, tForm.join);
+                    const tid = await joinTeam(user, tForm.join, userName);
                     setCurTeam(tid); setTForm({ ...tForm, join: "" });
                   } catch (e) {
                     setTErr(e.message === "NOT_FOUND" ? t("Takım bulunamadı") : t("Katılınamadı"));
@@ -3940,12 +3969,23 @@ ${bottomBar}
                 {st.roster.length === 0 &&
                   <span className="hint">{t("Henüz pilot yok — aşağıdan ekle.")}</span>}
               </div>
-              <div style={{ display: "flex", gap: 8, maxWidth: 340, marginBottom: 14 }}>
+              <div style={{ display: "flex", gap: 8, maxWidth: 340, marginBottom: 8 }}>
                 <input type="text" placeholder={t("Pilot adı")} value={newDriver}
                   onChange={(e) => setNewDriver(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && addDriver()} />
                 <button className="act" onClick={addDriver}>{t("Ekle")}</button>
               </div>
+              {teamDrivers.filter((n) => !st.roster.includes(n)).length > 0 && (
+                <div style={{ marginBottom: 14 }}>
+                  <span className="hint" style={{ marginRight: 6 }}>
+                    {t("Takımdan ekle")}:</span>
+                  {teamDrivers.filter((n) => !st.roster.includes(n)).map((n) => (
+                    <button key={n} className="act" style={{ marginRight: 6, marginTop: 4 }}
+                      onClick={() => setSt((s) => s.roster.includes(n)
+                        ? s : { ...s, roster: [...s.roster, n] })}>+ {n}</button>
+                  ))}
+                </div>
+              )}
 
               {driverPlan && (<>
                 <table>
@@ -3963,7 +4003,18 @@ ${bottomBar}
                           <select value={st.driverAssign[i] || ""}
                             onChange={(e) => assignDriver(i, e.target.value)}>
                             <option value="">{t("— seç —")}</option>
-                            {st.roster.map((n) => <option key={n} value={n}>{n}</option>)}
+                            {st.roster.length > 0 && (
+                              <optgroup label={t("Kadro")}>
+                                {st.roster.map((n) =>
+                                  <option key={n} value={n}>{n}</option>)}
+                              </optgroup>
+                            )}
+                            {teamDrivers.filter((n) => !st.roster.includes(n)).length > 0 && (
+                              <optgroup label={teamData?.meta?.name || t("Takım")}>
+                                {teamDrivers.filter((n) => !st.roster.includes(n)).map((n) =>
+                                  <option key={n} value={n}>{n}</option>)}
+                              </optgroup>
+                            )}
                           </select>
                         </td>
                       </tr>
