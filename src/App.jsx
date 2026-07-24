@@ -2202,6 +2202,16 @@ ${bottomBar}
                     );
                   })}
 
+                {canEditTeam && room && !(teamData?.rooms || {})[room] && (
+                  <button className="gbtn ubtn" style={{ width: "100%", marginTop: 8 }}
+                    onClick={() => {
+                      const label = [st.track ? trackName(st.track) : "", st.raceTime || ""]
+                        .filter(Boolean).join(" · ") || room;
+                      addTeamRoom(curTeam, room, label, roomPin, user?.uid).catch(() => {});
+                    }}>
+                    🏢 {t("Şu anki odayı ekle")} · <b className="mono">{room}</b>
+                  </button>
+                )}
                 {canEditTeam && (
                   <div className="tmadd">
                     <input placeholder={t("ODA KODU")} maxLength={6} value={tForm.code}
@@ -2979,7 +2989,13 @@ ${bottomBar}
           </span>
         )}
         {access && (
-          <button className="adminbtn" onClick={() => setTeamOpen(true)}
+          <button className="adminbtn" onClick={() => {
+              if (room && !(teamData?.rooms || {})[room])
+                setTForm((f) => ({ ...f, code: room, pin: roomPin || "",
+                  label: f.label || [st.track ? trackName(st.track) : "", st.raceTime || ""]
+                    .filter(Boolean).join(" · ") }));
+              setTeamOpen(true);
+            }}
             title={t("Takımlarım")}>
             🏢 {teamData?.meta?.name || t("Takımlar")}
           </button>
@@ -3042,8 +3058,7 @@ ${bottomBar}
             <span className="syncinfo" style={{ marginLeft: 0 }}>
               {t("Düzenleme PIN'i: ")}<b className="roomcode" style={{ fontSize: 13 }}>{roomPin}</b>{t(" (sadece düzenleyecek kişilere ver)")}
             </span>}
-          {curTeam && canEditTeam && role === "editor" &&
-            !(teamData?.rooms || {})[room] && (
+          {curTeam && canEditTeam && !(teamData?.rooms || {})[room] && (
             <button className="histbtn" style={{ padding: "3px 10px", fontSize: 11 }}
               onClick={() => {
                 const label = [st.track ? trackName(st.track) : "", st.raceTime || ""]
