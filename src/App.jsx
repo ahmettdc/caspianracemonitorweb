@@ -8,6 +8,7 @@ import { firebaseReady, touchUserProfile, watchUserDoc,
   createRace, updateRace, deleteRace, watchRaces,
   raceStateGet, raceStateSet, raceStateSubscribe } from "./storage";
 import { signInGoogle, signOut, watchAuth, authReady } from "./auth";
+import { CHANGELOG } from "./changelog";
 
 /* ============================================================
    CASPIAN MOTORSPORT — RACE MONITOR  ·  Faz 2
@@ -114,7 +115,9 @@ const DEFAULT_STATE = {
 const SLOT_COLORS = { A: "#40D68C", B: "#F0604D", C: "#F2A33C", D: "#6694FF" };
 
 /* ---------- pist & araç seçimi ---------- */
-const APP_VERSION = "v1.0";   // tek kaynak — sürüm yazısı buradan
+const APP_VERSION = "v1.2";   // tek kaynak — sürüm yazısı buradan
+const REPO_URL = "https://github.com/ahmettdc/caspianracemonitorweb";
+const SEEN_VER_KEY = "rm_seen_version";
 const ASSET = import.meta.env.BASE_URL + "assets/";
 const AV = "?v=3"; // görsel sürümü — dosya güncellenince artır (önbellek kırma)
 const TRACKS = [
@@ -472,6 +475,10 @@ const EN = {
   "👁 İZLEYİCİ": "👁 VIEWER",
   "✎ DÜZENLEYİCİ": "✎ EDITOR",
   "Stint zaman çizelgesi": "Stint timeline",
+  "Neler değişti": "What's new",
+  "ŞU AN": "CURRENT",
+  "GitHub'da tüm değişiklikler ↗": "All changes on GitHub ↗",
+  "Kapat": "Close",
   "Kadro": "Roster",
   "Takım": "Team",
   "Takımdan ekle": "Add from team",
@@ -1078,6 +1085,21 @@ const css = `
   filter:drop-shadow(0 4px 8px rgba(0,0,0,.45))}
 .rc .cargrid button.on{border-color:var(--teal);background:rgba(150,0,24,.20);
   color:var(--txt);font-weight:600}
+.rc .infobtn{position:relative;width:26px;height:26px;flex:0 0 26px;padding:0;
+  border-radius:50%;border:1px solid var(--line);background:var(--panel2);
+  color:var(--muted);font:700 14px/1 Georgia,serif;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;transition:.15s}
+.rc .infobtn:hover{border-color:var(--red);color:var(--red)}
+.rc .infobtn .nd{position:absolute;top:-2px;right:-2px;width:8px;height:8px;
+  border-radius:50%;background:var(--red);border:1px solid var(--panel)}
+.rc .clgv{padding:12px 16px 4px;border-top:1px solid var(--line)}
+.rc .clgv:first-child{border-top:0}
+.rc .clgv h4{margin:0 0 2px;font-size:14px;letter-spacing:.04em}
+.rc .clgv h4 .cur{margin-left:8px;font-size:10px;padding:1px 6px;border-radius:4px;
+  border:1px solid var(--red);color:var(--red);letter-spacing:.08em;vertical-align:2px}
+.rc .clgv .cdate{color:var(--dim);font-size:11px;margin-bottom:8px}
+.rc .clgv ul{margin:0 0 10px;padding-left:18px}
+.rc .clgv li{font-size:12.5px;line-height:1.55;color:var(--txt);margin-bottom:4px}
 .rc .langsw{display:inline-flex;gap:4px;margin-left:auto;align-self:center}
 .rc .langsw button{padding:3px 9px;border-radius:5px;border:1px solid var(--line);
   background:var(--panel2);color:var(--dim);font-size:11px;cursor:pointer;font-weight:600}
@@ -2162,6 +2184,51 @@ ${bottomBar}
         : (e?.message || String(e)));
     }
   };
+  /* ---- sürüm notları penceresi ---- */
+  const [verOpen, setVerOpen] = useState(false);
+  const [seenVer, setSeenVer] = useState(() => {
+    try { return localStorage.getItem(SEEN_VER_KEY) || ""; } catch { return ""; }
+  });
+  const openVersions = () => {
+    setVerOpen(true);
+    try { localStorage.setItem(SEEN_VER_KEY, APP_VERSION); } catch { /* yoksay */ }
+    setSeenVer(APP_VERSION);
+  };
+  const verNew = seenVer !== APP_VERSION;
+  const infoBtn = (
+    <button className="infobtn" onClick={openVersions}
+      title={t("Neler değişti")} aria-label={t("Neler değişti")}>
+      i{verNew && <span className="nd" />}
+    </button>
+  );
+  const versionModal = verOpen && (
+    <div className="wxmodal" onClick={() => setVerOpen(false)}>
+      <div className="wxmbox" style={{ width: "min(560px,94vw)" }}
+        onClick={(e) => e.stopPropagation()}>
+        <div className="wxmhead">
+          <span>ℹ {t("Neler değişti")}</span>
+          <button className="lbclose" onClick={() => setVerOpen(false)}>✕</button>
+        </div>
+        <div className="wxmlist" style={{ padding: 0, maxHeight: "62vh" }}>
+          {CHANGELOG.map((c) => (
+            <div className="clgv" key={c.v}>
+              <h4>{c.v}{c.v === APP_VERSION &&
+                <span className="cur">{t("ŞU AN")}</span>}</h4>
+              <div className="cdate">{c.date}</div>
+              <ul>{(lang === "en" ? c.en : c.tr).map((x, i) => <li key={i}>{x}</li>)}</ul>
+            </div>
+          ))}
+        </div>
+        <div className="wxmfoot" style={{ justifyContent: "space-between" }}>
+          <a className="hint" href={`${REPO_URL}/commits/main`}
+            target="_blank" rel="noreferrer"
+            style={{ color: "var(--muted)" }}>{t("GitHub'da tüm değişiklikler ↗")}</a>
+          <button className="histbtn" onClick={() => setVerOpen(false)}>{t("Kapat")}</button>
+        </div>
+      </div>
+    </div>
+  );
+
   const [wxHist, setWxHist] = useState(false); // hava geçmişi penceresi
   const [wxPlanW, setWxPlanW] = useState("wet"); // planlı geçiş: hava
   const [wxPlanT, setWxPlanT] = useState("");    // planlı geçiş: yarış saati
@@ -2785,14 +2852,16 @@ ${bottomBar}
     return (
       <div className="rc">
         <style>{css}</style>
-        {teamModal}{raceForm}
+        {teamModal}{raceForm}{versionModal}
         <div className="lobby">
           <div className="box" style={{ maxWidth: 560 }}>
-            <div className="langsw" style={{ display: "flex", justifyContent: "flex-end", marginBottom: 6 }}>
+            <div className="langsw" style={{ display: "flex", justifyContent: "flex-end",
+              alignItems: "center", gap: 6, marginBottom: 6 }}>
               {["tr", "en"].map((l) => (
                 <button key={l} className={lang === l ? "on" : ""}
                   onClick={() => switchLang(l)}>{l.toUpperCase()}</button>
               ))}
+              {infoBtn}
             </div>
             <img className="logo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
             <h1><b>RACE</b> MONITOR</h1>
@@ -2965,7 +3034,7 @@ ${bottomBar}
   return (
     <div className="rc">
       <style>{css}</style>
-      {teamModal}{raceForm}
+      {teamModal}{raceForm}{versionModal}
       {profOpen && user && (
         <div className="wxmodal" onClick={() => setProfOpen(false)}>
           <div className="wxmbox" style={{ width: "min(420px,94vw)" }}
@@ -3130,6 +3199,7 @@ ${bottomBar}
         <img className="hlogo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
         <h1 className="disp" style={{ fontSize: 20 }}>RACE MONITOR</h1>
         <span className="ver">carmine · {APP_VERSION}</span>
+        {infoBtn}
         <span className="langsw">
           {["tr", "en"].map((l) => (
             <button key={l} className={lang === l ? "on" : ""}
