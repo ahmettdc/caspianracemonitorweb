@@ -1,9 +1,12 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ResponsiveContainer } from "recharts";
-import { roomGet, roomSet, roomSubscribe, firebaseReady, touchUserProfile, watchUserDoc,
+import { firebaseReady, touchUserProfile, watchUserDoc,
   requestAccess, watchAllUsers, setUserAllowed, updateProfile,
-  createTeam, joinTeam, watchMyTeams, watchTeam, watchTeamSecrets,
-  addTeamRoom, removeTeamRoom, setTeamRole, toggleTeamBadge, leaveTeam } from "./storage";
+  createTeam, joinTeam, watchMyTeams, watchTeam,
+  setTeamRole, toggleTeamBadge, leaveTeam,
+  createSeason, deleteSeason, watchSeasons,
+  createRace, updateRace, deleteRace, watchRaces,
+  raceStateGet, raceStateSet, raceStateSubscribe } from "./storage";
 import { signInGoogle, signOut, watchAuth, authReady } from "./auth";
 
 /* ============================================================
@@ -853,6 +856,19 @@ const css = `
 .rc .adminbtn .badge{position:absolute;top:-6px;right:-6px;background:var(--car);color:#fff;
   border-radius:9px;font-size:10px;padding:1px 6px;line-height:1.4}
 .rc .lobbyteams{margin-bottom:14px;text-align:left}
+.rc .lrace{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;margin-bottom:6px;
+  border:1px solid var(--line);border-radius:10px;background:var(--panel2);cursor:pointer;
+  transition:border-color .15s,transform .12s;text-align:left}
+.rc .lrace:hover{border-color:var(--teal);transform:translateX(2px)}
+.rc .lrace.next{border-color:var(--car);background:rgba(150,0,24,.14)}
+.rc .lrace .lrtrack{width:54px;height:34px;object-fit:contain;opacity:.85;flex:0 0 auto}
+.rc .lrace .lrinfo{display:flex;flex-direction:column;flex:1;min-width:0;gap:1px}
+.rc .lrace .lrinfo b{font-size:13px;color:var(--txt);overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+.rc .lrace .lrmeta{font-size:11px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+.rc .lrace .lrdate{font-size:10.5px;color:var(--teal);letter-spacing:.03em}
+.rc .tmroom .rmeta{display:block;font-size:10.5px;color:var(--dim);font-weight:400}
 .rc .lroom{display:flex;align-items:center;gap:9px;width:100%;padding:10px 12px;margin-bottom:6px;
   border:1px solid var(--line);border-radius:10px;background:var(--panel2);cursor:pointer;
   transition:border-color .15s,transform .12s}
@@ -1191,36 +1207,29 @@ export default function App() {
   const [pickDone, setPickDone] = useState(false); // pist/araç seçimi tamamlandı mı
   const [setupDone, setSetupDone] = useState(false); // data giriş adımı tamamlandı mı
   const [userName, setUserName] = useState("");
-  const [room, setRoom] = useState("");          // aktif oda kodu
-  const [joinCode, setJoinCode] = useState("");
-  const [joinPin, setJoinPin] = useState("");
-  const [role, setRole] = useState("editor");    // "editor" | "viewer"
-  const [roomPin, setRoomPin] = useState("");    // odanın PIN'i (sadece editörler bilir)
+  const [curRace, setCurRace] = useState("");    // aktif yarış id (takım içinde)
+  const [role, setRole] = useState("editor");    // "editor" | "viewer" (takım rolünden)
   const [syncMsg, setSyncMsg] = useState("");
   const [lastSync, setLastSync] = useState(null); // {by, at}
   const sync = useRef({ rev: 0, applying: false, timer: null });
   const stRef = useRef(st);
   stRef.current = st;
-  const pinRef = useRef("");
-  pinRef.current = roomPin;
 
-  const pushState = async (code) => {
+  const pushState = async (rid) => {
     try {
       const rev = sync.current.rev + 1;
-      const payload = {
-        stateJson: JSON.stringify(stRef.current), rev, pin: pinRef.current,
-        updatedBy: userName || "isimsiz",
-        updatedAt: Date.now(),
-      };
-      await roomSet(code, payload);
+      await raceStateSet(curTeamRef.current, rid, {
+        stateJson: JSON.stringify(stRef.current), rev,
+        updatedBy: userName || "isimsiz", updatedAt: Date.now(),
+      });
       sync.current.rev = rev; setLastSync({ by: t("sen"), at: Date.now() }); setSyncMsg("");
     } catch (e) { setSyncMsg(t("Yazma hatası — tekrar denenecek")); }
   };
 
   const schedulePush = () => {
-    if (!room || role !== "editor" || sync.current.applying) return;
+    if (!curRace || role !== "editor" || sync.current.applying) return;
     clearTimeout(sync.current.timer);
-    sync.current.timer = setTimeout(() => pushState(room), 800);
+    sync.current.timer = setTimeout(() => pushState(curRace), 800);
   };
 
   // her state değişiminde (kullanıcı kaynaklı) paylaş
@@ -1228,8 +1237,8 @@ export default function App() {
 
   // odayı anlık dinle (Firebase onValue — polling'e gerek yok)
   useEffect(() => {
-    if (!room) return;
-    const off = roomSubscribe(room, (remote) => {
+    if (!curRace) return;
+    const off = raceStateSubscribe(curTeamRef.current, curRace, (remote) => {
       if (remote.rev > sync.current.rev) {
         sync.current.applying = true;
         sync.current.rev = remote.rev;
@@ -1239,81 +1248,30 @@ export default function App() {
       }
     });
     return () => off();
-  }, [room]);
+  }, [curRace]);
 
-  const createRoom = async () => {
-    const code = Array.from({ length: 5 }, () =>
-      "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random() * 32)]).join("");
-    const pin = String(Math.floor(1000 + Math.random() * 9000));
-    sync.current.rev = 0;
-    setRoomPin(pin);
-    pinRef.current = pin;
-    setRole("editor");
-    setRoom(code);
-    setEntered(true);
-    setSyncMsg("");
-    await pushState(code);
-    /* takımı varsa oda kütüphanesine otomatik kaydet (yalnız yetkiliyse) */
-    if (curTeam && canEditTeam) {
-      const label = [st.track ? trackName(st.track) : "", st.raceTime || ""]
-        .filter(Boolean).join(" · ") || new Date().toLocaleDateString();
-      addTeamRoom(curTeam, code, label, pin, user?.uid).catch(() => {});
-      setSyncMsg(t("Oda kuruldu ve takıma eklendi"));
-    }
-  };
-
-  /* takım listesinden tek tıkla odaya bağlan */
-  const quickJoin = (code, pin) => {
-    setJoinCode(code); setJoinPin(pin || "");
-    setTeamOpen(false);
-    setTimeout(() => joinRoomWith(code, pin || ""), 0);
-  };
-  const joinRoomWith = async (codeIn, pinIn) => {
-    const code = String(codeIn).trim().toUpperCase();
+  /* ---------- YARIŞ AÇ / KAPAT (oda kodu ve PIN yok) ---------- */
+  const openRace = async (rid) => {
+    if (!curTeam || !rid) return;
     try {
-      const remote = await roomGet(code);
-      if (!remote) { setSyncMsg(`"${code}" ${t("odası bulunamadı — kodu kontrol et")}`); return; }
-      const asEditor = pinIn && pinIn === remote.pin;
+      const remote = await raceStateGet(curTeam, rid);
       sync.current.applying = true;
-      sync.current.rev = remote.rev;
-      setSt(migrate(JSON.parse(remote.state)));
-      setRoom(code); setRole(asEditor ? "editor" : "viewer");
-      setRoomPin(asEditor ? remote.pin : "");
-      setEntered(true);
-      setSyncMsg(asEditor ? t("Düzenleyici olarak bağlandın") : t("İzleyici olarak bağlandın"));
+      sync.current.rev = remote?.rev || 0;
+      if (remote?.stateJson) {
+        setSt(migrate(JSON.parse(remote.stateJson)));
+        setLastSync({ by: remote.updatedBy, at: remote.updatedAt });
+      }
+      setCurRace(rid);
+      setRole(canEditTeam ? "editor" : "viewer");
+      setEntered(true); setPickDone(true); setSetupDone(true);
+      setTeamOpen(false); setSyncMsg("");
       setTimeout(() => { sync.current.applying = false; }, 60);
     } catch (e) { setSyncMsg(t("Bağlantı hatası: ") + e.message); }
   };
-  const joinRoom = async () => {
-    const code = joinCode.trim().toUpperCase();
-    if (code.length < 4) { setSyncMsg(t("Geçerli bir oda kodu gir")); return; }
-    try {
-      const remote = await roomGet(code);
-      if (!remote) { setSyncMsg(`"${code}" ${t("odası bulunamadı — kodu kontrol et")}`); return; }
-      const asEditor = joinPin.trim() !== "" && joinPin.trim() === remote.pin;
-      if (joinPin.trim() !== "" && !asEditor) {
-        setSyncMsg(t("PIN hatalı — izleyici olarak katılmak için PIN alanını boş bırak"));
-        return;
-      }
-      sync.current.applying = true;
-      sync.current.rev = remote.rev;
-      setSt(migrate(JSON.parse(remote.stateJson)));
-      setLastSync({ by: remote.updatedBy, at: remote.updatedAt });
-      setTimeout(() => { sync.current.applying = false; }, 50);
-      setRole(asEditor ? "editor" : "viewer");
-      setRoomPin(asEditor ? remote.pin : "");
-      pinRef.current = asEditor ? remote.pin : "";
-      setRoom(code);
-      setJoinPin("");
-      setSyncMsg("");
-      setSetupDone(true); // odaya katılan data girmez — mevcut oda verisi kullanılır
-      setPickDone(true);  // pist/araç seçimi de odadan gelir
-    } catch (e) { setSyncMsg(`"${code}" ${t("odası bulunamadı — kodu kontrol et")}`); }
-  };
 
-  const leaveRoom = () => {
-    setRoom(""); setRole("editor"); setRoomPin(""); pinRef.current = "";
-    setLastSync(null); setSyncMsg(""); setEntered(false); setPickDone(false); setSetupDone(false); // lobiye dön
+  const leaveRace = () => {
+    setCurRace(""); setRole("editor"); setLastSync(null); setSyncMsg("");
+    setEntered(false); setPickDone(false); setSetupDone(false);
   };
 
   const up = (patch) => setSt((s) => ({ ...s, ...patch }));
@@ -1754,7 +1712,7 @@ export default function App() {
   }, [now, st.raceStartMs, st.driverAssign, st.actualPits, st.pitRepairs, st.autoOvr, racePlan]);
 
   /* --- gerçek pit işaretleme (sadece düzenleyici) --- */
-  const canEdit = !room || role === "editor";
+  const canEdit = !curRace || role === "editor";
   const markPit = () => {
     if (liveInfo.status !== "live") return;
     const nowMs = Date.now();
@@ -2059,8 +2017,11 @@ ${bottomBar}
   const [myTeams, setMyTeams] = useState({});
   const [curTeam, setCurTeam] = useState("");      // seçili takım id
   const [teamData, setTeamData] = useState(null);
-  const [teamSecrets, setTeamSecrets] = useState({});
-  const [tForm, setTForm] = useState({ name: "", join: "", code: "", label: "", pin: "" });
+  const [tForm, setTForm] = useState({ name: "", join: "" });
+  const [seasons, setSeasons] = useState({});
+  const [races, setRaces] = useState({});
+  const [curSeason, setCurSeason] = useState("");   // "" = tümü
+  const [rForm, setRForm] = useState(null);          // yarış ekleme/düzenleme formu
   const [tErr, setTErr] = useState("");
   const [profName, setProfName] = useState("");
   useEffect(() => {
@@ -2070,11 +2031,14 @@ ${bottomBar}
       setCurTeam((c) => c || Object.keys(t || {})[0] || "");
     });
   }, [user, access]);
+  const curTeamRef = useRef("");
+  curTeamRef.current = curTeam;
   useEffect(() => {
-    if (!curTeam) { setTeamData(null); setTeamSecrets({}); return; }
+    if (!curTeam) { setTeamData(null); setSeasons({}); setRaces({}); return; }
     const o1 = watchTeam(curTeam, setTeamData);
-    const o2 = watchTeamSecrets(curTeam, (x) => setTeamSecrets(x || {}));
-    return () => { o1(); o2(); };
+    const o2 = watchSeasons(curTeam, (x) => setSeasons(x || {}));
+    const o3 = watchRaces(curTeam, (x) => setRaces(x || {}));
+    return () => { o1(); o2(); o3(); };
   }, [curTeam]);
   const myRole = teamData?.members?.[user?.uid] || "";
   const canEditTeam = myRole === "owner" || myRole === "editor";
@@ -2147,6 +2111,100 @@ ${bottomBar}
     return segs;
   });
 
+  /* yarış ekleme / düzenleme penceresi */
+  const raceForm = rForm && (
+    <div className="wxmodal" onClick={() => setRForm(null)}>
+      <div className="wxmbox" style={{ width: "min(560px,95vw)" }}
+        onClick={(e) => e.stopPropagation()}>
+        <div className="wxmhead">
+          <span>🏁 {rForm.rid ? t("Yarışı Düzenle") : t("Yarış Ekle")}</span>
+          <button className="lbclose" onClick={() => setRForm(null)}>✕</button>
+        </div>
+        <div style={{ padding: "12px 16px", maxHeight: "62vh", overflow: "auto" }}>
+          <div className="row2">
+            <div><label>{t("Sezon")}</label>
+              <select value={rForm.seasonId || ""}
+                onChange={(e) => setRForm({ ...rForm, seasonId: e.target.value || null })}>
+                <option value="">{t("Takvim dışı (tekli yarış)")}</option>
+                {Object.entries(seasons).map(([sid, se]) => (
+                  <option key={sid} value={sid}>{se.name}</option>
+                ))}
+              </select></div>
+            <div><label>{t("Round")}</label>
+              <input type="number" value={rForm.round || ""}
+                onChange={(e) => setRForm({ ...rForm, round: e.target.value })} /></div>
+          </div>
+          <label>{t("Yarış adı")}</label>
+          <input type="text" value={rForm.name || ""} style={{ textTransform: "none" }}
+            placeholder={t("örn. 6 Hours of Spa")}
+            onChange={(e) => setRForm({ ...rForm, name: e.target.value })} />
+          <div className="row2">
+            <div><label>{t("Pist")}</label>
+              <select value={rForm.trackId || ""}
+                onChange={(e) => setRForm({ ...rForm, trackId: e.target.value })}>
+                <option value="">—</option>
+                {TRACKS.map((tr) => (
+                  <option key={tr.id} value={tr.id}>{tr.name}</option>
+                ))}
+              </select></div>
+            <div><label>{t("Yarış Süresi")}</label>
+              <input type="text" value={rForm.raceTime || ""} placeholder="6:00:00"
+                onChange={(e) => setRForm({ ...rForm, raceTime: e.target.value })} /></div>
+          </div>
+          <div className="row2">
+            <div><label>{t("Sınıf")}</label>
+              <select value={rForm.carClass || ""}
+                onChange={(e) => setRForm({ ...rForm, carClass: e.target.value, carId: "" })}>
+                {CAR_CLASSES.map(([id, nm]) => (
+                  <option key={id} value={id}>{nm}</option>
+                ))}
+              </select></div>
+            <div><label>{t("Araç")}</label>
+              <select value={rForm.carId || ""}
+                onChange={(e) => setRForm({ ...rForm, carId: e.target.value })}>
+                <option value="">—</option>
+                {(CARS[rForm.carClass] || []).map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select></div>
+          </div>
+          <label>{t("Başlangıç (yerel saat)")}</label>
+          <input type="datetime-local" value={msToLocalInput(rForm.startsAt || Date.now())}
+            onChange={(e) => {
+              const v = new Date(e.target.value).getTime();
+              if (!isNaN(v)) setRForm({ ...rForm, startsAt: v });
+            }} />
+        </div>
+        <div className="wxmfoot" style={{ gap: 8 }}>
+          <button className="histbtn" onClick={() => setRForm(null)}>{t("Vazgeç")}</button>
+          <button className="gbtn ubtn" onClick={async () => {
+            const payload = {
+              seasonId: rForm.seasonId || null,
+              round: rForm.round ? Number(rForm.round) : null,
+              name: rForm.name || "", trackId: rForm.trackId || "",
+              carClass: rForm.carClass || "", carId: rForm.carId || "",
+              raceTime: rForm.raceTime || "", startsAt: rForm.startsAt || 0,
+            };
+            if (rForm.rid) {
+              await updateRace(curTeam, rForm.rid, payload).catch(() => {});
+            } else {
+              /* yarış verisi önceden hazırlanır: pist/araç/süre/başlangıç dolu gelir */
+              const init = migrate({
+                ...DEFAULT_STATE,
+                track: payload.trackId, carClass: payload.carClass, car: payload.carId,
+                raceTime: payload.raceTime || DEFAULT_STATE.raceTime,
+                raceStartMs: payload.startsAt || Date.now(),
+                pitLaneTime: PIT_LANE_TIMES[payload.trackId] ?? DEFAULT_STATE.pitLaneTime,
+              });
+              await createRace(curTeam, payload, init, user?.uid).catch(() => {});
+            }
+            setRForm(null);
+          }}>{t("Kaydet")}</button>
+        </div>
+      </div>
+    </div>
+  );
+
   /* takım penceresi — hem lobide hem ana arayüzde kullanılır */
   const teamModal = teamOpen && user && (
         <div className="wxmodal" onClick={() => setTeamOpen(false)}>
@@ -2175,61 +2233,67 @@ ${bottomBar}
               )}
 
               {curTeam && teamData && (<>
-                {/* odalar */}
-                <div className="tmsec">{t("Odalar")}</div>
-                {Object.entries(teamData.rooms || {}).length === 0 && (
-                  <div className="hint">{t("Bu takımda kayıtlı oda yok.")}</div>
-                )}
-                {Object.entries(teamData.rooms || {})
-                  .sort(([, a], [, b]) => (b?.createdAt || 0) - (a?.createdAt || 0))
-                  .map(([code, r]) => {
-                    const pin = teamSecrets?.[code]?.pin || "";
-                    return (
-                      <div key={code} className="tmroom">
-                        <span className="rcode mono">{code}</span>
-                        <span className="rlabel">{r?.label || "—"}</span>
-                        {pin
-                          ? <span className="rpin mono" title={t("Düzenleyici PIN'i")}>🔑 {pin}</span>
-                          : <span className="rpin dim">🔒 {t("gizli")}</span>}
-                        <button className="gbtn ubtn" onClick={() => quickJoin(code, pin)}>
-                          {pin ? t("Düzenleyici Gir") : t("İzleyici Gir")}
-                        </button>
-                        {canEditTeam && (
-                          <button className="minibtn" title={t("Sil")}
-                            onClick={() => removeTeamRoom(curTeam, code).catch(() => {})}>✕</button>
-                        )}
-                      </div>
-                    );
-                  })}
+                {/* sezonlar */}
+                <div className="tmsec">{t("Sezonlar")}</div>
+                <div className="tmtabs" style={{ padding: "0 0 8px" }}>
+                  <button className={curSeason === "" ? "on" : ""}
+                    onClick={() => setCurSeason("")}>{t("Tümü")}</button>
+                  {Object.entries(seasons).map(([sid, se]) => (
+                    <button key={sid} className={curSeason === sid ? "on" : ""}
+                      onClick={() => setCurSeason(sid)}>{se.name}</button>
+                  ))}
+                  {canEditTeam && (
+                    <button onClick={async () => {
+                      const nm = window.prompt(t("Sezon adı"), `${new Date().getFullYear()} WEC`);
+                      if (nm) await createSeason(curTeam, nm, new Date().getFullYear())
+                        .catch(() => {});
+                    }}>+ {t("Sezon")}</button>
+                  )}
+                </div>
 
-                {canEditTeam && room && !(teamData?.rooms || {})[room] && (
-                  <button className="gbtn ubtn" style={{ width: "100%", marginTop: 8 }}
-                    onClick={() => {
-                      const label = [st.track ? trackName(st.track) : "", st.raceTime || ""]
-                        .filter(Boolean).join(" · ") || room;
-                      addTeamRoom(curTeam, room, label, roomPin, user?.uid).catch(() => {});
-                    }}>
-                    🏢 {t("Şu anki odayı ekle")} · <b className="mono">{room}</b>
-                  </button>
+                {/* yarış takvimi */}
+                <div className="tmsec">{t("Yarış Takvimi")}</div>
+                {Object.entries(races)
+                  .filter(([, r]) => !curSeason || r.seasonId === curSeason)
+                  .sort(([, a], [, b]) => (a.startsAt || 0) - (b.startsAt || 0))
+                  .map(([rid, r]) => (
+                    <div key={rid} className="tmroom">
+                      {r.round ? <span className="rcode mono">R{r.round}</span> : null}
+                      <span className="rlabel">
+                        <b>{r.name || trackName(r.trackId) || "—"}</b>
+                        <span className="rmeta">
+                          {r.trackId ? trackName(r.trackId) : ""}
+                          {r.raceTime ? ` · ${r.raceTime}` : ""}
+                          {r.startsAt ? ` · ${new Date(r.startsAt)
+                            .toLocaleString(lang === "en" ? "en-GB" : "tr-TR",
+                              { day: "2-digit", month: "2-digit", hour: "2-digit",
+                                minute: "2-digit" })}` : ""}
+                        </span>
+                      </span>
+                      <button className="gbtn ubtn" onClick={() => openRace(rid)}>
+                        {t("Aç")}</button>
+                      {canEditTeam && (<>
+                        <button className="minibtn" title={t("Düzenle")}
+                          onClick={() => setRForm({ rid, ...r })}>✎</button>
+                        <button className="minibtn" title={t("Sil")}
+                          onClick={() => { if (window.confirm(t("Yarış silinsin mi?")))
+                            deleteRace(curTeam, rid).catch(() => {}); }}>✕</button>
+                      </>)}
+                    </div>
+                  ))}
+                {Object.keys(races).length === 0 && (
+                  <div className="hint">{t("Takvimde yarış yok.")}</div>
                 )}
                 {canEditTeam && (
-                  <div className="tmadd">
-                    <input placeholder={t("ODA KODU")} maxLength={6} value={tForm.code}
-                      onChange={(e) => setTForm({ ...tForm, code: e.target.value.toUpperCase() })}
-                      style={{ width: 110 }} />
-                    <input placeholder={t("Etiket (örn. Spa 6h)")} value={tForm.label}
-                      onChange={(e) => setTForm({ ...tForm, label: e.target.value })}
-                      style={{ textTransform: "none", flex: 1 }} />
-                    <input placeholder="PIN" maxLength={4} value={tForm.pin}
-                      onChange={(e) => setTForm({ ...tForm, pin: e.target.value })}
-                      style={{ width: 90 }} />
-                    <button className="histbtn" disabled={tForm.code.trim().length < 4}
-                      onClick={async () => {
-                        await addTeamRoom(curTeam, tForm.code, tForm.label, tForm.pin, user.uid)
-                          .catch(() => {});
-                        setTForm({ ...tForm, code: "", label: "", pin: "" });
-                      }}>{t("Ekle")}</button>
-                  </div>
+                  <button className="gbtn ubtn" style={{ width: "100%", marginTop: 8 }}
+                    onClick={() => setRForm({
+                      rid: null, seasonId: curSeason || null, round: "", name: "",
+                      trackId: st.track || "", carClass: st.carClass || "hypercar",
+                      carId: st.car || "", raceTime: st.raceTime || "6:00:00",
+                      startsAt: Date.now(),
+                    })}>
+                    ➕ {t("Yarış Ekle")}
+                  </button>
                 )}
 
                 {/* üyeler */}
@@ -2484,7 +2548,7 @@ ${bottomBar}
     return (
       <div className="rc">
         <style>{css}</style>
-        {teamModal}
+        {teamModal}{raceForm}
         <div className="lobby">
           <div className="box" style={{ textAlign: "center" }}>
             <img className="logo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
@@ -2524,7 +2588,7 @@ ${bottomBar}
     return (
       <div className="rc">
         <style>{css}</style>
-        {teamModal}
+        {teamModal}{raceForm}
         <div className="lobby">
           <div className="box" style={{ textAlign: "center" }}>
             <img className="logo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
@@ -2582,14 +2646,44 @@ ${bottomBar}
     );
   }
 
-  /* ---------- lobi: oda kur / katıl / solo ---------- */
-  if (!room && !entered) {
+  /* ---------- lobi: takım takvimi ---------- */
+  if (!curRace && !entered) {
+    const now = Date.now();
+    const list = Object.entries(races)
+      .sort(([, a], [, b]) => (a.startsAt || 0) - (b.startsAt || 0));
+    const upcoming = list.filter(([, r]) => (r.startsAt || 0) >= now - 6 * 3600e3);
+    const past = list.filter(([, r]) => (r.startsAt || 0) < now - 6 * 3600e3).reverse();
+    const RaceRow = ([rid, r], isNext) => (
+      <button key={rid} className={`lrace ${isNext ? "next" : ""}`}
+        onClick={() => openRace(rid)}>
+        {r.trackId && (
+          <img className="lrtrack" src={`${ASSET}tracks/${TRACK_ASSET(r.trackId)}.png${AV}`}
+            alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+        )}
+        <span className="lrinfo">
+          <b>{r.round ? `R${r.round} · ` : ""}{r.name || trackName(r.trackId) || "—"}</b>
+          <span className="lrmeta">
+            {r.trackId ? trackName(r.trackId) : ""}
+            {r.raceTime ? ` · ${r.raceTime}` : ""}
+            {r.carId ? ` · ${carName(r.carClass, r.carId)}` : ""}
+          </span>
+          {r.startsAt ? (
+            <span className="lrdate">{new Date(r.startsAt)
+              .toLocaleString(lang === "en" ? "en-GB" : "tr-TR",
+                { weekday: "short", day: "2-digit", month: "short",
+                  hour: "2-digit", minute: "2-digit" })}</span>
+          ) : null}
+        </span>
+        <span className="rgo">→</span>
+      </button>
+    );
+
     return (
       <div className="rc">
         <style>{css}</style>
-        {teamModal}
+        {teamModal}{raceForm}
         <div className="lobby">
-          <div className="box">
+          <div className="box" style={{ maxWidth: 560 }}>
             <div className="langsw" style={{ display: "flex", justifyContent: "flex-end", marginBottom: 6 }}>
               {["tr", "en"].map((l) => (
                 <button key={l} className={lang === l ? "on" : ""}
@@ -2604,76 +2698,39 @@ ${bottomBar}
               <div className="hint" style={{ marginBottom: 10 }}>
                 👤 {userName || t("isimsiz")}</div>
 
-              {/* ---- TAKIM ODALARI: girişten hemen sonra ---- */}
-              {Object.keys(myTeams).length > 0 && (
-                <div className="lobbyteams">
-                  {Object.keys(myTeams).length > 1 && (
-                    <div className="tmtabs" style={{ padding: "0 0 8px" }}>
-                      {Object.entries(myTeams).map(([tid, nm]) => (
-                        <button key={tid} className={curTeam === tid ? "on" : ""}
-                          onClick={() => setCurTeam(tid)}>{nm}</button>
-                      ))}
-                    </div>
-                  )}
-                  <div className="tmsec">🏢 {teamData?.meta?.name || t("Takım Odaları")}</div>
-                  {Object.entries(teamData?.rooms || {}).length === 0 ? (
-                    <div className="hint">{t("Bu takımda kayıtlı oda yok.")}</div>
-                  ) : Object.entries(teamData.rooms)
-                      .sort(([, a], [, b]) => (b?.createdAt || 0) - (a?.createdAt || 0))
-                      .map(([code, r]) => {
-                        const pin = teamSecrets?.[code]?.pin || "";
-                        return (
-                          <button key={code} className="lroom"
-                            onClick={() => quickJoin(code, pin)}>
-                            <span className="rcode mono">{code}</span>
-                            <span className="rlabel">{r?.label || "—"}</span>
-                            <span className={`rrole ${pin ? "ed" : ""}`}>
-                              {pin ? t("düzenleyici") : t("izleyici")}</span>
-                            <span className="rgo">→</span>
-                          </button>
-                        );
-                      })}
-                  <button className="histbtn" style={{ marginTop: 8, width: "100%" }}
-                    onClick={() => setTeamOpen(true)}>⚙ {t("Takımı Yönet")}</button>
-                </div>
-              )}
-
-              {Object.keys(myTeams).length === 0 && (
+              {Object.keys(myTeams).length === 0 ? (
                 <button className="bigbtn ghost" onClick={() => setTeamOpen(true)}>
                   🏢 {t("Takım Kur / Katıl")}
                 </button>
-              )}
+              ) : (<>
+                {Object.keys(myTeams).length > 1 && (
+                  <div className="tmtabs" style={{ padding: "0 0 10px" }}>
+                    {Object.entries(myTeams).map(([tid, nm]) => (
+                      <button key={tid} className={curTeam === tid ? "on" : ""}
+                        onClick={() => setCurTeam(tid)}>{nm}</button>
+                    ))}
+                  </div>
+                )}
 
-              <div className="divider">{t("veya")}</div>
+                <div className="lobbyteams">
+                  <div className="tmsec">🏁 {t("Yaklaşan Yarışlar")}</div>
+                  {upcoming.length === 0
+                    ? <div className="hint">{t("Takvimde yaklaşan yarış yok.")}</div>
+                    : upcoming.map((e, i) => RaceRow(e, i === 0))}
 
-              <button className="bigbtn" onClick={createRoom}>
-                {t("🏁 Yeni Oda Kur")}
-              </button>
+                  {past.length > 0 && (<>
+                    <div className="tmsec" style={{ marginTop: 12 }}>
+                      {t("Geçmiş")}</div>
+                    {past.slice(0, 5).map((e) => RaceRow(e, false))}
+                  </>)}
 
-              <div className="divider">{t("kodla katıl")}</div>
-
-              <div className="row2">
-                <div>
-                  <label>{t("Oda Kodu")}</label>
-                  <input type="text" placeholder="ABC12" value={joinCode} maxLength={6}
-                    style={{ textTransform: "uppercase" }}
-                    onChange={(e) => setJoinCode(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && joinRoom()} />
+                  <button className="histbtn" style={{ marginTop: 10, width: "100%" }}
+                    onClick={() => setTeamOpen(true)}>
+                    ⚙ {canEditTeam ? t("Takvimi & Takımı Yönet") : t("Takımı Görüntüle")}</button>
                 </div>
-                <div>
-                  <label>{t("PIN (düzenleme)")}</label>
-                  <input type="text" placeholder={t("boş = izleyici")} value={joinPin} maxLength={4}
-                    onChange={(e) => setJoinPin(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && joinRoom()} />
-                </div>
-              </div>
-              <button className="bigbtn ghost" onClick={joinRoom}>
-                {t("Odaya Katıl")}
-              </button>
+              </>)}
+
               <div className="lmsg">{syncMsg}</div>
-              <div className="hint" style={{ textAlign: "center" }}>
-                {t("PIN'siz katılan izler, PIN'li katılan düzenler.")}
-              </div>
             </>) : (
               <div className="hint" style={{ textAlign: "center", marginBottom: 8 }}>
                 {t("Takım senkronizasyonu kapalı — ")}<b>src/firebase-config.js</b>{t(" dosyasını doldur.")}
@@ -2681,7 +2738,7 @@ ${bottomBar}
             )}
 
             <button className="solo" onClick={() => setEntered(true)}>
-              {t("Oda kullanmadan solo devam et →")}
+              {t("Takımsız solo devam et →")}
             </button>
           </div>
         </div>
@@ -2700,7 +2757,7 @@ ${bottomBar}
             <img className="logo" style={{ maxWidth: 190 }} src={`${ASSET}logo.png`} alt="" />
             <h1><b>{t("PİST")}</b> {t("& ARAÇ")}</h1>
             <div className="sub">
-              {room ? (<>{t("Oda: ")}<b className="roomcode">{room}</b>
+              {curRace ? (<>{t("Oda: ")}<b className="roomcode">{room}</b>
                 {roomPin && <> · PIN: <b className="roomcode">{roomPin}</b></>}</>)
                 : t("Solo mod")}
             </div>
@@ -2782,8 +2839,8 @@ ${bottomBar}
               {st.track && <><img className="flag" style={{ width: 16, verticalAlign: -2, marginRight: 4 }}
                 src={`${ASSET}flags/${st.track}.png`} alt="" />
                 {trackName(st.track)}{st.car && <> · {carName(st.carClass, st.car)}</>} — </>}
-              {room ? (<>
-                Oda: <b className="roomcode">{room}</b>
+              {curRace ? (<>
+                {t("Yarış")}: <b className="roomcode">{races[curRace]?.name || curRace}</b>
                 {roomPin && <> · PIN: <b className="roomcode">{roomPin}</b></>}
                 {" "}{t("— kodu takıma şimdiden gönderebilirsin")}
               </>) : t("Solo mod — datalar sadece bu cihazda")}
@@ -2807,7 +2864,7 @@ ${bottomBar}
   return (
     <div className="rc">
       <style>{css}</style>
-      {teamModal}
+      {teamModal}{raceForm}
       {profOpen && user && (
         <div className="wxmodal" onClick={() => setProfOpen(false)}>
           <div className="wxmbox" style={{ width: "min(420px,94vw)" }}
@@ -2989,13 +3046,7 @@ ${bottomBar}
           </span>
         )}
         {access && (
-          <button className="adminbtn" onClick={() => {
-              if (room && !(teamData?.rooms || {})[room])
-                setTForm((f) => ({ ...f, code: room, pin: roomPin || "",
-                  label: f.label || [st.track ? trackName(st.track) : "", st.raceTime || ""]
-                    .filter(Boolean).join(" · ") }));
-              setTeamOpen(true);
-            }}
+          <button className="adminbtn" onClick={() => setTeamOpen(true)}
             title={t("Takımlarım")}>
             🏢 {teamData?.meta?.name || t("Takımlar")}
           </button>
@@ -3035,40 +3086,23 @@ ${bottomBar}
           title={barOpen ? t("Katılım çubuğunu gizle") : t("Katılım çubuğunu göster")}>
           {barOpen ? "▲" : "▼"}</button>
         {barOpen && (<>
-        {!room ? (firebaseReady ? (<>
-          <button className="solid" onClick={createRoom}>{t("Oda Kur")}</button>
-          <input type="text" placeholder={t("ODA KODU")} value={joinCode}
-            onChange={(e) => setJoinCode(e.target.value)} maxLength={6} />
-          <input type="text" placeholder={t("PIN (opsiyonel)")} value={joinPin}
-            onChange={(e) => setJoinPin(e.target.value)} maxLength={4} style={{ width: 120 }} />
-          <button onClick={joinRoom}>{t("Katıl")}</button>
-          <span className="syncinfo">{t("PIN'siz katılan izler, PIN'li katılan düzenler.")}</span>
-        </>) : (
+        {!curRace ? (
           <span className="syncinfo" style={{ marginLeft: 0 }}>
-            {t("Solo mod — takım senkronizasyonu için ")}<b>src/firebase-config.js</b>{t(" dosyasını doldur.")}
+            {t("Solo mod — takım takvimi için lobiye dön.")}
           </span>
-        )) : (<>
-          <span>ODA: <span className="roomcode">{room}</span></span>
+        ) : (<>
+          <span>{t("YARIŞ")}: <span className="roomcode">
+            {races[curRace]?.name || trackName(races[curRace]?.trackId) || curRace}</span></span>
           <span className="chip" style={role === "viewer"
             ? { borderColor: "var(--yellow)", color: "var(--yellow)" }
             : { borderColor: "var(--green)", color: "var(--green)" }}>
             {role === "viewer" ? "👁 İZLEYİCİ" : "✎ DÜZENLEYİCİ"}
           </span>
-          {role === "editor" && roomPin &&
+          {teamData?.meta?.name && (
             <span className="syncinfo" style={{ marginLeft: 0 }}>
-              {t("Düzenleme PIN'i: ")}<b className="roomcode" style={{ fontSize: 13 }}>{roomPin}</b>{t(" (sadece düzenleyecek kişilere ver)")}
-            </span>}
-          {curTeam && canEditTeam && !(teamData?.rooms || {})[room] && (
-            <button className="histbtn" style={{ padding: "3px 10px", fontSize: 11 }}
-              onClick={() => {
-                const label = [st.track ? trackName(st.track) : "", st.raceTime || ""]
-                  .filter(Boolean).join(" · ") || room;
-                addTeamRoom(curTeam, room, label, roomPin, user?.uid)
-                  .then(() => setSyncMsg(t("Oda kuruldu ve takıma eklendi")))
-                  .catch(() => {});
-              }}>🏢 {t("Odayı takıma ekle")}</button>
+              🏢 {teamData.meta.name}</span>
           )}
-          <button className="leave" onClick={leaveRoom}>{t("Odadan Ayrıl")}</button>
+          <button className="leave" onClick={leaveRace}>{t("Takvime Dön")}</button>
           <span className="syncinfo">
             {lastSync ? `${t("Son güncelleme: ")}${lastSync.by} · ${new Date(lastSync.at).toLocaleTimeString(lang === "en" ? "en-GB" : "tr-TR")}` : t("Senkronize")}
           </span>

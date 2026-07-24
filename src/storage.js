@@ -18,26 +18,13 @@ if (firebaseReady) {
 
 const roomRef = (code) => ref(db, `rooms/${String(code).toUpperCase()}`);
 
-export async function roomSet(code, payload) {
-  if (!db) throw new Error("Firebase yapılandırılmamış");
-  await set(roomRef(code), payload);
-  return true;
-}
 
-export async function roomGet(code) {
-  if (!db) throw new Error("Firebase yapılandırılmamış");
-  const snap = await get(roomRef(code));
-  return snap.exists() ? snap.val() : null;
-}
+
+
 
 /* cb(remotePayload) — oda her değiştiğinde anında tetiklenir.
    Dönen fonksiyon aboneliği iptal eder. */
-export function roomSubscribe(code, cb) {
-  if (!db) return () => {};
-  return onValue(roomRef(code), (snap) => {
-    if (snap.exists()) cb(snap.val());
-  });
-}
+
 
 /* ============================================================
    ERİŞİM KONTROLÜ — users/{uid}
@@ -182,29 +169,11 @@ export function watchTeam(tid, cb) {
 }
 
 /* PIN'ler ayrı düğümde — okuma yetkisi yoksa sessizce boş döner */
-export function watchTeamSecrets(tid, cb) {
-  if (!db || !tid) { cb({}); return () => {}; }
-  return onValue(ref(db, `teams/${tid}/secrets`),
-    (s) => cb(s.exists() ? s.val() : {}), () => cb({}));
-}
 
-export async function addTeamRoom(tid, code, label, pin, uid) {
-  if (!db) return;
-  const c = String(code).trim().toUpperCase();
-  const up = {
-    [`teams/${tid}/rooms/${c}`]: {
-      label: String(label || "").slice(0, 40), createdAt: Date.now(), createdBy: uid || "",
-    },
-  };
-  if (pin) up[`teams/${tid}/secrets/${c}`] = { pin: String(pin).slice(0, 8) };
-  await update(ref(db), up);
-}
 
-export async function removeTeamRoom(tid, code) {
-  if (!db) return;
-  await remove(ref(db, `teams/${tid}/rooms/${code}`));
-  await remove(ref(db, `teams/${tid}/secrets/${code}`)).catch(() => {});
-}
+
+
+
 
 export async function setTeamRole(tid, uid, role) {
   if (!db) return;
@@ -229,4 +198,80 @@ export async function toggleTeamBadge(tid, uid, badge, on) {
   const p = `teams/${tid}/badges/${uid}/${badge}`;
   if (on) await set(ref(db, p), true);
   else await remove(ref(db, p));
+}
+
+/* ============================================================
+   SEZONLAR ve YARIŞLAR (oda kodu/PIN yok — erişim takım üyeliğinden)
+     teams/{tid}/seasons/{sid}    : { name, year, createdAt }
+     teams/{tid}/races/{rid}      : takvim kaydı
+     teams/{tid}/raceState/{rid}  : { rev, stateJson, updatedBy, updatedAt }
+   ============================================================ */
+export async function createSeason(tid, name, year) {
+  if (!db) return null;
+  const sid = rnd(8).toLowerCase();
+  await set(ref(db, `teams/${tid}/seasons/${sid}`), {
+    name: String(name).slice(0, 40), year: Number(year) || new Date().getFullYear(),
+    createdAt: Date.now(),
+  });
+  return sid;
+}
+export async function deleteSeason(tid, sid) {
+  if (!db) return;
+  await remove(ref(db, `teams/${tid}/seasons/${sid}`));
+}
+export function watchSeasons(tid, cb) {
+  if (!db || !tid) { cb({}); return () => {}; }
+  return onValue(ref(db, `teams/${tid}/seasons`),
+    (s) => cb(s.exists() ? s.val() : {}), () => cb({}));
+}
+
+export async function createRace(tid, race, initialState, uid) {
+  if (!db) return null;
+  const rid = rnd(10).toLowerCase();
+  await update(ref(db), {
+    [`teams/${tid}/races/${rid}`]: {
+      seasonId: race.seasonId || null,
+      round: Number(race.round) || null,
+      name: String(race.name || "").slice(0, 50),
+      trackId: race.trackId || "", carClass: race.carClass || "", carId: race.carId || "",
+      raceTime: race.raceTime || "", startsAt: Number(race.startsAt) || 0,
+      createdAt: Date.now(), createdBy: uid || "",
+    },
+    [`teams/${tid}/raceState/${rid}`]: {
+      rev: 1, stateJson: JSON.stringify(initialState),
+      updatedBy: "plan", updatedAt: Date.now(),
+    },
+  });
+  return rid;
+}
+export async function updateRace(tid, rid, patch) {
+  if (!db) return;
+  await update(ref(db, `teams/${tid}/races/${rid}`), patch);
+}
+export async function deleteRace(tid, rid) {
+  if (!db) return;
+  await remove(ref(db, `teams/${tid}/races/${rid}`));
+  await remove(ref(db, `teams/${tid}/raceState/${rid}`)).catch(() => {});
+}
+export function watchRaces(tid, cb) {
+  if (!db || !tid) { cb({}); return () => {}; }
+  return onValue(ref(db, `teams/${tid}/races`),
+    (s) => cb(s.exists() ? s.val() : {}), () => cb({}));
+}
+
+/* --- canlı senkron --- */
+export async function raceStateGet(tid, rid) {
+  if (!db) return null;
+  const s = await get(ref(db, `teams/${tid}/raceState/${rid}`));
+  return s.exists() ? s.val() : null;
+}
+export async function raceStateSet(tid, rid, payload) {
+  if (!db) return;
+  await set(ref(db, `teams/${tid}/raceState/${rid}`), payload);
+}
+export function raceStateSubscribe(tid, rid, cb) {
+  if (!db) return () => {};
+  return onValue(ref(db, `teams/${tid}/raceState/${rid}`), (s) => {
+    if (s.exists()) cb(s.val());
+  });
 }

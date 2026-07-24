@@ -8,19 +8,16 @@
         ".validate": "root.child('users').child(auth.uid).child('admin').val() == true || (newData.child('allowed').val() == data.child('allowed').val() && newData.child('admin').val() == data.child('admin').val())"
       }
     },
-
     "rooms": {
       ".read": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true",
       ".write": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true"
     },
-
     "teamCodes": {
       ".read": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true",
       "$code": {
         ".write": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && !data.exists()"
       }
     },
-
     "teams": {
       "$tid": {
         "meta": {
@@ -37,12 +34,16 @@
           ".read": "auth != null && root.child('teams').child($tid).child('members').child(auth.uid).exists()",
           ".write": "auth != null && root.child('teams').child($tid).child('members').child(auth.uid).val() == 'owner'"
         },
-        "rooms": {
+        "seasons": {
           ".read": "auth != null && root.child('teams').child($tid).child('members').child(auth.uid).exists()",
           ".write": "auth != null && (root.child('teams').child($tid).child('members').child(auth.uid).val() == 'owner' || root.child('teams').child($tid).child('members').child(auth.uid).val() == 'editor')"
         },
-        "secrets": {
-          ".read": "auth != null && (root.child('teams').child($tid).child('members').child(auth.uid).val() == 'owner' || root.child('teams').child($tid).child('members').child(auth.uid).val() == 'editor')",
+        "races": {
+          ".read": "auth != null && root.child('teams').child($tid).child('members').child(auth.uid).exists()",
+          ".write": "auth != null && (root.child('teams').child($tid).child('members').child(auth.uid).val() == 'owner' || root.child('teams').child($tid).child('members').child(auth.uid).val() == 'editor')"
+        },
+        "raceState": {
+          ".read": "auth != null && root.child('teams').child($tid).child('members').child(auth.uid).exists()",
           ".write": "auth != null && (root.child('teams').child($tid).child('members').child(auth.uid).val() == 'owner' || root.child('teams').child($tid).child('members').child(auth.uid).val() == 'editor')"
         }
       }
