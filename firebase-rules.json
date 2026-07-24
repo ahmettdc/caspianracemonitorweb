@@ -5,7 +5,7 @@
       "$uid": {
         ".read": "auth != null && auth.uid == $uid",
         ".write": "auth != null && (auth.uid == $uid || root.child('users').child(auth.uid).child('admin').val() == true)",
-        ".validate": "root.child('users').child(auth.uid).child('admin').val() == true || (newData.child('allowed').val() == data.child('allowed').val() && newData.child('admin').val() == data.child('admin').val() && newData.child('badge').val() == data.child('badge').val())"
+        ".validate": "root.child('users').child(auth.uid).child('admin').val() == true || (newData.child('allowed').val() == data.child('allowed').val() && newData.child('admin').val() == data.child('admin').val())"
       }
     },
 
@@ -32,6 +32,10 @@
           "$uid": {
             ".write": "auth != null && ((auth.uid == $uid && !data.exists() && newData.val() == 'viewer') || (auth.uid == $uid && !newData.exists()) || root.child('teams').child($tid).child('members').child(auth.uid).val() == 'owner' || !root.child('teams').child($tid).child('meta').exists())"
           }
+        },
+        "badges": {
+          ".read": "auth != null && root.child('teams').child($tid).child('members').child(auth.uid).exists()",
+          ".write": "auth != null && root.child('teams').child($tid).child('members').child(auth.uid).val() == 'owner'"
         },
         "rooms": {
           ".read": "auth != null && root.child('teams').child($tid).child('members').child(auth.uid).exists()",

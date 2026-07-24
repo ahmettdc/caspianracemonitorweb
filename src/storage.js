@@ -214,3 +214,10 @@ export async function setUserBadge(uid, badge) {
   if (!db || !uid) return;
   await update(ref(db, `users/${uid}`), { badge: badge || null });
 }
+
+/* Takım rozeti (yalnız takım sahibi atar): "driver" | "engineer" */
+export async function setTeamBadge(tid, uid, badge) {
+  if (!db || !tid || !uid) return;
+  if (badge) await set(ref(db, `teams/${tid}/badges/${uid}`), badge);
+  else await remove(ref(db, `teams/${tid}/badges/${uid}`));
+}
