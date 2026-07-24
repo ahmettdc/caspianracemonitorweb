@@ -3,7 +3,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, Responsi
 import { roomGet, roomSet, roomSubscribe, firebaseReady, touchUserProfile, watchUserDoc,
   requestAccess, watchAllUsers, setUserAllowed, updateProfile,
   createTeam, joinTeam, watchMyTeams, watchTeam, watchTeamSecrets,
-  addTeamRoom, removeTeamRoom, setTeamRole, setTeamBadge, leaveTeam } from "./storage";
+  addTeamRoom, removeTeamRoom, setTeamRole, toggleTeamBadge, leaveTeam } from "./storage";
 import { signInGoogle, signOut, watchAuth, authReady } from "./auth";
 
 /* ============================================================
@@ -480,13 +480,20 @@ const BADGES = {
   driver:   { lbl: "Sürücü",           ico: "🏎", col: "#26C6DA", bg: "rgba(38,198,218,.14)" },
   engineer: { lbl: "Yarış Mühendisi",  ico: "📐", col: "#F2C94C", bg: "rgba(242,201,76,.14)" },
 };
-/* takım sahibi rozeti otomatik; sürücü/mühendis takım sahibince atanır;
-   admin rozeti global (uygulama yöneticisi) */
-const teamBadgeOf = (team, uid, udocLocal) => {
-  if (team?.members?.[uid] === "owner") return BADGES.owner;
+/* Rozet listesi: sahiplik ve admin otomatik, diğerleri takım sahibince atanır.
+   badges[uid] eski sürümde metin, yenisinde { driver:true, ... } olabilir. */
+const teamBadgesOf = (team, uid, udocLocal) => {
+  const out = [];
+  if (udocLocal?.admin) out.push(BADGES.admin);
+  if (team?.members?.[uid] === "owner") out.push(BADGES.owner);
   const b = team?.badges?.[uid];
-  if (b && BADGES[b]) return BADGES[b];
-  return udocLocal?.admin ? BADGES.admin : null;
+  const ids = typeof b === "string" ? [b] : Object.keys(b || {}).filter((k) => b[k]);
+  ids.forEach((id) => { if (BADGES[id] && !out.includes(BADGES[id])) out.push(BADGES[id]); });
+  return out;
+};
+const hasBadge = (team, uid, id) => {
+  const b = team?.badges?.[uid];
+  return typeof b === "string" ? b === id : !!b?.[id];
 };
 
 const WEATHER = {
@@ -873,6 +880,12 @@ const css = `
 .rc .tmadd{display:flex;gap:6px;margin-top:8px;align-items:center}
 .rc .tmadd input{margin:0}
 .rc .tmmem{display:flex;align-items:center;gap:9px;padding:5px 9px;font-size:12px}
+.rc .tmmem .mbadges{display:inline-flex;gap:3px;flex:0 0 auto}
+.rc .btgl{width:26px;height:24px;padding:0;border:1px solid var(--line);border-radius:6px;
+  background:var(--panel2);color:var(--dim);cursor:pointer;font-size:12px;line-height:1;
+  opacity:.5;transition:opacity .15s}
+.rc .btgl.on{opacity:1}
+.rc .btgl:hover{opacity:1}
 .rc .tmmem .mrole{font-size:10px;text-transform:uppercase;letter-spacing:.05em;padding:2px 8px;
   border-radius:6px;border:1px solid var(--line);color:var(--dim)}
 .rc .tmmem .muid{color:var(--muted);font-size:11px}
@@ -2057,7 +2070,7 @@ ${bottomBar}
   }, [curTeam]);
   const myRole = teamData?.members?.[user?.uid] || "";
   const canEditTeam = myRole === "owner" || myRole === "editor";
-  const myBadge = teamBadgeOf(teamData, user?.uid, udoc);
+  const myBadges = teamBadgesOf(teamData, user?.uid, udoc);
 
   const [allUsers, setAllUsers] = useState({});
   useEffect(() => {
@@ -2685,28 +2698,36 @@ ${bottomBar}
                 {/* üyeler */}
                 <div className="tmsec" style={{ marginTop: 16 }}>{t("Takım Üyeleri")}</div>
                 {Object.entries(teamData.members || {}).map(([uid, role]) => {
-                  const mb = teamBadgeOf(teamData, uid, null);
+                  const mbs = teamBadgesOf(teamData, uid, null);
                   return (
                     <div key={uid} className="tmmem">
-                      {mb ? (
-                        <span className="ubadge" title={t(mb.lbl)}
-                          style={{ color: mb.col, background: mb.bg, borderColor: mb.col }}>
-                          {mb.ico}</span>
-                      ) : <span className="ubadge" style={{ opacity: .25 }}>·</span>}
+                      <span className="mbadges">
+                        {mbs.length ? mbs.map((b) => (
+                          <span key={b.lbl} className="ubadge" title={t(b.lbl)}
+                            style={{ color: b.col, background: b.bg, borderColor: b.col }}>
+                            {b.ico}</span>
+                        )) : <span className="ubadge" style={{ opacity: .25 }}>·</span>}
+                      </span>
                       <span className="mrole">{t(role)}</span>
                       <span className="muid mono">
                         {uid === user.uid ? t("(sen)") : uid.slice(0, 10) + "…"}</span>
                       {myRole === "owner" && uid !== user.uid && (
                         <span style={{ marginLeft: "auto", display: "flex", gap: 5,
                           alignItems: "center" }}>
-                          <select className="bsel" value={teamData?.badges?.[uid] || ""}
-                            title={t("Rozet")}
-                            onChange={(e) => setTeamBadge(curTeam, uid, e.target.value)
-                              .catch(() => {})}>
-                            <option value="">— {t("rozet yok")} —</option>
-                            <option value="driver">🏎 {t("Sürücü")}</option>
-                            <option value="engineer">📐 {t("Yarış Mühendisi")}</option>
-                          </select>
+                          {["driver", "engineer"].map((id) => {
+                            const on = hasBadge(teamData, uid, id);
+                            const b = BADGES[id];
+                            return (
+                              <button key={id} className={`btgl ${on ? "on" : ""}`}
+                                title={t(b.lbl)}
+                                style={on ? { color: b.col, borderColor: b.col,
+                                  background: b.bg } : undefined}
+                                onClick={() => toggleTeamBadge(curTeam, uid, id, !on)
+                                  .catch(() => {})}>
+                                {b.ico}
+                              </button>
+                            );
+                          })}
                           <button className="minibtn" style={{ width: "auto", padding: "0 8px" }}
                             onClick={() => setTeamRole(curTeam, uid,
                               role === "editor" ? "viewer" : "editor").catch(() => {})}>
@@ -2776,10 +2797,14 @@ ${bottomBar}
                 {user.photoURL && <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />}
                 <span className="uname" style={{ maxWidth: 260 }}>{user.email}</span>
               </div>
-              {myBadge && (
-                <div className="bchip" style={{ color: myBadge.col,
-                  background: myBadge.bg, borderColor: myBadge.col }}>
-                  {myBadge.ico} {t(myBadge.lbl)}
+              {myBadges.length > 0 && (
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
+                  {myBadges.map((b) => (
+                    <span key={b.lbl} className="bchip" style={{ color: b.col,
+                      background: b.bg, borderColor: b.col, marginBottom: 0 }}>
+                      {b.ico} {t(b.lbl)}
+                    </span>
+                  ))}
                 </div>
               )}
               <label>{t("Ad Soyad")}</label>
@@ -2957,12 +2982,11 @@ ${bottomBar}
         {user && (
           <span className="userchip" title={user.email || ""}>
             {user.photoURL && <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />}
-            {myBadge && (
-              <span className="ubadge" title={t(myBadge.lbl)}
-                style={{ color: myBadge.col, background: myBadge.bg,
-                  borderColor: myBadge.col }}>
-                {myBadge.ico}</span>
-            )}
+            {myBadges.map((b) => (
+              <span key={b.lbl} className="ubadge" title={t(b.lbl)}
+                style={{ color: b.col, background: b.bg, borderColor: b.col }}>
+                {b.ico}</span>
+            ))}
             <button className="unamebtn" title={t("Profili düzenle")}
               onClick={() => { setProfName(userName || user.displayName || ""); setProfOpen(true); }}>
               {userName || user.displayName || user.email}</button>

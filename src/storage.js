@@ -215,9 +215,10 @@ export async function setUserBadge(uid, badge) {
   await update(ref(db, `users/${uid}`), { badge: badge || null });
 }
 
-/* Takım rozeti (yalnız takım sahibi atar): "driver" | "engineer" */
-export async function setTeamBadge(tid, uid, badge) {
-  if (!db || !tid || !uid) return;
-  if (badge) await set(ref(db, `teams/${tid}/badges/${uid}`), badge);
-  else await remove(ref(db, `teams/${tid}/badges/${uid}`));
+/* Takım rozetleri (yalnız takım sahibi atar) — çoklu: { driver:true, engineer:true } */
+export async function toggleTeamBadge(tid, uid, badge, on) {
+  if (!db || !tid || !uid || !badge) return;
+  const p = `teams/${tid}/badges/${uid}/${badge}`;
+  if (on) await set(ref(db, p), true);
+  else await remove(ref(db, p));
 }
