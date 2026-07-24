@@ -167,10 +167,18 @@ export function watchMyTeams(uid, cb) {
     (s) => cb(s.exists() ? s.val() : {}), () => cb({}));
 }
 
+/* Takımı parça parça dinler: meta/members/badges/rooms ayrı düğümler.
+   (RTDB'de üst düğümü okumak için o seviyede izin gerekir; secrets gizli
+   kalsın diye teams/$tid seviyesinde .read yok — bu yüzden çocuklar ayrı.) */
 export function watchTeam(tid, cb) {
   if (!db || !tid) { cb(null); return () => {}; }
-  return onValue(ref(db, `teams/${tid}`),
-    (s) => cb(s.exists() ? s.val() : null), () => cb(null));
+  const acc = { meta: null, members: null, badges: null, rooms: null };
+  const emit = () => cb({ ...acc });
+  const sub = (key) => onValue(ref(db, `teams/${tid}/${key}`),
+    (s) => { acc[key] = s.exists() ? s.val() : (key === "meta" ? null : {}); emit(); },
+    () => { acc[key] = key === "meta" ? null : {}; emit(); });
+  const offs = ["meta", "members", "badges", "rooms"].map(sub);
+  return () => offs.forEach((o) => o());
 }
 
 /* PIN'ler ayrı düğümde — okuma yetkisi yoksa sessizce boş döner */
