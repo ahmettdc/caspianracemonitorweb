@@ -58,11 +58,12 @@ export async function touchUserProfile(user, extra = {}) {
 }
 
 /* Kayıt talebi: kullanıcı "kayıt ol" akışını tamamlayınca işaretlenir */
-export async function requestAccess(user, note = "") {
+export async function requestAccess(user, note = "", fullName = "") {
   if (!db || !user) return;
   await update(ref(db, `users/${user.uid}`), {
     email: user.email || "",
     name: user.displayName || "",
+    fullName: String(fullName || user.displayName || "").slice(0, 60),
     photo: user.photoURL || "",
     requested: true,
     requestedAt: Date.now(),

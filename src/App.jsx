@@ -1118,6 +1118,11 @@ export default function App() {
   const [pickDone, setPickDone] = useState(false); // pist/araç seçimi tamamlandı mı
   const [setupDone, setSetupDone] = useState(false); // data giriş adımı tamamlandı mı
   const [userName, setUserName] = useState("");
+  /* oda üyelik adı: kayıtta verilen ad soyad (yoksa Google adı) */
+  useEffect(() => {
+    const n = (udoc?.fullName || user?.displayName || "").trim();
+    if (n) setUserName(n);
+  }, [udoc?.fullName, user]);
   const [room, setRoom] = useState("");          // aktif oda kodu
   const [joinCode, setJoinCode] = useState("");
   const [joinPin, setJoinPin] = useState("");
@@ -1934,9 +1939,11 @@ ${bottomBar}
   const [udoc, setUdoc] = useState(null);   // null=yükleniyor, {}=kayıt yok
   const [authMode, setAuthMode] = useState("in"); // "in" giriş | "up" kayıt
   const [regNote, setRegNote] = useState("");
+  const [regName, setRegName] = useState("");
   useEffect(() => watchAuth((u) => { setUser(u); setAuthLoading(false); }), []);
   useEffect(() => {
     if (!user) { setUdoc(null); return; }
+    setRegName((v) => v || user.displayName || "");
     touchUserProfile(user).catch(() => {});
     return watchUserDoc(user.uid, (d) => setUdoc(d));
   }, [user]);
@@ -2229,11 +2236,16 @@ ${bottomBar}
                 {user.photoURL && <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />}
                 <span className="uname" style={{ maxWidth: 230 }}>{user.email}</span>
               </div>
+              <input type="text" placeholder={t("Ad Soyad")}
+                value={regName} onChange={(e) => setRegName(e.target.value)}
+                style={{ marginBottom: 8, textTransform: "none" }} />
               <input type="text" placeholder={t("Takım / not (opsiyonel)")}
                 value={regNote} onChange={(e) => setRegNote(e.target.value)}
-                style={{ marginBottom: 12 }} />
-              <button className="gbtn" style={{ background: "var(--car)", color: "#fff" }}
-                onClick={() => requestAccess(user, regNote).catch(() => {})}>
+                style={{ marginBottom: 12, textTransform: "none" }} />
+              <button className="gbtn" style={{ background: "var(--car)", color: "#fff",
+                  opacity: regName.trim() ? 1 : .45 }}
+                disabled={!regName.trim()}
+                onClick={() => requestAccess(user, regNote, regName.trim()).catch(() => {})}>
                 {t("Talebi Gönder")}</button>
               <div style={{ marginTop: 12 }}>
                 <button className="histbtn" onClick={signOut}>{t("Çıkış yap")}</button>
@@ -2281,9 +2293,8 @@ ${bottomBar}
             <div className="sub">carmine · {APP_VERSION}</div>
 
             {firebaseReady ? (<>
-              <label>{t("Adın")}</label>
-              <input type="text" placeholder={t("örn. Ahmet")} value={userName}
-                onChange={(e) => setUserName(e.target.value)} />
+              <div className="hint" style={{ marginBottom: 10 }}>
+                👤 {userName || t("isimsiz")}</div>
 
               <button className="bigbtn" onClick={createRoom}>
                 {t("🏁 Yeni Oda Kur")}
@@ -2613,8 +2624,6 @@ ${bottomBar}
           {barOpen ? "▲" : "▼"}</button>
         {barOpen && (<>
         {!room ? (firebaseReady ? (<>
-          <input type="text" placeholder={t("ADIN")} value={userName}
-            onChange={(e) => setUserName(e.target.value)} style={{ textTransform: "none" }} />
           <button className="solid" onClick={createRoom}>{t("Oda Kur")}</button>
           <input type="text" placeholder={t("ODA KODU")} value={joinCode}
             onChange={(e) => setJoinCode(e.target.value)} maxLength={6} />
