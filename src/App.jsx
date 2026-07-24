@@ -2139,6 +2139,171 @@ ${bottomBar}
     return segs;
   });
 
+  /* takım penceresi — hem lobide hem ana arayüzde kullanılır */
+  const teamModal = teamOpen && user && (
+        <div className="wxmodal" onClick={() => setTeamOpen(false)}>
+          <div className="wxmbox" style={{ width: "min(680px,95vw)" }}
+            onClick={(e) => e.stopPropagation()}>
+            <div className="wxmhead">
+              <span>🏢 {t("Takımlar")}</span>
+              <button className="lbclose" onClick={() => setTeamOpen(false)}>✕</button>
+            </div>
+
+            {/* takım seçici */}
+            {Object.keys(myTeams).length > 0 && (
+              <div className="tmtabs">
+                {Object.entries(myTeams).map(([tid, nm]) => (
+                  <button key={tid} className={curTeam === tid ? "on" : ""}
+                    onClick={() => setCurTeam(tid)}>{nm}</button>
+                ))}
+              </div>
+            )}
+
+            <div className="wxmlist" style={{ padding: "10px 14px" }}>
+              {!curTeam && (
+                <div className="hint" style={{ marginBottom: 12 }}>
+                  {t("Henüz bir takımın yok. Yeni takım kur ya da katılım kodu ile katıl.")}
+                </div>
+              )}
+
+              {curTeam && teamData && (<>
+                {/* odalar */}
+                <div className="tmsec">{t("Odalar")}</div>
+                {Object.entries(teamData.rooms || {}).length === 0 && (
+                  <div className="hint">{t("Bu takımda kayıtlı oda yok.")}</div>
+                )}
+                {Object.entries(teamData.rooms || {})
+                  .sort(([, a], [, b]) => (b?.createdAt || 0) - (a?.createdAt || 0))
+                  .map(([code, r]) => {
+                    const pin = teamSecrets?.[code]?.pin || "";
+                    return (
+                      <div key={code} className="tmroom">
+                        <span className="rcode mono">{code}</span>
+                        <span className="rlabel">{r?.label || "—"}</span>
+                        {pin
+                          ? <span className="rpin mono" title={t("Düzenleyici PIN'i")}>🔑 {pin}</span>
+                          : <span className="rpin dim">🔒 {t("gizli")}</span>}
+                        <button className="gbtn ubtn" onClick={() => quickJoin(code, pin)}>
+                          {pin ? t("Düzenleyici Gir") : t("İzleyici Gir")}
+                        </button>
+                        {canEditTeam && (
+                          <button className="minibtn" title={t("Sil")}
+                            onClick={() => removeTeamRoom(curTeam, code).catch(() => {})}>✕</button>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                {canEditTeam && (
+                  <div className="tmadd">
+                    <input placeholder={t("ODA KODU")} maxLength={6} value={tForm.code}
+                      onChange={(e) => setTForm({ ...tForm, code: e.target.value.toUpperCase() })}
+                      style={{ width: 110 }} />
+                    <input placeholder={t("Etiket (örn. Spa 6h)")} value={tForm.label}
+                      onChange={(e) => setTForm({ ...tForm, label: e.target.value })}
+                      style={{ textTransform: "none", flex: 1 }} />
+                    <input placeholder="PIN" maxLength={4} value={tForm.pin}
+                      onChange={(e) => setTForm({ ...tForm, pin: e.target.value })}
+                      style={{ width: 90 }} />
+                    <button className="histbtn" disabled={tForm.code.trim().length < 4}
+                      onClick={async () => {
+                        await addTeamRoom(curTeam, tForm.code, tForm.label, tForm.pin, user.uid)
+                          .catch(() => {});
+                        setTForm({ ...tForm, code: "", label: "", pin: "" });
+                      }}>{t("Ekle")}</button>
+                  </div>
+                )}
+
+                {/* üyeler */}
+                <div className="tmsec" style={{ marginTop: 16 }}>{t("Takım Üyeleri")}</div>
+                {Object.entries(teamData.members || {}).map(([uid, role]) => {
+                  const mbs = teamBadgesOf(teamData, uid, null);
+                  return (
+                    <div key={uid} className="tmmem">
+                      <span className="mbadges">
+                        {mbs.length ? mbs.map((b) => (
+                          <span key={b.lbl} className="ubadge" title={t(b.lbl)}
+                            style={{ color: b.col, background: b.bg, borderColor: b.col }}>
+                            {b.ico}</span>
+                        )) : <span className="ubadge" style={{ opacity: .25 }}>·</span>}
+                      </span>
+                      <span className="mrole">{t(role)}</span>
+                      <span className="muid mono">
+                        {uid === user.uid ? t("(sen)") : uid.slice(0, 10) + "…"}</span>
+                      {myRole === "owner" && uid !== user.uid && (
+                        <span style={{ marginLeft: "auto", display: "flex", gap: 5,
+                          alignItems: "center" }}>
+                          {["driver", "engineer"].map((id) => {
+                            const on = hasBadge(teamData, uid, id);
+                            const b = BADGES[id];
+                            return (
+                              <button key={id} className={`btgl ${on ? "on" : ""}`}
+                                title={t(b.lbl)}
+                                style={on ? { color: b.col, borderColor: b.col,
+                                  background: b.bg } : undefined}
+                                onClick={() => toggleTeamBadge(curTeam, uid, id, !on)
+                                  .catch(() => {})}>
+                                {b.ico}
+                              </button>
+                            );
+                          })}
+                          <button className="minibtn" style={{ width: "auto", padding: "0 8px" }}
+                            onClick={() => setTeamRole(curTeam, uid,
+                              role === "editor" ? "viewer" : "editor").catch(() => {})}>
+                            {role === "editor" ? t("İzleyici yap") : t("Düzenleyici yap")}
+                          </button>
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+                <div className="hint" style={{ marginTop: 8 }}>
+                  {t("Katılım kodu")}: <b className="mono">{teamData?.meta?.joinCode || "—"}</b>
+                  {" · "}{t("PIN'leri yalnız düzenleyiciler görür.")}
+                </div>
+                {myRole !== "owner" && (
+                  <div style={{ marginTop: 10 }}>
+                    <button className="histbtn" onClick={() => {
+                      leaveTeam(curTeam, user.uid).catch(() => {}); setCurTeam("");
+                    }}>{t("Takımdan ayrıl")}</button>
+                  </div>
+                )}
+              </>)}
+            </div>
+
+            {/* kur / katıl */}
+            <div className="tmfoot">
+              <input placeholder={t("Yeni takım adı")} value={tForm.name}
+                onChange={(e) => setTForm({ ...tForm, name: e.target.value })}
+                style={{ textTransform: "none" }} />
+              <button className="histbtn" disabled={!tForm.name.trim()}
+                onClick={async () => {
+                  setTErr("");
+                  try {
+                    const tid = await createTeam(user, tForm.name.trim());
+                    setCurTeam(tid); setTForm({ ...tForm, name: "" });
+                  } catch (e) { setTErr(t("Takım kurulamadı")); }
+                }}>{t("Takım Kur")}</button>
+              <input placeholder={t("KATILIM KODU")} maxLength={6} value={tForm.join}
+                onChange={(e) => setTForm({ ...tForm, join: e.target.value.toUpperCase() })}
+                style={{ width: 130 }} />
+              <button className="histbtn" disabled={tForm.join.trim().length < 4}
+                onClick={async () => {
+                  setTErr("");
+                  try {
+                    const tid = await joinTeam(user, tForm.join);
+                    setCurTeam(tid); setTForm({ ...tForm, join: "" });
+                  } catch (e) {
+                    setTErr(e.message === "NOT_FOUND" ? t("Takım bulunamadı") : t("Katılınamadı"));
+                  }
+                }}>{t("Katıl")}</button>
+            </div>
+            {tErr && <div className="hint" style={{ color: "var(--red)", padding: "0 14px 10px" }}>
+              {tErr}</div>}
+          </div>
+        </div>
+      );
+
   /* ---------- ortak data kartları (setup + ana arayüz sol kolon) ---------- */
   const dataCards = (<>
     <div className="card">
@@ -2301,6 +2466,7 @@ ${bottomBar}
     return (
       <div className="rc">
         <style>{css}</style>
+        {teamModal}
         <div className="lobby">
           <div className="box" style={{ textAlign: "center" }}>
             <img className="logo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
@@ -2340,6 +2506,7 @@ ${bottomBar}
     return (
       <div className="rc">
         <style>{css}</style>
+        {teamModal}
         <div className="lobby">
           <div className="box" style={{ textAlign: "center" }}>
             <img className="logo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
@@ -2402,6 +2569,7 @@ ${bottomBar}
     return (
       <div className="rc">
         <style>{css}</style>
+        {teamModal}
         <div className="lobby">
           <div className="box">
             <div className="langsw" style={{ display: "flex", justifyContent: "flex-end", marginBottom: 6 }}>
@@ -2621,169 +2789,7 @@ ${bottomBar}
   return (
     <div className="rc">
       <style>{css}</style>
-      {teamOpen && user && (
-        <div className="wxmodal" onClick={() => setTeamOpen(false)}>
-          <div className="wxmbox" style={{ width: "min(680px,95vw)" }}
-            onClick={(e) => e.stopPropagation()}>
-            <div className="wxmhead">
-              <span>🏢 {t("Takımlar")}</span>
-              <button className="lbclose" onClick={() => setTeamOpen(false)}>✕</button>
-            </div>
-
-            {/* takım seçici */}
-            {Object.keys(myTeams).length > 0 && (
-              <div className="tmtabs">
-                {Object.entries(myTeams).map(([tid, nm]) => (
-                  <button key={tid} className={curTeam === tid ? "on" : ""}
-                    onClick={() => setCurTeam(tid)}>{nm}</button>
-                ))}
-              </div>
-            )}
-
-            <div className="wxmlist" style={{ padding: "10px 14px" }}>
-              {!curTeam && (
-                <div className="hint" style={{ marginBottom: 12 }}>
-                  {t("Henüz bir takımın yok. Yeni takım kur ya da katılım kodu ile katıl.")}
-                </div>
-              )}
-
-              {curTeam && teamData && (<>
-                {/* odalar */}
-                <div className="tmsec">{t("Odalar")}</div>
-                {Object.entries(teamData.rooms || {}).length === 0 && (
-                  <div className="hint">{t("Bu takımda kayıtlı oda yok.")}</div>
-                )}
-                {Object.entries(teamData.rooms || {})
-                  .sort(([, a], [, b]) => (b?.createdAt || 0) - (a?.createdAt || 0))
-                  .map(([code, r]) => {
-                    const pin = teamSecrets?.[code]?.pin || "";
-                    return (
-                      <div key={code} className="tmroom">
-                        <span className="rcode mono">{code}</span>
-                        <span className="rlabel">{r?.label || "—"}</span>
-                        {pin
-                          ? <span className="rpin mono" title={t("Düzenleyici PIN'i")}>🔑 {pin}</span>
-                          : <span className="rpin dim">🔒 {t("gizli")}</span>}
-                        <button className="gbtn ubtn" onClick={() => quickJoin(code, pin)}>
-                          {pin ? t("Düzenleyici Gir") : t("İzleyici Gir")}
-                        </button>
-                        {canEditTeam && (
-                          <button className="minibtn" title={t("Sil")}
-                            onClick={() => removeTeamRoom(curTeam, code).catch(() => {})}>✕</button>
-                        )}
-                      </div>
-                    );
-                  })}
-
-                {canEditTeam && (
-                  <div className="tmadd">
-                    <input placeholder={t("ODA KODU")} maxLength={6} value={tForm.code}
-                      onChange={(e) => setTForm({ ...tForm, code: e.target.value.toUpperCase() })}
-                      style={{ width: 110 }} />
-                    <input placeholder={t("Etiket (örn. Spa 6h)")} value={tForm.label}
-                      onChange={(e) => setTForm({ ...tForm, label: e.target.value })}
-                      style={{ textTransform: "none", flex: 1 }} />
-                    <input placeholder="PIN" maxLength={4} value={tForm.pin}
-                      onChange={(e) => setTForm({ ...tForm, pin: e.target.value })}
-                      style={{ width: 90 }} />
-                    <button className="histbtn" disabled={tForm.code.trim().length < 4}
-                      onClick={async () => {
-                        await addTeamRoom(curTeam, tForm.code, tForm.label, tForm.pin, user.uid)
-                          .catch(() => {});
-                        setTForm({ ...tForm, code: "", label: "", pin: "" });
-                      }}>{t("Ekle")}</button>
-                  </div>
-                )}
-
-                {/* üyeler */}
-                <div className="tmsec" style={{ marginTop: 16 }}>{t("Takım Üyeleri")}</div>
-                {Object.entries(teamData.members || {}).map(([uid, role]) => {
-                  const mbs = teamBadgesOf(teamData, uid, null);
-                  return (
-                    <div key={uid} className="tmmem">
-                      <span className="mbadges">
-                        {mbs.length ? mbs.map((b) => (
-                          <span key={b.lbl} className="ubadge" title={t(b.lbl)}
-                            style={{ color: b.col, background: b.bg, borderColor: b.col }}>
-                            {b.ico}</span>
-                        )) : <span className="ubadge" style={{ opacity: .25 }}>·</span>}
-                      </span>
-                      <span className="mrole">{t(role)}</span>
-                      <span className="muid mono">
-                        {uid === user.uid ? t("(sen)") : uid.slice(0, 10) + "…"}</span>
-                      {myRole === "owner" && uid !== user.uid && (
-                        <span style={{ marginLeft: "auto", display: "flex", gap: 5,
-                          alignItems: "center" }}>
-                          {["driver", "engineer"].map((id) => {
-                            const on = hasBadge(teamData, uid, id);
-                            const b = BADGES[id];
-                            return (
-                              <button key={id} className={`btgl ${on ? "on" : ""}`}
-                                title={t(b.lbl)}
-                                style={on ? { color: b.col, borderColor: b.col,
-                                  background: b.bg } : undefined}
-                                onClick={() => toggleTeamBadge(curTeam, uid, id, !on)
-                                  .catch(() => {})}>
-                                {b.ico}
-                              </button>
-                            );
-                          })}
-                          <button className="minibtn" style={{ width: "auto", padding: "0 8px" }}
-                            onClick={() => setTeamRole(curTeam, uid,
-                              role === "editor" ? "viewer" : "editor").catch(() => {})}>
-                            {role === "editor" ? t("İzleyici yap") : t("Düzenleyici yap")}
-                          </button>
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-                <div className="hint" style={{ marginTop: 8 }}>
-                  {t("Katılım kodu")}: <b className="mono">{teamData?.meta?.joinCode || "—"}</b>
-                  {" · "}{t("PIN'leri yalnız düzenleyiciler görür.")}
-                </div>
-                {myRole !== "owner" && (
-                  <div style={{ marginTop: 10 }}>
-                    <button className="histbtn" onClick={() => {
-                      leaveTeam(curTeam, user.uid).catch(() => {}); setCurTeam("");
-                    }}>{t("Takımdan ayrıl")}</button>
-                  </div>
-                )}
-              </>)}
-            </div>
-
-            {/* kur / katıl */}
-            <div className="tmfoot">
-              <input placeholder={t("Yeni takım adı")} value={tForm.name}
-                onChange={(e) => setTForm({ ...tForm, name: e.target.value })}
-                style={{ textTransform: "none" }} />
-              <button className="histbtn" disabled={!tForm.name.trim()}
-                onClick={async () => {
-                  setTErr("");
-                  try {
-                    const tid = await createTeam(user, tForm.name.trim());
-                    setCurTeam(tid); setTForm({ ...tForm, name: "" });
-                  } catch (e) { setTErr(t("Takım kurulamadı")); }
-                }}>{t("Takım Kur")}</button>
-              <input placeholder={t("KATILIM KODU")} maxLength={6} value={tForm.join}
-                onChange={(e) => setTForm({ ...tForm, join: e.target.value.toUpperCase() })}
-                style={{ width: 130 }} />
-              <button className="histbtn" disabled={tForm.join.trim().length < 4}
-                onClick={async () => {
-                  setTErr("");
-                  try {
-                    const tid = await joinTeam(user, tForm.join);
-                    setCurTeam(tid); setTForm({ ...tForm, join: "" });
-                  } catch (e) {
-                    setTErr(e.message === "NOT_FOUND" ? t("Takım bulunamadı") : t("Katılınamadı"));
-                  }
-                }}>{t("Katıl")}</button>
-            </div>
-            {tErr && <div className="hint" style={{ color: "var(--red)", padding: "0 14px 10px" }}>
-              {tErr}</div>}
-          </div>
-        </div>
-      )}
+      {teamModal}
       {profOpen && user && (
         <div className="wxmodal" onClick={() => setProfOpen(false)}>
           <div className="wxmbox" style={{ width: "min(420px,94vw)" }}
