@@ -113,3 +113,9 @@ export async function setUserAllowed(uid, allowed) {
   if (!db || !uid) return;
   await update(ref(db, `users/${uid}`), { allowed: !!allowed, allowedAt: Date.now() });
 }
+
+/* Kullanıcı kendi profilini günceller (ad soyad vb.) */
+export async function updateProfile(uid, patch) {
+  if (!db || !uid) return;
+  await update(ref(db, `users/${uid}`), patch);
+}

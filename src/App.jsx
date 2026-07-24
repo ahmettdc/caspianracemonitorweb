@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ResponsiveContainer } from "recharts";
-import { roomGet, roomSet, roomSubscribe, firebaseReady, touchUserProfile, watchUserDoc, requestAccess, watchAllUsers, setUserAllowed } from "./storage";
+import { roomGet, roomSet, roomSubscribe, firebaseReady, touchUserProfile, watchUserDoc, requestAccess, watchAllUsers, setUserAllowed, updateProfile } from "./storage";
 import { signInGoogle, signOut, watchAuth, authReady } from "./auth";
 
 /* ============================================================
@@ -843,6 +843,9 @@ const css = `
 .rc .userchip{display:inline-flex;align-items:center;gap:7px;align-self:center;
   background:var(--panel2);border:1px solid var(--line);border-radius:20px;padding:3px 5px 3px 3px}
 .rc .userchip img{width:24px;height:24px;border-radius:50%;object-fit:cover}
+.rc .userchip .unamebtn{background:none;border:none;color:var(--txt);font-size:12px;cursor:pointer;
+  max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:2px 2px}
+.rc .userchip .unamebtn:hover{color:var(--teal);text-decoration:underline}
 .rc .userchip .uname{font-size:12px;color:var(--txt);max-width:150px;overflow:hidden;
   text-overflow:ellipsis;white-space:nowrap}
 .rc .userchip button{background:none;border:none;color:var(--dim);cursor:pointer;
@@ -1950,6 +1953,8 @@ ${bottomBar}
   const access = udoc?.allowed === true;
   const isAdmin = udoc?.admin === true;
   const [adminOpen, setAdminOpen] = useState(false);
+  const [profOpen, setProfOpen] = useState(false);
+  const [profName, setProfName] = useState("");
   const [allUsers, setAllUsers] = useState({});
   useEffect(() => {
     if (!isAdmin || !adminOpen) return;
@@ -2457,6 +2462,38 @@ ${bottomBar}
   return (
     <div className="rc">
       <style>{css}</style>
+      {profOpen && user && (
+        <div className="wxmodal" onClick={() => setProfOpen(false)}>
+          <div className="wxmbox" style={{ width: "min(420px,94vw)" }}
+            onClick={(e) => e.stopPropagation()}>
+            <div className="wxmhead">
+              <span>👤 {t("Profil")}</span>
+              <button className="lbclose" onClick={() => setProfOpen(false)}>✕</button>
+            </div>
+            <div style={{ padding: "14px 16px" }}>
+              <div className="userchip" style={{ marginBottom: 14 }}>
+                {user.photoURL && <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />}
+                <span className="uname" style={{ maxWidth: 260 }}>{user.email}</span>
+              </div>
+              <label>{t("Ad Soyad")}</label>
+              <input type="text" value={profName} style={{ textTransform: "none" }}
+                onChange={(e) => setProfName(e.target.value)} />
+              <div className="hint" style={{ marginTop: 6 }}>
+                {t("Odalarda ve stint programında bu isim görünür.")}</div>
+            </div>
+            <div className="wxmfoot" style={{ gap: 8 }}>
+              <button className="histbtn" onClick={() => setProfOpen(false)}>{t("Vazgeç")}</button>
+              <button className="gbtn ubtn" disabled={!profName.trim()}
+                style={{ opacity: profName.trim() ? 1 : .45 }}
+                onClick={async () => {
+                  const n = profName.trim().slice(0, 60);
+                  await updateProfile(user.uid, { fullName: n }).catch(() => {});
+                  setUserName(n); setProfOpen(false);
+                }}>{t("Kaydet")}</button>
+            </div>
+          </div>
+        </div>
+      )}
       {adminOpen && isAdmin && (
         <div className="wxmodal" onClick={() => setAdminOpen(false)}>
           <div className="wxmbox" style={{ width: "min(620px,95vw)" }}
@@ -2607,7 +2644,9 @@ ${bottomBar}
         {user && (
           <span className="userchip" title={user.email || ""}>
             {user.photoURL && <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />}
-            <span className="uname">{user.displayName || user.email}</span>
+            <button className="unamebtn" title={t("Profili düzenle")}
+              onClick={() => { setProfName(userName || user.displayName || ""); setProfOpen(true); }}>
+              {userName || user.displayName || user.email}</button>
             <button onClick={signOut} title={t("Çıkış yap")}>⏻</button>
           </span>
         )}
