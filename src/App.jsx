@@ -1769,12 +1769,12 @@ export default function App() {
   const exportPdf = (kind) => {
     const esc = (x) => String(x ?? "").replace(/[&<>]/g,
       (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
-    /* kullanıcıdan PDF başlığı iste (iptal → çıkış) */
-    const defTitle = kind === "stint"
-      ? `${t("Stint Programı")} · ${st.chosen}-${racePlan.laps}`
-      : t("Pilot Programı");
-    const userTitle = window.prompt(t("PDF başlığı:"), defTitle);
-    if (userTitle === null) return;
+    /* PDF başlığı: seçili yarıştan otomatik — Sezon · Round N · Yarış Adı */
+    const rcInfo = races[curRace] || {};
+    const seasonNm = seasons[rcInfo.seasonId]?.name || "";
+    const raceNm = rcInfo.name || (rcInfo.trackId ? trackName(rcInfo.trackId) : "");
+    const docTitle = [seasonNm, rcInfo.round ? `Round ${rcInfo.round}` : "", raceNm]
+      .filter(Boolean).join(" · ");
     /* araç + pist görselleri için mutlak URL (yeni pencerede relatif çözülmez) */
     const abs = (p) => new URL(p, window.location.href).href;
     const carUrl = st.car ? abs(carImg(st.carClass, st.car)) : "";
@@ -1889,7 +1889,7 @@ export default function App() {
     const w = window.open("", "_blank", "width=900,height=700");
     if (!w) { alert(t("Açılır pencere engellendi — tarayıcıdan izin ver")); return; }
     w.document.write(`<!doctype html><html><head><meta charset="utf-8">
-<title>${esc(userTitle || title)}</title>
+<title>${esc(docTitle || title)}</title>
 <style>
  *{box-sizing:border-box}
  body{font-family:Arial,Helvetica,sans-serif;color:#1a1113;margin:26px;font-size:12px}
@@ -1961,8 +1961,8 @@ export default function App() {
  <img class="logo" src="${logoUrl}" alt="" onerror="this.style.display='none'">
  <div class="txt">
   <div class="brand"><b>CASPIAN</b> MOTORSPORT · RACE MONITOR</div>
-  <div class="ptitle">${esc(userTitle || title)}</div>
-  <div style="color:#777;font-size:11px">${esc(new Date().toLocaleString(lang === "en" ? "en-GB" : "tr-TR"))}${
+  <div class="ptitle">${esc(docTitle || title)}</div>
+  <div style="color:#777;font-size:11px">${esc(title)} · ${esc(new Date().toLocaleString(lang === "en" ? "en-GB" : "tr-TR"))}${
       st.raceStartMs ? " · Start: " + esc(new Date(st.raceStartMs).toLocaleString(lang === "en" ? "en-GB" : "tr-TR")) : ""}${
       st.track ? " · " + esc(trackName(st.track)) : ""}${
       st.car ? " · " + esc(carName(st.carClass, st.car)) : ""}</div>
