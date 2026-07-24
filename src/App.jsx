@@ -398,6 +398,81 @@ const EN = {
   "odası bulunamadı — kodu kontrol et": "room not found — check the code",
   "Takım senkronizasyonu kapalı — ": "Team sync is off — ",
   " dosyasını doldur.": " needs to be filled in.",
+  /* --- takım / sezon / yarış takvimi --- */
+  "Takımlar": "Teams",
+  "Takımlarım": "My Teams",
+  "Takım Kur": "Create Team",
+  "Takım Kur / Katıl": "Create / Join Team",
+  "Takımı Görüntüle": "View Team",
+  "Takım Üyeleri": "Team Members",
+  "Takım bulunamadı": "Team not found",
+  "Takım kurulamadı": "Could not create team",
+  "Takımdan ayrıl": "Leave team",
+  "Takımsız solo devam et →": "Continue solo without a team →",
+  "Yeni takım adı": "New team name",
+  "Katılım kodu": "Join code",
+  "KATILIM KODU": "JOIN CODE",
+  "Katılınamadı": "Could not join",
+  "Henüz bir takımın yok. Yeni takım kur ya da katılım kodu ile katıl.":
+    "You don't have a team yet. Create one or join with a join code.",
+  "Takvimi & Takımı Yönet": "Manage Calendar & Team",
+  "Takvime Dön": "Back to Calendar",
+  "Yarış Takvimi": "Race Calendar",
+  "Yaklaşan Yarışlar": "Upcoming Races",
+  "Takvimde yarış yok.": "No races on the calendar.",
+  "Takvimde yaklaşan yarış yok.": "No upcoming races on the calendar.",
+  "Takvim dışı (tekli yarış)": "Off-calendar (one-off race)",
+  "Solo mod — takım takvimi için lobiye dön.":
+    "Solo mode — go back to the lobby for the team calendar.",
+  "Sezon": "Season",
+  "Sezonlar": "Seasons",
+  "Sezon adı": "Season name",
+  "Round": "Round",
+  "Yarış": "Race",
+  "Yarış Ekle": "Add Race",
+  "Yarışı Düzenle": "Edit Race",
+  "Yarış adı": "Race name",
+  "Yarış silinsin mi?": "Delete this race?",
+  "örn. 6 Hours of Spa": "e.g. 6 Hours of Spa",
+  "Başlangıç (yerel saat)": "Start (local time)",
+  "Sınıf": "Class",
+  "Tümü": "All",
+  /* --- hesap / profil / yetki --- */
+  "Profil": "Profile",
+  "Profili düzenle": "Edit profile",
+  "Ad Soyad": "Full Name",
+  "Takım / not (opsiyonel)": "Team / note (optional)",
+  "Odalarda ve stint programında bu isim görünür.":
+    "This name is shown in rooms and in the stint schedule.",
+  "Devam etmek için giriş yapın veya kayıt olun.": "Sign in or register to continue.",
+  "Google ile kayıt ol": "Sign up with Google",
+  "Kayıt talebi gönder": "Send sign-up request",
+  "Talebi Gönder": "Send Request",
+  "Talebiniz alındı. Onaylandığında e-posta ile bilgilendirileceksiniz.":
+    "Your request has been received. You'll be notified by email once it is approved.",
+  "Talebiniz yöneticiye iletilecek. Onaylandığında e-posta ile bilgilendirileceksiniz.":
+    "Your request will be sent to an administrator. You'll be notified by email once it is approved.",
+  "Bağlantı hatası: ": "Connection error: ",
+  "Düzenleyici yap": "Make editor",
+  "İzleyici yap": "Make viewer",
+  "PIN'leri yalnız düzenleyiciler görür.": "Only editors can see PINs.",
+  "(sen)": "(you)",
+  "isimsiz": "unnamed",
+  /* --- rozetler --- */
+  "Takım Sahibi": "Team Owner",
+  "Sürücü": "Driver",
+  "Yarış Mühendisi": "Race Engineer",
+  /* --- genel --- */
+  "Kaydet": "Save",
+  "Vazgeç": "Cancel",
+  "Düzenle": "Edit",
+  "Aç": "Open",
+  "Geçmiş": "History",
+  "Bağlı": "Connected",
+  "👁 İZLEYİCİ": "👁 VIEWER",
+  "✎ DÜZENLEYİCİ": "✎ EDITOR",
+  "Stint zaman çizelgesi": "Stint timeline",
+  "Hava zaman çizelgesi": "Weather timeline",
 };
 
 const CAR_CLASSES = [
@@ -3074,7 +3149,7 @@ ${bottomBar}
       </header>
 
       <div className={`teambar ${barOpen ? "" : "collapsed"}`}>
-        <span className={`dot ${curRace ? "on" : "off"}`} title={curRace ? "Bağlı" : t("Solo mod")} />
+        <span className={`dot ${curRace ? "on" : "off"}`} title={curRace ? t("Bağlı") : t("Solo mod")} />
         {!barOpen && !curRace && <span className="syncinfo" style={{ marginLeft: 0 }}>
           {t("Solo mod")}</span>}
         <button className="bartoggle"
@@ -3092,7 +3167,7 @@ ${bottomBar}
           <span className="chip" style={role === "viewer"
             ? { borderColor: "var(--yellow)", color: "var(--yellow)" }
             : { borderColor: "var(--green)", color: "var(--green)" }}>
-            {role === "viewer" ? "👁 İZLEYİCİ" : "✎ DÜZENLEYİCİ"}
+            {role === "viewer" ? t("👁 İZLEYİCİ") : t("✎ DÜZENLEYİCİ")}
           </span>
           {teamData?.meta?.name && (
             <span className="syncinfo" style={{ marginLeft: 0 }}>
@@ -3122,7 +3197,7 @@ ${bottomBar}
               <span className="big">{liveInfo.stintIdx + 1}/{racePlan.fullStints}
                 {liveInfo.phase === "pit" && <span style={{ color: "var(--yellow)" }}> · PIT</span>}
               </span></div>
-            <div><span className="lbl">{liveInfo.phase === "pit" ? "Pit Çıkışı" : "Sıradaki Pit"}</span>
+            <div><span className="lbl">{liveInfo.phase === "pit" ? t("Pit Çıkışı") : t("Sıradaki Pit")}</span>
               <span className={`big mono ${pitSoon ? "pulse" : ""}`}>
                 {fmtHMS(liveInfo.nextPitIn / 1000)}</span></div>
             {liveInfo.driver && <div><span className="lbl">{t("Direksiyonda")}</span>
@@ -3158,7 +3233,7 @@ ${bottomBar}
             </div>
             <div className="pbrow">
               <div className="pbcard">
-                <div className="plbl">{liveInfo.phase === "pit" ? "Pit Çıkışı" : "Sıradaki Pit"}</div>
+                <div className="plbl">{liveInfo.phase === "pit" ? t("Pit Çıkışı") : t("Sıradaki Pit")}</div>
                 <div className={`mid mono ${pitSoon ? "pulse" : ""}`}
                   style={{ color: pitSoon ? "var(--yellow)" : "var(--txt)" }}>
                   {fmtHMS(liveInfo.nextPitIn / 1000)}</div>
@@ -3349,7 +3424,7 @@ ${bottomBar}
                 </div>
               )}
 
-              <div className="timeline" role="img" aria-label="Stint zaman çizelgesi">
+              <div className="timeline" role="img" aria-label={t("Stint zaman çizelgesi")}>
                 {timeline.map((s, i) => (
                   <div key={i} className={`seg ${s.cls}`}
                     style={{ width: `${s.w}%`, background: s.cls ? undefined : s.bg }}>
@@ -3377,7 +3452,7 @@ ${bottomBar}
                 }
                 if (!segs.some((x) => x.wx.lap > 1)) return null; // hep dry → çubuk gizli
                 return (
-                  <div className="wxbar" role="img" aria-label="Hava zaman çizelgesi">
+                  <div className="wxbar" role="img" aria-label={t("Hava zaman çizelgesi")}>
                     {segs.map((s2, i) => (
                       <div key={i} className={`wseg ${s2.wx.lap > 1 ? "rain" : ""}`}
                         style={{ width: `${s2.w}%`, background: s2.wx.col }}
@@ -3972,7 +4047,7 @@ ${bottomBar}
                   <div style={{ display: "flex", gap: 10, flexWrap: "wrap", margin: "6px 0" }}>
                     {[["Tur Süresi", "timeCol"], ["VE Δ (%)", "fuelCol"]].map(([lbl, key]) => (
                       <div key={key}>
-                        <label style={{ margin: 0 }}>{lbl}</label>
+                        <label style={{ margin: 0 }}>{t(lbl)}</label>
                         <select value={mapping[key]}
                           onChange={(e) => setMapping({ ...mapping, [key]: +e.target.value })}>
                           <option value={-1}>—</option>
