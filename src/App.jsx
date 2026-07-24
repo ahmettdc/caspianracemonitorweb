@@ -1998,6 +1998,18 @@ ${bottomBar}
     if (n) setUserName(n);
   }, [udoc, user]);
   const access = udoc?.allowed === true;
+  const isAdmin = udoc?.admin === true;
+  const [adminOpen, setAdminOpen] = useState(false);
+  const [profOpen, setProfOpen] = useState(false);
+  /* ---- takımlar ---- */
+  const [teamOpen, setTeamOpen] = useState(false);
+  const [myTeams, setMyTeams] = useState({});
+  const [curTeam, setCurTeam] = useState("");      // seçili takım id
+  const [teamData, setTeamData] = useState(null);
+  const [teamSecrets, setTeamSecrets] = useState({});
+  const [tForm, setTForm] = useState({ name: "", join: "", code: "", label: "", pin: "" });
+  const [tErr, setTErr] = useState("");
+  const [profName, setProfName] = useState("");
   useEffect(() => {
     if (!user || !access) return;
     return watchMyTeams(user.uid, (t) => {
@@ -2013,18 +2025,7 @@ ${bottomBar}
   }, [curTeam]);
   const myRole = teamData?.members?.[user?.uid] || "";
   const canEditTeam = myRole === "owner" || myRole === "editor";
-  const isAdmin = udoc?.admin === true;
-  const [adminOpen, setAdminOpen] = useState(false);
-  const [profOpen, setProfOpen] = useState(false);
-  /* ---- takımlar ---- */
-  const [teamOpen, setTeamOpen] = useState(false);
-  const [myTeams, setMyTeams] = useState({});
-  const [curTeam, setCurTeam] = useState("");      // seçili takım id
-  const [teamData, setTeamData] = useState(null);
-  const [teamSecrets, setTeamSecrets] = useState({});
-  const [tForm, setTForm] = useState({ name: "", join: "", code: "", label: "", pin: "" });
-  const [tErr, setTErr] = useState("");
-  const [profName, setProfName] = useState("");
+
   const [allUsers, setAllUsers] = useState({});
   useEffect(() => {
     if (!isAdmin || !adminOpen) return;
