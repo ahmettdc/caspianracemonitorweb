@@ -1250,8 +1250,16 @@ export default function App() {
     pinRef.current = pin;
     setRole("editor");
     setRoom(code);
+    setEntered(true);
     setSyncMsg("");
     await pushState(code);
+    /* takımı varsa oda kütüphanesine otomatik kaydet (yalnız yetkiliyse) */
+    if (curTeam && canEditTeam) {
+      const label = [st.track ? trackName(st.track) : "", st.raceTime || ""]
+        .filter(Boolean).join(" · ") || new Date().toLocaleDateString();
+      addTeamRoom(curTeam, code, label, pin, user?.uid).catch(() => {});
+      setSyncMsg(t("Oda kuruldu ve takıma eklendi"));
+    }
   };
 
   /* takım listesinden tek tıkla odaya bağlan */
@@ -3034,6 +3042,17 @@ ${bottomBar}
             <span className="syncinfo" style={{ marginLeft: 0 }}>
               {t("Düzenleme PIN'i: ")}<b className="roomcode" style={{ fontSize: 13 }}>{roomPin}</b>{t(" (sadece düzenleyecek kişilere ver)")}
             </span>}
+          {curTeam && canEditTeam && role === "editor" &&
+            !(teamData?.rooms || {})[room] && (
+            <button className="histbtn" style={{ padding: "3px 10px", fontSize: 11 }}
+              onClick={() => {
+                const label = [st.track ? trackName(st.track) : "", st.raceTime || ""]
+                  .filter(Boolean).join(" · ") || room;
+                addTeamRoom(curTeam, room, label, roomPin, user?.uid)
+                  .then(() => setSyncMsg(t("Oda kuruldu ve takıma eklendi")))
+                  .catch(() => {});
+              }}>🏢 {t("Odayı takıma ekle")}</button>
+          )}
           <button className="leave" onClick={leaveRoom}>{t("Odadan Ayrıl")}</button>
           <span className="syncinfo">
             {lastSync ? `${t("Son güncelleme: ")}${lastSync.by} · ${new Date(lastSync.at).toLocaleTimeString(lang === "en" ? "en-GB" : "tr-TR")}` : t("Senkronize")}
