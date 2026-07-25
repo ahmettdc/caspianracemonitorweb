@@ -5323,8 +5323,21 @@ ${bottomBar}
                                 color: "var(--green)" }}>{t("Sıralama")}</span>
                             : <span className="chip" style={{ borderColor: "var(--orange, #F2A33C)",
                                 color: "var(--orange, #F2A33C)" }}>{t("Yarış")}</span>}</td>
-                          <td>{CAR_CLASSES.find(([id]) => id === su.cls)?.[1] || "—"}</td>
-                          <td>{carName(su.cls, su.car) || "—"}</td>
+                          <td>{su.cls
+                            ? <img src={`${ASSET}class/${su.cls}.png`} alt=""
+                                title={CAR_CLASSES.find(([id]) => id === su.cls)?.[1] || su.cls}
+                                style={{ height: 16, verticalAlign: "-3px" }}
+                                onError={(e) => { e.currentTarget.replaceWith(
+                                  CAR_CLASSES.find(([id]) => id === su.cls)?.[1] || su.cls); }} />
+                            : "—"}</td>
+                          <td>{su.car
+                            ? <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                <img src={carImg(su.cls, su.car)} alt=""
+                                  style={{ height: 22, width: "auto" }}
+                                  onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                                {carName(su.cls, su.car)}
+                              </span>
+                            : "—"}</td>
                           <td>{su.champ || "—"}</td>
                           <td className="mono">{su.ver || "—"}</td>
                           <td title={su.note || ""}>
