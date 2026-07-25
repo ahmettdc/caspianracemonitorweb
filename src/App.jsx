@@ -3829,14 +3829,7 @@ ${bottomBar}
         ) : (<>
           <span>{t("YARIŞ")}: <span className="roomcode">
             {races[curRace]?.name || trackName(races[curRace]?.trackId) || curRace}</span></span>
-          {/* düzenleyici rozeti kaldırıldı — yetki takım rolünden belli.
-              izleyicide kalıyor, alanların neden kilitli olduğunu açıklıyor. */}
-          {role === "viewer" && (
-            <span className="chip"
-              style={{ borderColor: "var(--yellow)", color: "var(--yellow)" }}>
-              {t("👁 İZLEYİCİ")}
-            </span>
-          )}
+          {/* rol rozeti yok — yetki takım rozetlerinden (🛞 sürücü / 🎧 mühendis) belli */}
           {teamData?.meta?.name && (
             <span className="syncinfo" style={{ marginLeft: 0 }}>
               🏢 {teamData.meta.name}</span>
