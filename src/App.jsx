@@ -478,6 +478,10 @@ const EN = {
   "Yakıt sütunu litre (VE % için orana bölünür)":
     "Fuel column is in litres (divided by the ratio for VE %)",
   "Yarış·Data'da yakıt oranı girilmeli": "Set the fuel ratio in Race Data",
+  "Sütun eşleşmesini düzenle": "Edit column mapping",
+  "Kutu grafiği": "Box plot", "Tur tur": "Per lap",
+  "Kutu = turların ortadaki %50'si (Q1–Q3), kalın çizgi medyan. Bıyıklar uç turlara, halkalar aykırı turlara işaret eder.":
+    "Box = middle 50% of laps (Q1–Q3), thick line is the median. Whiskers reach the extreme laps, rings mark outliers.",
   "tur çözümlendi": "laps parsed",
   "Tur": "Lap", "Yakıt": "Fuel", "kısmi": "partial",
   "Ort/Max km/h": "Avg/Max km/h",
@@ -1442,6 +1446,86 @@ function Donut({ data, size = 190, thickness = 34 }) {
 }
 
 /* marka şimşek logosu (favicon.svg) — Virtual Energy simgesi olarak ⚡ yerine kullanılır */
+/* Kutu grafiği (box plot): kutu = Q1–Q3, orta çizgi = medyan,
+   bıyıklar 1.5×IQR içindeki en uç turlara uzanır, dışındakiler nokta olarak çizilir. */
+const quantile = (sorted, q) => {
+  const pos = (sorted.length - 1) * q;
+  const lo = Math.floor(pos), hi = Math.ceil(pos);
+  return lo === hi ? sorted[lo] : sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
+};
+
+function BoxPlot({ series, fmt, height = 300 }) {
+  const stats = series.map((s) => {
+    const v = [...s.values].sort((a, b) => a - b);
+    if (!v.length) return null;
+    const q1 = quantile(v, 0.25), med = quantile(v, 0.5), q3 = quantile(v, 0.75);
+    const iqr = q3 - q1;
+    const inl = v.filter((x) => x >= q1 - 1.5 * iqr && x <= q3 + 1.5 * iqr);
+    return {
+      ...s, q1, med, q3,
+      lo: inl.length ? inl[0] : v[0],
+      hi: inl.length ? inl[inl.length - 1] : v[v.length - 1],
+      out: v.filter((x) => x < q1 - 1.5 * iqr || x > q3 + 1.5 * iqr),
+      n: v.length,
+    };
+  }).filter(Boolean);
+  if (!stats.length) return null;
+
+  const W = 760, H = height, padL = 78, padR = 18, padT = 18, padB = 40;
+  const all = stats.flatMap((s) => [s.lo, s.hi, ...s.out]);
+  let min = Math.min(...all), max = Math.max(...all);
+  const pad = Math.max((max - min) * 0.12, 400);
+  min -= pad; max += pad;
+  const y = (v) => padT + (H - padT - padB) * (1 - (v - min) / (max - min));
+  const band = (W - padL - padR) / stats.length;
+  const bw = Math.min(78, band * 0.44);
+  const ticks = Array.from({ length: 5 }, (_, i) => min + ((max - min) * i) / 4);
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H}
+      style={{ overflow: "visible" }} role="img">
+      {ticks.map((tv, i) => (
+        <g key={i}>
+          <line x1={padL} x2={W - padR} y1={y(tv)} y2={y(tv)}
+            stroke="#2B3542" strokeDasharray="3 3" />
+          <text x={padL - 8} y={y(tv) + 4} textAnchor="end"
+            fill="#8C97A5" fontSize="11" fontFamily="IBM Plex Mono">{fmt(tv)}</text>
+        </g>
+      ))}
+      {stats.map((s, i) => {
+        const cx = padL + band * (i + 0.5);
+        const lx = cx - bw / 2 - 7;
+        const lbl = (v, key) => (
+          <text key={key} x={lx} y={y(v) + 3.5} textAnchor="end" fill={s.color}
+            fontSize="10.5" fontFamily="IBM Plex Mono">{fmt(v)}</text>
+        );
+        return (
+          <g key={s.key}>
+            <line x1={cx} x2={cx} y1={y(s.hi)} y2={y(s.q3)} stroke={s.color} strokeWidth="1.5" />
+            <line x1={cx} x2={cx} y1={y(s.q1)} y2={y(s.lo)} stroke={s.color} strokeWidth="1.5" />
+            <line x1={cx - 13} x2={cx + 13} y1={y(s.hi)} y2={y(s.hi)} stroke={s.color} strokeWidth="1.5" />
+            <line x1={cx - 13} x2={cx + 13} y1={y(s.lo)} y2={y(s.lo)} stroke={s.color} strokeWidth="1.5" />
+            <rect x={cx - bw / 2} y={y(s.q3)} width={bw} height={Math.max(2, y(s.q1) - y(s.q3))}
+              fill={s.color} fillOpacity="0.22" stroke={s.color} strokeWidth="1.5" rx="2" />
+            <line x1={cx - bw / 2} x2={cx + bw / 2} y1={y(s.med)} y2={y(s.med)}
+              stroke={s.color} strokeWidth="2.5" />
+            {s.out.map((o, oi) => (
+              <circle key={oi} cx={cx} cy={y(o)} r="2.6" fill="none"
+                stroke={s.color} strokeWidth="1.2" strokeOpacity="0.75" />
+            ))}
+            {[[s.hi, "hi"], [s.q3, "q3"], [s.med, "md"], [s.q1, "q1"], [s.lo, "lo"]]
+              .map(([v, k]) => lbl(v, k))}
+            <text x={cx} y={H - padB + 20} textAnchor="middle" fill={s.color}
+              fontSize="12" fontWeight="700">{s.label}</text>
+            <text x={cx} y={H - padB + 34} textAnchor="middle" fill="#8C97A5" fontSize="10">
+              n={s.n}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
 function Bolt({ size = 16, color = "var(--green)" }) {
   return (
     <svg width={size} height={size * 46 / 48} viewBox="0 0 48 46" fill="none"
@@ -1852,6 +1936,7 @@ export default function App() {
 
   /* ---------- Faz 4: telemetri ---------- */
   const [slot, setSlot] = useState("A");
+  const [chartMode, setChartMode] = useState("box"); // "box" | "line"
   const [rawTele, setRawTele] = useState("");
   const [parsed, setParsed] = useState(null);   // {headers, lapRows, ncols} | {error}
   const [mapping, setMapping] = useState(null); // {labelCol,timeCol,fuelCol,wear:[4]}
@@ -4437,6 +4522,9 @@ ${bottomBar}
                           {t("Yarış·Data'da yakıt oranı girilmeli")}</span>}
                     </div>
                   )}
+                  <details style={{ margin: "6px 0" }}>
+                  <summary style={{ cursor: "pointer", color: "var(--muted)", fontSize: 12 }}>
+                    {t("Sütun eşleşmesini düzenle")}</summary>
                   <div style={{ display: "flex", gap: 10, flexWrap: "wrap", margin: "6px 0" }}>
                     {[["Tur Süresi", "timeCol"], ["VE Δ (%)", "fuelCol"]].map(([lbl, key]) => (
                       <div key={key}>
@@ -4464,6 +4552,7 @@ ${bottomBar}
                       </div>
                     ))}
                   </div>
+                  </details>
                   <button className="act" style={{ borderColor: SLOT_COLORS[slot],
                     color: SLOT_COLORS[slot] }} onClick={saveSlot}
                     disabled={mapping.timeCol < 0}>
@@ -4507,6 +4596,25 @@ ${bottomBar}
                     })}
                   </div>
 
+                  <div style={{ display: "flex", gap: 6, margin: "4px 0 2px" }}>
+                    {[["box", "Kutu grafiği"], ["line", "Tur tur"]].map(([m, lbl]) => (
+                      <button key={m} className="act" style={{ fontSize: 11,
+                        ...(chartMode === m ? { borderColor: "var(--teal)", color: "var(--teal)" } : {}) }}
+                        onClick={() => setChartMode(m)}>{t(lbl)}</button>
+                    ))}
+                  </div>
+                  {chartMode === "box" ? (
+                    <div style={{ margin: "6px 0 2px" }}>
+                      <BoxPlot height={300} fmt={(v) => fmtLap(v / 1000)}
+                        series={loadedSlots.map((sl) => ({
+                          key: sl, label: `Stint ${sl}`, color: SLOT_COLORS[sl],
+                          values: st.telemetry[sl].laps.filter((l) => l.use).map((l) => l.ms),
+                        })).filter((s) => s.values.length)} />
+                      <div className="hint">
+                        {t("Kutu = turların ortadaki %50'si (Q1–Q3), kalın çizgi medyan. Bıyıklar uç turlara, halkalar aykırı turlara işaret eder.")}
+                      </div>
+                    </div>
+                  ) : (
                   <div style={{ height: 260 }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={chartData}>
@@ -4525,6 +4633,7 @@ ${bottomBar}
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
+                  )}
 
                   {loadedSlots.length > 1 && baseSlot && slotStats[baseSlot] && !slotStats[baseSlot].empty && (
                     <table style={{ maxWidth: 460, marginTop: 10 }}>
