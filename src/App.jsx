@@ -479,6 +479,9 @@ const EN = {
   "Yakıt sütunu litre (VE % için orana bölünür)":
     "Fuel column is in litres (divided by the ratio for VE %)",
   "Yarış·Data'da yakıt oranı girilmeli": "Set the fuel ratio in Race Data",
+  "en iyi": "best", "tur hariç": "laps excluded",
+  "En iyi turun %105'ini aşan turların tikini kaldır":
+    "Untick laps slower than 105% of the best lap",
   "1 YENİ": "1 NEW", "Tek yeni lastik": "Single new tyre",
   "Tek lastik": "Single tyre", "yeni": "new",
   "Takım Adı": "Team Name",
@@ -2017,6 +2020,22 @@ export default function App() {
     rd.readAsText(f);
   };
 
+  /* %105 kuralı: dahil turlar içinde en iyisini bul, %105'ini aşanların tikini kaldır.
+     Trafik, sarı bayrak, hata yapılan turlar ortalamayı ve medyanı bozmasın diye. */
+  const P105 = 1.05;
+  const apply105 = (laps) => {
+    const cand = laps.filter((l) => l.use && l.ms > 0);
+    if (cand.length < 2) return laps;
+    const best = Math.min(...cand.map((l) => l.ms));
+    const lim = best * P105;
+    return laps.map((l) => (l.use && l.ms > lim ? { ...l, use: false } : l));
+  };
+  const apply105Slot = (sl) => setSt((s) => {
+    const t0 = s.telemetry[sl];
+    if (!t0) return s;
+    return { ...s, telemetry: { ...s.telemetry, [sl]: { ...t0, laps: apply105(t0.laps) } } };
+  });
+
   /* ham log → mevcut tur modeline çevir (yakıt litre → VE %) */
   const saveMotec = () => {
     if (!parsed?.motec) return;
@@ -2033,7 +2052,7 @@ export default function App() {
       use: !l.pit,
     }));
     setSt((s) => ({ ...s, telemetry: { ...s.telemetry,
-      [slot]: { laps, name: `Stint ${slot}`, src: parsed.meta } } }));
+      [slot]: { laps: apply105(laps), name: `Stint ${slot}`, src: parsed.meta } } }));
     setRawTele(""); setParsed(null); setMapping(null);
   };
 
@@ -2058,7 +2077,8 @@ export default function App() {
       };
     }).filter((l) => l.ms != null);
     if (!laps.length) return;
-    setSt((s) => ({ ...s, telemetry: { ...s.telemetry, [slot]: { laps, name: `Stint ${slot}` } } }));
+    setSt((s) => ({ ...s, telemetry: { ...s.telemetry,
+      [slot]: { laps: apply105(laps), name: `Stint ${slot}` } } }));
     setRawTele(""); setParsed(null); setMapping(null);
   };
 
@@ -2093,10 +2113,13 @@ export default function App() {
       const medMs = med(used.map((l) => l.ms));
       const medFuel = med(used.filter((l) => l.fuel != null).map((l) => l.fuel));
       const medW = [0, 1, 2, 3].map((c) => med(used.filter((l) => l.w[c] != null).map((l) => l.w[c])));
+      const bestMs = Math.min(...used.map((l) => l.ms));
       out[sl] = {
         laps: used.length, totalMs: used.reduce((a, l) => a + l.ms, 0),
         avgMs, avgFuel, avgW,
         medMs, medFuel, medW,
+        bestMs, lim105: bestMs * 1.05,
+        dropped: t.laps.filter((l) => !l.use).length,
         tankLaps: medFuel ? 100 / medFuel : (avgFuel ? 100 / avgFuel : null),
       };
     }
@@ -4981,7 +5004,9 @@ ${bottomBar}
                             {s.medW.some((w) => w != null) &&
                               <><Tyre size={13} /> {s.medW.map((w) => w == null ? "–" : w.toFixed(1)).join(" / ")} {t("%/tur")}<br /></>}
                             <span style={{ opacity: .7 }}>{t("ort.")} {fmtMs(s.avgMs)}
-                              {s.avgFuel != null && <> · {s.avgFuel.toFixed(2)} %/tur</>}</span>
+                              {s.avgFuel != null && <> · {s.avgFuel.toFixed(2)} %/tur</>}<br />
+                              {t("en iyi")} {fmtMs(s.bestMs)} · %105 ≤ {fmtMs(s.lim105)}
+                              {s.dropped > 0 && <> · {s.dropped} {t("tur hariç")}</>}</span>
                           </div>
                           <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
                             <button className="act" style={{ fontSize: 11 }}
@@ -4997,6 +5022,9 @@ ${bottomBar}
                                 ...(s.avgFuel != null
                                   ? { consumption: +s.avgFuel.toFixed(2) } : {}),
                               })}>{t("ort.")}</button>
+                            <button className="act" style={{ fontSize: 11, opacity: .75 }}
+                              title={t("En iyi turun %105'ini aşan turların tikini kaldır")}
+                              onClick={() => apply105Slot(sl)}>%105</button>
                             <button className="act danger" style={{ fontSize: 11 }}
                               onClick={() => removeSlot(sl)}>{t("Sil")}</button>
                           </div>
