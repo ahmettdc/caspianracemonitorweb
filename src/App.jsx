@@ -265,6 +265,15 @@ const EN = {
   "Tur": "Laps", "VE İht.": "VE Req.", "Pit Ayarı": "Pit Setup",
   /* --- rehber turu --- */
   "Rehberi başlat": "Start the guide", "Rehber": "Guide",
+  "Takım düğmesi": "Team button",
+  "Takvimi ve üyeleri yönetmek her an buradan — yarışın ortasında bile. Rozetler de burada atanır.":
+    "Manage the calendar and members any time from here — even mid-race. Badges are assigned here too.",
+  "Sohbet düğmesi": "Chat button",
+  "Genel ve takım kanalları. Okunmamış mesaj varsa üzerinde kırmızı sayı belirir.":
+    "General and team channels. A red counter appears when there are unread messages.",
+  "Profilin ve rozetlerin": "Your profile and badges",
+  "Yanındaki simgeler yetkini gösterir: 👑 Takım Sahibi yönetir, 🎧 Yarış Mühendisi datayı değiştirir, direksiyon (Sürücü) yalnızca izler, 🛡 Admin her şeye erişir. Adına tıklayıp profili düzenlersin; ⏻ çıkış yapar.":
+    "The icons next to your name show your permissions: 👑 Team Owner manages, 🎧 Race Engineer edits data, the steering wheel (Driver) only views, 🛡 Admin has full access. Click your name to edit the profile; ⏻ signs out.",
   "Şimdi sekmeleri tek tek gezelim — rehber her birini senin için açacak.":
     "Now let's walk through the tabs one by one — the guide opens each for you.",
   "📊 Dashboard — Stint Programı": "📊 Dashboard — Stint Schedule",
@@ -2892,7 +2901,7 @@ ${bottomBar}
   );
 
   const chatBtn = user && (
-    <button className="adminbtn" onClick={() => setChatOpen(true)}
+    <button className="adminbtn" data-tour="hchat" onClick={() => setChatOpen(true)}
       title={t("Takım Sohbeti")}>
       💬 {t("Sohbet")}
       {chatUnread > 0 && <b className="badge">{chatUnread > 99 ? "99+" : chatUnread}</b>}
@@ -2980,6 +2989,13 @@ ${bottomBar}
     { sel: "[data-tour='teleimport']", act: () => setTab("tele"),
       title: t("📈 Telemetri"),
       body: t("MoTeC dosyanı bırak — tur raporu da ham kanal log'u da okunur. %105 kuralı yavaş turları otomatik eler, medyan tur tek tıkla DATA'ya yazılır.") },
+    /* --- üst çubuk --- */
+    { sel: "[data-tour='hteam']", title: t("Takım düğmesi"),
+      body: t("Takvimi ve üyeleri yönetmek her an buradan — yarışın ortasında bile. Rozetler de burada atanır.") },
+    { sel: "[data-tour='hchat']", title: t("Sohbet düğmesi"),
+      body: t("Genel ve takım kanalları. Okunmamış mesaj varsa üzerinde kırmızı sayı belirir.") },
+    { sel: "[data-tour='uchip']", title: t("Profilin ve rozetlerin"),
+      body: t("Yanındaki simgeler yetkini gösterir: 👑 Takım Sahibi yönetir, 🎧 Yarış Mühendisi datayı değiştirir, direksiyon (Sürücü) yalnızca izler, 🛡 Admin her şeye erişir. Adına tıklayıp profili düzenlersin; ⏻ çıkış yapar.") },
     { sel: "[data-tour='pitboard']", title: t("Pit Board"),
       body: t("Yarış canlıyken tam ekran pit board: geri sayım, sıradaki pit ve PIT YAPILDI butonu. Gerçek pitler plana işlenir, sapma görünür.") },
     { sel: "[data-tour='pdf']", title: t("PDF çıktısı"),
@@ -4186,8 +4202,8 @@ ${bottomBar}
           </span>
         )}
         {access && (
-          <button className="adminbtn" onClick={() => setTeamOpen(true)}
-            title={t("Takımlarım")}>
+          <button className="adminbtn" data-tour="hteam"
+            onClick={() => setTeamOpen(true)} title={t("Takımlarım")}>
             🏢 {teamData?.meta?.name || t("Takımlar")}
           </button>
         )}
@@ -4202,7 +4218,7 @@ ${bottomBar}
           </button>
         )}
         {user && (
-          <span className="userchip" title={user.email || ""}>
+          <span className="userchip" data-tour="uchip" title={user.email || ""}>
             {user.photoURL && <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />}
             {myBadges.map((b) => (
               <span key={b.lbl} className="ubadge" title={t(b.lbl)}
