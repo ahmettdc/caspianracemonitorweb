@@ -116,7 +116,7 @@ const DEFAULT_STATE = {
 const SLOT_COLORS = { A: "#40D68C", B: "#F0604D", C: "#F2A33C", D: "#6694FF" };
 
 /* ---------- pist & araç seçimi ---------- */
-const APP_VERSION = "v1.2";   // tek kaynak — sürüm yazısı buradan
+const APP_VERSION = "v1.3";   // tek kaynak — sürüm yazısı buradan
 const REPO_URL = "https://github.com/ahmettdc/caspianracemonitorweb";
 const SEEN_VER_KEY = "rm_seen_version";
 const ASSET = import.meta.env.BASE_URL + "assets/";
@@ -3336,7 +3336,7 @@ ${bottomBar}
           <div className="box" style={{ textAlign: "center" }}>
             <img className="logo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
             <h1><b>RACE</b> MONITOR</h1>
-            <div className="sub">carmine · {APP_VERSION}</div>
+            <div className="sub">{APP_VERSION}</div>
             {authLoading ? (
               <div className="hint" style={{ marginTop: 22 }}>{t("Yükleniyor…")}</div>
             ) : (<>
@@ -3488,7 +3488,7 @@ ${bottomBar}
             </div>
             <img className="logo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
             <h1><b>RACE</b> MONITOR</h1>
-            <div className="sub">carmine · {APP_VERSION}</div>
+            <div className="sub">{APP_VERSION}</div>
 
             {firebaseReady ? (<>
               <div className="hint" style={{ marginBottom: 10 }}>
@@ -3859,7 +3859,7 @@ ${bottomBar}
       <header>
         <img className="hlogo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
         <h1 className="disp" style={{ fontSize: 20 }}>RACE MONITOR</h1>
-        <span className="ver">carmine · {APP_VERSION}</span>
+        <span className="ver">{APP_VERSION}</span>
         {infoBtn}
         <span className="langsw">
           {["tr", "en"].map((l) => (

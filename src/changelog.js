@@ -5,6 +5,38 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.3",
+    date: "2026-07-25",
+    tr: [
+      "Takım sohbeti: 🌍 Genel ve 🏢 Takım kanalları üst çubuktaki 💬 düğmesinde, 🏁 Yarış Sohbeti kendi sekmesinde — her yarışın arşivi ayrı",
+      "Okunmamış mesaj sayacı kanal bazında; sekmede ve düğmede rozet olarak görünür",
+      "Rozetler artık yetkiyi belirliyor: 🎧 Yarış Mühendisi datayı değiştirir, 🛞 Sürücü yalnızca görür, 👑 Takım Sahibi yetkileri yönetir",
+      "Sürücü rozeti direksiyon simgesi, mühendis rozeti kulaklık oldu",
+      "Admin de rozet atayabiliyor; üyeler UID yerine isimleriyle listeleniyor",
+      "Adminler birbirinin erişim iznini kaldıramaz",
+      "Telemetri ham MoTeC kanal log'unu ve Channel Report'u okuyor — tırnaklı CSV, saniye cinsinden tur süresi, litre→VE dönüşümü",
+      "Kutu grafiği (box plot): çeyrekler, medyan, bıyıklar ve aykırı turlar; tur tur çizgi grafiğine geçiş düğmesi",
+      "Medyan birincil istatistik oldu — tek yavaş tur planı bozmuyor, DATA'ya medyan uygulanıyor",
+      "Lobide yarışlar şampiyonaya göre gruplanıyor, sezon süzgeci ve takım başlığı eklendi",
+      "Takım adı sonradan değiştirilebiliyor",
+      "Sekmelerin hepsinde ikon; üst çubuktaki rol rozetleri kaldırıldı",
+    ],
+    en: [
+      "Team chat: 🌍 General and 🏢 Team channels behind the 💬 button, 🏁 Race Chat in its own tab — each race keeps its own history",
+      "Unread counters per channel, shown as badges on the tab and the button",
+      "Badges now set permissions: 🎧 Race Engineer edits data, 🛞 Driver only views, 👑 Team Owner manages permissions",
+      "Driver badge is now a steering wheel, engineer badge a headset",
+      "Admins can assign badges too; members are listed by name instead of UID",
+      "Admins can no longer revoke each other's access",
+      "Telemetry reads raw MoTeC channel logs and Channel Reports — quoted CSV, lap times in seconds, litres converted to VE",
+      "Box plot: quartiles, median, whiskers and outliers, with a toggle back to the per-lap line chart",
+      "Median is now the primary statistic — one slow lap no longer skews the plan, and Apply to DATA uses it",
+      "Races in the lobby are grouped by championship, with a season filter and a team header",
+      "Team names can be changed after creation",
+      "Icons on every tab; role chips removed from the top bar",
+    ],
+  },
+  {
     v: "v1.2",
     date: "2026-07-25",
     tr: [
