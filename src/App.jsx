@@ -4746,9 +4746,9 @@ ${bottomBar}
               /* ["code80", "Code 80"], — şimdilik arayüzden gizli, kod korunuyor */
               ["fuel", t("Son Stint Yakıtı"), "\u26A1"],
               ["tyre", t("Lastik"), <Tyre size={12} />],
-              ["setup", t("Setup"), "\u{1F527}"],
               ["drivers", t("Pilotlar"), <Wheel size={12} />],
               ["tele", t("Telemetri"), "\u{1F4C8}"],
+              ["setup", t("Setup"), "\u{1F527}"],
               ...(raceChan ? [["rchat", t("Yarış Sohbeti"), "\u{1F4AC}"]] : [])]
               .map(([k, l, ico]) => (
               <button key={k} className={`${tab === k ? "on" : ""} ${k === "code80" && tab === k ? "c80t" : ""}`}
