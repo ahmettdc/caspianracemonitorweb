@@ -156,6 +156,19 @@ const PIT_LANE_TIMES = {
 };
 /* Layout varyantları için görsel eşlemesi (spa-endurance → spa görselleri) */
 const TRACK_ASSET = (id) => ({ "spa-endurance": "spa" }[id] || id);
+/* pist → ülke bayrağı (emoji) */
+const TRACK_FLAG = {
+  lemans: "🇫🇷", paulricard: "🇫🇷",
+  spa: "🇧🇪", "spa-endurance": "🇧🇪",
+  monza: "🇮🇹", imola: "🇮🇹",
+  silverstone: "🇬🇧",
+  portimao: "🇵🇹", barcelona: "🇪🇸",
+  bahrain: "🇧🇭", lusail: "🇶🇦", fuji: "🇯🇵",
+  cota: "🇺🇸", sebring: "🇺🇸", daytona: "🇺🇸", lagunaseca: "🇺🇸",
+  watkinsglen: "🇺🇸", roadatlanta: "🇺🇸", longbeach: "🇺🇸", indianapolis: "🇺🇸",
+  interlagos: "🇧🇷",
+};
+const trackFlag = (id) => TRACK_FLAG[id] || "";
 const CARS = {
   hypercar: [
     { id: "toyota", name: "Toyota GR010" },
@@ -5197,7 +5210,8 @@ ${bottomBar}
                   <select value={suMeta.track}
                     onChange={(e) => setSuMeta({ ...suMeta, track: e.target.value })}>
                     <option value="">—</option>
-                    {TRACKS.map((tr) => <option key={tr.id} value={tr.id}>{tr.name}</option>)}
+                    {TRACKS.map((tr) =>
+                      <option key={tr.id} value={tr.id}>{trackFlag(tr.id)} {tr.name}</option>)}
                   </select>
                 </div>
               </div>
@@ -5278,7 +5292,8 @@ ${bottomBar}
                 <select value={suFTrack} onChange={(e) => setSuFTrack(e.target.value)}>
                   <option value="">{t("Tüm pistler")}</option>
                   {TRACKS.filter((tr) => setups.some((x) => x.track === tr.id))
-                    .map((tr) => <option key={tr.id} value={tr.id}>{tr.name}</option>)}
+                    .map((tr) =>
+                      <option key={tr.id} value={tr.id}>{trackFlag(tr.id)} {tr.name}</option>)}
                 </select>
                 <select value={suFCond} onChange={(e) => setSuFCond(e.target.value)}>
                   <option value="">{t("Kuru + Wet")}</option>
@@ -5316,7 +5331,7 @@ ${bottomBar}
                           <td className="mono">{new Date(su.at || 0)
                             .toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR",
                               { day: "2-digit", month: "2-digit", year: "2-digit" })}</td>
-                          <td>{trackName(su.track) || su.track || "—"}</td>
+                          <td>{trackFlag(su.track)} {trackName(su.track) || su.track || "—"}</td>
                           <td>{su.cond === "wet" ? "🌧 Wet" : `☀️ ${t("Kuru")}`}</td>
                           <td>{su.sess === "Q"
                             ? <span className="chip" style={{ borderColor: "var(--green)",
