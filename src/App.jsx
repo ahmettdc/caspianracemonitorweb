@@ -3829,11 +3829,14 @@ ${bottomBar}
         ) : (<>
           <span>{t("YARIŞ")}: <span className="roomcode">
             {races[curRace]?.name || trackName(races[curRace]?.trackId) || curRace}</span></span>
-          <span className="chip" style={role === "viewer"
-            ? { borderColor: "var(--yellow)", color: "var(--yellow)" }
-            : { borderColor: "var(--green)", color: "var(--green)" }}>
-            {role === "viewer" ? t("👁 İZLEYİCİ") : t("✎ DÜZENLEYİCİ")}
-          </span>
+          {/* düzenleyici rozeti kaldırıldı — yetki takım rolünden belli.
+              izleyicide kalıyor, alanların neden kilitli olduğunu açıklıyor. */}
+          {role === "viewer" && (
+            <span className="chip"
+              style={{ borderColor: "var(--yellow)", color: "var(--yellow)" }}>
+              {t("👁 İZLEYİCİ")}
+            </span>
+          )}
           {teamData?.meta?.name && (
             <span className="syncinfo" style={{ marginLeft: 0 }}>
               🏢 {teamData.meta.name}</span>
