@@ -478,6 +478,8 @@ const EN = {
   "Yakıt sütunu litre (VE % için orana bölünür)":
     "Fuel column is in litres (divided by the ratio for VE %)",
   "Yarış·Data'da yakıt oranı girilmeli": "Set the fuel ratio in Race Data",
+  "medyan tur": "median lap", "ort.": "avg",
+  "Ortalamayı uygula": "Apply the average instead",
   "Sütun eşleşmesini düzenle": "Edit column mapping",
   "Kutu grafiği": "Box plot", "Tur tur": "Per lap",
   "Kutu = turların ortadaki %50'si (Q1–Q3), kalın çizgi medyan. Bıyıklar uç turlara, halkalar aykırı turlara işaret eder.":
@@ -2023,10 +2025,21 @@ export default function App() {
         const ws = used.filter((l) => l.w[c] != null);
         return ws.length ? ws.reduce((a, l) => a + l.w[c], 0) / ws.length : null;
       });
+      /* Medyan: tek yavaş tur (trafik, sarı bayrak, ısınma) ortalamayı bozar,
+         medyan tipik turu verir — plan için daha sağlam. */
+      const med = (arr) => {
+        if (!arr.length) return null;
+        const v = [...arr].sort((a, b) => a - b);
+        return quantile(v, 0.5);
+      };
+      const medMs = med(used.map((l) => l.ms));
+      const medFuel = med(used.filter((l) => l.fuel != null).map((l) => l.fuel));
+      const medW = [0, 1, 2, 3].map((c) => med(used.filter((l) => l.w[c] != null).map((l) => l.w[c])));
       out[sl] = {
         laps: used.length, totalMs: used.reduce((a, l) => a + l.ms, 0),
         avgMs, avgFuel, avgW,
-        tankLaps: avgFuel ? 100 / avgFuel : null, // %100 VE ile atılabilecek tur
+        medMs, medFuel, medW,
+        tankLaps: medFuel ? 100 / medFuel : (avgFuel ? 100 / avgFuel : null),
       };
     }
     return out;
@@ -4573,21 +4586,30 @@ ${bottomBar}
                       return (
                         <div className="kpi" key={sl} style={{ borderColor: SLOT_COLORS[sl] }}>
                           <div className="v" style={{ color: SLOT_COLORS[sl], fontSize: 19 }}>
-                            {fmtMs(s.avgMs)}</div>
-                          <div className="l">Stint {sl} {t("ort. tur")} · {s.laps} {t("Tur")}</div>
+                            {fmtMs(s.medMs)}</div>
+                          <div className="l">Stint {sl} {t("medyan tur")} · {s.laps} {t("Tur")}</div>
                           <div className="hint" style={{ marginTop: 4 }}>
-                            {s.avgFuel != null && <>⚡ {s.avgFuel.toFixed(2)} %/tur VE
+                            {s.medFuel != null && <>⚡ {s.medFuel.toFixed(2)} %/tur VE
                               {s.tankLaps && <> · %100 ≈ {Math.floor(s.tankLaps)} tur</>}<br /></>}
-                            {s.avgW.some((w) => w != null) &&
-                              <><Tyre size={13} /> {s.avgW.map((w) => w == null ? "–" : w.toFixed(1)).join(" / ")} {t("%/tur")}</>}
+                            {s.medW.some((w) => w != null) &&
+                              <><Tyre size={13} /> {s.medW.map((w) => w == null ? "–" : w.toFixed(1)).join(" / ")} {t("%/tur")}<br /></>}
+                            <span style={{ opacity: .7 }}>{t("ort.")} {fmtMs(s.avgMs)}
+                              {s.avgFuel != null && <> · {s.avgFuel.toFixed(2)} %/tur</>}</span>
                           </div>
-                          <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                          <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
                             <button className="act" style={{ fontSize: 11 }}
+                              onClick={() => up({
+                                avgLap: fmtMs(s.medMs),
+                                ...(s.medFuel != null
+                                  ? { consumption: +s.medFuel.toFixed(2) } : {}),
+                              })}>{t("DATA'ya uygula")}</button>
+                            <button className="act" style={{ fontSize: 11, opacity: .75 }}
+                              title={t("Ortalamayı uygula")}
                               onClick={() => up({
                                 avgLap: fmtMs(s.avgMs),
                                 ...(s.avgFuel != null
                                   ? { consumption: +s.avgFuel.toFixed(2) } : {}),
-                              })}>{t("DATA'ya uygula")}</button>
+                              })}>{t("ort.")}</button>
                             <button className="act danger" style={{ fontSize: 11 }}
                               onClick={() => removeSlot(sl)}>{t("Sil")}</button>
                           </div>
@@ -4641,6 +4663,7 @@ ${bottomBar}
                       <tbody>
                         {loadedSlots.slice(1).map((sl) => {
                           const a = slotStats[baseSlot], b = slotStats[sl];
+                          /* karşılaştırma medyan üzerinden */
                           if (!b || b.empty) return null;
                           const d = (a.avgMs - b.avgMs) / 1000; // + ise rakip hızlı
                           return (
