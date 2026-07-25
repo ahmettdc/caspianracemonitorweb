@@ -475,6 +475,9 @@ const EN = {
   "Stint zaman çizelgesi": "Stint timeline",
   "Rozetleri atamak için üye satırındaki rozet düğmelerine bas.":
     "Use the badge buttons on a member row to assign them.",
+  "Yakıt sütunu litre (VE % için orana bölünür)":
+    "Fuel column is in litres (divided by the ratio for VE %)",
+  "Yarış·Data'da yakıt oranı girilmeli": "Set the fuel ratio in Race Data",
   "tur çözümlendi": "laps parsed",
   "Tur": "Lap", "Yakıt": "Fuel", "kısmi": "partial",
   "Ort/Max km/h": "Avg/Max km/h",
@@ -649,10 +652,15 @@ function parseMotecLog(text) {
 function parseTelemetryText(text) {
   const lines = text.split(/\r?\n/).filter((l) => l.trim());
   if (!lines.length) return null;
+  /* Ayırıcıyı tırnak-duyarlı ayrıştırarak seç: MoTeC raporlarında ondalık virgül
+     tırnak içinde geçer ("-4,174"), ham split bunları parçalar. */
   const cand = ["\t", ";", ","];
-  const delim = cand.map((d) => [d, lines.slice(0, 8).reduce((a, l) =>
-    a + (l.split(d).length - 1), 0)]).sort((a, b) => b[1] - a[1])[0][0];
-  const rows = lines.map((l) => l.split(delim).map((c) => c.trim()));
+  const probe = lines.slice(0, 12);
+  const delim = cand.map((d) => {
+    const counts = probe.map((l) => splitCsvLine(l, d).length);
+    return [d, Math.max(...counts)];
+  }).sort((a, b) => b[1] - a[1])[0][0];
+  const rows = lines.map((l) => splitCsvLine(l, delim));
   const firstLap = rows.findIndex((r) => r.some(isLapLabel));
   if (firstLap === -1) return { error: "Dosya tanınmadı — MoTeC tur raporu ya da ham kanal log'u bekleniyor" };
   const ncols = Math.max(...rows.map((r) => r.length));
@@ -681,14 +689,34 @@ function guessMapping(parsed) {
     };
   }).filter(Boolean);
   const byHeader = (re) => headers.findIndex((h) => re.test(h));
+  /* Tur süresi milisaniye (310127) ya da saniye (140.808) olabilir.
+     Saniye durumunda yakıt seviyesi gibi sütunlar da aralığa düşer; ayırt etmek için
+     en dar dağılımlı sütunu seçiyoruz — tur süreleri birbirine yakın, yakıt monoton düşer. */
   let timeCol = numStats.find((s) => s.medAbs > 30000 && s.medAbs < 3600000)?.i ?? -1;
-  let fuelCol = byHeader(/fuel.*change/i);
+  if (timeCol < 0) {
+    const secCand = numStats
+      .filter((s) => s.i !== labelCol && s.n === lapRows.length
+        && s.medAbs > 30 && s.medAbs < 1200 && s.negRatio === 0)
+      .map((s) => {
+        const vals = lapRows.map((r) => parseFloat(String(r[s.i] || "").replace(",", ".")))
+          .filter((n) => !isNaN(n));
+        const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+        const sd = Math.sqrt(vals.reduce((a, b) => a + (b - mean) ** 2, 0) / vals.length);
+        return { i: s.i, cv: mean ? sd / mean : 99 };
+      })
+      .sort((a, b) => a.cv - b.cv);
+    if (secCand.length && secCand[0].cv < 0.25) timeCol = secCand[0].i;
+  }
+  let fuelCol = byHeader(/fuel.*(change|used|delta)/i);
   if (fuelCol === -1)
     fuelCol = numStats.find((s) => s.i !== timeCol && s.medAbs > 0.5 && s.medAbs < 40
       && s.negRatio > 0.5)?.i ?? -1;
   const wear = ["fl", "fr", "rl", "rr"].map((c) =>
     byHeader(new RegExp(`wear\\s*${c}.*change`, "i")));
-  return { labelCol, timeCol, fuelCol, wear };
+  /* MoTeC "Fuel Level [l] Change" litre verir; eski raporlar VE % veriyordu. */
+  const fuelIsLitre = fuelCol >= 0
+    && /\[\s*l\s*\]|\(\s*l\s*\)|litre|liter/i.test(headers[fuelCol] || "");
+  return { labelCol, timeCol, fuelCol, wear, fuelIsLitre };
 }
 
 /* ---------- çekirdek motor ---------- */
@@ -1874,9 +1902,12 @@ export default function App() {
       const w = mapping.wear.map((wi) => wi >= 0
         ? parseFloat(String(r[wi] || "").replace(",", ".")) : NaN);
       const refuel = !isNaN(fuelRaw) && fuelRaw > 0; // pozitif değişim = dolum turu
+      const abs = isNaN(fuelRaw) ? null : Math.abs(fuelRaw);
+      const lit = mapping.fuelIsLitre && st.fuelRatio > 0;
       return {
         label, ms,
-        fuel: isNaN(fuelRaw) ? null : Math.abs(fuelRaw),
+        fuel: abs == null ? null : (lit ? +(abs / st.fuelRatio).toFixed(2) : abs),
+        fuelL: lit ? +abs.toFixed(2) : null,
         w: w.map((x) => (isNaN(x) ? null : x)),
         use: ms != null && !/^out/i.test(label) && !refuel,
       };
@@ -4393,6 +4424,19 @@ ${bottomBar}
                   <div className="hint">
                     {parsed.lapRows.length} {t("tur satırı bulundu. Sütun eşleşmesini kontrol et:")}
                   </div>
+                  {mapping.fuelCol >= 0 && (
+                    <div className="hint" style={{ marginTop: 2 }}>
+                      <label style={{ display: "inline-flex", alignItems: "center", gap: 5,
+                        margin: 0, textTransform: "none", letterSpacing: 0 }}>
+                        <input type="checkbox" checked={!!mapping.fuelIsLitre}
+                          onChange={(e) => setMapping({ ...mapping, fuelIsLitre: e.target.checked })} />
+                        {t("Yakıt sütunu litre (VE % için orana bölünür)")}
+                      </label>
+                      {mapping.fuelIsLitre && !(st.fuelRatio > 0) &&
+                        <span className="warn" style={{ marginLeft: 8 }}>
+                          {t("Yarış·Data'da yakıt oranı girilmeli")}</span>}
+                    </div>
+                  )}
                   <div style={{ display: "flex", gap: 10, flexWrap: "wrap", margin: "6px 0" }}>
                     {[["Tur Süresi", "timeCol"], ["VE Δ (%)", "fuelCol"]].map(([lbl, key]) => (
                       <div key={key}>
