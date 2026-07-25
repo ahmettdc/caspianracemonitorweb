@@ -173,6 +173,20 @@ export function watchTeam(tid, cb) {
   return () => offs.forEach((o) => o());
 }
 
+/* Takım adını değiştir — yalnız meta yazılır.
+   Diğer üyelerin users/{uid}/teams kopyası kendi istemcilerinde tazelenir
+   (kurallar başkasının kullanıcı düğümüne yazmayı engelliyor). */
+export async function renameTeam(tid, name) {
+  if (!db || !tid) return;
+  await set(ref(db, `teams/${tid}/meta/name`), String(name || "").trim().slice(0, 40));
+}
+
+/* Üye kendi takım adı kopyasını günceller */
+export async function syncMyTeamName(uid, tid, name) {
+  if (!db || !uid || !tid || !name) return;
+  await set(ref(db, `users/${uid}/teams/${tid}`), String(name).slice(0, 40));
+}
+
 /* PIN'ler ayrı düğümde — okuma yetkisi yoksa sessizce boş döner */
 
 

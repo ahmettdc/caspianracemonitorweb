@@ -4,7 +4,7 @@ import { firebaseReady, touchUserProfile, watchUserDoc,
   requestAccess, watchAllUsers, setUserAllowed, updateProfile,
   createTeam, joinTeam, watchMyTeams, watchTeam,
   setTeamRole, toggleTeamBadge, leaveTeam, setTeamMemberName,
-  sendChat, watchChat, deleteChat,
+  sendChat, watchChat, deleteChat, renameTeam, syncMyTeamName,
   createSeason, deleteSeason, watchSeasons,
   createRace, updateRace, deleteRace, watchRaces,
   raceStateGet, raceStateSet, raceStateSubscribe } from "./storage";
@@ -479,6 +479,9 @@ const EN = {
   "Yakıt sütunu litre (VE % için orana bölünür)":
     "Fuel column is in litres (divided by the ratio for VE %)",
   "Yarış·Data'da yakıt oranı girilmeli": "Set the fuel ratio in Race Data",
+  "Takım Adı": "Team Name",
+  "Yeni ad diğer üyelerde uygulamayı açtıklarında güncellenir.":
+    "Other members will see the new name next time they open the app.",
   "korumalı": "protected",
   "Sohbet": "Chat", "Takım Sohbeti": "Team Chat",
   "Yarış Sohbeti": "Race Chat",
@@ -2495,6 +2498,7 @@ ${bottomBar}
   }, [curTeam]);
   /* ---- sohbet: genel / takım / yarış kanalları ---- */
   const [lobSeason, setLobSeason] = useState("all"); // lobide şampiyona süzgeci
+  const [tnEdit, setTnEdit] = useState(null);        // takım adı düzenleme metni
   const [chatOpen, setChatOpen] = useState(false);
   const [chatChan, setChatChan] = useState("team");
   const [chatAll, setChatAll] = useState({});   // { path: [mesajlar] }
@@ -2680,6 +2684,15 @@ ${bottomBar}
       {chatUnread > 0 && <b className="badge">{chatUnread > 99 ? "99+" : chatUnread}</b>}
     </button>
   );
+
+  /* Takım adı değişince kendi users/{uid}/teams kopyamı tazele — lobideki
+     takım sekmeleri bu kopyayı okuyor, yoksa eski ad takılı kalır. */
+  useEffect(() => {
+    const nm = teamData?.meta?.name;
+    if (!curTeam || !user?.uid || !nm) return;
+    if (myTeams[curTeam] === nm) return;
+    syncMyTeamName(user.uid, curTeam, nm).catch(() => {});
+  }, [curTeam, user, teamData, myTeams]);
 
   const wantRole = (uid) => (hasBadge(teamData, uid, "engineer") ? "editor" : "viewer");
   const setBadge = async (uid, id, on) => {
@@ -2957,6 +2970,43 @@ ${bottomBar}
               )}
 
               {curTeam && teamData && (<>
+                {/* takım adı */}
+                <div className="tmsec">{t("Takım Adı")}</div>
+                {tnEdit === null ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8,
+                    marginBottom: 10 }}>
+                    <b style={{ fontSize: 15 }}>{teamData?.meta?.name || "—"}</b>
+                    {canManageTeam && (
+                      <button className="minibtn" style={{ width: "auto", padding: "0 8px" }}
+                        onClick={() => setTnEdit(teamData?.meta?.name || "")}>
+                        {t("Düzenle")}</button>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", gap: 8, marginBottom: 10, maxWidth: 420 }}>
+                    <input type="text" value={tnEdit} maxLength={40} autoFocus
+                      style={{ textTransform: "none", margin: 0 }}
+                      onChange={(e) => setTnEdit(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Escape") setTnEdit(null); }} />
+                    <button className="gbtn ubtn" disabled={!tnEdit.trim()}
+                      style={{ opacity: tnEdit.trim() ? 1 : .45 }}
+                      onClick={async () => {
+                        const nm = tnEdit.trim();
+                        setTnEdit(null);
+                        try {
+                          await renameTeam(curTeam, nm);
+                          await syncMyTeamName(user.uid, curTeam, nm);
+                        } catch (e) { console.warn("ad değiştirilemedi:", e?.message); }
+                      }}>{t("Kaydet")}</button>
+                    <button className="histbtn"
+                      onClick={() => setTnEdit(null)}>{t("Vazgeç")}</button>
+                  </div>
+                )}
+                {tnEdit !== null && (
+                  <div className="hint" style={{ marginTop: -6, marginBottom: 10 }}>
+                    {t("Yeni ad diğer üyelerde uygulamayı açtıklarında güncellenir.")}</div>
+                )}
+
                 {/* sezonlar */}
                 <div className="tmsec">{t("Sezonlar")}</div>
                 <div className="tmtabs" style={{ padding: "0 0 8px" }}>
