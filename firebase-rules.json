@@ -8,43 +8,85 @@
         ".validate": "root.child('users').child(auth.uid).child('admin').val() == true || (newData.child('allowed').val() == data.child('allowed').val() && newData.child('admin').val() == data.child('admin').val())"
       }
     },
+
     "rooms": {
       ".read": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true",
       ".write": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true"
     },
+
     "teamCodes": {
       ".read": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true",
       "$code": {
         ".write": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && !data.exists()"
       }
     },
+
+    "globalSetups": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true",
+      "$id": {
+        ".write": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && ((!data.exists() && newData.exists()) || (data.exists() && !newData.exists() && (data.child('uid').val() == auth.uid || root.child('users').child(auth.uid).child('admin').val() == true)))",
+        ".validate": "newData.child('uid').val() == auth.uid && newData.child('data').isString() && newData.child('data').val().length < 260000"
+      }
+    },
+
+    "globalChat": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true",
+      "$mid": {
+        ".write": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && ((!data.exists() && newData.exists()) || (data.exists() && !newData.exists() && (data.child('uid').val() == auth.uid || root.child('users').child(auth.uid).child('admin').val() == true)))",
+        ".validate": "newData.child('uid').val() == auth.uid && newData.child('text').isString() && newData.child('text').val().length <= 500 && (!newData.child('name').exists() || newData.child('name').val().length <= 60)"
+      }
+    },
+
     "teams": {
       "$tid": {
         "meta": {
-          ".read": "auth != null && root.child('teams').child($tid).child('members').child(auth.uid).exists()",
-          ".write": "auth != null && (!data.exists() || data.child('ownerUid').val() == auth.uid)"
+          ".read": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && root.child('teams').child($tid).child('members').child(auth.uid).exists()",
+          ".write": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && (!data.exists() || data.child('ownerUid').val() == auth.uid)"
         },
         "members": {
-          ".read": "auth != null && data.child(auth.uid).exists()",
+          ".read": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && data.child(auth.uid).exists()",
           "$uid": {
-            ".write": "auth != null && ((auth.uid == $uid && !data.exists() && newData.val() == 'viewer') || (auth.uid == $uid && !newData.exists()) || root.child('teams').child($tid).child('members').child(auth.uid).val() == 'owner' || !root.child('teams').child($tid).child('meta').exists())"
+            ".write": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && ((auth.uid == $uid && !data.exists() && newData.val() == 'viewer') || (auth.uid == $uid && !newData.exists()) || root.child('teams').child($tid).child('members').child(auth.uid).val() == 'owner' || !root.child('teams').child($tid).child('meta').exists())"
+          }
+        },
+        "names": {
+          ".read": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && root.child('teams').child($tid).child('members').child(auth.uid).exists()",
+          "$uid": {
+            ".write": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && (auth.uid == $uid || root.child('teams').child($tid).child('members').child(auth.uid).val() == 'owner')",
+            ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 60)"
           }
         },
         "badges": {
-          ".read": "auth != null && root.child('teams').child($tid).child('members').child(auth.uid).exists()",
-          ".write": "auth != null && root.child('teams').child($tid).child('members').child(auth.uid).val() == 'owner'"
+          ".read": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && root.child('teams').child($tid).child('members').child(auth.uid).exists()",
+          ".write": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && root.child('teams').child($tid).child('members').child(auth.uid).val() == 'owner'"
         },
         "seasons": {
-          ".read": "auth != null && root.child('teams').child($tid).child('members').child(auth.uid).exists()",
-          ".write": "auth != null && (root.child('teams').child($tid).child('members').child(auth.uid).val() == 'owner' || root.child('teams').child($tid).child('members').child(auth.uid).val() == 'editor')"
+          ".read": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && root.child('teams').child($tid).child('members').child(auth.uid).exists()",
+          ".write": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && (root.child('teams').child($tid).child('members').child(auth.uid).val() == 'owner' || root.child('teams').child($tid).child('members').child(auth.uid).val() == 'editor')"
         },
         "races": {
-          ".read": "auth != null && root.child('teams').child($tid).child('members').child(auth.uid).exists()",
-          ".write": "auth != null && (root.child('teams').child($tid).child('members').child(auth.uid).val() == 'owner' || root.child('teams').child($tid).child('members').child(auth.uid).val() == 'editor')"
+          ".read": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && root.child('teams').child($tid).child('members').child(auth.uid).exists()",
+          ".write": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && (root.child('teams').child($tid).child('members').child(auth.uid).val() == 'owner' || root.child('teams').child($tid).child('members').child(auth.uid).val() == 'editor')"
         },
         "raceState": {
-          ".read": "auth != null && root.child('teams').child($tid).child('members').child(auth.uid).exists()",
-          ".write": "auth != null && (root.child('teams').child($tid).child('members').child(auth.uid).val() == 'owner' || root.child('teams').child($tid).child('members').child(auth.uid).val() == 'editor')"
+          ".read": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && root.child('teams').child($tid).child('members').child(auth.uid).exists()",
+          ".write": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && (root.child('teams').child($tid).child('members').child(auth.uid).val() == 'owner' || root.child('teams').child($tid).child('members').child(auth.uid).val() == 'editor')"
+        },
+        "chat": {
+          ".read": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && root.child('teams').child($tid).child('members').child(auth.uid).exists()",
+          "$mid": {
+            ".write": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && root.child('teams').child($tid).child('members').child(auth.uid).exists() && ((!data.exists() && newData.exists()) || (data.exists() && !newData.exists() && (data.child('uid').val() == auth.uid || root.child('teams').child($tid).child('members').child(auth.uid).val() == 'owner' || root.child('users').child(auth.uid).child('admin').val() == true)))",
+            ".validate": "newData.child('uid').val() == auth.uid && newData.child('text').isString() && newData.child('text').val().length <= 500 && (!newData.child('name').exists() || newData.child('name').val().length <= 60)"
+          }
+        },
+        "raceChat": {
+          ".read": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && root.child('teams').child($tid).child('members').child(auth.uid).exists()",
+          "$rid": {
+            "$mid": {
+              ".write": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && root.child('teams').child($tid).child('members').child(auth.uid).exists() && ((!data.exists() && newData.exists()) || (data.exists() && !newData.exists() && (data.child('uid').val() == auth.uid || root.child('teams').child($tid).child('members').child(auth.uid).val() == 'owner' || root.child('users').child(auth.uid).child('admin').val() == true)))",
+              ".validate": "newData.child('uid').val() == auth.uid && newData.child('text').isString() && newData.child('text').val().length <= 500 && (!newData.child('name').exists() || newData.child('name').val().length <= 60)"
+            }
+          }
         }
       }
     }

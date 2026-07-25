@@ -1,0 +1,44 @@
+name: Deploy Firebase Rules
+
+# Realtime Database güvenlik kurallarını (firebase-rules.json) yayınlar.
+# firebase.json 'database.rules' alanı bu dosyayı işaret eder.
+#
+# GEREKLİ: Repo Settings → Secrets and variables → Actions içine
+#   FIREBASE_TOKEN  (firebase login:ci ile üretilir)
+# eklenmelidir. Secret yoksa iş güvenle atlanır (deploy yapılmaz).
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "firebase-rules.json"
+      - "firebase.json"
+      - ".github/workflows/deploy-rules.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Token var mı?
+        id: check
+        run: |
+          if [ -n "${{ secrets.FIREBASE_TOKEN }}" ]; then
+            echo "has=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::FIREBASE_TOKEN secret'ı tanımlı değil — kural yayını atlandı."
+          fi
+
+      - name: Firebase RTDB kurallarını yayınla
+        if: steps.check.outputs.has == 'true'
+        uses: w9jds/firebase-action@v14.9.0
+        with:
+          args: deploy --only database
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
