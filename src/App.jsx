@@ -1848,6 +1848,11 @@ export default function App() {
     setLang(l);
     try { localStorage.setItem("crm-lang", l); } catch {}
   };
+  /* CSS text-transform:uppercase harf kurallarını belge diline göre uygular.
+     lang="tr" sabit kalırsa İngilizce'de de i → İ olur (STİNT, PİT...). */
+  useEffect(() => {
+    document.documentElement.lang = lang === "en" ? "en" : "tr";
+  }, [lang]);
   const [entered, setEntered] = useState(false); // lobi geçildi mi (solo/oda)
   const [pickDone, setPickDone] = useState(false); // pist/araç seçimi tamamlandı mı
   const [setupDone, setSetupDone] = useState(false); // data giriş adımı tamamlandı mı
