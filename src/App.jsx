@@ -1284,6 +1284,9 @@ const css = `
   filter:drop-shadow(0 4px 8px rgba(0,0,0,.45))}
 .rc .cargrid button.on{border-color:var(--teal);background:rgba(150,0,24,.20);
   color:var(--txt);font-weight:600}
+.rc .lteam{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:700;
+  color:var(--txt);padding:8px 10px;margin-bottom:10px;border-radius:8px;
+  background:var(--panel2);border:1px solid var(--line)}
 .rc .lseason{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
   color:var(--dim);margin:10px 0 4px 2px;display:flex;align-items:center;gap:8px}
 .rc .lseason::after{content:"";flex:1;height:1px;background:var(--line)}
@@ -3456,6 +3459,9 @@ ${bottomBar}
                 )}
 
                 <div className="lobbyteams">
+                  {/* hangi takımın takvimine baktığın belli olsun */}
+                  <div className="lteam">🏢 {teamData?.meta?.name
+                    || myTeams[curTeam] || t("Takım")}</div>
                   <div className="tmsec">🏁 {t("Yaklaşan Yarışlar")}</div>
                   {seasonIds.length > 1 && (
                     <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 8 }}>
