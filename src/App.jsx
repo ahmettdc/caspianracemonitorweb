@@ -3142,15 +3142,83 @@ ${bottomBar}
 
   /* Lobi setup penceresi — indirme odaklı sade liste.
      Yükleme/yönetim pit wall'daki Setup sekmesinde. */
+  /* Ortak setup tablosu — hem lobi penceresinde hem pit wall sekmesinde. */
+  const setupTable = (rows) => (
+    <div style={{ overflowX: "auto" }}>
+      <table style={{ fontSize: 12 }}>
+        <thead><tr>
+          <th>{t("Tarih")}</th><th>{t("Pist")}</th><th>{t("Koşul")}</th>
+          <th>{t("Seans")}</th><th>{t("Sınıf")}</th><th>{t("Araç")}</th>
+          <th>{t("Şampiyona")}</th><th>{t("Sürüm")}</th>
+          <th>{t("Dosya")}</th><th>{t("Yükleyen")}</th><th></th>
+        </tr></thead>
+        <tbody>
+          {rows.map((su) => (
+            <tr key={su.id}
+              style={su.track === st.track ? { background: "rgba(150,0,24,.08)" } : undefined}>
+              <td className="mono">{new Date(su.at || 0)
+                .toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR",
+                  { day: "2-digit", month: "2-digit", year: "2-digit" })}</td>
+              <td>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  {su.track && <img src={`${ASSET}flags/${TRACK_ASSET(su.track)}.png`}
+                    alt="" style={{ width: 18, borderRadius: 2 }}
+                    onError={(e) => { e.currentTarget.style.display = "none"; }} />}
+                  {trackName(su.track) || su.track || "—"}
+                </span>
+              </td>
+              <td>{su.cond === "wet" ? "🌧 Wet" : `☀️ ${t("Kuru")}`}</td>
+              <td>{su.sess === "Q"
+                ? <span className="chip" style={{ borderColor: "var(--green)",
+                    color: "var(--green)" }}>{t("Sıralama")}</span>
+                : <span className="chip" style={{ borderColor: "var(--orange, #F2A33C)",
+                    color: "var(--orange, #F2A33C)" }}>{t("Yarış")}</span>}</td>
+              <td>{su.cls
+                ? <img src={`${ASSET}class/${su.cls}.png`} alt=""
+                    title={CAR_CLASSES.find(([id]) => id === su.cls)?.[1] || su.cls}
+                    style={{ height: 16, verticalAlign: "-3px" }}
+                    onError={(e) => { e.currentTarget.replaceWith(
+                      CAR_CLASSES.find(([id]) => id === su.cls)?.[1] || su.cls); }} />
+                : "—"}</td>
+              <td>{su.car
+                ? <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <img src={carImg(su.cls, su.car)} alt=""
+                      style={{ height: 22, width: "auto" }}
+                      onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                    {carName(su.cls, su.car)}
+                  </span>
+                : "—"}</td>
+              <td>{su.champ || "—"}</td>
+              <td className="mono">{su.ver || "—"}</td>
+              <td title={su.note || ""}>
+                <span className="mono" style={{ fontSize: 11 }}>{su.name}</span>
+                {su.note && <span className="hint" style={{ display: "block",
+                  margin: 0 }}>{su.note}</span>}</td>
+              <td>{su.uname || "—"}</td>
+              <td style={{ whiteSpace: "nowrap" }}>
+                <button className="act" style={{ fontSize: 11 }}
+                  onClick={() => downloadSetup(su)}>⬇ {t("İndir")}</button>
+                {(su.uid === user?.uid || canManageTeam) && (
+                  <button className="act danger" style={{ fontSize: 11, marginLeft: 4 }}
+                    onClick={() => deleteSetup(curTeam, su.id).catch(() => {})}>✕</button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+
   const setupModal = suOpen && curTeam && (
     <div className="wxmodal" onClick={() => setSuOpen(false)}>
-      <div className="wxmbox" style={{ width: "min(680px,96vw)" }}
+      <div className="wxmbox" style={{ width: "min(1080px,97vw)" }}
         onClick={(e) => e.stopPropagation()}>
         <div className="wxmhead">
-          <span>🔧 {t("Setup Havuzu")} · {teamData?.meta?.name || ""}</span>
+          <span>🔧 {t("Setup Havuzu")} · {teamData?.meta?.name || ""} ({suList.length}/{setups.length})</span>
           <button className="lbclose" onClick={() => setSuOpen(false)}>✕</button>
         </div>
-        <div style={{ padding: "12px 16px", maxHeight: "64vh", overflowY: "auto" }}>
+        <div style={{ padding: "12px 16px", maxHeight: "70vh", overflowY: "auto" }}>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
             <select value={suFTrack} onChange={(e) => setSuFTrack(e.target.value)}>
               <option value="">{t("Tüm pistler")}</option>
@@ -3168,34 +3236,9 @@ ${bottomBar}
               <option value="Q">{t("Sıralama")}</option>
             </select>
           </div>
-          {!suList.length && (
-            <div className="hint">{t("Bu süzgeçle setup yok.")}</div>
-          )}
-          {suList.map((su) => (
-            <div key={su.id} style={{ display: "flex", alignItems: "center", gap: 10,
-              padding: "8px 10px", border: "1px solid var(--line)", borderRadius: 8,
-              marginBottom: 6, background: "var(--panel2)" }}>
-              {su.track && <img src={`${ASSET}flags/${TRACK_ASSET(su.track)}.png`} alt=""
-                style={{ width: 20, borderRadius: 2, flexShrink: 0 }}
-                onError={(e) => { e.currentTarget.style.display = "none"; }} />}
-              <span style={{ minWidth: 0, flex: 1 }}>
-                <b>{trackName(su.track) || su.track}</b>
-                {" · "}{su.cond === "wet" ? "🌧 Wet" : `☀️ ${t("Kuru")}`}
-                {" · "}{su.sess === "Q" ? t("Sıralama") : t("Yarış")}
-                {su.car && <> · {carName(su.cls, su.car)}</>}
-                <span className="hint" style={{ display: "block", margin: 0 }}>
-                  <span className="mono">{su.name}</span>
-                  {" · "}{new Date(su.at || 0).toLocaleDateString(
-                    lang === "en" ? "en-GB" : "tr-TR",
-                    { day: "2-digit", month: "2-digit", year: "2-digit" })}
-                  {su.uname && <> · {su.uname}</>}
-                  {su.note && <> · {su.note}</>}
-                </span>
-              </span>
-              <button className="act" style={{ fontSize: 11, flexShrink: 0 }}
-                onClick={() => downloadSetup(su)}>⬇ {t("İndir")}</button>
-            </div>
-          ))}
+          {!suList.length
+            ? <div className="hint">{t("Bu süzgeçle setup yok.")}</div>
+            : setupTable(suList)}
         </div>
       </div>
     </div>
@@ -5382,73 +5425,7 @@ ${bottomBar}
               {!suList.length && (
                 <div className="hint">{t("Henüz setup yok — ilk dosyayı yukarıdan yükle.")}</div>
               )}
-              {suList.length > 0 && (
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ fontSize: 12 }}>
-                    <thead><tr>
-                      <th>{t("Tarih")}</th><th>{t("Pist")}</th><th>{t("Koşul")}</th>
-                      <th>{t("Seans")}</th><th>{t("Sınıf")}</th><th>{t("Araç")}</th>
-                      <th>{t("Şampiyona")}</th><th>{t("Sürüm")}</th>
-                      <th>{t("Dosya")}</th><th>{t("Yükleyen")}</th><th></th>
-                    </tr></thead>
-                    <tbody>
-                      {suList.map((su) => (
-                        <tr key={su.id}
-                          style={su.track === st.track
-                            ? { background: "rgba(150,0,24,.08)" } : undefined}>
-                          <td className="mono">{new Date(su.at || 0)
-                            .toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR",
-                              { day: "2-digit", month: "2-digit", year: "2-digit" })}</td>
-                          <td>
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                              {su.track && <img src={`${ASSET}flags/${TRACK_ASSET(su.track)}.png`}
-                                alt="" style={{ width: 18, borderRadius: 2 }}
-                                onError={(e) => { e.currentTarget.style.display = "none"; }} />}
-                              {trackName(su.track) || su.track || "—"}
-                            </span>
-                          </td>
-                          <td>{su.cond === "wet" ? "🌧 Wet" : `☀️ ${t("Kuru")}`}</td>
-                          <td>{su.sess === "Q"
-                            ? <span className="chip" style={{ borderColor: "var(--green)",
-                                color: "var(--green)" }}>{t("Sıralama")}</span>
-                            : <span className="chip" style={{ borderColor: "var(--orange, #F2A33C)",
-                                color: "var(--orange, #F2A33C)" }}>{t("Yarış")}</span>}</td>
-                          <td>{su.cls
-                            ? <img src={`${ASSET}class/${su.cls}.png`} alt=""
-                                title={CAR_CLASSES.find(([id]) => id === su.cls)?.[1] || su.cls}
-                                style={{ height: 16, verticalAlign: "-3px" }}
-                                onError={(e) => { e.currentTarget.replaceWith(
-                                  CAR_CLASSES.find(([id]) => id === su.cls)?.[1] || su.cls); }} />
-                            : "—"}</td>
-                          <td>{su.car
-                            ? <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                                <img src={carImg(su.cls, su.car)} alt=""
-                                  style={{ height: 22, width: "auto" }}
-                                  onError={(e) => { e.currentTarget.style.display = "none"; }} />
-                                {carName(su.cls, su.car)}
-                              </span>
-                            : "—"}</td>
-                          <td>{su.champ || "—"}</td>
-                          <td className="mono">{su.ver || "—"}</td>
-                          <td title={su.note || ""}>
-                            <span className="mono" style={{ fontSize: 11 }}>{su.name}</span>
-                            {su.note && <span className="hint" style={{ display: "block",
-                              margin: 0 }}>{su.note}</span>}</td>
-                          <td>{su.uname || "—"}</td>
-                          <td style={{ whiteSpace: "nowrap" }}>
-                            <button className="act" style={{ fontSize: 11 }}
-                              onClick={() => downloadSetup(su)}>⬇ {t("İndir")}</button>
-                            {(su.uid === user?.uid || canManageTeam) && (
-                              <button className="act danger" style={{ fontSize: 11, marginLeft: 4 }}
-                                onClick={() => deleteSetup(curTeam, su.id).catch(() => {})}>✕</button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+              {suList.length > 0 && setupTable(suList)}
             </div>
           </>)}
 
