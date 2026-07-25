@@ -180,12 +180,15 @@ export function watchTeam(tid, cb) {
 
 
 
-/* ---------- takım sohbeti ---------- */
-export async function sendChat(tid, user, name, text) {
-  if (!db || !tid || !user) return;
+/* ---------- sohbet: kanal yolu ile çalışır ----------
+   genel   -> globalChat
+   takım   -> teams/{tid}/chat
+   yarış   -> teams/{tid}/raceChat/{rid}                       */
+export async function sendChat(path, user, name, text) {
+  if (!db || !path || !user) return;
   const msg = String(text || "").trim().slice(0, 500);
   if (!msg) return;
-  await push(ref(db, `teams/${tid}/chat`), {
+  await push(ref(db, path), {
     uid: user.uid,
     name: String(name || user.displayName || "").slice(0, 60),
     text: msg,
@@ -193,10 +196,9 @@ export async function sendChat(tid, user, name, text) {
   });
 }
 
-/* Son N mesajı dinler (varsayılan 200) */
-export function watchChat(tid, cb, n = 200) {
-  if (!db || !tid) { cb([]); return () => {}; }
-  const q = query(ref(db, `teams/${tid}/chat`), limitToLast(n));
+export function watchChat(path, cb, n = 120) {
+  if (!db || !path) { cb([]); return () => {}; }
+  const q = query(ref(db, path), limitToLast(n));
   return onValue(q, (snap) => {
     const v = snap.val() || {};
     cb(Object.entries(v)
@@ -205,9 +207,9 @@ export function watchChat(tid, cb, n = 200) {
   }, () => cb([]));
 }
 
-export async function deleteChat(tid, id) {
-  if (!db || !tid || !id) return;
-  await remove(ref(db, `teams/${tid}/chat/${id}`));
+export async function deleteChat(path, id) {
+  if (!db || !path || !id) return;
+  await remove(ref(db, `${path}/${id}`));
 }
 
 /* Uye kendi gorunen adini takim dugumune yazar (pilot listesi icin) */

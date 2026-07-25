@@ -480,6 +480,7 @@ const EN = {
     "Fuel column is in litres (divided by the ratio for VE %)",
   "Yarış·Data'da yakıt oranı girilmeli": "Set the fuel ratio in Race Data",
   "Sohbet": "Chat", "Takım Sohbeti": "Team Chat",
+  "Genel": "General", "Takım": "Team",
   "Mesaj yaz…": "Write a message…", "Gönder": "Send",
   "Henüz mesaj yok — ilk yazan sen ol.": "No messages yet — be the first.",
   "Yetki": "Permission",
@@ -1279,6 +1280,14 @@ const css = `
   filter:drop-shadow(0 4px 8px rgba(0,0,0,.45))}
 .rc .cargrid button.on{border-color:var(--teal);background:rgba(150,0,24,.20);
   color:var(--txt);font-weight:600}
+.rc .chattabs{display:flex;gap:4px;padding:8px 12px 0;border-bottom:1px solid var(--line);
+  overflow-x:auto}
+.rc .ctab{position:relative;background:none;border:1px solid var(--line);border-bottom:0;
+  border-radius:8px 8px 0 0;color:var(--dim);font-size:11.5px;padding:6px 12px;
+  cursor:pointer;white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis}
+.rc .ctab.on{color:var(--red);border-color:var(--red);background:var(--panel2)}
+.rc .ctab .cdot{position:absolute;top:1px;right:2px;background:var(--red);color:#fff;
+  border-radius:8px;font-size:9px;padding:0 4px;line-height:13px}
 .rc .chatwrap{display:flex;flex-direction:column;height:min(62vh,460px)}
 .rc .chatlist{flex:1;overflow-y:auto;padding:10px 14px;display:flex;
   flex-direction:column;gap:9px}
@@ -2474,12 +2483,14 @@ ${bottomBar}
     const o3 = watchRaces(curTeam, (x) => setRaces(x || {}));
     return () => { o1(); o2(); o3(); };
   }, [curTeam]);
-  /* ---- takım sohbeti ---- */
+  /* ---- sohbet: genel / takım / yarış kanalları ---- */
   const [chatOpen, setChatOpen] = useState(false);
-  const [chatMsgs, setChatMsgs] = useState([]);
+  const [chatChan, setChatChan] = useState("team");
+  const [chatAll, setChatAll] = useState({});   // { path: [mesajlar] }
   const [chatText, setChatText] = useState("");
-  const [chatSeen, setChatSeen] = useState(() => {
-    try { return +(localStorage.getItem("rm_chat_seen") || 0); } catch { return 0; }
+  const [chatSeen, setChatSeen] = useState(() => {   // { path: sonGörülenTs }
+    try { return JSON.parse(localStorage.getItem("rm_chat_seen_v2") || "{}"); }
+    catch { return {}; }
   });
   const chatEndRef = useRef(null);
 
@@ -2501,41 +2512,77 @@ ${bottomBar}
   /* Rozet yetkiyi belirler: 🎧 Mühendis → editor (datayı değiştirir),
      🛞 Sürücü / rozetsiz → viewer (sadece görür). Takım sahibi her zaman owner.
      Firebase kuralları rolü baz aldığı için rozet değişince rol de yazılır. */
-  /* sohbeti dinle — takımın her üyesi, rolü ne olursa olsun yazabilir */
+  /* Kanallar. Yazma yetkisi role bağlı değil — sürücüler de konuşur. */
+  const chatChans = useMemo(() => {
+    const out = [{ id: "global", lbl: "Genel", ico: "🌍", path: "globalChat" }];
+    if (curTeam) out.push({ id: "team", lbl: "Takım", ico: "🏢",
+      path: `teams/${curTeam}/chat` });
+    if (curTeam && curRace) out.push({ id: "race", ico: "🏁",
+      lbl: races[curRace]?.name || t("Yarış"),
+      path: `teams/${curTeam}/raceChat/${curRace}` });
+    return out;
+  }, [curTeam, curRace, races, lang]);
+
+  /* açık olmayan kanalları da dinliyoruz — okunmamış sayacı için */
   useEffect(() => {
-    if (!curTeam || !user) { setChatMsgs([]); return; }
-    return watchChat(curTeam, setChatMsgs);
-  }, [curTeam, user]);
+    if (!user) { setChatAll({}); return; }
+    const offs = chatChans.map((c) =>
+      watchChat(c.path, (msgs) => setChatAll((a) => ({ ...a, [c.path]: msgs }))));
+    return () => offs.forEach((f) => f && f());
+  }, [user, chatChans]);
 
-  const chatUnread = chatMsgs.filter(
-    (m) => (m.at || 0) > chatSeen && m.uid !== user?.uid).length;
+  /* seçili kanal kaybolursa (yarıştan çıkınca) geçerli bir kanala düş */
+  useEffect(() => {
+    if (!chatChans.some((c) => c.id === chatChan)) {
+      setChatChan(chatChans[chatChans.length - 1]?.id || "global");
+    }
+  }, [chatChans, chatChan]);
 
-  const markChatSeen = () => {
+  const curChan = chatChans.find((c) => c.id === chatChan) || chatChans[0];
+  const chatMsgs = (curChan && chatAll[curChan.path]) || [];
+  const unreadOf = (c) => ((chatAll[c.path] || [])
+    .filter((m) => (m.at || 0) > (chatSeen[c.path] || 0) && m.uid !== user?.uid).length);
+  const chatUnread = chatChans.reduce((a, c) => a + unreadOf(c), 0);
+
+  useEffect(() => {
+    if (!chatOpen || !curChan) return;
     const last = chatMsgs.length ? (chatMsgs[chatMsgs.length - 1].at || 0) : Date.now();
-    setChatSeen(last);
-    try { localStorage.setItem("rm_chat_seen", String(last)); } catch { /* yoksay */ }
-  };
-  useEffect(() => {
-    if (!chatOpen) return;
-    markChatSeen();
+    if ((chatSeen[curChan.path] || 0) < last) {
+      const next = { ...chatSeen, [curChan.path]: last };
+      setChatSeen(next);
+      try { localStorage.setItem("rm_chat_seen_v2", JSON.stringify(next)); }
+      catch { /* yoksay */ }
+    }
     chatEndRef.current?.scrollIntoView({ block: "end" });
-  }, [chatOpen, chatMsgs]);
+  }, [chatOpen, chatMsgs, curChan, chatSeen]);
 
   const doSend = async () => {
     const v = chatText.trim();
-    if (!v || !curTeam) return;
+    if (!v || !curChan) return;
     setChatText("");
-    try { await sendChat(curTeam, user, userName, v); }
+    try { await sendChat(curChan.path, user, userName, v); }
     catch (e) { console.warn("mesaj gönderilemedi:", e?.message); }
   };
 
-  const chatModal = chatOpen && curTeam && (
+  const chatModal = chatOpen && user && curChan && (
     <div className="wxmodal" onClick={() => setChatOpen(false)}>
       <div className="wxmbox" style={{ width: "min(560px,94vw)" }}
         onClick={(e) => e.stopPropagation()}>
         <div className="wxmhead">
-          <span>💬 {teamData?.meta?.name || t("Takım Sohbeti")}</span>
+          <span>💬 {t("Sohbet")}</span>
           <button className="lbclose" onClick={() => setChatOpen(false)}>✕</button>
+        </div>
+        <div className="chattabs">
+          {chatChans.map((c) => {
+            const u2 = unreadOf(c);
+            return (
+              <button key={c.id} className={`ctab ${c.id === chatChan ? "on" : ""}`}
+                onClick={() => setChatChan(c.id)}>
+                {c.ico} {c.id === "team" ? (teamData?.meta?.name || t(c.lbl)) : t(c.lbl)}
+                {u2 > 0 && c.id !== chatChan && <b className="cdot">{u2 > 9 ? "9+" : u2}</b>}
+              </button>
+            );
+          })}
         </div>
         <div className="chatwrap">
           <div className="chatlist">
@@ -2559,7 +2606,7 @@ ${bottomBar}
                       <span>{fmtClock(m.at || 0)}</span>
                       {(me || canManageTeam) && (
                         <button className="del" title={t("Sil")}
-                          onClick={() => deleteChat(curTeam, m.id).catch(() => {})}>✕</button>
+                          onClick={() => deleteChat(curChan.path, m.id).catch(() => {})}>✕</button>
                       )}
                     </div>
                     <div className="bub">{m.text}</div>
@@ -2583,7 +2630,7 @@ ${bottomBar}
     </div>
   );
 
-  const chatBtn = curTeam && (
+  const chatBtn = user && (
     <button className="adminbtn" onClick={() => setChatOpen(true)}
       title={t("Takım Sohbeti")}>
       💬 {t("Sohbet")}
@@ -3372,12 +3419,9 @@ ${bottomBar}
                   <button className="histbtn" style={{ marginTop: 10, width: "100%" }}
                     onClick={() => setTeamOpen(true)}>
                     ⚙ {canEditTeam ? t("Takvimi & Takımı Yönet") : t("Takımı Görüntüle")}</button>
-          {curTeam && (
-            <button className="histbtn" onClick={() => setChatOpen(true)}
-              style={{ marginTop: 8, width: "100%" }}>
-              💬 {t("Takım Sohbeti")}
-              {chatUnread > 0 && <> · {chatUnread}</>}</button>
-          )}
+          <button className="histbtn" onClick={() => setChatOpen(true)}
+            style={{ marginTop: 8, width: "100%" }}>
+            💬 {t("Sohbet")}{chatUnread > 0 && <> · {chatUnread}</>}</button>
                 </div>
               </>)}
 
