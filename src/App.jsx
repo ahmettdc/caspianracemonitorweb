@@ -2757,7 +2757,6 @@ ${bottomBar}
     try { return localStorage.getItem("rm_stream_corner") || "br"; } catch { return "br"; }
   });                                                 // br | bl | tr | tl
   const [streamMin, setStreamMin] = useState(false);  // tek satıra küçült
-  const [streamHide, setStreamHide] = useState(false); // bu oturumda tamamen gizle
   const [streamW, setStreamW] = useState(() => {
     try { return Math.min(1080, Math.max(240,
       +(localStorage.getItem("rm_stream_w") || 320))); } catch { return 320; }
@@ -2977,7 +2976,7 @@ ${bottomBar}
 
   /* Mini oynatıcı: sekmeden bağımsız, köşede sabit. iframe hep aynı ağaçta kalır,
      küçültünce yalnız gizlenir — yayın kesilmez. */
-  const streamPlayer = curRace && ytId(st.streamUrl) && !streamHide && (
+  const streamPlayer = curRace && ytId(st.streamUrl) && (
     <div className={`floatstream ${streamCorner} ${streamMin ? "min" : ""}`}
       style={streamMin ? undefined : { width: streamW }}>
       <div className="fshead">
@@ -2993,8 +2992,6 @@ ${bottomBar}
             onClick={() => setStreamMin(!streamMin)}>{streamMin ? "▢" : "—"}</button>
           <a href={st.streamUrl} target="_blank" rel="noreferrer"
             title={t("YouTube'da aç")}>↗</a>
-          <button title={t("Gizle (yenileyene dek)")}
-            onClick={() => setStreamHide(true)}>✕</button>
         </span>
       </div>
       <div className="fsbody">
