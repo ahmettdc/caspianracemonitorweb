@@ -425,6 +425,7 @@ const EN = {
     "File too large (180 KB limit) — setup files are normally a few KB.",
   "Yüklenen setup tüm takım üyelerine görünür. Tarih otomatik kaydedilir.":
     "Uploaded setups are visible to the whole team. The date is recorded automatically.",
+  "Bu süzgeçle setup yok.": "No setups match this filter.",
   "Henüz setup yok — ilk dosyayı yukarıdan yükle.":
     "No setups yet — upload the first file above.",
   "🔧 Setup Havuzu": "🔧 Setup Library",
@@ -2855,6 +2856,7 @@ ${bottomBar}
     cond: "dry", sess: "R", champ: "", ver: "", note: "" });
   const [suErr, setSuErr] = useState("");
   const [suBusy, setSuBusy] = useState(false);
+  const [suOpen, setSuOpen] = useState(false);      // lobi setup penceresi
   const [suFTrack, setSuFTrack] = useState("");     // liste süzgeçleri
   const [suFCond, setSuFCond] = useState("");
   const [suFSess, setSuFSess] = useState("");
@@ -3137,6 +3139,67 @@ ${bottomBar}
       </div>
     );
   };
+
+  /* Lobi setup penceresi — indirme odaklı sade liste.
+     Yükleme/yönetim pit wall'daki Setup sekmesinde. */
+  const setupModal = suOpen && curTeam && (
+    <div className="wxmodal" onClick={() => setSuOpen(false)}>
+      <div className="wxmbox" style={{ width: "min(680px,96vw)" }}
+        onClick={(e) => e.stopPropagation()}>
+        <div className="wxmhead">
+          <span>🔧 {t("Setup Havuzu")} · {teamData?.meta?.name || ""}</span>
+          <button className="lbclose" onClick={() => setSuOpen(false)}>✕</button>
+        </div>
+        <div style={{ padding: "12px 16px", maxHeight: "64vh", overflowY: "auto" }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+            <select value={suFTrack} onChange={(e) => setSuFTrack(e.target.value)}>
+              <option value="">{t("Tüm pistler")}</option>
+              {TRACKS.filter((tr) => setups.some((x) => x.track === tr.id))
+                .map((tr) => <option key={tr.id} value={tr.id}>{tr.name}</option>)}
+            </select>
+            <select value={suFCond} onChange={(e) => setSuFCond(e.target.value)}>
+              <option value="">{t("Kuru + Wet")}</option>
+              <option value="dry">☀️ {t("Kuru")}</option>
+              <option value="wet">🌧 Wet</option>
+            </select>
+            <select value={suFSess} onChange={(e) => setSuFSess(e.target.value)}>
+              <option value="">{t("Yarış + Sıralama")}</option>
+              <option value="R">{t("Yarış")}</option>
+              <option value="Q">{t("Sıralama")}</option>
+            </select>
+          </div>
+          {!suList.length && (
+            <div className="hint">{t("Bu süzgeçle setup yok.")}</div>
+          )}
+          {suList.map((su) => (
+            <div key={su.id} style={{ display: "flex", alignItems: "center", gap: 10,
+              padding: "8px 10px", border: "1px solid var(--line)", borderRadius: 8,
+              marginBottom: 6, background: "var(--panel2)" }}>
+              {su.track && <img src={`${ASSET}flags/${TRACK_ASSET(su.track)}.png`} alt=""
+                style={{ width: 20, borderRadius: 2, flexShrink: 0 }}
+                onError={(e) => { e.currentTarget.style.display = "none"; }} />}
+              <span style={{ minWidth: 0, flex: 1 }}>
+                <b>{trackName(su.track) || su.track}</b>
+                {" · "}{su.cond === "wet" ? "🌧 Wet" : `☀️ ${t("Kuru")}`}
+                {" · "}{su.sess === "Q" ? t("Sıralama") : t("Yarış")}
+                {su.car && <> · {carName(su.cls, su.car)}</>}
+                <span className="hint" style={{ display: "block", margin: 0 }}>
+                  <span className="mono">{su.name}</span>
+                  {" · "}{new Date(su.at || 0).toLocaleDateString(
+                    lang === "en" ? "en-GB" : "tr-TR",
+                    { day: "2-digit", month: "2-digit", year: "2-digit" })}
+                  {su.uname && <> · {su.uname}</>}
+                  {su.note && <> · {su.note}</>}
+                </span>
+              </span>
+              <button className="act" style={{ fontSize: 11, flexShrink: 0 }}
+                onClick={() => downloadSetup(su)}>⬇ {t("İndir")}</button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 
   const chatModal = chatOpen && user && curChan && (
     <div className="wxmodal" onClick={() => setChatOpen(false)}>
@@ -4105,7 +4168,7 @@ ${bottomBar}
     return (
       <div className="rc">
         <style>{css}</style>
-        {teamModal}{raceForm}{versionModal}{chatModal}{tourOverlay}
+        {teamModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{setupModal}
         <div className="lobby">
           <div className="box" style={{ maxWidth: 560 }}>
             <div className="langsw" style={{ display: "flex", justifyContent: "flex-end",
@@ -4184,6 +4247,11 @@ ${bottomBar}
                     style={{ marginTop: 10, width: "100%" }}
                     onClick={() => setTeamOpen(true)}>
                     ⚙ {canEditTeam ? t("Takvimi & Takımı Yönet") : t("Takımı Görüntüle")}</button>
+          {setups.length > 0 && (
+            <button className="histbtn" onClick={() => setSuOpen(true)}
+              style={{ marginTop: 8, width: "100%" }}>
+              🔧 {t("Setup Havuzu")} · {setups.length}</button>
+          )}
           <button className="histbtn" data-tour="chat" onClick={() => setChatOpen(true)}
             style={{ marginTop: 8, width: "100%" }}>
             💬 {t("Sohbet")}{chatUnread > 0 && <> · {chatUnread}</>}</button>
@@ -4321,7 +4389,7 @@ ${bottomBar}
   return (
     <div className="rc">
       <style>{css}</style>
-      {teamModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{streamPlayer}
+      {teamModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{streamPlayer}{setupModal}
       {profOpen && user && (
         <div className="wxmodal" onClick={() => setProfOpen(false)}>
           <div className="wxmbox" style={{ width: "min(420px,94vw)" }}
