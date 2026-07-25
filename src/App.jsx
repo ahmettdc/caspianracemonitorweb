@@ -844,6 +844,7 @@ function TourOverlay({ steps, onClose, lang }) {
       setRect({ x: r.left - 8, y: r.top - 8, w: r.width + 16, h: r.height + 16 });
     };
     const t0 = setTimeout(measure, 340);            // sekme + scroll otursun
+    const t1 = setTimeout(measure, 800);            // sidebar animasyonu bitince tekrar
     const remeasure = () => {
       if (!el) return;
       const r = el.getBoundingClientRect();
@@ -851,7 +852,7 @@ function TourOverlay({ steps, onClose, lang }) {
     };
     window.addEventListener("resize", remeasure);
     window.addEventListener("scroll", remeasure, true);
-    return () => { clearTimeout(t0);
+    return () => { clearTimeout(t0); clearTimeout(t1);
       window.removeEventListener("resize", remeasure);
       window.removeEventListener("scroll", remeasure, true); };
   }, [idx, step]);
@@ -2941,9 +2942,11 @@ ${bottomBar}
   ] : [
     { title: t("Pit Wall'a hoş geldin"),
       body: t("Soldaki panel yarışın datası, sağı canlı plan. Kısaca gezelim — her şeyi değiştirdiğin anda takım arkadaşların da görür.") },
-    { sel: "[data-tour='data']", title: t("Yarış · Data"),
+    { sel: "[data-tour='data']", act: () => setSideOpen(true),
+      title: t("Yarış · Data"),
       body: t("Yarış süresi, ortalama tur, tüketim ve A/B/C/D stint stratejileri. Tüm plan bu değerlerden hesaplanır; telemetriden tek tıkla doldurabilirsin.") },
-    { sel: "[data-tour='wx']", title: t("Hava Durumu"),
+    { sel: "[data-tour='wx']", act: () => setSideOpen(true),
+      title: t("Hava Durumu"),
       body: t("Zemin değişince buradan işaretle — plan tur tur karma havayı hesaplar. İleri saatli planlı geçiş de ekleyebilirsin.") },
     { sel: "[data-tour='tabs']", title: t("Sekmeler"),
       body: t("Şimdi sekmeleri tek tek gezelim — rehber her birini senin için açacak.") },
