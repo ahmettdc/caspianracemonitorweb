@@ -5,6 +5,38 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4",
+    date: "2026-07-25",
+    tr: [
+      "🎓 İnteraktif rehber: ilk girişte kendiliğinden açılır, sekmeleri senin için açıp her bölümü tek tek anlatır (lobi 5, pit wall 20 adım). Lobide ve header'da Rehber düğmesi",
+      "💬 Sohbete bildirim sesi — klasik MSN mesaj tınısı; 🔔/🔕 ile aç-kapa, tercih hatırlanır",
+      "📺 Canlı yayın köşede yüzen mini oynatıcıya taşındı: dört köşeye taşınır, tutamaçla 240–1080px boyutlandırılır, küçültünce ses akmaya devam eder, sekme değişse de kesilmez",
+      "📋 Stint tablosuna stint başına 'Ort. Tur' sütunu — değer girilirse o stint o tempoyla hesaplanır, hava çarpanı süreye uygulanmaz (yakıtta korunur)",
+      "🛞 Tek lastik seçenekleri (FL/FR/RL/RR) — S1 start şeridinde ve pit hızlı atama menüsünde",
+      "📈 Telemetride %105 kuralı: en iyi turun %105'ini aşan turlar otomatik hariç tutulur; kartta sınır ve hariç sayısı görünür, %105 düğmesiyle yeniden uygulanır",
+      "Lobide yarışlar şampiyonaya göre gruplu, sezon süzgeci ve takım başlığı eklendi",
+      "Takım adı sonradan değiştirilebilir (Takımı Yönet → Takım Adı); üyelerde otomatik güncellenir",
+      "Rehber üst çubuğu da tanıtır: takım/sohbet düğmeleri ve rozetlerin yetki anlamları",
+      "EN dilinde büyük İ sorunu giderildi (STİNT → STINT) — belge dili arayüz diline bağlandı",
+      "Sekmelere ikonlar; üst çubuktan rol rozetleri kaldırıldı (yetki profil rozetlerinden belli)",
+      "Adminler birbirinin erişim iznini kaldıramaz; admin satırları 'korumalı' işaretli",
+    ],
+    en: [
+      "🎓 Interactive guide: opens on first visit, switches tabs for you and explains every section (5 lobby + 20 pit-wall steps). Guide button in the lobby and header",
+      "💬 Chat notification sound — the classic MSN message tone; toggle with 🔔/🔕, preference remembered",
+      "📺 Live stream moved to a floating mini player: dockable to any corner, resizable 240–1080px via the grip, keeps playing when minimised or when you switch tabs",
+      "📋 Per-stint 'Avg Lap' column in the stint table — enter a value and that stint uses that pace; no weather multiplier on time (kept for fuel)",
+      "🛞 Single-tyre options (FL/FR/RL/RR) on the S1 start strip and the pit quick-assign menu",
+      "📈 105% rule in telemetry: laps slower than 105% of the best are auto-excluded; the card shows the limit and count, re-apply with the %105 button",
+      "Lobby races grouped by championship, with a season filter and a team header",
+      "Team names can be renamed (Manage Team → Team Name); members update automatically",
+      "The guide also covers the top bar: team/chat buttons and what each badge permits",
+      "Fixed the Turkish capital-İ leak in English (STİNT → STINT) — document language now follows the UI language",
+      "Icons on every tab; role chips removed from the top bar (badges on your profile show permissions)",
+      "Admins can no longer revoke each other's access; admin rows are marked protected",
+    ],
+  },
+  {
     v: "v1.3",
     date: "2026-07-25",
     tr: [

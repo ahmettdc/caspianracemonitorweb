@@ -117,7 +117,7 @@ const DEFAULT_STATE = {
 const SLOT_COLORS = { A: "#40D68C", B: "#F0604D", C: "#F2A33C", D: "#6694FF" };
 
 /* ---------- pist & araç seçimi ---------- */
-const APP_VERSION = "v1.3";   // tek kaynak — sürüm yazısı buradan
+const APP_VERSION = "v1.4";   // tek kaynak — sürüm yazısı buradan
 const REPO_URL = "https://github.com/ahmettdc/caspianracemonitorweb";
 const SEEN_VER_KEY = "rm_seen_version";
 const ASSET = import.meta.env.BASE_URL + "assets/";
