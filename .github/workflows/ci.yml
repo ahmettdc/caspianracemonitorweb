@@ -1,0 +1,25 @@
+name: CI
+
+# Pull request'lerde ve main dışı push'larda lint + testleri çalıştırır.
+# main'e push GitHub Pages deploy'unu (deploy.yml) tetikler; orada da test koşar.
+
+on:
+  pull_request:
+  push:
+    branches-ignore: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
