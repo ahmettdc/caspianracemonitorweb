@@ -414,7 +414,7 @@ const EN = {
   "Dosya": "File", "Koşul": "Condition", "Seans": "Session", "Kuru": "Dry",
   "Sıralama": "Qualifying", "Şampiyona": "Championship", "LMU Sürümü": "LMU Version",
   "Not": "Note", "Sürüm": "Version", "Yükleyen": "By", "İndir": "Download",
-  "Takım": "Team", "Ortak": "Shared",
+  "Takım": "Team", "Ortak": "Shared", "Bu setup silinsin mi?": "Delete this setup?",
   "Tarih": "Date", "Sınıf": "Class", "Araç": "Car", "Yarış": "Race",
   "Takıma Yükle": "Upload to Team", "Yükleniyor…": "Uploading…",
   "Pist seçilmeli.": "Pick a track.", "Yüklenemedi:": "Upload failed:",
@@ -3203,7 +3203,9 @@ ${bottomBar}
                   onClick={() => downloadSetup(su)}>⬇ {t("İndir")}</button>
                 {(su.uid === user?.uid || isAdmin) && (
                   <button className="act danger" style={{ fontSize: 11, marginLeft: 4 }}
-                    onClick={() => deleteSetup(su.id).catch(() => {})}>✕</button>
+                    onClick={() => { if (window.confirm(
+                      t("Bu setup silinsin mi?") + "\n" + (su.name || "")))
+                      deleteSetup(su.id).catch(() => {}); }}>✕</button>
                 )}
               </td>
             </tr>
