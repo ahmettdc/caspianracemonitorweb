@@ -478,6 +478,14 @@ const EN = {
   "Yakıt sütunu litre (VE % için orana bölünür)":
     "Fuel column is in litres (divided by the ratio for VE %)",
   "Yarış·Data'da yakıt oranı girilmeli": "Set the fuel ratio in Race Data",
+  "Yetki": "Permission",
+  "Düzenleyebilir": "Can edit", "Sadece görür": "View only",
+  "Rozet yetkiyi belirler:": "Badges set permissions:",
+  "yarış datasını değiştirebilir, üyelere dokunamaz":
+    "can change race data, cannot manage members",
+  "her şeyi görür, hiçbir şeyi değiştiremez": "sees everything, changes nothing",
+  "rozetleri ve yetkileri yönetir": "manages badges and permissions",
+  "datayı değiştirebilir": "can edit data", "sadece görür": "view only",
   "medyan tur": "median lap", "ort.": "avg",
   "Ortalamayı uygula": "Apply the average instead",
   "Sütun eşleşmesini düzenle": "Edit column mapping",
@@ -2456,6 +2464,24 @@ ${bottomBar}
     setTeamMemberName(curTeam, user.uid, nm).catch(() => {});
   }, [curTeam, user, userName, teamData]);
 
+  /* Rozet yetkiyi belirler: 🎧 Mühendis → editor (datayı değiştirir),
+     🛞 Sürücü / rozetsiz → viewer (sadece görür). Takım sahibi her zaman owner.
+     Firebase kuralları rolü baz aldığı için rozet değişince rol de yazılır. */
+  const setBadge = async (uid, id, on) => {
+    if (!curTeam) return;
+    try {
+      await toggleTeamBadge(curTeam, uid, id, on);
+      const cur = teamData?.badges?.[uid];
+      const bs = typeof cur === "string" ? { [cur]: true } : { ...(cur || {}) };
+      bs[id] = on;
+      if (teamData?.members?.[uid] !== "owner") {
+        await setTeamRole(curTeam, uid, bs.engineer ? "editor" : "viewer");
+      }
+    } catch { /* izin yoksa sessiz geç */ }
+  };
+  const roleLabel = (r) => (r === "owner" ? "Takım Sahibi"
+    : r === "editor" ? "Düzenleyebilir" : "Sadece görür");
+
   /* Takımdaki pilotlar — rozetli olanlar önce, kadroda olmayanlar ayrı grupta */
   const teamDrivers = useMemo(() => {
     const names = teamData?.names || {};
@@ -2771,8 +2797,13 @@ ${bottomBar}
                 {/* üyeler */}
                 <div className="tmsec" style={{ marginTop: 16 }}>{t("Takım Üyeleri")}</div>
                 {canManageTeam && (
-                  <div className="hint" style={{ marginBottom: 6 }}>
-                    {t("Rozetleri atamak için üye satırındaki rozet düğmelerine bas.")}</div>
+                  <div className="hint" style={{ marginBottom: 6, lineHeight: 1.6 }}>
+                    {t("Rozet yetkiyi belirler:")}<br />
+                    🎧 {t("Yarış Mühendisi")} — {t("yarış datasını değiştirebilir, üyelere dokunamaz")}<br />
+                    <span style={{ verticalAlign: -2 }}><Wheel size={12} /></span> {t("Sürücü")}
+                    {" "}— {t("her şeyi görür, hiçbir şeyi değiştiremez")}<br />
+                    👑 {t("Takım Sahibi")} — {t("rozetleri ve yetkileri yönetir")}
+                  </div>
                 )}
                 {Object.entries(teamData.members || {}).map(([uid, role]) => {
                   const mbs = teamBadgesOf(teamData, uid, null);
@@ -2785,7 +2816,7 @@ ${bottomBar}
                             {b.ico}</span>
                         )) : <span className="ubadge" style={{ opacity: .25 }}>·</span>}
                       </span>
-                      <span className="mrole">{t(role)}</span>
+                      <span className="mrole" title={t("Yetki")}>{t(roleLabel(role))}</span>
                       <span className="muid">
                         {teamData?.names?.[uid]
                           ? <>{teamData.names[uid]}
@@ -2801,22 +2832,15 @@ ${bottomBar}
                             const b = BADGES[id];
                             return (
                               <button key={id} className={`btgl ${on ? "on" : ""}`}
-                                title={t(b.lbl)}
+                                title={`${t(b.lbl)} — ${t(id === "engineer"
+                                  ? "datayı değiştirebilir" : "sadece görür")}`}
                                 style={on ? { color: b.col, borderColor: b.col,
                                   background: b.bg } : undefined}
-                                onClick={() => toggleTeamBadge(curTeam, uid, id, !on)
-                                  .catch(() => {})}>
+                                onClick={() => setBadge(uid, id, !on)}>
                                 {b.ico}
                               </button>
                             );
                           })}
-                          {uid !== user.uid && role !== "owner" && (
-                            <button className="minibtn" style={{ width: "auto", padding: "0 8px" }}
-                              onClick={() => setTeamRole(curTeam, uid,
-                                role === "editor" ? "viewer" : "editor").catch(() => {})}>
-                              {role === "editor" ? t("İzleyici yap") : t("Düzenleyici yap")}
-                            </button>
-                          )}
                         </span>
                       )}
                     </div>
