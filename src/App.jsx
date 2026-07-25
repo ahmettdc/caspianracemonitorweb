@@ -853,9 +853,26 @@ const TYRE_4_SEC = 12; // 3-4 lastik değişim süresi (LMU, sabit)
    Yarış telsizi tarzı çift bip, WebAudio ile sentez — dosya yok, telif yok.
    Tarayıcı kuralı gereği ilk kullanıcı etkileşiminden önce çalmaz. */
 let _ac = null;
+let _sndFile;   // undefined: denenmedi | Audio: var | null: yok
+/* Önce assets/sounds/chat.mp3 denenir (kullanıcı kendi sesini koyabilir),
+   dosya yoksa MSN tarzı sentez tona düşülür. */
+function chatBeep() {
+  if (_sndFile !== null) {
+    if (_sndFile === undefined) {
+      _sndFile = new Audio(import.meta.env.BASE_URL + "assets/sounds/chat.mp3");
+      _sndFile.volume = 0.6;
+      _sndFile.addEventListener("error", () => { _sndFile = null; chatBeepSynth(); });
+    }
+    _sndFile.currentTime = 0;
+    const pr = _sndFile.play();
+    if (pr) pr.catch(() => { if (_sndFile && _sndFile.error) { _sndFile = null; chatBeepSynth(); } });
+    return;
+  }
+  chatBeepSynth();
+}
 /* MSN tarzı "yeni mesaj" tınısı: aşağı inen iki yumuşak nota (B5 → E5),
    marimba hissi için temel + hafif 3. harmonik, uzun sönüm. */
-function chatBeep() {
+function chatBeepSynth() {
   try {
     _ac = _ac || new (window.AudioContext || window.webkitAudioContext)();
     if (_ac.state === "suspended") _ac.resume();
