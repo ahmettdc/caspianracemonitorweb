@@ -4687,6 +4687,26 @@ ${bottomBar}
                   data-tour="pdf">🖨 PDF</button>
             </div>
             <div className="dgrid">
+              {ytId(st.streamUrl) && (
+                <div className="card">
+                  <h2 style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                    📺 {t("Canlı Yayın")}
+                    <a href={st.streamUrl} target="_blank" rel="noreferrer"
+                      style={{ marginLeft: "auto", fontSize: 12, color: "var(--teal)",
+                        textDecoration: "none" }}>↗</a>
+                  </h2>
+                  <div style={{ position: "relative", width: "100%",
+                    aspectRatio: "16 / 9", marginTop: 8,
+                    borderRadius: 8, overflow: "hidden", background: "#000" }}>
+                    <iframe title="stream"
+                      src={`https://www.youtube.com/embed/${ytId(st.streamUrl)}`}
+                      style={{ position: "absolute", inset: 0, width: "100%", height: "100%",
+                        border: 0 }}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen />
+                  </div>
+                </div>
+              )}
               {st.car && (
                 <div className="card infocard clickable" onClick={() => setZoom("car")}
                   title={t("Büyütmek için tıkla")}>
@@ -4881,27 +4901,6 @@ ${bottomBar}
                 </>)}
               </div>
             </div>
-
-            {ytId(st.streamUrl) && (
-              <div className="card" style={{ marginTop: 16 }}>
-                <h2 style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                  📺 {t("Canlı Yayın")}
-                  <a href={st.streamUrl} target="_blank" rel="noreferrer"
-                    style={{ marginLeft: "auto", fontSize: 12, color: "var(--teal)",
-                      textDecoration: "none" }}>{t("YouTube'da aç")} ↗</a>
-                </h2>
-                <div style={{ position: "relative", width: 360, maxWidth: "100%",
-                  aspectRatio: "16 / 9",
-                  borderRadius: 8, overflow: "hidden", background: "#000" }}>
-                  <iframe title="stream"
-                    src={`https://www.youtube.com/embed/${ytId(st.streamUrl)}`}
-                    style={{ position: "absolute", inset: 0, width: "100%", height: "100%",
-                      border: 0 }}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    allowFullScreen />
-                </div>
-              </div>
-            )}
           </>)}
 
           {tab === "tyre" && (
