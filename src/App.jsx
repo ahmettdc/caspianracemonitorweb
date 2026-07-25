@@ -395,6 +395,7 @@ const EN = {
   "Dry": "Dry", "Damp": "Damp", "Slightly Wet": "Slightly Wet", "Wet": "Wet",
   "Canlı Yayın": "Live Stream", "YouTube linki": "YouTube link",
   "Köşeye taşı": "Move to corner", "Küçült": "Minimise", "Büyüt": "Expand",
+  "Boyutlandırmak için sürükle": "Drag to resize",
   "Gizle (yenileyene dek)": "Hide (until refresh)",
   "Yayın köşedeki mini oynatıcıda gösteriliyor.":
     "The stream shows in the corner mini player.",
@@ -1477,6 +1478,10 @@ const css = `
 .rc .floatstream.tl{left:16px;top:110px}
 .rc .floatstream .fshead{display:flex;align-items:center;gap:6px;
   padding:5px 8px;background:var(--panel2);border-bottom:1px solid var(--line)}
+.rc .floatstream .fsgrip{cursor:nwse-resize;color:var(--dim);font-size:12px;
+  padding:0 2px;user-select:none;touch-action:none}
+.rc .floatstream .fsgrip:hover{color:var(--teal)}
+.rc .floatstream .fsshield{position:absolute;inset:0;z-index:2}
 .rc .floatstream .fstitle{font-size:10.5px;letter-spacing:.1em;color:var(--muted);
   font-family:"Chakra Petch",sans-serif;margin-right:auto}
 .rc .floatstream .fsbtns{display:flex;gap:2px;align-items:center}
@@ -2753,6 +2758,38 @@ ${bottomBar}
   });                                                 // br | bl | tr | tl
   const [streamMin, setStreamMin] = useState(false);  // tek satıra küçült
   const [streamHide, setStreamHide] = useState(false); // bu oturumda tamamen gizle
+  const [streamW, setStreamW] = useState(() => {
+    try { return Math.min(720, Math.max(240,
+      +(localStorage.getItem("rm_stream_w") || 320))); } catch { return 320; }
+  });
+  const [streamDrag, setStreamDrag] = useState(false);
+  const dragRef = useRef(null);   // { startX, startW, dir }
+
+  /* tutamaçtan sürükleyerek boyutlandır — yükseklik 16:9'dan kendiliğinden gelir */
+  const startResize = (e) => {
+    e.preventDefault();
+    const dir = streamCorner === "br" || streamCorner === "tr" ? -1 : 1;
+    dragRef.current = { startX: e.clientX, startW: streamW, dir };
+    setStreamDrag(true);
+    const move = (ev) => {
+      const d = dragRef.current; if (!d) return;
+      const w = d.startW + (ev.clientX - d.startX) * d.dir;
+      setStreamW(Math.min(Math.min(720, window.innerWidth - 32), Math.max(240, w)));
+    };
+    const upFn = () => {
+      dragRef.current = null;
+      setStreamDrag(false);
+      setStreamW((w) => {
+        try { localStorage.setItem("rm_stream_w", String(Math.round(w))); }
+        catch { /* yoksay */ }
+        return w;
+      });
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", upFn);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", upFn);
+  };
   const moveStream = (c) => {
     setStreamCorner(c);
     try { localStorage.setItem("rm_stream_corner", c); } catch { /* yoksay */ }
@@ -2941,8 +2978,11 @@ ${bottomBar}
   /* Mini oynatıcı: sekmeden bağımsız, köşede sabit. iframe hep aynı ağaçta kalır,
      küçültünce yalnız gizlenir — yayın kesilmez. */
   const streamPlayer = curRace && ytId(st.streamUrl) && !streamHide && (
-    <div className={`floatstream ${streamCorner} ${streamMin ? "min" : ""}`}>
+    <div className={`floatstream ${streamCorner} ${streamMin ? "min" : ""}`}
+      style={streamMin ? undefined : { width: streamW }}>
       <div className="fshead">
+        <span className="fsgrip" title={t("Boyutlandırmak için sürükle")}
+          onPointerDown={startResize}>⤡</span>
         <span className="fstitle">📺 {t("Canlı Yayın")}</span>
         <span className="fsbtns">
           {[["tl", "◤"], ["tr", "◥"], ["bl", "◣"], ["br", "◢"]].map(([c, ch]) => (
@@ -2958,6 +2998,7 @@ ${bottomBar}
         </span>
       </div>
       <div className="fsbody">
+        {streamDrag && <div className="fsshield" />}
         <iframe title="stream"
           src={`https://www.youtube.com/embed/${ytId(st.streamUrl)}`}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
