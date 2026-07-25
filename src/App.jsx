@@ -394,6 +394,12 @@ const EN = {
   "Tur override aktif — önce onu temizle": "Lap override active — clear it first", "Hava Geçmişi": "Weather History", "Tümünü Sıfırla": "Reset All", "Sil": "Delete",
   "Dry": "Dry", "Damp": "Damp", "Slightly Wet": "Slightly Wet", "Wet": "Wet",
   "Canlı Yayın": "Live Stream", "YouTube linki": "YouTube link",
+  "Köşeye taşı": "Move to corner", "Küçült": "Minimise", "Büyüt": "Expand",
+  "Gizle (yenileyene dek)": "Hide (until refresh)",
+  "Yayın köşedeki mini oynatıcıda gösteriliyor.":
+    "The stream shows in the corner mini player.",
+  "Geçerli bir YouTube linki yapıştırın; köşede mini oynatıcı açılır.":
+    "Paste a valid YouTube link; a mini player opens in the corner.",
   "Yayın Dashboard'da gösteriliyor.": "Stream is shown on the Dashboard.",
   "Geçerli bir YouTube linki yapıştırın; Dashboard'da oynatıcı açılır.": "Paste a valid YouTube link; a player opens on the Dashboard.",
   "YouTube'da aç": "Open on YouTube",
@@ -1462,6 +1468,27 @@ const css = `
 .rc .lseason{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
   color:var(--dim);margin:10px 0 4px 2px;display:flex;align-items:center;gap:8px}
 .rc .lseason::after{content:"";flex:1;height:1px;background:var(--line)}
+.rc .floatstream{position:fixed;z-index:900;width:320px;background:var(--panel);
+  border:1px solid var(--line);border-radius:10px;overflow:hidden;
+  box-shadow:0 10px 34px rgba(0,0,0,.55)}
+.rc .floatstream.br{right:16px;bottom:16px}
+.rc .floatstream.bl{left:16px;bottom:16px}
+.rc .floatstream.tr{right:16px;top:110px}
+.rc .floatstream.tl{left:16px;top:110px}
+.rc .floatstream .fshead{display:flex;align-items:center;gap:6px;
+  padding:5px 8px;background:var(--panel2);border-bottom:1px solid var(--line)}
+.rc .floatstream .fstitle{font-size:10.5px;letter-spacing:.1em;color:var(--muted);
+  font-family:"Chakra Petch",sans-serif;margin-right:auto}
+.rc .floatstream .fsbtns{display:flex;gap:2px;align-items:center}
+.rc .floatstream .fsbtns button,.rc .floatstream .fsbtns a{background:none;border:0;
+  color:var(--dim);cursor:pointer;font-size:11px;padding:1px 4px;line-height:1;
+  text-decoration:none}
+.rc .floatstream .fsbtns button:hover,.rc .floatstream .fsbtns a:hover{color:var(--teal)}
+.rc .floatstream .fsbtns button.on{color:var(--red)}
+.rc .floatstream .fsbody{aspect-ratio:16/9;background:#000;position:relative}
+.rc .floatstream .fsbody iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.rc .floatstream.min{width:210px}
+.rc .floatstream.min .fsbody{display:none}
 .rc .tourbtn{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;
   border-radius:6px;border:1px solid var(--line);background:var(--panel2);
   color:var(--muted);font-size:11.5px;cursor:pointer;transition:.15s;
@@ -2720,6 +2747,17 @@ ${bottomBar}
   const seenTour = (k) => { try { return localStorage.getItem(k) === "1"; } catch { return true; } };
   const markTour = (k) => { try { localStorage.setItem(k, "1"); } catch { /* yoksay */ } };
 
+  /* ---- yüzen mini oynatıcı ---- */
+  const [streamCorner, setStreamCorner] = useState(() => {
+    try { return localStorage.getItem("rm_stream_corner") || "br"; } catch { return "br"; }
+  });                                                 // br | bl | tr | tl
+  const [streamMin, setStreamMin] = useState(false);  // tek satıra küçült
+  const [streamHide, setStreamHide] = useState(false); // bu oturumda tamamen gizle
+  const moveStream = (c) => {
+    setStreamCorner(c);
+    try { localStorage.setItem("rm_stream_corner", c); } catch { /* yoksay */ }
+  };
+
   const [lobSeason, setLobSeason] = useState("all"); // lobide şampiyona süzgeci
   const [tnEdit, setTnEdit] = useState(null);        // takım adı düzenleme metni
   const [chatOpen, setChatOpen] = useState(false);
@@ -2896,6 +2934,34 @@ ${bottomBar}
           })}
         </div>
         {chatBody(curChan)}
+      </div>
+    </div>
+  );
+
+  /* Mini oynatıcı: sekmeden bağımsız, köşede sabit. iframe hep aynı ağaçta kalır,
+     küçültünce yalnız gizlenir — yayın kesilmez. */
+  const streamPlayer = curRace && ytId(st.streamUrl) && !streamHide && (
+    <div className={`floatstream ${streamCorner} ${streamMin ? "min" : ""}`}>
+      <div className="fshead">
+        <span className="fstitle">📺 {t("Canlı Yayın")}</span>
+        <span className="fsbtns">
+          {[["tl", "◤"], ["tr", "◥"], ["bl", "◣"], ["br", "◢"]].map(([c, ch]) => (
+            <button key={c} className={streamCorner === c ? "on" : ""}
+              title={t("Köşeye taşı")} onClick={() => moveStream(c)}>{ch}</button>
+          ))}
+          <button title={streamMin ? t("Büyüt") : t("Küçült")}
+            onClick={() => setStreamMin(!streamMin)}>{streamMin ? "▢" : "—"}</button>
+          <a href={st.streamUrl} target="_blank" rel="noreferrer"
+            title={t("YouTube'da aç")}>↗</a>
+          <button title={t("Gizle (yenileyene dek)")}
+            onClick={() => setStreamHide(true)}>✕</button>
+        </span>
+      </div>
+      <div className="fsbody">
+        <iframe title="stream"
+          src={`https://www.youtube.com/embed/${ytId(st.streamUrl)}`}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen />
       </div>
     </div>
   );
@@ -3639,8 +3705,8 @@ ${bottomBar}
         onChange={(e) => up({ streamUrl: e.target.value })} />
       <div className="hint">
         {ytId(st.streamUrl)
-          ? <>✅ {t("Yayın Dashboard'da gösteriliyor.")}</>
-          : t("Geçerli bir YouTube linki yapıştırın; Dashboard'da oynatıcı açılır.")}
+          ? <>✅ {t("Yayın köşedeki mini oynatıcıda gösteriliyor.")}</>
+          : t("Geçerli bir YouTube linki yapıştırın; köşede mini oynatıcı açılır.")}
       </div>
     </div>
   </>);
@@ -4010,7 +4076,7 @@ ${bottomBar}
   return (
     <div className="rc">
       <style>{css}</style>
-      {teamModal}{raceForm}{versionModal}{chatModal}{tourOverlay}
+      {teamModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{streamPlayer}
       {profOpen && user && (
         <div className="wxmodal" onClick={() => setProfOpen(false)}>
           <div className="wxmbox" style={{ width: "min(420px,94vw)" }}
@@ -4687,26 +4753,6 @@ ${bottomBar}
                   data-tour="pdf">🖨 PDF</button>
             </div>
             <div className="dgrid">
-              {ytId(st.streamUrl) && (
-                <div className="card">
-                  <h2 style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                    📺 {t("Canlı Yayın")}
-                    <a href={st.streamUrl} target="_blank" rel="noreferrer"
-                      style={{ marginLeft: "auto", fontSize: 12, color: "var(--teal)",
-                        textDecoration: "none" }}>↗</a>
-                  </h2>
-                  <div style={{ position: "relative", width: "100%",
-                    aspectRatio: "16 / 9", marginTop: 8,
-                    borderRadius: 8, overflow: "hidden", background: "#000" }}>
-                    <iframe title="stream"
-                      src={`https://www.youtube.com/embed/${ytId(st.streamUrl)}`}
-                      style={{ position: "absolute", inset: 0, width: "100%", height: "100%",
-                        border: 0 }}
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      allowFullScreen />
-                  </div>
-                </div>
-              )}
               {st.car && (
                 <div className="card infocard clickable" onClick={() => setZoom("car")}
                   title={t("Büyütmek için tıkla")}>
