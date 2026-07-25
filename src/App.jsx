@@ -1,9 +1,10 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, Fragment } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ResponsiveContainer } from "recharts";
 import { firebaseReady, touchUserProfile, watchUserDoc,
   requestAccess, watchAllUsers, setUserAllowed, updateProfile,
   createTeam, joinTeam, watchMyTeams, watchTeam,
   setTeamRole, toggleTeamBadge, leaveTeam, setTeamMemberName,
+  sendChat, watchChat, deleteChat,
   createSeason, deleteSeason, watchSeasons,
   createRace, updateRace, deleteRace, watchRaces,
   raceStateGet, raceStateSet, raceStateSubscribe } from "./storage";
@@ -478,6 +479,9 @@ const EN = {
   "Yakıt sütunu litre (VE % için orana bölünür)":
     "Fuel column is in litres (divided by the ratio for VE %)",
   "Yarış·Data'da yakıt oranı girilmeli": "Set the fuel ratio in Race Data",
+  "Sohbet": "Chat", "Takım Sohbeti": "Team Chat",
+  "Mesaj yaz…": "Write a message…", "Gönder": "Send",
+  "Henüz mesaj yok — ilk yazan sen ol.": "No messages yet — be the first.",
   "Yetki": "Permission",
   "Düzenleyebilir": "Can edit", "Sadece görür": "View only",
   "Rozet yetkiyi belirler:": "Badges set permissions:",
@@ -1275,6 +1279,26 @@ const css = `
   filter:drop-shadow(0 4px 8px rgba(0,0,0,.45))}
 .rc .cargrid button.on{border-color:var(--teal);background:rgba(150,0,24,.20);
   color:var(--txt);font-weight:600}
+.rc .chatwrap{display:flex;flex-direction:column;height:min(62vh,460px)}
+.rc .chatlist{flex:1;overflow-y:auto;padding:10px 14px;display:flex;
+  flex-direction:column;gap:9px}
+.rc .cmsg{max-width:78%;align-self:flex-start}
+.rc .cmsg.me{align-self:flex-end}
+.rc .cmsg .who{font-size:10.5px;color:var(--dim);margin:0 0 2px 2px;
+  display:flex;gap:6px;align-items:center}
+.rc .cmsg.me .who{justify-content:flex-end;margin:0 2px 2px 0}
+.rc .cmsg .bub{background:var(--panel2);border:1px solid var(--line);
+  border-radius:12px;padding:7px 11px;font-size:13px;line-height:1.45;
+  white-space:pre-wrap;word-break:break-word}
+.rc .cmsg.me .bub{background:rgba(150,0,24,.22);border-color:rgba(150,0,24,.55)}
+.rc .cmsg .del{background:none;border:0;color:var(--dim);cursor:pointer;
+  font-size:10px;padding:0 2px;opacity:0;transition:.15s}
+.rc .cmsg:hover .del{opacity:1}
+.rc .cmsg .del:hover{color:var(--red)}
+.rc .chatbar{display:flex;gap:8px;padding:10px 14px;border-top:1px solid var(--line)}
+.rc .chatbar input{flex:1;margin:0;text-transform:none;letter-spacing:0}
+.rc .chatday{align-self:center;font-size:10px;color:var(--dim);
+  border:1px solid var(--line);border-radius:10px;padding:1px 9px}
 .rc .infobtn{position:relative;width:26px;height:26px;flex:0 0 26px;padding:0;
   border-radius:50%;border:1px solid var(--line);background:var(--panel2);
   color:var(--muted);font:700 14px/1 Georgia,serif;cursor:pointer;
@@ -2450,6 +2474,15 @@ ${bottomBar}
     const o3 = watchRaces(curTeam, (x) => setRaces(x || {}));
     return () => { o1(); o2(); o3(); };
   }, [curTeam]);
+  /* ---- takım sohbeti ---- */
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMsgs, setChatMsgs] = useState([]);
+  const [chatText, setChatText] = useState("");
+  const [chatSeen, setChatSeen] = useState(() => {
+    try { return +(localStorage.getItem("rm_chat_seen") || 0); } catch { return 0; }
+  });
+  const chatEndRef = useRef(null);
+
   const myRole = teamData?.members?.[user?.uid] || "";
   const canEditTeam = myRole === "owner" || myRole === "editor";
   /* rozet/rol yönetimi: takım sahibi veya site admini */
@@ -2468,6 +2501,96 @@ ${bottomBar}
   /* Rozet yetkiyi belirler: 🎧 Mühendis → editor (datayı değiştirir),
      🛞 Sürücü / rozetsiz → viewer (sadece görür). Takım sahibi her zaman owner.
      Firebase kuralları rolü baz aldığı için rozet değişince rol de yazılır. */
+  /* sohbeti dinle — takımın her üyesi, rolü ne olursa olsun yazabilir */
+  useEffect(() => {
+    if (!curTeam || !user) { setChatMsgs([]); return; }
+    return watchChat(curTeam, setChatMsgs);
+  }, [curTeam, user]);
+
+  const chatUnread = chatMsgs.filter(
+    (m) => (m.at || 0) > chatSeen && m.uid !== user?.uid).length;
+
+  const markChatSeen = () => {
+    const last = chatMsgs.length ? (chatMsgs[chatMsgs.length - 1].at || 0) : Date.now();
+    setChatSeen(last);
+    try { localStorage.setItem("rm_chat_seen", String(last)); } catch { /* yoksay */ }
+  };
+  useEffect(() => {
+    if (!chatOpen) return;
+    markChatSeen();
+    chatEndRef.current?.scrollIntoView({ block: "end" });
+  }, [chatOpen, chatMsgs]);
+
+  const doSend = async () => {
+    const v = chatText.trim();
+    if (!v || !curTeam) return;
+    setChatText("");
+    try { await sendChat(curTeam, user, userName, v); }
+    catch (e) { console.warn("mesaj gönderilemedi:", e?.message); }
+  };
+
+  const chatModal = chatOpen && curTeam && (
+    <div className="wxmodal" onClick={() => setChatOpen(false)}>
+      <div className="wxmbox" style={{ width: "min(560px,94vw)" }}
+        onClick={(e) => e.stopPropagation()}>
+        <div className="wxmhead">
+          <span>💬 {teamData?.meta?.name || t("Takım Sohbeti")}</span>
+          <button className="lbclose" onClick={() => setChatOpen(false)}>✕</button>
+        </div>
+        <div className="chatwrap">
+          <div className="chatlist">
+            {!chatMsgs.length && (
+              <div className="hint" style={{ margin: "auto", textAlign: "center" }}>
+                {t("Henüz mesaj yok — ilk yazan sen ol.")}</div>
+            )}
+            {chatMsgs.map((m, i) => {
+              const me = m.uid === user?.uid;
+              const prev = chatMsgs[i - 1];
+              const newDay = !prev || new Date(prev.at || 0).toDateString()
+                !== new Date(m.at || 0).toDateString();
+              return (
+                <Fragment key={m.id}>
+                  {newDay && <div className="chatday">
+                    {new Date(m.at || 0).toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR",
+                      { day: "2-digit", month: "long" })}</div>}
+                  <div className={`cmsg ${me ? "me" : ""}`}>
+                    <div className="who">
+                      {!me && <b>{teamData?.names?.[m.uid] || m.name || t("isimsiz")}</b>}
+                      <span>{fmtClock(m.at || 0)}</span>
+                      {(me || canManageTeam) && (
+                        <button className="del" title={t("Sil")}
+                          onClick={() => deleteChat(curTeam, m.id).catch(() => {})}>✕</button>
+                      )}
+                    </div>
+                    <div className="bub">{m.text}</div>
+                  </div>
+                </Fragment>
+              );
+            })}
+            <div ref={chatEndRef} />
+          </div>
+          <div className="chatbar">
+            <input type="text" value={chatText} maxLength={500}
+              placeholder={t("Mesaj yaz…")}
+              onChange={(e) => setChatText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); doSend(); } }} />
+            <button className="gbtn ubtn" disabled={!chatText.trim()}
+              style={{ opacity: chatText.trim() ? 1 : .45 }}
+              onClick={doSend}>{t("Gönder")}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const chatBtn = curTeam && (
+    <button className="adminbtn" onClick={() => setChatOpen(true)}
+      title={t("Takım Sohbeti")}>
+      💬 {t("Sohbet")}
+      {chatUnread > 0 && <b className="badge">{chatUnread > 99 ? "99+" : chatUnread}</b>}
+    </button>
+  );
+
   const wantRole = (uid) => (hasBadge(teamData, uid, "engineer") ? "editor" : "viewer");
   const setBadge = async (uid, id, on) => {
     if (!curTeam) return;
@@ -3201,7 +3324,7 @@ ${bottomBar}
     return (
       <div className="rc">
         <style>{css}</style>
-        {teamModal}{raceForm}{versionModal}
+        {teamModal}{raceForm}{versionModal}{chatModal}
         <div className="lobby">
           <div className="box" style={{ maxWidth: 560 }}>
             <div className="langsw" style={{ display: "flex", justifyContent: "flex-end",
@@ -3249,6 +3372,12 @@ ${bottomBar}
                   <button className="histbtn" style={{ marginTop: 10, width: "100%" }}
                     onClick={() => setTeamOpen(true)}>
                     ⚙ {canEditTeam ? t("Takvimi & Takımı Yönet") : t("Takımı Görüntüle")}</button>
+          {curTeam && (
+            <button className="histbtn" onClick={() => setChatOpen(true)}
+              style={{ marginTop: 8, width: "100%" }}>
+              💬 {t("Takım Sohbeti")}
+              {chatUnread > 0 && <> · {chatUnread}</>}</button>
+          )}
                 </div>
               </>)}
 
@@ -3383,7 +3512,7 @@ ${bottomBar}
   return (
     <div className="rc">
       <style>{css}</style>
-      {teamModal}{raceForm}{versionModal}
+      {teamModal}{raceForm}{versionModal}{chatModal}
       {profOpen && user && (
         <div className="wxmodal" onClick={() => setProfOpen(false)}>
           <div className="wxmbox" style={{ width: "min(420px,94vw)" }}
@@ -3571,6 +3700,7 @@ ${bottomBar}
             🏢 {teamData?.meta?.name || t("Takımlar")}
           </button>
         )}
+        {chatBtn}
         {isAdmin && (
           <button className="adminbtn" onClick={() => setAdminOpen(true)}
             title={t("Kullanıcı yönetimi")}>

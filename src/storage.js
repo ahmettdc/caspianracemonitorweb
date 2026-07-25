@@ -5,7 +5,8 @@
    Bonus: 3sn polling yerine onValue ile anlık senkronizasyon.
    ============================================================ */
 import { initializeApp } from "firebase/app";
-import { getDatabase, ref, get, set, update, remove, onValue } from "firebase/database";
+import { getDatabase, ref, get, set, update, remove, onValue,
+  push, query, limitToLast } from "firebase/database";
 import { firebaseConfig } from "./firebase-config";
 
 export const firebaseReady =
@@ -178,6 +179,36 @@ export function watchTeam(tid, cb) {
 
 
 
+
+/* ---------- takım sohbeti ---------- */
+export async function sendChat(tid, user, name, text) {
+  if (!db || !tid || !user) return;
+  const msg = String(text || "").trim().slice(0, 500);
+  if (!msg) return;
+  await push(ref(db, `teams/${tid}/chat`), {
+    uid: user.uid,
+    name: String(name || user.displayName || "").slice(0, 60),
+    text: msg,
+    at: Date.now(),
+  });
+}
+
+/* Son N mesajı dinler (varsayılan 200) */
+export function watchChat(tid, cb, n = 200) {
+  if (!db || !tid) { cb([]); return () => {}; }
+  const q = query(ref(db, `teams/${tid}/chat`), limitToLast(n));
+  return onValue(q, (snap) => {
+    const v = snap.val() || {};
+    cb(Object.entries(v)
+      .map(([id, m]) => ({ id, ...m }))
+      .sort((a, b) => (a.at || 0) - (b.at || 0)));
+  }, () => cb([]));
+}
+
+export async function deleteChat(tid, id) {
+  if (!db || !tid || !id) return;
+  await remove(ref(db, `teams/${tid}/chat/${id}`));
+}
 
 /* Uye kendi gorunen adini takim dugumune yazar (pilot listesi icin) */
 export async function setTeamMemberName(tid, uid, name) {
