@@ -414,6 +414,7 @@ const EN = {
   "Dosya": "File", "Koşul": "Condition", "Seans": "Session", "Kuru": "Dry",
   "Sıralama": "Qualifying", "Şampiyona": "Championship", "LMU Sürümü": "LMU Version",
   "Not": "Note", "Sürüm": "Version", "Yükleyen": "By", "İndir": "Download",
+  "Takım": "Team", "Ortak": "Shared",
   "Tarih": "Date", "Sınıf": "Class", "Araç": "Car", "Yarış": "Race",
   "Takıma Yükle": "Upload to Team", "Yükleniyor…": "Uploading…",
   "Pist seçilmeli.": "Pick a track.", "Yüklenemedi:": "Upload failed:",
@@ -2862,9 +2863,9 @@ ${bottomBar}
   const [suFSess, setSuFSess] = useState("");
 
   useEffect(() => {
-    if (!curTeam || !user) { setSetups([]); return; }
-    return watchSetups(curTeam, setSetups);
-  }, [curTeam, user]);
+    if (!user || !udoc?.allowed) { setSetups([]); return undefined; }
+    return watchSetups(setSetups);
+  }, [user, udoc]);
 
   const onSetupFile = (e) => {
     const f = e.target.files?.[0];
@@ -2888,9 +2889,10 @@ ${bottomBar}
     if (!suMeta.track) { setSuErr(t("Pist seçilmeli.")); return; }
     setSuBusy(true);
     try {
-      await addSetup(curTeam, user, {
+      await addSetup(user, {
         name: suFile.name, size: suFile.size,
         uname: userName || user.displayName || "",
+        team: teamData?.meta?.name || "",
         track: suMeta.track, cls: suMeta.cls, car: suMeta.car,
         cond: suMeta.cond, sess: suMeta.sess,
         champ: suMeta.champ.trim().slice(0, 40),
@@ -3150,7 +3152,7 @@ ${bottomBar}
           <th>{t("Tarih")}</th><th>{t("Pist")}</th><th>{t("Koşul")}</th>
           <th>{t("Seans")}</th><th>{t("Sınıf")}</th><th>{t("Araç")}</th>
           <th>{t("Şampiyona")}</th><th>{t("Sürüm")}</th>
-          <th>{t("Dosya")}</th><th>{t("Yükleyen")}</th><th></th>
+          <th>{t("Dosya")}</th><th>{t("Takım")}</th><th>{t("Yükleyen")}</th><th></th>
         </tr></thead>
         <tbody>
           {rows.map((su) => (
@@ -3194,13 +3196,14 @@ ${bottomBar}
                 <span className="mono" style={{ fontSize: 11 }}>{su.name}</span>
                 {su.note && <span className="hint" style={{ display: "block",
                   margin: 0 }}>{su.note}</span>}</td>
+              <td>{su.team || "—"}</td>
               <td>{su.uname || "—"}</td>
               <td style={{ whiteSpace: "nowrap" }}>
                 <button className="act" style={{ fontSize: 11 }}
                   onClick={() => downloadSetup(su)}>⬇ {t("İndir")}</button>
-                {(su.uid === user?.uid || canManageTeam) && (
+                {(su.uid === user?.uid || isAdmin) && (
                   <button className="act danger" style={{ fontSize: 11, marginLeft: 4 }}
-                    onClick={() => deleteSetup(curTeam, su.id).catch(() => {})}>✕</button>
+                    onClick={() => deleteSetup(su.id).catch(() => {})}>✕</button>
                 )}
               </td>
             </tr>
@@ -3210,12 +3213,12 @@ ${bottomBar}
     </div>
   );
 
-  const setupModal = suOpen && curTeam && (
+  const setupModal = suOpen && (
     <div className="wxmodal" onClick={() => setSuOpen(false)}>
       <div className="wxmbox" style={{ width: "min(1080px,97vw)" }}
         onClick={(e) => e.stopPropagation()}>
         <div className="wxmhead">
-          <span>🔧 {t("Setup Havuzu")} · {teamData?.meta?.name || ""} ({suList.length}/{setups.length})</span>
+          <span>🔧 {t("Setup Havuzu")} · {t("Ortak")} ({suList.length}/{setups.length})</span>
           <button className="lbclose" onClick={() => setSuOpen(false)}>✕</button>
         </div>
         <div style={{ padding: "12px 16px", maxHeight: "70vh", overflowY: "auto" }}>

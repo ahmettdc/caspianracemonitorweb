@@ -197,9 +197,11 @@ export async function syncMyTeamName(uid, tid, name) {
 /* ---------- setup deposu ----------
    Dosya base64 olarak RTDB'ye gömülür (LMU setup dosyaları küçüktür).
    Ham dosya sınırı ~180KB → base64 ~240KB. */
-export async function addSetup(tid, user, meta, b64) {
-  if (!db || !tid || !user || !b64) return;
-  await push(ref(db, `teams/${tid}/setups`), {
+/* Ortak (global) setup havuzu — tüm onaylı kullanıcılar okur/yükler.
+   Kim yükledi bilgisi için team adı da meta içinde saklanır. */
+export async function addSetup(user, meta, b64) {
+  if (!db || !user || !b64) return;
+  await push(ref(db, "globalSetups"), {
     ...meta,
     data: b64,
     uid: user.uid,
@@ -207,9 +209,9 @@ export async function addSetup(tid, user, meta, b64) {
   });
 }
 
-export function watchSetups(tid, cb) {
-  if (!db || !tid) { cb([]); return () => {}; }
-  return onValue(ref(db, `teams/${tid}/setups`), (snap) => {
+export function watchSetups(cb) {
+  if (!db) { cb([]); return () => {}; }
+  return onValue(ref(db, "globalSetups"), (snap) => {
     const v = snap.val() || {};
     cb(Object.entries(v)
       .map(([id, x]) => ({ id, ...x }))
@@ -217,9 +219,9 @@ export function watchSetups(tid, cb) {
   }, () => cb([]));
 }
 
-export async function deleteSetup(tid, id) {
-  if (!db || !tid || !id) return;
-  await remove(ref(db, `teams/${tid}/setups/${id}`));
+export async function deleteSetup(id) {
+  if (!db || !id) return;
+  await remove(ref(db, `globalSetups/${id}`));
 }
 
 /* ---------- sohbet: kanal yolu ile çalışır ----------
