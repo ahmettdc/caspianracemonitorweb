@@ -24,8 +24,8 @@ Gerçek zamanlı takım senkronizasyonu Firebase Realtime Database üzerinden ç
    - Elle: **Realtime Database → Rules** sekmesine `firebase-rules.json` içeriğini
      yapıştır → **Publish**.
    - Otomatik (CI): repo secret olarak `FIREBASE_TOKEN` (`firebase login:ci` ile
-     üretilir) ekle; `main`'e her `firebase-rules.json` değişikliğinde
-     `.github/workflows/deploy-rules.yml` kuralları otomatik yayınlar.
+     üretilir) ekle; `main`'e her push'ta `.github/workflows/deploy.yml`
+     içindeki `deploy-firebase-rules` işi kuralları otomatik yayınlar.
      Yerelden: `npm i -g firebase-tools && firebase deploy --only database`.
 
 > **Ek sertleştirme (önerilir):** Firebase konsolundan **App Check** etkinleştir
