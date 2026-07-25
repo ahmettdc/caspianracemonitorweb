@@ -265,6 +265,27 @@ const EN = {
   "Tur": "Laps", "VE İht.": "VE Req.", "Pit Ayarı": "Pit Setup",
   /* --- rehber turu --- */
   "Rehberi başlat": "Start the guide", "Rehber": "Guide",
+  "Şimdi sekmeleri tek tek gezelim — rehber her birini senin için açacak.":
+    "Now let's walk through the tabs one by one — the guide opens each for you.",
+  "📊 Dashboard — Stint Programı": "📊 Dashboard — Stint Schedule",
+  "Planın özeti: her stintin bitiş saati, kalan süre ve pilotu. Yarış başlayınca satırlar canlı ilerler.":
+    "The plan at a glance: each stint's end time, time left and driver. Rows advance live once the race starts.",
+  "Yarış sonuna kalan süreye göre son dolumda alınması gereken VE yüzdesi — extra lap ve bayrak payı dahil. Pit'te mühendisin baktığı tek sayı budur.":
+    "The VE percentage to take at the final stop based on the time left — extra lap and flag margin included. The one number the engineer watches in the pits.",
+  "📋 Stint — Önce start lastiği": "📋 Stint — Start tyres first",
+  "Her satır bir stint: tur, VE ihtiyacı, pit ayarı, pilot. Ort. Tur sütununa değer yazarsan o stint o tempoyla hesaplanır (hava çarpanı uygulanmaz); Override süreyi kilitler.":
+    "Each row is a stint: laps, VE need, pit setup, driver. A value in Avg Lap makes that stint use that pace (no weather multiplier); Override locks the duration.",
+  "⚡ Son Stint Hesaplayıcı": "⚡ Last Stint Calculator",
+  "Yarış sonu geri sayımını gir (canlıda otomatik) — kalan tur ve gereken VE hesaplanır. Ondalık tur yukarı yuvarlanır, trafik payı için.":
+    "Enter the countdown to the finish (automatic when live) — remaining laps and required VE are computed. Fractional laps round up as traffic margin.",
+  "Lastik Stratejisi": "Tyre Strategy",
+  "Limit sayacı, stint bazlı köşe tablosu ve hızlı atama. Wet lastikler limitten düşmez; siyah kutu eski kuru lastiği geri takar.":
+    "Limit counter, per-stint corner table and quick assign. Wet tyres don't count against the limit; the black box refits a used dry tyre.",
+  "Kadroyu elle yaz ya da takım üyelerinden tek tıkla ekle. Stintlere atadıkça toplam sürüş süresi ve yüzde dağılımı hesaplanır.":
+    "Type the roster or add team members in one click. As you assign stints, total drive time and the split are computed.",
+  "📈 Telemetri": "📈 Telemetry",
+  "MoTeC dosyanı bırak — tur raporu da ham kanal log'u da okunur. %105 kuralı yavaş turları otomatik eler, medyan tur tek tıkla DATA'ya yazılır.":
+    "Drop your MoTeC file — lap reports and raw channel logs both work. The 105% rule filters slow laps, and the median lap writes to DATA in one click.",
   "Admin": "Admin", "Hava": "Air", "Pit Board": "Pit Board",
   "Takvim dışı": "Off-calendar",
   "Race Monitor'a hoş geldin! 🏁": "Welcome to Race Monitor! 🏁",
@@ -807,24 +828,32 @@ const TYRE_4_SEC = 12; // 3-4 lastik değişim süresi (LMU, sabit)
 function TourOverlay({ steps, onClose, lang }) {
   const [idx, setIdx] = useState(0);
   const [rect, setRect] = useState(null);
-  const live = steps.filter((st2) => !st2.sel || document.querySelector(st2.sel));
+  /* act'li adımlar hedefi render eder (sekme açar) — DOM'da olmasa da tutulur */
+  const live = steps.filter((st2) => !st2.sel || st2.act || document.querySelector(st2.sel));
   const step = live[idx];
 
   useEffect(() => {
     if (!step) return undefined;
-    const el = step.sel ? document.querySelector(step.sel) : null;
-    if (el) el.scrollIntoView({ block: "center", behavior: "smooth" });
+    if (step.act) step.act();                       // sekmeyi aç
+    let el = null;
     const measure = () => {
+      el = step.sel ? document.querySelector(step.sel) : null;
+      if (el) el.scrollIntoView({ block: "center", behavior: "smooth" });
       if (!el) { setRect(null); return; }
       const r = el.getBoundingClientRect();
       setRect({ x: r.left - 8, y: r.top - 8, w: r.width + 16, h: r.height + 16 });
     };
-    const t0 = setTimeout(measure, 260);            // scroll otursun
-    window.addEventListener("resize", measure);
-    window.addEventListener("scroll", measure, true);
+    const t0 = setTimeout(measure, 340);            // sekme + scroll otursun
+    const remeasure = () => {
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setRect({ x: r.left - 8, y: r.top - 8, w: r.width + 16, h: r.height + 16 });
+    };
+    window.addEventListener("resize", remeasure);
+    window.addEventListener("scroll", remeasure, true);
     return () => { clearTimeout(t0);
-      window.removeEventListener("resize", measure);
-      window.removeEventListener("scroll", measure, true); };
+      window.removeEventListener("resize", remeasure);
+      window.removeEventListener("scroll", remeasure, true); };
   }, [idx, step]);
 
   useEffect(() => {
@@ -2917,11 +2946,37 @@ ${bottomBar}
     { sel: "[data-tour='wx']", title: t("Hava Durumu"),
       body: t("Zemin değişince buradan işaretle — plan tur tur karma havayı hesaplar. İleri saatli planlı geçiş de ekleyebilirsin.") },
     { sel: "[data-tour='tabs']", title: t("Sekmeler"),
-      body: t("📊 Dashboard özet, 📋 Stint plan tablosu, ⚡ son stint yakıtı, lastik ve pilot yönetimi, 📈 telemetri ve 💬 yarış sohbeti.") },
-    { sel: "[data-tour='s1']", title: t("Önce start lastiği"),
+      body: t("Şimdi sekmeleri tek tek gezelim — rehber her birini senin için açacak.") },
+    /* --- Dashboard --- */
+    { sel: "[data-tour='dash-prog']", act: () => setTab("dash"),
+      title: t("📊 Dashboard — Stint Programı"),
+      body: t("Planın özeti: her stintin bitiş saati, kalan süre ve pilotu. Yarış başlayınca satırlar canlı ilerler.") },
+    { sel: "[data-tour='dash-lsf']", act: () => setTab("dash"),
+      title: t("Son Stint VE"),
+      body: t("Yarış sonuna kalan süreye göre son dolumda alınması gereken VE yüzdesi — extra lap ve bayrak payı dahil. Pit'te mühendisin baktığı tek sayı budur.") },
+    /* --- Stint --- */
+    { sel: "[data-tour='s1']", act: () => setTab("stint"),
+      title: t("📋 Stint — Önce start lastiği"),
       body: t("S1 lastiklerini buradan seç — pit'lerdeki lastik seçimleri buna zincirlenir. Tekli, ikili ve dörtlü hızlı seçenekler hazır.") },
-    { sel: "[data-tour='stinttable']", title: t("Stint Tablosu"),
-      body: t("Her satır bir stint: tur, VE ihtiyacı, pit ayarı, pilot. Ort. Tur sütununa değer yazarsan o stint o tempoyla hesaplanır; Override süreyi kilitler.") },
+    { sel: "[data-tour='stinttable']", act: () => setTab("stint"),
+      title: t("Stint Tablosu"),
+      body: t("Her satır bir stint: tur, VE ihtiyacı, pit ayarı, pilot. Ort. Tur sütununa değer yazarsan o stint o tempoyla hesaplanır (hava çarpanı uygulanmaz); Override süreyi kilitler.") },
+    /* --- Son Stint Yakıtı --- */
+    { sel: "[data-tour='fuelcalc']", act: () => setTab("fuel"),
+      title: t("⚡ Son Stint Hesaplayıcı"),
+      body: t("Yarış sonu geri sayımını gir (canlıda otomatik) — kalan tur ve gereken VE hesaplanır. Ondalık tur yukarı yuvarlanır, trafik payı için.") },
+    /* --- Lastik --- */
+    { sel: "[data-tour='tyrecard']", act: () => setTab("tyre"),
+      title: t("Lastik Stratejisi"),
+      body: t("Limit sayacı, stint bazlı köşe tablosu ve hızlı atama. Wet lastikler limitten düşmez; siyah kutu eski kuru lastiği geri takar.") },
+    /* --- Pilotlar --- */
+    { sel: "[data-tour='roster']", act: () => setTab("drivers"),
+      title: t("Pilot Kadrosu"),
+      body: t("Kadroyu elle yaz ya da takım üyelerinden tek tıkla ekle. Stintlere atadıkça toplam sürüş süresi ve yüzde dağılımı hesaplanır.") },
+    /* --- Telemetri --- */
+    { sel: "[data-tour='teleimport']", act: () => setTab("tele"),
+      title: t("📈 Telemetri"),
+      body: t("MoTeC dosyanı bırak — tur raporu da ham kanal log'u da okunur. %105 kuralı yavaş turları otomatik eler, medyan tur tek tıkla DATA'ya yazılır.") },
     { sel: "[data-tour='pitboard']", title: t("Pit Board"),
       body: t("Yarış canlıyken tam ekran pit board: geri sayım, sıradaki pit ve PIT YAPILDI butonu. Gerçek pitler plana işlenir, sapma görünür.") },
     { sel: "[data-tour='pdf']", title: t("PDF çıktısı"),
@@ -4734,7 +4789,7 @@ ${bottomBar}
               </div>
 
               <div className="card">
-                <h2>{t("📋 Stint Programı")}</h2>
+                <h2 data-tour="dash-prog">{t("📋 Stint Programı")}</h2>
                 <table>
                   <thead><tr><th>#</th><th>End</th><th>Left</th><th>{t("Pilot")}</th></tr></thead>
                   <tbody>
@@ -4778,7 +4833,7 @@ ${bottomBar}
 
               <div className="card">
                 <h2 style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <Bolt /> {t("Son Stint VE")}</h2>
+                  <Bolt /> <span data-tour="dash-lsf">{t("Son Stint VE")}</span></h2>
                 <div className="fuelbig" style={{ fontSize: 40 }}>
                   {planLsf.refuel.toFixed(1)}%
                   <span style={{ fontSize: 18, color: "var(--dim)", marginLeft: 8 }}>
@@ -4831,7 +4886,7 @@ ${bottomBar}
           </>)}
 
           {tab === "tyre" && (
-            <div className="card">
+            <div className="card" data-tour="tyrecard">
               <h2>{t("Lastik Stratejisi")}</h2>
               <div className="kpis">
                 <div className="kpi">
@@ -4980,7 +5035,7 @@ ${bottomBar}
                 </div>
               </div>
 
-              <label>{t("Pilot Kadrosu")}</label>
+              <label data-tour="roster">{t("Pilot Kadrosu")}</label>
               <div style={{ marginBottom: 4 }}>
                 {st.roster.map((n) => (
                   <span className="rchip" key={n}>{n}
@@ -5100,7 +5155,7 @@ ${bottomBar}
           {tab === "tele" && (
             <div>
               <div className="card">
-                <h2>{t("Telemetri İçe Aktar (MoTeC)")}</h2>
+                <h2 data-tour="teleimport">{t("Telemetri İçe Aktar (MoTeC)")}</h2>
                 <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
                   {["A", "B", "C", "D"].map((sl) => (
                     <button key={sl} className="act"
@@ -5364,7 +5419,8 @@ ${bottomBar}
           )}
 
           {tab === "fuel" && (
-            <div className="row2" style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 1fr" }}>
+            <div className="row2" data-tour="fuelcalc"
+              style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 1fr" }}>
               {[
                 [t("YARIŞ SONU"), st.lastStintCountdown, (v) => up({ lastStintCountdown: v }), lsf, true],
                 /* [t("CODE 80 SONU"), ...] — şimdilik gizli, kod korunuyor (lsf80) */
