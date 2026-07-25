@@ -479,6 +479,7 @@ const EN = {
   "Yakıt sütunu litre (VE % için orana bölünür)":
     "Fuel column is in litres (divided by the ratio for VE %)",
   "Yarış·Data'da yakıt oranı girilmeli": "Set the fuel ratio in Race Data",
+  "korumalı": "protected",
   "Sohbet": "Chat", "Takım Sohbeti": "Team Chat",
   "Genel": "General", "Takım": "Team",
   "Mesaj yaz…": "Write a message…", "Gönder": "Send",
@@ -3624,13 +3625,20 @@ ${bottomBar}
                       {u?.note && <span className="unote">“{u.note}”</span>}
                     </span>
                     <span className={`ustat ${u?.allowed ? "ok" : u?.requested ? "wait" : ""}`}>
-                      {u?.allowed ? t("erişim var") : u?.requested ? t("beklemede") : t("talep yok")}
+                      {u?.admin === true
+                        ? <>🛡 {t("Admin")}</>
+                        : u?.allowed ? t("erişim var") : u?.requested ? t("beklemede") : t("talep yok")}
                     </span>
-                    {uid !== user.uid && (
+                    {/* adminler birbirinin iznine dokunamaz — kurallar da engelliyor */}
+                    {uid !== user.uid && u?.admin !== true && (
                       <button className={u?.allowed ? "histbtn" : "gbtn ubtn"}
                         onClick={() => setUserAllowed(uid, !u?.allowed).catch(() => {})}>
                         {u?.allowed ? t("İzni Al") : t("Onayla")}
                       </button>
+                    )}
+                    {uid !== user.uid && u?.admin === true && (
+                      <span className="hint" style={{ fontSize: 10.5 }}>
+                        {t("korumalı")}</span>
                     )}
                   </div>
                 ))}
