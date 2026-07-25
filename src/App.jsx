@@ -2759,7 +2759,7 @@ ${bottomBar}
   const [streamMin, setStreamMin] = useState(false);  // tek satıra küçült
   const [streamHide, setStreamHide] = useState(false); // bu oturumda tamamen gizle
   const [streamW, setStreamW] = useState(() => {
-    try { return Math.min(720, Math.max(240,
+    try { return Math.min(1080, Math.max(240,
       +(localStorage.getItem("rm_stream_w") || 320))); } catch { return 320; }
   });
   const [streamDrag, setStreamDrag] = useState(false);
@@ -2774,7 +2774,7 @@ ${bottomBar}
     const move = (ev) => {
       const d = dragRef.current; if (!d) return;
       const w = d.startW + (ev.clientX - d.startX) * d.dir;
-      setStreamW(Math.min(Math.min(720, window.innerWidth - 32), Math.max(240, w)));
+      setStreamW(Math.min(Math.min(1080, window.innerWidth - 32), Math.max(240, w)));
     };
     const upFn = () => {
       dragRef.current = null;
