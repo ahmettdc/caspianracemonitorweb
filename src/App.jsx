@@ -108,6 +108,7 @@ const DEFAULT_STATE = {
     fuel: true, lane: true, tyres: [false, false, false, false],
   })),
   overrides: Array.from({ length: 14 }, () => ""), // opsiyonel stint süresi "hh:mm:ss"
+  stintLaps: Array.from({ length: 14 }, () => ""), // opsiyonel stint ort. tur "m:ss.00"
   // Faz 4 — telemetri (MoTeC)
   telemetry: { A: null, B: null, C: null, D: null },
 };
@@ -262,6 +263,12 @@ const EN = {
   "⚠ Başlangıç lastiği seçilmedi — önce buradan başla, pit seçimleri buna zincirlenir":
     "⚠ No starting tyres selected — start here first, pit choices chain from this",
   "Tur": "Laps", "VE İht.": "VE Req.", "Pit Ayarı": "Pit Setup",
+  "Ort. Tur": "Avg Lap",
+  "Boş: yarış datasındaki ortalama tur kullanılır":
+    "Empty: uses the average lap from Race Data",
+  "Bu stint girilen tur süresiyle hesaplanıyor — hava çarpanı uygulanmaz":
+    "This stint uses the lap time you entered — no weather multiplier applied",
+  "Otomatiğe dön": "Back to automatic",
   "Toplam VE": "Total VE", "yakıt": "fuel",
   // dashboard
   "⏱ Yarış": "⏱ Race", "Kalan": "Remaining", "Tahmini Tur": "Est. Laps",
@@ -826,19 +833,23 @@ function computePlan(st, mode /* "race" | "code80" */) {
   const laps = st.strategies[st.chosen] || 0;
   /* bir stintin tur-tur yürüyen hesabı: cumStart'tan başlayıp her turun havasını
      o anki zamandan alır → süre + toplam % VE (karma hava doğru) */
-  const walkFull = (cumStart, nLaps) => {
+  /* fixLap: o stint için elle girilen ortalama tur süresi (sn).
+     Girildiğinde hava çarpanı UYGULANMAZ — kullanıcı zaten o koşulun turunu yazıyor.
+     Yakıt tarafında hava çarpanı korunur (ıslakta tüketim fiziksel olarak düşer). */
+  const walkFull = (cumStart, nLaps, fixLap) => {
     let sec = 0, fuel = 0;
     for (let L = 0; L < nLaps; L++) {
       const wx = wxAt(cumStart + sec);
-      sec += baseLap * wx.lap; fuel += baseCons * wx.fuel;
+      sec += fixLap > 0 ? fixLap : baseLap * wx.lap;
+      fuel += baseCons * wx.fuel;
     }
     return { sec, laps: nLaps, fuel };
   };
-  const walkByTime = (cumStart, dur, addBayrak) => {
+  const walkByTime = (cumStart, dur, addBayrak, fixLap) => {
     let sec = 0, fuel = 0, L = 0;
     while (L < 1000) {
       const wx = wxAt(cumStart + sec);
-      const lap = baseLap * wx.lap;
+      const lap = fixLap > 0 ? fixLap : baseLap * wx.lap;
       if (sec + lap > dur + 1e-6) break;
       sec += lap; fuel += baseCons * wx.fuel; L++;
     }
@@ -855,25 +866,26 @@ function computePlan(st, mode /* "race" | "code80" */) {
     let cum = 0;
     for (let i = 0; i < MAX_STINTS; i++) {
       const ovr = parseHMS(st.overrides[i] || "");
+      const fixLap = parseLap(st.stintLaps?.[i] || "") || 0;  // stinte özel tur süresi
       const startLeft = raceSec - cum;                     // stint başında kalan süre
       if (startLeft <= 0) break;
       let stintSec, lapsInStint, fuelUnits, isLast;
       if (ovr > 0) {                                       // manuel override (süre kilidi)
         isLast = ovr >= startLeft - 0.5;
         stintSec = isLast ? startLeft : ovr;
-        const wb = walkByTime(cum, stintSec, isLast);
+        const wb = walkByTime(cum, stintSec, isLast, fixLap);
         lapsInStint = Math.max(1, wb.laps); fuelUnits = wb.fuel;
       } else if ((Number(st.lapOverrides?.[i]) || 0) > 0) { // manuel tur sayısı
         const nl = Math.max(1, Math.round(Number(st.lapOverrides[i])));
-        const full = walkFull(cum, nl);
+        const full = walkFull(cum, nl, fixLap);
         isLast = (cum + full.sec) >= raceSec - 0.5;
         stintSec = full.sec; lapsInStint = nl; fuelUnits = full.fuel;
       } else {
-        const full = walkFull(cum, laps);                 // tam stint (tur limitli)
+        const full = walkFull(cum, laps, fixLap);         // tam stint (tur limitli)
         isLast = full.sec >= startLeft - 0.5;
         if (isLast) {
           stintSec = startLeft;
-          const wb = walkByTime(cum, startLeft, true);
+          const wb = walkByTime(cum, startLeft, true, fixLap);
           lapsInStint = Math.max(1, wb.laps); fuelUnits = wb.fuel;
         } else {
           stintSec = full.sec; lapsInStint = full.laps; fuelUnits = full.fuel;
@@ -890,6 +902,7 @@ function computePlan(st, mode /* "race" | "code80" */) {
       const endStint = cum + (isLast ? 0 : pitSec);
       rows.push({
         idx: i + 1,
+        fixLap,
         stintSec, pitSec, tyreCount, repairSec,
         endSec: endStint,
         timeLeft: raceSec - endStint,
@@ -945,6 +958,7 @@ const migrate = (s) => {
     if (!isNaN(t)) m.raceStartMs = t;
   }
   if (!Array.isArray(m.lapOverrides)) m.lapOverrides = Array(MAX_STINTS).fill("");
+  if (!Array.isArray(m.stintLaps)) m.stintLaps = Array(MAX_STINTS).fill("");
   if (!Array.isArray(m.weatherLog)) m.weatherLog = [];
   if (!m.weatherLog.length && s && s.weather && s.weather !== "dry")
     m.weatherLog = [{ t: 0, w: s.weather }]; // eski "tüm yarış" seçimi
@@ -1845,6 +1859,14 @@ export default function App() {
       pits = s.pits.map((p, j) => (j === rowIdx - 1 ? { ...p, tyres: flags } : p));
     }
     return { ...s, tyreStints, pits };
+  });
+
+  /* stinte özel ortalama tur süresi (boş → yarış datasındaki ortalama kullanılır) */
+  const upStintLap = (i, v) => setSt((s0) => {
+    const s = grow(s0, i + 2);
+    const stintLaps = [...(s.stintLaps || [])];
+    stintLaps[i] = v;
+    return { ...s, stintLaps };
   });
 
   const upTyreCell = (row, col, val) => setSt((s0) => {
@@ -4274,6 +4296,7 @@ ${bottomBar}
               <table>
                 <thead><tr>
                   <th>#</th><th>Stint</th><th>{t("Tur")}</th><th>⚡ {t("VE İht.")}</th>
+                  <th>{t("Ort. Tur")}</th>
                   <th>{t("Pit Ayarı")}</th><th>{t("Pilot")}</th><th>Pit</th><th>End Stint</th><th>Time Left</th>
                   <th>Override</th>
                 </tr></thead>
@@ -4307,6 +4330,20 @@ ${bottomBar}
                       <td className={r.fuelNeed > 100 ? "neg" : ""}
                         title={`≈ ${(r.fuelNeed * st.fuelRatio).toFixed(1)} L`}>
                         {r.fuelNeed.toFixed(1)}%</td>
+                      <td>
+                        <input className="ovr" type="text" style={{ width: 78 }}
+                          placeholder={st.avgLap || "m:ss.00"}
+                          title={r.fixLap > 0
+                            ? t("Bu stint girilen tur süresiyle hesaplanıyor — hava çarpanı uygulanmaz")
+                            : t("Boş: yarış datasındaki ortalama tur kullanılır")}
+                          value={(st.stintLaps || [])[i] || ""}
+                          onChange={(e) => upStintLap(i, e.target.value)} />
+                        {r.fixLap > 0 && (
+                          <button className="minibtn" title={t("Otomatiğe dön")}
+                            style={{ marginLeft: 4 }}
+                            onClick={() => upStintLap(i, "")}>✕</button>
+                        )}
+                      </td>
                       <td>
                         {r.isLast ? <span className="chip">FINISH 🏁</span> : (<>
                           <span className="tyrebox">
