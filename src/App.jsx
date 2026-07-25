@@ -2454,6 +2454,7 @@ ${bottomBar}
   const canEditTeam = myRole === "owner" || myRole === "editor";
   /* rozet/rol yönetimi: takım sahibi veya site admini */
   const canManageTeam = myRole === "owner" || isAdmin;
+  /* not: yetki rozetten türer — 🎧 mühendis editor, 🛞 sürücü/rozetsiz viewer */
   const myBadges = teamBadgesOf(teamData, user?.uid, udoc);
 
   /* Kendi görünen adımı takım düğümüne yaz — diğer üyeler pilot listesinde görsün */
@@ -2467,6 +2468,7 @@ ${bottomBar}
   /* Rozet yetkiyi belirler: 🎧 Mühendis → editor (datayı değiştirir),
      🛞 Sürücü / rozetsiz → viewer (sadece görür). Takım sahibi her zaman owner.
      Firebase kuralları rolü baz aldığı için rozet değişince rol de yazılır. */
+  const wantRole = (uid) => (hasBadge(teamData, uid, "engineer") ? "editor" : "viewer");
   const setBadge = async (uid, id, on) => {
     if (!curTeam) return;
     try {
@@ -2477,8 +2479,19 @@ ${bottomBar}
       if (teamData?.members?.[uid] !== "owner") {
         await setTeamRole(curTeam, uid, bs.engineer ? "editor" : "viewer");
       }
-    } catch { /* izin yoksa sessiz geç */ }
+    } catch (e) { console.warn("rozet/rol yazılamadı:", e?.message); }
   };
+
+  /* Rozetler yetkiye bağlanmadan önce atanmış üyelerde rol eski kalmış olabilir.
+     Sahip/admin takımı açtığında rolleri rozetlerden bir kez hizala. */
+  useEffect(() => {
+    if (!curTeam || !canManageTeam || !teamData?.members) return;
+    Object.entries(teamData.members).forEach(([uid, r]) => {
+      if (r === "owner") return;
+      const w = wantRole(uid);
+      if (r !== w) setTeamRole(curTeam, uid, w).catch(() => {});
+    });
+  }, [curTeam, canManageTeam, teamData]);
   const roleLabel = (r) => (r === "owner" ? "Takım Sahibi"
     : r === "editor" ? "Düzenleyebilir" : "Sadece görür");
 
