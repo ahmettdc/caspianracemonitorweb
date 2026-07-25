@@ -479,6 +479,8 @@ const EN = {
   "Yakıt sütunu litre (VE % için orana bölünür)":
     "Fuel column is in litres (divided by the ratio for VE %)",
   "Yarış·Data'da yakıt oranı girilmeli": "Set the fuel ratio in Race Data",
+  "1 YENİ": "1 NEW", "Tek yeni lastik": "Single new tyre",
+  "Tek lastik": "Single tyre", "yeni": "new",
   "Takım Adı": "Team Name",
   "Yeni ad diğer üyelerde uygulamayı açtıklarında güncellenir.":
     "Other members will see the new name next time they open the app.",
@@ -1811,6 +1813,7 @@ export default function App() {
     const FRESH_AT = {
       new4: [0, 1, 2, 3], fronts: [0, 1], rears: [2, 3],
       lefts: [0, 2], rights: [1, 3],
+      fl: [0], fr: [1], rl: [2], rr: [3],   // tek lastik
     }[action];
     if (FRESH_AT && used.size + FRESH_AT.length > s.tyreLimit)
       return s0; // yeterli yeni lastik yok → aksiyon engellenir
@@ -1928,6 +1931,7 @@ export default function App() {
   const QSEL_LBL = {
     new4: "🆕 4 Yeni", carry: "⟳ Devam", fronts: "Önler", rears: "Arkalar",
     lefts: "Sollar", rights: "Sağlar", wet4: "🌧 4 Wet", qual4: "Q Qual", clear: "✕",
+    fl: "FL", fr: "FR", rl: "RL", rr: "RR",
   };
 
   /* ---------- Faz 3: pilotlar ---------- */
@@ -4175,6 +4179,16 @@ ${bottomBar}
                       onClick={() => quickTyre(0, "lefts")}>{t("2 YENİ SOL")}</button>
                     <button disabled={tyreInfo.available < 2}
                       onClick={() => quickTyre(0, "rights")}>{t("2 YENİ SAĞ")}</button>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4,
+                      marginLeft: 4, paddingLeft: 8, borderLeft: "1px solid var(--line)" }}>
+                      <span style={{ fontSize: 10.5, color: "var(--dim)",
+                        letterSpacing: ".08em" }}>{t("1 YENİ")}</span>
+                      {TY.map((c, ci) => (
+                        <button key={c} disabled={tyreInfo.available < 1}
+                          title={`${t("Tek yeni lastik")} — ${c}`}
+                          onClick={() => quickTyre(0, ["fl", "fr", "rl", "rr"][ci])}>{c}</button>
+                      ))}
+                    </span>
                     <button onClick={() => quickTyre(0, "clear")}>{t("TEMİZLE")}</button>
                   </span>
                   {tyreInfo.available <= 0 && (
@@ -4633,6 +4647,12 @@ ${bottomBar}
                             <option value="rears" disabled={tyreInfo.available < 2}>{t("Arkalar Yeni")}</option>
                             <option value="lefts" disabled={tyreInfo.available < 2}>{t("Sollar Yeni")}</option>
                             <option value="rights" disabled={tyreInfo.available < 2}>{t("Sağlar Yeni")}</option>
+                            <optgroup label={t("Tek lastik")}>
+                              {[["fl", "FL"], ["fr", "FR"], ["rl", "RL"], ["rr", "RR"]].map(([v, l]) => (
+                                <option key={v} value={v} disabled={tyreInfo.available < 1}>
+                                  {l} {t("yeni")}</option>
+                              ))}
+                            </optgroup>
                             <option value="clear">{t("✕ Temizle")}</option>
                           </select>
                           {qsel[r.row] && (
