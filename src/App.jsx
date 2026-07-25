@@ -5331,7 +5331,14 @@ ${bottomBar}
                           <td className="mono">{new Date(su.at || 0)
                             .toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR",
                               { day: "2-digit", month: "2-digit", year: "2-digit" })}</td>
-                          <td>{trackFlag(su.track)} {trackName(su.track) || su.track || "—"}</td>
+                          <td>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                              {su.track && <img src={`${ASSET}flags/${TRACK_ASSET(su.track)}.png`}
+                                alt="" style={{ width: 18, borderRadius: 2 }}
+                                onError={(e) => { e.currentTarget.style.display = "none"; }} />}
+                              {trackName(su.track) || su.track || "—"}
+                            </span>
+                          </td>
                           <td>{su.cond === "wet" ? "🌧 Wet" : `☀️ ${t("Kuru")}`}</td>
                           <td>{su.sess === "Q"
                             ? <span className="chip" style={{ borderColor: "var(--green)",
