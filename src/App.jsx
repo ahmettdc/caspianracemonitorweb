@@ -853,21 +853,27 @@ const TYRE_4_SEC = 12; // 3-4 lastik değişim süresi (LMU, sabit)
    Yarış telsizi tarzı çift bip, WebAudio ile sentez — dosya yok, telif yok.
    Tarayıcı kuralı gereği ilk kullanıcı etkileşiminden önce çalmaz. */
 let _ac = null;
+/* MSN tarzı "yeni mesaj" tınısı: aşağı inen iki yumuşak nota (B5 → E5),
+   marimba hissi için temel + hafif 3. harmonik, uzun sönüm. */
 function chatBeep() {
   try {
     _ac = _ac || new (window.AudioContext || window.webkitAudioContext)();
     if (_ac.state === "suspended") _ac.resume();
     const t0 = _ac.currentTime;
-    [[0, 1318], [0.11, 1760]].forEach(([dt, hz]) => {
-      const o = _ac.createOscillator();
-      const g = _ac.createGain();
-      o.type = "sine"; o.frequency.value = hz;
-      g.gain.setValueAtTime(0.0001, t0 + dt);
-      g.gain.exponentialRampToValueAtTime(0.18, t0 + dt + 0.012);
-      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dt + 0.09);
-      o.connect(g).connect(_ac.destination);
-      o.start(t0 + dt); o.stop(t0 + dt + 0.1);
-    });
+    const note = (dt, hz, dur, vol) => {
+      [[1, vol], [3, vol * 0.18]].forEach(([mult, v]) => {
+        const o = _ac.createOscillator();
+        const g = _ac.createGain();
+        o.type = "sine"; o.frequency.value = hz * mult;
+        g.gain.setValueAtTime(0.0001, t0 + dt);
+        g.gain.exponentialRampToValueAtTime(v, t0 + dt + 0.008);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + dt + dur);
+        o.connect(g).connect(_ac.destination);
+        o.start(t0 + dt); o.stop(t0 + dt + dur + 0.02);
+      });
+    };
+    note(0,    987.8, 0.16, 0.16);   // B5 — kısa giriş
+    note(0.13, 659.3, 0.42, 0.20);   // E5 — pes, uzun sönümlü gövde
   } catch { /* ses yoksa sessiz geç */ }
 }
 
