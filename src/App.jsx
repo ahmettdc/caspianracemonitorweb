@@ -263,6 +263,43 @@ const EN = {
   "⚠ Başlangıç lastiği seçilmedi — önce buradan başla, pit seçimleri buna zincirlenir":
     "⚠ No starting tyres selected — start here first, pit choices chain from this",
   "Tur": "Laps", "VE İht.": "VE Req.", "Pit Ayarı": "Pit Setup",
+  /* --- rehber turu --- */
+  "Rehberi başlat": "Start the guide",
+  "Admin": "Admin", "Hava": "Air", "Pit Board": "Pit Board",
+  "Takvim dışı": "Off-calendar",
+  "Race Monitor'a hoş geldin! 🏁": "Welcome to Race Monitor! 🏁",
+  "Bu araç, LMU endurance yarışlarında pit wall'unuz: stint planı, yakıt, lastik ve canlı takip. 1 dakikada temel akışı gösterelim.":
+    "This is your pit wall for LMU endurance racing: stint planning, fuel, tyres and live tracking. Let's cover the basics in a minute.",
+  "Yarış Takvimi": "Race Calendar",
+  "Takımının yaklaşan yarışları burada, şampiyonaya göre gruplu. Bir yarışa tıkla — pist, araç ve süre önceden hazır, direkt pit wall açılır.":
+    "Your team's upcoming races, grouped by championship. Click one — track, car and duration are prepared, the pit wall opens right away.",
+  "Sezon ve yarış eklemek, üyeleri ve rozetleri yönetmek burada. 🎧 Mühendis rozeti datayı değiştirebilir, sürücüler yalnızca görür.":
+    "Add seasons and races, manage members and badges here. The 🎧 Engineer badge can edit data; drivers only view.",
+  "🌍 Genel ve 🏢 Takım kanalları burada. Yarış açıkken ayrıca yarışa özel bir sohbet sekmesi belirir.":
+    "🌍 General and 🏢 Team channels live here. With a race open, a race-specific chat tab appears too.",
+  "Uygulama sık güncellenir — yeni sürümde kırmızı nokta belirir, notları buradan okursun. Rehberi de buradan yeniden başlatabilirsin.":
+    "The app updates often — a red dot appears on new versions, read the notes here. You can restart this guide from here as well.",
+  "Pit Wall'a hoş geldin": "Welcome to the Pit Wall",
+  "Soldaki panel yarışın datası, sağı canlı plan. Kısaca gezelim — her şeyi değiştirdiğin anda takım arkadaşların da görür.":
+    "The left panel holds the race data, the right side is the live plan. Quick walkthrough — anything you change, your teammates see instantly.",
+  "Yarış süresi, ortalama tur, tüketim ve A/B/C/D stint stratejileri. Tüm plan bu değerlerden hesaplanır; telemetriden tek tıkla doldurabilirsin.":
+    "Race time, average lap, consumption and the A/B/C/D stint strategies. The whole plan derives from these; telemetry can fill them in one click.",
+  "Zemin değişince buradan işaretle — plan tur tur karma havayı hesaplar. İleri saatli planlı geçiş de ekleyebilirsin.":
+    "Mark surface changes here — the plan walks lap by lap through mixed weather. You can schedule future transitions too.",
+  "Sekmeler": "Tabs",
+  "📊 Dashboard özet, 📋 Stint plan tablosu, ⚡ son stint yakıtı, lastik ve pilot yönetimi, 📈 telemetri ve 💬 yarış sohbeti.":
+    "📊 Dashboard overview, 📋 stint plan table, ⚡ last-stint fuel, tyre and driver management, 📈 telemetry and 💬 race chat.",
+  "Önce start lastiği": "Start tyres first",
+  "S1 lastiklerini buradan seç — pit'lerdeki lastik seçimleri buna zincirlenir. Tekli, ikili ve dörtlü hızlı seçenekler hazır.":
+    "Pick the S1 tyres here — pit tyre choices chain onto them. Single, double and full-set quick options are ready.",
+  "Stint Tablosu": "Stint Table",
+  "Her satır bir stint: tur, VE ihtiyacı, pit ayarı, pilot. Ort. Tur sütununa değer yazarsan o stint o tempoyla hesaplanır; Override süreyi kilitler.":
+    "Each row is a stint: laps, VE need, pit setup, driver. Enter a value in Avg Lap and that stint uses that pace; Override locks the duration.",
+  "Yarış canlıyken tam ekran pit board: geri sayım, sıradaki pit ve PIT YAPILDI butonu. Gerçek pitler plana işlenir, sapma görünür.":
+    "Full-screen pit board while racing: countdown, next pit and the PIT DONE button. Real pits feed back into the plan, deviation is shown.",
+  "PDF çıktısı": "PDF export",
+  "Stint programını takıma dağıtmak için tek tık — başlık sezon ve yarış adından otomatik gelir. Bu kadar! İyi yarışlar. 🏁":
+    "One click to share the stint schedule — the title comes from the season and race name automatically. That's it! Good racing. 🏁",
   "Ort. Tur": "Avg Lap",
   "Boş: yarış datasındaki ortalama tur kullanılır":
     "Empty: uses the average lap from Race Data",
@@ -763,6 +800,80 @@ const TYRE_2_SEC = 5;  // 1-2 lastik değişim süresi (LMU, sabit)
 const TYRE_4_SEC = 12; // 3-4 lastik değişim süresi (LMU, sabit)
 /* zemin/hava durumu: tur süresi çarpanı + yakıt tüketim çarpanı (LMU) */
 /* direksiyon simgesi — Unicode'da direksiyon emojisi yok, rozet rengini devralır */
+/* ============================================================
+   REHBER TURU — ekranı karartır, sıradaki öğeyi ışıklandırır.
+   steps: [{ sel, title, body, pos? }] — sel bulunamazsa adım atlanır.
+   ============================================================ */
+function TourOverlay({ steps, onClose, lang }) {
+  const [idx, setIdx] = useState(0);
+  const [rect, setRect] = useState(null);
+  const live = steps.filter((st2) => !st2.sel || document.querySelector(st2.sel));
+  const step = live[idx];
+
+  useEffect(() => {
+    if (!step) return undefined;
+    const el = step.sel ? document.querySelector(step.sel) : null;
+    if (el) el.scrollIntoView({ block: "center", behavior: "smooth" });
+    const measure = () => {
+      if (!el) { setRect(null); return; }
+      const r = el.getBoundingClientRect();
+      setRect({ x: r.left - 8, y: r.top - 8, w: r.width + 16, h: r.height + 16 });
+    };
+    const t0 = setTimeout(measure, 260);            // scroll otursun
+    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", measure, true);
+    return () => { clearTimeout(t0);
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", measure, true); };
+  }, [idx, step]);
+
+  useEffect(() => {
+    const k = (e) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowRight" || e.key === "Enter") setIdx((i) => Math.min(i + 1, live.length - 1));
+      if (e.key === "ArrowLeft") setIdx((i) => Math.max(i - 1, 0));
+    };
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [live.length, onClose]);
+
+  if (!step) { onClose(); return null; }
+  const last = idx === live.length - 1;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  /* balon konumu: hedefin altına; sığmazsa üstüne; hedef yoksa ortaya */
+  const CW = Math.min(360, vw - 24);
+  let cx = vw / 2 - CW / 2, cy = vh / 2 - 90;
+  if (rect) {
+    cx = Math.max(12, Math.min(rect.x + rect.w / 2 - CW / 2, vw - CW - 12));
+    cy = rect.y + rect.h + 14;
+    if (cy > vh - 190) cy = Math.max(12, rect.y - 178);
+  }
+  return (
+    <div className="tourwrap" onClick={onClose}>
+      {rect && <div className="tourhole" style={{
+        left: rect.x, top: rect.y, width: rect.w, height: rect.h }} />}
+      {!rect && <div className="tourdim" />}
+      <div className="tourcard" style={{ left: cx, top: cy, width: CW }}
+        onClick={(e) => e.stopPropagation()}>
+        <div className="tourstep">{idx + 1} / {live.length}</div>
+        <h3>{step.title}</h3>
+        <p>{step.body}</p>
+        <div className="tourbtns">
+          <button className="histbtn" onClick={onClose}>
+            {lang === "en" ? "Skip" : "Geç"}</button>
+          <span style={{ flex: 1 }} />
+          {idx > 0 && <button className="histbtn"
+            onClick={() => setIdx(idx - 1)}>←</button>}
+          <button className="gbtn ubtn"
+            onClick={() => (last ? onClose() : setIdx(idx + 1))}>
+            {last ? (lang === "en" ? "Done ✓" : "Bitti ✓")
+              : (lang === "en" ? "Next →" : "İleri →")}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Wheel({ size = 13 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
@@ -1312,6 +1423,19 @@ const css = `
 .rc .lseason{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
   color:var(--dim);margin:10px 0 4px 2px;display:flex;align-items:center;gap:8px}
 .rc .lseason::after{content:"";flex:1;height:1px;background:var(--line)}
+.rc .tourwrap{position:fixed;inset:0;z-index:3000}
+.rc .tourdim{position:absolute;inset:0;background:rgba(8,4,8,.78)}
+.rc .tourhole{position:absolute;border-radius:12px;
+  box-shadow:0 0 0 9999px rgba(8,4,8,.78), 0 0 0 2px var(--red),
+    0 0 22px rgba(150,0,24,.55);transition:all .28s ease;pointer-events:none}
+.rc .tourcard{position:absolute;background:var(--panel);border:1px solid var(--red);
+  border-radius:12px;padding:14px 16px;box-shadow:0 12px 40px rgba(0,0,0,.6);
+  transition:all .28s ease}
+.rc .tourcard h3{margin:0 0 6px;font-size:15px;color:var(--red);
+  font-family:"Chakra Petch",sans-serif;letter-spacing:.04em}
+.rc .tourcard p{margin:0 0 12px;font-size:12.5px;line-height:1.55;color:var(--txt)}
+.rc .tourstep{font-size:10px;color:var(--dim);letter-spacing:.14em;margin-bottom:4px}
+.rc .tourbtns{display:flex;gap:8px;align-items:center}
 .rc .chattabs{display:flex;gap:4px;padding:8px 12px 0;border-bottom:1px solid var(--line);
   overflow-x:auto}
 .rc .ctab{position:relative;background:none;border:1px solid var(--line);border-bottom:0;
@@ -2546,6 +2670,12 @@ ${bottomBar}
     return () => { o1(); o2(); o3(); };
   }, [curTeam]);
   /* ---- sohbet: genel / takım / yarış kanalları ---- */
+  /* ---- rehber turu ---- */
+  const [tour, setTour] = useState(null);            // "lobby" | "main" | null
+  const TOUR_L = "rm_tour_lobby", TOUR_M = "rm_tour_main";
+  const seenTour = (k) => { try { return localStorage.getItem(k) === "1"; } catch { return true; } };
+  const markTour = (k) => { try { localStorage.setItem(k, "1"); } catch { /* yoksay */ } };
+
   const [lobSeason, setLobSeason] = useState("all"); // lobide şampiyona süzgeci
   const [tnEdit, setTnEdit] = useState(null);        // takım adı düzenleme metni
   const [chatOpen, setChatOpen] = useState(false);
@@ -2743,6 +2873,60 @@ ${bottomBar}
     syncMyTeamName(user.uid, curTeam, nm).catch(() => {});
   }, [curTeam, user, teamData, myTeams]);
 
+  /* ilk girişte lobi turu, ilk yarış açılışında ana tur kendiliğinden başlar */
+  useEffect(() => {
+    if (!user || !udoc?.allowed) return;
+    if (!curRace && !entered && !seenTour(TOUR_L)) {
+      const t0 = setTimeout(() => setTour("lobby"), 700);
+      return () => clearTimeout(t0);
+    }
+    return undefined;
+  }, [user, udoc, curRace, entered]);
+  useEffect(() => {
+    if (!curRace || !seenTour(TOUR_L) || seenTour(TOUR_M)) return undefined;
+    const t0 = setTimeout(() => setTour("main"), 900);
+    return () => clearTimeout(t0);
+  }, [curRace]);
+
+  const closeTour = () => {
+    markTour(tour === "lobby" ? TOUR_L : TOUR_M);
+    setTour(null);
+  };
+
+  const tourSteps = tour === "lobby" ? [
+    { title: t("Race Monitor'a hoş geldin! 🏁"),
+      body: t("Bu araç, LMU endurance yarışlarında pit wall'unuz: stint planı, yakıt, lastik ve canlı takip. 1 dakikada temel akışı gösterelim.") },
+    { sel: "[data-tour='races']", title: t("Yarış Takvimi"),
+      body: t("Takımının yaklaşan yarışları burada, şampiyonaya göre gruplu. Bir yarışa tıkla — pist, araç ve süre önceden hazır, direkt pit wall açılır.") },
+    { sel: "[data-tour='manage']", title: t("Takvimi & Takımı Yönet"),
+      body: t("Sezon ve yarış eklemek, üyeleri ve rozetleri yönetmek burada. 🎧 Mühendis rozeti datayı değiştirebilir, sürücüler yalnızca görür.") },
+    { sel: "[data-tour='chat']", title: t("Sohbet"),
+      body: t("🌍 Genel ve 🏢 Takım kanalları burada. Yarış açıkken ayrıca yarışa özel bir sohbet sekmesi belirir.") },
+    { sel: "[data-tour='info']", title: t("Neler değişti"),
+      body: t("Uygulama sık güncellenir — yeni sürümde kırmızı nokta belirir, notları buradan okursun. Rehberi de buradan yeniden başlatabilirsin.") },
+  ] : [
+    { title: t("Pit Wall'a hoş geldin"),
+      body: t("Soldaki panel yarışın datası, sağı canlı plan. Kısaca gezelim — her şeyi değiştirdiğin anda takım arkadaşların da görür.") },
+    { sel: "[data-tour='data']", title: t("Yarış · Data"),
+      body: t("Yarış süresi, ortalama tur, tüketim ve A/B/C/D stint stratejileri. Tüm plan bu değerlerden hesaplanır; telemetriden tek tıkla doldurabilirsin.") },
+    { sel: "[data-tour='wx']", title: t("Hava Durumu"),
+      body: t("Zemin değişince buradan işaretle — plan tur tur karma havayı hesaplar. İleri saatli planlı geçiş de ekleyebilirsin.") },
+    { sel: "[data-tour='tabs']", title: t("Sekmeler"),
+      body: t("📊 Dashboard özet, 📋 Stint plan tablosu, ⚡ son stint yakıtı, lastik ve pilot yönetimi, 📈 telemetri ve 💬 yarış sohbeti.") },
+    { sel: "[data-tour='s1']", title: t("Önce start lastiği"),
+      body: t("S1 lastiklerini buradan seç — pit'lerdeki lastik seçimleri buna zincirlenir. Tekli, ikili ve dörtlü hızlı seçenekler hazır.") },
+    { sel: "[data-tour='stinttable']", title: t("Stint Tablosu"),
+      body: t("Her satır bir stint: tur, VE ihtiyacı, pit ayarı, pilot. Ort. Tur sütununa değer yazarsan o stint o tempoyla hesaplanır; Override süreyi kilitler.") },
+    { sel: "[data-tour='pitboard']", title: t("Pit Board"),
+      body: t("Yarış canlıyken tam ekran pit board: geri sayım, sıradaki pit ve PIT YAPILDI butonu. Gerçek pitler plana işlenir, sapma görünür.") },
+    { sel: "[data-tour='pdf']", title: t("PDF çıktısı"),
+      body: t("Stint programını takıma dağıtmak için tek tık — başlık sezon ve yarış adından otomatik gelir. Bu kadar! İyi yarışlar. 🏁") },
+  ];
+
+  const tourOverlay = tour && (
+    <TourOverlay steps={tourSteps} onClose={closeTour} lang={lang} />
+  );
+
   const wantRole = (uid) => (hasBadge(teamData, uid, "engineer") ? "editor" : "viewer");
   const setBadge = async (uid, id, on) => {
     if (!curTeam) return;
@@ -2811,7 +2995,7 @@ ${bottomBar}
   };
   const verNew = seenVer !== APP_VERSION;
   const infoBtn = (
-    <button className="infobtn" onClick={openVersions}
+    <button className="infobtn" data-tour="info" onClick={openVersions}
       title={t("Neler değişti")} aria-label={t("Neler değişti")}>
       i{verNew && <span className="nd" />}
     </button>
@@ -2835,9 +3019,16 @@ ${bottomBar}
           ))}
         </div>
         <div className="wxmfoot" style={{ justifyContent: "space-between" }}>
-          <a className="hint" href={`${REPO_URL}/commits/main`}
-            target="_blank" rel="noreferrer"
-            style={{ color: "var(--muted)" }}>{t("GitHub'da tüm değişiklikler ↗")}</a>
+          <span style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <a className="hint" href={`${REPO_URL}/commits/main`}
+              target="_blank" rel="noreferrer"
+              style={{ color: "var(--muted)" }}>{t("GitHub'da tüm değişiklikler ↗")}</a>
+            <button className="hint" style={{ background: "none", border: 0,
+              color: "var(--teal)", cursor: "pointer", padding: 0,
+              textDecoration: "underline" }}
+              onClick={() => { setVerOpen(false); setTour(curRace ? "main" : "lobby"); }}>
+              🎓 {t("Rehberi başlat")}</button>
+          </span>
           <button className="histbtn" onClick={() => setVerOpen(false)}>{t("Kapat")}</button>
         </div>
       </div>
@@ -3220,7 +3411,7 @@ ${bottomBar}
 
   /* ---------- ortak data kartları (setup + ana arayüz sol kolon) ---------- */
   const dataCards = (<>
-    <div className="card">
+    <div className="card" data-tour="data">
       <h2>{t("Yarış · Data")}</h2>
       <div className="row2">
         <div><label>Race Time (h:mm:ss)</label>
@@ -3289,7 +3480,7 @@ ${bottomBar}
     </div>
 
     <div className="card" style={{ marginTop: 12 }}>
-      <h2>🌦 {t("Hava Durumu")}</h2>
+      <h2 data-tour="wx">🌦 {t("Hava Durumu")}</h2>
       <div className="hint" style={{ marginTop: 0, marginBottom: 6 }}>
         {t("Şu anki zemin — canlı değişim buradan")}</div>
       <div className="wxsel">
@@ -3524,7 +3715,7 @@ ${bottomBar}
     return (
       <div className="rc">
         <style>{css}</style>
-        {teamModal}{raceForm}{versionModal}{chatModal}
+        {teamModal}{raceForm}{versionModal}{chatModal}{tourOverlay}
         <div className="lobby">
           <div className="box" style={{ maxWidth: 560 }}>
             <div className="langsw" style={{ display: "flex", justifyContent: "flex-end",
@@ -3557,7 +3748,7 @@ ${bottomBar}
                   </div>
                 )}
 
-                <div className="lobbyteams">
+                <div className="lobbyteams" data-tour="races">
                   {/* hangi takımın takvimine baktığın belli olsun */}
                   <div className="lteam">🏢 {teamData?.meta?.name
                     || myTeams[curTeam] || t("Takım")}</div>
@@ -3597,10 +3788,11 @@ ${bottomBar}
                     ))}
                   </>)}
 
-                  <button className="histbtn" style={{ marginTop: 10, width: "100%" }}
+                  <button className="histbtn" data-tour="manage"
+                    style={{ marginTop: 10, width: "100%" }}
                     onClick={() => setTeamOpen(true)}>
                     ⚙ {canEditTeam ? t("Takvimi & Takımı Yönet") : t("Takımı Görüntüle")}</button>
-          <button className="histbtn" onClick={() => setChatOpen(true)}
+          <button className="histbtn" data-tour="chat" onClick={() => setChatOpen(true)}
             style={{ marginTop: 8, width: "100%" }}>
             💬 {t("Sohbet")}{chatUnread > 0 && <> · {chatUnread}</>}</button>
                 </div>
@@ -3737,7 +3929,7 @@ ${bottomBar}
   return (
     <div className="rc">
       <style>{css}</style>
-      {teamModal}{raceForm}{versionModal}{chatModal}
+      {teamModal}{raceForm}{versionModal}{chatModal}{tourOverlay}
       {profOpen && user && (
         <div className="wxmodal" onClick={() => setProfOpen(false)}>
           <div className="wxmbox" style={{ width: "min(420px,94vw)" }}
@@ -4014,7 +4206,7 @@ ${bottomBar}
               <span className="big" style={{ color: "var(--green)" }}>{t("🏁 YARIŞ BİTTİ")}</span></div>
           )}
           <button className="act" style={{ marginLeft: "auto" }}
-            onClick={() => setPitboard(true)}>📟 Pit Board</button>
+            data-tour="pitboard" onClick={() => setPitboard(true)}>📟 Pit Board</button>
         </div>
       )}
 
@@ -4168,7 +4360,7 @@ ${bottomBar}
 
         {/* ================= SAĞ: SEKMELER ================= */}
         <div>
-          <div className="tabs">
+          <div className="tabs" data-tour="tabs">
             {[["dash", "Dashboard", "\u{1F4CA}"], ["stint", "Stint", "\u{1F4CB}"],
               /* ["code80", "Code 80"], — şimdilik arayüzden gizli, kod korunuyor */
               ["fuel", t("Son Stint Yakıtı"), "\u26A1"],
@@ -4206,8 +4398,9 @@ ${bottomBar}
                 <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
                   border: "1px solid var(--line)", borderRadius: 8, padding: "8px 12px",
                   marginBottom: 12, background: "var(--panel2)" }}>
-                  <span className="disp" style={{ fontSize: 14, letterSpacing: ".06em",
-                    color: "var(--teal)" }}><Tyre size={13} /> {t("S1 START LASTİKLERİ")}</span>
+                  <span className="disp" data-tour="s1" style={{ fontSize: 14,
+                    letterSpacing: ".06em", color: "var(--teal)" }}>
+                    <Tyre size={13} /> {t("S1 START LASTİKLERİ")}</span>
                   <span className="mono" style={{ fontSize: 12 }}>
                     {TY.map((corner, ci) =>
                       `${corner}:${String(st.tyreStints[0]?.[ci] || "–")}`).join("  ")}
@@ -4293,7 +4486,7 @@ ${bottomBar}
                 );
               })()}
 
-              <table>
+              <table data-tour="stinttable">
                 <thead><tr>
                   <th>#</th><th>Stint</th><th>{t("Tur")}</th><th>⚡ {t("VE İht.")}</th>
                   <th>{t("Ort. Tur")}</th>
@@ -4407,7 +4600,8 @@ ${bottomBar}
               <button onClick={() => exportPdf("stint")}
                 style={{ padding: "5px 16px", borderRadius: 6, cursor: "pointer",
                   background: "var(--panel2)", color: "var(--txt)",
-                  border: "1px solid var(--line)", fontSize: 12 }}>🖨 PDF</button>
+                  border: "1px solid var(--line)", fontSize: 12 }}
+                  data-tour="pdf">🖨 PDF</button>
             </div>
             <div className="dgrid">
               {st.car && (
