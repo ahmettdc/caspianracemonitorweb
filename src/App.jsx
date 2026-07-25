@@ -4024,13 +4024,17 @@ ${bottomBar}
         {/* ================= SAĞ: SEKMELER ================= */}
         <div>
           <div className="tabs">
-            {[["dash", "Dashboard"], ["stint", "Stint"],
+            {[["dash", "Dashboard", "\u{1F4CA}"], ["stint", "Stint", "\u{1F4CB}"],
               /* ["code80", "Code 80"], — şimdilik arayüzden gizli, kod korunuyor */
-              ["fuel", t("Son Stint Yakıtı")], ["tyre", t("Lastik")], ["drivers", t("Pilotlar")],
-              ["tele", t("Telemetri")],
-              ...(raceChan ? [["rchat", `💬 ${t("Yarış Sohbeti")}`]] : [])].map(([k, l]) => (
+              ["fuel", t("Son Stint Yakıtı"), "\u26A1"],
+              ["tyre", t("Lastik"), <Tyre size={12} />],
+              ["drivers", t("Pilotlar"), <Wheel size={12} />],
+              ["tele", t("Telemetri"), "\u{1F4C8}"],
+              ...(raceChan ? [["rchat", t("Yarış Sohbeti"), "\u{1F4AC}"]] : [])]
+              .map(([k, l, ico]) => (
               <button key={k} className={`${tab === k ? "on" : ""} ${k === "code80" && tab === k ? "c80t" : ""}`}
-                onClick={() => setTab(k)} style={{ position: "relative" }}>{l}
+                onClick={() => setTab(k)} style={{ position: "relative" }}>
+                <span style={{ marginRight: 6 }}>{ico}</span>{l}
                 {k === "rchat" && raceUnread > 0 && tab !== "rchat" &&
                   <b className="cdot" style={{ position: "absolute", top: 2, right: 3 }}>
                     {raceUnread > 9 ? "9+" : raceUnread}</b>}
