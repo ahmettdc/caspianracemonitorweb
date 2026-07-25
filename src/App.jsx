@@ -2951,6 +2951,13 @@ ${bottomBar}
   ] : [
     { title: t("Pit Wall'a hoş geldin"),
       body: t("Soldaki panel yarışın datası, sağı canlı plan. Kısaca gezelim — her şeyi değiştirdiğin anda takım arkadaşların da görür.") },
+    /* --- üst çubuk --- */
+    { sel: "[data-tour='hteam']", title: t("Takım düğmesi"),
+      body: t("Takvimi ve üyeleri yönetmek her an buradan — yarışın ortasında bile. Rozetler de burada atanır.") },
+    { sel: "[data-tour='hchat']", title: t("Sohbet düğmesi"),
+      body: t("Genel ve takım kanalları. Okunmamış mesaj varsa üzerinde kırmızı sayı belirir.") },
+    { sel: "[data-tour='uchip']", title: t("Profilin ve rozetlerin"),
+      body: t("Yanındaki simgeler yetkini gösterir: 👑 Takım Sahibi yönetir, 🎧 Yarış Mühendisi datayı değiştirir, direksiyon (Sürücü) yalnızca izler, 🛡 Admin her şeye erişir. Adına tıklayıp profili düzenlersin; ⏻ çıkış yapar.") },
     { sel: "[data-tour='data']", act: () => setSideOpen(true),
       title: t("Yarış · Data"),
       body: t("Yarış süresi, ortalama tur, tüketim ve A/B/C/D stint stratejileri. Tüm plan bu değerlerden hesaplanır; telemetriden tek tıkla doldurabilirsin.") },
@@ -2989,13 +2996,6 @@ ${bottomBar}
     { sel: "[data-tour='teleimport']", act: () => setTab("tele"),
       title: t("📈 Telemetri"),
       body: t("MoTeC dosyanı bırak — tur raporu da ham kanal log'u da okunur. %105 kuralı yavaş turları otomatik eler, medyan tur tek tıkla DATA'ya yazılır.") },
-    /* --- üst çubuk --- */
-    { sel: "[data-tour='hteam']", title: t("Takım düğmesi"),
-      body: t("Takvimi ve üyeleri yönetmek her an buradan — yarışın ortasında bile. Rozetler de burada atanır.") },
-    { sel: "[data-tour='hchat']", title: t("Sohbet düğmesi"),
-      body: t("Genel ve takım kanalları. Okunmamış mesaj varsa üzerinde kırmızı sayı belirir.") },
-    { sel: "[data-tour='uchip']", title: t("Profilin ve rozetlerin"),
-      body: t("Yanındaki simgeler yetkini gösterir: 👑 Takım Sahibi yönetir, 🎧 Yarış Mühendisi datayı değiştirir, direksiyon (Sürücü) yalnızca izler, 🛡 Admin her şeye erişir. Adına tıklayıp profili düzenlersin; ⏻ çıkış yapar.") },
     { sel: "[data-tour='pitboard']", title: t("Pit Board"),
       body: t("Yarış canlıyken tam ekran pit board: geri sayım, sıradaki pit ve PIT YAPILDI butonu. Gerçek pitler plana işlenir, sapma görünür.") },
     { sel: "[data-tour='pdf']", title: t("PDF çıktısı"),
