@@ -264,7 +264,7 @@ const EN = {
     "⚠ No starting tyres selected — start here first, pit choices chain from this",
   "Tur": "Laps", "VE İht.": "VE Req.", "Pit Ayarı": "Pit Setup",
   /* --- rehber turu --- */
-  "Rehberi başlat": "Start the guide",
+  "Rehberi başlat": "Start the guide", "Rehber": "Guide",
   "Admin": "Admin", "Hava": "Air", "Pit Board": "Pit Board",
   "Takvim dışı": "Off-calendar",
   "Race Monitor'a hoş geldin! 🏁": "Welcome to Race Monitor! 🏁",
@@ -1423,6 +1423,11 @@ const css = `
 .rc .lseason{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
   color:var(--dim);margin:10px 0 4px 2px;display:flex;align-items:center;gap:8px}
 .rc .lseason::after{content:"";flex:1;height:1px;background:var(--line)}
+.rc .tourbtn{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;
+  border-radius:6px;border:1px solid var(--line);background:var(--panel2);
+  color:var(--muted);font-size:11.5px;cursor:pointer;transition:.15s;
+  align-self:center;white-space:nowrap}
+.rc .tourbtn:hover{border-color:var(--teal);color:var(--teal)}
 .rc .tourwrap{position:fixed;inset:0;z-index:3000}
 .rc .tourdim{position:absolute;inset:0;background:rgba(8,4,8,.78)}
 .rc .tourhole{position:absolute;border-radius:12px;
@@ -3720,6 +3725,8 @@ ${bottomBar}
           <div className="box" style={{ maxWidth: 560 }}>
             <div className="langsw" style={{ display: "flex", justifyContent: "flex-end",
               alignItems: "center", gap: 6, marginBottom: 6 }}>
+              <button className="tourbtn" onClick={() => setTour("lobby")}
+                title={t("Rehberi başlat")}>🎓 {t("Rehber")}</button>
               {["tr", "en"].map((l) => (
                 <button key={l} className={lang === l ? "on" : ""}
                   onClick={() => switchLang(l)}>{l.toUpperCase()}</button>
@@ -4101,6 +4108,8 @@ ${bottomBar}
         <img className="hlogo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
         <h1 className="disp" style={{ fontSize: 20 }}>RACE MONITOR</h1>
         <span className="ver">{APP_VERSION}</span>
+        <button className="tourbtn" onClick={() => setTour("main")}
+          title={t("Rehberi başlat")}>🎓</button>
         {infoBtn}
         <span className="langsw">
           {["tr", "en"].map((l) => (
