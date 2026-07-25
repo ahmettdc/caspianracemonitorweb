@@ -2975,7 +2975,6 @@ ${bottomBar}
     const v = chatText.trim();
     if (!v || !chan) return;
     setChatText("");
-    if (chatSound) chatBeep();   // gönderende de çalsın (kullanıcı isteği)
     try { await sendChat(chan.path, user, userName, v); }
     catch (e) { console.warn("mesaj gönderilemedi:", e?.message); }
   };
