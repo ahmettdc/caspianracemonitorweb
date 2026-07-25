@@ -415,6 +415,9 @@ const EN = {
   "Sıralama": "Qualifying", "Şampiyona": "Championship", "LMU Sürümü": "LMU Version",
   "Not": "Note", "Sürüm": "Version", "Yükleyen": "By", "İndir": "Download",
   "Takım": "Team", "Ortak": "Shared", "Bu setup silinsin mi?": "Delete this setup?",
+  "Setup Ekle": "Add setup", "Yükle": "Upload",
+  "Yüklenen setup tüm takımlara açık ortak havuza gider. Tarih otomatik kaydedilir.":
+    "Uploaded setups go to the shared pool visible to all teams. The date is recorded automatically.",
   "Tarih": "Date", "Sınıf": "Class", "Araç": "Car", "Yarış": "Race",
   "Takıma Yükle": "Upload to Team", "Yükleniyor…": "Uploading…",
   "Pist seçilmeli.": "Pick a track.", "Yüklenemedi:": "Upload failed:",
@@ -2858,6 +2861,7 @@ ${bottomBar}
   const [suErr, setSuErr] = useState("");
   const [suBusy, setSuBusy] = useState(false);
   const [suOpen, setSuOpen] = useState(false);      // lobi setup penceresi
+  const [suUpOpen, setSuUpOpen] = useState(false);  // lobi yükleme formu açık mı
   const [suFTrack, setSuFTrack] = useState("");     // liste süzgeçleri
   const [suFCond, setSuFCond] = useState("");
   const [suFSess, setSuFSess] = useState("");
@@ -3145,6 +3149,98 @@ ${bottomBar}
   /* Lobi setup penceresi — indirme odaklı sade liste.
      Yükleme/yönetim pit wall'daki Setup sekmesinde. */
   /* Ortak setup tablosu — hem lobi penceresinde hem pit wall sekmesinde. */
+  /* Ortak setup yükleme formu — pit wall sekmesi ve lobi penceresi. */
+  const setupForm = () => (
+    <>
+      <div className="row2" style={{ maxWidth: 720 }}>
+        <div>
+          <label>{t("Dosya")}</label>
+          <input type="file" onChange={onSetupFile} />
+          {suFile && <div className="hint">
+            📄 {suFile.name} · {(suFile.size / 1024).toFixed(1)} KB</div>}
+        </div>
+        <div>
+          <label>{t("Pist")} *</label>
+          <select value={suMeta.track}
+            onChange={(e) => setSuMeta({ ...suMeta, track: e.target.value })}>
+            <option value="">—</option>
+            {TRACKS.map((tr) =>
+              <option key={tr.id} value={tr.id}>{trackFlag(tr.id)} {tr.name}</option>)}
+          </select>
+        </div>
+      </div>
+      <div className="row4" style={{ maxWidth: 720 }}>
+        <div>
+          <label>{t("Koşul")}</label>
+          <select value={suMeta.cond}
+            onChange={(e) => setSuMeta({ ...suMeta, cond: e.target.value })}>
+            <option value="dry">☀️ {t("Kuru")}</option>
+            <option value="wet">🌧 Wet</option>
+          </select>
+        </div>
+        <div>
+          <label>{t("Seans")}</label>
+          <select value={suMeta.sess}
+            onChange={(e) => setSuMeta({ ...suMeta, sess: e.target.value })}>
+            <option value="R">{t("Yarış")}</option>
+            <option value="Q">{t("Sıralama")}</option>
+          </select>
+        </div>
+        <div>
+          <label>{t("Sınıf")}</label>
+          <select value={suMeta.cls}
+            onChange={(e) => setSuMeta({ ...suMeta, cls: e.target.value, car: "" })}>
+            <option value="">—</option>
+            {CAR_CLASSES.map(([id, lbl]) => <option key={id} value={id}>{lbl}</option>)}
+          </select>
+        </div>
+        <div>
+          <label>{t("Araç")}</label>
+          <select value={suMeta.car} disabled={!suMeta.cls}
+            onChange={(e) => setSuMeta({ ...suMeta, car: e.target.value })}>
+            <option value="">—</option>
+            {(CARS[suMeta.cls] || []).map((c) =>
+              <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+      </div>
+      <div className="row4" style={{ maxWidth: 720 }}>
+        <div>
+          <label>{t("Şampiyona")}</label>
+          <input type="text" list="su-champs" value={suMeta.champ}
+            placeholder={t("örn. ELMS / Official / Online")}
+            style={{ textTransform: "none" }}
+            onChange={(e) => setSuMeta({ ...suMeta, champ: e.target.value })} />
+          <datalist id="su-champs">
+            {Object.values(seasons).map((se) =>
+              <option key={se.name} value={se.name} />)}
+            <option value="Official" /><option value="Online" />
+          </datalist>
+        </div>
+        <div>
+          <label>{t("LMU Sürümü")}</label>
+          <input type="text" value={suMeta.ver} placeholder="V1.2"
+            style={{ textTransform: "none" }}
+            onChange={(e) => setSuMeta({ ...suMeta, ver: e.target.value })} />
+        </div>
+        <div style={{ gridColumn: "span 2" }}>
+          <label>{t("Not")}</label>
+          <input type="text" value={suMeta.note} maxLength={140}
+            placeholder={t("örn. düşük kanat, uzun stint dengesi")}
+            style={{ textTransform: "none" }}
+            onChange={(e) => setSuMeta({ ...suMeta, note: e.target.value })} />
+        </div>
+      </div>
+      {suErr && <div className="hint warn">⚠ {suErr}</div>}
+      <button className="gbtn ubtn" disabled={!suFile || !suMeta.track || suBusy}
+        style={{ opacity: suFile && suMeta.track && !suBusy ? 1 : .45, marginTop: 6 }}
+        onClick={saveSetup}>
+        {suBusy ? t("Yükleniyor…") : t("Yükle")}</button>
+      <div className="hint" style={{ marginTop: 6 }}>
+        {t("Yüklenen setup tüm takımlara açık ortak havuza gider. Tarih otomatik kaydedilir.")}</div>
+    </>
+  );
+
   const setupTable = (rows) => (
     <div style={{ overflowX: "auto" }}>
       <table style={{ fontSize: 12 }}>
@@ -3221,9 +3317,18 @@ ${bottomBar}
         onClick={(e) => e.stopPropagation()}>
         <div className="wxmhead">
           <span>🔧 {t("Setup Havuzu")} · {t("Ortak")} ({suList.length}/{setups.length})</span>
+          <button className="lbclose" style={{ marginLeft: "auto", marginRight: 4 }}
+            title={t("Setup Ekle")}
+            onClick={() => setSuUpOpen((v) => !v)}>{suUpOpen ? "▾" : "＋"}</button>
           <button className="lbclose" onClick={() => setSuOpen(false)}>✕</button>
         </div>
         <div style={{ padding: "12px 16px", maxHeight: "70vh", overflowY: "auto" }}>
+          {suUpOpen && (
+            <div className="card" style={{ marginBottom: 12 }}>
+              <h2>🔧 {t("Setup Yükle")}</h2>
+              {setupForm()}
+            </div>
+          )}
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
             <select value={suFTrack} onChange={(e) => setSuFTrack(e.target.value)}>
               <option value="">{t("Tüm pistler")}</option>
@@ -5314,92 +5419,7 @@ ${bottomBar}
           {tab === "setup" && (<>
             <div className="card" data-tour="setuptab">
               <h2>🔧 {t("Setup Yükle")}</h2>
-              <div className="row2" style={{ maxWidth: 720 }}>
-                <div>
-                  <label>{t("Dosya")}</label>
-                  <input type="file" onChange={onSetupFile} />
-                  {suFile && <div className="hint">
-                    📄 {suFile.name} · {(suFile.size / 1024).toFixed(1)} KB</div>}
-                </div>
-                <div>
-                  <label>{t("Pist")} *</label>
-                  <select value={suMeta.track}
-                    onChange={(e) => setSuMeta({ ...suMeta, track: e.target.value })}>
-                    <option value="">—</option>
-                    {TRACKS.map((tr) =>
-                      <option key={tr.id} value={tr.id}>{trackFlag(tr.id)} {tr.name}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className="row4" style={{ maxWidth: 720 }}>
-                <div>
-                  <label>{t("Koşul")}</label>
-                  <select value={suMeta.cond}
-                    onChange={(e) => setSuMeta({ ...suMeta, cond: e.target.value })}>
-                    <option value="dry">☀️ {t("Kuru")}</option>
-                    <option value="wet">🌧 Wet</option>
-                  </select>
-                </div>
-                <div>
-                  <label>{t("Seans")}</label>
-                  <select value={suMeta.sess}
-                    onChange={(e) => setSuMeta({ ...suMeta, sess: e.target.value })}>
-                    <option value="R">{t("Yarış")}</option>
-                    <option value="Q">{t("Sıralama")}</option>
-                  </select>
-                </div>
-                <div>
-                  <label>{t("Sınıf")}</label>
-                  <select value={suMeta.cls}
-                    onChange={(e) => setSuMeta({ ...suMeta, cls: e.target.value, car: "" })}>
-                    <option value="">—</option>
-                    {CAR_CLASSES.map(([id, lbl]) => <option key={id} value={id}>{lbl}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label>{t("Araç")}</label>
-                  <select value={suMeta.car} disabled={!suMeta.cls}
-                    onChange={(e) => setSuMeta({ ...suMeta, car: e.target.value })}>
-                    <option value="">—</option>
-                    {(CARS[suMeta.cls] || []).map((c) =>
-                      <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className="row4" style={{ maxWidth: 720 }}>
-                <div>
-                  <label>{t("Şampiyona")}</label>
-                  <input type="text" list="su-champs" value={suMeta.champ}
-                    placeholder={t("örn. ELMS / Official / Online")}
-                    style={{ textTransform: "none" }}
-                    onChange={(e) => setSuMeta({ ...suMeta, champ: e.target.value })} />
-                  <datalist id="su-champs">
-                    {Object.values(seasons).map((se) =>
-                      <option key={se.name} value={se.name} />)}
-                    <option value="Official" /><option value="Online" />
-                  </datalist>
-                </div>
-                <div>
-                  <label>{t("LMU Sürümü")}</label>
-                  <input type="text" value={suMeta.ver} placeholder="V1.2"
-                    style={{ textTransform: "none" }}
-                    onChange={(e) => setSuMeta({ ...suMeta, ver: e.target.value })} />
-                </div>
-                <div style={{ gridColumn: "span 2" }}>
-                  <label>{t("Not")}</label>
-                  <input type="text" value={suMeta.note} maxLength={140}
-                    placeholder={t("örn. düşük kanat, uzun stint dengesi")}
-                    style={{ textTransform: "none" }}
-                    onChange={(e) => setSuMeta({ ...suMeta, note: e.target.value })} />
-                </div>
-              </div>
-              {suErr && <div className="hint warn">⚠ {suErr}</div>}
-              <button className="gbtn ubtn" disabled={!suFile || !suMeta.track || suBusy}
-                style={{ opacity: suFile && suMeta.track && !suBusy ? 1 : .45, marginTop: 6 }}
-                onClick={saveSetup}>
-                {suBusy ? t("Yükleniyor…") : t("Takıma Yükle")}</button>
-              <div className="hint" style={{ marginTop: 6 }}>
-                {t("Yüklenen setup tüm takım üyelerine görünür. Tarih otomatik kaydedilir.")}</div>
+              {setupForm()}
             </div>
 
             <div className="card" style={{ marginTop: 12 }}>
