@@ -110,3 +110,14 @@ export const carImg = (cls, id) => {
   const c = CARS[cls]?.find((x) => x.id === id);
   return `${ASSET}cars/${cls}/${c?.img || id}.png`;
 };
+
+
+/* ---- grafik yardımcıları (App + components ortak) ----
+   BADGES/teamBadgesOf/hasBadge JSX (<Wheel/>) içerdiği için ./components.jsx'te. */
+export const PIE_COLORS = ["#2DD4BF", "#F2C94C", "#960018", "#9B6DFF", "#4C9AFF",
+  "#FF8A3D", "#59C36A", "#EC5CA6", "#00B8D9", "#C0CA33"];
+export const quantile = (sorted, q) => {
+  const pos = (sorted.length - 1) * q;
+  const lo = Math.floor(pos), hi = Math.ceil(pos);
+  return lo === hi ? sorted[lo] : sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
+};
