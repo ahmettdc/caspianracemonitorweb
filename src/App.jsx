@@ -1284,6 +1284,9 @@ const css = `
   filter:drop-shadow(0 4px 8px rgba(0,0,0,.45))}
 .rc .cargrid button.on{border-color:var(--teal);background:rgba(150,0,24,.20);
   color:var(--txt);font-weight:600}
+.rc .lseason{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--dim);margin:10px 0 4px 2px;display:flex;align-items:center;gap:8px}
+.rc .lseason::after{content:"";flex:1;height:1px;background:var(--line)}
 .rc .chattabs{display:flex;gap:4px;padding:8px 12px 0;border-bottom:1px solid var(--line);
   overflow-x:auto}
 .rc .ctab{position:relative;background:none;border:1px solid var(--line);border-bottom:0;
@@ -2488,6 +2491,7 @@ ${bottomBar}
     return () => { o1(); o2(); o3(); };
   }, [curTeam]);
   /* ---- sohbet: genel / takım / yarış kanalları ---- */
+  const [lobSeason, setLobSeason] = useState("all"); // lobide şampiyona süzgeci
   const [chatOpen, setChatOpen] = useState(false);
   const [chatChan, setChatChan] = useState("team");
   const [chatAll, setChatAll] = useState({});   // { path: [mesajlar] }
@@ -3377,8 +3381,19 @@ ${bottomBar}
     const now = Date.now();
     const list = Object.entries(races)
       .sort(([, a], [, b]) => (a.startsAt || 0) - (b.startsAt || 0));
-    const upcoming = list.filter(([, r]) => (r.startsAt || 0) >= now - 6 * 3600e3);
-    const past = list.filter(([, r]) => (r.startsAt || 0) < now - 6 * 3600e3).reverse();
+    const allUp = list.filter(([, r]) => (r.startsAt || 0) >= now - 6 * 3600e3);
+    const allPast = list.filter(([, r]) => (r.startsAt || 0) < now - 6 * 3600e3).reverse();
+    /* Şampiyonalar karışmasın: sezona göre grupla, istenirse süz. */
+    const sidOf = ([, r]) => r.seasonId || "";
+    const sName = (sid) => (sid ? (seasons[sid]?.name || t("Sezon")) : t("Takvim dışı"));
+    const seasonIds = Array.from(new Set(list.map(sidOf)));      // takvim sırasına göre
+    const inFilter = (e) => lobSeason === "all" || sidOf(e) === lobSeason;
+    const upcoming = allUp.filter(inFilter);
+    const past = allPast.filter(inFilter);
+    const nextRid = allUp.length ? allUp[0][0] : null;
+    const upGroups = Array.from(new Set(upcoming.map(sidOf)))
+      .map((sid) => ({ sid, name: sName(sid),
+        items: upcoming.filter((e) => sidOf(e) === sid) }));
     const RaceRow = ([rid, r], isNext) => (
       <button key={rid} className={`lrace ${isNext ? "next" : ""}`}
         onClick={() => openRace(rid)}>
@@ -3442,14 +3457,39 @@ ${bottomBar}
 
                 <div className="lobbyteams">
                   <div className="tmsec">🏁 {t("Yaklaşan Yarışlar")}</div>
+                  {seasonIds.length > 1 && (
+                    <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 8 }}>
+                      {[["all", t("Tümü")], ...seasonIds.map((sid) => [sid, sName(sid)])]
+                        .map(([v, l]) => (
+                          <button key={v} className="act" style={{ fontSize: 11,
+                            ...(lobSeason === v
+                              ? { borderColor: "var(--red)", color: "var(--red)" } : {}) }}
+                            onClick={() => setLobSeason(v)}>{l}</button>
+                        ))}
+                    </div>
+                  )}
                   {upcoming.length === 0
                     ? <div className="hint">{t("Takvimde yaklaşan yarış yok.")}</div>
-                    : upcoming.map((e, i) => RaceRow(e, i === 0))}
+                    : upGroups.map((g) => (
+                      <div key={g.sid || "none"}>
+                        {seasonIds.length > 1 && (
+                          <div className="lseason">{g.name}</div>
+                        )}
+                        {g.items.map((e) => RaceRow(e, e[0] === nextRid))}
+                      </div>
+                    ))}
 
                   {past.length > 0 && (<>
                     <div className="tmsec" style={{ marginTop: 12 }}>
                       {t("Geçmiş")}</div>
-                    {past.slice(0, 5).map((e) => RaceRow(e, false))}
+                    {past.slice(0, 5).map((e) => (
+                      <div key={e[0]}>
+                        {seasonIds.length > 1 && lobSeason === "all" && (
+                          <div className="lseason">{sName(sidOf(e))}</div>
+                        )}
+                        {RaceRow(e, false)}
+                      </div>
+                    ))}
                   </>)}
 
                   <button className="histbtn" style={{ marginTop: 10, width: "100%" }}
