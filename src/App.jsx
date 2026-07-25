@@ -475,8 +475,8 @@ const EN = {
   "👁 İZLEYİCİ": "👁 VIEWER",
   "✎ DÜZENLEYİCİ": "✎ EDITOR",
   "Stint zaman çizelgesi": "Stint timeline",
-  "Rozetleri atamak için üye satırındaki 🏎 / 📐 düğmelerine bas.":
-    "Use the 🏎 / 📐 buttons on a member row to assign badges.",
+  "Rozetleri atamak için üye satırındaki 🏎 / 🎧 düğmelerine bas.":
+    "Use the 🏎 / 🎧 buttons on a member row to assign badges.",
   "Neler değişti": "What's new",
   "ŞU AN": "CURRENT",
   "GitHub'da tüm değişiklikler ↗": "All changes on GitHub ↗",
@@ -568,7 +568,7 @@ const BADGES = {
   admin:    { lbl: "Admin",            ico: "🛡", col: "#E11D2E", bg: "rgba(225,29,46,.14)" },
   owner:    { lbl: "Takım Sahibi",     ico: "👑", col: "#C9A227", bg: "rgba(201,162,39,.14)" },
   driver:   { lbl: "Sürücü",           ico: "🏎", col: "#26C6DA", bg: "rgba(38,198,218,.14)" },
-  engineer: { lbl: "Yarış Mühendisi",  ico: "📐", col: "#F2C94C", bg: "rgba(242,201,76,.14)" },
+  engineer: { lbl: "Yarış Mühendisi",  ico: "🎧", col: "#F2C94C", bg: "rgba(242,201,76,.14)" },
 };
 /* Rozet listesi: sahiplik ve admin otomatik, diğerleri takım sahibince atanır.
    badges[uid] eski sürümde metin, yenisinde { driver:true, ... } olabilir. */
@@ -2475,7 +2475,7 @@ ${bottomBar}
                 <div className="tmsec" style={{ marginTop: 16 }}>{t("Takım Üyeleri")}</div>
                 {canManageTeam && (
                   <div className="hint" style={{ marginBottom: 6 }}>
-                    {t("Rozetleri atamak için üye satırındaki 🏎 / 📐 düğmelerine bas.")}</div>
+                    {t("Rozetleri atamak için üye satırındaki 🏎 / 🎧 düğmelerine bas.")}</div>
                 )}
                 {Object.entries(teamData.members || {}).map(([uid, role]) => {
                   const mbs = teamBadgesOf(teamData, uid, null);

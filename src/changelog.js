@@ -32,7 +32,7 @@ export const CHANGELOG = [
       "Oda kodu ve PIN kaldırıldı — erişim artık takım üyeliğinden geliyor",
       "Sezonlar ve yarış takvimi: yarışı önceden pist, araç, süre ve başlangıç saatiyle hazırla",
       "Lobi yaklaşan yarışları listeliyor, tek tıkla açılıyor — pist/araç seçimi tekrar sorulmuyor",
-      "Rozetler: 👑 Takım Sahibi, 🏎 Sürücü, 📐 Yarış Mühendisi — bir üyeye birden fazla rozet atanabilir",
+      "Rozetler: 👑 Takım Sahibi, 🏎 Sürücü, 🎧 Yarış Mühendisi — bir üyeye birden fazla rozet atanabilir",
       "Kayıtta Ad Soyad soruluyor; isim profilden değiştirilebiliyor ve stint programında görünüyor",
     ],
     en: [
@@ -40,7 +40,7 @@ export const CHANGELOG = [
       "Room codes and PINs removed — access now comes from team membership",
       "Seasons and a race calendar: set up a race in advance with track, car, duration and start time",
       "The lobby lists upcoming races and opens them in one click — no more re-picking track and car",
-      "Badges: 👑 Team Owner, 🏎 Driver, 📐 Race Engineer — a member can hold several at once",
+      "Badges: 👑 Team Owner, 🏎 Driver, 🎧 Race Engineer — a member can hold several at once",
       "Full name is asked at sign-up, can be changed from the profile, and shows in the stint schedule",
     ],
   },
