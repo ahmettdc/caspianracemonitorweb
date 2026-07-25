@@ -4032,7 +4032,7 @@ ${bottomBar}
               /* ["code80", "Code 80"], — şimdilik arayüzden gizli, kod korunuyor */
               ["fuel", t("Son Stint Yakıtı")], ["tyre", t("Lastik")], ["drivers", t("Pilotlar")],
               ["tele", t("Telemetri")],
-              ...(raceChan ? [["rchat", t("Yarış Sohbeti")]] : [])].map(([k, l]) => (
+              ...(raceChan ? [["rchat", `💬 ${t("Yarış Sohbeti")}`]] : [])].map(([k, l]) => (
               <button key={k} className={`${tab === k ? "on" : ""} ${k === "code80" && tab === k ? "c80t" : ""}`}
                 onClick={() => setTab(k)} style={{ position: "relative" }}>{l}
                 {k === "rchat" && raceUnread > 0 && tab !== "rchat" &&
