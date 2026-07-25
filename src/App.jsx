@@ -481,6 +481,9 @@ const EN = {
   "Yarış·Data'da yakıt oranı girilmeli": "Set the fuel ratio in Race Data",
   "korumalı": "protected",
   "Sohbet": "Chat", "Takım Sohbeti": "Team Chat",
+  "Yarış Sohbeti": "Race Chat",
+  "Bu yarışa özel kanal — takımın tamamı yazabilir, sürücüler dahil.":
+    "Channel for this race — everyone on the team can post, drivers included.",
   "Genel": "General", "Takım": "Team",
   "Mesaj yaz…": "Write a message…", "Gönder": "Send",
   "Henüz mesaj yok — ilk yazan sen ol.": "No messages yet — be the first.",
@@ -2494,6 +2497,7 @@ ${bottomBar}
     catch { return {}; }
   });
   const chatEndRef = useRef(null);
+  const raceEndRef = useRef(null);
 
   const myRole = teamData?.members?.[user?.uid] || "";
   const canEditTeam = myRole === "owner" || myRole === "editor";
@@ -2514,23 +2518,29 @@ ${bottomBar}
      🛞 Sürücü / rozetsiz → viewer (sadece görür). Takım sahibi her zaman owner.
      Firebase kuralları rolü baz aldığı için rozet değişince rol de yazılır. */
   /* Kanallar. Yazma yetkisi role bağlı değil — sürücüler de konuşur. */
+  /* Pencerede genel + takım; yarış sohbeti kendi sekmesinde (Telemetri'nin sağında) */
   const chatChans = useMemo(() => {
     const out = [{ id: "global", lbl: "Genel", ico: "🌍", path: "globalChat" }];
     if (curTeam) out.push({ id: "team", lbl: "Takım", ico: "🏢",
       path: `teams/${curTeam}/chat` });
-    if (curTeam && curRace) out.push({ id: "race", ico: "🏁",
-      lbl: races[curRace]?.name || t("Yarış"),
-      path: `teams/${curTeam}/raceChat/${curRace}` });
     return out;
-  }, [curTeam, curRace, races, lang]);
+  }, [curTeam]);
+
+  const raceChan = useMemo(() => (curTeam && curRace
+    ? { id: "race", ico: "🏁", lbl: races[curRace]?.name || "",
+      path: `teams/${curTeam}/raceChat/${curRace}` }
+    : null), [curTeam, curRace, races]);
+
+  const allChans = useMemo(() => (raceChan ? [...chatChans, raceChan] : chatChans),
+    [chatChans, raceChan]);
 
   /* açık olmayan kanalları da dinliyoruz — okunmamış sayacı için */
   useEffect(() => {
     if (!user) { setChatAll({}); return; }
-    const offs = chatChans.map((c) =>
+    const offs = allChans.map((c) =>
       watchChat(c.path, (msgs) => setChatAll((a) => ({ ...a, [c.path]: msgs }))));
     return () => offs.forEach((f) => f && f());
-  }, [user, chatChans]);
+  }, [user, allChans]);
 
   /* seçili kanal kaybolursa (yarıştan çıkınca) geçerli bir kanala düş */
   useEffect(() => {
@@ -2544,6 +2554,21 @@ ${bottomBar}
   const unreadOf = (c) => ((chatAll[c.path] || [])
     .filter((m) => (m.at || 0) > (chatSeen[c.path] || 0) && m.uid !== user?.uid).length);
   const chatUnread = chatChans.reduce((a, c) => a + unreadOf(c), 0);
+  const raceUnread = raceChan ? unreadOf(raceChan) : 0;
+
+  /* yarış sekmesi açıkken o kanalı okundu say */
+  useEffect(() => {
+    if (tab !== "rchat" || !raceChan) return;
+    const ms = chatAll[raceChan.path] || [];
+    const last = ms.length ? (ms[ms.length - 1].at || 0) : 0;
+    if (last && (chatSeen[raceChan.path] || 0) < last) {
+      const next = { ...chatSeen, [raceChan.path]: last };
+      setChatSeen(next);
+      try { localStorage.setItem("rm_chat_seen_v2", JSON.stringify(next)); }
+      catch { /* yoksay */ }
+    }
+    raceEndRef.current?.scrollIntoView({ block: "end" });
+  }, [tab, raceChan, chatAll, chatSeen]);
 
   useEffect(() => {
     if (!chatOpen || !curChan) return;
@@ -2557,12 +2582,63 @@ ${bottomBar}
     chatEndRef.current?.scrollIntoView({ block: "end" });
   }, [chatOpen, chatMsgs, curChan, chatSeen]);
 
-  const doSend = async () => {
+  const doSendTo = async (chan) => {
     const v = chatText.trim();
-    if (!v || !curChan) return;
+    if (!v || !chan) return;
     setChatText("");
-    try { await sendChat(curChan.path, user, userName, v); }
+    try { await sendChat(chan.path, user, userName, v); }
     catch (e) { console.warn("mesaj gönderilemedi:", e?.message); }
+  };
+
+  /* Sohbet gövdesi — hem pencerede hem yarış sekmesinde kullanılır */
+  const chatBody = (chan, h) => {
+    const msgs = (chan && chatAll[chan.path]) || [];
+    return (
+      <div className="chatwrap" style={h ? { height: h } : undefined}>
+        <div className="chatlist">
+          {!msgs.length && (
+            <div className="hint" style={{ margin: "auto", textAlign: "center" }}>
+              {t("Henüz mesaj yok — ilk yazan sen ol.")}</div>
+          )}
+          {msgs.map((m, i) => {
+            const me = m.uid === user?.uid;
+            const prev = msgs[i - 1];
+            const newDay = !prev || new Date(prev.at || 0).toDateString()
+              !== new Date(m.at || 0).toDateString();
+            return (
+              <Fragment key={m.id}>
+                {newDay && <div className="chatday">
+                  {new Date(m.at || 0).toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR",
+                    { day: "2-digit", month: "long" })}</div>}
+                <div className={`cmsg ${me ? "me" : ""}`}>
+                  <div className="who">
+                    {!me && <b>{teamData?.names?.[m.uid] || m.name || t("isimsiz")}</b>}
+                    <span>{fmtClock(m.at || 0)}</span>
+                    {(me || canManageTeam) && (
+                      <button className="del" title={t("Sil")}
+                        onClick={() => deleteChat(chan.path, m.id).catch(() => {})}>✕</button>
+                    )}
+                  </div>
+                  <div className="bub">{m.text}</div>
+                </div>
+              </Fragment>
+            );
+          })}
+          <div ref={chan === curChan ? chatEndRef : raceEndRef} />
+        </div>
+        <div className="chatbar">
+          <input type="text" value={chatText} maxLength={500}
+            placeholder={t("Mesaj yaz…")}
+            onChange={(e) => setChatText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); doSendTo(chan); }
+            }} />
+          <button className="gbtn ubtn" disabled={!chatText.trim()}
+            style={{ opacity: chatText.trim() ? 1 : .45 }}
+            onClick={() => doSendTo(chan)}>{t("Gönder")}</button>
+        </div>
+      </div>
+    );
   };
 
   const chatModal = chatOpen && user && curChan && (
@@ -2585,48 +2661,7 @@ ${bottomBar}
             );
           })}
         </div>
-        <div className="chatwrap">
-          <div className="chatlist">
-            {!chatMsgs.length && (
-              <div className="hint" style={{ margin: "auto", textAlign: "center" }}>
-                {t("Henüz mesaj yok — ilk yazan sen ol.")}</div>
-            )}
-            {chatMsgs.map((m, i) => {
-              const me = m.uid === user?.uid;
-              const prev = chatMsgs[i - 1];
-              const newDay = !prev || new Date(prev.at || 0).toDateString()
-                !== new Date(m.at || 0).toDateString();
-              return (
-                <Fragment key={m.id}>
-                  {newDay && <div className="chatday">
-                    {new Date(m.at || 0).toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR",
-                      { day: "2-digit", month: "long" })}</div>}
-                  <div className={`cmsg ${me ? "me" : ""}`}>
-                    <div className="who">
-                      {!me && <b>{teamData?.names?.[m.uid] || m.name || t("isimsiz")}</b>}
-                      <span>{fmtClock(m.at || 0)}</span>
-                      {(me || canManageTeam) && (
-                        <button className="del" title={t("Sil")}
-                          onClick={() => deleteChat(curChan.path, m.id).catch(() => {})}>✕</button>
-                      )}
-                    </div>
-                    <div className="bub">{m.text}</div>
-                  </div>
-                </Fragment>
-              );
-            })}
-            <div ref={chatEndRef} />
-          </div>
-          <div className="chatbar">
-            <input type="text" value={chatText} maxLength={500}
-              placeholder={t("Mesaj yaz…")}
-              onChange={(e) => setChatText(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); doSend(); } }} />
-            <button className="gbtn ubtn" disabled={!chatText.trim()}
-              style={{ opacity: chatText.trim() ? 1 : .45 }}
-              onClick={doSend}>{t("Gönder")}</button>
-          </div>
-        </div>
+        {chatBody(curChan)}
       </div>
     </div>
   );
@@ -3996,9 +4031,14 @@ ${bottomBar}
             {[["dash", "Dashboard"], ["stint", "Stint"],
               /* ["code80", "Code 80"], — şimdilik arayüzden gizli, kod korunuyor */
               ["fuel", t("Son Stint Yakıtı")], ["tyre", t("Lastik")], ["drivers", t("Pilotlar")],
-              ["tele", t("Telemetri")]].map(([k, l]) => (
+              ["tele", t("Telemetri")],
+              ...(raceChan ? [["rchat", t("Yarış Sohbeti")]] : [])].map(([k, l]) => (
               <button key={k} className={`${tab === k ? "on" : ""} ${k === "code80" && tab === k ? "c80t" : ""}`}
-                onClick={() => setTab(k)}>{l}</button>
+                onClick={() => setTab(k)} style={{ position: "relative" }}>{l}
+                {k === "rchat" && raceUnread > 0 && tab !== "rchat" &&
+                  <b className="cdot" style={{ position: "absolute", top: 2, right: 3 }}>
+                    {raceUnread > 9 ? "9+" : raceUnread}</b>}
+              </button>
             ))}
           </div>
 
@@ -4663,6 +4703,18 @@ ${bottomBar}
                 <div className="hint">{t("Start/Finish zamanları stint planından otomatik zincirlenir (pit süreleri dahil). Yarış bitişini aşan kısım süreye sayılmaz; tamamen yarış dışı kalan stintler soluk görünür.")}</div>
               </>)}
               {!driverPlan && <div className="hint warn">{t("Geçerli bir yarış başlangıç zamanı gir.")}</div>}
+            </div>
+          )}
+
+          {tab === "rchat" && raceChan && (
+            <div className="card">
+              <h2>🏁 {races[curRace]?.name || t("Yarış Sohbeti")}</h2>
+              <div className="hint" style={{ marginBottom: 6 }}>
+                {t("Bu yarışa özel kanal — takımın tamamı yazabilir, sürücüler dahil.")}</div>
+              <div style={{ border: "1px solid var(--line)", borderRadius: 10,
+                overflow: "hidden" }}>
+                {chatBody(raceChan, "min(58vh,440px)")}
+              </div>
             </div>
           )}
 
