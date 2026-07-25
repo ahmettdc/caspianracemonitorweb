@@ -5,6 +5,7 @@ import { firebaseReady, touchUserProfile, watchUserDoc,
   createTeam, joinTeam, watchMyTeams, watchTeam,
   setTeamRole, toggleTeamBadge, leaveTeam, setTeamMemberName,
   sendChat, watchChat, deleteChat, renameTeam, syncMyTeamName,
+  addSetup, watchSetups, deleteSetup,
   createSeason, deleteSeason, watchSeasons,
   createRace, updateRace, deleteRace, watchRaces,
   raceStateGet, raceStateSet, raceStateSubscribe } from "./storage";
@@ -396,6 +397,26 @@ const EN = {
   "Canlı Yayın": "Live Stream", "YouTube linki": "YouTube link",
   "Köşeye taşı": "Move to corner", "Küçült": "Minimise", "Büyüt": "Expand",
   "Boyutlandırmak için sürükle": "Drag to resize",
+  "Setup": "Setup", "Setup Yükle": "Upload Setup", "Setup Havuzu": "Setup Library",
+  "Dosya": "File", "Koşul": "Condition", "Seans": "Session", "Kuru": "Dry",
+  "Sıralama": "Qualifying", "Şampiyona": "Championship", "LMU Sürümü": "LMU Version",
+  "Not": "Note", "Sürüm": "Version", "Yükleyen": "By", "İndir": "Download",
+  "Tarih": "Date", "Sınıf": "Class", "Araç": "Car", "Yarış": "Race",
+  "Takıma Yükle": "Upload to Team", "Yükleniyor…": "Uploading…",
+  "Pist seçilmeli.": "Pick a track.", "Yüklenemedi:": "Upload failed:",
+  "Tüm pistler": "All tracks", "Kuru + Wet": "Dry + Wet",
+  "Yarış + Sıralama": "Race + Qualifying",
+  "örn. ELMS / Official / Online": "e.g. ELMS / Official / Online",
+  "örn. düşük kanat, uzun stint dengesi": "e.g. low wing, long-stint balance",
+  "Dosya çok büyük (sınır 180 KB) — setup dosyaları normalde birkaç KB'dır.":
+    "File too large (180 KB limit) — setup files are normally a few KB.",
+  "Yüklenen setup tüm takım üyelerine görünür. Tarih otomatik kaydedilir.":
+    "Uploaded setups are visible to the whole team. The date is recorded automatically.",
+  "Henüz setup yok — ilk dosyayı yukarıdan yükle.":
+    "No setups yet — upload the first file above.",
+  "🔧 Setup Havuzu": "🔧 Setup Library",
+  "Takımın setup arşivi: dosyayı pist, koşul, seans ve araç bilgisiyle yükle — herkes süzüp indirebilir. Aktif yarışın pisti vurgulanır.":
+    "The team's setup archive: upload with track, condition, session and car info — everyone can filter and download. The active race's track is highlighted.",
   "Bildirim sesini kapat": "Mute notification sound",
   "Bildirim sesini aç": "Unmute notification sound",
   "Start tarih-saatini gir — geri sayım ve canlı stint takibi buna göre çalışır. Saat her üyeye kendi saat diliminde gösterilir.":
@@ -2814,6 +2835,80 @@ ${bottomBar}
   const seenTour = (k) => { try { return localStorage.getItem(k) === "1"; } catch { return true; } };
   const markTour = (k) => { try { localStorage.setItem(k, "1"); } catch { /* yoksay */ } };
 
+  /* ---- setup deposu ---- */
+  const [setups, setSetups] = useState([]);
+  const [suFile, setSuFile] = useState(null);       // { name, b64, size }
+  const [suMeta, setSuMeta] = useState({ track: "", cls: "", car: "",
+    cond: "dry", sess: "R", champ: "", ver: "", note: "" });
+  const [suErr, setSuErr] = useState("");
+  const [suBusy, setSuBusy] = useState(false);
+  const [suFTrack, setSuFTrack] = useState("");     // liste süzgeçleri
+  const [suFCond, setSuFCond] = useState("");
+  const [suFSess, setSuFSess] = useState("");
+
+  useEffect(() => {
+    if (!curTeam || !user) { setSetups([]); return; }
+    return watchSetups(curTeam, setSetups);
+  }, [curTeam, user]);
+
+  const onSetupFile = (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) return;
+    if (f.size > 180 * 1024) {
+      setSuErr(t("Dosya çok büyük (sınır 180 KB) — setup dosyaları normalde birkaç KB'dır."));
+      return;
+    }
+    const rd = new FileReader();
+    rd.onload = () => {
+      const b64 = String(rd.result).split(",")[1] || "";
+      setSuFile({ name: f.name, b64, size: f.size });
+      setSuErr("");
+    };
+    rd.readAsDataURL(f);
+  };
+
+  const saveSetup = async () => {
+    if (!suFile || !curTeam || suBusy) return;
+    if (!suMeta.track) { setSuErr(t("Pist seçilmeli.")); return; }
+    setSuBusy(true);
+    try {
+      await addSetup(curTeam, user, {
+        name: suFile.name, size: suFile.size,
+        uname: userName || user.displayName || "",
+        track: suMeta.track, cls: suMeta.cls, car: suMeta.car,
+        cond: suMeta.cond, sess: suMeta.sess,
+        champ: suMeta.champ.trim().slice(0, 40),
+        ver: suMeta.ver.trim().slice(0, 16),
+        note: suMeta.note.trim().slice(0, 140),
+      }, suFile.b64);
+      setSuFile(null);
+      setSuMeta((m) => ({ ...m, note: "" }));
+      setSuErr("");
+    } catch (e2) {
+      setSuErr(t("Yüklenemedi:") + " " + (e2?.message || ""));
+    }
+    setSuBusy(false);
+  };
+
+  const downloadSetup = (su) => {
+    try {
+      const bin = atob(su.data || "");
+      const arr = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+      const url = URL.createObjectURL(new Blob([arr]));
+      const a = document.createElement("a");
+      a.href = url; a.download = su.name || "setup";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    } catch { /* bozuk kayıt */ }
+  };
+
+  const suList = setups.filter((x) =>
+    (!suFTrack || x.track === suFTrack)
+    && (!suFCond || x.cond === suFCond)
+    && (!suFSess || x.sess === suFSess));
+
   /* ---- yüzen mini oynatıcı ---- */
   const [streamCorner, setStreamCorner] = useState(() => {
     try { return localStorage.getItem("rm_stream_corner") || "br"; } catch { return "br"; }
@@ -3185,6 +3280,9 @@ ${bottomBar}
       title: t("⚡ Son Stint Hesaplayıcı"),
       body: t("Yarış sonu geri sayımını gir (canlıda otomatik) — kalan tur ve gereken VE hesaplanır. Ondalık tur yukarı yuvarlanır, trafik payı için.") },
     /* --- Lastik --- */
+    { sel: "[data-tour='setuptab']", act: () => setTab("setup"),
+      title: t("🔧 Setup Havuzu"),
+      body: t("Takımın setup arşivi: dosyayı pist, koşul, seans ve araç bilgisiyle yükle — herkes süzüp indirebilir. Aktif yarışın pisti vurgulanır.") },
     { sel: "[data-tour='tyrecard']", act: () => setTab("tyre"),
       title: t("Lastik Stratejisi"),
       body: t("Limit sayacı, stint bazlı köşe tablosu ve hızlı atama. Wet lastikler limitten düşmez; siyah kutu eski kuru lastiği geri takar.") },
@@ -4648,6 +4746,7 @@ ${bottomBar}
               /* ["code80", "Code 80"], — şimdilik arayüzden gizli, kod korunuyor */
               ["fuel", t("Son Stint Yakıtı"), "\u26A1"],
               ["tyre", t("Lastik"), <Tyre size={12} />],
+              ["setup", t("Setup"), "\u{1F527}"],
               ["drivers", t("Pilotlar"), <Wheel size={12} />],
               ["tele", t("Telemetri"), "\u{1F4C8}"],
               ...(raceChan ? [["rchat", t("Yarış Sohbeti"), "\u{1F4AC}"]] : [])]
@@ -5080,6 +5179,173 @@ ${bottomBar}
                   })}
                 </>)}
               </div>
+            </div>
+          </>)}
+
+          {tab === "setup" && (<>
+            <div className="card" data-tour="setuptab">
+              <h2>🔧 {t("Setup Yükle")}</h2>
+              <div className="row2" style={{ maxWidth: 720 }}>
+                <div>
+                  <label>{t("Dosya")}</label>
+                  <input type="file" onChange={onSetupFile} />
+                  {suFile && <div className="hint">
+                    📄 {suFile.name} · {(suFile.size / 1024).toFixed(1)} KB</div>}
+                </div>
+                <div>
+                  <label>{t("Pist")} *</label>
+                  <select value={suMeta.track}
+                    onChange={(e) => setSuMeta({ ...suMeta, track: e.target.value })}>
+                    <option value="">—</option>
+                    {TRACKS.map((tr) => <option key={tr.id} value={tr.id}>{tr.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="row4" style={{ maxWidth: 720 }}>
+                <div>
+                  <label>{t("Koşul")}</label>
+                  <select value={suMeta.cond}
+                    onChange={(e) => setSuMeta({ ...suMeta, cond: e.target.value })}>
+                    <option value="dry">☀️ {t("Kuru")}</option>
+                    <option value="wet">🌧 Wet</option>
+                  </select>
+                </div>
+                <div>
+                  <label>{t("Seans")}</label>
+                  <select value={suMeta.sess}
+                    onChange={(e) => setSuMeta({ ...suMeta, sess: e.target.value })}>
+                    <option value="R">{t("Yarış")}</option>
+                    <option value="Q">{t("Sıralama")}</option>
+                  </select>
+                </div>
+                <div>
+                  <label>{t("Sınıf")}</label>
+                  <select value={suMeta.cls}
+                    onChange={(e) => setSuMeta({ ...suMeta, cls: e.target.value, car: "" })}>
+                    <option value="">—</option>
+                    {CAR_CLASSES.map(([id, lbl]) => <option key={id} value={id}>{lbl}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label>{t("Araç")}</label>
+                  <select value={suMeta.car} disabled={!suMeta.cls}
+                    onChange={(e) => setSuMeta({ ...suMeta, car: e.target.value })}>
+                    <option value="">—</option>
+                    {(CARS[suMeta.cls] || []).map((c) =>
+                      <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="row4" style={{ maxWidth: 720 }}>
+                <div>
+                  <label>{t("Şampiyona")}</label>
+                  <input type="text" list="su-champs" value={suMeta.champ}
+                    placeholder={t("örn. ELMS / Official / Online")}
+                    style={{ textTransform: "none" }}
+                    onChange={(e) => setSuMeta({ ...suMeta, champ: e.target.value })} />
+                  <datalist id="su-champs">
+                    {Object.values(seasons).map((se) =>
+                      <option key={se.name} value={se.name} />)}
+                    <option value="Official" /><option value="Online" />
+                  </datalist>
+                </div>
+                <div>
+                  <label>{t("LMU Sürümü")}</label>
+                  <input type="text" value={suMeta.ver} placeholder="V1.2"
+                    style={{ textTransform: "none" }}
+                    onChange={(e) => setSuMeta({ ...suMeta, ver: e.target.value })} />
+                </div>
+                <div style={{ gridColumn: "span 2" }}>
+                  <label>{t("Not")}</label>
+                  <input type="text" value={suMeta.note} maxLength={140}
+                    placeholder={t("örn. düşük kanat, uzun stint dengesi")}
+                    style={{ textTransform: "none" }}
+                    onChange={(e) => setSuMeta({ ...suMeta, note: e.target.value })} />
+                </div>
+              </div>
+              {suErr && <div className="hint warn">⚠ {suErr}</div>}
+              <button className="gbtn ubtn" disabled={!suFile || !suMeta.track || suBusy}
+                style={{ opacity: suFile && suMeta.track && !suBusy ? 1 : .45, marginTop: 6 }}
+                onClick={saveSetup}>
+                {suBusy ? t("Yükleniyor…") : t("Takıma Yükle")}</button>
+              <div className="hint" style={{ marginTop: 6 }}>
+                {t("Yüklenen setup tüm takım üyelerine görünür. Tarih otomatik kaydedilir.")}</div>
+            </div>
+
+            <div className="card" style={{ marginTop: 12 }}>
+              <h2>📚 {t("Setup Havuzu")} ({suList.length}/{setups.length})</h2>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+                <select value={suFTrack} onChange={(e) => setSuFTrack(e.target.value)}>
+                  <option value="">{t("Tüm pistler")}</option>
+                  {TRACKS.filter((tr) => setups.some((x) => x.track === tr.id))
+                    .map((tr) => <option key={tr.id} value={tr.id}>{tr.name}</option>)}
+                </select>
+                <select value={suFCond} onChange={(e) => setSuFCond(e.target.value)}>
+                  <option value="">{t("Kuru + Wet")}</option>
+                  <option value="dry">☀️ {t("Kuru")}</option>
+                  <option value="wet">🌧 Wet</option>
+                </select>
+                <select value={suFSess} onChange={(e) => setSuFSess(e.target.value)}>
+                  <option value="">{t("Yarış + Sıralama")}</option>
+                  <option value="R">{t("Yarış")}</option>
+                  <option value="Q">{t("Sıralama")}</option>
+                </select>
+                {st.track && setups.some((x) => x.track === st.track) && (
+                  <button className="act" style={{ fontSize: 11 }}
+                    onClick={() => setSuFTrack(st.track)}>
+                    📍 {trackName(st.track)}</button>
+                )}
+              </div>
+              {!suList.length && (
+                <div className="hint">{t("Henüz setup yok — ilk dosyayı yukarıdan yükle.")}</div>
+              )}
+              {suList.length > 0 && (
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ fontSize: 12 }}>
+                    <thead><tr>
+                      <th>{t("Tarih")}</th><th>{t("Pist")}</th><th>{t("Koşul")}</th>
+                      <th>{t("Seans")}</th><th>{t("Sınıf")}</th><th>{t("Araç")}</th>
+                      <th>{t("Şampiyona")}</th><th>{t("Sürüm")}</th>
+                      <th>{t("Dosya")}</th><th>{t("Yükleyen")}</th><th></th>
+                    </tr></thead>
+                    <tbody>
+                      {suList.map((su) => (
+                        <tr key={su.id}
+                          style={su.track === st.track
+                            ? { background: "rgba(150,0,24,.08)" } : undefined}>
+                          <td className="mono">{new Date(su.at || 0)
+                            .toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR",
+                              { day: "2-digit", month: "2-digit", year: "2-digit" })}</td>
+                          <td>{trackName(su.track) || su.track || "—"}</td>
+                          <td>{su.cond === "wet" ? "🌧 Wet" : `☀️ ${t("Kuru")}`}</td>
+                          <td>{su.sess === "Q"
+                            ? <span className="chip" style={{ borderColor: "var(--green)",
+                                color: "var(--green)" }}>{t("Sıralama")}</span>
+                            : <span className="chip" style={{ borderColor: "var(--orange, #F2A33C)",
+                                color: "var(--orange, #F2A33C)" }}>{t("Yarış")}</span>}</td>
+                          <td>{CAR_CLASSES.find(([id]) => id === su.cls)?.[1] || "—"}</td>
+                          <td>{carName(su.cls, su.car) || "—"}</td>
+                          <td>{su.champ || "—"}</td>
+                          <td className="mono">{su.ver || "—"}</td>
+                          <td title={su.note || ""}>
+                            <span className="mono" style={{ fontSize: 11 }}>{su.name}</span>
+                            {su.note && <span className="hint" style={{ display: "block",
+                              margin: 0 }}>{su.note}</span>}</td>
+                          <td>{su.uname || "—"}</td>
+                          <td style={{ whiteSpace: "nowrap" }}>
+                            <button className="act" style={{ fontSize: 11 }}
+                              onClick={() => downloadSetup(su)}>⬇ {t("İndir")}</button>
+                            {(su.uid === user?.uid || canManageTeam) && (
+                              <button className="act danger" style={{ fontSize: 11, marginLeft: 4 }}
+                                onClick={() => deleteSetup(curTeam, su.id).catch(() => {})}>✕</button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </>)}
 

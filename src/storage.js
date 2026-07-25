@@ -194,6 +194,34 @@ export async function syncMyTeamName(uid, tid, name) {
 
 
 
+/* ---------- setup deposu ----------
+   Dosya base64 olarak RTDB'ye gömülür (LMU setup dosyaları küçüktür).
+   Ham dosya sınırı ~180KB → base64 ~240KB. */
+export async function addSetup(tid, user, meta, b64) {
+  if (!db || !tid || !user || !b64) return;
+  await push(ref(db, `teams/${tid}/setups`), {
+    ...meta,
+    data: b64,
+    uid: user.uid,
+    at: Date.now(),
+  });
+}
+
+export function watchSetups(tid, cb) {
+  if (!db || !tid) { cb([]); return () => {}; }
+  return onValue(ref(db, `teams/${tid}/setups`), (snap) => {
+    const v = snap.val() || {};
+    cb(Object.entries(v)
+      .map(([id, x]) => ({ id, ...x }))
+      .sort((a, b) => (b.at || 0) - (a.at || 0)));
+  }, () => cb([]));
+}
+
+export async function deleteSetup(tid, id) {
+  if (!db || !tid || !id) return;
+  await remove(ref(db, `teams/${tid}/setups/${id}`));
+}
+
 /* ---------- sohbet: kanal yolu ile çalışır ----------
    genel   -> globalChat
    takım   -> teams/{tid}/chat
