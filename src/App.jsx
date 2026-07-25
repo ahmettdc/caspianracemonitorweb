@@ -475,8 +475,8 @@ const EN = {
   "👁 İZLEYİCİ": "👁 VIEWER",
   "✎ DÜZENLEYİCİ": "✎ EDITOR",
   "Stint zaman çizelgesi": "Stint timeline",
-  "Rozetleri atamak için üye satırındaki 🏎 / 🎧 düğmelerine bas.":
-    "Use the 🏎 / 🎧 buttons on a member row to assign badges.",
+  "Rozetleri atamak için üye satırındaki rozet düğmelerine bas.":
+    "Use the badge buttons on a member row to assign them.",
   "Neler değişti": "What's new",
   "ŞU AN": "CURRENT",
   "GitHub'da tüm değişiklikler ↗": "All changes on GitHub ↗",
@@ -563,11 +563,24 @@ const EMPTY_PIT = { fuel: true, lane: true, tyres: [0, 0, 0, 0] };
 const TYRE_2_SEC = 5;  // 1-2 lastik değişim süresi (LMU, sabit)
 const TYRE_4_SEC = 12; // 3-4 lastik değişim süresi (LMU, sabit)
 /* zemin/hava durumu: tur süresi çarpanı + yakıt tüketim çarpanı (LMU) */
+/* direksiyon simgesi — Unicode'da direksiyon emojisi yok, rozet rengini devralır */
+function Wheel({ size = 13 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+      style={{ verticalAlign: -2 }} aria-hidden="true">
+      <circle cx="12" cy="12" r="9.3" />
+      <circle cx="12" cy="12" r="2.8" fill="currentColor" stroke="none" />
+      <path d="M2.9 12h6.3M14.8 12h6.3M12 14.8v6.3" />
+    </svg>
+  );
+}
+
 /* kullanıcı rozetleri */
 const BADGES = {
   admin:    { lbl: "Admin",            ico: "🛡", col: "#E11D2E", bg: "rgba(225,29,46,.14)" },
   owner:    { lbl: "Takım Sahibi",     ico: "👑", col: "#C9A227", bg: "rgba(201,162,39,.14)" },
-  driver:   { lbl: "Sürücü",           ico: "🏎", col: "#26C6DA", bg: "rgba(38,198,218,.14)" },
+  driver:   { lbl: "Sürücü",           ico: <Wheel />, col: "#26C6DA", bg: "rgba(38,198,218,.14)" },
   engineer: { lbl: "Yarış Mühendisi",  ico: "🎧", col: "#F2C94C", bg: "rgba(242,201,76,.14)" },
 };
 /* Rozet listesi: sahiplik ve admin otomatik, diğerleri takım sahibince atanır.
@@ -2475,7 +2488,7 @@ ${bottomBar}
                 <div className="tmsec" style={{ marginTop: 16 }}>{t("Takım Üyeleri")}</div>
                 {canManageTeam && (
                   <div className="hint" style={{ marginBottom: 6 }}>
-                    {t("Rozetleri atamak için üye satırındaki 🏎 / 🎧 düğmelerine bas.")}</div>
+                    {t("Rozetleri atamak için üye satırındaki rozet düğmelerine bas.")}</div>
                 )}
                 {Object.entries(teamData.members || {}).map(([uid, role]) => {
                   const mbs = teamBadgesOf(teamData, uid, null);
