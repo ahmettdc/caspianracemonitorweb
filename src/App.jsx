@@ -287,8 +287,6 @@ const EN = {
   "Geçerli bir yarış başlangıç zamanı gir.": "Enter a valid race start time.",
   // telemetri
   "Telemetri İçe Aktar (MoTeC)": "Import Telemetry (MoTeC)",
-  "MoTeC tur istatistiklerini yapıştır veya dosya seç (CSV/TSV)":
-    "Paste MoTeC lap statistics or choose a file (CSV/TSV)",
   "Tur Süresi": "Lap Time", "(başlıksız)": "(untitled)",
   "Tur süresi sütunu seçilmeli": "Select the lap time column",
   "Stint Analizi": "Stint Analysis", "DATA'ya uygula": "Apply to DATA", "Sil": "Delete",
@@ -477,6 +475,17 @@ const EN = {
   "Stint zaman çizelgesi": "Stint timeline",
   "Rozetleri atamak için üye satırındaki rozet düğmelerine bas.":
     "Use the badge buttons on a member row to assign them.",
+  "tur çözümlendi": "laps parsed",
+  "Tur": "Lap", "Yakıt": "Fuel", "kısmi": "partial",
+  "Ort/Max km/h": "Avg/Max km/h",
+  "Kısmi tur: log'da sonraki tur yok, süre örneklerden hesaplandı.":
+    "Partial lap: no following lap in the log, duration estimated from samples.",
+  "VE karşılığı için Yarış·Data'da yakıt oranı girilmeli.":
+    "Set the fuel ratio in Race Data to get the VE equivalent.",
+  "Dosya tanınmadı — MoTeC tur raporu ya da ham kanal log'u bekleniyor":
+    "File not recognised — expecting a MoTeC lap report or a raw channel log",
+  "MoTeC tur istatistiklerini yapıştır veya dosya seç (CSV/TSV)":
+    "Paste MoTeC lap stats or pick a file — raw channel logs work too (CSV/TSV)",
   "Neler değişti": "What's new",
   "ŞU AN": "CURRENT",
   "GitHub'da tüm değişiklikler ↗": "All changes on GitHub ↗",
@@ -513,6 +522,130 @@ const msFromCell = (v) => {
   return null;
 };
 
+/* ---------- ham MoTeC kanal log'u (sample bazlı, 100 Hz, 200+ kanal) ----------
+   MoTeC iki farklı çıktı verir:
+   a) tur istatistiği raporu → "Out Lap / Lap 1" satırları (parseTelemetryText)
+   b) ham kanal log'u → her satır bir örnek, tur bilgisi "Lap Number" kanalında
+   Bu fonksiyon (b)'yi tur bazına indirger. */
+const splitCsvLine = (line, delim) => {
+  const out = []; let cur = ""; let q = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (q) {
+      if (ch === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else q = false; }
+      else cur += ch;
+    } else if (ch === '"') q = true;
+    else if (ch === delim) { out.push(cur); cur = ""; }
+    else cur += ch;
+  }
+  out.push(cur);
+  return out.map((c) => c.trim());
+};
+const tnum = (v) => {
+  const n = parseFloat(String(v == null ? "" : v).replace(",", "."));
+  return isNaN(n) ? null : n;
+};
+
+function parseMotecLog(text) {
+  const lines = text.split(/\r?\n/);
+  if (lines.length < 20) return null;
+  const head = lines.slice(0, 30).join("");
+  const delim = (head.match(/;/g) || []).length > (head.match(/,/g) || []).length ? ";" : ",";
+
+  let hi = -1, cols = null;
+  for (let i = 0; i < Math.min(lines.length, 60); i++) {
+    const c = splitCsvLine(lines[i], delim);
+    if (c.length >= 8 && /^time$/i.test(c[0])) { hi = i; cols = c; break; }
+  }
+  if (hi === -1) return null;
+
+  /* üst bilgi: "Venue","Spa",,,"Worksheet","" → hem 0-1 hem 4-5 çiftleri */
+  const meta = {};
+  for (let i = 0; i < hi; i++) {
+    const c = splitCsvLine(lines[i], delim);
+    for (const [k, v] of [[0, 1], [4, 5]]) {
+      if (c[k] && c[v]) meta[c[k].toLowerCase()] = c[v];
+    }
+  }
+
+  const find = (...res) => {
+    for (const re of res) { const i = cols.findIndex((c) => re.test(c)); if (i >= 0) return i; }
+    return -1;
+  };
+  const iLap = find(/^lap number$/i, /lap\s*num/i, /^lap$/i);
+  if (iLap < 0) return null;
+  const iTime = find(/^session elapsed time$/i, /elapsed/i, /^time$/i);
+  const iFuel = find(/^fuel level$/i, /fuel\s*level/i, /^fuel$/i);
+  const iLast = find(/^last laptime$/i, /last\s*lap\s*time/i);
+  const iSpd = find(/^ground speed$/i, /^speed$/i);
+  const iPit = find(/^in pits$/i, /^pitstatus$/i);
+  const iWear = ["fl", "fr", "rl", "rr"].map((c) =>
+    find(new RegExp(`^tyre wear ${c}$`, "i"), new RegExp(`wear\\s*${c}$`, "i")));
+  const iTrk = find(/^track temperature$/i);
+  const iAmb = find(/^ambient temperature$/i);
+
+  const rows = [];
+  for (let i = hi + 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const c = splitCsvLine(lines[i], delim);
+    if (c.length < cols.length - 2 || tnum(c[0]) == null) continue;
+    rows.push(c);
+  }
+  if (rows.length < 20) return null;
+
+  const groups = [];
+  let cur = null;
+  for (const r of rows) {
+    const ln = tnum(r[iLap]);
+    if (ln == null) continue;
+    if (!cur || cur.lap !== ln) { cur = { lap: ln, rows: [] }; groups.push(cur); }
+    cur.rows.push(r);
+  }
+
+  const laps = groups.map((g, gi) => {
+    const a = g.rows[0], z = g.rows[g.rows.length - 1];
+    const t0 = tnum(a[iTime]), t1 = tnum(z[iTime]);
+    const span = t0 != null && t1 != null ? t1 - t0 : null;
+    /* gerçek tur süresi: sonraki turun başındaki "Last Laptime" kanalı */
+    let official = null;
+    const nx = groups[gi + 1];
+    if (nx && iLast >= 0) {
+      const v = tnum(nx.rows[Math.min(3, nx.rows.length - 1)][iLast]);
+      if (v && v > 20 && v < 1200) official = v;
+    }
+    const f0 = iFuel >= 0 ? tnum(a[iFuel]) : null;
+    const f1 = iFuel >= 0 ? tnum(z[iFuel]) : null;
+    const spds = iSpd >= 0 ? g.rows.map((r) => tnum(r[iSpd])).filter((x) => x != null) : [];
+    return {
+      lap: g.lap, n: g.rows.length,
+      sec: official != null ? official : span, official, span,
+      fuelL: f0 != null && f1 != null && f0 > f1 ? f0 - f1 : null,
+      w: iWear.map((wi) => {
+        if (wi < 0) return null;
+        const x = tnum(a[wi]), y = tnum(z[wi]);
+        return x != null && y != null ? Math.abs(y - x) : null;
+      }),
+      pit: iPit >= 0 && g.rows.some((r) => (tnum(r[iPit]) || 0) > 0),
+      avgSpd: spds.length ? spds.reduce((x, y) => x + y, 0) / spds.length : null,
+      maxSpd: spds.length ? Math.max(...spds) : null,
+      partial: official == null,
+    };
+  }).filter((l) => l.n >= 20 && l.sec != null && l.sec > 10);
+
+  if (!laps.length) return null;
+  const mid = rows[Math.floor(rows.length / 2)];
+  return {
+    motec: true, laps,
+    meta: {
+      venue: meta.venue || "",
+      vehicle: meta["vehicle desc"] || meta.vehicle || "",
+      driver: meta.driver || "", date: meta["log date"] || "",
+      trk: iTrk >= 0 ? tnum(mid[iTrk]) : null,
+      amb: iAmb >= 0 ? tnum(mid[iAmb]) : null,
+    },
+  };
+}
+
 function parseTelemetryText(text) {
   const lines = text.split(/\r?\n/).filter((l) => l.trim());
   if (!lines.length) return null;
@@ -521,7 +654,7 @@ function parseTelemetryText(text) {
     a + (l.split(d).length - 1), 0)]).sort((a, b) => b[1] - a[1])[0][0];
   const rows = lines.map((l) => l.split(delim).map((c) => c.trim()));
   const firstLap = rows.findIndex((r) => r.some(isLapLabel));
-  if (firstLap === -1) return { error: "Tur satırı bulunamadı ('Out Lap', 'Lap 1'...)" };
+  if (firstLap === -1) return { error: "Dosya tanınmadı — MoTeC tur raporu ya da ham kanal log'u bekleniyor" };
   const ncols = Math.max(...rows.map((r) => r.length));
   const headers = Array.from({ length: ncols }, (_, i) =>
     rows.slice(0, firstLap).map((h) => h[i] || "").join(" ").trim());
@@ -1697,6 +1830,8 @@ export default function App() {
   const fmtMs = (ms) => fmtLap(ms / 1000);
 
   const doParse = (text) => {
+    const m = parseMotecLog(text);          // önce ham kanal log'u dene
+    if (m) { setParsed(m); setMapping(null); return; }
     const p = parseTelemetryText(text);
     setParsed(p);
     if (p && !p.error) setMapping(guessMapping(p));
@@ -1707,6 +1842,26 @@ export default function App() {
     const rd = new FileReader();
     rd.onload = () => { setRawTele(String(rd.result)); doParse(String(rd.result)); };
     rd.readAsText(f);
+  };
+
+  /* ham log → mevcut tur modeline çevir (yakıt litre → VE %) */
+  const saveMotec = () => {
+    if (!parsed?.motec) return;
+    const ratio = st.fuelRatio > 0 ? st.fuelRatio : null;
+    const laps = parsed.laps.map((l) => ({
+      label: `Lap ${l.lap}`,
+      ms: Math.round(l.sec * 1000),
+      fuel: l.fuelL != null && ratio ? +(l.fuelL / ratio).toFixed(2) : null,
+      fuelL: l.fuelL != null ? +l.fuelL.toFixed(2) : null,
+      w: l.w.map((x) => (x == null ? null : +x.toFixed(2))),
+      avgSpd: l.avgSpd != null ? Math.round(l.avgSpd) : null,
+      maxSpd: l.maxSpd != null ? Math.round(l.maxSpd) : null,
+      partial: !!l.partial, pit: !!l.pit,
+      use: !l.pit,
+    }));
+    setSt((s) => ({ ...s, telemetry: { ...s.telemetry,
+      [slot]: { laps, name: `Stint ${slot}`, src: parsed.meta } } }));
+    setRawTele(""); setParsed(null); setMapping(null);
   };
 
   const saveSlot = () => {
@@ -4189,7 +4344,52 @@ ${bottomBar}
                   <input type="file" accept=".csv,.tsv,.txt" onChange={onTeleFile} />
                 </div>
                 {parsed?.error && <div className="hint warn">⚠ {t(parsed.error)}</div>}
-                {parsed && !parsed.error && mapping && (<>
+                {parsed?.motec && (<>
+                  <div className="hint" style={{ marginTop: 4 }}>
+                    <b>{parsed.laps.length}</b> {t("tur çözümlendi")}
+                    {parsed.meta.venue && <> · {parsed.meta.venue}</>}
+                    {parsed.meta.vehicle && <> · {parsed.meta.vehicle}</>}
+                    {parsed.meta.driver && <> · {parsed.meta.driver}</>}
+                    {parsed.meta.trk != null && <> · {t("Pist")} {parsed.meta.trk.toFixed(0)}°C</>}
+                    {parsed.meta.amb != null && <> / {t("Hava")} {parsed.meta.amb.toFixed(0)}°C</>}
+                  </div>
+                  <div style={{ overflowX: "auto", margin: "8px 0" }}>
+                    <table style={{ fontSize: 11.5 }}>
+                      <thead><tr>
+                        <th>{t("Tur")}</th><th>{t("Süre")}</th><th>{t("Yakıt")}</th>
+                        <th>VE %</th><th>{t("Aşınma")} FL/FR/RL/RR</th><th>{t("Ort/Max km/h")}</th>
+                      </tr></thead>
+                      <tbody>
+                        {parsed.laps.map((l) => (
+                          <tr key={l.lap}>
+                            <td>{l.lap}{l.pit ? " 🅿" : ""}
+                              {l.partial && <span className="hint" style={{ marginLeft: 4 }}>
+                                {t("kısmi")}</span>}</td>
+                            <td className="mono">{fmtLap(l.sec)}</td>
+                            <td className="mono">{l.fuelL != null ? `${l.fuelL.toFixed(2)} L` : "—"}</td>
+                            <td className="mono">{l.fuelL != null && st.fuelRatio > 0
+                              ? `${(l.fuelL / st.fuelRatio).toFixed(2)}` : "—"}</td>
+                            <td className="mono">{l.w.map((x) =>
+                              x == null ? "—" : x.toFixed(1)).join(" / ")}</td>
+                            <td className="mono">{l.avgSpd != null
+                              ? `${Math.round(l.avgSpd)} / ${Math.round(l.maxSpd)}` : "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {parsed.laps.some((l) => l.partial) && (
+                    <div className="hint">{t("Kısmi tur: log'da sonraki tur yok, süre örneklerden hesaplandı.")}</div>
+                  )}
+                  {!(st.fuelRatio > 0) && (
+                    <div className="hint warn">{t("VE karşılığı için Yarış·Data'da yakıt oranı girilmeli.")}</div>
+                  )}
+                  <button className="act" style={{ borderColor: SLOT_COLORS[slot],
+                    color: SLOT_COLORS[slot], marginTop: 4 }} onClick={saveMotec}>
+                    {lang === "en" ? <>Save as Stint {slot}</> : <>Stint {slot} olarak kaydet</>}
+                  </button>
+                </>)}
+                {parsed && !parsed.error && !parsed.motec && mapping && (<>
                   <div className="hint">
                     {parsed.lapRows.length} {t("tur satırı bulundu. Sütun eşleşmesini kontrol et:")}
                   </div>
