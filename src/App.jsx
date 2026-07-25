@@ -475,6 +475,8 @@ const EN = {
   "👁 İZLEYİCİ": "👁 VIEWER",
   "✎ DÜZENLEYİCİ": "✎ EDITOR",
   "Stint zaman çizelgesi": "Stint timeline",
+  "Rozetleri atamak için üye satırındaki 🏎 / 📐 düğmelerine bas.":
+    "Use the 🏎 / 📐 buttons on a member row to assign badges.",
   "Neler değişti": "What's new",
   "ŞU AN": "CURRENT",
   "GitHub'da tüm değişiklikler ↗": "All changes on GitHub ↗",
@@ -2145,6 +2147,8 @@ ${bottomBar}
   }, [curTeam]);
   const myRole = teamData?.members?.[user?.uid] || "";
   const canEditTeam = myRole === "owner" || myRole === "editor";
+  /* rozet/rol yönetimi: takım sahibi veya site admini */
+  const canManageTeam = myRole === "owner" || isAdmin;
   const myBadges = teamBadgesOf(teamData, user?.uid, udoc);
 
   /* Kendi görünen adımı takım düğümüne yaz — diğer üyeler pilot listesinde görsün */
@@ -2469,6 +2473,10 @@ ${bottomBar}
 
                 {/* üyeler */}
                 <div className="tmsec" style={{ marginTop: 16 }}>{t("Takım Üyeleri")}</div>
+                {canManageTeam && (
+                  <div className="hint" style={{ marginBottom: 6 }}>
+                    {t("Rozetleri atamak için üye satırındaki 🏎 / 📐 düğmelerine bas.")}</div>
+                )}
                 {Object.entries(teamData.members || {}).map(([uid, role]) => {
                   const mbs = teamBadgesOf(teamData, uid, null);
                   return (
@@ -2481,9 +2489,14 @@ ${bottomBar}
                         )) : <span className="ubadge" style={{ opacity: .25 }}>·</span>}
                       </span>
                       <span className="mrole">{t(role)}</span>
-                      <span className="muid mono">
-                        {uid === user.uid ? t("(sen)") : uid.slice(0, 10) + "…"}</span>
-                      {myRole === "owner" && uid !== user.uid && (
+                      <span className="muid">
+                        {teamData?.names?.[uid]
+                          ? <>{teamData.names[uid]}
+                            {uid === user.uid && <> {t("(sen)")}</>}</>
+                          : <span className="mono">
+                            {uid === user.uid ? t("(sen)") : uid.slice(0, 10) + "…"}</span>}
+                      </span>
+                      {canManageTeam && (
                         <span style={{ marginLeft: "auto", display: "flex", gap: 5,
                           alignItems: "center" }}>
                           {["driver", "engineer"].map((id) => {
@@ -2500,11 +2513,13 @@ ${bottomBar}
                               </button>
                             );
                           })}
-                          <button className="minibtn" style={{ width: "auto", padding: "0 8px" }}
-                            onClick={() => setTeamRole(curTeam, uid,
-                              role === "editor" ? "viewer" : "editor").catch(() => {})}>
-                            {role === "editor" ? t("İzleyici yap") : t("Düzenleyici yap")}
-                          </button>
+                          {uid !== user.uid && role !== "owner" && (
+                            <button className="minibtn" style={{ width: "auto", padding: "0 8px" }}
+                              onClick={() => setTeamRole(curTeam, uid,
+                                role === "editor" ? "viewer" : "editor").catch(() => {})}>
+                              {role === "editor" ? t("İzleyici yap") : t("Düzenleyici yap")}
+                            </button>
+                          )}
                         </span>
                       )}
                     </div>
