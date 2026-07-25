@@ -396,6 +396,8 @@ const EN = {
   "Canlı Yayın": "Live Stream", "YouTube linki": "YouTube link",
   "Köşeye taşı": "Move to corner", "Küçült": "Minimise", "Büyüt": "Expand",
   "Boyutlandırmak için sürükle": "Drag to resize",
+  "Bildirim sesini kapat": "Mute notification sound",
+  "Bildirim sesini aç": "Unmute notification sound",
   "Start tarih-saatini gir — geri sayım ve canlı stint takibi buna göre çalışır. Saat her üyeye kendi saat diliminde gösterilir.":
     "Enter the start date and time — the countdown and live stint tracking run from it. Everyone sees it in their own timezone.",
   "Pit · Süreler": "Pit · Times",
@@ -847,6 +849,28 @@ const TYRE_2_SEC = 5;  // 1-2 lastik değişim süresi (LMU, sabit)
 const TYRE_4_SEC = 12; // 3-4 lastik değişim süresi (LMU, sabit)
 /* zemin/hava durumu: tur süresi çarpanı + yakıt tüketim çarpanı (LMU) */
 /* direksiyon simgesi — Unicode'da direksiyon emojisi yok, rozet rengini devralır */
+/* ---------- sohbet bildirim sesi ----------
+   Yarış telsizi tarzı çift bip, WebAudio ile sentez — dosya yok, telif yok.
+   Tarayıcı kuralı gereği ilk kullanıcı etkileşiminden önce çalmaz. */
+let _ac = null;
+function chatBeep() {
+  try {
+    _ac = _ac || new (window.AudioContext || window.webkitAudioContext)();
+    if (_ac.state === "suspended") _ac.resume();
+    const t0 = _ac.currentTime;
+    [[0, 1318], [0.11, 1760]].forEach(([dt, hz]) => {
+      const o = _ac.createOscillator();
+      const g = _ac.createGain();
+      o.type = "sine"; o.frequency.value = hz;
+      g.gain.setValueAtTime(0.0001, t0 + dt);
+      g.gain.exponentialRampToValueAtTime(0.18, t0 + dt + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dt + 0.09);
+      o.connect(g).connect(_ac.destination);
+      o.start(t0 + dt); o.stop(t0 + dt + 0.1);
+    });
+  } catch { /* ses yoksa sessiz geç */ }
+}
+
 /* ============================================================
    REHBER TURU — ekranı karartır, sıradaki öğeyi ışıklandırır.
    steps: [{ sel, title, body, pos? }] — sel bulunamazsa adım atlanır.
@@ -2772,6 +2796,15 @@ ${bottomBar}
     try { return localStorage.getItem("rm_stream_corner") || "br"; } catch { return "br"; }
   });                                                 // br | bl | tr | tl
   const [streamMin, setStreamMin] = useState(false);  // tek satıra küçült
+  const [chatSound, setChatSound] = useState(() => {
+    try { return localStorage.getItem("rm_chat_sound") !== "0"; } catch { return true; }
+  });
+  const toggleChatSound = () => setChatSound((v) => {
+    try { localStorage.setItem("rm_chat_sound", v ? "0" : "1"); } catch { /* yoksay */ }
+    return !v;
+  });
+  const prevUnreadRef = useRef(null);
+
   const [streamW, setStreamW] = useState(() => {
     try { return Math.min(1080, Math.max(240,
       +(localStorage.getItem("rm_stream_w") || 320))); } catch { return 320; }
@@ -2879,6 +2912,16 @@ ${bottomBar}
   const chatUnread = chatChans.reduce((a, c) => a + unreadOf(c), 0);
   const raceUnread = raceChan ? unreadOf(raceChan) : 0;
 
+  /* yeni mesaj sesi: toplam okunmamış ARTTIĞINDA çal.
+     İlk yüklemede çalmaz (önceki değer bilinmeden karşılaştırma yapılmaz);
+     kendi mesajların unreadOf'ta zaten sayılmıyor. */
+  useEffect(() => {
+    const total = chatUnread + raceUnread;
+    if (prevUnreadRef.current !== null
+        && total > prevUnreadRef.current && chatSound) chatBeep();
+    prevUnreadRef.current = total;
+  }, [chatUnread, raceUnread, chatSound]);
+
   /* yarış sekmesi açıkken o kanalı okundu say */
   useEffect(() => {
     if (tab !== "rchat" || !raceChan) return;
@@ -2970,6 +3013,9 @@ ${bottomBar}
         onClick={(e) => e.stopPropagation()}>
         <div className="wxmhead">
           <span>💬 {t("Sohbet")}</span>
+          <button className="lbclose" style={{ marginLeft: "auto", marginRight: 4 }}
+            title={chatSound ? t("Bildirim sesini kapat") : t("Bildirim sesini aç")}
+            onClick={toggleChatSound}>{chatSound ? "🔔" : "🔕"}</button>
           <button className="lbclose" onClick={() => setChatOpen(false)}>✕</button>
         </div>
         <div className="chattabs">
@@ -5271,7 +5317,12 @@ ${bottomBar}
 
           {tab === "rchat" && raceChan && (
             <div className="card">
-              <h2>🏁 {races[curRace]?.name || t("Yarış Sohbeti")}</h2>
+              <h2 style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                🏁 {races[curRace]?.name || t("Yarış Sohbeti")}
+                <button className="lbclose" style={{ marginLeft: "auto" }}
+                  title={chatSound ? t("Bildirim sesini kapat") : t("Bildirim sesini aç")}
+                  onClick={toggleChatSound}>{chatSound ? "🔔" : "🔕"}</button>
+              </h2>
               <div className="hint" style={{ marginBottom: 6 }}>
                 {t("Bu yarışa özel kanal — takımın tamamı yazabilir, sürücüler dahil.")}</div>
               <div style={{ border: "1px solid var(--line)", borderRadius: 10,
