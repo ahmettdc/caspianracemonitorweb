@@ -396,6 +396,16 @@ const EN = {
   "Canlı Yayın": "Live Stream", "YouTube linki": "YouTube link",
   "Köşeye taşı": "Move to corner", "Küçült": "Minimise", "Büyüt": "Expand",
   "Boyutlandırmak için sürükle": "Drag to resize",
+  "Start tarih-saatini gir — geri sayım ve canlı stint takibi buna göre çalışır. Saat her üyeye kendi saat diliminde gösterilir.":
+    "Enter the start date and time — the countdown and live stint tracking run from it. Everyone sees it in their own timezone.",
+  "Pit · Süreler": "Pit · Times",
+  "Pit lane geçişi ve tam depo dolum süresi. Dolum, alınan VE yüzdesine ölçeklenir; lastik süreleri LMU sabitleridir (1-2 lastik 5s, 3-4 lastik 12s).":
+    "Pit lane transit and full-tank refuel time. Refuelling scales with the VE taken; tyre times are LMU constants (1-2 tyres 5s, 3-4 tyres 12s).",
+  "Virtual Energy": "Virtual Energy",
+  "LMU'da depo daima %100 VE'dir. Ratio, VE'nin kaç litreye denk geldiğini söyler — tüm yakıt hesapları bu orandan litreye çevrilir.":
+    "In LMU the tank is always 100% VE. The ratio tells how many litres that equals — every fuel figure converts through it.",
+  "YouTube linkini yapıştır — köşede yüzen mini oynatıcı açılır. Sekme değiştirsen de akmaya devam eder; köşesinden tutup boyutlandırabilirsin.":
+    "Paste a YouTube link — a floating mini player opens in the corner. It keeps playing across tabs, and you can drag its grip to resize.",
   "Gizle (yenileyene dek)": "Hide (until refresh)",
   "Yayın köşedeki mini oynatıcıda gösteriliyor.":
     "The stream shows in the corner mini player.",
@@ -3068,6 +3078,18 @@ ${bottomBar}
     { sel: "[data-tour='wx']", act: () => setSideOpen(true),
       title: t("Hava Durumu"),
       body: t("Zemin değişince buradan işaretle — plan tur tur karma havayı hesaplar. İleri saatli planlı geçiş de ekleyebilirsin.") },
+    { sel: "[data-tour='rstart']", act: () => setSideOpen(true),
+      title: t("Yarış Başlangıcı"),
+      body: t("Start tarih-saatini gir — geri sayım ve canlı stint takibi buna göre çalışır. Saat her üyeye kendi saat diliminde gösterilir.") },
+    { sel: "[data-tour='pittimes']", act: () => setSideOpen(true),
+      title: t("Pit · Süreler"),
+      body: t("Pit lane geçişi ve tam depo dolum süresi. Dolum, alınan VE yüzdesine ölçeklenir; lastik süreleri LMU sabitleridir (1-2 lastik 5s, 3-4 lastik 12s).") },
+    { sel: "[data-tour='ve']", act: () => setSideOpen(true),
+      title: t("Virtual Energy"),
+      body: t("LMU'da depo daima %100 VE'dir. Ratio, VE'nin kaç litreye denk geldiğini söyler — tüm yakıt hesapları bu orandan litreye çevrilir.") },
+    { sel: "[data-tour='stream']", act: () => setSideOpen(true),
+      title: t("Canlı Yayın"),
+      body: t("YouTube linkini yapıştır — köşede yüzen mini oynatıcı açılır. Sekme değiştirsen de akmaya devam eder; köşesinden tutup boyutlandırabilirsin.") },
     { sel: "[data-tour='tabs']", title: t("Sekmeler"),
       body: t("Şimdi sekmeleri tek tek gezelim — rehber her birini senin için açacak.") },
     /* --- Dashboard --- */
@@ -3646,7 +3668,7 @@ ${bottomBar}
       )}
     </div>
 
-    <div className="card" style={{ marginTop: 12 }}>
+    <div className="card" data-tour="rstart" style={{ marginTop: 12 }}>
       <h2>{t("Yarış Başlangıcı")}</h2>
       <label>{t("Start Tarih & Saat")}</label>
       <input type="datetime-local" value={msToLocalInput(st.raceStartMs)}
@@ -3662,8 +3684,8 @@ ${bottomBar}
       <div className="hint">{t("Canlı yarış modu, pilot planı ve geri sayım bu zamana göre çalışır.")} 🌍 {t("Saat her üyeye kendi yerel diliminde gösterilir.")}</div>
     </div>
 
-    <div className="card" style={{ marginTop: 12 }}>
-      <h2 data-tour="wx">🌦 {t("Hava Durumu")}</h2>
+    <div className="card" data-tour="wx" style={{ marginTop: 12 }}>
+      <h2>🌦 {t("Hava Durumu")}</h2>
       <div className="hint" style={{ marginTop: 0, marginBottom: 6 }}>
         {t("Şu anki zemin — canlı değişim buradan")}</div>
       <div className="wxsel">
@@ -3700,7 +3722,7 @@ ${bottomBar}
       </div>
     </div>
 
-    <div className="card" style={{ marginTop: 12 }}>
+    <div className="card" data-tour="pittimes" style={{ marginTop: 12 }}>
       <h2>{t("Pit · Süreler (s)")}</h2>
       <div className="row2">
         <div><label>Pit Line</label><Num v={st.pitLaneTime} onC={(v) => up({ pitLaneTime: v })} />
@@ -3718,7 +3740,7 @@ ${bottomBar}
       </div>
     </div>
 
-    <div className="card" style={{ marginTop: 12 }}>
+    <div className="card" data-tour="ve" style={{ marginTop: 12 }}>
       <h2>⚡ Virtual Energy · Data</h2>
       <div className="row2">
         <div><label>⚡ {t("VE Tüketim (%/tur)")}</label><Num v={st.consumption} onC={(v) => up({ consumption: v })} /></div>
@@ -3736,7 +3758,7 @@ ${bottomBar}
       </div>
     </div>
 
-    <div className="card" style={{ marginTop: 12 }}>
+    <div className="card" data-tour="stream" style={{ marginTop: 12 }}>
       <h2>📺 {t("Canlı Yayın")}</h2>
       <label>{t("YouTube linki")}</label>
       <input type="text" value={st.streamUrl} placeholder="https://youtube.com/watch?v=..."
