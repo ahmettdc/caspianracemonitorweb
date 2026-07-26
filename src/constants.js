@@ -110,8 +110,6 @@ export const carImg = (cls, id) => {
   const c = CARS[cls]?.find((x) => x.id === id);
   return `${ASSET}cars/${cls}/${c?.img || id}.png`;
 };
-
-
 /* ---- grafik yardımcıları (App + components ortak) ----
    BADGES/teamBadgesOf/hasBadge JSX (<Wheel/>) içerdiği için ./components.jsx'te. */
 export const PIE_COLORS = ["#2DD4BF", "#F2C94C", "#960018", "#9B6DFF", "#4C9AFF",
