@@ -1,7 +1,10 @@
 /* Sunum komponentleri — durum tutmayan görsel parçalar.
    App.jsx içe aktarır. */
 import { useState, useEffect, Fragment } from "react";
-import { ASSET, quantile, PIE_COLORS } from "./constants";
+import {
+  ASSET, quantile, PIE_COLORS, TRACKS, trackFlag, TRACK_ASSET,
+  CAR_CLASSES, CARS, trackName, carImg, carName,
+} from "./constants";
 import { fmtHMS, lastStintFuel, msToLocalInput } from "./engine";
 
 /* Sohbet paneli — mesaj listesi + giriş çubuğu. Genel/takım/yarış kanalları
@@ -606,6 +609,175 @@ export function DriversTab({
         <div className="hint">{t("Start/Finish zamanları stint planından otomatik zincirlenir (pit süreleri dahil). Yarış bitişini aşan kısım süreye sayılmaz; tamamen yarış dışı kalan stintler soluk görünür.")}</div>
       </>)}
       {!driverPlan && <div className="hint warn">{t("Geçerli bir yarış başlangıç zamanı gir.")}</div>}
+    </div>
+  );
+}
+
+/* Setup yükleme formu — pit wall Setup sekmesi + lobi setup penceresi ortak.
+   Tüm state ve saveSetup/onSetupFile App'ten prop gelir. */
+export function SetupForm({
+  t, onSetupFile, suFile, suMeta, setSuMeta, seasons, suErr, suBusy, saveSetup,
+}) {
+  return (
+    <>
+      <div className="row2" style={{ maxWidth: 720 }}>
+        <div>
+          <label>{t("Dosya")}</label>
+          <input type="file" onChange={onSetupFile} />
+          {suFile && <div className="hint">
+            📄 {suFile.name} · {(suFile.size / 1024).toFixed(1)} KB</div>}
+        </div>
+        <div>
+          <label>{t("Pist")} *</label>
+          <select value={suMeta.track}
+            onChange={(e) => setSuMeta({ ...suMeta, track: e.target.value })}>
+            <option value="">—</option>
+            {TRACKS.map((tr) =>
+              <option key={tr.id} value={tr.id}>{trackFlag(tr.id)} {tr.name}</option>)}
+          </select>
+        </div>
+      </div>
+      <div className="row4" style={{ maxWidth: 720 }}>
+        <div>
+          <label>{t("Koşul")}</label>
+          <select value={suMeta.cond}
+            onChange={(e) => setSuMeta({ ...suMeta, cond: e.target.value })}>
+            <option value="dry">☀️ {t("Kuru")}</option>
+            <option value="wet">🌧 Wet</option>
+          </select>
+        </div>
+        <div>
+          <label>{t("Seans")}</label>
+          <select value={suMeta.sess}
+            onChange={(e) => setSuMeta({ ...suMeta, sess: e.target.value })}>
+            <option value="R">{t("Yarış")}</option>
+            <option value="Q">{t("Sıralama")}</option>
+          </select>
+        </div>
+        <div>
+          <label>{t("Sınıf")}</label>
+          <select value={suMeta.cls}
+            onChange={(e) => setSuMeta({ ...suMeta, cls: e.target.value, car: "" })}>
+            <option value="">—</option>
+            {CAR_CLASSES.map(([id, lbl]) => <option key={id} value={id}>{lbl}</option>)}
+          </select>
+        </div>
+        <div>
+          <label>{t("Araç")}</label>
+          <select value={suMeta.car} disabled={!suMeta.cls}
+            onChange={(e) => setSuMeta({ ...suMeta, car: e.target.value })}>
+            <option value="">—</option>
+            {(CARS[suMeta.cls] || []).map((c) =>
+              <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+      </div>
+      <div className="row4" style={{ maxWidth: 720 }}>
+        <div>
+          <label>{t("Şampiyona")}</label>
+          <input type="text" list="su-champs" value={suMeta.champ}
+            placeholder={t("örn. ELMS / Official / Online")}
+            style={{ textTransform: "none" }}
+            onChange={(e) => setSuMeta({ ...suMeta, champ: e.target.value })} />
+          <datalist id="su-champs">
+            {Object.values(seasons).map((se) =>
+              <option key={se.name} value={se.name} />)}
+            <option value="Official" /><option value="Online" />
+          </datalist>
+        </div>
+        <div>
+          <label>{t("LMU Sürümü")}</label>
+          <input type="text" value={suMeta.ver} placeholder="V1.2"
+            style={{ textTransform: "none" }}
+            onChange={(e) => setSuMeta({ ...suMeta, ver: e.target.value })} />
+        </div>
+        <div style={{ gridColumn: "span 2" }}>
+          <label>{t("Not")}</label>
+          <input type="text" value={suMeta.note} maxLength={140}
+            placeholder={t("örn. düşük kanat, uzun stint dengesi")}
+            style={{ textTransform: "none" }}
+            onChange={(e) => setSuMeta({ ...suMeta, note: e.target.value })} />
+        </div>
+      </div>
+      {suErr && <div className="hint warn">⚠ {suErr}</div>}
+      <button className="gbtn ubtn" disabled={!suFile || !suMeta.track || suBusy}
+        style={{ opacity: suFile && suMeta.track && !suBusy ? 1 : .45, marginTop: 6 }}
+        onClick={saveSetup}>
+        {suBusy ? t("Yükleniyor…") : t("Yükle")}</button>
+      <div className="hint" style={{ marginTop: 6 }}>
+        {t("Yüklenen setup tüm takımlara açık ortak havuza gider. Tarih otomatik kaydedilir.")}</div>
+    </>
+  );
+}
+
+/* Ortak setup tablosu — pit wall Setup sekmesi + lobi penceresi ortak.
+   onDownload/onDelete App'ten prop gelir (indirme + silme onayı orada). */
+export function SetupTable({ rows, t, st, lang, user, isAdmin, onDownload, onDelete }) {
+  return (
+    <div style={{ overflowX: "auto" }}>
+      <table style={{ fontSize: 12 }}>
+        <thead><tr>
+          <th>{t("Tarih")}</th><th>{t("Pist")}</th><th>{t("Koşul")}</th>
+          <th>{t("Seans")}</th><th>{t("Sınıf")}</th><th>{t("Araç")}</th>
+          <th>{t("Şampiyona")}</th><th>{t("Sürüm")}</th>
+          <th>{t("Dosya")}</th><th>{t("Takım")}</th><th>{t("Yükleyen")}</th><th></th>
+        </tr></thead>
+        <tbody>
+          {rows.map((su) => (
+            <tr key={su.id}
+              style={su.track === st.track ? { background: "rgba(150,0,24,.08)" } : undefined}>
+              <td className="mono">{new Date(su.at || 0)
+                .toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR",
+                  { day: "2-digit", month: "2-digit", year: "2-digit" })}</td>
+              <td>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  {su.track && <img src={`${ASSET}flags/${TRACK_ASSET(su.track)}.png`}
+                    alt="" style={{ width: 18, borderRadius: 2 }}
+                    onError={(e) => { e.currentTarget.style.display = "none"; }} />}
+                  {trackName(su.track) || su.track || "—"}
+                </span>
+              </td>
+              <td>{su.cond === "wet" ? "🌧 Wet" : `☀️ ${t("Kuru")}`}</td>
+              <td>{su.sess === "Q"
+                ? <span className="chip" style={{ borderColor: "var(--green)",
+                    color: "var(--green)" }}>{t("Sıralama")}</span>
+                : <span className="chip" style={{ borderColor: "var(--orange, #F2A33C)",
+                    color: "var(--orange, #F2A33C)" }}>{t("Yarış")}</span>}</td>
+              <td>{su.cls
+                ? <img src={`${ASSET}class/${su.cls}.png`} alt=""
+                    title={CAR_CLASSES.find(([id]) => id === su.cls)?.[1] || su.cls}
+                    style={{ height: 16, verticalAlign: "-3px" }}
+                    onError={(e) => { e.currentTarget.replaceWith(
+                      CAR_CLASSES.find(([id]) => id === su.cls)?.[1] || su.cls); }} />
+                : "—"}</td>
+              <td>{su.car
+                ? <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <img src={carImg(su.cls, su.car)} alt=""
+                      style={{ height: 22, width: "auto" }}
+                      onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                    {carName(su.cls, su.car)}
+                  </span>
+                : "—"}</td>
+              <td>{su.champ || "—"}</td>
+              <td className="mono">{su.ver || "—"}</td>
+              <td title={su.note || ""}>
+                <span className="mono" style={{ fontSize: 11 }}>{su.name}</span>
+                {su.note && <span className="hint" style={{ display: "block",
+                  margin: 0 }}>{su.note}</span>}</td>
+              <td>{su.team || "—"}</td>
+              <td>{su.uname || "—"}</td>
+              <td style={{ whiteSpace: "nowrap" }}>
+                <button className="act" style={{ fontSize: 11 }}
+                  onClick={() => onDownload(su)}>⬇ {t("İndir")}</button>
+                {(su.uid === user?.uid || isAdmin) && (
+                  <button className="act danger" style={{ fontSize: 11, marginLeft: 4 }}
+                    onClick={() => onDelete(su)}>✕</button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
