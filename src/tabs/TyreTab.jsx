@@ -30,7 +30,8 @@ export default function TyreTab({
         {" "}<b>({tyreInfo.used}/{st.tyreLimit})</b>
         {tyreInfo.wetUsed > 0 && <> · 🌧 {t("wet (limitsiz)")}: {tyreInfo.wetUsed}</>}
       </div>
-      <table>
+      <div style={{ overflowX: "auto" }}>
+      <table aria-label={t("Lastik strateji tablosu")}>
         <thead><tr><th>Stint</th><th>FL</th><th>FR</th><th>RL</th><th>RR</th><th>{t("Hızlı Atama")}</th></tr></thead>
         <tbody>
           {tyreInfo.rows.map((r) => (
@@ -106,6 +107,7 @@ export default function TyreTab({
           ))}
         </tbody>
       </table>
+      </div>
       <div className="legend">
         <span><i style={{ background: "var(--panel2)" }} />{t("Yeni lastik (1 kez)")}</span>
         <span><i style={{ background: "rgba(242,201,76,.5)" }} />{t("2 kez (duplicate)")}</span>
