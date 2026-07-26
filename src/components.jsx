@@ -3,10 +3,10 @@
 import { useState, useEffect, Fragment } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ResponsiveContainer } from "recharts";
 import {
-  ASSET, quantile, PIE_COLORS, SLOT_COLORS, TRACKS, trackFlag, TRACK_ASSET,
-  CAR_CLASSES, CARS, trackName, carImg, carName,
+  ASSET, AV, quantile, PIE_COLORS, SLOT_COLORS, TRACKS, trackFlag, TRACK_ASSET,
+  PIT_LANE_TIMES, CAR_CLASSES, CARS, trackName, carImg, carName,
 } from "./constants";
-import { fmtHMS, fmtLap, lastStintFuel, msToLocalInput } from "./engine";
+import { fmtHMS, fmtLap, WX, lastStintFuel, msToLocalInput } from "./engine";
 
 /* Sohbet paneli — mesaj listesi + giriş çubuğu. Genel/takım/yarış kanalları
    için ortak (App.jsx'te iki yerde kullanılıyordu). Tüm veri prop ile gelir. */
@@ -611,6 +611,221 @@ export function DriversTab({
       </>)}
       {!driverPlan && <div className="hint warn">{t("Geçerli bir yarış başlangıç zamanı gir.")}</div>}
     </div>
+  );
+}
+
+/* Dashboard özet sekmesi — araç/pist kartları, yarış/lastik/son-stint KPI'ları,
+   stint programı, pilot dağılımı, PDF. Derived (liveInfo/racePlan/tyreInfo/
+   planLsf/driverPlan) ve handler'lar (exportPdf/setZoom/carriedAt) App'ten prop gelir. */
+export function DashTab({
+  t, st, zoom, setZoom, exportPdf, liveInfo, racePlan, tyreInfo,
+  planLsf, driverPlan, carriedAt, pitSoon, lmuData,
+}) {
+  return (
+    <>
+      <div style={{ display: "flex", justifyContent: "flex-end", margin: "0 0 10px" }}>
+        <button onClick={() => exportPdf("stint")}
+          style={{ padding: "5px 16px", borderRadius: 6, cursor: "pointer",
+            background: "var(--panel2)", color: "var(--txt)",
+            border: "1px solid var(--line)", fontSize: 12 }}
+            data-tour="pdf">🖨 PDF</button>
+      </div>
+      <div className="dgrid">
+        {st.car && (
+          <div className="card infocard clickable" onClick={() => setZoom("car")}
+            title={t("Büyütmek için tıkla")}>
+            <h2>🏎 {t("Araç")}</h2>
+            <img src={carImg(st.carClass, st.car)} alt=""
+              style={{ display: "block", width: "100%", maxHeight: 140,
+                objectFit: "contain", margin: "8px 0 10px",
+                filter: "drop-shadow(0 4px 12px rgba(0,0,0,.5))" }}
+              onError={(e) => { e.currentTarget.style.display = "none"; }} />
+            <div className="disp" style={{ fontSize: 17 }}>{carName(st.carClass, st.car)}</div>
+            <div className="hint" style={{ display: "flex", alignItems: "center",
+              justifyContent: "center", gap: 6 }}>
+              <img src={`${ASSET}class/${st.carClass}.png`} alt="" style={{ height: 16 }}
+                onError={(e) => { e.currentTarget.style.display = "none"; }} />
+              {(CAR_CLASSES.find(([id]) => id === st.carClass) || [, st.carClass])[1]}</div>
+          </div>
+        )}
+
+        {st.track && (
+          <div className="card infocard clickable" onClick={() => setZoom("track")}
+            title={t("Büyütmek için tıkla")}>
+            <h2>📍 {t("Pist")}</h2>
+            <img key={st.track} src={`${ASSET}tracks/${TRACK_ASSET(st.track)}.png${AV}`} alt=""
+              style={{ display: "block", width: "100%", maxHeight: 160,
+                objectFit: "contain", margin: "8px 0 10px",
+                filter: "drop-shadow(0 4px 12px rgba(0,0,0,.5))" }}
+              onError={(e) => { e.currentTarget.style.display = "none"; }} />
+            <div className="disp" style={{ fontSize: 17, display: "flex",
+              alignItems: "center", gap: 6 }}>
+              <img className="flag" style={{ width: 22 }} src={`${ASSET}flags/${st.track}.png`}
+                alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+              {trackName(st.track)}</div>
+            {PIT_LANE_TIMES[st.track] != null && (
+              <div className="hint">{t("Pit lane")}: {PIT_LANE_TIMES[st.track]}s</div>
+            )}
+            {WX(st).lap > 1 && (
+              <div className="hint" style={{ color: WX(st).col, fontWeight: 600 }}>
+                {WX(st).ico} {t(WX(st).lbl)} · ×{WX(st).lap.toFixed(2)}
+                {(st.weatherLog || []).length > 1 && <> · {st.weatherLog.length} {t("değişim")}</>}</div>
+            )}
+          </div>
+        )}
+
+        {zoom && (
+          <div className="lightbox" onClick={() => setZoom(null)}>
+            <button className="lbclose" onClick={() => setZoom(null)}>✕</button>
+            <img src={zoom === "car"
+                ? carImg(st.carClass, st.car)
+                : `${ASSET}tracks/${TRACK_ASSET(st.track)}.png${AV}`}
+              alt="" style={zoom === "car" ? { maxHeight: "40vh" } : undefined}
+              onError={() => setZoom(null)} />
+            <div className="lbcap" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {zoom === "car" && (
+                <img src={`${ASSET}class/${st.carClass}.png`} alt="" style={{ height: 20 }}
+                  onError={(e) => { e.currentTarget.style.display = "none"; }} />
+              )}
+              {zoom === "car"
+                ? `${carName(st.carClass, st.car)} · ${(CAR_CLASSES.find(([id]) => id === st.carClass) || [, st.carClass])[1]}`
+                : `${trackName(st.track)}${PIT_LANE_TIMES[st.track] != null ? ` · Pit lane ${PIT_LANE_TIMES[st.track]}s` : ""}`}
+            </div>
+            {zoom === "car" && (() => {
+              const d = lmuData?.data?.[st.track];
+              const carE = d?.[`${st.carClass}:${st.car}`];
+              const clsE = d?.[st.carClass];
+              const tiers = clsE?.tiers;
+              const hot = carE?.hot || clsE?.hot;
+              if (!tiers && !hot) return null;
+              const ROWS = [
+                ["HOTLAP", hot, "#b06ffc"],
+                ["ALIEN · 100%", tiers?.alien, "#16a34a"],
+                ["COMPETITIVE · 1.01", tiers?.c101, "#65a30d"],
+                ["GOOD · 1.02", tiers?.c102, "#ca8a04"],
+                ["· 1.03", tiers?.c103, "#d97706"],
+                ["MIDPACK · 1.04", tiers?.c104, "#ea580c"],
+                ["· 1.05", tiers?.c105, "#f05252"],
+                ["TAIL-ENDER · 1.06", tiers?.c106, "#dc2626"],
+                ["OFFLINE · 1.07", tiers?.c107, "#991b1b"],
+              ].filter(([, v]) => v);
+              return (
+                <div className="lbtiers" onClick={(e) => e.stopPropagation()}
+                  title={lmuData?.source}>
+                  {ROWS.map(([lbl, v, col]) => (
+                    <div key={lbl} className="lbtr">
+                      <i style={{ background: col }} />
+                      <span className="lbl">{lbl}</span>
+                      <b className="mono" style={{ color: col }}>{v}</b>
+                    </div>
+                  ))}
+                  <div className="lbsrc">{trackName(st.track)} · {lmuData?.source}</div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        <div className="card">
+          <h2>{t("⏱ Yarış")}</h2>
+          <div className="kpis" style={{ gridTemplateColumns: "1fr 1fr" }}>
+            <div className="kpi"><div className="v mono" style={{ color: "var(--green)" }}>
+              {liveInfo.status === "live" ? fmtHMS(liveInfo.remaining / 1000)
+                : fmtHMS(racePlan.raceSec)}</div>
+              <div className="l">{liveInfo.status === "live" ? "Kalan" : "Yarış Süresi"}</div></div>
+            <div className="kpi"><div className="v" style={{ color: "var(--teal)" }}>
+              {st.chosen}-{racePlan.laps}</div><div className="l">{t("Strateji")}</div></div>
+            <div className="kpi"><div className="v">{racePlan.fullStints}</div>
+              <div className="l">Stint</div></div>
+            <div className="kpi"><div className="v">{racePlan.totalLaps.toFixed(0)}</div>
+              <div className="l">{t("Tahmini Tur")}</div></div>
+          </div>
+          {liveInfo.status === "live" && (
+            <div className="hint">
+              {t("Şu an: Stint")} {liveInfo.stintIdx + 1}
+              {liveInfo.phase === "pit" ? " " + t("(PIT'te)") : ""} ·{" "}
+              {t("sıradaki pit")} <b className={pitSoon ? "pulse" : "mono"}>
+                {fmtHMS(liveInfo.nextPitIn / 1000)}</b>
+              {liveInfo.driver && <> · 🏎 {liveInfo.driver}</>}
+            </div>
+          )}
+        </div>
+
+        <div className="card">
+          <h2 data-tour="dash-prog">{t("📋 Stint Programı")}</h2>
+          <table>
+            <thead><tr><th>#</th><th>End</th><th>Left</th><th>{t("Pilot")}</th></tr></thead>
+            <tbody>
+              {racePlan.rows.map((r, i) => (
+                <tr key={i} className={[
+                  r.isLast ? "last" : "",
+                  liveInfo.status === "live" && i === liveInfo.stintIdx ? "live" : "",
+                ].join(" ").trim()}>
+                  <td>{r.idx}</td>
+                  <td>{fmtHMS(r.endSec)}</td>
+                  <td className={r.timeLeft < 0 ? "neg" : "pos"}>{fmtHMS(r.timeLeft)}</td>
+                  <td>{st.driverAssign[i] || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="card">
+          <h2 style={{ display: "flex", alignItems: "center", gap: 7 }}><Tyre size={18} /> {t("Lastik")}</h2>
+          <div className="kpis" style={{ gridTemplateColumns: "1fr 1fr" }}>
+            <div className="kpi"><div className="v">{tyreInfo.used}/{st.tyreLimit}</div>
+              <div className="l">{t("Kullanılan Lastik")}</div></div>
+            <div className="kpi"><div className="v"
+              style={{ color: tyreInfo.available < 0 ? "var(--red)" : "var(--green)" }}>
+              {tyreInfo.available}</div><div className="l">{t("Kalan Lastik")}</div></div>
+          </div>
+          {liveInfo.status === "live" && racePlan.rows[liveInfo.stintIdx + 1] && (
+            <div className="hint">{t("Sıradaki stint lastikleri:")}{" "}
+              <b className="mono">
+                {[0, 1, 2, 3].map((ci) => {
+                  const raw = String((st.tyreStints[liveInfo.stintIdx + 1] || [])[ci] || "").trim();
+                  return raw || `⟳${carriedAt(liveInfo.stintIdx + 1, ci) || "–"}`;
+                }).join(" / ")}
+              </b></div>
+          )}
+          {tyreInfo.conflicts.length > 0 &&
+            <div className="hint" style={{ color: "var(--red)" }}>
+              {t("⚠ Köşe ihlali: lastik")} {tyreInfo.conflicts.join(", ")}</div>}
+        </div>
+
+        <div className="card">
+          <h2 style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <Bolt /> <span data-tour="dash-lsf">{t("Son Stint VE")}</span></h2>
+          <div className="fuelbig" style={{ fontSize: 40 }}>
+            {planLsf.refuel.toFixed(1)}%
+            <span style={{ fontSize: 18, color: "var(--dim)", marginLeft: 8 }}>
+              (+{st.extraLap} {t("lap")})</span>
+          </div>
+          <div className="hint">
+            ≈ {planLsf.refuelL.toFixed(1)} L · {planLsf.lapsLeft} {t("tur + extra")} {st.extraLap} <span style={{ color: "var(--dim)" }}>({planLsf.lapsRaw.toFixed(2)} {t("gerçek")})</span>
+          </div>
+          {driverPlan && Object.keys(driverPlan.totals).length > 0 && (<>
+            <label style={{ marginTop: 10 }}>{t("Pilot Dağılımı")}</label>
+            {st.roster.filter((n) => driverPlan.totals[n]).map((n) => {
+              const t = driverPlan.totals[n];
+              const pct = driverPlan.grandMs ? (t.ms / driverPlan.grandMs) * 100 : 0;
+              return (
+                <div key={n} style={{ marginBottom: 4 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                    <span>{n}</span><span className="mono">{pct.toFixed(1)}%</span>
+                  </div>
+                  <div style={{ height: 5, background: "var(--panel2)", borderRadius: 3 }}>
+                    <div style={{ width: `${pct}%`, height: "100%",
+                      background: "var(--teal)", borderRadius: 3 }} />
+                  </div>
+                </div>
+              );
+            })}
+          </>)}
+        </div>
+      </div>
+    </>
   );
 }
 
