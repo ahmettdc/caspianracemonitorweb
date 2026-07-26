@@ -117,7 +117,8 @@ export default function StintTab({
         );
       })()}
 
-      <table data-tour="stinttable">
+      <div style={{ overflowX: "auto" }}>
+      <table data-tour="stinttable" aria-label={t("Stint plan tablosu")}>
         <thead><tr>
           <th>#</th><th>Stint</th><th>{t("Tur")}</th><th>⚡ {t("VE İht.")}</th>
           <th>{t("Ort. Tur")}</th>
@@ -214,6 +215,7 @@ export default function StintTab({
           ))}
         </tbody>
       </table>
+      </div>
       <div className="hint">
         {t("Pit süresi = FUEL")}({st.fuelTime}s) + LANE({st.pitLaneTime}s) + {t("lastik")}
         {tab === "code80"

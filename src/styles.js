@@ -2,8 +2,10 @@
 export const css = `
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
 :root{
-  --bg:#120C0E; --panel:#1C1315; --panel2:#261719; --line:#3D242B;
-  --txt:#F2E9EB; --dim:#A78F95; --teal:#D24357; --car:#960018; --green:#40D68C;
+  /* chrome hafif nötr (kırmızı kroma düşürüldü), koyu+sıcak kimlik korunur */
+  --bg:#120C0E; --panel:#191517; --panel2:#221B1E; --line:#382E33;
+  --txt:#F2E9EB; --dim:#B39AA0; --muted:#8A7176;
+  --teal:#D24357; --accent:#D24357; --car:#960018; --green:#40D68C;
   --yellow:#F2C94C; --red:#F0604D; --purple:#BB8CF5;
 }
 .rc *{box-sizing:border-box}
@@ -164,7 +166,7 @@ export const css = `
 .rc .wxsel button{padding:6px 2px;border:1px solid var(--line);border-radius:8px;
   background:var(--panel2);color:var(--dim);cursor:pointer;font-size:11px;line-height:1.3;
   text-align:center;transition:border-color .15s,color .15s}
-.rc .wxsel button small{font-family:'DM Mono',monospace;opacity:.8;font-size:10px}
+.rc .wxsel button small{font-family:'IBM Plex Mono',monospace;opacity:.8;font-size:10px}
 .rc .wxsel button.on{background:rgba(255,255,255,.05)}
 .rc .minibtn{width:22px;height:22px;padding:0;border:1px solid var(--line);border-radius:6px;
   background:var(--panel2);color:var(--txt);cursor:pointer;font-size:13px;line-height:1}
@@ -349,7 +351,7 @@ export const css = `
 .rc .floatstream .fsgrip:hover{color:var(--teal)}
 .rc .floatstream .fsshield{position:absolute;inset:0;z-index:2}
 .rc .floatstream .fstitle{font-size:10.5px;letter-spacing:.1em;color:var(--muted);
-  font-family:"Chakra Petch",sans-serif;margin-right:auto}
+  font-family:'Barlow Condensed',sans-serif;margin-right:auto}
 .rc .floatstream .fsbtns{display:flex;gap:2px;align-items:center}
 .rc .floatstream .fsbtns button,.rc .floatstream .fsbtns a{background:none;border:0;
   color:var(--dim);cursor:pointer;font-size:11px;padding:1px 4px;line-height:1;
@@ -374,7 +376,7 @@ export const css = `
   border-radius:12px;padding:14px 16px;box-shadow:0 12px 40px rgba(0,0,0,.6);
   transition:all .28s ease}
 .rc .tourcard h3{margin:0 0 6px;font-size:15px;color:var(--red);
-  font-family:"Chakra Petch",sans-serif;letter-spacing:.04em}
+  font-family:'Barlow Condensed',sans-serif;letter-spacing:.04em}
 .rc .tourcard p{margin:0 0 12px;font-size:12.5px;line-height:1.55;color:var(--txt)}
 .rc .tourstep{font-size:10px;color:var(--dim);letter-spacing:.14em;margin-bottom:4px}
 .rc .tourbtns{display:flex;gap:8px;align-items:center}
@@ -543,4 +545,35 @@ export const css = `
 .rc .lbtr:first-child{border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:4px}
 .rc .lbsrc{margin-top:8px;padding-top:6px;border-top:1px solid var(--line);font-size:9.5px;
   color:var(--muted);letter-spacing:.04em}
+/* ============================================================
+   RTÖTUŞ — ergonomi + cila (muhafazakar; yalnız görsel)
+   ============================================================ */
+/* sayısal hizalama + biraz daha okunur tablo gövdesi */
+.rc td,.rc .mono{font-variant-numeric:tabular-nums}
+.rc td{font-size:13px}
+/* veri tablolarında satır-hover (yoğun tabloyu taramak kolaylaşır) */
+.rc tbody tr{transition:background .12s}
+.rc tbody tr:hover td{background:rgba(255,255,255,.035)}
+.rc tbody tr.last:hover td,.rc tbody tr.live:hover td{background:rgba(255,255,255,.06)}
+/* KPI: üst-kenar vurgu (hafif derinlik + hiyerarşi) */
+.rc .kpi{position:relative;overflow:hidden}
+.rc .kpi::before{content:"";position:absolute;left:10px;right:10px;top:0;height:2px;
+  border-radius:2px;background:linear-gradient(90deg,var(--accent),transparent 72%);opacity:.6}
+/* dokunma hedeflerini büyüt (fare) */
+.rc .tyrebox button{width:30px;height:28px;font-size:10px}
+.rc .lapstep{width:22px;height:22px}
+.rc .lapclr{width:20px;height:20px;font-size:12px}
+.rc .minibtn{width:24px;height:24px}
+.rc .pitopt button{padding:4px 10px}
+/* dokunmatik cihazlarda biraz daha büyük — masaüstü etkilenmez */
+@media (pointer:coarse){
+  .rc .tyrebox button{width:36px;height:32px}
+  .rc .lapstep{width:26px;height:26px}
+  .rc .pitopt button{padding:7px 12px}
+  .rc .lapclr{width:24px;height:24px}
+}
+/* klavye odağı her interaktif öğede görünür */
+.rc button:focus-visible,.rc select:focus-visible,.rc a:focus-visible,
+.rc [role="button"]:focus-visible{outline:2px solid var(--accent);outline-offset:2px;
+  border-radius:6px}
 `;
