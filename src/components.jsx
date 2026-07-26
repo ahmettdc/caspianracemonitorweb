@@ -1,7 +1,61 @@
 /* Sunum komponentleri — durum tutmayan görsel parçalar.
    App.jsx içe aktarır. */
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { ASSET, quantile } from "./constants";
+
+/* Sohbet paneli — mesaj listesi + giriş çubuğu. Genel/takım/yarış kanalları
+   için ortak (App.jsx'te iki yerde kullanılıyordu). Tüm veri prop ile gelir. */
+export function ChatPanel({
+  msgs, h, t, lang, user, teamData, fmtClock, canManage,
+  chatText, setChatText, onSend, onDelete, endRef,
+}) {
+  return (
+    <div className="chatwrap" style={h ? { height: h } : undefined}>
+      <div className="chatlist">
+        {!msgs.length && (
+          <div className="hint" style={{ margin: "auto", textAlign: "center" }}>
+            {t("Henüz mesaj yok — ilk yazan sen ol.")}</div>
+        )}
+        {msgs.map((m, i) => {
+          const me = m.uid === user?.uid;
+          const prev = msgs[i - 1];
+          const newDay = !prev || new Date(prev.at || 0).toDateString()
+            !== new Date(m.at || 0).toDateString();
+          return (
+            <Fragment key={m.id}>
+              {newDay && <div className="chatday">
+                {new Date(m.at || 0).toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR",
+                  { day: "2-digit", month: "long" })}</div>}
+              <div className={`cmsg ${me ? "me" : ""}`}>
+                <div className="who">
+                  {!me && <b>{teamData?.names?.[m.uid] || m.name || t("isimsiz")}</b>}
+                  <span>{fmtClock(m.at || 0)}</span>
+                  {(me || canManage) && (
+                    <button className="del" title={t("Sil")}
+                      onClick={() => onDelete(m.id)}>✕</button>
+                  )}
+                </div>
+                <div className="bub">{m.text}</div>
+              </div>
+            </Fragment>
+          );
+        })}
+        <div ref={endRef} />
+      </div>
+      <div className="chatbar">
+        <input type="text" value={chatText} maxLength={500}
+          placeholder={t("Mesaj yaz…")}
+          onChange={(e) => setChatText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); }
+          }} />
+        <button className="gbtn ubtn" disabled={!chatText.trim()}
+          style={{ opacity: chatText.trim() ? 1 : .45 }}
+          onClick={onSend}>{t("Gönder")}</button>
+      </div>
+    </div>
+  );
+}
 
 export function TourOverlay({ steps, onClose, lang }) {
   const [idx, setIdx] = useState(0);

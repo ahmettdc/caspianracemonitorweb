@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef, Fragment } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ResponsiveContainer } from "recharts";
 import { firebaseReady, touchUserProfile, watchUserDoc,
   requestAccess, watchAllUsers, setUserAllowed, updateProfile,
@@ -29,7 +29,7 @@ import {
 import { chatBeep } from "./sound";
 import {
   TourOverlay, Wheel, Num, Donut, BoxPlot, Bolt, Tyre,
-  BADGES, teamBadgesOf, hasBadge,
+  BADGES, teamBadgesOf, hasBadge, ChatPanel,
 } from "./components";
 
 /* ============================================================
@@ -1272,55 +1272,25 @@ ${bottomBar}
   };
 
   /* Sohbet gövdesi — hem pencerede hem yarış sekmesinde kullanılır */
-  const chatBody = (chan, h) => {
-    const msgs = (chan && chatAll[chan.path]) || [];
-    return (
-      <div className="chatwrap" style={h ? { height: h } : undefined}>
-        <div className="chatlist">
-          {!msgs.length && (
-            <div className="hint" style={{ margin: "auto", textAlign: "center" }}>
-              {t("Henüz mesaj yok — ilk yazan sen ol.")}</div>
-          )}
-          {msgs.map((m, i) => {
-            const me = m.uid === user?.uid;
-            const prev = msgs[i - 1];
-            const newDay = !prev || new Date(prev.at || 0).toDateString()
-              !== new Date(m.at || 0).toDateString();
-            return (
-              <Fragment key={m.id}>
-                {newDay && <div className="chatday">
-                  {new Date(m.at || 0).toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR",
-                    { day: "2-digit", month: "long" })}</div>}
-                <div className={`cmsg ${me ? "me" : ""}`}>
-                  <div className="who">
-                    {!me && <b>{teamData?.names?.[m.uid] || m.name || t("isimsiz")}</b>}
-                    <span>{fmtClock(m.at || 0)}</span>
-                    {(me || canManageTeam) && (
-                      <button className="del" title={t("Sil")}
-                        onClick={() => deleteChat(chan.path, m.id).catch(() => {})}>✕</button>
-                    )}
-                  </div>
-                  <div className="bub">{m.text}</div>
-                </div>
-              </Fragment>
-            );
-          })}
-          <div ref={chan === curChan ? chatEndRef : raceEndRef} />
-        </div>
-        <div className="chatbar">
-          <input type="text" value={chatText} maxLength={500}
-            placeholder={t("Mesaj yaz…")}
-            onChange={(e) => setChatText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); doSendTo(chan); }
-            }} />
-          <button className="gbtn ubtn" disabled={!chatText.trim()}
-            style={{ opacity: chatText.trim() ? 1 : .45 }}
-            onClick={() => doSendTo(chan)}>{t("Gönder")}</button>
-        </div>
-      </div>
-    );
-  };
+  /* Sohbet paneli artık <ChatPanel> (./components). chatBody, doğru prop'ları
+     ileten ince bir sarmalayıcı — iki çağrı yeri de bunu kullanır. */
+  const chatBody = (chan, h) => (
+    <ChatPanel
+      msgs={(chan && chatAll[chan.path]) || []}
+      h={h}
+      t={t}
+      lang={lang}
+      user={user}
+      teamData={teamData}
+      fmtClock={fmtClock}
+      canManage={canManageTeam}
+      chatText={chatText}
+      setChatText={setChatText}
+      onSend={() => doSendTo(chan)}
+      onDelete={(id) => deleteChat(chan.path, id).catch(() => {})}
+      endRef={chan === curChan ? chatEndRef : raceEndRef}
+    />
+  );
 
   /* Lobi setup penceresi — indirme odaklı sade liste.
      Yükleme/yönetim pit wall'daki Setup sekmesinde. */
