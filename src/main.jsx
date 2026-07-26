@@ -73,3 +73,13 @@ createRoot(document.getElementById("root")).render(
     </ErrorBoundary>
   </StrictMode>
 );
+
+/* PWA: service worker'ı yalnız üretimde kaydet (çevrimdışı app-shell).
+   Dev'de kayıt yapılmaz — HMR'ı bozmamak için. */
+if ("serviceWorker" in navigator && import.meta.env.PROD) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register(import.meta.env.BASE_URL + "sw.js")
+      .catch((err) => console.warn("SW kaydı başarısız:", err?.message));
+  });
+}
