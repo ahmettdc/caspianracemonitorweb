@@ -1,0 +1,17 @@
+{
+  "name": "Caspian Race Control",
+  "short_name": "Race Control",
+  "description": "Le Mans Ultimate dayanıklılık yarışları için pit-wall / stint-yakıt-lastik-pilot strateji aracı.",
+  "lang": "tr",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#120C0E",
+  "theme_color": "#960018",
+  "icons": [
+    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "favicon.png", "sizes": "256x256", "type": "image/png", "purpose": "any" },
+    { "src": "favicon.png", "sizes": "256x256", "type": "image/png", "purpose": "maskable" }
+  ]
+}

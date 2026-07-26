@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, lazy, Suspense } from "react";
 import { firebaseReady, touchUserProfile, watchUserDoc,
   requestAccess, watchAllUsers, setUserAllowed, updateProfile,
   createTeam, joinTeam, watchMyTeams, watchTeam,
@@ -28,8 +28,17 @@ import {
 import { chatBeep } from "./sound";
 import {
   TourOverlay, Wheel, Num, Bolt, Tyre,
-  BADGES, teamBadgesOf, hasBadge, ChatPanel, FuelTab, DriversTab, TyreTab, SetupForm, SetupTable, TeleTab, DashTab, StintTab,
+  BADGES, teamBadgesOf, hasBadge, ChatPanel, SetupForm, SetupTable,
 } from "./components";
+
+/* Sekmeler talep üzerine yüklenir (kod bölme) — ilk bundle küçülür,
+   recharts yalnız Telemetri açılınca gelir. */
+const DashTab = lazy(() => import("./tabs/DashTab"));
+const StintTab = lazy(() => import("./tabs/StintTab"));
+const FuelTab = lazy(() => import("./tabs/FuelTab"));
+const TyreTab = lazy(() => import("./tabs/TyreTab"));
+const DriversTab = lazy(() => import("./tabs/DriversTab"));
+const TeleTab = lazy(() => import("./tabs/TeleTab"));
 
 /* ============================================================
    CASPIAN MOTORSPORT — RACE MONITOR  ·  Faz 2
@@ -2994,6 +3003,7 @@ ${bottomBar}
             ))}
           </div>
 
+          <Suspense fallback={<div className="hint" style={{ padding: 16 }}>{t("Yükleniyor…")}</div>}>
           {(tab === "stint" || tab === "code80") && (
             <StintTab tab={tab} mode={mode} t={t} st={st} plan={plan} totalVE={totalVE}
               totalFuelL={totalFuelL} timeline={timeline} liveInfo={liveInfo} pitSoon={pitSoon}
@@ -3092,6 +3102,7 @@ ${bottomBar}
             <FuelTab t={t} st={st} up={up} lsf={lsf} autoCd={autoCd}
               setAutoCd={setAutoCd} planLastCd={planLastCd} racePlan={racePlan} />
           )}
+          </Suspense>
         </div>
       </div>
     </div>
