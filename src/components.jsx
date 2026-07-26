@@ -1,7 +1,62 @@
 /* Sunum komponentleri — durum tutmayan görsel parçalar.
    App.jsx içe aktarır. */
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { ASSET, quantile } from "./constants";
+import { fmtHMS, lastStintFuel } from "./engine";
+
+/* Sohbet paneli — mesaj listesi + giriş çubuğu. Genel/takım/yarış kanalları
+   için ortak (App.jsx'te iki yerde kullanılıyordu). Tüm veri prop ile gelir. */
+export function ChatPanel({
+  msgs, h, t, lang, user, teamData, fmtClock, canManage,
+  chatText, setChatText, onSend, onDelete, endRef,
+}) {
+  return (
+    <div className="chatwrap" style={h ? { height: h } : undefined}>
+      <div className="chatlist">
+        {!msgs.length && (
+          <div className="hint" style={{ margin: "auto", textAlign: "center" }}>
+            {t("Henüz mesaj yok — ilk yazan sen ol.")}</div>
+        )}
+        {msgs.map((m, i) => {
+          const me = m.uid === user?.uid;
+          const prev = msgs[i - 1];
+          const newDay = !prev || new Date(prev.at || 0).toDateString()
+            !== new Date(m.at || 0).toDateString();
+          return (
+            <Fragment key={m.id}>
+              {newDay && <div className="chatday">
+                {new Date(m.at || 0).toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR",
+                  { day: "2-digit", month: "long" })}</div>}
+              <div className={`cmsg ${me ? "me" : ""}`}>
+                <div className="who">
+                  {!me && <b>{teamData?.names?.[m.uid] || m.name || t("isimsiz")}</b>}
+                  <span>{fmtClock(m.at || 0)}</span>
+                  {(me || canManage) && (
+                    <button className="del" title={t("Sil")}
+                      onClick={() => onDelete(m.id)}>✕</button>
+                  )}
+                </div>
+                <div className="bub">{m.text}</div>
+              </div>
+            </Fragment>
+          );
+        })}
+        <div ref={endRef} />
+      </div>
+      <div className="chatbar">
+        <input type="text" value={chatText} maxLength={500}
+          placeholder={t("Mesaj yaz…")}
+          onChange={(e) => setChatText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); }
+          }} />
+        <button className="gbtn ubtn" disabled={!chatText.trim()}
+          style={{ opacity: chatText.trim() ? 1 : .45 }}
+          onClick={onSend}>{t("Gönder")}</button>
+      </div>
+    </div>
+  );
+}
 
 export function TourOverlay({ steps, onClose, lang }) {
   const [idx, setIdx] = useState(0);
@@ -231,6 +286,57 @@ export function Bolt({ size = 16, color = "var(--green)" }) {
       style={{ verticalAlign: "-2px", flexShrink: 0 }} aria-hidden="true">
       <path fill={color} d="M25.946 44.938c-.664.845-2.021.375-2.021-.698V33.937a2.26 2.26 0 0 0-2.262-2.262H10.287c-.92 0-1.456-1.04-.92-1.788l7.48-10.471c1.07-1.497 0-3.578-1.842-3.578H1.237c-.92 0-1.456-1.04-.92-1.788L10.013.474c.214-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.579 1.842 3.579h11.377c.943 0 1.473 1.088.89 1.83L25.947 44.94z" />
     </svg>
+  );
+}
+
+/* Son Stint Yakıtı sekmesi — kalan süreye göre VE/yakıt ihtiyacı.
+   Türetilmiş değerler (lsf, planLastCd, racePlan) ve up/autoCd App'ten prop gelir. */
+export function FuelTab({ t, st, up, lsf, autoCd, setAutoCd, planLastCd, racePlan }) {
+  return (
+    <div className="row2" data-tour="fuelcalc"
+      style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 1fr" }}>
+      {[
+        [t("YARIŞ SONU"), st.lastStintCountdown, (v) => up({ lastStintCountdown: v }), lsf, true],
+        /* [t("CODE 80 SONU"), ...] — şimdilik gizli, kod korunuyor (lsf80) */
+      ].map(([title, val, setVal, r, canAuto]) => {
+        const isAuto = canAuto && autoCd;
+        const eff = isAuto ? fmtHMS(planLastCd) : val;
+        const rr = isAuto ? lastStintFuel(eff, st, racePlan.flagExtra) : r;
+        return ([title, eff, setVal, rr, isAuto, canAuto]);
+      }).map(([title, val, setVal, r, isAuto, canAuto]) => (
+        <div className={`card ${title.includes("CODE 80") ? "c80" : ""}`} key={title}>
+          <h2>⛽ {t("Son Stint Yakıtı")} · {title}</h2>
+          <label>{t("Session Countdown (h:mm:ss)")}{" "}
+            {canAuto && (
+              <button className={autoCd ? "chip" : ""}
+                style={{ marginLeft: 6, padding: "2px 8px", borderRadius: 6, fontSize: 10,
+                  border: "1px solid var(--line)", cursor: "pointer",
+                  background: autoCd ? "var(--car)" : "var(--panel2)",
+                  color: autoCd ? "#FFE9ED" : "var(--dim)" }}
+                title={t("Stint planından otomatik — sondan önceki stintin Time Left değeri")}
+                onClick={() => setAutoCd(!autoCd)}>{t("📋 PLAN")}</button>
+            )}
+          </label>
+          <input type="text" value={val} readOnly={isAuto}
+            style={isAuto ? { opacity: .7 } : undefined}
+            onChange={(e) => setVal(e.target.value)} />
+          <div className="kpis" style={{ marginTop: 12 }}>
+            <div className="kpi"><div className="v mono">{r.lapsLeft}</div>
+              <div className="l">{t("Kalan Tur")} <span style={{ color: "var(--dim)" }}>({r.lapsRaw.toFixed(2)})</span></div></div>
+          </div>
+          <div className="fuelbig" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Bolt size={30} />{r.refuel.toFixed(1)}%
+            <span style={{ fontSize: 18, color: "var(--dim)" }}>
+              (+{st.extraLap} {t("lap")})</span></div>
+          <div className="hint">
+            ≈ <b className="mono" style={{ color: "var(--green)" }}>{r.refuelL.toFixed(1)} L</b> {t("gerçek yakıt")} ·
+            ({t("kalan tur")} {r.lapsLeft} + extra {st.extraLap}) × {st.consumption} {t("%/tur")}
+            {r.refuel > 100 &&
+              <> · <b className="warn">{t("⚠ %100'ü aşıyor — depo yetmez!")}</b></>}
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 

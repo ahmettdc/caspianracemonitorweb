@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef, Fragment } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ResponsiveContainer } from "recharts";
 import { firebaseReady, touchUserProfile, watchUserDoc,
   requestAccess, watchAllUsers, setUserAllowed, updateProfile,
@@ -29,7 +29,7 @@ import {
 import { chatBeep } from "./sound";
 import {
   TourOverlay, Wheel, Num, Donut, BoxPlot, Bolt, Tyre,
-  BADGES, teamBadgesOf, hasBadge,
+  BADGES, teamBadgesOf, hasBadge, ChatPanel, FuelTab,
 } from "./components";
 
 /* ============================================================
@@ -1272,55 +1272,25 @@ ${bottomBar}
   };
 
   /* Sohbet gövdesi — hem pencerede hem yarış sekmesinde kullanılır */
-  const chatBody = (chan, h) => {
-    const msgs = (chan && chatAll[chan.path]) || [];
-    return (
-      <div className="chatwrap" style={h ? { height: h } : undefined}>
-        <div className="chatlist">
-          {!msgs.length && (
-            <div className="hint" style={{ margin: "auto", textAlign: "center" }}>
-              {t("Henüz mesaj yok — ilk yazan sen ol.")}</div>
-          )}
-          {msgs.map((m, i) => {
-            const me = m.uid === user?.uid;
-            const prev = msgs[i - 1];
-            const newDay = !prev || new Date(prev.at || 0).toDateString()
-              !== new Date(m.at || 0).toDateString();
-            return (
-              <Fragment key={m.id}>
-                {newDay && <div className="chatday">
-                  {new Date(m.at || 0).toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR",
-                    { day: "2-digit", month: "long" })}</div>}
-                <div className={`cmsg ${me ? "me" : ""}`}>
-                  <div className="who">
-                    {!me && <b>{teamData?.names?.[m.uid] || m.name || t("isimsiz")}</b>}
-                    <span>{fmtClock(m.at || 0)}</span>
-                    {(me || canManageTeam) && (
-                      <button className="del" title={t("Sil")}
-                        onClick={() => deleteChat(chan.path, m.id).catch(() => {})}>✕</button>
-                    )}
-                  </div>
-                  <div className="bub">{m.text}</div>
-                </div>
-              </Fragment>
-            );
-          })}
-          <div ref={chan === curChan ? chatEndRef : raceEndRef} />
-        </div>
-        <div className="chatbar">
-          <input type="text" value={chatText} maxLength={500}
-            placeholder={t("Mesaj yaz…")}
-            onChange={(e) => setChatText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); doSendTo(chan); }
-            }} />
-          <button className="gbtn ubtn" disabled={!chatText.trim()}
-            style={{ opacity: chatText.trim() ? 1 : .45 }}
-            onClick={() => doSendTo(chan)}>{t("Gönder")}</button>
-        </div>
-      </div>
-    );
-  };
+  /* Sohbet paneli artık <ChatPanel> (./components). chatBody, doğru prop'ları
+     ileten ince bir sarmalayıcı — iki çağrı yeri de bunu kullanır. */
+  const chatBody = (chan, h) => (
+    <ChatPanel
+      msgs={(chan && chatAll[chan.path]) || []}
+      h={h}
+      t={t}
+      lang={lang}
+      user={user}
+      teamData={teamData}
+      fmtClock={fmtClock}
+      canManage={canManageTeam}
+      chatText={chatText}
+      setChatText={setChatText}
+      onSend={() => doSendTo(chan)}
+      onDelete={(id) => deleteChat(chan.path, id).catch(() => {})}
+      endRef={chan === curChan ? chatEndRef : raceEndRef}
+    />
+  );
 
   /* Lobi setup penceresi — indirme odaklı sade liste.
      Yükleme/yönetim pit wall'daki Setup sekmesinde. */
@@ -4169,50 +4139,8 @@ ${bottomBar}
           )}
 
           {tab === "fuel" && (
-            <div className="row2" data-tour="fuelcalc"
-              style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 1fr" }}>
-              {[
-                [t("YARIŞ SONU"), st.lastStintCountdown, (v) => up({ lastStintCountdown: v }), lsf, true],
-                /* [t("CODE 80 SONU"), ...] — şimdilik gizli, kod korunuyor (lsf80) */
-              ].map(([title, val, setVal, r, canAuto]) => {
-                const isAuto = canAuto && autoCd;
-                const eff = isAuto ? fmtHMS(planLastCd) : val;
-                const rr = isAuto ? lastStintFuel(eff, st, racePlan.flagExtra) : r;
-                return ([title, eff, setVal, rr, isAuto, canAuto]);
-              }).map(([title, val, setVal, r, isAuto, canAuto]) => (
-                <div className={`card ${title.includes("CODE 80") ? "c80" : ""}`} key={title}>
-                  <h2>⛽ {t("Son Stint Yakıtı")} · {title}</h2>
-                  <label>{t("Session Countdown (h:mm:ss)")}{" "}
-                    {canAuto && (
-                      <button className={autoCd ? "chip" : ""}
-                        style={{ marginLeft: 6, padding: "2px 8px", borderRadius: 6, fontSize: 10,
-                          border: "1px solid var(--line)", cursor: "pointer",
-                          background: autoCd ? "var(--car)" : "var(--panel2)",
-                          color: autoCd ? "#FFE9ED" : "var(--dim)" }}
-                        title={t("Stint planından otomatik — sondan önceki stintin Time Left değeri")}
-                        onClick={() => setAutoCd(!autoCd)}>{t("📋 PLAN")}</button>
-                    )}
-                  </label>
-                  <input type="text" value={val} readOnly={isAuto}
-                    style={isAuto ? { opacity: .7 } : undefined}
-                    onChange={(e) => setVal(e.target.value)} />
-                  <div className="kpis" style={{ marginTop: 12 }}>
-                    <div className="kpi"><div className="v mono">{r.lapsLeft}</div>
-                      <div className="l">{t("Kalan Tur")} <span style={{ color: "var(--dim)" }}>({r.lapsRaw.toFixed(2)})</span></div></div>
-                  </div>
-                  <div className="fuelbig" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <Bolt size={30} />{r.refuel.toFixed(1)}%
-                    <span style={{ fontSize: 18, color: "var(--dim)" }}>
-                      (+{st.extraLap} {t("lap")})</span></div>
-                  <div className="hint">
-                    ≈ <b className="mono" style={{ color: "var(--green)" }}>{r.refuelL.toFixed(1)} L</b> {t("gerçek yakıt")} ·
-                    ({t("kalan tur")} {r.lapsLeft} + extra {st.extraLap}) × {st.consumption} {t("%/tur")}
-                    {r.refuel > 100 &&
-                      <> · <b className="warn">{t("⚠ %100'ü aşıyor — depo yetmez!")}</b></>}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <FuelTab t={t} st={st} up={up} lsf={lsf} autoCd={autoCd}
+              setAutoCd={setAutoCd} planLastCd={planLastCd} racePlan={racePlan} />
           )}
         </div>
       </div>
