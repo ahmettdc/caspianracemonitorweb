@@ -206,16 +206,26 @@ def main():
     ap.add_argument("--selftest", action="store_true", help="Firebase yaz+oku turu (PASS/FAIL)")
     ap.add_argument("--dump", action="store_true", help="Bir örnek oku, JSON bas (yazmaz)")
     ap.add_argument("--once", action="store_true", help="Bir kez oku+gönder, çık")
+    ap.add_argument("--nogui", action="store_true", help="Arayüzsüz, doğrudan config.ini ile çalış")
     args = ap.parse_args()
 
     try:
         if args.dump:                     # kaynağı göster — Firebase/config gerekmez
             cmd_dump(args.mock)
             return
-        cp = read_config_or_die(args.config)
         if args.selftest:
-            sys.exit(cmd_selftest(cp))
-        run_loop(cp, args.mock, args.once)
+            sys.exit(cmd_selftest(read_config_or_die(args.config)))
+        if args.nogui or args.once or args.mock:
+            run_loop(read_config_or_die(args.config), args.mock, args.once)
+            return
+        # varsayılan (çift tıklama, flag yok) → arayüz
+        try:
+            from gui import launch
+        except Exception as e:  # noqa: BLE001  (tkinter yoksa CLI'ya düş)
+            print(f"[arayüz açılamadı: {e}] — config.ini ile çalışılıyor.")
+            run_loop(read_config_or_die(args.config), False, False)
+            return
+        launch(args.config)
     except SystemExit:
         raise
     except KeyboardInterrupt:

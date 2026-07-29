@@ -42,7 +42,11 @@ Web uygulamasında yarışı aç → **Canlı** sekmesi bağlantı bilgisinde
 
 ## 3) Çalıştırma ve 3 katmanlı doğrulama
 
-Çalışabilirliği katman katman doğrula — bir sorun olursa yeri belli olur.
+**En kolay yol:** `.exe`'ye **çift tıkla** → bir form açılır. Bot e-posta/parola,
+team_id, race_id gir → **Kaydet & Başlat**. **Self-Test** butonu Firebase bağlantını
+kontrol eder. (config.ini otomatik yazılır; Not Defteri gerekmez.)
+
+Aşağıdaki komutlar ileri/teşhis içindir. Çalışabilirliği katman katman doğrula:
 
 **Katman 1 — Web (oyun/exe olmadan):** Siteyi aç → yarışı aç → **Canlı** sekmesi.
 "📡 bağlı değil" + team_id/race_id kutusu görünüyorsa web tamam.
