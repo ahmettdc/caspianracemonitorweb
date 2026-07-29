@@ -98,6 +98,17 @@ export const css = `
   justify-content:center;font-family:'Rajdhani';font-size:12px;font-weight:700;
   color:#FFE3E8;letter-spacing:.02em;overflow:hidden}
 .rc .timeline .pit{background:var(--yellow)}
+/* pilot şeridi (timeline omurgasının altı) */
+.rc .drvlane{position:relative;display:flex;height:20px;margin:-8px 0 14px}
+.rc .drvlane .dcell{display:flex;align-items:center;justify-content:center;overflow:hidden;
+  white-space:nowrap;font-size:10.5px;color:var(--dim);background:var(--panel2);
+  border:1px solid var(--line);border-left:none;border-radius:0}
+.rc .drvlane .dcell:first-child{border-left:1px solid var(--line);border-radius:6px 0 0 6px}
+.rc .drvlane .dcell:last-of-type{border-radius:0 6px 6px 0}
+.rc .drvlane .dcell span{overflow:hidden;text-overflow:ellipsis;padding:0 6px;letter-spacing:.02em}
+.rc .drvlane .dcell.cur{color:var(--txt);border-color:var(--teal);
+  background:rgba(150,0,24,.22);font-weight:600}
+.rc .drvlane .dgap{background:transparent;flex:0 0 auto}
 .rc .hint{color:var(--dim);font-size:11px;margin-top:6px;line-height:1.5}
 .rc .warn{color:var(--yellow)}
 .rc .fuelbig{font-family:'Rajdhani';font-size:52px;font-weight:700;
