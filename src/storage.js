@@ -363,3 +363,19 @@ export function raceStateSubscribe(tid, rid, cb) {
     if (s.exists()) cb(s.val());
   });
 }
+
+/* ---- canlı timing (LMU köprüsü → teams/{tid}/live/{rid}) ----
+   Köprü (.exe) bu düğüme yazar; web salt-okunur dinler. Strateji
+   state'inden (raceState) bağımsız kanal. */
+export function liveTimingSubscribe(tid, rid, cb) {
+  if (!db || !tid || !rid) { cb(null); return () => {}; }
+  return onValue(ref(db, `teams/${tid}/live/${rid}`),
+    (s) => cb(s.exists() ? s.val() : null),
+    (err) => { console.warn("live read failed:", err?.message); cb(null); });
+}
+
+/* Test/mock (ve ileride web tarafı) için canlı düğümü yazar. */
+export async function liveTimingSet(tid, rid, payload) {
+  if (!db || !tid || !rid) return;
+  await set(ref(db, `teams/${tid}/live/${rid}`), payload);
+}
