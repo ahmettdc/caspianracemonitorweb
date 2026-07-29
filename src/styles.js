@@ -481,6 +481,25 @@ export const css = `
   box-shadow:0 0 8px #fff;z-index:2}
 .rc tr.live td{background:rgba(150,0,24,.16);border-left:3px solid var(--teal)}
 .rc tr.pitsoon td{background:rgba(242,201,76,.12)}
+/* --- HUD şeridi (canlı mod kokpit) --- */
+.rc .hudstrip{display:flex;flex-wrap:wrap;align-items:center;gap:18px;
+  padding:12px 20px;border-bottom:1px solid var(--line);
+  background:radial-gradient(130% 180% at 100% 0,rgba(150,0,24,.22),#1E0A0E 62%)}
+.rc .hudstrip .hcell{display:flex;flex-direction:column;justify-content:center;gap:2px;min-width:0}
+.rc .hudstrip .lbl{color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.07em}
+.rc .hudstrip .hclock{font-family:'Rajdhani';font-weight:700;font-variant-numeric:tabular-nums;
+  font-size:clamp(30px,5vw,48px);line-height:.95;color:var(--green);
+  text-shadow:0 0 20px rgba(55,214,122,.28)}
+.rc .hudstrip .hbar{height:4px;border-radius:3px;background:var(--panel2);overflow:hidden;
+  margin-top:5px;min-width:150px}
+.rc .hudstrip .hbar i{display:block;height:100%;border-radius:3px;
+  background:linear-gradient(90deg,var(--car),var(--teal))}
+.rc .hudstrip .hstint{font-family:'Rajdhani';font-weight:700;font-size:30px;line-height:1;
+  letter-spacing:.02em}
+.rc .hudstrip .hdrv{color:var(--teal);font-weight:600;font-size:14px}
+.rc .hudstrip .hgauge{align-items:center;gap:4px}
+.rc .hudstrip .hudpit{margin-left:auto;align-self:center}
+@media(max-width:720px){.rc .hudstrip{gap:12px}.rc .hudstrip .hudpit{margin-left:0}}
 /* --- pit board --- */
 .rc .pitboard{position:fixed;inset:0;z-index:50;
   background:radial-gradient(1100px 550px at 50% -12%,#2E0C15 0%,#06040A 64%);
