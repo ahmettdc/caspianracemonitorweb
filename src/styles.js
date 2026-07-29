@@ -515,7 +515,10 @@ export const css = `
 .rc .pitboard .close{position:absolute;top:16px;right:20px;font-size:26px;
   background:none;border:1px solid var(--line);border-radius:8px;color:var(--dim);
   width:44px;height:44px;cursor:pointer}
-.rc .pbrow{display:flex;gap:1.6vw;flex-wrap:wrap;justify-content:center}
+.rc .pbrow{display:flex;gap:1.6vw;flex-wrap:wrap;justify-content:center;align-items:center}
+.rc .pitboard .pbcard.pbgauge{display:flex;flex-direction:column;align-items:center;gap:8px;
+  background:none;border:none;padding:0;min-width:150px}
+.rc .pitboard .pbcard.pbgauge svg{filter:drop-shadow(0 6px 22px rgba(0,0,0,.5))}
 .rc .pitboard .pbcard{background:rgba(255,255,255,.035);border:1px solid var(--line);
   border-radius:16px;padding:1.4vh 2.6vw;min-width:170px}
 .rc .pitboard .chips{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;

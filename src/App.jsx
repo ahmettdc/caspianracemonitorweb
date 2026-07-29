@@ -2571,21 +2571,32 @@ ${bottomBar}
             <div className="plbl">{t("Yarış zamanı ayarlanmadı")}</div>
             <div className="mid">{t("Pilotlar sekmesinden başlangıç zamanını gir")}</div>
           </>)}
-          {liveInfo.status === "live" && (<>
+          {liveInfo.status === "live" && (() => {
+            const pitTotal = liveInfo.phaseEnd - liveInfo.stintStartMs;
+            const pitFrac = pitTotal > 0
+              ? Math.min(1, Math.max(0, (pitTotal - liveInfo.nextPitIn) / pitTotal)) : 0;
+            const raceFrac = liveInfo.raceMs > 0
+              ? Math.min(1, Math.max(0, liveInfo.elapsed / liveInfo.raceMs)) : 0;
+            return (<>
             <div>
               <div className="plbl">{t("Kalan Süre")}</div>
               <div className="huge">{fmtHMS(liveInfo.remaining / 1000)}</div>
             </div>
             <div className="pbrow">
-              <div className="pbcard">
+              <div className="pbcard pbgauge">
                 <div className="plbl">{liveInfo.phase === "pit" ? t("Pit Çıkışı") : t("Sıradaki Pit")}</div>
-                <div className={`mid mono ${pitSoon ? "pulse" : ""}`}
-                  style={{ color: pitSoon ? "var(--yellow)" : "var(--txt)" }}>
-                  {fmtHMS(liveInfo.nextPitIn / 1000)}</div>
+                <Ring value={pitFrac} size={150} thickness={12} fs={30} glow
+                  color={pitSoon ? "var(--yellow)" : "var(--teal)"}
+                  big={fmtHMS(liveInfo.nextPitIn / 1000)} />
               </div>
               <div className="pbcard">
                 <div className="plbl">Stint</div>
                 <div className="mid">{liveInfo.stintIdx + 1} / {racePlan.fullStints}</div>
+              </div>
+              <div className="pbcard pbgauge">
+                <div className="plbl">{t("Tamamlanan")}</div>
+                <Ring value={raceFrac} size={150} thickness={12} fs={40} color="var(--car)"
+                  big={`%${Math.round(raceFrac * 100)}`} />
               </div>
               {upcomingIsLast && (
                 <div className="pbcard">
@@ -2691,7 +2702,8 @@ ${bottomBar}
                 )}
               </div>
             )}
-          </>)}
+          </>);
+          })()}
         </div>
       )}
 
