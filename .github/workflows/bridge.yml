@@ -32,7 +32,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: .exe derle
-        run: pyinstaller --onefile --name CaspianLiveBridge --hidden-import pyRfactor2SharedMemory.sharedMemoryAPI main.py
+        run: pyinstaller --onefile --name CaspianLiveBridge --hidden-import gui --hidden-import pyRfactor2SharedMemory.sharedMemoryAPI main.py
 
       - name: Örnek config'i ekle
         run: copy config.example.ini dist\config.example.ini
