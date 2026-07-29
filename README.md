@@ -78,20 +78,20 @@ npm run tauri build   # Yerel .exe/.msi üretir (Windows'ta)
 `windows-latest`'te derler, imzalar, GitHub Release'e yükler
 (`desktop-v<versiyon>` etiketi + `latest.json` — updater bunu okur).
 
-**Bir kez kurulum — imzalama anahtarı (updater için zorunlu):**
-```bash
-npx tauri signer generate -w ~/.tauri/caspian-race-monitor.key
-```
-Bu, bir public/private anahtar çifti üretir.
-1. **Public key**'i `src-tauri/tauri.conf.json` → `plugins.updater.pubkey` alanına yapıştır
-   (şu an `PUBKEY_BURAYA_GELECEK_TAURI_SIGNER_GENERATE_SONRASI` placeholder'ı var).
-2. **Private key** içeriğini ve komutun sorduğu **parolayı** GitHub repo →
-   **Settings → Secrets and variables → Actions** altına ekle:
-   - `TAURI_SIGNING_PRIVATE_KEY` (private key dosyasının tam içeriği)
-   - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+**İmzalama anahtarı — public key zaten gömülü.** Bir anahtar çifti üretilip
+public kısmı `src-tauri/tauri.conf.json` → `plugins.updater.pubkey` alanına
+yazıldı. **Tek eksik adım — private key'i GitHub Secrets'a eklemek:**
+GitHub repo → **Settings → Secrets and variables → Actions → New repository
+secret** ile şu ikisini ekle (değerler ayrıca iletildi):
+- `TAURI_SIGNING_PRIVATE_KEY`
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
 
-Bu anahtar eklenmeden CI derlemesi başarısız olur (updater'ın imza doğrulaması
-için şart) — ilk kurulumda beklenen, tek seferlik bir adımdır.
+Bu ikisi eklenmeden CI derlemesi başarısız olur (updater'ın imza doğrulaması
+için şart) — eklenince bir sonraki push'ta otomatik düzelir.
+
+> Yeni bir anahtar çifti üretmek istersen (ör. mevcut anahtar sızarsa):
+> `npx tauri signer generate` (Node.js gerektirir) — public kısmı yukarıdaki
+> alana yaz, private kısmı + parolayı yukarıdaki secret'lara güncelle.
 
 **Sürüm güncelleme:** yeni bir masaüstü sürümü yayınlamak için `package.json`
 ve `src-tauri/tauri.conf.json` içindeki `"version"` alanını **birlikte** ve
