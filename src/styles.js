@@ -1,18 +1,20 @@
 /* Global tema / CSS — App.jsx tarafindan bir kez <style> olarak enjekte edilir. */
 export const css = `
-@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
 :root{
-  /* chrome hafif nötr (kırmızı kroma düşürüldü), koyu+sıcak kimlik korunur */
-  --bg:#120C0E; --panel:#191517; --panel2:#221B1E; --line:#382E33;
-  --txt:#F2E9EB; --dim:#B39AA0; --muted:#8A7176;
-  --teal:#D24357; --accent:#D24357; --car:#960018; --green:#40D68C;
-  --yellow:#F2C94C; --red:#F0604D; --purple:#BB8CF5;
+  /* Pit Wall OS — #960018 merkezli, koyu + sıcak "pit-wall" kimliği (konseptten).
+     Zemin sıcak yakın-siyah, paneller bürgündi; marka #960018, etkileşim lift'i
+     #C51E38→#D24357; anlamsal renkler (good/warn/crit/best) markadan ayrı. */
+  --bg:#0B0708; --panel:#150E10; --panel2:#1E1418; --line:#34232A; --line2:#4A2F38;
+  --txt:#F3EAEC; --dim:#B199A0; --muted:#8A7176;
+  --teal:#D24357; --accent:#D24357; --brand2:#C51E38; --car:#960018; --green:#37D67A;
+  --yellow:#F5B23D; --red:#FF4D5E; --purple:#B58BFF;
 }
 .rc *{box-sizing:border-box}
 .rc{min-height:100vh;background:var(--bg);color:var(--txt);
   font-family:'Inter',system-ui,sans-serif;font-size:13px;padding:0 0 40px}
 .rc .mono{font-family:'IBM Plex Mono',monospace}
-.rc .disp{font-family:'Barlow Condensed',sans-serif;letter-spacing:.04em}
+.rc .disp{font-family:'Rajdhani',sans-serif;letter-spacing:.04em}
 .rc header{display:flex;align-items:center;gap:12px;padding:14px 20px;
   border-bottom:1px solid var(--line)}
 .rc header h1{margin:0;font-size:26px;font-weight:700;text-transform:uppercase;line-height:1}
@@ -33,7 +35,7 @@ export const css = `
 @media(max-width:900px){.rc .grid{grid-template-columns:1fr}.rc .sidetoggle{display:none}}
 .rc .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
 .rc .card h2{margin:0 0 10px;font-size:15px;text-transform:uppercase;
-  font-family:'Barlow Condensed';letter-spacing:.08em;color:var(--teal)}
+  font-family:'Rajdhani';letter-spacing:.08em;color:var(--teal)}
 .rc label{display:block;color:var(--dim);font-size:11px;margin:8px 0 3px;
   text-transform:uppercase;letter-spacing:.05em}
 .rc input[type=text],.rc input[type=number],.rc input[type=datetime-local]{width:100%;background:var(--panel2);
@@ -50,13 +52,13 @@ export const css = `
 .rc .row4{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .rc .strat{display:flex;gap:6px;margin-top:4px}
 .rc .strat button{flex:1;padding:7px 0;border-radius:6px;border:1px solid var(--line);
-  background:var(--panel2);color:var(--dim);font-family:'Barlow Condensed';
+  background:var(--panel2);color:var(--dim);font-family:'Rajdhani';
   font-size:15px;font-weight:600;cursor:pointer}
 .rc .strat button.on{background:var(--car);color:#FFE9ED;border-color:var(--teal)}
 .rc .tabs{display:flex;gap:8px;margin-bottom:12px}
 .rc .tabs button{padding:8px 16px;border-radius:8px 8px 0 0;border:1px solid var(--line);
   border-bottom:none;background:transparent;color:var(--dim);cursor:pointer;
-  font-family:'Barlow Condensed';font-size:16px;font-weight:600;letter-spacing:.05em;
+  font-family:'Rajdhani';font-size:16px;font-weight:600;letter-spacing:.05em;
   text-transform:uppercase}
 .rc .tabs button.on{background:var(--panel);color:var(--txt);border-color:var(--teal)}
 .rc table{width:100%;border-collapse:collapse}
@@ -86,19 +88,30 @@ export const css = `
 .rc .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));
   gap:10px;margin-bottom:14px}
 .rc .kpi{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px}
-.rc .kpi .v{font-family:'Barlow Condensed';font-size:24px;font-weight:700;line-height:1}
+.rc .kpi .v{font-family:'Rajdhani';font-size:24px;font-weight:700;line-height:1}
 .rc .kpi .l{color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.06em;
   margin-top:4px}
 .rc .timeline{height:34px;display:flex;border-radius:6px;overflow:hidden;
   border:1px solid var(--line);margin:4px 0 14px}
 .rc .timeline .seg{position:relative;min-width:2px}
 .rc .timeline .seg span{position:absolute;inset:0;display:flex;align-items:center;
-  justify-content:center;font-family:'Barlow Condensed';font-size:12px;font-weight:700;
+  justify-content:center;font-family:'Rajdhani';font-size:12px;font-weight:700;
   color:#FFE3E8;letter-spacing:.02em;overflow:hidden}
 .rc .timeline .pit{background:var(--yellow)}
+/* pilot şeridi (timeline omurgasının altı) */
+.rc .drvlane{position:relative;display:flex;height:20px;margin:-8px 0 14px}
+.rc .drvlane .dcell{display:flex;align-items:center;justify-content:center;overflow:hidden;
+  white-space:nowrap;font-size:10.5px;color:var(--dim);background:var(--panel2);
+  border:1px solid var(--line);border-left:none;border-radius:0}
+.rc .drvlane .dcell:first-child{border-left:1px solid var(--line);border-radius:6px 0 0 6px}
+.rc .drvlane .dcell:last-of-type{border-radius:0 6px 6px 0}
+.rc .drvlane .dcell span{overflow:hidden;text-overflow:ellipsis;padding:0 6px;letter-spacing:.02em}
+.rc .drvlane .dcell.cur{color:var(--txt);border-color:var(--teal);
+  background:rgba(150,0,24,.22);font-weight:600}
+.rc .drvlane .dgap{background:transparent;flex:0 0 auto}
 .rc .hint{color:var(--dim);font-size:11px;margin-top:6px;line-height:1.5}
 .rc .warn{color:var(--yellow)}
-.rc .fuelbig{font-family:'Barlow Condensed';font-size:52px;font-weight:700;
+.rc .fuelbig{font-family:'Rajdhani';font-size:52px;font-weight:700;
   color:var(--green);line-height:1;margin:6px 0}
 .rc .teambar{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:8px;
   padding:10px 20px;border-bottom:1px solid var(--line);background:var(--panel)}
@@ -111,7 +124,7 @@ export const css = `
   border-radius:6px;color:var(--txt);padding:6px 8px;font-family:'IBM Plex Mono';
   font-size:12px;text-transform:uppercase}
 .rc .teambar button{padding:6px 12px;border-radius:6px;border:1px solid var(--teal);
-  background:transparent;color:var(--teal);cursor:pointer;font-family:'Barlow Condensed';
+  background:transparent;color:var(--teal);cursor:pointer;font-family:'Rajdhani';
   font-size:14px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
 .rc .teambar button.solid{background:var(--car);color:#FFE9ED}
 .rc .teambar button.leave{border-color:var(--red);color:var(--red)}
@@ -132,11 +145,11 @@ export const css = `
 .rc .lobby .box{width:100%;max-width:430px;background:var(--panel);
   border:1px solid var(--line);border-radius:14px;padding:30px 28px}
 .rc .lobby h1{margin:0;font-size:30px;font-weight:700;text-transform:uppercase;
-  text-align:center;font-family:'Barlow Condensed';letter-spacing:.04em}
+  text-align:center;font-family:'Rajdhani';letter-spacing:.04em}
 .rc .lobby h1 b{color:var(--teal)}
 .rc .lobby .sub{text-align:center;color:var(--dim);font-size:12px;margin:4px 0 22px}
 .rc .lobby .bigbtn{width:100%;padding:12px;border-radius:8px;border:1px solid var(--teal);
-  background:var(--car);color:#FFE9ED;cursor:pointer;font-family:'Barlow Condensed';
+  background:var(--car);color:#FFE9ED;cursor:pointer;font-family:'Rajdhani';
   font-size:18px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-top:8px}
 .rc .lobby .bigbtn.ghost{background:transparent;color:var(--teal);border-color:var(--teal)}
 .rc .lobby .bigbtn:disabled{opacity:.5;cursor:wait}
@@ -153,7 +166,7 @@ export const css = `
 /* --- pist & araç seçimi --- */
 .rc .picksec{margin-top:18px}
 .rc .picksec h3{margin:0 0 8px;font-size:12px;text-transform:uppercase;
-  letter-spacing:.08em;color:var(--dim);font-family:'Barlow Condensed';font-size:15px}
+  letter-spacing:.08em;color:var(--dim);font-family:'Rajdhani';font-size:15px}
 .rc .trackgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
 .rc .trackgrid button{display:flex;align-items:center;gap:8px;padding:9px 10px;
   border-radius:8px;border:1px solid var(--line);background:var(--panel2);
@@ -176,7 +189,7 @@ export const css = `
 .rc .histbtn:hover{border-color:var(--teal);color:var(--teal)}
 .rc .gbtn{display:inline-flex;align-items:center;gap:10px;margin:0 auto;padding:11px 22px;
   border:1px solid var(--line);border-radius:10px;background:#fff;color:#1f1f1f;
-  font-family:'Barlow Condensed';font-size:16px;letter-spacing:.04em;text-transform:uppercase;
+  font-family:'Rajdhani';font-size:16px;letter-spacing:.04em;text-transform:uppercase;
   font-weight:600;cursor:pointer;transition:box-shadow .18s,transform .12s}
 .rc .gbtn:hover{box-shadow:0 6px 20px rgba(0,0,0,.45);transform:translateY(-1px)}
 .rc .gbtn:active{transform:scale(.98)}
@@ -285,7 +298,7 @@ export const css = `
   width:min(440px,94vw);max-height:80vh;display:flex;flex-direction:column;overflow:hidden;
   animation:lbzoom .26s cubic-bezier(.2,.85,.3,1.12)}
 .rc .wxmhead{display:flex;align-items:center;justify-content:space-between;
-  padding:12px 16px;border-bottom:1px solid var(--line);font-family:'Barlow Condensed';
+  padding:12px 16px;border-bottom:1px solid var(--line);font-family:'Rajdhani';
   font-size:18px;letter-spacing:.04em;text-transform:uppercase}
 .rc .wxmlist{overflow:auto;padding:8px}
 .rc .wxrow{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px}
@@ -298,7 +311,7 @@ export const css = `
   justify-content:flex-end}
 .rc .wxsrc{font-size:9px;text-transform:uppercase;letter-spacing:.06em;padding:1px 6px;
   border-radius:5px;border:1px solid}
-.rc .wxsrc.live{color:var(--teal);border-color:rgba(38,198,218,.4);background:rgba(38,198,218,.1)}
+.rc .wxsrc.live{color:var(--teal);border-color:rgba(210,67,87,.42);background:rgba(210,67,87,.12)}
 .rc .wxsrc.plan{color:#c9a227;border-color:rgba(201,162,39,.4);background:rgba(201,162,39,.1)}
 .rc .wxrow .wxat{margin-left:auto}
 .rc .wxmplan{padding:10px 16px;border-top:1px solid var(--line)}
@@ -320,7 +333,7 @@ export const css = `
 .rc .classtoggle button{flex:1;display:flex;align-items:center;justify-content:center;
   gap:8px;padding:10px;border-radius:8px;border:1px solid var(--line);
   background:var(--panel2);color:var(--dim);cursor:pointer;
-  font-family:'Barlow Condensed';font-size:16px;font-weight:600;letter-spacing:.05em}
+  font-family:'Rajdhani';font-size:16px;font-weight:600;letter-spacing:.05em}
 .rc .classtoggle button img{width:26px;height:auto}
 .rc .classtoggle button.on{border-color:var(--teal);background:rgba(150,0,24,.25);
   color:var(--teal)}
@@ -351,7 +364,7 @@ export const css = `
 .rc .floatstream .fsgrip:hover{color:var(--teal)}
 .rc .floatstream .fsshield{position:absolute;inset:0;z-index:2}
 .rc .floatstream .fstitle{font-size:10.5px;letter-spacing:.1em;color:var(--muted);
-  font-family:'Barlow Condensed',sans-serif;margin-right:auto}
+  font-family:'Rajdhani',sans-serif;margin-right:auto}
 .rc .floatstream .fsbtns{display:flex;gap:2px;align-items:center}
 .rc .floatstream .fsbtns button,.rc .floatstream .fsbtns a{background:none;border:0;
   color:var(--dim);cursor:pointer;font-size:11px;padding:1px 4px;line-height:1;
@@ -376,7 +389,7 @@ export const css = `
   border-radius:12px;padding:14px 16px;box-shadow:0 12px 40px rgba(0,0,0,.6);
   transition:all .28s ease}
 .rc .tourcard h3{margin:0 0 6px;font-size:15px;color:var(--red);
-  font-family:'Barlow Condensed',sans-serif;letter-spacing:.04em}
+  font-family:'Rajdhani',sans-serif;letter-spacing:.04em}
 .rc .tourcard p{margin:0 0 12px;font-size:12.5px;line-height:1.55;color:var(--txt)}
 .rc .tourstep{font-size:10px;color:var(--dim);letter-spacing:.14em;margin-bottom:4px}
 .rc .tourbtns{display:flex;gap:8px;align-items:center}
@@ -468,7 +481,7 @@ export const css = `
 /* --- canlı mod --- */
 .rc .livestrip{display:flex;flex-wrap:wrap;align-items:center;gap:16px;
   padding:8px 20px;border-bottom:1px solid var(--line);background:#210B10}
-.rc .livestrip .big{font-family:'Barlow Condensed';font-size:22px;font-weight:700}
+.rc .livestrip .big{font-family:'Rajdhani';font-size:22px;font-weight:700}
 .rc .livestrip .lbl{color:var(--dim);font-size:10px;text-transform:uppercase;
   letter-spacing:.07em;display:block}
 @keyframes rcpulse{0%,100%{opacity:1}50%{opacity:.35}}
@@ -479,33 +492,55 @@ export const css = `
   box-shadow:0 0 8px #fff;z-index:2}
 .rc tr.live td{background:rgba(150,0,24,.16);border-left:3px solid var(--teal)}
 .rc tr.pitsoon td{background:rgba(242,201,76,.12)}
+/* --- HUD şeridi (canlı mod kokpit) --- */
+.rc .hudstrip{display:flex;flex-wrap:wrap;align-items:center;gap:18px;
+  padding:12px 20px;border-bottom:1px solid var(--line);
+  background:radial-gradient(130% 180% at 100% 0,rgba(150,0,24,.22),#1E0A0E 62%)}
+.rc .hudstrip .hcell{display:flex;flex-direction:column;justify-content:center;gap:2px;min-width:0}
+.rc .hudstrip .lbl{color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.07em}
+.rc .hudstrip .hclock{font-family:'Rajdhani';font-weight:700;font-variant-numeric:tabular-nums;
+  font-size:clamp(30px,5vw,48px);line-height:.95;color:var(--green);
+  text-shadow:0 0 20px rgba(55,214,122,.28)}
+.rc .hudstrip .hbar{height:4px;border-radius:3px;background:var(--panel2);overflow:hidden;
+  margin-top:5px;min-width:150px}
+.rc .hudstrip .hbar i{display:block;height:100%;border-radius:3px;
+  background:linear-gradient(90deg,var(--car),var(--teal))}
+.rc .hudstrip .hstint{font-family:'Rajdhani';font-weight:700;font-size:30px;line-height:1;
+  letter-spacing:.02em}
+.rc .hudstrip .hdrv{color:var(--teal);font-weight:600;font-size:14px}
+.rc .hudstrip .hgauge{align-items:center;gap:4px}
+.rc .hudstrip .hudpit{margin-left:auto;align-self:center}
+@media(max-width:720px){.rc .hudstrip{gap:12px}.rc .hudstrip .hudpit{margin-left:0}}
 /* --- pit board --- */
 .rc .pitboard{position:fixed;inset:0;z-index:50;
-  background:radial-gradient(1100px 550px at 50% -12%,#131820 0%,#05070A 62%);
+  background:radial-gradient(1100px 550px at 50% -12%,#2E0C15 0%,#06040A 64%);
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   gap:3vh;text-align:center;padding:4vh 4vw}
-.rc .pitboard .huge{font-family:'Barlow Condensed';font-weight:700;
+.rc .pitboard .huge{font-family:'Rajdhani';font-weight:700;
   font-size:clamp(70px,18vw,220px);line-height:.95;color:var(--green);
   font-variant-numeric:tabular-nums}
-.rc .pitboard .mid{font-family:'Barlow Condensed';font-weight:600;
+.rc .pitboard .mid{font-family:'Rajdhani';font-weight:600;
   font-size:clamp(28px,6vw,64px);color:var(--txt)}
 .rc .pitboard .plbl{color:var(--dim);font-size:clamp(12px,2vw,18px);
   text-transform:uppercase;letter-spacing:.15em}
 .rc .pitboard .close{position:absolute;top:16px;right:20px;font-size:26px;
   background:none;border:1px solid var(--line);border-radius:8px;color:var(--dim);
   width:44px;height:44px;cursor:pointer}
-.rc .pbrow{display:flex;gap:1.6vw;flex-wrap:wrap;justify-content:center}
+.rc .pbrow{display:flex;gap:1.6vw;flex-wrap:wrap;justify-content:center;align-items:center}
+.rc .pitboard .pbcard.pbgauge{display:flex;flex-direction:column;align-items:center;gap:8px;
+  background:none;border:none;padding:0;min-width:150px}
+.rc .pitboard .pbcard.pbgauge svg{filter:drop-shadow(0 6px 22px rgba(0,0,0,.5))}
 .rc .pitboard .pbcard{background:rgba(255,255,255,.035);border:1px solid var(--line);
   border-radius:16px;padding:1.4vh 2.6vw;min-width:170px}
 .rc .pitboard .chips{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;
   align-items:center}
-.rc .pitboard .chip2{font-family:'Barlow Condensed';font-weight:700;letter-spacing:.08em;
+.rc .pitboard .chip2{font-family:'Rajdhani';font-weight:700;letter-spacing:.08em;
   padding:5px 16px;border-radius:9px;font-size:clamp(15px,2.4vw,22px);line-height:1;
   border:1px solid}
 .rc .pitboard .chip2.fuel{color:var(--green);border-color:var(--green);
   background:rgba(46,204,113,.12)}
 .rc .pitboard .chip2.tyre{color:var(--teal);border-color:var(--teal);
-  background:rgba(38,198,218,.10)}
+  background:rgba(210,67,87,.12)}
 .rc .pitboard .chip2.none{color:var(--dim);border-color:var(--line);
   background:rgba(255,255,255,.03)}
 /* --- dashboard --- */
@@ -525,7 +560,7 @@ export const css = `
 .rc .lightbox img{max-width:90vw;max-height:78vh;object-fit:contain;
   animation:lbzoom .3s cubic-bezier(.2,.85,.3,1.12);
   filter:drop-shadow(0 16px 48px rgba(0,0,0,.75))}
-.rc .lightbox .lbcap{font-family:'Barlow Condensed';font-size:20px;letter-spacing:.05em;
+.rc .lightbox .lbcap{font-family:'Rajdhani';font-size:20px;letter-spacing:.05em;
   text-transform:uppercase;color:var(--txt);animation:lbfade .4s ease}
 .rc .lightbox .lbclose{position:absolute;top:18px;right:22px;background:var(--panel2);
   border:1px solid var(--line);border-radius:8px;color:var(--txt);font-size:16px;

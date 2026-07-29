@@ -86,6 +86,45 @@ export default function StintTab({
         )}
       </div>
 
+      {(st.driverAssign || []).some(Boolean) && (() => {
+        /* pilot şeridi: stint segmentleriyle hizalı; aynı pilotun ardışık
+           stint'leri (aradaki pit dahil) tek blokta birleşir, farklı pilot
+           arasında pit boşluk olur. Canlıda direksiyondaki pilot vurgulanır. */
+        const rows = plan.rows;
+        const cells = [];
+        let i = 0;
+        while (i < rows.length) {
+          const drv = st.driverAssign[i] || "";
+          let w = (rows[i].stintSec / plan.raceSec) * 100;
+          let j = i;
+          while (j + 1 < rows.length && (st.driverAssign[j + 1] || "") === drv) {
+            w += ((rows[j].pitSec || 0) / plan.raceSec) * 100;
+            w += (rows[j + 1].stintSec / plan.raceSec) * 100;
+            j++;
+          }
+          const isCur = liveInfo.status === "live" && mode === "race"
+            && liveInfo.stintIdx >= i && liveInfo.stintIdx <= j;
+          cells.push({ type: "drv", w, drv, cur: isCur });
+          if (j < rows.length - 1)
+            cells.push({ type: "gap", w: ((rows[j].pitSec || 0) / plan.raceSec) * 100 });
+          i = j + 1;
+        }
+        return (
+          <div className="drvlane" role="img" aria-label={t("Pilot şeridi")}>
+            {cells.map((c, k) => c.type === "gap"
+              ? <div key={k} className="dgap" style={{ width: `${c.w}%` }} />
+              : <div key={k} className={`dcell ${c.cur ? "cur" : ""}`}
+                  style={{ width: `${c.w}%` }} title={c.drv || t("Atanmadı")}>
+                  <span>{c.drv || "—"}</span></div>
+            )}
+            {liveInfo.status === "live" && mode === "race" && (
+              <div className="nowline" style={{
+                left: `${Math.min(100, (liveInfo.elapsed / liveInfo.raceMs) * 100)}%` }} />
+            )}
+          </div>
+        );
+      })()}
+
       {(() => {
         /* hava kronolojisi: doğrudan log'dan, yarış süresi üzerinden
            (stint sınırlarından bağımsız → canlı + planlı her geçiş görünür) */

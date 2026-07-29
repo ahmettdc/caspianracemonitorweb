@@ -34,7 +34,7 @@ import {
   computeLiveInfo, buildTimeline,
 } from "./state";
 import {
-  TourOverlay, Wheel, Num, Bolt, Tyre,
+  TourOverlay, Wheel, Num, Bolt, Tyre, Ring,
   BADGES, teamBadgesOf, hasBadge, ChatPanel, SetupForm, SetupTable,
 } from "./components";
 
@@ -2501,27 +2501,53 @@ ${bottomBar}
         </>)}
       </div>
 
-      {liveInfo.status !== "idle" && (
+      {liveInfo.status === "live" && (() => {
+        const pitTotal = liveInfo.phaseEnd - liveInfo.stintStartMs;
+        const pitFrac = pitTotal > 0
+          ? Math.min(1, Math.max(0, (pitTotal - liveInfo.nextPitIn) / pitTotal)) : 0;
+        const raceFrac = liveInfo.raceMs > 0
+          ? Math.min(1, Math.max(0, liveInfo.elapsed / liveInfo.raceMs)) : 0;
+        return (
+          <div className="hudstrip">
+            <div className="hcell hhero">
+              <span className="lbl">{t("Bayrağa Kalan")}</span>
+              <span className="hclock">{fmtHMS(liveInfo.remaining / 1000)}</span>
+              <div className="hbar"><i style={{ width: `${raceFrac * 100}%` }} /></div>
+              <span className="lbl">%{Math.round(raceFrac * 100)} {t("tamam")}</span>
+            </div>
+            <div className="hcell">
+              <span className="lbl">{t("Şu An")}</span>
+              <span className="hstint">S{liveInfo.stintIdx + 1}
+                <span style={{ color: "var(--muted)", fontSize: ".6em" }}>/{racePlan.fullStints}</span>
+                {liveInfo.phase === "pit" &&
+                  <span style={{ color: "var(--yellow)", fontSize: ".5em" }}> · PIT</span>}
+              </span>
+              {liveInfo.driver && <span className="hdrv">{liveInfo.driver}</span>}
+            </div>
+            <div className="hcell hgauge">
+              <span className="lbl">{liveInfo.phase === "pit" ? t("Pit Çıkışı") : t("Sıradaki Pit")}</span>
+              <Ring value={pitFrac} size={78} fs={16} glow
+                color={pitSoon ? "var(--yellow)" : "var(--teal)"}
+                big={fmtHMS(liveInfo.nextPitIn / 1000)} />
+            </div>
+            <div className="hcell hgauge">
+              <span className="lbl">{t("Tamamlanan")}</span>
+              <Ring value={raceFrac} size={78} fs={19} color="var(--car)"
+                big={`%${Math.round(raceFrac * 100)}`} />
+            </div>
+            <button className="act hudpit" data-tour="pitboard"
+              onClick={() => setPitboard(true)}>📟 Pit Board</button>
+          </div>
+        );
+      })()}
+
+      {(liveInfo.status === "pre" || liveInfo.status === "done") && (
         <div className="livestrip">
-          {liveInfo.status === "pre" && (<>
+          {liveInfo.status === "pre" && (
             <div><span className="lbl">{t("Start'a")}</span>
               <span className="big mono" style={{ color: "var(--yellow)" }}>
                 {fmtHMS(liveInfo.toStart / 1000)}</span></div>
-          </>)}
-          {liveInfo.status === "live" && (<>
-            <div><span className="lbl">{t("Kalan Süre")}</span>
-              <span className="big mono" style={{ color: "var(--green)" }}>
-                {fmtHMS(liveInfo.remaining / 1000)}</span></div>
-            <div><span className="lbl">Stint</span>
-              <span className="big">{liveInfo.stintIdx + 1}/{racePlan.fullStints}
-                {liveInfo.phase === "pit" && <span style={{ color: "var(--yellow)" }}> · PIT</span>}
-              </span></div>
-            <div><span className="lbl">{liveInfo.phase === "pit" ? t("Pit Çıkışı") : t("Sıradaki Pit")}</span>
-              <span className={`big mono ${pitSoon ? "pulse" : ""}`}>
-                {fmtHMS(liveInfo.nextPitIn / 1000)}</span></div>
-            {liveInfo.driver && <div><span className="lbl">{t("Direksiyonda")}</span>
-              <span className="big">{liveInfo.driver}</span></div>}
-          </>)}
+          )}
           {liveInfo.status === "done" && (
             <div><span className="lbl">{t("Durum")}</span>
               <span className="big" style={{ color: "var(--green)" }}>{t("🏁 YARIŞ BİTTİ")}</span></div>
@@ -2545,21 +2571,32 @@ ${bottomBar}
             <div className="plbl">{t("Yarış zamanı ayarlanmadı")}</div>
             <div className="mid">{t("Pilotlar sekmesinden başlangıç zamanını gir")}</div>
           </>)}
-          {liveInfo.status === "live" && (<>
+          {liveInfo.status === "live" && (() => {
+            const pitTotal = liveInfo.phaseEnd - liveInfo.stintStartMs;
+            const pitFrac = pitTotal > 0
+              ? Math.min(1, Math.max(0, (pitTotal - liveInfo.nextPitIn) / pitTotal)) : 0;
+            const raceFrac = liveInfo.raceMs > 0
+              ? Math.min(1, Math.max(0, liveInfo.elapsed / liveInfo.raceMs)) : 0;
+            return (<>
             <div>
               <div className="plbl">{t("Kalan Süre")}</div>
               <div className="huge">{fmtHMS(liveInfo.remaining / 1000)}</div>
             </div>
             <div className="pbrow">
-              <div className="pbcard">
+              <div className="pbcard pbgauge">
                 <div className="plbl">{liveInfo.phase === "pit" ? t("Pit Çıkışı") : t("Sıradaki Pit")}</div>
-                <div className={`mid mono ${pitSoon ? "pulse" : ""}`}
-                  style={{ color: pitSoon ? "var(--yellow)" : "var(--txt)" }}>
-                  {fmtHMS(liveInfo.nextPitIn / 1000)}</div>
+                <Ring value={pitFrac} size={150} thickness={12} fs={30} glow
+                  color={pitSoon ? "var(--yellow)" : "var(--teal)"}
+                  big={fmtHMS(liveInfo.nextPitIn / 1000)} />
               </div>
               <div className="pbcard">
                 <div className="plbl">Stint</div>
                 <div className="mid">{liveInfo.stintIdx + 1} / {racePlan.fullStints}</div>
+              </div>
+              <div className="pbcard pbgauge">
+                <div className="plbl">{t("Tamamlanan")}</div>
+                <Ring value={raceFrac} size={150} thickness={12} fs={40} color="var(--car)"
+                  big={`%${Math.round(raceFrac * 100)}`} />
               </div>
               {upcomingIsLast && (
                 <div className="pbcard">
@@ -2605,7 +2642,7 @@ ${bottomBar}
                     title={t("Araç PİT YOLUNA GİRDİĞİ an bas. Pit süresi plandan otomatik eklenir, sonraki stint pit çıkışıyla başlar.")}
                     style={{ padding: "16px 34px", borderRadius: 12, cursor: "pointer",
                       background: "var(--car)", color: "#FFE9ED", border: "2px solid var(--teal)",
-                      fontFamily: "'Barlow Condensed'", fontSize: 26, fontWeight: 700,
+                      fontFamily: "'Rajdhani'", fontSize: 26, fontWeight: 700,
                       letterSpacing: ".06em" }}>
                     {t("✔ PIT")} — S{liveInfo.stintIdx + 1}
                   </button>
@@ -2665,7 +2702,8 @@ ${bottomBar}
                 )}
               </div>
             )}
-          </>)}
+          </>);
+          })()}
         </div>
       )}
 

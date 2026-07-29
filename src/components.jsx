@@ -201,11 +201,34 @@ export function Donut({ data, size = 190, thickness = 34 }) {
         })}
       </g>
       <text x="50%" y="47%" textAnchor="middle" fill="var(--txt)"
-        style={{ fontFamily: "'Barlow Condensed'", fontSize: 30, fontWeight: 700 }}>
+        style={{ fontFamily: "'Rajdhani'", fontSize: 30, fontWeight: 700 }}>
         {data.length}</text>
       <text x="50%" y="60%" textAnchor="middle" fill="var(--dim)"
-        style={{ fontFamily: "'Barlow Condensed'", fontSize: 12, letterSpacing: ".1em" }}>
+        style={{ fontFamily: "'Rajdhani'", fontSize: 12, letterSpacing: ".1em" }}>
         PİLOT</text>
+    </svg>
+  );
+}
+
+/* Halka gösterge (HUD / Big Board) — value 0..1 dolum, ortada isteğe bağlı
+   büyük metin. Rajdhani + tabular; glow ile marka parıltısı. */
+export function Ring({ value = 0, size = 76, thickness = 8, color = "var(--teal)",
+  track = "var(--panel2)", big, fs, glow = false }) {
+  const r = (size - thickness) / 2;
+  const c = 2 * Math.PI * r;
+  const v = Math.max(0, Math.min(1, value || 0));
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={track} strokeWidth={thickness} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={thickness}
+        strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - v)}
+        transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        style={glow ? { filter: `drop-shadow(0 0 6px ${color})` } : undefined} />
+      {big != null && (
+        <text x="50%" y="50%" textAnchor="middle" dominantBaseline="central" fill={color}
+          style={{ fontFamily: "'Rajdhani'", fontWeight: 700, fontSize: fs || size * 0.26,
+            fontVariantNumeric: "tabular-nums" }}>{big}</text>
+      )}
     </svg>
   );
 }
