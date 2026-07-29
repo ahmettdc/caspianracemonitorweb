@@ -20,6 +20,7 @@ class FirebaseClient:
         self._id = None
         self._refresh = None
         self._exp = 0.0
+        self.uid = None  # giriş sonrası gerçek Firebase UID (localId) — Console'dan okumaya gerek kalmasın
 
     def sign_in(self):
         r = requests.post(
@@ -33,6 +34,7 @@ class FirebaseClient:
         self._id = d["idToken"]
         self._refresh = d["refreshToken"]
         self._exp = time.time() + int(d.get("expiresIn", 3600)) - 60
+        self.uid = d.get("localId")
 
     def _ensure_token(self):
         if not self._id:

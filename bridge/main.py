@@ -135,6 +135,9 @@ def cmd_selftest(cp):
     try:
         print(f"[selftest] giriş: {by}")
         fb.sign_in()
+        print(f"[selftest] giriş yapıldı — GERÇEK UID: {fb.uid}")
+        print(f"           (bridgeBots/{fb.uid} = true olmalı — Firebase konsolunda")
+        print(f"           bu UID'yi elle kopyalamana gerek yok, tam olarak bu satırdaki.)")
         marker = int(time.time() * 1000)
         print(f"[selftest] yaz: teams/{tid}/live/{rid} (ts={marker})")
         fb.put_live(tid, rid, {"ts": marker, "by": by, "selftest": True,
@@ -150,8 +153,8 @@ def cmd_selftest(cp):
         msg = str(e)
         print(f"\n❌ SELFTEST FAIL — {msg}")
         if "401" in msg or "permission" in msg.lower() or "Yazma" in msg or "Okuma" in msg:
-            print("   İpucu: bot hesabı users/{uid}/allowed=true mı, takıma 'editor' mü,")
-            print("   team_id/race_id doğru mu? (Web 'Canlı' sekmesinde yazıyor.)")
+            print(f"   İpucu: yukarıdaki UID ({fb.uid}) için Firebase konsolunda kökte")
+            print(f"   bridgeBots/{fb.uid} = true var mı? team_id/race_id doğru mu?")
         elif "Giriş" in msg:
             print("   İpucu: Firebase'de Email/Password açık mı, e-posta/parola doğru mu?")
         return 1
@@ -167,6 +170,7 @@ def run_loop(cp, mock, once):
 
     print(f"[firebase] giriş: {by}")
     fb.sign_in()
+    print(f"[firebase] giriş yapıldı — UID: {fb.uid}")
     print(f"[hedef] teams/{tid}/live/{rid}  ·  {hz:g} Hz  (durdurmak için Ctrl+C)")
     src = make_source(mock)
     fails = 0
