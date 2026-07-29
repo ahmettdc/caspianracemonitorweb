@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { fmtLap, fmtHMS } from "../engine";
 import { Ring } from "../components";
 
@@ -72,15 +73,41 @@ function OwnCar({ t, own }) {
   );
 }
 
+function CopyBtn({ t, text, label }) {
+  const [ok, setOk] = useState(false);
+  const copy = () => {
+    if (!text) return;
+    try {
+      navigator.clipboard.writeText(text);
+      setOk(true);
+      setTimeout(() => setOk(false), 1200);
+    } catch { /* pano yoksa sessizce geç */ }
+  };
+  return (
+    <button className="act" style={{ fontSize: 10, padding: "2px 9px" }} onClick={copy}
+      disabled={!text}>{ok ? t("✓ kopyalandı") : (label || t("Kopyala"))}</button>
+  );
+}
+
 function BridgeCfg({ t, tid, rid }) {
   if (!tid && !rid) return null;
+  const snippet = `[race]\nteam_id = ${tid || ""}\nrace_id = ${rid || ""}`;
+  const row = (lbl, val) => (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+      <span style={{ minWidth: 168 }}>{lbl} = <b style={{ color: "var(--teal)" }}>{val || "—"}</b></span>
+      <CopyBtn t={t} text={val} />
+    </div>
+  );
   return (
     <div className="hint" style={{ marginTop: 12, fontFamily: "'IBM Plex Mono'",
       background: "var(--panel2)", border: "1px solid var(--line)", borderRadius: 8,
-      padding: "8px 10px" }}>
-      <div style={{ marginBottom: 4 }}>{t("Köprü config.ini değerleri:")}</div>
-      team_id = <b style={{ color: "var(--teal)" }}>{tid || "—"}</b><br />
-      race_id = <b style={{ color: "var(--teal)" }}>{rid || "—"}</b>
+      padding: "10px 12px", display: "flex", flexDirection: "column", gap: 6 }}>
+      <div>{t("Köprü config.ini değerleri:")}</div>
+      {row("team_id", tid)}
+      {row("race_id", rid)}
+      <div style={{ marginTop: 2 }}>
+        <CopyBtn t={t} text={snippet} label={t("📋 config.ini bloğunu kopyala")} />
+      </div>
     </div>
   );
 }
