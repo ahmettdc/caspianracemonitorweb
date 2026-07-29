@@ -137,6 +137,8 @@ export default function App() {
   const [userName, setUserName] = useState("");
   const [curRace, setCurRace] = useState("");    // aktif yarış id (takım içinde)
   const [live, setLive] = useState(null);        // canlı timing (LMU köprüsü) — teams/{tid}/live/{rid}
+  const [liveFuelObs, setLiveFuelObs] = useState(null); // canlıdan öğrenilen yakıt (litre/tur, ratio, cons)
+  const fuelObsRef = useRef({ prevLap: null, prevFuel: null, buf: [] });
   const [role, setRole] = useState("editor");    // "editor" | "viewer" (takım rolünden)
   const [syncMsg, setSyncMsg] = useState("");
   const [lastSync, setLastSync] = useState(null); // {by, at}
@@ -188,9 +190,41 @@ export default function App() {
   // canlı timing düğümünü dinle (LMU köprüsü yazar; salt-okunur)
   useEffect(() => {
     if (!curRace) { setLive(null); return undefined; }
+    fuelObsRef.current = { prevLap: null, prevFuel: null, buf: [] }; // yarış değişti → öğreniciyi sıfırla
+    setLiveFuelObs(null);
     const off = liveTimingSubscribe(curTeamRef.current, curRace, setLive);
     return () => off();
   }, [curRace]);
+
+  // canlı yakıt öğrenici: kendi araç yakıtından litre/tur + depo → model önerisi (opt-in)
+  useEffect(() => {
+    const own = live?.own;
+    if (!own || typeof own.fuel !== "number") return;
+    const r = fuelObsRef.current;
+    const lap = typeof own.lapsDone === "number" ? own.lapsDone : null;
+    if (r.prevLap != null && lap != null && lap > r.prevLap && r.prevFuel != null) {
+      const perLap = (r.prevFuel - own.fuel) / (lap - r.prevLap);
+      if (perLap > 0.2 && perLap < 30) {           // pit/refuel artışı ve anomaliyi ele
+        r.buf.push(perLap);
+        if (r.buf.length > 6) r.buf.shift();
+      }
+    }
+    if (lap != null) r.prevLap = lap;
+    r.prevFuel = own.fuel;
+
+    const cap = own.fuelCapacity > 0 ? own.fuelCapacity : null;
+    const buf = r.buf;
+    if (!buf.length && !cap) { setLiveFuelObs(null); return; }
+    const sorted = [...buf].sort((a, b) => a - b);
+    const median = sorted.length ? sorted[Math.floor((sorted.length - 1) / 2)] : null;
+    const obsRatio = cap ? +(cap / 100).toFixed(3) : null;
+    const ratioForCons = obsRatio || stRef.current.fuelRatio || 0.86;
+    const obsCons = median != null ? +(median / ratioForCons).toFixed(2) : null;
+    setLiveFuelObs({
+      litersPerLap: median != null ? +median.toFixed(2) : null,
+      samples: buf.length, fuelCap: cap, obsRatio, obsCons,
+    });
+  }, [live]);
 
   /* ---------- YARIŞ AÇ / KAPAT (oda kodu ve PIN yok) ---------- */
   const openRace = async (rid) => {
@@ -444,6 +478,15 @@ export default function App() {
 
   /* --- gerçek pit işaretleme (sadece düzenleyici) --- */
   const canEdit = !curRace || role === "editor";
+
+  /* Canlıdan öğrenilen yakıt değerlerini modele uygula (yalnız editör, opt-in) */
+  const applyLiveFuel = () => {
+    if (!liveFuelObs) return;
+    const patch = {};
+    if (liveFuelObs.obsRatio) patch.fuelRatio = liveFuelObs.obsRatio;
+    if (liveFuelObs.obsCons) patch.consumption = liveFuelObs.obsCons;
+    if (Object.keys(patch).length) up(patch);
+  };
   const markPit = () => {
     if (liveInfo.status !== "live") return;
     const nowMs = Date.now();
@@ -2876,7 +2919,8 @@ ${bottomBar}
 
           {tab === "fuel" && (
             <FuelTab t={t} st={st} up={up} lsf={lsf} autoCd={autoCd}
-              setAutoCd={setAutoCd} planLastCd={planLastCd} racePlan={racePlan} />
+              setAutoCd={setAutoCd} planLastCd={planLastCd} racePlan={racePlan}
+              liveFuelObs={liveFuelObs} applyLiveFuel={applyLiveFuel} canEdit={canEdit} />
           )}
           </Suspense>
         </div>
