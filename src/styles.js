@@ -492,6 +492,18 @@ export const css = `
   box-shadow:0 0 8px #fff;z-index:2}
 .rc tr.live td{background:rgba(150,0,24,.16);border-left:3px solid var(--teal)}
 .rc tr.pitsoon td{background:rgba(242,201,76,.12)}
+/* --- canlı timing rozeti --- */
+.rc .livebadge{display:inline-flex;align-items:center;gap:6px;font-size:11px;
+  font-family:'IBM Plex Mono';letter-spacing:.04em;padding:2px 9px;border-radius:99px;
+  border:1px solid var(--line);text-transform:uppercase}
+.rc .livebadge i{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+.rc .livebadge.on{color:var(--green);border-color:rgba(55,214,122,.5)}
+.rc .livebadge.on i{background:var(--green);box-shadow:0 0 8px var(--green);
+  animation:rcpulse 1.2s ease-in-out infinite}
+.rc .livebadge.lag{color:var(--yellow);border-color:rgba(245,178,61,.5)}
+.rc .livebadge.lag i{background:var(--yellow)}
+.rc .livebadge.off{color:var(--muted)}
+.rc .livebadge.off i{background:var(--muted)}
 /* --- HUD şeridi (canlı mod kokpit) --- */
 .rc .hudstrip{display:flex;flex-wrap:wrap;align-items:center;gap:18px;
   padding:12px 20px;border-bottom:1px solid var(--line);

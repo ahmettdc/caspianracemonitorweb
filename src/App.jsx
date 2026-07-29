@@ -7,7 +7,7 @@ import { firebaseReady, touchUserProfile, watchUserDoc,
   addSetup, watchSetups, deleteSetup,
   createSeason, deleteSeason, watchSeasons,
   createRace, updateRace, deleteRace, watchRaces,
-  raceStateGet, raceStateSet, raceStateSubscribe } from "./storage";
+  raceStateGet, raceStateSet, raceStateSubscribe, liveTimingSubscribe } from "./storage";
 import { signInGoogle, signOut, watchAuth, authReady } from "./auth";
 import { CHANGELOG } from "./changelog";
 import {
@@ -46,6 +46,7 @@ const FuelTab = lazy(() => import("./tabs/FuelTab"));
 const TyreTab = lazy(() => import("./tabs/TyreTab"));
 const DriversTab = lazy(() => import("./tabs/DriversTab"));
 const TeleTab = lazy(() => import("./tabs/TeleTab"));
+const LiveTab = lazy(() => import("./tabs/LiveTab"));
 
 /* ============================================================
    CASPIAN MOTORSPORT — RACE MONITOR  ·  Faz 2
@@ -135,6 +136,7 @@ export default function App() {
   const [setupDone, setSetupDone] = useState(false); // data giriş adımı tamamlandı mı
   const [userName, setUserName] = useState("");
   const [curRace, setCurRace] = useState("");    // aktif yarış id (takım içinde)
+  const [live, setLive] = useState(null);        // canlı timing (LMU köprüsü) — teams/{tid}/live/{rid}
   const [role, setRole] = useState("editor");    // "editor" | "viewer" (takım rolünden)
   const [syncMsg, setSyncMsg] = useState("");
   const [lastSync, setLastSync] = useState(null); // {by, at}
@@ -180,6 +182,13 @@ export default function App() {
         setTimeout(() => { sync.current.applying = false; }, 50);
       }
     });
+    return () => off();
+  }, [curRace]);
+
+  // canlı timing düğümünü dinle (LMU köprüsü yazar; salt-okunur)
+  useEffect(() => {
+    if (!curRace) { setLive(null); return undefined; }
+    const off = liveTimingSubscribe(curTeamRef.current, curRace, setLive);
     return () => off();
   }, [curRace]);
 
@@ -2751,6 +2760,7 @@ ${bottomBar}
             {[["dash", "Dashboard", "\u{1F4CA}"], ["stint", "Stint", "\u{1F4CB}"],
               /* ["code80", "Code 80"], — şimdilik arayüzden gizli, kod korunuyor */
               ["fuel", t("Son Stint Yakıtı"), "\u26A1"],
+              ["live", t("Canlı"), "📡"],
               ["tyre", t("Lastik"), <Tyre size={12} />],
               ["drivers", t("Pilotlar"), <Wheel size={12} />],
               ["tele", t("Telemetri"), "\u{1F4C8}"],
@@ -2819,6 +2829,8 @@ ${bottomBar}
               {suList.length > 0 && setupTable(suList)}
             </div>
           </>)}
+
+          {tab === "live" && <LiveTab t={t} live={live} />}
 
           {tab === "tyre" && (
             <TyreTab t={t} st={st} up={up} tyreInfo={tyreInfo} racePlan={racePlan}
