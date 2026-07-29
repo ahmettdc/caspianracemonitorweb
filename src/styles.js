@@ -2,11 +2,13 @@
 export const css = `
 @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
 :root{
-  /* chrome hafif nötr (kırmızı kroma düşürüldü), koyu+sıcak kimlik korunur */
-  --bg:#120C0E; --panel:#191517; --panel2:#221B1E; --line:#382E33;
-  --txt:#F2E9EB; --dim:#B39AA0; --muted:#8A7176;
-  --teal:#D24357; --accent:#D24357; --car:#960018; --green:#40D68C;
-  --yellow:#F2C94C; --red:#F0604D; --purple:#BB8CF5;
+  /* Pit Wall OS — #960018 merkezli, koyu + sıcak "pit-wall" kimliği (konseptten).
+     Zemin sıcak yakın-siyah, paneller bürgündi; marka #960018, etkileşim lift'i
+     #C51E38→#D24357; anlamsal renkler (good/warn/crit/best) markadan ayrı. */
+  --bg:#0B0708; --panel:#150E10; --panel2:#1E1418; --line:#34232A; --line2:#4A2F38;
+  --txt:#F3EAEC; --dim:#B199A0; --muted:#8A7176;
+  --teal:#D24357; --accent:#D24357; --brand2:#C51E38; --car:#960018; --green:#37D67A;
+  --yellow:#F5B23D; --red:#FF4D5E; --purple:#B58BFF;
 }
 .rc *{box-sizing:border-box}
 .rc{min-height:100vh;background:var(--bg);color:var(--txt);
@@ -298,7 +300,7 @@ export const css = `
   justify-content:flex-end}
 .rc .wxsrc{font-size:9px;text-transform:uppercase;letter-spacing:.06em;padding:1px 6px;
   border-radius:5px;border:1px solid}
-.rc .wxsrc.live{color:var(--teal);border-color:rgba(38,198,218,.4);background:rgba(38,198,218,.1)}
+.rc .wxsrc.live{color:var(--teal);border-color:rgba(210,67,87,.42);background:rgba(210,67,87,.12)}
 .rc .wxsrc.plan{color:#c9a227;border-color:rgba(201,162,39,.4);background:rgba(201,162,39,.1)}
 .rc .wxrow .wxat{margin-left:auto}
 .rc .wxmplan{padding:10px 16px;border-top:1px solid var(--line)}
@@ -481,7 +483,7 @@ export const css = `
 .rc tr.pitsoon td{background:rgba(242,201,76,.12)}
 /* --- pit board --- */
 .rc .pitboard{position:fixed;inset:0;z-index:50;
-  background:radial-gradient(1100px 550px at 50% -12%,#131820 0%,#05070A 62%);
+  background:radial-gradient(1100px 550px at 50% -12%,#2E0C15 0%,#06040A 64%);
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   gap:3vh;text-align:center;padding:4vh 4vw}
 .rc .pitboard .huge{font-family:'Rajdhani';font-weight:700;
@@ -505,7 +507,7 @@ export const css = `
 .rc .pitboard .chip2.fuel{color:var(--green);border-color:var(--green);
   background:rgba(46,204,113,.12)}
 .rc .pitboard .chip2.tyre{color:var(--teal);border-color:var(--teal);
-  background:rgba(38,198,218,.10)}
+  background:rgba(210,67,87,.12)}
 .rc .pitboard .chip2.none{color:var(--dim);border-color:var(--line);
   background:rgba(255,255,255,.03)}
 /* --- dashboard --- */
