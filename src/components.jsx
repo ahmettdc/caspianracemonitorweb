@@ -201,10 +201,10 @@ export function Donut({ data, size = 190, thickness = 34 }) {
         })}
       </g>
       <text x="50%" y="47%" textAnchor="middle" fill="var(--txt)"
-        style={{ fontFamily: "'Barlow Condensed'", fontSize: 30, fontWeight: 700 }}>
+        style={{ fontFamily: "'Rajdhani'", fontSize: 30, fontWeight: 700 }}>
         {data.length}</text>
       <text x="50%" y="60%" textAnchor="middle" fill="var(--dim)"
-        style={{ fontFamily: "'Barlow Condensed'", fontSize: 12, letterSpacing: ".1em" }}>
+        style={{ fontFamily: "'Rajdhani'", fontSize: 12, letterSpacing: ".1em" }}>
         PİLOT</text>
     </svg>
   );

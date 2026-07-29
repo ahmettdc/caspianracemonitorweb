@@ -2605,7 +2605,7 @@ ${bottomBar}
                     title={t("Araç PİT YOLUNA GİRDİĞİ an bas. Pit süresi plandan otomatik eklenir, sonraki stint pit çıkışıyla başlar.")}
                     style={{ padding: "16px 34px", borderRadius: 12, cursor: "pointer",
                       background: "var(--car)", color: "#FFE9ED", border: "2px solid var(--teal)",
-                      fontFamily: "'Barlow Condensed'", fontSize: 26, fontWeight: 700,
+                      fontFamily: "'Rajdhani'", fontSize: 26, fontWeight: 700,
                       letterSpacing: ".06em" }}>
                     {t("✔ PIT")} — S{liveInfo.stintIdx + 1}
                   </button>
