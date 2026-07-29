@@ -123,3 +123,9 @@ export const quantile = (sorted, q) => {
 /* Canlı timing köprüsü (.exe) — kalıcı, herkese açık GitHub Release indirme linki */
 export const BRIDGE_EXE_URL =
   "https://github.com/ahmettdc/caspianracemonitorweb/releases/download/bridge-latest/CaspianLiveBridge.exe";
+
+/* Masaüstü uygulaması (Tauri) — installer dosya adı sürümle değiştiği için
+   sabit bir dosya linki yerine Releases sayfasına yönlendirir; sonraki
+   sürümler uygulama içi updater ile gelir (UpdateBanner). */
+export const DESKTOP_RELEASE_URL =
+  "https://github.com/ahmettdc/caspianracemonitorweb/releases/latest";

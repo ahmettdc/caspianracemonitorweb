@@ -504,6 +504,11 @@ export const css = `
 .rc .livebadge.lag i{background:var(--yellow)}
 .rc .livebadge.off{color:var(--muted)}
 .rc .livebadge.off i{background:var(--muted)}
+/* --- masaüstü (Tauri) güncelleme şeridi --- */
+.rc .updatebar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  padding:8px 20px;background:linear-gradient(90deg,rgba(150,0,24,.35),rgba(150,0,24,.12));
+  border-bottom:1px solid var(--line);color:var(--txt);font-size:12.5px}
+.rc .updatebar .act{padding:5px 14px;font-size:12px}
 /* --- HUD şeridi (canlı mod kokpit) --- */
 .rc .hudstrip{display:flex;flex-wrap:wrap;align-items:center;gap:18px;
   padding:12px 20px;border-bottom:1px solid var(--line);

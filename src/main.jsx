@@ -1,6 +1,7 @@
 import { StrictMode, Component } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
+import { isTauri } from "./tauriEnv";
 
 /* Hata sınırı: bir render hatası tüm uygulamayı karartmasın.
    Tema CSS'i App içinde olduğundan fallback kendi stilini taşır. */
@@ -75,8 +76,9 @@ createRoot(document.getElementById("root")).render(
 );
 
 /* PWA: service worker'ı yalnız üretimde kaydet (çevrimdışı app-shell).
-   Dev'de kayıt yapılmaz — HMR'ı bozmamak için. */
-if ("serviceWorker" in navigator && import.meta.env.PROD) {
+   Dev'de kayıt yapılmaz — HMR'ı bozmamak için. Tauri kabuğu içinde de
+   atlanır — "yüklü uygulama" deneyimini zaten kabuk veriyor, SW gereksiz. */
+if (!isTauri && "serviceWorker" in navigator && import.meta.env.PROD) {
   window.addEventListener("load", () => {
     navigator.serviceWorker
       .register(import.meta.env.BASE_URL + "sw.js")
