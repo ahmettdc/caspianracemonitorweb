@@ -1,0 +1,5 @@
+requests>=2.31
+
+# rFactor2/LMU paylaşımlı bellek okuyucu (yalnız gerçek modda gerekli; --mock için gerekmez).
+# LMU/rF2 ile uyumlu, bakımı yapılan fork. Kendi plugin sürümünle uyumu ilk çalıştırmada doğrula.
+pyRfactor2SharedMemory @ git+https://github.com/TonyWhitley/pyRfactor2SharedMemory.git

@@ -1,0 +1,69 @@
+"""Firebase istemcisi — Auth REST (email/parola) + RTDB REST yazma.
+
+Köprü, takıma 'editor' olarak eklenmiş bir 'bot' hesabıyla giriş yapar,
+idToken alır ve teams/{tid}/live/{rid} düğümüne yazar. Token ~1 saatte dolar;
+otomatik yenilenir. Sadece `requests` gerekir.
+"""
+import time
+import requests
+
+_ID_URL = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword"
+_TOK_URL = "https://securetoken.googleapis.com/v1/token"
+
+
+class FirebaseClient:
+    def __init__(self, api_key, database_url, email, password):
+        self.api_key = api_key
+        self.db = database_url.rstrip("/")
+        self.email = email
+        self.password = password
+        self._id = None
+        self._refresh = None
+        self._exp = 0.0
+
+    def sign_in(self):
+        r = requests.post(
+            f"{_ID_URL}?key={self.api_key}",
+            json={"email": self.email, "password": self.password, "returnSecureToken": True},
+            timeout=15,
+        )
+        if r.status_code != 200:
+            raise RuntimeError(f"Giriş başarısız: {r.status_code} {r.text[:200]}")
+        d = r.json()
+        self._id = d["idToken"]
+        self._refresh = d["refreshToken"]
+        self._exp = time.time() + int(d.get("expiresIn", 3600)) - 60
+
+    def _ensure_token(self):
+        if not self._id:
+            self.sign_in()
+            return
+        if time.time() < self._exp:
+            return
+        # süresi doluyor → yenile
+        r = requests.post(
+            f"{_TOK_URL}?key={self.api_key}",
+            data={"grant_type": "refresh_token", "refresh_token": self._refresh},
+            timeout=15,
+        )
+        if r.status_code != 200:
+            self.sign_in()
+            return
+        d = r.json()
+        self._id = d["id_token"]
+        self._refresh = d["refresh_token"]
+        self._exp = time.time() + int(d.get("expires_in", 3600)) - 60
+
+    def put_live(self, tid, rid, payload):
+        """teams/{tid}/live/{rid} düğümünü tümüyle yazar (PUT)."""
+        self._ensure_token()
+        url = f"{self.db}/teams/{tid}/live/{rid}.json?auth={self._id}"
+        r = requests.put(url, json=payload, timeout=15)
+        if r.status_code == 401:
+            # token reddedildi → yeniden giriş yap ve bir kez daha dene
+            self.sign_in()
+            url = f"{self.db}/teams/{tid}/live/{rid}.json?auth={self._id}"
+            r = requests.put(url, json=payload, timeout=15)
+        if r.status_code >= 400:
+            raise RuntimeError(f"Yazma hatası: {r.status_code} {r.text[:200]}")
+        return r

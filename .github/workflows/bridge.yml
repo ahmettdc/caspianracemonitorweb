@@ -1,0 +1,42 @@
+name: Build Live Bridge
+
+# Windows'ta tek dosya .exe üretir (bridge/). Linux Pages deploy'una dokunmaz.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "bridge/**"
+      - ".github/workflows/bridge.yml"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: bridge
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Çekirdek bağımlılıklar (mock her zaman çalışır)
+        run: pip install requests pyinstaller
+
+      - name: rF2 okuyucu (gerçek mod — best-effort)
+        continue-on-error: true
+        run: pip install -r requirements.txt
+
+      - name: .exe derle
+        run: pyinstaller --onefile --name CaspianLiveBridge --hidden-import pyRfactor2SharedMemory.sharedMemoryAPI main.py
+
+      - name: Örnek config'i ekle
+        run: copy config.example.ini dist\config.example.ini
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CaspianLiveBridge
+          path: |
+            bridge/dist/CaspianLiveBridge.exe
+            bridge/dist/config.example.ini

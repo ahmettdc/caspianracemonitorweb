@@ -1,0 +1,200 @@
+"""Veri kaynakları → web şeması ({session, own, field}).
+
+İki kaynak:
+  * MockSource  — oyun olmadan sahte ama tutarlı bir yarış üretir. Firebase→web
+                  boru hattını test etmek için (köprüyü `--mock` ile çalıştır).
+  * RF2Source   — rFactor2/LMU paylaşımlı belleğinden okur (pyRfactor2SharedMemory).
+                  Alan adları rF2data.h'e dayanır; ilk çalıştırmada kendi
+                  makinende doğrula (LMU sürümü offset kaydırabilir → tek nokta).
+
+Şema (web LiveTab ile birebir):
+  session: {phase, flag, timeLeftSec, totalLaps, trackTemp, ambientTemp, raining}
+  own:     {fuel, fuelCapacity, position, lastLapSec, bestLapSec, curLapSec,
+            s1, s2, lapsDone, inPits, tyres:{fl,fr,rl,rr:{wear,tempC,pressKpa}}}
+  field[]: {pos, driver, carClass, lapsDone, lastSec, bestSec, gapSec, inPits, isPlayer}
+"""
+import math
+import random
+import time
+
+_PHASE = {
+    0: "Garaj", 1: "Isınma", 2: "Grid", 3: "Formasyon", 4: "Geri Sayım",
+    5: "Yeşil", 6: "FCY", 7: "Durduruldu", 8: "Bitti",
+}
+
+
+def _s(b):
+    """rF2 byte dizisi → temiz string."""
+    try:
+        return bytes(b).split(b"\x00", 1)[0].decode("utf-8", "ignore").strip()
+    except Exception:
+        return ""
+
+
+# ----------------------------------------------------------------------------
+class MockSource:
+    """Oyunsuz test için akla yatkın bir dayanıklılık yarışı simüle eder."""
+
+    NAMES = ["A. Demircan", "M. Yılmaz", "E. Kaya", "S. Öztürk", "C. Aydın",
+             "B. Şahin", "K. Arslan", "T. Doğan", "R. Koç", "H. Çelik",
+             "N. Aksoy", "F. Polat", "L. Ünal", "V. Taş", "D. Ergün"]
+    CLASSES = ["Hypercar", "LMGT3"]
+
+    def __init__(self, cars=14):
+        self.n = min(cars, len(self.NAMES))
+        self.t0 = time.time()
+        self.base = [88.0 + i * 0.35 + random.random() for i in range(self.n)]  # tur temposu
+        self.total = 6 * 3600  # 6 saat
+
+    def read(self):
+        el = time.time() - self.t0
+        rows = []
+        for i in range(self.n):
+            lap_t = self.base[i] + math.sin(el / 30 + i) * 0.4
+            laps = int(el / lap_t)
+            rows.append({
+                "pos": 0, "driver": self.NAMES[i],
+                "carClass": self.CLASSES[0] if i < 3 else self.CLASSES[1],
+                "lapsDone": laps, "lastSec": round(lap_t, 3),
+                "bestSec": round(self.base[i], 3),
+                "_prog": laps * 1e6 + (el % lap_t),  # sıralama için ilerleme
+                "inPits": (int(el / 90) % 11) == i, "isPlayer": i == 4,
+            })
+        rows.sort(key=lambda r: -r["_prog"])
+        leadprog = rows[0]["_prog"]
+        for p, r in enumerate(rows):
+            r["pos"] = p + 1
+            r["gapSec"] = 0.0 if p == 0 else round((leadprog - r["_prog"]) / 1e6 * r["lastSec"], 1)
+            r.pop("_prog", None)
+        me = next(r for r in rows if r["isPlayer"])
+        stint = el % 1500
+        return {
+            "session": {
+                "phase": "Yeşil", "flag": "FCY" if (int(el / 120) % 10) == 0 else "Green",
+                "timeLeftSec": max(0, int(self.total - el)), "totalLaps": 0,
+                "trackTemp": round(30 + math.sin(el / 300) * 4, 1),
+                "ambientTemp": round(22 + math.sin(el / 400) * 2, 1),
+                "raining": (int(el / 200) % 5) == 4,
+            },
+            "own": {
+                "fuel": round(max(2, 78 - (stint / 1500) * 70), 1), "fuelCapacity": 78.0,
+                "position": me["pos"], "lastLapSec": me["lastSec"], "bestLapSec": me["bestSec"],
+                "curLapSec": round(stint % me["lastSec"], 1), "s1": round(me["lastSec"] * 0.32, 3),
+                "s2": round(me["lastSec"] * 0.35, 3), "lapsDone": me["lapsDone"],
+                "inPits": me["inPits"],
+                "tyres": {c: {"wear": round(max(0.2, 1 - (stint / 1500) * 0.7), 3),
+                              "tempC": round(82 + random.random() * 12, 0),
+                              "pressKpa": round(165 + random.random() * 8, 0)}
+                          for c in ("fl", "fr", "rl", "rr")},
+            },
+            "field": rows,
+        }
+
+
+# ----------------------------------------------------------------------------
+class RF2Source:
+    """LMU/rF2 paylaşımlı bellek okuyucu (pyRfactor2SharedMemory üzerinden).
+
+    Not: alan adları rF2data.h ile eşleşir. Eksik/kaymış alanları çökmeden
+    atlamak için erişimler `getattr` ile korunur.
+    """
+
+    def __init__(self):
+        # Bağımlılık yalnız burada; --mock modunda hiç import edilmez.
+        from pyRfactor2SharedMemory.sharedMemoryAPI import SimInfoAPI  # noqa
+        self.api = SimInfoAPI()
+
+    def close(self):
+        try:
+            self.api.close()
+        except Exception:
+            pass
+
+    @staticmethod
+    def _wheels(tele):
+        out = {}
+        keys = ("fl", "fr", "rl", "rr")
+        for i, k in enumerate(keys):
+            try:
+                w = tele.mWheels[i]
+                temps = [t for t in getattr(w, "mTemperature", [])]
+                tc = (sum(temps) / len(temps) - 273.15) if temps else None
+                out[k] = {
+                    "wear": round(float(getattr(w, "mWear", 0.0)), 3),
+                    "tempC": round(tc, 0) if tc is not None else None,
+                    "pressKpa": round(float(getattr(w, "mPressure", 0.0)), 0),
+                }
+            except Exception:
+                out[k] = {}
+        return out
+
+    def read(self):
+        scor = self.api.Rf2Scor
+        tele = self.api.Rf2Tele
+        ext = getattr(self.api, "Rf2Ext", None)
+        info = scor.mScoringInfo
+        num = int(getattr(info, "mNumVehicles", 0))
+
+        # seans
+        cur, end = float(info.mCurrentET), float(info.mEndET)
+        phase = int(getattr(info, "mGamePhase", 0))
+        yellow = int(getattr(info, "mYellowFlagState", 0))
+        flag = "FCY" if phase == 6 else ("Yellow" if yellow > 0 else "Green")
+        maxlaps = int(getattr(info, "mMaxLaps", 0))
+        session = {
+            "phase": _PHASE.get(phase, str(phase)), "flag": flag,
+            "timeLeftSec": max(0, int(end - cur)) if end > 0 else None,
+            "totalLaps": maxlaps if 0 < maxlaps < 30000 else 0,
+            "trackTemp": round(float(getattr(info, "mTrackTemp", 0.0)), 1),
+            "ambientTemp": round(float(getattr(info, "mAmbientTemp", 0.0)), 1),
+            "raining": float(getattr(info, "mRaining", 0.0)) > 0.1,
+        }
+
+        # saha (scoring)
+        field, player_scor = [], None
+        for i in range(min(num, len(scor.mVehicles))):
+            v = scor.mVehicles[i]
+            is_player = bool(getattr(v, "mIsPlayer", 0))
+            if is_player:
+                player_scor = v
+            field.append({
+                "pos": int(getattr(v, "mPlace", 0)),
+                "driver": _s(getattr(v, "mDriverName", b"")),
+                "carClass": _s(getattr(v, "mVehicleClass", b"")),
+                "lapsDone": int(getattr(v, "mTotalLaps", 0)),
+                "lastSec": round(float(getattr(v, "mLastLapTime", -1.0)), 3),
+                "bestSec": round(float(getattr(v, "mBestLapTime", -1.0)), 3),
+                "gapSec": round(float(getattr(v, "mTimeBehindLeader", 0.0)), 1),
+                "inPits": bool(getattr(v, "mInPits", 0)),
+                "isPlayer": is_player,
+            })
+        field.sort(key=lambda r: r["pos"] if r["pos"] > 0 else 999)
+
+        # kendi araç (player telemetry + scoring)
+        own = None
+        pt = None
+        for i in range(min(num, len(tele.mVehicles))):
+            if bool(getattr(tele.mVehicles[i], "mIsPlayer", 0)):
+                pt = tele.mVehicles[i]
+                break
+        if pt is None and len(tele.mVehicles):
+            pt = tele.mVehicles[0]
+        if pt is not None:
+            own = {
+                "fuel": round(float(getattr(pt, "mFuel", 0.0)), 1),
+                "fuelCapacity": round(float(getattr(pt, "mFuelCapacity", 0.0)), 1) or None,
+                "tyres": self._wheels(pt),
+            }
+            if player_scor is not None:
+                own.update({
+                    "position": int(getattr(player_scor, "mPlace", 0)),
+                    "lastLapSec": round(float(getattr(player_scor, "mLastLapTime", -1.0)), 3),
+                    "bestLapSec": round(float(getattr(player_scor, "mBestLapTime", -1.0)), 3),
+                    "curLapSec": round(float(getattr(player_scor, "mTimeIntoLap", 0.0)), 1),
+                    "s1": round(float(getattr(player_scor, "mCurSector1", -1.0)), 3),
+                    "s2": round(float(getattr(player_scor, "mCurSector2", -1.0)), 3),
+                    "lapsDone": int(getattr(player_scor, "mTotalLaps", 0)),
+                    "inPits": bool(getattr(player_scor, "mInPits", 0)),
+                })
+
+        return {"session": session, "own": own, "field": field}
