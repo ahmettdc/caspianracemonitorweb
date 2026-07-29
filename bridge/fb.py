@@ -67,3 +67,12 @@ class FirebaseClient:
         if r.status_code >= 400:
             raise RuntimeError(f"Yazma hatası: {r.status_code} {r.text[:200]}")
         return r
+
+    def get_live(self, tid, rid):
+        """teams/{tid}/live/{rid} düğümünü okur (REST GET) — selftest için."""
+        self._ensure_token()
+        url = f"{self.db}/teams/{tid}/live/{rid}.json?auth={self._id}"
+        r = requests.get(url, timeout=15)
+        if r.status_code >= 400:
+            raise RuntimeError(f"Okuma hatası: {r.status_code} {r.text[:200]}")
+        return r.json()

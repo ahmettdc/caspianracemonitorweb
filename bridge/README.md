@@ -40,19 +40,36 @@ Web uygulamasında yarışı aç → **Canlı** sekmesi bağlantı bilgisinde
 
 ---
 
-## 3) Çalıştırma
+## 3) Çalıştırma ve 3 katmanlı doğrulama
 
-**Önce oyunsuz test et** (Firebase→web hattı doğru mu):
+Çalışabilirliği katman katman doğrula — bir sorun olursa yeri belli olur.
+
+**Katman 1 — Web (oyun/exe olmadan):** Siteyi aç → yarışı aç → **Canlı** sekmesi.
+"📡 bağlı değil" + team_id/race_id kutusu görünüyorsa web tamam.
+
+**Katman 2 — Firebase (oyunsuz):**
+```
+CaspianLiveBridge.exe --selftest
+```
+Küçük bir işaret yazıp geri okur → **SELFTEST PASS** demeli. FAIL derse konsoldaki
+ipucunu izle (bot allowed/editor mi, team_id/race_id doğru mu, Email/Password açık mı).
+Sonra sahte yarışla web'i doldur:
 ```
 CaspianLiveBridge.exe --mock
 ```
-Web'de **Canlı** sekmesi sahte bir yarışla dolmalı. Dolmuyorsa: bot hesabı
-`allowed:true` mı, takıma editor mü, team_id/race_id doğru mu kontrol et.
+Web **Canlı** sekmesi 14 araçla dolmalı. Buraya kadar çalıştıysa auth + kurallar +
+yazma + web okuma **hepsi doğru** (oyun hariç).
 
-**Gerçek:** LMU'da bir seansa gir, sonra:
+**Katman 3 — Gerçek (LMU):** Oyunda seansa gir, sonra:
 ```
 CaspianLiveBridge.exe
 ```
+Boş/saçma gelirse LMU'dan **ne okunduğunu** gör:
+```
+CaspianLiveBridge.exe --dump
+```
+Bu, paylaşımlı bellekten çözülen JSON'u konsola basar (Firebase'e yazmaz). Alanlar
+boşsa eşleme/sürüm sorunudur → `rf2_source.py`. `--once` ile tek gönderim de yapılır.
 
 ---
 
