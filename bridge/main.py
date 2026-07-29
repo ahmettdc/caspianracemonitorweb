@@ -22,12 +22,76 @@ import time
 
 from fb import FirebaseClient
 
+CONFIG_TEMPLATE = """; Caspian Live Bridge — yapılandırma
+; [firebase] email/password ve [race] team_id/race_id'yi doldur.
 
-def load_config(path):
+[firebase]
+api_key = AIzaSyB9hEH26etwvn9adAGNOpPAlpUym1qzpns
+database_url = https://caspian-race-control-default-rtdb.europe-west1.firebasedatabase.app
+email = bridge-bot@caspian.local
+password = DEGISTIR
+
+[race]
+team_id =
+race_id =
+
+[rate]
+hz = 2
+"""
+
+
+def pause():
+    """Çift tıklamada pencere kapanmadan kullanıcı mesajı okusun."""
+    try:
+        if sys.stdin and sys.stdin.isatty():
+            input("\nKapatmak için Enter'a bas...")
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def read_config_or_die(path):
     if not os.path.exists(path):
-        sys.exit(f"config bulunamadı: {path}\n(config.example.ini'yi config.ini olarak kopyala ve doldur.)")
+        # ilk çalıştırma: yanına şablon config.ini bırakmayı dene
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(CONFIG_TEMPLATE)
+            print(f"'{path}' oluşturuldu — bu klasörde. Lütfen doldur:")
+            print("  [firebase] email + password (bot hesabı)")
+            print("  [race] team_id + race_id  (web 'Canlı' sekmesinde yazıyor)")
+            print("Doldurup köprüyü tekrar çalıştır.")
+        except Exception as e:  # noqa: BLE001
+            print(f"config.ini yok ve bu klasöre yazılamadı ({e}).")
+            print("İpucu: exe'yi Program Files yerine Belgeler gibi bir klasöre taşı.")
+            print("Aşağıdaki şablonu 'config.ini' olarak yanına kaydet:\n")
+            print(CONFIG_TEMPLATE)
+        pause()
+        sys.exit(1)
+
     cp = configparser.ConfigParser()
-    cp.read(path, encoding="utf-8")
+    try:
+        cp.read(path, encoding="utf-8")
+    except Exception as e:  # noqa: BLE001
+        print(f"config.ini okunamadı: {e}")
+        pause()
+        sys.exit(1)
+
+    required = (("firebase", ["api_key", "database_url", "email", "password"]),
+                ("race", ["team_id", "race_id"]))
+    missing = []
+    for sec, keys in required:
+        if not cp.has_section(sec):
+            missing.append(f"[{sec}] bölümü tamamen eksik")
+            continue
+        for k in keys:
+            if not cp[sec].get(k, "").strip() or cp[sec].get(k, "").strip() == "DEGISTIR":
+                missing.append(f"[{sec}] {k} boş/doldurulmamış")
+    if missing:
+        print(f"config.ini ({os.path.abspath(path)}) eksik/boş:")
+        for m in missing:
+            print("  -", m)
+        print("\nDüzelt ve tekrar çalıştır. team_id/race_id web 'Canlı' sekmesinde yazıyor.")
+        pause()
+        sys.exit(1)
     return cp
 
 
@@ -49,8 +113,7 @@ def build_payload(src, by):
 
 
 def cmd_dump(mock):
-    """Kaynaktan bir örnek oku ve JSON bas — Firebase'e dokunma.
-    Gerçek modda LMU'dan tam olarak ne çözüldüğünü gösterir (alan doğrulama)."""
+    """Kaynaktan bir örnek oku ve JSON bas — Firebase'e dokunma."""
     src = make_source(mock)
     try:
         payload = build_payload(src, "dump")
@@ -69,8 +132,6 @@ def cmd_selftest(cp):
                         cp["firebase"]["email"], cp["firebase"]["password"])
     tid, rid = cp["race"]["team_id"].strip(), cp["race"]["race_id"].strip()
     by = cp["firebase"]["email"]
-    if not tid or not rid:
-        print("SELFTEST FAIL — config: [race] team_id/race_id boş."); return 1
     try:
         print(f"[selftest] giriş: {by}")
         fb.sign_in()
@@ -82,18 +143,17 @@ def cmd_selftest(cp):
         back = fb.get_live(tid, rid)
         if back and back.get("ts") == marker:
             print("\n✅ SELFTEST PASS — Firebase giriş + yazma + okuma çalışıyor.")
-            print("   (Web 'Canlı' sekmesi bu yarışta bağlanabilir.)")
             return 0
         print(f"\n❌ SELFTEST FAIL — yazıldı ama geri okunan ts uyuşmadı: {back}")
         return 1
     except Exception as e:  # noqa: BLE001
         msg = str(e)
         print(f"\n❌ SELFTEST FAIL — {msg}")
-        if "401" in msg or "permission" in msg.lower() or "Yazma" in msg:
+        if "401" in msg or "permission" in msg.lower() or "Yazma" in msg or "Okuma" in msg:
             print("   İpucu: bot hesabı users/{uid}/allowed=true mı, takıma 'editor' mü,")
             print("   team_id/race_id doğru mu? (Web 'Canlı' sekmesinde yazıyor.)")
-        elif "Giriş" in msg or "signInWith" in msg:
-            print("   İpucu: Firebase'de Email/Password sağlayıcısı açık mı, e-posta/parola doğru mu?")
+        elif "Giriş" in msg:
+            print("   İpucu: Firebase'de Email/Password açık mı, e-posta/parola doğru mu?")
         return 1
 
 
@@ -104,12 +164,10 @@ def run_loop(cp, mock, once):
     by = cp["firebase"]["email"]
     hz = float(cp["rate"].get("hz", "2")) if cp.has_section("rate") else 2.0
     period = 1.0 / max(0.2, min(hz, 10))
-    if not tid or not rid:
-        sys.exit("config: [race] team_id ve race_id doldurulmalı.")
 
     print(f"[firebase] giriş: {by}")
     fb.sign_in()
-    print(f"[hedef] teams/{tid}/live/{rid}  ·  {hz:g} Hz")
+    print(f"[hedef] teams/{tid}/live/{rid}  ·  {hz:g} Hz  (durdurmak için Ctrl+C)")
     src = make_source(mock)
     fails = 0
     while True:
@@ -150,13 +208,22 @@ def main():
     ap.add_argument("--once", action="store_true", help="Bir kez oku+gönder, çık")
     args = ap.parse_args()
 
-    if args.dump:                       # kaynağı göster — Firebase gerekmez
-        cmd_dump(args.mock)
-        return
-    cp = load_config(args.config)
-    if args.selftest:
-        sys.exit(cmd_selftest(cp))
-    run_loop(cp, args.mock, args.once)
+    try:
+        if args.dump:                     # kaynağı göster — Firebase/config gerekmez
+            cmd_dump(args.mock)
+            return
+        cp = read_config_or_die(args.config)
+        if args.selftest:
+            sys.exit(cmd_selftest(cp))
+        run_loop(cp, args.mock, args.once)
+    except SystemExit:
+        raise
+    except KeyboardInterrupt:
+        pass
+    except Exception as e:  # noqa: BLE001  (çift tıklamada pencere kapanmadan görünsün)
+        print(f"\n[beklenmedik hata] {e}")
+        pause()
+        sys.exit(1)
 
 
 if __name__ == "__main__":
