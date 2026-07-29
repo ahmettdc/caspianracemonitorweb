@@ -23,10 +23,20 @@ oyunda etkin olmalı (sende zaten var).
 
 ### b. Firebase "bot" hesabı (köprünün yazması için)
 1. Firebase Console → Authentication → **Sign-in method** → **Email/Password**'ü etkinleştir.
-2. **Users** → bir bot hesabı ekle (ör. `bridge-bot@caspian.local` + güçlü parola).
-3. Realtime Database'de o hesabın `users/{uid}/allowed` alanını **true** yap.
-4. Web uygulamasında bot hesabını **takıma "editor"** olarak ekle
-   (veya sahip olarak takıma dahil et). Yalnız `live` yazma yetkisi bunun için gerekli.
+2. **Authentication → Users** → **Add user** → bot hesabı ekle
+   (ör. `bridge-bot@caspian.local` + güçlü parola). ⚠️ Gerçek/kişisel bir Gmail
+   hesabını KULLANMA — o hesap muhtemelen Google ile giriş bağlı, parolası
+   olmadığından giriş başarısız olur ("PASSWORD_LOGIN_DISABLED" /
+   "INVALID_LOGIN_CREDENTIALS" hatası). Tamamen yeni, sadece bu iş için bir
+   e-posta kullan.
+3. Yeni kullanıcının **User UID**'sini kopyala (Users listesinde satırın
+   yanındaki kopyalama simgesi).
+4. **Realtime Database**'de **kökte** (üst seviyede, `users`/`teams` ile
+   yan yana) tek bir düz anahtar ekle — takım rolü ile uğraşmaya gerek yok:
+   - `bridgeBots` düğümü üzerine gel → **"+"** → **Name:** `BOT_UID` (kopyaladığın
+     UID), **Value:** `true` → onayla.
+   - Sonuç: `bridgeBots/BOT_UID: true`. Bu tek satır köprüye `live` düğümünü
+     okuma/yazma izni verir — takım üyeliği veya "editor" rolü gerekmez.
 
 ### c. team_id ve race_id
 Web uygulamasında yarışı aç → **Canlı** sekmesi bağlantı bilgisinde
