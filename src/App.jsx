@@ -1,4 +1,6 @@
 import { useState, useMemo, useEffect, useRef, lazy, Suspense } from "react";
+import UpdateBanner from "./UpdateBanner";
+import { isTauri } from "./tauriEnv";
 import { firebaseReady, touchUserProfile, watchUserDoc,
   requestAccess, watchAllUsers, setUserAllowed, updateProfile,
   createTeam, joinTeam, watchMyTeams, watchTeam,
@@ -23,7 +25,7 @@ import {
   SLOT_COLORS, APP_VERSION, REPO_URL, SEEN_VER_KEY, ASSET, AV,
   TRACKS, PIT_LANE_TIMES, TRACK_ASSET, trackFlag,
   CARS, CAR_CLASSES, trackName, carName, carImg,
-  PIE_COLORS, BRIDGE_EXE_URL,
+  PIE_COLORS, BRIDGE_EXE_URL, DESKTOP_RELEASE_URL,
 } from "./constants";
 import { chatBeep } from "./sound";
 import {
@@ -1978,6 +1980,7 @@ ${bottomBar}
     return (
       <div className="rc">
         <style>{css}</style>
+        <UpdateBanner t={t} />
         {teamModal}{raceForm}
         <div className="lobby">
           <div className="box" style={{ textAlign: "center" }}>
@@ -2018,6 +2021,7 @@ ${bottomBar}
     return (
       <div className="rc">
         <style>{css}</style>
+        <UpdateBanner t={t} />
         {teamModal}{raceForm}
         <div className="lobby">
           <div className="box" style={{ textAlign: "center" }}>
@@ -2122,6 +2126,7 @@ ${bottomBar}
     return (
       <div className="rc">
         <style>{css}</style>
+        <UpdateBanner t={t} />
         {teamModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{setupModal}
         <div className="lobby">
           <div className="box" style={{ maxWidth: 560 }}>
@@ -2231,6 +2236,17 @@ ${bottomBar}
               ⬇ {t("Canlı Timing Köprüsü'nü indir (.exe)")}</a>
             <div className="hint" style={{ textAlign: "center", marginTop: 6 }}>
               {t("Oyunun PC'sinde çalışır; kurulum Canlı sekmesinde.")}</div>
+
+            {!isTauri && (<>
+              <div className="divider">{t("masaüstü uygulaması")}</div>
+              <a className="bigbtn ghost" href={DESKTOP_RELEASE_URL}
+                target="_blank" rel="noopener noreferrer"
+                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  gap: 8, textDecoration: "none" }}>
+                🖥 {t("Masaüstü Uygulamasını İndir")}</a>
+              <div className="hint" style={{ textAlign: "center", marginTop: 6 }}>
+                {t("Tarayıcısız, kendi penceresinde açılır. Sonraki sürümler uygulama içinden otomatik gelir.")}</div>
+            </>)}
           </div>
         </div>
       </div>
@@ -2243,6 +2259,7 @@ ${bottomBar}
     return (
       <div className="rc">
         <style>{css}</style>
+        <UpdateBanner t={t} />
         <div className="lobby" style={{ alignItems: "flex-start", paddingTop: 40 }}>
           <div className="box" style={{ maxWidth: 720 }}>
             <img className="logo" style={{ maxWidth: 190 }} src={`${ASSET}logo.png`} alt="" />
@@ -2321,6 +2338,7 @@ ${bottomBar}
     return (
       <div className="rc">
         <style>{css}</style>
+        <UpdateBanner t={t} />
         <div className="lobby" style={{ alignItems: "flex-start", paddingTop: 40 }}>
           <div className="box" style={{ maxWidth: 560 }}>
             <img className="logo" style={{ maxWidth: 190 }} src={`${ASSET}logo.png`} alt="" />
@@ -2352,6 +2370,7 @@ ${bottomBar}
   return (
     <div className="rc">
       <style>{css}</style>
+      <UpdateBanner t={t} />
       {teamModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{streamPlayer}{setupModal}
       {profOpen && user && (
         <div className="wxmodal" onClick={() => setProfOpen(false)}>

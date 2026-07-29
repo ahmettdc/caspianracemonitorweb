@@ -60,6 +60,44 @@ git push -u origin main
 4. Her `main` push'unda `.github/workflows/deploy.yml` otomatik derleyip yayınlar.
    Adres: `https://KULLANICI_ADIN.github.io/caspian-race-control/`
 
+## 4) Masaüstü uygulaması (Tauri) — opsiyonel
+
+Web uygulamasının yanında, çift tıklayınca açılan bir Windows `.exe` de var
+(`src-tauri/`). Vite build'ini (dist/) gömülü olarak paketler; internet yalnız
+Firebase senkronizasyonu/canlı timing için gerekir. Uygulama içi bir **updater**
+başlangıçta yeni sürüm olup olmadığını kontrol eder ve varsa "Güncelle" bandı
+gösterir (`src/UpdateBanner.jsx`).
+
+**Yerel geliştirme:**
+```bash
+npm run tauri dev     # WebView penceresinde canlı geliştirme (HMR)
+npm run tauri build   # Yerel .exe/.msi üretir (Windows'ta)
+```
+
+**CI (`.github/workflows/desktop.yml`):** `main`'e ilgili dosyalar değişince
+`windows-latest`'te derler, imzalar, GitHub Release'e yükler
+(`desktop-v<versiyon>` etiketi + `latest.json` — updater bunu okur).
+
+**Bir kez kurulum — imzalama anahtarı (updater için zorunlu):**
+```bash
+npx tauri signer generate -w ~/.tauri/caspian-race-monitor.key
+```
+Bu, bir public/private anahtar çifti üretir.
+1. **Public key**'i `src-tauri/tauri.conf.json` → `plugins.updater.pubkey` alanına yapıştır
+   (şu an `PUBKEY_BURAYA_GELECEK_TAURI_SIGNER_GENERATE_SONRASI` placeholder'ı var).
+2. **Private key** içeriğini ve komutun sorduğu **parolayı** GitHub repo →
+   **Settings → Secrets and variables → Actions** altına ekle:
+   - `TAURI_SIGNING_PRIVATE_KEY` (private key dosyasının tam içeriği)
+   - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+
+Bu anahtar eklenmeden CI derlemesi başarısız olur (updater'ın imza doğrulaması
+için şart) — ilk kurulumda beklenen, tek seferlik bir adımdır.
+
+**Sürüm güncelleme:** yeni bir masaüstü sürümü yayınlamak için `package.json`
+ve `src-tauri/tauri.conf.json` içindeki `"version"` alanını **birlikte** ve
+**bir öncekinden farklı** bir değere çıkar, sonra `main`'e push et — CI otomatik
+derleyip yayınlar, mevcut kullanıcılar uygulama içi banner ile görür.
+
 ## Notlar
 
 - Firebase config doldurulmazsa uygulama **solo modda** açılır (tüm hesaplar çalışır, oda özelliği kapalı).

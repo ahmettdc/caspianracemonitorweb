@@ -1,0 +1,56 @@
+name: Build Desktop App
+
+# Windows'ta masaüstü (Tauri) paketi üretir: dist/ (Vite build) gömülü olarak
+# paketlenir, imzalanır, GitHub Release'e yüklenir. Uygulama içi updater
+# (UpdateBanner) bu release'in latest.json'ını okuyup güncelleme sunar.
+#
+# ÖNEMLİ: Her yeni sürüm için package.json + src-tauri/tauri.conf.json'daki
+# "version" bir öncekinden FARKLI olmalı — aksi halde tauri-action aynı tag'i
+# tekrar oluşturmaya çalışıp başarısız olabilir.
+#
+# İmzalama anahtarı olmadan (TAURI_SIGNING_PRIVATE_KEY secret'ı eklenmeden)
+# bu iş akışı başarısız olur — bu beklenen bir durumdur, ilk kurulumda tek
+# seferlik bir adımdır (bkz. src-tauri/tauri.conf.json'daki pubkey notu).
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "public/**"
+      - "src-tauri/**"
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.js"
+      - "index.html"
+      - ".github/workflows/desktop.yml"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Node bağımlılıkları
+        run: npm ci
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: desktop-v__VERSION__
+          releaseName: "Caspian Race Monitor v__VERSION__"
+          releaseBody: "Otomatik derleme — uygulama içi güncelleyici bunu kullanır."
+          releaseDraft: false
+          prerelease: false
+          includeUpdaterJson: true
