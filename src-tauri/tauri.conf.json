@@ -42,7 +42,7 @@
       "endpoints": [
         "https://github.com/ahmettdc/caspianracemonitorweb/releases/latest/download/latest.json"
       ],
-      "pubkey": "PUBKEY_BURAYA_GELECEK_TAURI_SIGNER_GENERATE_SONRASI"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEI2NkQ1RkQxMkZBMTcwNEUKUldST2NLRXYwVjl0dGo0VThkajY1NExhRnJuY1NPVExTeWVWQkloeW14M1ArM1RqRjJna1VNMmIK"
     }
   }
 }
