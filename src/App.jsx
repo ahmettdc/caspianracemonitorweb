@@ -2830,7 +2830,7 @@ ${bottomBar}
             </div>
           </>)}
 
-          {tab === "live" && <LiveTab t={t} live={live} />}
+          {tab === "live" && <LiveTab t={t} live={live} tid={curTeam} rid={curRace} />}
 
           {tab === "tyre" && (
             <TyreTab t={t} st={st} up={up} tyreInfo={tyreInfo} racePlan={racePlan}

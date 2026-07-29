@@ -72,7 +72,20 @@ function OwnCar({ t, own }) {
   );
 }
 
-export default function LiveTab({ t, live }) {
+function BridgeCfg({ t, tid, rid }) {
+  if (!tid && !rid) return null;
+  return (
+    <div className="hint" style={{ marginTop: 12, fontFamily: "'IBM Plex Mono'",
+      background: "var(--panel2)", border: "1px solid var(--line)", borderRadius: 8,
+      padding: "8px 10px" }}>
+      <div style={{ marginBottom: 4 }}>{t("Köprü config.ini değerleri:")}</div>
+      team_id = <b style={{ color: "var(--teal)" }}>{tid || "—"}</b><br />
+      race_id = <b style={{ color: "var(--teal)" }}>{rid || "—"}</b>
+    </div>
+  );
+}
+
+export default function LiveTab({ t, live, tid, rid }) {
   if (!live || !live.ts) {
     return (
       <div className="card" data-tour="livecard">
@@ -83,6 +96,7 @@ export default function LiveTab({ t, live }) {
           <br />2. {t("Köprü uygulamasını indir, config'e takım/yarış bilgini gir, çift tıkla çalıştır.")}
           <br />3. {t("Yarış başlayınca bu ekran canlı dolar.")}
         </div>
+        <BridgeCfg t={t} tid={tid} rid={rid} />
       </div>
     );
   }
