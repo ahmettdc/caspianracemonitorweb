@@ -8,6 +8,9 @@ on:
       - "bridge/**"
       - ".github/workflows/bridge.yml"
 
+permissions:
+  contents: write        # Release'e .exe yüklemek için
+
 jobs:
   build:
     runs-on: windows-latest
@@ -38,5 +41,18 @@ jobs:
         with:
           name: CaspianLiveBridge
           path: |
+            bridge/dist/CaspianLiveBridge.exe
+            bridge/dist/config.example.ini
+
+      # Kalıcı, herkese açık indirme linki: releases/download/bridge-latest/CaspianLiveBridge.exe
+      # (yalnız main'e push'ta; PR/dispatch'te yalnız artefakt kalır)
+      - name: Release'e yükle (bridge-latest)
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: bridge-latest
+          name: Caspian Live Bridge (son sürüm)
+          body: "Otomatik derleme. Web 'Canlı' sekmesindeki İndir butonu buna bağlanır."
+          files: |
             bridge/dist/CaspianLiveBridge.exe
             bridge/dist/config.example.ini
