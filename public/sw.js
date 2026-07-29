@@ -6,7 +6,7 @@
    - Firebase / Google (cross-origin): dokunulmaz, her zaman ağdan
    Sürüm değişince CACHE adını artır → eski cache temizlenir.
    ============================================================ */
-const CACHE = "crc-v1";
+const CACHE = "crc-v2";
 const APP_SHELL = ["./", "./index.html", "./favicon.png", "./favicon.svg", "./manifest.webmanifest"];
 
 self.addEventListener("install", (e) => {
@@ -34,7 +34,10 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  // statik varlıklar: cache önce, yoksa ağdan al + cache'le
+  // statik varlıklar: cache önce, yoksa ağdan al + cache'le.
+  // ÖNEMLİ: JS/CSS gibi varlık istekleri BAŞARISIZ olursa index.html (HTML)
+  // DÖNDÜRÜLMEZ — aksi halde dinamik import "text/html is not a valid MIME"
+  // hatası verir. Yalnız gezinme (navigate) index.html'e düşer (yukarıda).
   e.respondWith(
     caches.match(req).then((hit) => hit || fetch(req).then((res) => {
       if (res && res.ok && res.type === "basic") {
@@ -42,6 +45,6 @@ self.addEventListener("fetch", (e) => {
         caches.open(CACHE).then((c) => c.put(req, copy));
       }
       return res;
-    }).catch(() => caches.match("./index.html"))),
+    }).catch(() => Response.error())),
   );
 });

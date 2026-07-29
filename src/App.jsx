@@ -40,13 +40,29 @@ import {
 
 /* Sekmeler talep üzerine yüklenir (kod bölme) — ilk bundle küçülür,
    recharts yalnız Telemetri açılınca gelir. */
-const DashTab = lazy(() => import("./tabs/DashTab"));
-const StintTab = lazy(() => import("./tabs/StintTab"));
-const FuelTab = lazy(() => import("./tabs/FuelTab"));
-const TyreTab = lazy(() => import("./tabs/TyreTab"));
-const DriversTab = lazy(() => import("./tabs/DriversTab"));
-const TeleTab = lazy(() => import("./tabs/TeleTab"));
-const LiveTab = lazy(() => import("./tabs/LiveTab"));
+/* Dinamik import (lazy sekme) başarısızsa — genelde deploy sonrası tarayıcının
+   elindeki eski index.html artık var olmayan bir parça adını ister — bir kez
+   sayfayı otomatik yenile: taze index.html + güncel parça adları gelir.
+   10 sn'lik zaman damgası guard'ı yenileme döngüsünü önler. */
+const lazyRetry = (factory) => lazy(() => factory().catch((err) => {
+  try {
+    const last = +sessionStorage.getItem("chunkReloadAt") || 0;
+    if (Date.now() - last > 10000) {
+      sessionStorage.setItem("chunkReloadAt", String(Date.now()));
+      window.location.reload();
+      return new Promise(() => {}); // reload gelene kadar askıda tut
+    }
+  } catch { /* sessionStorage yoksa */ }
+  throw err;
+}));
+
+const DashTab = lazyRetry(() => import("./tabs/DashTab"));
+const StintTab = lazyRetry(() => import("./tabs/StintTab"));
+const FuelTab = lazyRetry(() => import("./tabs/FuelTab"));
+const TyreTab = lazyRetry(() => import("./tabs/TyreTab"));
+const DriversTab = lazyRetry(() => import("./tabs/DriversTab"));
+const TeleTab = lazyRetry(() => import("./tabs/TeleTab"));
+const LiveTab = lazyRetry(() => import("./tabs/LiveTab"));
 
 /* ============================================================
    CASPIAN MOTORSPORT — RACE MONITOR  ·  Faz 2
