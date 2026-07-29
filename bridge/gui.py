@@ -163,10 +163,13 @@ class BridgeGUI:
 
     def _selftest_worker(self):
         tid, rid = self.vars["team_id"].get().strip(), self.vars["race_id"].get().strip()
+        fb = self._client()
         try:
-            fb = self._client()
             self.log("[self-test] giriş…")
             fb.sign_in()
+            self.log(f"Giriş yapıldı — GERÇEK UID: {fb.uid}")
+            self.log(f"(bridgeBots/{fb.uid} = true olmalı — bu satırdaki UID'yi kullan,")
+            self.log(" konsoldan elle okumana gerek yok.)")
             marker = int(time.time() * 1000)
             fb.put_live(tid, rid, {"ts": marker, "by": "gui", "selftest": True,
                                    "session": {}, "own": None, "field": []})
@@ -179,7 +182,10 @@ class BridgeGUI:
                 self.set_status("Self-test: FAIL", BAD)
         except Exception as e:  # noqa: BLE001
             self.log(f"❌ FAIL — {e}")
-            self.log("İpucu: bot 'allowed:true' + takıma 'editor' mü? team_id/race_id doğru mu?")
+            if fb.uid:
+                self.log(f"İpucu: kökte bridgeBots/{fb.uid} = true var mı? team_id/race_id doğru mu?")
+            else:
+                self.log("İpucu: e-posta/parola doğru mu, Email/Password sağlayıcısı açık mı?")
             self.set_status("Self-test: FAIL", BAD)
 
     def toggle(self):
@@ -206,6 +212,7 @@ class BridgeGUI:
             fb = self._client()
             self.log("[firebase] giriş…")
             fb.sign_in()
+            self.log(f"Giriş yapıldı — UID: {fb.uid}")
             src = make_source(self.mock.get())
             self.log("Mock veri" if self.mock.get() else "Oyun (paylaşımlı bellek) okunuyor")
         except Exception as e:  # noqa: BLE001
