@@ -295,6 +295,33 @@ export default function App() {
     return t;
   };
 
+  /* Start'a geri sayım: 24 saatten uzaksa yıl/ay/gün/saat (en anlamlı 3 birim,
+     takvim farkıyla), son 24 saatte tik-tik HH:MM:SS. */
+  const startCountdown = (li) => {
+    if (!(li.toStart > 0)) return "00:00:00";
+    if (li.toStart < 86400000) return fmtHMS(li.toStart / 1000);
+    const a = new Date(li.startMs - li.toStart), b = new Date(li.startMs);
+    let yr = b.getFullYear() - a.getFullYear();
+    let mo = b.getMonth() - a.getMonth();
+    let dy = b.getDate() - a.getDate();
+    let hr = b.getHours() - a.getHours();
+    let mn = b.getMinutes() - a.getMinutes();
+    if (mn < 0) { mn += 60; hr--; }
+    if (hr < 0) { hr += 24; dy--; }
+    if (dy < 0) { dy += new Date(b.getFullYear(), b.getMonth(), 0).getDate(); mo--; }
+    if (mo < 0) { mo += 12; yr--; }
+    const U = lang === "en"
+      ? { yr: "y", mo: "mo", dy: "d", hr: "h", mn: "m" }
+      : { yr: "yıl", mo: "ay", dy: "g", hr: "sa", mn: "dk" };
+    const parts = [];
+    if (yr) parts.push(`${yr} ${U.yr}`);
+    if (mo) parts.push(`${mo} ${U.mo}`);
+    if (dy) parts.push(`${dy} ${U.dy}`);
+    if (hr) parts.push(`${hr} ${U.hr}`);
+    if ((mn || !parts.length) && parts.length < 3) parts.push(`${mn} ${U.mn}`);
+    return parts.slice(0, 3).join(" ");
+  };
+
   /* ---------- Faz 4: telemetri ---------- */
   const [slot, setSlot] = useState("A");
   const [chartMode, setChartMode] = useState("box"); // "box" | "line"
@@ -2545,8 +2572,9 @@ ${bottomBar}
         <div className="livestrip">
           {liveInfo.status === "pre" && (
             <div><span className="lbl">{t("Start'a")}</span>
-              <span className="big mono" style={{ color: "var(--yellow)" }}>
-                {fmtHMS(liveInfo.toStart / 1000)}</span></div>
+              <span className={`big ${liveInfo.toStart < 86400000 ? "mono" : ""}`}
+                style={{ color: "var(--yellow)" }}>
+                {startCountdown(liveInfo)}</span></div>
           )}
           {liveInfo.status === "done" && (
             <div><span className="lbl">{t("Durum")}</span>
@@ -2564,7 +2592,7 @@ ${bottomBar}
           {liveInfo.status === "pre" && (<>
             <div className="plbl">{t("Start'a")}</div>
             <div className="huge" style={{ color: "var(--yellow)" }}>
-              {fmtHMS(liveInfo.toStart / 1000)}</div>
+              {startCountdown(liveInfo)}</div>
           </>)}
           {liveInfo.status === "done" && <div className="huge">🏁</div>}
           {liveInfo.status === "idle" && (<>
