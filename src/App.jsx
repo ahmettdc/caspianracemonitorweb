@@ -23,7 +23,7 @@ import {
   SLOT_COLORS, APP_VERSION, REPO_URL, SEEN_VER_KEY, ASSET, AV,
   TRACKS, PIT_LANE_TIMES, TRACK_ASSET, trackFlag,
   CARS, CAR_CLASSES, trackName, carName, carImg,
-  PIE_COLORS,
+  PIE_COLORS, BRIDGE_EXE_URL,
 } from "./constants";
 import { chatBeep } from "./sound";
 import {
@@ -2222,6 +2222,15 @@ ${bottomBar}
             <button className="solo" onClick={() => setEntered(true)}>
               {t("Takımsız solo devam et →")}
             </button>
+
+            <div className="divider">{t("canlı timing")}</div>
+            <a className="bigbtn ghost" href={BRIDGE_EXE_URL}
+              target="_blank" rel="noopener noreferrer"
+              style={{ display: "inline-flex", alignItems: "center", justifyContent: "center",
+                gap: 8, textDecoration: "none" }}>
+              ⬇ {t("Canlı Timing Köprüsü'nü indir (.exe)")}</a>
+            <div className="hint" style={{ textAlign: "center", marginTop: 6 }}>
+              {t("Oyunun PC'sinde çalışır; kurulum Canlı sekmesinde.")}</div>
           </div>
         </div>
       </div>

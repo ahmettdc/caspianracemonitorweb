@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { fmtLap, fmtHMS } from "../engine";
 import { Ring } from "../components";
+import { BRIDGE_EXE_URL } from "../constants";
 
 /* Canlı Timing — LMU köprüsünün yazdığı teams/{tid}/live/{rid} düğümünü gösterir.
    Köprü .exe oyunun PC'sinde çalışır, paylaşımlı bellekten okuyup Firebase'e yazar;
@@ -122,6 +123,12 @@ export default function LiveTab({ t, live, tid, rid }) {
           <br />1. {t("rFactor2 paylaşımlı bellek eklentisi LMU'da kurulu olmalı (zaten ekte).")}
           <br />2. {t("Köprü uygulamasını indir, config'e takım/yarış bilgini gir, çift tıkla çalıştır.")}
           <br />3. {t("Yarış başlayınca bu ekran canlı dolar.")}
+        </div>
+        <div style={{ marginTop: 12 }}>
+          <a className="bigbtn" href={BRIDGE_EXE_URL} target="_blank" rel="noopener noreferrer"
+            style={{ display: "inline-flex", alignItems: "center", gap: 8, width: "auto",
+              padding: "10px 18px", textDecoration: "none" }}>
+            ⬇ {t("Köprüyü indir (.exe · Windows)")}</a>
         </div>
         <BridgeCfg t={t} tid={tid} rid={rid} />
       </div>

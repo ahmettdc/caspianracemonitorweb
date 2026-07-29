@@ -119,3 +119,7 @@ export const quantile = (sorted, q) => {
   const lo = Math.floor(pos), hi = Math.ceil(pos);
   return lo === hi ? sorted[lo] : sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
 };
+
+/* Canlı timing köprüsü (.exe) — kalıcı, herkese açık GitHub Release indirme linki */
+export const BRIDGE_EXE_URL =
+  "https://github.com/ahmettdc/caspianracemonitorweb/releases/download/bridge-latest/CaspianLiveBridge.exe";
