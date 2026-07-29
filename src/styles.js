@@ -131,8 +131,8 @@ export const css = `
 .rc .dot{width:9px;height:9px;border-radius:99px;display:inline-block}
 .rc .dot.on{background:var(--green);box-shadow:0 0 6px var(--green)}
 .rc .dot.off{background:var(--dim)}
-.rc .roomcode{font-family:'IBM Plex Mono';font-weight:600;font-size:15px;
-  color:var(--yellow);letter-spacing:.15em}
+.rc .roomcode{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:17px;
+  color:var(--yellow);letter-spacing:.02em}
 .rc .syncinfo{color:var(--dim);font-size:11px;margin-left:auto}
 /* --- lobi --- */
 .rc .lobby{min-height:100vh;display:flex;align-items:center;justify-content:center;
