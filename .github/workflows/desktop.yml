@@ -47,6 +47,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # Masaüstü Google girişi (sistem tarayıcısı + loopback OAuth).
+          # VITE_… ön yüz derlemesine gömülür (client_id gizli değildir);
+          # GOOGLE_OAUTH_CLIENT_SECRET yalnız Rust'ta derleme zamanı okunur.
+          VITE_GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
         with:
           tagName: desktop-v__VERSION__
           releaseName: "Caspian Race Monitor v__VERSION__"
