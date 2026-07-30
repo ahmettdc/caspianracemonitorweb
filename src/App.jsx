@@ -1396,6 +1396,8 @@ ${bottomBar}
     catch (e) {
       setAuthErr(e?.message === "POPUP_BLOCKED"
         ? t("Tarayıcı açılır pencereyi engelledi. Bu site için açılır pencerelere izin verip tekrar deneyin.")
+        : e?.message === "UNAUTHORIZED_DOMAIN"
+        ? t("Firebase 'Authorized domains' listesine tauri.localhost eklenmemiş — Console → Authentication → Settings'ten ekleyin.")
         : (e?.message || String(e)));
     }
   };
