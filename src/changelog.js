@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.25",
+    date: "2026-07-30",
+    tr: [
+      "⚡ Canlı köprü artık OTOMATİK: masaüstünde oyun açıkken kendiliğinden bağlanır, koparsa ~4 sn'de bir yeniden dener (oyun sonradan açılırsa da bağlanır). Elle 'Başlat/Durdur' ve 'Mock veri' butonu kaldırıldı — köprü kartı yalnız durumu gösterir",
+      "🔇 Oyun/seans kapalıyken artık boş kare yazılmıyor (Firebase kotası korunur)",
+    ],
+    en: [
+      "⚡ The live bridge is now AUTOMATIC: on desktop it connects by itself when the game is open and retries every ~4s if it drops (also connects if the game opens later). The manual 'Start/Stop' and 'Mock data' controls are removed — the bridge card only shows status",
+      "🔇 No more empty frames written while the game/session is closed (saves Firebase usage)",
+    ],
+  },
+  {
     v: "v1.4.24",
     date: "2026-07-30",
     tr: [

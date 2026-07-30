@@ -19,6 +19,7 @@ import { liveTimingSet, liveLapsAppend, liveLapsClear,
 
 let child = null;          // çalışan sidecar süreci (Child)
 let stopping = false;
+let starting = false;      // spawn sürerken tekrar başlatmayı engelle (oto-yeniden dene)
 
 /* Köprüyü başlat. opts: { tid, rid, hz, mock, by }. onStatus(state) çağrılır:
    { running, phase: "starting|running|error|stopped", msg, lastTs, cars } */
@@ -27,15 +28,17 @@ export async function startBridge(opts, onStatus) {
   const say = (s) => { try { if (onStatus) onStatus(s); } catch { /* yoksay */ } };
 
   if (!tid || !rid) { say({ running: false, phase: "error", msg: "Takım/yarış seçili değil" }); return; }
-  if (child) { say({ running: true, phase: "running", msg: "Zaten çalışıyor" }); return; }
+  if (child || starting) return;   // zaten çalışıyor/başlıyor (oto-yeniden deneme sessiz)
 
   stopping = false;
+  starting = true;
   say({ running: true, phase: "starting", msg: "Köprü başlatılıyor…" });
 
   let Command;
   try {
     ({ Command } = await import("@tauri-apps/plugin-shell"));
   } catch (e) {
+    starting = false;
     say({ running: false, phase: "error", msg: "Sidecar kabuğu yüklenemedi: " + (e?.message || e) });
     return;
   }
@@ -104,6 +107,11 @@ export async function startBridge(opts, onStatus) {
     writeTimer = null;
     if (!pending || stopping) return;
     const frame = pending; pending = null;
+    // oyun kapalı / seans yok (0 araç) → Firebase'e boşuna yazma (kota + eski veri)
+    if (!Array.isArray(frame.field) || frame.field.length === 0) {
+      say({ running: true, phase: "running", msg: "Oyun/seans bekleniyor…" });
+      return;
+    }
     lastWrite = Date.now();
     try {
       await harvestLaps(frame);   // laps'i livelaps'e taşı + kareden çıkar
@@ -154,8 +162,10 @@ export async function startBridge(opts, onStatus) {
 
   try {
     child = await cmd.spawn();
+    starting = false;
     say({ running: true, phase: "running", msg: "Köprü çalışıyor", cars });
   } catch (e) {
+    starting = false;
     child = null;
     say({ running: false, phase: "error", msg: "Sidecar başlatılamadı: " + (e?.message || e) });
   }
