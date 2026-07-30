@@ -5,6 +5,13 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.1",
+    date: "2026-07-30",
+    tr: [
+      "🖥️ Masaüstü uygulaması: Google ile giriş artık açılır pencere (popup) yerine yönlendirme (redirect) ile yapılıyor — WebView2 popup'ı engellediği için giriş açılmıyordu, düzeltildi",
+    ],
+  },
+  {
     v: "v1.4",
     date: "2026-07-25",
     tr: [
