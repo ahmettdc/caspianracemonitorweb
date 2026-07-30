@@ -5,6 +5,13 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.4",
+    date: "2026-07-30",
+    tr: [
+      "🛰 Canlı köprü artık masaüstü uygulamasının içinde: oyunun olduğu PC'de uygulamayı aç, giriş yap, yarışı aç, 'Canlı' sekmesinden tek tuşla 'Canlı Köprü Başlat'. Ayrı .exe indirmeye, bot hesabına ve izin listesine (bridgeBots) GEREK YOK — veri senin oturumunla yazılır. Takımın geri kalanı web/masaüstünden canlı timing'i anında görür",
+    ],
+  },
+  {
     v: "v1.4.3",
     date: "2026-07-30",
     tr: [

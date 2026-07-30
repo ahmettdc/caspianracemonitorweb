@@ -42,6 +42,30 @@ jobs:
       - name: Node bağımlılıkları
         run: npm ci
 
+      # Canlı köprüyü (Python) sidecar .exe olarak derle → uygulama içinden
+      # çalıştırılır (--emit modu). Hedef üçlüsü ekli ad Tauri externalBin ile
+      # eşleşmeli: binaries/caspian-bridge-x86_64-pc-windows-msvc.exe
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Köprü sidecar bağımlılıkları
+        run: pip install requests pyinstaller
+
+      - name: rF2 okuyucu (gerçek mod — best-effort)
+        continue-on-error: true
+        run: pip install -r bridge/requirements.txt
+
+      - name: Köprü sidecar .exe derle
+        shell: pwsh
+        run: |
+          pyinstaller --onefile --name caspian-bridge `
+            --hidden-import pyRfactor2SharedMemory.sharedMemoryAPI `
+            --distpath bridge/dist bridge/main.py
+          New-Item -ItemType Directory -Force -Path src-tauri/binaries | Out-Null
+          Copy-Item bridge/dist/caspian-bridge.exe `
+            src-tauri/binaries/caspian-bridge-x86_64-pc-windows-msvc.exe
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

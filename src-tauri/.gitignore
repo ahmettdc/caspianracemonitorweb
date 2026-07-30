@@ -2,3 +2,6 @@
 # will have compiled files and executables
 /target/
 /gen/schemas
+
+# Canlı köprü sidecar — CI'da (desktop.yml) PyInstaller ile üretilir, commit'lenmez
+/binaries/
