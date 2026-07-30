@@ -2931,7 +2931,7 @@ ${bottomBar}
             </div>
           </>)}
 
-          {tab === "live" && <LiveTab t={t} live={live}
+          {tab === "live" && <LiveTab t={t} live={live} liveFuelObs={liveFuelObs}
             bridge={bridge} canEdit={canEditTeam}
             onStartBridge={startLiveBridge} onStopBridge={stopLiveBridge} />}
 

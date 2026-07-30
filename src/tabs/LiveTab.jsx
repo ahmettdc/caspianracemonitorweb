@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { fmtLap, fmtHMS } from "../engine";
 import { Ring } from "../components";
-import { DESKTOP_RELEASE_URL, ASSET, classId } from "../constants";
+import { DESKTOP_RELEASE_URL, ASSET, classId, classAccent } from "../constants";
 import { isTauri } from "../tauriEnv";
 
 /* Canlı Timing — LMU köprüsünün yazdığı teams/{tid}/live/{rid} düğümünü gösterir.
@@ -40,14 +40,22 @@ function ClassBadge({ raw }) {
   return <span className="chip" style={{ fontSize: 10 }}>{raw || "—"}</span>;
 }
 
-function OwnCar({ t, own }) {
+function OwnCar({ t, own, liveFuelObs }) {
   const cap = own.fuelCapacity > 0 ? own.fuelCapacity : 0;
   const frac = cap ? Math.max(0, Math.min(1, own.fuel / cap)) : 0;
   const corners = [["FL", "fl"], ["FR", "fr"], ["RL", "rl"], ["RR", "rr"]];
   const ty = own.tyres || {};
+  // Mevcut yakıtla ~kaç tur kaldığı — App'in canlı öğrenicisinden (litre/tur).
+  const lpl = liveFuelObs?.litersPerLap;
+  const lapsLeft = (lpl > 0 && own.fuel > 0) ? Math.floor(own.fuel / lpl) : null;
+  const sec = (v) => (v > 0 ? `${v.toFixed(1)}` : "—");
   return (
     <div className="card" data-tour="ownlive" style={{ marginBottom: 12 }}>
-      <h2>🏎 {t("Kendi Araç")}</h2>
+      <h2 style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        🏎 {t("Kendi Araç")}
+        {own.inPits && <span className="chip"
+          style={{ color: "var(--yellow)", borderColor: "var(--yellow)", fontSize: 11 }}>PIT</span>}
+      </h2>
       <div style={{ display: "flex", gap: 18, flexWrap: "wrap", alignItems: "center" }}>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
           <Ring value={frac} size={92} thickness={9} fs={22} color="var(--green)"
@@ -55,16 +63,26 @@ function OwnCar({ t, own }) {
           <div className="l" style={{ color: "var(--dim)", fontSize: 11 }}>
             {t("Yakıt")} {own.fuel != null ? `${own.fuel.toFixed(1)} L` : "—"}
             {cap ? ` / ${cap.toFixed(0)}` : ""}</div>
+          {lapsLeft != null && (
+            <div className="l" style={{ color: "var(--teal)", fontSize: 11, fontWeight: 600 }}>
+              ~{lapsLeft} {t("tur")}</div>
+          )}
         </div>
         <div className="kpis" style={{ flex: 1, minWidth: 220, marginBottom: 0 }}>
           <div className="kpi"><div className="v">{own.position || "—"}</div>
             <div className="l">{t("Pozisyon")}</div></div>
+          <div className="kpi"><div className="v mono">
+            {own.curLapSec > 0 ? fmtLap(own.curLapSec) : "—"}</div>
+            <div className="l">{t("Mevcut Tur")}</div></div>
           <div className="kpi"><div className="v mono">{lap(own.lastLapSec)}</div>
             <div className="l">{t("Son Tur")}</div></div>
           <div className="kpi"><div className="v mono" style={{ color: "var(--purple)" }}>
             {lap(own.bestLapSec)}</div><div className="l">{t("En İyi")}</div></div>
           <div className="kpi"><div className="v">{own.lapsDone ?? "—"}</div>
             <div className="l">{t("Tur")}</div></div>
+          <div className="kpi"><div className="v mono" style={{ fontSize: 15 }}>
+            {sec(own.s1)} <span style={{ color: "var(--dim)" }}>/</span> {sec(own.s2)}</div>
+            <div className="l">S1 / S2</div></div>
         </div>
       </div>
       <div className="row4" style={{ marginTop: 12 }}>
@@ -144,7 +162,15 @@ function BridgeControl({ t, bridge, canEdit, onStart, onStop }) {
 }
 
 export default function LiveTab({ t, live, bridge, canEdit,
-  onStartBridge, onStopBridge }) {
+  onStartBridge, onStopBridge, liveFuelObs }) {
+  const [myClassOnly, setMyClassOnly] = useState(false);
+  const playerRowRef = useRef(null);
+  // uzun grid'de oyuncu satırını görünür tut (canlı güncellemede)
+  useEffect(() => {
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    playerRowRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [live?.own?.position, myClassOnly]);
+
   const bridgeCard = isTauri ? (
     <BridgeControl t={t} bridge={bridge} canEdit={canEdit}
       onStart={onStartBridge} onStop={onStopBridge} />
@@ -181,8 +207,27 @@ export default function LiveTab({ t, live, bridge, canEdit,
   const conn = connOf(live.ts);
   const s = live.session || {};
   const own = live.own || null;
-  const field = Array.isArray(live.field) ? live.field : [];
+  const fieldAll = Array.isArray(live.field) ? live.field : [];
   const ageSec = Math.max(0, Math.round((Date.now() - live.ts) / 1000));
+
+  // türetilmiş: sınıf-içi pozisyon, seans en hızlı turu, oyuncu sınıfı
+  const leaderLaps = fieldAll[0]?.lapsDone ?? 0;
+  const fastestBest = Math.min(
+    ...fieldAll.map((c) => c.bestSec).filter((v) => v > 0), Infinity);
+  const playerClass = classId(fieldAll.find((c) => c.isPlayer)?.carClass);
+  const classCounts = {};
+  const rows = fieldAll.map((c, i) => {
+    const id = classId(c.carClass);
+    classCounts[id] = (classCounts[id] || 0) + 1;
+    const prevGap = fieldAll[i - 1]?.gapSec;
+    const interval = (i > 0 && c.gapSec > 0 && prevGap > 0)
+      ? c.gapSec - prevGap : null;                   // öndeki araca fark
+    const lapsDown = Math.max(0, leaderLaps - (c.lapsDone ?? 0));
+    return { c, i, id, classPos: classCounts[id], interval, lapsDown,
+      isFastest: c.bestSec > 0 && c.bestSec === fastestBest };
+  });
+  const shown = myClassOnly && playerClass
+    ? rows.filter((r) => r.id === playerClass) : rows;
 
   return (
     <div data-tour="livecard">
@@ -208,37 +253,59 @@ export default function LiveTab({ t, live, bridge, canEdit,
         </div>
       </div>
 
-      {own && <OwnCar t={t} own={own} />}
+      {own && <OwnCar t={t} own={own} liveFuelObs={liveFuelObs} />}
 
       <div className="card">
-        <h2>🏁 {t("Saha")} ({field.length})</h2>
-        {!field.length && <div className="hint">{t("Henüz araç verisi yok.")}</div>}
-        {field.length > 0 && (
+        <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          🏁 {t("Saha")} ({shown.length})
+          {playerClass && (
+            <button className={`act${myClassOnly ? " on" : ""}`}
+              style={{ fontSize: 11, padding: "3px 10px",
+                ...(myClassOnly && { borderColor: "var(--teal)", color: "var(--teal)" }) }}
+              onClick={() => setMyClassOnly((v) => !v)}>
+              {myClassOnly ? t("Tüm saha") : t("Kendi sınıfım")}</button>
+          )}
+        </h2>
+        {!shown.length && <div className="hint">{t("Henüz araç verisi yok.")}</div>}
+        {shown.length > 0 && (
           <div style={{ overflowX: "auto" }}>
             <table aria-label={t("Canlı timing tablosu")}>
               <thead><tr>
                 <th>#</th><th>{t("Pilot")}</th><th>{t("Sınıf")}</th><th>{t("Tur")}</th>
-                <th>{t("Son")}</th><th>{t("En İyi")}</th><th>Gap</th><th>Pit</th>
+                <th>{t("Son")}</th><th>{t("En İyi")}</th><th>Gap</th>
+                <th>{t("Aralık")}</th><th>Pit</th>
               </tr></thead>
               <tbody>
-                {field.map((c, i) => (
-                  <tr key={c.pos ?? i} className={c.isPlayer ? "live" : ""}>
-                    <td className="disp" style={{ fontSize: 15 }}>{c.pos ?? i + 1}</td>
-                    <td style={{ fontFamily: "'Inter',system-ui,sans-serif" }}>{c.driver || "—"}</td>
-                    <td><ClassBadge raw={c.carClass} /></td>
-                    <td>{c.lapsDone ?? "—"}</td>
-                    <td>{lap(c.lastSec)}</td>
-                    <td style={{ color: "var(--purple)" }}>{lap(c.bestSec)}</td>
-                    <td>{i === 0 ? t("Lider") : gap(c.gapSec)}</td>
-                    <td>{c.inPits ? <span className="chip"
-                      style={{ color: "var(--yellow)", borderColor: "var(--yellow)" }}>PIT</span> : ""}</td>
-                  </tr>
-                ))}
+                {shown.map(({ c, i, id, classPos, interval, lapsDown, isFastest }) => {
+                  const acc = classAccent(c.carClass);
+                  return (
+                    <tr key={c.pos ?? i} ref={c.isPlayer ? playerRowRef : null}
+                      className={c.isPlayer ? "live" : ""}
+                      style={!c.isPlayer && acc ? { borderLeft: `3px solid ${acc}` } : undefined}>
+                      <td className="disp" style={{ fontSize: 15 }}>{c.pos ?? i + 1}</td>
+                      <td style={{ fontFamily: "'Inter',system-ui,sans-serif" }}>{c.driver || "—"}</td>
+                      <td style={{ whiteSpace: "nowrap" }}>
+                        <ClassBadge raw={c.carClass} />
+                        {id && <span style={{ fontSize: 10, marginLeft: 5,
+                          color: classPos === 1 ? "var(--yellow)" : "var(--dim)",
+                          fontWeight: classPos === 1 ? 700 : 400 }}>P{classPos}</span>}
+                      </td>
+                      <td>{c.lapsDone ?? "—"}</td>
+                      <td>{lap(c.lastSec)}</td>
+                      <td style={{ color: isFastest ? "var(--purple)" : "var(--dim)",
+                        fontWeight: isFastest ? 700 : 400 }}>{lap(c.bestSec)}</td>
+                      <td>{i === 0 ? t("Lider") : lapsDown >= 1 ? `+${lapsDown} ${t("Tur")}` : gap(c.gapSec)}</td>
+                      <td style={{ color: "var(--dim)" }}>{interval != null ? gap(interval) : "—"}</td>
+                      <td>{c.inPits ? <span className="chip"
+                        style={{ color: "var(--yellow)", borderColor: "var(--yellow)" }}>PIT</span> : ""}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
-        <div className="hint">{t("Veriler oyundan (rFactor2 paylaşımlı bellek) köprü ile Firebase üzerinden gelir — tüm takım aynı anda görür.")}</div>
+        <div className="hint">{t("Gap: lidere · Aralık: öndeki araca · Pn: sınıf-içi sıra (sarı = sınıf lideri) · mor: seansın en hızlı turu. Veriler köprü ile canlı gelir; tüm takım aynı anda görür.")}</div>
       </div>
     </div>
   );
