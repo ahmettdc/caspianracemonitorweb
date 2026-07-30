@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.29",
+    date: "2026-07-30",
+    tr: [
+      "🔋 Virtual Energy (NRG) artık dolu geliyor: köprü LMU canlı standings API'sinden (veFraction) her aracın VE'sini çekiyor",
+      "🏁 Kendi aracının takım adı (ör. 'EYT TEAM GT3 #34') ve numarası da düzeltildi — custom livery katalogda olmadığı için eksikti; artık canlı standings'ten geliyor. Kendi araç marka logosu (911 → Porsche) da eklendi",
+    ],
+    en: [
+      "🔋 Virtual Energy (NRG) now populates: the bridge reads each car's VE (veFraction) from LMU's live standings API",
+      "🏁 Your own car's team name (e.g. 'EYT TEAM GT3 #34') and number are fixed too — they were missing because a custom livery isn't in the catalog; now they come from live standings. Own-car brand logo (911 → Porsche) added as well",
+    ],
+  },
+  {
     v: "v1.4.28",
     date: "2026-07-30",
     tr: [

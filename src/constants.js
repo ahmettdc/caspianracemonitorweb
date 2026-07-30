@@ -3,7 +3,7 @@
 export const SLOT_COLORS = { A: "#40D68C", B: "#F0604D", C: "#F2A33C", D: "#6694FF" };
 
 /* ---------- pist & araç seçimi ---------- */
-export const APP_VERSION = "v1.4.28";   // tek kaynak — sürüm yazısı buradan
+export const APP_VERSION = "v1.4.29";   // tek kaynak — sürüm yazısı buradan
 export const REPO_URL = "https://github.com/ahmettdc/caspianracemonitorweb";
 export const SEEN_VER_KEY = "rm_seen_version";
 export const ASSET = import.meta.env.BASE_URL + "assets/";
@@ -131,7 +131,7 @@ export const classAccent = (raw) => CLASS_ACCENT[classId(raw)] || "";
 const BRAND_MATCH = [
   ["astonmartin", ["aston"]], ["mercedesamg", ["mercedes", "amg"]],
   ["isottafraschini", ["isotta"]], ["bmw", ["bmw"]], ["ferrari", ["ferrari"]],
-  ["porsche", ["porsche"]], ["mclaren", ["mclaren"]], ["corvette", ["corvette"]],
+  ["porsche", ["porsche", "911"]], ["mclaren", ["mclaren"]], ["corvette", ["corvette"]],
   ["lexus", ["lexus"]], ["ford", ["ford", "mustang"]], ["toyota", ["toyota"]],
   ["cadillac", ["cadillac"]], ["peugeot", ["peugeot"]], ["alpine", ["alpine"]],
   ["lamborghini", ["lambo"]], ["glickenhaus", ["glickenhaus"]],

@@ -15,9 +15,8 @@ import time
 import urllib.request
 
 BASE = "http://127.0.0.1:6397"
-# tüm-araç canlı standings + strateji (VE) için denenecek endpoint'ler (ilk çalışan kullanılır)
-STANDINGS_PATHS = ("/rest/watch/standings", "/rest/sessions/getAllVehicles",
-                   "/rest/race/car")
+# canlı saha (VE + takım + numara) — ilk çalışan kullanılır
+STANDINGS_PATHS = ("/rest/watch/standings",)
 _ENERGY_KEY = re.compile(r"(virtual.?energy|(^|_)energy|nrg)", re.I)
 _NAME_KEY = re.compile(r"(driver.?name|^name$|full.?name)", re.I)
 
@@ -143,7 +142,11 @@ class LmuApi:
                     return v
         return []
 
-    def fetch(self):
+    def standings(self):
+        """/rest/watch/standings → canlı saha: her araç için virtual energy (veFraction),
+        gerçek takım adı (fullTeamName) ve numara (carNumber). Sürücü adıyla eşlenir.
+        Döner: ({sürücü_küçük: {ve, team, number}}, own_ve). veFraction 0..1 → %.
+        Kesin şekle göre parse; alan adı değişmişse toleranslı yedek (energy/name)."""
         now = time.time()
         if now - self.last < 1.0:
             return self.cache
@@ -157,32 +160,45 @@ class LmuApi:
                 if data is not None:
                     self.path = p
                     break
-        by_driver, own_ve = {}, None
         cars = self._pick_list(data)
-        found = 0
+        by_driver, own_ve = {}, None
         for c in cars:
-            _, nm = _find(c, _NAME_KEY)
-            ve = _energy_of(c)
-            if ve is not None:
-                found += 1
-            if isinstance(nm, str) and nm.strip() and ve is not None:
-                by_driver[nm.strip().lower()] = ve
-            # kendi araç: isPlayer benzeri bayrak
-            if ve is not None and (c.get("isPlayer") or c.get("player")
-                                   or c.get("mIsPlayer")):
-                own_ve = ve
+            if not isinstance(c, dict):
+                continue
+            nm = c.get("driverName")
+            if not (isinstance(nm, str) and nm.strip()):
+                _, nm = _find(c, _NAME_KEY)          # yedek: adı 'name' içeren alan
+            # VE: önce veFraction (0..1), yoksa toleranslı enerji araması
+            ve = None
+            vf = c.get("veFraction")
+            try:
+                vf = float(vf)
+                if 0.0 <= vf <= 1.0:
+                    ve = round(vf * 100, 1)
+            except (TypeError, ValueError):
+                ve = _energy_of(c)
+            info = {
+                "ve": ve,
+                "team": str(c.get("fullTeamName") or c.get("teamName") or "").strip(),
+                "number": (str(c.get("carNumber")).strip()
+                           if c.get("carNumber") not in (None, "") else None),
+            }
+            if isinstance(nm, str) and nm.strip():
+                by_driver[nm.strip().lower()] = info
+            if c.get("player") or c.get("isPlayer") or c.get("hasFocus"):
+                own_ve = ve if ve is not None else own_ve
         self.cache = (by_driver, own_ve)
         if not self.diag_done:
             self.diag_done = True
-            self._diag(cars, found)
+            self._diag(cars)
         return self.cache
 
-    def _diag(self, cars, found):
+    def _diag(self, cars):
         import sys
         if not cars:
-            print("[LMU REST] yanıt yok / boş — REST kapalı veya endpoint farklı "
+            print("[LMU REST] standings yanıtı yok/boş — REST kapalı veya endpoint farklı "
                   f"(denenen: {', '.join(STANDINGS_PATHS)})", file=sys.stderr)
             return
         keys = list(cars[0].keys()) if isinstance(cars[0], dict) else []
-        print(f"[LMU REST] endpoint={self.path} araç={len(cars)} VE-bulunan={found} "
+        print(f"[LMU REST] standings endpoint={self.path} araç={len(cars)} "
               f"| ilk kayıt anahtarları: {keys}", file=sys.stderr)
