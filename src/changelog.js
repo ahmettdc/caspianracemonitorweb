@@ -5,6 +5,14 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.12",
+    date: "2026-07-30",
+    tr: [
+      "🛞 Canlı Timing'e eksik veriler eklendi: kendi aracın lastik bileşimi (soft/medium/hard) ve pit durak sayısı; saha tablosunda her araç için pit durak sayısı ve pozisyon değişim okları (▲ yükseldi / ▼ düştü)",
+      "🖥️ 'Büyük Pano' (tam ekran) modu — timing'i uzaktan okunur büyük yazıyla göster; pit duvarında takımın izlemesi için",
+    ],
+  },
+  {
     v: "v1.4.11",
     date: "2026-07-30",
     tr: [

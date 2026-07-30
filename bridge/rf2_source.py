@@ -10,8 +10,10 @@
 Şema (web LiveTab ile birebir):
   session: {phase, flag, timeLeftSec, totalLaps, trackTemp, ambientTemp, raining}
   own:     {fuel, fuelCapacity, position, lastLapSec, bestLapSec, curLapSec,
-            s1, s2, lapsDone, inPits, tyres:{fl,fr,rl,rr:{wear,tempC,pressKpa}}}
-  field[]: {pos, driver, carClass, lapsDone, lastSec, bestSec, gapSec, inPits, isPlayer}
+            s1, s2, lapsDone, inPits, pitStops, tyreCompound:{front,rear},
+            tyres:{fl,fr,rl,rr:{wear,tempC,pressKpa}}}
+  field[]: {pos, driver, carClass, lapsDone, lastSec, bestSec, gapSec, inPits,
+            pitStops, isPlayer}
 """
 import math
 import random
@@ -59,6 +61,7 @@ class MockSource:
                 "bestSec": round(self.base[i], 3),
                 "_prog": laps * 1e6 + (el % lap_t),  # sıralama için ilerleme
                 "inPits": (int(el / 90) % 11) == i, "isPlayer": i == 4,
+                "pitStops": laps // 45,  # ~45 turda bir durak
             })
         rows.sort(key=lambda r: -r["_prog"])
         leadprog = rows[0]["_prog"]
@@ -81,7 +84,9 @@ class MockSource:
                 "position": me["pos"], "lastLapSec": me["lastSec"], "bestLapSec": me["bestSec"],
                 "curLapSec": round(stint % me["lastSec"], 1), "s1": round(me["lastSec"] * 0.32, 3),
                 "s2": round(me["lastSec"] * 0.35, 3), "lapsDone": me["lapsDone"],
-                "inPits": me["inPits"],
+                "inPits": me["inPits"], "pitStops": me["pitStops"],
+                "tyreCompound": (lambda comp: {"front": comp, "rear": comp})(
+                    ["Medium", "Hard", "Soft"][int(el / 1500) % 3]),
                 "tyres": {c: {"wear": round(max(0.2, 1 - (stint / 1500) * 0.7), 3),
                               "tempC": round(82 + random.random() * 12, 0),
                               "pressKpa": round(165 + random.random() * 8, 0)}
@@ -166,6 +171,7 @@ class RF2Source:
                 "bestSec": round(float(getattr(v, "mBestLapTime", -1.0)), 3),
                 "gapSec": round(float(getattr(v, "mTimeBehindLeader", 0.0)), 1),
                 "inPits": bool(getattr(v, "mInPits", 0)),
+                "pitStops": int(getattr(v, "mNumPitstops", 0)),
                 "isPlayer": is_player,
             })
         field.sort(key=lambda r: r["pos"] if r["pos"] > 0 else 999)
@@ -183,6 +189,10 @@ class RF2Source:
             own = {
                 "fuel": round(float(getattr(pt, "mFuel", 0.0)), 1),
                 "fuelCapacity": round(float(getattr(pt, "mFuelCapacity", 0.0)), 1) or None,
+                "tyreCompound": {
+                    "front": _s(getattr(pt, "mFrontTireCompoundName", b"")) or None,
+                    "rear": _s(getattr(pt, "mRearTireCompoundName", b"")) or None,
+                },
                 "tyres": self._wheels(pt),
             }
             if player_scor is not None:
@@ -195,6 +205,7 @@ class RF2Source:
                     "s2": round(float(getattr(player_scor, "mCurSector2", -1.0)), 3),
                     "lapsDone": int(getattr(player_scor, "mTotalLaps", 0)),
                     "inPits": bool(getattr(player_scor, "mInPits", 0)),
+                    "pitStops": int(getattr(player_scor, "mNumPitstops", 0)),
                 })
 
         return {"session": session, "own": own, "field": field}
