@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.20",
+    date: "2026-07-30",
+    tr: [
+      "🌡 Kendi Araç kartında lastik ısısı '-273°' ve basınç '0 KPA' hatası düzeltildi — oyun değeri doldurmadığında (garajda/pitte) artık '—' gösteriliyor; araç piste çıkınca gerçek ısı/basınç geliyor",
+      "🎯 Kendi Araç yakıt/lastik/bileşim verisi artık oyuncunun aracıyla mID üzerinden kesin eşleşiyor (önceden nadiren lider aracın verisine düşebiliyordu)",
+    ],
+    en: [
+      "🌡 Fixed tyre temperature showing '-273°' and pressure '0 KPA' on the Own Car card — when the game doesn't provide a value (in garage/pit) it now shows '—'; real temperature/pressure appears once the car is on track",
+      "🎯 Own Car fuel/tyre/compound data is now matched to your own car precisely via mID (previously it could rarely fall back to the leader's car data)",
+    ],
+  },
+  {
     v: "v1.4.19",
     date: "2026-07-30",
     tr: [

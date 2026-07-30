@@ -143,18 +143,32 @@ class RF2Source:
             pass
 
     @staticmethod
-    def _wheels(tele):
+    def _tyre_c(w):
+        """Lastik yüzey sıcaklığı → °C. rF2 alanları Kelvin; oyun doldurmadıysa 0
+        gelir (0 K → -273°C saçmalığı). Makul (K > 200 ≈ -73°C) değeri C'ye çevir;
+        birincil boşsa taşıyıcı/iç katman alanlarını dene; hiçbiri makul değilse None."""
+        for field in ("mTemperature", "mTireInnerLayerTemperature"):
+            vals = [float(t) for t in getattr(w, field, []) or []]
+            vals = [v for v in vals if v > 200]        # 0/başlatılmamış'ı ele
+            if vals:
+                return round(sum(vals) / len(vals) - 273.15, 0)
+        carc = float(getattr(w, "mTireCarcassTemperature", 0.0) or 0.0)
+        if carc > 200:
+            return round(carc - 273.15, 0)
+        return None
+
+    @classmethod
+    def _wheels(cls, tele):
         out = {}
         keys = ("fl", "fr", "rl", "rr")
         for i, k in enumerate(keys):
             try:
                 w = tele.mWheels[i]
-                temps = [t for t in getattr(w, "mTemperature", [])]
-                tc = (sum(temps) / len(temps) - 273.15) if temps else None
+                press = float(getattr(w, "mPressure", 0.0) or 0.0)
                 out[k] = {
                     "wear": round(float(getattr(w, "mWear", 0.0)), 3),
-                    "tempC": round(tc, 0) if tc is not None else None,
-                    "pressKpa": round(float(getattr(w, "mPressure", 0.0)), 0),
+                    "tempC": cls._tyre_c(w),
+                    "pressKpa": round(press, 0) if press > 0 else None,
                 }
             except Exception:
                 out[k] = {}
@@ -242,14 +256,17 @@ class RF2Source:
         field.sort(key=lambda r: r["pos"] if r["pos"] > 0 else 999)
 
         # kendi araç (player telemetry + scoring)
+        # Telemetriyi oyuncunun mID'siyle eşle (en güvenilir); yoksa telemetride
+        # mIsPlayer ara. mVehicles[0]'a DÜŞME — o lider araç olur, yanlış veri verir.
         own = None
         pt = None
-        for i in range(min(num, len(tele.mVehicles))):
-            if bool(getattr(tele.mVehicles[i], "mIsPlayer", 0)):
-                pt = tele.mVehicles[i]
-                break
-        if pt is None and len(tele.mVehicles):
-            pt = tele.mVehicles[0]
+        if player_scor is not None:
+            pt = tele_by_id.get(int(getattr(player_scor, "mID", -2)))
+        if pt is None:
+            for i in range(min(num, len(tele.mVehicles))):
+                if bool(getattr(tele.mVehicles[i], "mIsPlayer", 0)):
+                    pt = tele.mVehicles[i]
+                    break
         if pt is not None:
             own = {
                 "fuel": round(float(getattr(pt, "mFuel", 0.0)), 1),
