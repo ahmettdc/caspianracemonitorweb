@@ -5,6 +5,13 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.18",
+    date: "2026-07-30",
+    tr: [
+      "🐛 Masaüstü köprü gerçek oyun modunda 'No module named pyRfactor2SharedMemory' hatası düzeltildi — paylaşımlı bellek okuyucu artık uygulamaya gömülü geliyor (eskiden derlemede güvenilmez şekilde kuruluyordu). Oyun açıkken Başlat artık gerçek veriyi okur",
+    ],
+  },
+  {
     v: "v1.4.17",
     date: "2026-07-30",
     tr: [
