@@ -133,6 +133,8 @@ function LapsModal({ t, tid, rid, row, onClose }) {
 function OwnCar({ t, own, liveFuelObs }) {
   const cap = own.fuelCapacity > 0 ? own.fuelCapacity : 0;
   const frac = cap ? Math.max(0, Math.min(1, own.fuel / cap)) : 0;
+  const veFrac = own.virtualEnergy != null
+    ? Math.max(0, Math.min(1, own.virtualEnergy / 100)) : 0;
   const corners = [["FL", "fl"], ["FR", "fr"], ["RL", "rl"], ["RR", "rr"]];
   const ty = own.tyres || {};
   // Mevcut yakıtla ~kaç tur kaldığı — App'in canlı öğrenicisinden (litre/tur).
@@ -153,9 +155,16 @@ function OwnCar({ t, own, liveFuelObs }) {
         {own.inPits && <span className="chip"
           style={{ color: "var(--yellow)", borderColor: "var(--yellow)", fontSize: 11 }}>PIT</span>}
       </h2>
-      <div style={{ display: "flex", gap: 18, flexWrap: "wrap", alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
+        {/* VE (Sanal Enerji) yakıttan önemli → önce ve daha büyük, yeşil */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-          <Ring value={frac} size={92} thickness={9} fs={22} color="var(--green)"
+          <Ring value={veFrac} size={104} thickness={11} fs={26} color="var(--green)"
+            big={own.virtualEnergy != null ? `${Math.round(own.virtualEnergy)}%` : "—"} />
+          <div className="l" style={{ color: "var(--dim)", fontSize: 11 }}>VE ({t("Sanal Enerji")})</div>
+        </div>
+        {/* Yakıt → sarı, biraz küçük */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+          <Ring value={frac} size={84} thickness={9} fs={20} color="var(--yellow)"
             big={cap ? `${Math.round(frac * 100)}%` : "—"} />
           <div className="l" style={{ color: "var(--dim)", fontSize: 11 }}>
             {t("Yakıt")} {own.fuel != null ? `${own.fuel.toFixed(1)} L` : "—"}
@@ -168,9 +177,6 @@ function OwnCar({ t, own, liveFuelObs }) {
         <div className="kpis" style={{ flex: 1, minWidth: 220, marginBottom: 0 }}>
           <div className="kpi"><div className="v">{own.position || "—"}</div>
             <div className="l">{t("Pozisyon")}</div></div>
-          <div className="kpi"><div className="v" style={{ color: veColor(own.virtualEnergy) }}>
-            {own.virtualEnergy != null ? `${Math.round(own.virtualEnergy)}%` : "—"}</div>
-            <div className="l">NRG</div></div>
           <div className="kpi"><div className="v mono">
             {own.curLapSec > 0 ? fmtLap(own.curLapSec) : "—"}</div>
             <div className="l">{t("Mevcut Tur")}</div></div>
@@ -422,7 +428,7 @@ export default function LiveTab({ t, live, bridge, canEdit, liveFuelObs, tid, ri
                   {showTeam ? t("Takım") : t("Pilot")}</button></th>
                 <th>{t("Sınıf")}</th><th>{t("Tur")}</th>
                 <th>{t("Son")}</th><th>{t("En İyi")}</th><th>AVG5</th><th>AVG</th>
-                <th>NRG</th>
+                <th>VE</th>
                 <th>Δ</th><th>Gap</th><th>{t("Aralık")}</th><th>{t("Konum")}</th>
                 <th>Stint</th><th>{t("Lastik")}</th><th>{t("Hasar")}</th><th>Pit</th>
                 <th aria-label={t("Turlar")}></th>
