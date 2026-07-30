@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.28",
+    date: "2026-07-30",
+    tr: [
+      "🏁 Takım adları düzeltildi: artık 'grup 13' yerine gerçek takım adı gösteriliyor. Marka logoları ve araç numarası (#34) da eklendi — hepsi LMU araç kataloğundan (getAllVehicles) çekilip canlı araçlarla eşleniyor",
+      "ℹ️ Not: Virtual Energy (NRG) bu katalogda yok; canlı VE için ayrı bir çalışma sürüyor",
+    ],
+    en: [
+      "🏁 Fixed team names: real team name now shows instead of 'group 13'. Brand logos and car number (#34) added too — all pulled from the LMU car catalog (getAllVehicles) and matched to live cars",
+      "ℹ️ Note: Virtual Energy (NRG) isn't in this catalog; live VE is a separate work in progress",
+    ],
+  },
+  {
     v: "v1.4.27",
     date: "2026-07-30",
     tr: [

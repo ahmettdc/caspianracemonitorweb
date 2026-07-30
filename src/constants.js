@@ -3,7 +3,7 @@
 export const SLOT_COLORS = { A: "#40D68C", B: "#F0604D", C: "#F2A33C", D: "#6694FF" };
 
 /* ---------- pist & araç seçimi ---------- */
-export const APP_VERSION = "v1.4.27";   // tek kaynak — sürüm yazısı buradan
+export const APP_VERSION = "v1.4.28";   // tek kaynak — sürüm yazısı buradan
 export const REPO_URL = "https://github.com/ahmettdc/caspianracemonitorweb";
 export const SEEN_VER_KEY = "rm_seen_version";
 export const ASSET = import.meta.env.BASE_URL + "assets/";
@@ -148,6 +148,13 @@ export const brandKey = (vehicleName) => {
 export const brandLogo = (vehicleName) => {
   const k = brandKey(vehicleName);
   return k ? `${ASSET}brands/${k}.png` : "";
+};
+/* LMU katalog manufacturer alanı ("Cadillac", "Mercedes-AMG", "Chevrolet"…) →
+   logo dosya anahtarı. Birkaç alias (chevrolet→corvette). */
+const MANUF_ALIAS = { chevrolet: "corvette", vandervell: "vanwall", chevy: "corvette" };
+export const manufacturerKey = (manufacturer) => {
+  const k = String(manufacturer || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  return k ? (MANUF_ALIAS[k] || k) : "";
 };
 export const trackName = (id) => TRACKS.find((t) => t.id === id)?.name || "";
 export const carName = (cls, id) => CARS[cls]?.find((c) => c.id === id)?.name || "";

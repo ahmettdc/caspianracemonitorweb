@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { fmtLap, fmtHMS } from "../engine";
 import { Ring } from "../components";
-import { DESKTOP_RELEASE_URL, ASSET, classId, classAccent, brandLogo } from "../constants";
+import { DESKTOP_RELEASE_URL, ASSET, classId, classAccent, brandKey, manufacturerKey } from "../constants";
 import { isTauri } from "../tauriEnv";
 import { liveLapsSubscribe } from "../storage";
 import TrackMap from "./TrackMap";
@@ -50,15 +50,21 @@ function ClassBadge({ raw }) {
   return <span className="chip" style={{ fontSize: 10 }}>{raw || "—"}</span>;
 }
 
-/* Araç markası logosu (assets/brands/<key>.png) — vehicleName'den türetilir.
-   Logo yoksa/yüklenmezse hiçbir şey göstermez. */
-function Brand({ vehicleName }) {
-  const [err, setErr] = useState(false);
-  const url = brandLogo(vehicleName);
-  if (!url || err) return null;
-  return <img src={url} alt="" title={vehicleName || ""}
+/* Araç markası logosu (assets/brands/<key>.png). Önce LMU katalog manufacturer'ı
+   (temiz: "Cadillac"), yoksa vehicleName parser'ı denenir; dosya yoksa gizlenir. */
+function Brand({ manufacturer, vehicleName }) {
+  const [i, setI] = useState(0);
+  const cands = [];
+  const mk = manufacturerKey(manufacturer);
+  if (mk) cands.push(`${ASSET}brands/${mk}.png`);
+  const vk = brandKey(vehicleName);
+  const vUrl = vk ? `${ASSET}brands/${vk}.png` : "";
+  if (vUrl && !cands.includes(vUrl)) cands.push(vUrl);
+  const url = cands[i];
+  if (!url) return null;
+  return <img src={url} alt="" title={manufacturer || vehicleName || ""}
     style={{ height: 16, width: 16, objectFit: "contain", verticalAlign: "middle",
-      marginRight: 6 }} onError={() => setErr(true)} />;
+      marginRight: 6 }} onError={() => setI((x) => x + 1)} />;
 }
 
 /* Bir aracın tüm yarış boyunca attığı turların zaman listesi (satırdaki "+" ile açılır).
@@ -436,7 +442,9 @@ export default function LiveTab({ t, live, bridge, canEdit, liveFuelObs, tid, ri
                           style={{ color: "var(--red)", fontSize: 10, marginLeft: 3 }}>▼</span>}
                       </td>
                       <td style={{ fontFamily: "'Inter',system-ui,sans-serif", whiteSpace: "nowrap" }}>
-                        <Brand vehicleName={c.vehicleName} />
+                        <Brand manufacturer={c.manufacturer} vehicleName={c.vehicleName} />
+                        {c.number != null && <span style={{ color: "var(--dim)", fontSize: 11,
+                          marginRight: 5 }}>#{c.number}</span>}
                         {showTeam ? (c.team || c.driver || "—") : (c.driver || "—")}</td>
                       <td style={{ whiteSpace: "nowrap" }}>
                         <ClassBadge raw={c.carClass} />

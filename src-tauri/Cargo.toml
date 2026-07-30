@@ -1,6 +1,6 @@
 [package]
 name = "caspian-race-monitor"
-version = "1.4.27"
+version = "1.4.28"
 description = "Caspian Race Monitor — LMU pit-wall stratejı arayüzü (masaüstü kabuğu)"
 authors = ["Caspian Motorsport"]
 license = ""
