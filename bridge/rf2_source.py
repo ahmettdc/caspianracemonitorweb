@@ -385,32 +385,36 @@ class RF2Source:
         # sürücü adıyla eşlenir. REST kapalı/farklıysa sessizce atlanır.
         if getattr(self, "lmu", None) is not None:
             try:
-                by_driver, own_ve = self.lmu.fetch()
+                by_driver, own_ve = self.lmu.standings()
             except Exception:
                 by_driver, own_ve = {}, None
+
+            def _apply(rec, drv):
+                # canlı standings: VE + gerçek takım (oyuncu/custom dahil) + numara
+                st = by_driver.get(str(drv or "").strip().lower()) or {}
+                if st.get("ve") is not None:
+                    rec["virtualEnergy"] = st["ve"]
+                if st.get("team"):
+                    rec["team"] = st["team"]
+                if st.get("number"):
+                    rec["number"] = st["number"]
+                # marka: araç kataloğundan (vehicleName ile); takım/numara yedek
+                cat = self.lmu.lookup(rec.get("vehicleName"), drv)
+                if cat.get("manufacturer"):
+                    rec["manufacturer"] = cat["manufacturer"]
+                if not rec.get("team") and cat.get("team"):
+                    rec["team"] = cat["team"]
+                if rec.get("number") is None and cat.get("number") is not None:
+                    rec["number"] = str(cat["number"])
+
             for r in field:
-                ve = by_driver.get(str(r.get("driver") or "").strip().lower())
-                if ve is not None:
-                    r["virtualEnergy"] = ve
-                # katalog: temiz takım + marka + numara (mPitGroup "grup 13" yerine)
-                info = self.lmu.lookup(r.get("vehicleName"), r.get("driver"))
-                if info.get("team"):
-                    r["team"] = info["team"]
-                if info.get("manufacturer"):
-                    r["manufacturer"] = info["manufacturer"]
-                if info.get("number") is not None:
-                    r["number"] = info["number"]
+                _apply(r, r.get("driver"))
             if own is not None:
-                pdrv = _s(getattr(player_scor, "mDriverName", b"")).strip().lower() \
+                pdrv = _s(getattr(player_scor, "mDriverName", b"")) \
                     if player_scor is not None else ""
-                own["virtualEnergy"] = own_ve if own_ve is not None else by_driver.get(pdrv)
-                oi = self.lmu.lookup(own.get("vehicleName"), pdrv)
-                if oi.get("team"):
-                    own["team"] = oi["team"]
-                if oi.get("manufacturer"):
-                    own["manufacturer"] = oi["manufacturer"]
-                if oi.get("number") is not None:
-                    own["number"] = oi["number"]
+                _apply(own, pdrv)
+                if own.get("virtualEnergy") is None and own_ve is not None:
+                    own["virtualEnergy"] = own_ve
 
         return {"session": session, "own": own, "field": field}
 
