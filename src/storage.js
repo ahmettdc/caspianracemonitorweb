@@ -400,3 +400,22 @@ export function liveLapsSubscribe(tid, rid, lapKey, cb) {
     (s) => cb(s.exists() ? s.val() : null),
     (err) => { console.warn("livelaps read failed:", err?.message); cb(null); });
 }
+
+/* ---- kalıcı pozisyon geçmişi (livepos) — pozisyon-tur grafiği ----
+   teams/{tid}/livepos/{rid}/{lapKey}/{n} = pozisyon (o tur pit atıldıysa NEGATİF,
+   |değer| = pozisyon). livelaps ile aynı desen; tur başına bir kez yazılır. */
+export async function livePosAppend(tid, rid, entries) {
+  if (!db || !tid || !rid || !entries) return;
+  await update(ref(db, `teams/${tid}/livepos/${rid}`), entries);
+}
+export async function livePosClear(tid, rid, lapKey) {
+  if (!db || !tid || !rid || !lapKey) return;
+  await set(ref(db, `teams/${tid}/livepos/${rid}/${lapKey}`), null);
+}
+/* Tüm sahanın pozisyon geçmişini dinle (grafik). cb({lapKey: {n: pos}}) alır. */
+export function livePosSubscribe(tid, rid, cb) {
+  if (!db || !tid || !rid) { cb(null); return () => {}; }
+  return onValue(ref(db, `teams/${tid}/livepos/${rid}`),
+    (s) => cb(s.exists() ? s.val() : null),
+    (err) => { console.warn("livepos read failed:", err?.message); cb(null); });
+}
