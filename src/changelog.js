@@ -5,6 +5,13 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.7",
+    date: "2026-07-30",
+    tr: [
+      "🛠 Masaüstünde 'Canlı Köprü Başlat' hatası düzeltildi (Command plugin:shell|spawn not allowed by ACL) — köprü izni eksikti, eklendi. Artık mock test ve gerçek canlı köprü başlıyor",
+    ],
+  },
+  {
     v: "v1.4.6",
     date: "2026-07-30",
     tr: [
