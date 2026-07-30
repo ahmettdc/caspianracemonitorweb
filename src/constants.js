@@ -3,7 +3,7 @@
 export const SLOT_COLORS = { A: "#40D68C", B: "#F0604D", C: "#F2A33C", D: "#6694FF" };
 
 /* ---------- pist & araç seçimi ---------- */
-export const APP_VERSION = "v1.4.8";   // tek kaynak — sürüm yazısı buradan
+export const APP_VERSION = "v1.4.9";   // tek kaynak — sürüm yazısı buradan
 export const REPO_URL = "https://github.com/ahmettdc/caspianracemonitorweb";
 export const SEEN_VER_KEY = "rm_seen_version";
 export const ASSET = import.meta.env.BASE_URL + "assets/";
@@ -103,6 +103,25 @@ export const CAR_CLASSES = [
   ["hypercar", "Hypercar"], ["lmp2", "LMP2"], ["lmp3", "LMP3"],
   ["gte", "GTE"], ["gt3", "GT3"],
 ];
+/* Yarış sınıfı → renk (LMU/WEC dili) — canlı timing sınıf çipleri renksiz kalmasın.
+   Oyunun ham sınıf metni (Hypercar / LMGT3 / LMP2 …) normalize edilip eşlenir. */
+export const CLASS_COLORS = {
+  hypercar: "#FF4D5E",  // kırmızı — Hypercar (LMH/LMDh)
+  lmp2: "#4C9AFF",      // mavi — LMP2
+  lmp3: "#B58BFF",      // mor — LMP3
+  gte: "#F5B23D",       // amber — GTE
+  gt3: "#37D67A",       // yeşil — LMGT3 / GT3
+};
+export const classColor = (raw) => {
+  const s = String(raw || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (!s) return "";
+  if (s.includes("hyper") || s.includes("lmh") || s.includes("lmdh")) return CLASS_COLORS.hypercar;
+  if (s.includes("lmp2")) return CLASS_COLORS.lmp2;
+  if (s.includes("lmp3")) return CLASS_COLORS.lmp3;
+  if (s.includes("gte")) return CLASS_COLORS.gte;
+  if (s.includes("gt3")) return CLASS_COLORS.gt3;   // lmgt3 dahil
+  return "";
+};
 export const trackName = (id) => TRACKS.find((t) => t.id === id)?.name || "";
 export const carName = (cls, id) => CARS[cls]?.find((c) => c.id === id)?.name || "";
 /* araç görseli: dosya adı id'den farklıysa CARS girişindeki img alanı kullanılır */
