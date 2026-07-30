@@ -78,6 +78,25 @@ npm run tauri build   # Yerel .exe/.msi üretir (Windows'ta)
 `windows-latest`'te derler, imzalar, GitHub Release'e yükler
 (`desktop-v<versiyon>` etiketi + `latest.json` — updater bunu okur).
 
+**Masaüstünde Google girişi — sistem tarayıcısı + loopback (OAuth).**
+Gömülü WebView2, Firebase'in popup/redirect akışlarını taşıyamaz (Google gömülü
+tarayıcılarda OAuth'u da engeller). Bu yüzden masaüstünde giriş, kullanıcının
+**varsayılan sistem tarayıcısında** açılır ve geçici bir yerel loopback ile geri
+alınır (authorization code + PKCE, `src/tauriGoogleAuth.js` + `src-tauri` komutları).
+Tek seferlik kurulum:
+1. **Google Cloud Console → APIs & Services → Credentials → Create credentials →
+   OAuth client ID → Application type: _Desktop app_** (Firebase ile aynı proje:
+   `caspian-race-control`). Çıkan **Client ID** ve **Client secret**'ı kopyala.
+   (Desktop istemci secret'ı Google tarafında gizli kabul edilmez; yine de public
+   repoya yazılmaz — GitHub Secrets'tan derleme zamanı enjekte edilir.)
+2. GitHub repo → **Settings → Secrets and variables → Actions** ile iki secret ekle:
+   - `VITE_GOOGLE_OAUTH_CLIENT_ID` = Desktop istemcinin Client ID'si
+   - `GOOGLE_OAUTH_CLIENT_SECRET` = Desktop istemcinin Client secret'ı
+
+   > Loopback redirect (`http://127.0.0.1:<port>`) Desktop istemcilerde otomatik
+   > izinlidir — ayrıca redirect URI eklemeye gerek yok. `tauri.localhost`'u
+   > Firebase Authorized domains'e eklemek bu akış için **gerekmez**.
+
 **İmzalama anahtarı — public key zaten gömülü.** Bir anahtar çifti üretilip
 public kısmı `src-tauri/tauri.conf.json` → `plugins.updater.pubkey` alanına
 yazıldı. **Tek eksik adım — private key'i GitHub Secrets'a eklemek:**

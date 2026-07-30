@@ -1394,11 +1394,16 @@ ${bottomBar}
     setAuthErr(""); setAuthMode(mode);
     try { await signInGoogle(); }
     catch (e) {
-      setAuthErr(e?.message === "POPUP_BLOCKED"
+      const em = e?.message || String(e);
+      setAuthErr(em === "POPUP_BLOCKED"
         ? t("Tarayıcı açılır pencereyi engelledi. Bu site için açılır pencerelere izin verip tekrar deneyin.")
-        : e?.message === "UNAUTHORIZED_DOMAIN"
-        ? t("Firebase 'Authorized domains' listesine tauri.localhost eklenmemiş — Console → Authentication → Settings'ten ekleyin.")
-        : (e?.message || String(e)));
+        : em === "OAUTH_CLIENT_MISSING"
+        ? t("Masaüstü Google girişi yapılandırılmamış (VITE_GOOGLE_OAUTH_CLIENT_ID eksik). Yeni sürümü bekleyin.")
+        : em === "OAUTH_TIMEOUT"
+        ? t("Giriş zaman aşımına uğradı. Tarayıcıda açılan Google penceresinde giriş yapıp tekrar deneyin.")
+        : isTauri
+        ? t("Giriş tamamlanamadı — tarayıcıda açılan Google penceresinde giriş yapın. Sorun sürerse:") + " " + em
+        : em);
     }
   };
   /* ---- sürüm notları penceresi ---- */
