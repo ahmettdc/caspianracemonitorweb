@@ -10,14 +10,19 @@
 Şema (web LiveTab ile birebir):
   session: {phase, flag, timeLeftSec, totalLaps, trackTemp, ambientTemp, raining}
   own:     {fuel, fuelCapacity, position, lastLapSec, bestLapSec, curLapSec,
-            s1, s2, lapsDone, inPits, pitStops, tyreCompound:{front,rear},
-            tyres:{fl,fr,rl,rr:{wear,tempC,pressKpa}}}
-  field[]: {pos, driver, carClass, lapsDone, lastSec, bestSec, gapSec, inPits,
-            pitStops, isPlayer}
+            s1, s2, lapsDone, inPits, pitStops, location, damage, avg5Sec, avgSec,
+            stintSec, tyreCompound:{front,rear}, tyres:{fl,fr,rl,rr:{wear,tempC,pressKpa}}}
+  field[]: {pos, driver, carClass, lapsDone, lastSec, bestSec, gapSec, intervalSec,
+            inPits, location, pitStops, tyreWear, damage, avg5Sec, avgSec, stintSec,
+            isPlayer}
+
+avg5Sec/avgSec/stintSec Aggregator (durumlu sarmalayıcı) tarafından türetilir;
+RF2Source/MockSource tek-kare okur, Aggregator kare kare geçmiş biriktirir.
 """
 import math
 import random
 import time
+from collections import deque
 
 _PHASE = {
     0: "Garaj", 1: "Isınma", 2: "Grid", 3: "Formasyon", 4: "Geri Sayım",
@@ -254,3 +259,70 @@ class RF2Source:
                 })
 
         return {"session": session, "own": own, "field": field}
+
+
+# ----------------------------------------------------------------------------
+class Aggregator:
+    """İç kaynağı (Mock/RF2) sarar; kare kare tur geçmişi + stint durumu tutar,
+    her field satırına ve own'a avg5Sec / avgSec / stintSec ekler.
+    Anahtar = sürücü adı. Köprü yeniden başlarsa geçmiş sıfırlanır."""
+
+    def __init__(self, inner):
+        self.inner = inner
+        self.hist = {}          # sürücü → deque(son ~30 geçerli lastSec)
+        self.prev_laps = {}     # sürücü → son görülen lapsDone
+        self.prev_pits = {}     # sürücü → son görülen inPits
+        self.stint_start = {}   # sürücü → stint başlangıcı (time.time())
+
+    def close(self):
+        if hasattr(self.inner, "close"):
+            self.inner.close()
+
+    @staticmethod
+    def _valid_lap(last, best):
+        if not (last and last > 20):
+            return False           # geçersiz/çok kısa
+        if best and best > 0 and last > best * 1.10:
+            return False           # out-lap / pit turu → ortalamayı bozma
+        return True
+
+    def read(self):
+        data = self.inner.read()
+        now = time.time()
+        field = data.get("field") or []
+        for r in field:
+            key = r.get("driver") or f"#{r.get('pos')}"
+            laps = int(r.get("lapsDone") or 0)
+            last = float(r.get("lastSec") or 0)
+            best = float(r.get("bestSec") or 0)
+            in_pits = bool(r.get("inPits"))
+
+            first = key not in self.prev_laps
+            if first or laps < self.prev_laps.get(key, laps):   # ilk görüş / yeni seans
+                self.hist[key] = deque(maxlen=30)
+                self.stint_start[key] = now
+                self.prev_pits[key] = in_pits
+                self.prev_laps[key] = laps
+            elif laps > self.prev_laps[key]:                     # tur tamamlandı
+                if self._valid_lap(last, best):
+                    self.hist[key].append(round(last, 3))
+                self.prev_laps[key] = laps
+
+            # stint: pit çıkışı (True→False) → süreyi sıfırla
+            if self.prev_pits.get(key) and not in_pits:
+                self.stint_start[key] = now
+            self.prev_pits[key] = in_pits
+
+            h = list(self.hist.get(key, ()))
+            last5 = h[-5:]
+            r["avg5Sec"] = round(sum(last5) / len(last5), 3) if last5 else None
+            r["avgSec"] = round(sum(h) / len(h), 3) if h else None
+            r["stintSec"] = int(now - self.stint_start.get(key, now))
+
+        own = data.get("own")
+        if own is not None:
+            me = next((r for r in field if r.get("isPlayer")), None)
+            if me is not None:
+                for k in ("avg5Sec", "avgSec", "stintSec"):
+                    own[k] = me.get(k)
+        return data

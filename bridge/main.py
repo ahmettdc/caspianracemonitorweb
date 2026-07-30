@@ -99,13 +99,15 @@ def read_config_or_die(path):
 
 def make_source(mock):
     # Bilgi satırları stderr'e — stdout `--emit` modunda saf JSON kalmalı.
+    # Aggregator sarar: kare kare tur geçmişi → avg5Sec/avgSec/stintSec.
+    from rf2_source import Aggregator
     if mock:
         from rf2_source import MockSource
         print("[kaynak] MOCK — sahte veri (oyun okunmuyor)", file=sys.stderr)
-        return MockSource()
+        return Aggregator(MockSource())
     from rf2_source import RF2Source
     print("[kaynak] rFactor2/LMU paylaşımlı bellek", file=sys.stderr)
-    return RF2Source()
+    return Aggregator(RF2Source())
 
 
 def build_payload(src, by):

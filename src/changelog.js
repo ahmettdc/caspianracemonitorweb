@@ -5,6 +5,14 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.14",
+    date: "2026-07-30",
+    tr: [
+      "⏱ Canlı Timing'e AVG 5 (son 5 turun ortalaması), AVG (genel tur ortalaması) ve Stint (mevcut stint süresi) eklendi — hem saha tablosunda hem Kendi Araç kartında",
+      "🧮 Bu üç değer köprüde (oyunun PC'sinde) tur-tur biriktirilerek hesaplanır → tüm takım için tutarlı; web geç açılsa/yenilense de doğru gelir. Out-lap ve pit turları ortalamadan elenir; stint süresi pit çıkışında sıfırlanır",
+    ],
+  },
+  {
     v: "v1.4.13",
     date: "2026-07-30",
     tr: [
