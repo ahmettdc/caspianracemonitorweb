@@ -30,6 +30,12 @@ def _get(path, timeout=0.5):
         return None
 
 
+def _norm(s):
+    """Eşleme için: küçük harf + yalnız harf/rakam (ör. 'Action Express #311:LM' →
+    'actionexpress311lm'). vehicleName ↔ katalog desc/vehicle eşlemesinde kullanılır."""
+    return re.sub(r"[^a-z0-9]", "", str(s or "").lower())
+
+
 def _find(d, rx):
     """dict içinde adı rx ile eşleşen ilk (anahtar, değer) — sığ arama."""
     if isinstance(d, dict):
@@ -64,6 +70,68 @@ class LmuApi:
         self.last = 0.0
         self.cache = ({}, None)     # (by_driver, own_ve)
         self.diag_done = False
+        self.catalog = None         # (by_key, by_driver) — statik araç kataloğu
+        self.catalog_at = 0.0
+        self.catalog_diag = False
+
+    def _load_catalog(self):
+        """/rest/sessions/getAllVehicles = statik araç kataloğu (tüm liveryler): temiz
+        team + manufacturer + number. Bir kez çekip önbelleğe alır (~60 sn). Lookup
+        haritaları: normalize(desc/vehicle/id) ve her sürücü adı → {team,manufacturer,number}."""
+        now = time.time()
+        if self.catalog is not None and now - self.catalog_at < 60:
+            return
+        self.catalog_at = now
+        data = _get("/rest/sessions/getAllVehicles", timeout=3.0)
+        by_key, by_drv = {}, {}
+        if isinstance(data, list):
+            for c in data:
+                if not isinstance(c, dict):
+                    continue
+                info = {
+                    "team": str(c.get("team") or c.get("fullTeam") or "").strip(),
+                    "manufacturer": str(c.get("manufacturer") or "").strip(),
+                    "number": c.get("number"),
+                }
+                if not (info["team"] or info["manufacturer"]):
+                    continue
+                for k in ("desc", "vehicle", "id"):
+                    v = _norm(c.get(k))
+                    if v:
+                        by_key[v] = info
+                for d in (c.get("drivers") or []):
+                    nm = d.get("name") if isinstance(d, dict) else None
+                    if nm:
+                        by_drv[str(nm).strip().lower()] = info
+        self.catalog = (by_key, by_drv)
+        if not self.catalog_diag:
+            self.catalog_diag = True
+            import sys
+            n = len(data) if isinstance(data, list) else 0
+            print(f"[LMU katalog] getAllVehicles: {n} araç, eşleme anahtarı={len(by_key)}, "
+                  f"sürücü={len(by_drv)}", file=sys.stderr)
+
+    def lookup(self, vehicle_name, driver):
+        """Canlı aracı katalogla eşle → {team, manufacturer, number} (yoksa {})."""
+        try:
+            self._load_catalog()
+        except Exception:
+            return {}
+        if not self.catalog:
+            return {}
+        by_key, by_drv = self.catalog
+        vn = _norm(vehicle_name)
+        if vn and vn in by_key:
+            return by_key[vn]
+        dn = str(driver or "").strip().lower()
+        if dn and dn in by_drv:
+            return by_drv[dn]
+        # kısmi: vehicleName bir katalog anahtarını içeriyor/önekliyor (sürüm eki vb.)
+        if vn and len(vn) >= 6:
+            for k, info in by_key.items():
+                if k and (vn.startswith(k) or k.startswith(vn) or k in vn):
+                    return info
+        return {}
 
     def _pick_list(self, data):
         """Yanıttan araç listesini çıkar (doğrudan liste ya da içindeki bir liste alanı)."""

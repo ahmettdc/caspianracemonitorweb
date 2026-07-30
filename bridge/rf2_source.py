@@ -15,11 +15,12 @@
             avgSec, stintSec, tyreCompound:{front,rear},
             tyres:{fl,fr,rl,rr:{wear,tempC,pressKpa}}}
   (virtualEnergy = LMU REST API'den; paylaşımlı bellekte yok. REST kapalıysa gelmez.)
-  field[]: {pos, driver, team, vehicleName, carClass, lapsDone, lapDist, posX, posZ,
-            lastSec, bestSec, gapSec, intervalSec, inPits, location, pitStops, tyreWear,
-            damage, virtualEnergy, avg5Sec, avgSec, stintSec, laps, lapsFrom, lapKey,
-            isPlayer}
-  (team = mPitGroup (takım adı); vehicleName = araç modeli → marka logosu;
+  field[]: {pos, driver, vehicleName, team, manufacturer, number, carClass, lapsDone,
+            lapDist, posX, posZ, lastSec, bestSec, gapSec, intervalSec, inPits, location,
+            pitStops, tyreWear, damage, virtualEnergy, avg5Sec, avgSec, stintSec, laps,
+            lapsFrom, lapKey, isPlayer}
+  (team/manufacturer/number = LMU araç kataloğundan (getAllVehicles) vehicleName/sürücü
+   ile eşlenir — mPitGroup takım adı değil pit-grup no. manufacturer → marka logosu.
    session.sessionType = Antrenman/Sıralama/Yarış…)
   (lapDist/posX/posZ + session.trackLength = trackmap: dış boşluk halkası
    lapDist/trackLength ile, iç pist şekli dünya posX/posZ ile çizilir.)
@@ -112,6 +113,15 @@ class MockSource:
         z = 500 * math.cos(a) + 180 * math.cos(3 * a)
         return round(x, 1), round(z, 1)
 
+    @staticmethod
+    def _manuf(veh):
+        """Sahte araç adından marka (katalog manufacturer yerine mock için)."""
+        for m in ("Mercedes-AMG", "Aston Martin", "BMW", "Ferrari", "Porsche",
+                  "McLaren", "Corvette", "Lexus", "Ford", "Lamborghini", "Toyota"):
+            if m.split()[0].lower() in veh.lower():
+                return m
+        return ""
+
     def read(self):
         el = time.time() - self.t0
         rows = []
@@ -120,11 +130,11 @@ class MockSource:
             laps = int(el / lap_t)
             frac = (el % lap_t) / lap_t          # tur içi ilerleme 0..1
             px, pz = self._track_xy(frac)
+            veh = self.VEH_HY[i] if i < 3 else self.VEH_GT[(i - 3) % len(self.VEH_GT)]
             rows.append({
                 "pos": 0, "driver": self.NAMES[i],
                 "team": self.TEAMS[i % len(self.TEAMS)],
-                "vehicleName": self.VEH_HY[i] if i < 3
-                else self.VEH_GT[(i - 3) % len(self.VEH_GT)],
+                "vehicleName": veh, "manufacturer": self._manuf(veh), "number": 10 + i,
                 "carClass": self.CLASSES[0] if i < 3 else self.CLASSES[1],
                 "lapsDone": laps, "lastSec": round(lap_t, 3),
                 "bestSec": round(self.base[i], 3),
@@ -160,6 +170,7 @@ class MockSource:
                 "fuel": round(max(2, 78 - (stint / 1500) * 70), 1), "fuelCapacity": 78.0,
                 "virtualEnergy": me["virtualEnergy"],
                 "team": me["team"], "vehicleName": me["vehicleName"],
+                "manufacturer": me["manufacturer"], "number": me["number"],
                 "position": me["pos"], "lastLapSec": me["lastSec"], "bestLapSec": me["bestSec"],
                 "curLapSec": round(stint % me["lastSec"], 1), "s1": round(me["lastSec"] * 0.32, 3),
                 "s2": round(me["lastSec"] * 0.35, 3), "lapsDone": me["lapsDone"],
@@ -314,7 +325,6 @@ class RF2Source:
             field.append({
                 "pos": int(getattr(v, "mPlace", 0)),
                 "driver": _s(getattr(v, "mDriverName", b"")),
-                "team": _s(getattr(v, "mPitGroup", b"")),
                 "vehicleName": _s(getattr(v, "mVehicleName", b"")),
                 "carClass": _s(getattr(v, "mVehicleClass", b"")),
                 "lapsDone": int(getattr(v, "mTotalLaps", 0)),
@@ -358,7 +368,6 @@ class RF2Source:
             }
             if player_scor is not None:
                 own.update({
-                    "team": _s(getattr(player_scor, "mPitGroup", b"")),
                     "vehicleName": _s(getattr(player_scor, "mVehicleName", b"")),
                     "position": int(getattr(player_scor, "mPlace", 0)),
                     "lastLapSec": round(float(getattr(player_scor, "mLastLapTime", -1.0)), 3),
@@ -383,10 +392,25 @@ class RF2Source:
                 ve = by_driver.get(str(r.get("driver") or "").strip().lower())
                 if ve is not None:
                     r["virtualEnergy"] = ve
+                # katalog: temiz takım + marka + numara (mPitGroup "grup 13" yerine)
+                info = self.lmu.lookup(r.get("vehicleName"), r.get("driver"))
+                if info.get("team"):
+                    r["team"] = info["team"]
+                if info.get("manufacturer"):
+                    r["manufacturer"] = info["manufacturer"]
+                if info.get("number") is not None:
+                    r["number"] = info["number"]
             if own is not None:
                 pdrv = _s(getattr(player_scor, "mDriverName", b"")).strip().lower() \
                     if player_scor is not None else ""
                 own["virtualEnergy"] = own_ve if own_ve is not None else by_driver.get(pdrv)
+                oi = self.lmu.lookup(own.get("vehicleName"), pdrv)
+                if oi.get("team"):
+                    own["team"] = oi["team"]
+                if oi.get("manufacturer"):
+                    own["manufacturer"] = oi["manufacturer"]
+                if oi.get("number") is not None:
+                    own["number"] = oi["number"]
 
         return {"session": session, "own": own, "field": field}
 
