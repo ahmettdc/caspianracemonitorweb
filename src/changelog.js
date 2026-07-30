@@ -5,6 +5,22 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.27",
+    date: "2026-07-30",
+    tr: [
+      "🏭 Canlı Timing saha tablosunda araçların marka logoları (pilot adının yanında) — LMU araç modelinden türetilir",
+      "👥 Pilot ↔ Takım geçişi: tablo başlığındaki 'Pilot' yazısına tıkla, sütun takım adına döner (LMU pit grubundan)",
+      "🏁 Seans tipi başlıkta gösteriliyor (Antrenman / Sıralama / Yarış / Isınma)",
+      "↔️ Pist Haritası ve Kendi Araç kartı artık yan yana (geniş ekranda); dar ekranda alt alta",
+    ],
+    en: [
+      "🏭 Brand logos for cars in the Live Timing field table (next to the driver name) — derived from the LMU car model",
+      "👥 Driver ↔ Team toggle: click 'Driver' in the table header to switch the column to team name (from the LMU pit group)",
+      "🏁 Session type shown in the header (Practice / Qualifying / Race / Warmup)",
+      "↔️ Track Map and Own Car card are now side by side (on wide screens); stacked on narrow screens",
+    ],
+  },
+  {
     v: "v1.4.26",
     date: "2026-07-30",
     tr: [

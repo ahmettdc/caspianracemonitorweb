@@ -15,9 +15,12 @@
             avgSec, stintSec, tyreCompound:{front,rear},
             tyres:{fl,fr,rl,rr:{wear,tempC,pressKpa}}}
   (virtualEnergy = LMU REST API'den; paylaşımlı bellekte yok. REST kapalıysa gelmez.)
-  field[]: {pos, driver, carClass, lapsDone, lapDist, posX, posZ, lastSec, bestSec,
-            gapSec, intervalSec, inPits, location, pitStops, tyreWear, damage,
-            avg5Sec, avgSec, stintSec, laps, lapsFrom, lapKey, isPlayer}
+  field[]: {pos, driver, team, vehicleName, carClass, lapsDone, lapDist, posX, posZ,
+            lastSec, bestSec, gapSec, intervalSec, inPits, location, pitStops, tyreWear,
+            damage, virtualEnergy, avg5Sec, avgSec, stintSec, laps, lapsFrom, lapKey,
+            isPlayer}
+  (team = mPitGroup (takım adı); vehicleName = araç modeli → marka logosu;
+   session.sessionType = Antrenman/Sıralama/Yarış…)
   (lapDist/posX/posZ + session.trackLength = trackmap: dış boşluk halkası
    lapDist/trackLength ile, iç pist şekli dünya posX/posZ ile çizilir.)
 
@@ -44,6 +47,21 @@ _PHASE = {
 LAP_LOG_MAX = 50
 
 
+def _session_type(n):
+    """mSession → seans tipi etiketi (0=test,1-4=prova,5-8=qual,9=ısınma,10-13=yarış)."""
+    if n == 0:
+        return "Test"
+    if 1 <= n <= 4:
+        return "Antrenman"
+    if 5 <= n <= 8:
+        return "Sıralama"
+    if n == 9:
+        return "Isınma"
+    if 10 <= n <= 13:
+        return "Yarış"
+    return ""
+
+
 def _s(b):
     """rF2 byte dizisi → temiz string."""
     try:
@@ -68,6 +86,14 @@ class MockSource:
              "B. Şahin", "K. Arslan", "T. Doğan", "R. Koç", "H. Çelik",
              "N. Aksoy", "F. Polat", "L. Ünal", "V. Taş", "D. Ergün"]
     CLASSES = ["Hypercar", "LMGT3"]
+    VEH_HY = ["Toyota GR010 Hybrid", "Ferrari 499P", "Porsche 963"]
+    VEH_GT = ["BMW M4 GT3", "Mercedes-AMG GT3", "Ferrari 296 GT3",
+              "Porsche 911 GT3 R", "McLaren 720S GT3", "Corvette Z06 GT3.R",
+              "Lexus RC F GT3", "Ford Mustang GT3", "Aston Martin Vantage GT3",
+              "Lamborghini Huracan GT3", "McLaren 720S GT3", "Ferrari 296 GT3"]
+    TEAMS = ["Caspian Motorsport", "Iron Lynx", "Team WRT", "Vista AF Corsa",
+             "Manthey", "TF Sport", "Akkodis ASP", "Garage 59", "Proton",
+             "Heart of Racing", "The Bend", "Iron Dames", "AO Racing", "Ginetta"]
 
     def __init__(self, cars=14):
         self.n = min(cars, len(self.NAMES))
@@ -96,6 +122,9 @@ class MockSource:
             px, pz = self._track_xy(frac)
             rows.append({
                 "pos": 0, "driver": self.NAMES[i],
+                "team": self.TEAMS[i % len(self.TEAMS)],
+                "vehicleName": self.VEH_HY[i] if i < 3
+                else self.VEH_GT[(i - 3) % len(self.VEH_GT)],
                 "carClass": self.CLASSES[0] if i < 3 else self.CLASSES[1],
                 "lapsDone": laps, "lastSec": round(lap_t, 3),
                 "bestSec": round(self.base[i], 3),
@@ -125,10 +154,12 @@ class MockSource:
                 "ambientTemp": round(22 + math.sin(el / 400) * 2, 1),
                 "raining": (int(el / 200) % 5) == 4,
                 "trackLength": self.TRACK_LEN,
+                "sessionType": "Antrenman",
             },
             "own": {
                 "fuel": round(max(2, 78 - (stint / 1500) * 70), 1), "fuelCapacity": 78.0,
                 "virtualEnergy": me["virtualEnergy"],
+                "team": me["team"], "vehicleName": me["vehicleName"],
                 "position": me["pos"], "lastLapSec": me["lastSec"], "bestLapSec": me["bestSec"],
                 "curLapSec": round(stint % me["lastSec"], 1), "s1": round(me["lastSec"] * 0.32, 3),
                 "s2": round(me["lastSec"] * 0.35, 3), "lapsDone": me["lapsDone"],
@@ -262,6 +293,7 @@ class RF2Source:
             "raining": float(getattr(info, "mRaining", 0.0)) > 0.1,
             # pist uzunluğu (m) — trackmap dış boşluk halkası için (lapDist/trackLength)
             "trackLength": round(float(getattr(info, "mLapDist", 0.0)), 1) or None,
+            "sessionType": _session_type(int(getattr(info, "mSession", -1))),
         }
 
         # telemetriyi mID ile eşle (saha başına lastik aşınması + hasar için)
@@ -282,6 +314,8 @@ class RF2Source:
             field.append({
                 "pos": int(getattr(v, "mPlace", 0)),
                 "driver": _s(getattr(v, "mDriverName", b"")),
+                "team": _s(getattr(v, "mPitGroup", b"")),
+                "vehicleName": _s(getattr(v, "mVehicleName", b"")),
                 "carClass": _s(getattr(v, "mVehicleClass", b"")),
                 "lapsDone": int(getattr(v, "mTotalLaps", 0)),
                 "lapDist": round(float(getattr(v, "mLapDist", 0.0)), 1),
@@ -324,6 +358,8 @@ class RF2Source:
             }
             if player_scor is not None:
                 own.update({
+                    "team": _s(getattr(player_scor, "mPitGroup", b"")),
+                    "vehicleName": _s(getattr(player_scor, "mVehicleName", b"")),
                     "position": int(getattr(player_scor, "mPlace", 0)),
                     "lastLapSec": round(float(getattr(player_scor, "mLastLapTime", -1.0)), 3),
                     "bestLapSec": round(float(getattr(player_scor, "mBestLapTime", -1.0)), 3),

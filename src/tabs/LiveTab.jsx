@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { fmtLap, fmtHMS } from "../engine";
 import { Ring } from "../components";
-import { DESKTOP_RELEASE_URL, ASSET, classId, classAccent } from "../constants";
+import { DESKTOP_RELEASE_URL, ASSET, classId, classAccent, brandLogo } from "../constants";
 import { isTauri } from "../tauriEnv";
 import { liveLapsSubscribe } from "../storage";
 import TrackMap from "./TrackMap";
@@ -48,6 +48,17 @@ function ClassBadge({ raw }) {
     );
   }
   return <span className="chip" style={{ fontSize: 10 }}>{raw || "—"}</span>;
+}
+
+/* Araç markası logosu (assets/brands/<key>.png) — vehicleName'den türetilir.
+   Logo yoksa/yüklenmezse hiçbir şey göstermez. */
+function Brand({ vehicleName }) {
+  const [err, setErr] = useState(false);
+  const url = brandLogo(vehicleName);
+  if (!url || err) return null;
+  return <img src={url} alt="" title={vehicleName || ""}
+    style={{ height: 16, width: 16, objectFit: "contain", verticalAlign: "middle",
+      marginRight: 6 }} onError={() => setErr(true)} />;
 }
 
 /* Bir aracın tüm yarış boyunca attığı turların zaman listesi (satırdaki "+" ile açılır).
@@ -239,6 +250,7 @@ export default function LiveTab({ t, live, bridge, canEdit, liveFuelObs, tid, ri
   const [myClassOnly, setMyClassOnly] = useState(false);
   const [big, setBig] = useState(false);
   const [lapsFor, setLapsFor] = useState(null);   // "+" ile açılan tur listesi satırı
+  const [showTeam, setShowTeam] = useState(false); // Pilot ↔ Takım sütun geçişi
   const rootRef = useRef(null);
   const playerRowRef = useRef(null);
   const posRef = useRef({});   // sürücü → son pozisyon
@@ -339,6 +351,9 @@ export default function LiveTab({ t, live, bridge, canEdit, liveFuelObs, tid, ri
       <div className="card" style={{ marginBottom: 12 }}>
         <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           📡 {t("Canlı Timing")}
+          {s.sessionType && <span className="chip" style={{ fontSize: 11,
+            borderColor: "var(--teal)", color: "var(--teal)", fontWeight: 700 }}>
+            {t(s.sessionType)}</span>}
           <span className={`livebadge ${conn.cls}`}>
             <i /> {t(conn.lbl)} · {ageSec}s</span>
           {document.fullscreenEnabled && (
@@ -363,11 +378,19 @@ export default function LiveTab({ t, live, bridge, canEdit, liveFuelObs, tid, ri
 
       {!big && <StrategyBar t={t} field={fieldAll} />}
 
-      {s.trackLength > 0 && fieldAll.some((c) => c.posX != null) && (
-        <TrackMap t={t} field={fieldAll} trackLength={s.trackLength} />
-      )}
-
-      {own && <OwnCar t={t} own={own} liveFuelObs={liveFuelObs} />}
+      {/* Pist haritası (sol) + Kendi Araç (sağ) yan yana; dar ekranda alt alta */}
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
+        {s.trackLength > 0 && fieldAll.some((c) => c.posX != null) && (
+          <div style={{ flex: "1 1 360px", minWidth: 300 }}>
+            <TrackMap t={t} field={fieldAll} trackLength={s.trackLength} />
+          </div>
+        )}
+        {own && (
+          <div style={{ flex: "1 1 420px", minWidth: 300 }}>
+            <OwnCar t={t} own={own} liveFuelObs={liveFuelObs} />
+          </div>
+        )}
+      </div>
 
       <div className="card">
         <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
@@ -385,7 +408,13 @@ export default function LiveTab({ t, live, bridge, canEdit, liveFuelObs, tid, ri
           <div style={{ overflowX: "auto" }}>
             <table aria-label={t("Canlı timing tablosu")}>
               <thead><tr>
-                <th>#</th><th>{t("Pilot")}</th><th>{t("Sınıf")}</th><th>{t("Tur")}</th>
+                <th>#</th>
+                <th><button onClick={() => setShowTeam((v) => !v)}
+                  title={t("Pilot / Takım değiştir")}
+                  style={{ background: "none", border: 0, color: "inherit", font: "inherit",
+                    cursor: "pointer", padding: 0, textDecoration: "underline dotted" }}>
+                  {showTeam ? t("Takım") : t("Pilot")}</button></th>
+                <th>{t("Sınıf")}</th><th>{t("Tur")}</th>
                 <th>{t("Son")}</th><th>{t("En İyi")}</th><th>AVG5</th><th>AVG</th>
                 <th>NRG</th>
                 <th>Δ</th><th>Gap</th><th>{t("Aralık")}</th><th>{t("Konum")}</th>
@@ -406,7 +435,9 @@ export default function LiveTab({ t, live, bridge, canEdit, liveFuelObs, tid, ri
                         {dirRef.current[c.driver] === "down" && <span
                           style={{ color: "var(--red)", fontSize: 10, marginLeft: 3 }}>▼</span>}
                       </td>
-                      <td style={{ fontFamily: "'Inter',system-ui,sans-serif" }}>{c.driver || "—"}</td>
+                      <td style={{ fontFamily: "'Inter',system-ui,sans-serif", whiteSpace: "nowrap" }}>
+                        <Brand vehicleName={c.vehicleName} />
+                        {showTeam ? (c.team || c.driver || "—") : (c.driver || "—")}</td>
                       <td style={{ whiteSpace: "nowrap" }}>
                         <ClassBadge raw={c.carClass} />
                         {id && <span style={{ fontSize: 10, marginLeft: 5,

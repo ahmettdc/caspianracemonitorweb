@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Caspian Race Monitor",
-  "version": "1.4.26",
+  "version": "1.4.27",
   "identifier": "com.caspianmotorsport.racemonitor",
   "build": {
     "frontendDist": "../dist",
