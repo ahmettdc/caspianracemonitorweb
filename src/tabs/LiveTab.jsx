@@ -3,6 +3,7 @@ import { fmtLap, fmtHMS } from "../engine";
 import { Ring } from "../components";
 import { DESKTOP_RELEASE_URL, ASSET, classId, classAccent } from "../constants";
 import { isTauri } from "../tauriEnv";
+import { liveLapsSubscribe } from "../storage";
 
 /* Canlı Timing — LMU köprüsünün yazdığı teams/{tid}/live/{rid} düğümünü gösterir.
    Köprü .exe oyunun PC'sinde çalışır, paylaşımlı bellekten okuyup Firebase'e yazar;
@@ -43,20 +44,30 @@ function ClassBadge({ raw }) {
   return <span className="chip" style={{ fontSize: 10 }}>{raw || "—"}</span>;
 }
 
-/* Bir aracın o ana kadar attığı turların zaman listesi (satırdaki "+" ile açılır).
-   Köprü çalışırken tamamlanan turlar; en yeni üstte. En hızlı tur mor, out/pit
-   turu (best'in %110'undan büyük) soluk. wxmodal desenini yeniden kullanır. */
-function LapsModal({ t, row, onClose }) {
+/* Bir aracın tüm yarış boyunca attığı turların zaman listesi (satırdaki "+" ile açılır).
+   Geçmiş kalıcı livelaps düğümünden (teams/{tid}/livelaps/{rid}/{lapKey}) talep üzerine
+   okunur → tüm yarış (300+ tur) kapsanır. En yeni üstte; en hızlı tur mor, out/pit turu
+   (best'in %110'undan büyük) soluk. wxmodal desenini yeniden kullanır. */
+function LapsModal({ t, tid, rid, row, onClose }) {
+  const [lapMap, setLapMap] = useState(null);   // {n: sec} livelaps'ten
   useEffect(() => {
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
-  const laps = Array.isArray(row.laps) ? row.laps : [];
-  const from = row.lapsFrom || 1;
-  const best = laps.length ? Math.min(...laps.filter((v) => v > 0)) : 0;
-  // en yeni üstte: tur no = from + index
-  const items = laps.map((sec, i) => ({ n: from + i, sec })).reverse();
+  // açıkken o aracın tüm tur geçmişini dinle (kapanınca abonelik biter)
+  useEffect(() => {
+    if (!row?.lapKey) { setLapMap(null); return undefined; }
+    const off = liveLapsSubscribe(tid, rid, row.lapKey, setLapMap);
+    return off;
+  }, [tid, rid, row?.lapKey]);
+  // {n: sec} → [{n, sec}] sayısal sıralı; en yeni üstte
+  const entries = lapMap && typeof lapMap === "object"
+    ? Object.entries(lapMap).map(([n, sec]) => ({ n: +n, sec: +sec }))
+      .filter((e) => e.sec > 0).sort((a, b) => a.n - b.n)
+    : [];
+  const best = entries.length ? Math.min(...entries.map((e) => e.sec)) : 0;
+  const items = entries.slice().reverse();
   return (
     <div className="wxmodal" onClick={onClose} role="dialog" aria-modal="true">
       <div className="wxmbox" onClick={(e) => e.stopPropagation()}>
@@ -64,13 +75,14 @@ function LapsModal({ t, row, onClose }) {
           <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <ClassBadge raw={row.carClass} /> {row.driver || "—"}
             <span style={{ fontSize: 12, color: "var(--dim)", textTransform: "none",
-              letterSpacing: 0 }}>· {laps.length} {t("tur")}</span>
+              letterSpacing: 0 }}>· {entries.length} {t("tur")}</span>
           </span>
           <button className="act" style={{ fontSize: 12, padding: "2px 10px" }}
             onClick={onClose}>✕</button>
         </div>
         <div className="wxmlist">
-          {!items.length && <div className="hint">{t("Henüz tamamlanmış tur yok.")}</div>}
+          {lapMap == null && <div className="hint">{t("Tur geçmişi yükleniyor…")}</div>}
+          {lapMap != null && !items.length && <div className="hint">{t("Henüz tamamlanmış tur yok.")}</div>}
           {items.map(({ n, sec }) => {
             const isBest = sec > 0 && sec === best;
             const isOut = best > 0 && sec > best * 1.10;
@@ -237,7 +249,7 @@ function BridgeControl({ t, bridge, canEdit, onStart, onStop }) {
 }
 
 export default function LiveTab({ t, live, bridge, canEdit,
-  onStartBridge, onStopBridge, liveFuelObs }) {
+  onStartBridge, onStopBridge, liveFuelObs, tid, rid }) {
   const [myClassOnly, setMyClassOnly] = useState(false);
   const [big, setBig] = useState(false);
   const [lapsFor, setLapsFor] = useState(null);   // "+" ile açılan tur listesi satırı
@@ -440,7 +452,7 @@ export default function LiveTab({ t, live, bridge, canEdit,
                         <span style={{ color: "var(--dim)" }}>{c.pitStops ?? "—"}</span>
                       </td>
                       <td style={{ textAlign: "center" }}>
-                        {c.laps?.length > 0 && (
+                        {c.lapsDone > 0 && c.lapKey && (
                           <button className="act" title={t("Tur zamanları")}
                             aria-label={t("Tur zamanları")}
                             style={{ fontSize: 14, lineHeight: 1, padding: "1px 8px" }}
@@ -456,7 +468,8 @@ export default function LiveTab({ t, live, bridge, canEdit,
         )}
         <div className="hint">{t("Gap: lidere · Aralık: öndeki araca · Pn: sınıf-içi sıra (sarı = sınıf lideri) · mor: seansın en hızlı turu · satır sonundaki + ile o aracın tur zamanları. Veriler köprü ile canlı gelir; tüm takım aynı anda görür.")}</div>
       </div>
-      {lapsFor && <LapsModal t={t} row={lapsFor} onClose={() => setLapsFor(null)} />}
+      {lapsFor && <LapsModal t={t} tid={tid} rid={rid} row={lapsFor}
+        onClose={() => setLapsFor(null)} />}
     </div>
   );
 }

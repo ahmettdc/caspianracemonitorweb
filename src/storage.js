@@ -379,3 +379,24 @@ export async function liveTimingSet(tid, rid, payload) {
   if (!db || !tid || !rid) return;
   await set(ref(db, `teams/${tid}/live/${rid}`), payload);
 }
+
+/* ---- kalıcı tur geçmişi (livelaps) ----
+   Canlı kare küçük kalsın diye tur süreleri ayrı bir append-only düğüme yazılır:
+   teams/{tid}/livelaps/{rid}/{lapKey}/{n} = sec. Her tur BİR KEZ yazılır (kare değil),
+   böylece tüm yarış (300+ tur) kapsanır. Web "+" ile yalnız o aracı talep üzerine okur. */
+export async function liveLapsAppend(tid, rid, entries) {
+  if (!db || !tid || !rid || !entries) return;
+  await update(ref(db, `teams/${tid}/livelaps/${rid}`), entries);
+}
+/* Yeni seans/yarış → o aracın eski tur geçmişini temizle. */
+export async function liveLapsClear(tid, rid, lapKey) {
+  if (!db || !tid || !rid || !lapKey) return;
+  await set(ref(db, `teams/${tid}/livelaps/${rid}/${lapKey}`), null);
+}
+/* Bir aracın tüm tur geçmişini dinle (popup açıkken). cb({n: sec}) alır. */
+export function liveLapsSubscribe(tid, rid, lapKey, cb) {
+  if (!db || !tid || !rid || !lapKey) { cb(null); return () => {}; }
+  return onValue(ref(db, `teams/${tid}/livelaps/${rid}/${lapKey}`),
+    (s) => cb(s.exists() ? s.val() : null),
+    (err) => { console.warn("livelaps read failed:", err?.message); cb(null); });
+}

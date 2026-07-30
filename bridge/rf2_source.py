@@ -14,12 +14,15 @@
             stintSec, tyreCompound:{front,rear}, tyres:{fl,fr,rl,rr:{wear,tempC,pressKpa}}}
   field[]: {pos, driver, carClass, lapsDone, lastSec, bestSec, gapSec, intervalSec,
             inPits, location, pitStops, tyreWear, damage, avg5Sec, avgSec, stintSec,
-            laps, lapsFrom, isPlayer}
+            laps, lapsFrom, lapKey, isPlayer}
 
-avg5Sec/avgSec/stintSec ve laps/lapsFrom Aggregator (durumlu sarmalayıcı) tarafından
-türetilir; RF2Source/MockSource tek-kare okur, Aggregator kare kare geçmiş biriktirir.
-laps = köprü çalışırken tamamlanan son ~LAP_LOG_MAX turun süresi; lapsFrom = ilk
-elemanın tur numarası (satırdaki "+" → tur zaman listesi popup'ı için).
+avg5Sec/avgSec/stintSec ve laps/lapsFrom/lapKey Aggregator (durumlu sarmalayıcı)
+tarafından türetilir; RF2Source/MockSource tek-kare okur, Aggregator kare kare geçmiş
+biriktirir. laps = köprü çalışırken tamamlanan son ~LAP_LOG_MAX turun süresi (JS taşıma
+tamponu); lapsFrom = ilk elemanın tur numarası; lapKey = sürücünün Firebase-güvenli
+anahtarı. Köprü JS (liveBridge) bu turları kalıcı append-only düğüme (livelaps/{rid}/
+{lapKey}/{n}=sec) tur başına bir kez yazar; canlı kareden laps/lapsFrom çıkarılır ki kare
+küçük kalsın. Web "+" → o aracın tüm yarış geçmişini livelaps'ten talep üzerine okur.
 """
 import math
 import random
@@ -42,6 +45,14 @@ def _s(b):
         return bytes(b).split(b"\x00", 1)[0].decode("utf-8", "ignore").strip()
     except Exception:
         return ""
+
+
+def _fbkey(name):
+    """Sürücü adı → Firebase RTDB anahtarı olarak güvenli metin.
+    RTDB anahtarında yasak karakterler (. # $ / [ ]) ve boşluk → '_'.
+    livelaps/{rid}/{lapKey} yolunda anahtar olarak kullanılır."""
+    s = "".join("_" if c in ".#$/[] \t\n" else c for c in str(name or "")).strip("_")
+    return s or "arac"
 
 
 # ----------------------------------------------------------------------------
@@ -332,11 +343,12 @@ class Aggregator:
             log = list(self.lap_log.get(key, ()))
             r["laps"] = [sec for _, sec in log]
             r["lapsFrom"] = log[0][0] if log else None
+            r["lapKey"] = _fbkey(key)   # Firebase-güvenli anahtar (livelaps yolu)
 
         own = data.get("own")
         if own is not None:
             me = next((r for r in field if r.get("isPlayer")), None)
             if me is not None:
-                for k in ("avg5Sec", "avgSec", "stintSec", "laps", "lapsFrom"):
+                for k in ("avg5Sec", "avgSec", "stintSec", "laps", "lapsFrom", "lapKey"):
                     own[k] = me.get(k)
         return data

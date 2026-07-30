@@ -14,7 +14,7 @@
    Yalnız Tauri kabuğunda anlamlıdır; `@tauri-apps/plugin-shell` dinamik import
    edilir (web derlemesi bu modülü yüklese de sidecar'ı hiç çalıştırmaz).
    ============================================================ */
-import { liveTimingSet } from "./storage";
+import { liveTimingSet, liveLapsAppend, liveLapsClear } from "./storage";
 
 let child = null;          // çalışan sidecar süreci (Child)
 let stopping = false;
@@ -50,6 +50,44 @@ export async function startBridge(opts, onStatus) {
   let pending = null;      // en son çözülen kare (throttle penceresinde)
   let writeTimer = null;
   let cars = 0;
+  const lastLap = {};      // lapKey → yazılmış en yüksek tur no (append idempotent)
+
+  /* Kareyi yazmadan önce tur geçmişini kalıcı livelaps düğümüne taşı:
+     her satırın laps[]/lapsFrom'undan yeni turları (n > lastLap) topla, tek update
+     ile yaz, satırdan laps/lapsFrom'u SİL (kare küçük kalsın; lapKey satırda kalır).
+     Böylece 300+ turluk yarış tümüyle kapsanır ama canlı kare şişmez. */
+  const harvestLaps = async (frame) => {
+    const rows = Array.isArray(frame?.field) ? frame.field : [];
+    const entries = {};
+    let clears = [];
+    for (const r of rows) {
+      const key = r.lapKey;
+      const laps = Array.isArray(r.laps) ? r.laps : null;
+      const from = r.lapsFrom;
+      if (key && laps && laps.length && from > 0) {
+        // yeni seans: gelen ilk tur no, yazdığımızdan küçük/eşit → geçmişi sıfırla
+        if (lastLap[key] != null && from <= lastLap[key]
+            && (from + laps.length - 1) < lastLap[key]) {
+          clears.push(key); lastLap[key] = 0;
+        }
+        const prev = lastLap[key] || 0;
+        for (let i = 0; i < laps.length; i++) {
+          const n = from + i;
+          if (n > prev && laps[i] > 0) entries[`${key}/${n}`] = laps[i];
+        }
+        const maxN = from + laps.length - 1;
+        if (maxN > (lastLap[key] || 0)) lastLap[key] = maxN;
+      }
+      // canlı kareyi küçük tut — geçmiş ayrı düğümde
+      delete r.laps; delete r.lapsFrom;
+    }
+    try {
+      for (const k of clears) await liveLapsClear(tid, rid, k);
+      if (Object.keys(entries).length) await liveLapsAppend(tid, rid, entries);
+    } catch (e) {
+      say({ running: true, phase: "running", msg: "Tur geçmişi yazılamadı: " + (e?.message || e) });
+    }
+  };
 
   const flush = async () => {
     writeTimer = null;
@@ -57,6 +95,7 @@ export async function startBridge(opts, onStatus) {
     const frame = pending; pending = null;
     lastWrite = Date.now();
     try {
+      await harvestLaps(frame);   // laps'i livelaps'e taşı + kareden çıkar
       await liveTimingSet(tid, rid, { ts: Date.now(), by, ...frame });
       say({ running: true, phase: "running", msg: "Gönderiliyor", lastTs: lastWrite, cars });
     } catch (e) {
