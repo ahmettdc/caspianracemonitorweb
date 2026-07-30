@@ -3,7 +3,7 @@
 export const SLOT_COLORS = { A: "#40D68C", B: "#F0604D", C: "#F2A33C", D: "#6694FF" };
 
 /* ---------- pist & araç seçimi ---------- */
-export const APP_VERSION = "v1.4.26";   // tek kaynak — sürüm yazısı buradan
+export const APP_VERSION = "v1.4.27";   // tek kaynak — sürüm yazısı buradan
 export const REPO_URL = "https://github.com/ahmettdc/caspianracemonitorweb";
 export const SEEN_VER_KEY = "rm_seen_version";
 export const ASSET = import.meta.env.BASE_URL + "assets/";
@@ -125,6 +125,30 @@ export const CLASS_ACCENT = {
   gte: "#37D67A",       // GTE yeşil
 };
 export const classAccent = (raw) => CLASS_ACCENT[classId(raw)] || "";
+/* Araç modeli adından (LMU mVehicleName, ör. "BMW M4 GT3") marka anahtarı →
+   assets/brands/<key>.png. Sıra önemli (aston/mercedes özel adlar genelden önce).
+   Tanınmazsa "" döner. Logolar public/assets/brands/ altında. */
+const BRAND_MATCH = [
+  ["astonmartin", ["aston"]], ["mercedesamg", ["mercedes", "amg"]],
+  ["isottafraschini", ["isotta"]], ["bmw", ["bmw"]], ["ferrari", ["ferrari"]],
+  ["porsche", ["porsche"]], ["mclaren", ["mclaren"]], ["corvette", ["corvette"]],
+  ["lexus", ["lexus"]], ["ford", ["ford", "mustang"]], ["toyota", ["toyota"]],
+  ["cadillac", ["cadillac"]], ["peugeot", ["peugeot"]], ["alpine", ["alpine"]],
+  ["lamborghini", ["lambo"]], ["glickenhaus", ["glickenhaus"]],
+  ["vanwall", ["vanwall", "vandervell", "vandervell"]], ["genesis", ["genesis"]],
+  ["ginetta", ["ginetta"]], ["oreca", ["oreca"]], ["ligier", ["ligier"]],
+  ["duqueine", ["duqueine"]], ["adess", ["adess"]],
+];
+export const brandKey = (vehicleName) => {
+  const s = String(vehicleName || "").toLowerCase();
+  if (!s) return "";
+  for (const [key, subs] of BRAND_MATCH) if (subs.some((x) => s.includes(x))) return key;
+  return "";
+};
+export const brandLogo = (vehicleName) => {
+  const k = brandKey(vehicleName);
+  return k ? `${ASSET}brands/${k}.png` : "";
+};
 export const trackName = (id) => TRACKS.find((t) => t.id === id)?.name || "";
 export const carName = (cls, id) => CARS[cls]?.find((c) => c.id === id)?.name || "";
 /* araç görseli: dosya adı id'den farklıysa CARS girişindeki img alanı kullanılır */
