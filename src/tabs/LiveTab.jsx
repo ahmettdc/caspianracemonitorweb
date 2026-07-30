@@ -6,6 +6,7 @@ import { isTauri } from "../tauriEnv";
 import { liveLapsSubscribe } from "../storage";
 import TrackMap from "./TrackMap";
 import PosChart from "./PosChart";
+import StrategyBar from "./StrategyBar";
 
 /* Canlı Timing — LMU köprüsünün yazdığı teams/{tid}/live/{rid} düğümünü gösterir.
    Köprü .exe oyunun PC'sinde çalışır, paylaşımlı bellekten okuyup Firebase'e yazar;
@@ -377,6 +378,8 @@ export default function LiveTab({ t, live, bridge, canEdit,
             <div className="l">{t("Hava")} {s.ambientTemp != null ? `${Math.round(s.ambientTemp)}°` : ""}</div></div>
         </div>
       </div>
+
+      {!big && <StrategyBar t={t} field={fieldAll} />}
 
       {s.trackLength > 0 && fieldAll.some((c) => c.posX != null) && (
         <TrackMap t={t} field={fieldAll} trackLength={s.trackLength} />
