@@ -5,6 +5,13 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.8",
+    date: "2026-07-30",
+    tr: [
+      "🈶 Masaüstünde 'Canlı Köprü' UTF-8 hatası düzeltildi (invalid utf-8 sequence) — köprü çıktısı Windows Türkçe kodlaması yüzünden bozuluyordu, artık UTF-8'e zorlanıyor. Mock test ve gerçek canlı köprü sorunsuz başlıyor",
+    ],
+  },
+  {
     v: "v1.4.7",
     date: "2026-07-30",
     tr: [
