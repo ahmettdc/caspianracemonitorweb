@@ -5,6 +5,13 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.6",
+    date: "2026-07-30",
+    tr: [
+      "🧹 Ayrı 'Canlı Timing Köprüsü (.exe)' indirme butonu kaldırıldı — canlı timing artık Masaüstü Uygulamasının içinde. Canlı sekmesi ve lobi, oyunun PC'sine Masaüstü Uygulamasını kurup 'Canlı Köprü Başlat' demeye yönlendiriyor (config.ini / bot hesabı gerekmez)",
+    ],
+  },
+  {
     v: "v1.4.5",
     date: "2026-07-30",
     tr: [

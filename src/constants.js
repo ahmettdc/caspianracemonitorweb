@@ -3,7 +3,7 @@
 export const SLOT_COLORS = { A: "#40D68C", B: "#F0604D", C: "#F2A33C", D: "#6694FF" };
 
 /* ---------- pist & araç seçimi ---------- */
-export const APP_VERSION = "v1.4.5";   // tek kaynak — sürüm yazısı buradan
+export const APP_VERSION = "v1.4.6";   // tek kaynak — sürüm yazısı buradan
 export const REPO_URL = "https://github.com/ahmettdc/caspianracemonitorweb";
 export const SEEN_VER_KEY = "rm_seen_version";
 export const ASSET = import.meta.env.BASE_URL + "assets/";
@@ -119,10 +119,6 @@ export const quantile = (sorted, q) => {
   const lo = Math.floor(pos), hi = Math.ceil(pos);
   return lo === hi ? sorted[lo] : sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
 };
-
-/* Canlı timing köprüsü (.exe) — kalıcı, herkese açık GitHub Release indirme linki */
-export const BRIDGE_EXE_URL =
-  "https://github.com/ahmettdc/caspianracemonitorweb/releases/download/bridge-latest/CaspianLiveBridge.exe";
 
 /* Masaüstü uygulaması (Tauri) — installer dosya adı sürümle değiştiği için
    sabit bir dosya linki yerine Releases sayfasına yönlendirir; sonraki

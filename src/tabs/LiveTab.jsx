@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { fmtLap, fmtHMS } from "../engine";
 import { Ring } from "../components";
-import { BRIDGE_EXE_URL } from "../constants";
+import { DESKTOP_RELEASE_URL } from "../constants";
 import { isTauri } from "../tauriEnv";
 
 /* Canlı Timing — LMU köprüsünün yazdığı teams/{tid}/live/{rid} düğümünü gösterir.
@@ -75,45 +75,6 @@ function OwnCar({ t, own }) {
   );
 }
 
-function CopyBtn({ t, text, label }) {
-  const [ok, setOk] = useState(false);
-  const copy = () => {
-    if (!text) return;
-    try {
-      navigator.clipboard.writeText(text);
-      setOk(true);
-      setTimeout(() => setOk(false), 1200);
-    } catch { /* pano yoksa sessizce geç */ }
-  };
-  return (
-    <button className="act" style={{ fontSize: 10, padding: "2px 9px" }} onClick={copy}
-      disabled={!text}>{ok ? t("✓ kopyalandı") : (label || t("Kopyala"))}</button>
-  );
-}
-
-function BridgeCfg({ t, tid, rid }) {
-  if (!tid && !rid) return null;
-  const snippet = `[race]\nteam_id = ${tid || ""}\nrace_id = ${rid || ""}`;
-  const row = (lbl, val) => (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-      <span style={{ minWidth: 168 }}>{lbl} = <b style={{ color: "var(--teal)" }}>{val || "—"}</b></span>
-      <CopyBtn t={t} text={val} />
-    </div>
-  );
-  return (
-    <div className="hint" style={{ marginTop: 12, fontFamily: "'IBM Plex Mono'",
-      background: "var(--panel2)", border: "1px solid var(--line)", borderRadius: 8,
-      padding: "10px 12px", display: "flex", flexDirection: "column", gap: 6 }}>
-      <div>{t("Köprü config.ini değerleri:")}</div>
-      {row("team_id", tid)}
-      {row("race_id", rid)}
-      <div style={{ marginTop: 2 }}>
-        <CopyBtn t={t} text={snippet} label={t("📋 config.ini bloğunu kopyala")} />
-      </div>
-    </div>
-  );
-}
-
 /* Masaüstü uygulamasında canlı köprüyü buradan başlat/durdur.
    Oyunun çalıştığı PC'de: giriş yap → yarışı aç → Başlat. Sidecar oyunun
    paylaşımlı belleğini okur, veri senin oturumunla yazılır (bot gerekmez). */
@@ -167,7 +128,7 @@ function BridgeControl({ t, bridge, canEdit, onStart, onStop }) {
   );
 }
 
-export default function LiveTab({ t, live, tid, rid, bridge, canEdit,
+export default function LiveTab({ t, live, bridge, canEdit,
   onStartBridge, onStopBridge }) {
   const bridgeCard = isTauri ? (
     <BridgeControl t={t} bridge={bridge} canEdit={canEdit}
@@ -183,22 +144,21 @@ export default function LiveTab({ t, live, tid, rid, bridge, canEdit,
           <div className="hint" style={{ lineHeight: 1.7 }}>
             {isTauri
               ? t("Köprü henüz veri göndermedi. Yukarıdan 'Canlı Köprü Başlat'a bas (oyun açıkken). Yarış başlayınca bu ekran canlı dolar.")
-              : t("Köprü bağlı değil. Canlı timing için oyunun çalıştığı PC'de Caspian Live Bridge çalışmalı:")}
-            {!isTauri && <>
-              <br />1. {t("rFactor2 paylaşımlı bellek eklentisi LMU'da kurulu olmalı (zaten ekte).")}
-              <br />2. {t("Masaüstü uygulamasını oyunun PC'sine kur, giriş yap, yarışı aç, 'Canlı Köprü Başlat'a bas — ya da ayrı köprü .exe'sini indir.")}
-              <br />3. {t("Yarış başlayınca bu ekran canlı dolar.")}
-            </>}
+              : <>
+                {t("Canlı timing, oyunun çalıştığı PC'deki Masaüstü Uygulaması ile gelir:")}
+                <br />1. {t("rFactor2 paylaşımlı bellek eklentisi LMU'da kurulu olmalı (zaten ekte).")}
+                <br />2. {t("Masaüstü Uygulamasını oyunun PC'sine kur, giriş yap, yarışı aç, 'Canlı' sekmesinden 'Canlı Köprü Başlat'a bas.")}
+                <br />3. {t("Yarış başlayınca bu ekran (ve tüm takım) canlı dolar.")}
+              </>}
           </div>
           {!isTauri && (
             <div style={{ marginTop: 12 }}>
-              <a className="bigbtn" href={BRIDGE_EXE_URL} target="_blank" rel="noopener noreferrer"
+              <a className="bigbtn" href={DESKTOP_RELEASE_URL} target="_blank" rel="noopener noreferrer"
                 style={{ display: "inline-flex", alignItems: "center", gap: 8, width: "auto",
                   padding: "10px 18px", textDecoration: "none" }}>
-                ⬇ {t("Köprüyü indir (.exe · Windows)")}</a>
+                🖥 {t("Masaüstü Uygulamasını İndir")}</a>
             </div>
           )}
-          {!isTauri && <BridgeCfg t={t} tid={tid} rid={rid} />}
         </div>
       </div>
     );
