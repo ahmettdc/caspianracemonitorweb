@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef, lazy, Suspense } from "react";
 import UpdateBanner from "./UpdateBanner";
 import { isTauri } from "./tauriEnv";
+import { startBridge, stopBridge } from "./liveBridge";
 import { firebaseReady, touchUserProfile, watchUserDoc,
   requestAccess, watchAllUsers, setUserAllowed, updateProfile,
   createTeam, joinTeam, watchMyTeams, watchTeam,
@@ -155,6 +156,7 @@ export default function App() {
   const [userName, setUserName] = useState("");
   const [curRace, setCurRace] = useState("");    // aktif yarış id (takım içinde)
   const [live, setLive] = useState(null);        // canlı timing (LMU köprüsü) — teams/{tid}/live/{rid}
+  const [bridge, setBridge] = useState({ supported: isTauri, running: false, phase: "idle", msg: "" });
   const [liveFuelObs, setLiveFuelObs] = useState(null); // canlıdan öğrenilen yakıt (litre/tur, ratio, cons)
   const fuelObsRef = useRef({ prevLap: null, prevFuel: null, buf: [] });
   const [role, setRole] = useState("editor");    // "editor" | "viewer" (takım rolünden)
@@ -212,6 +214,12 @@ export default function App() {
     setLiveFuelObs(null);
     const off = liveTimingSubscribe(curTeamRef.current, curRace, setLive);
     return () => off();
+  }, [curRace]);
+
+  // yarış değişince (veya çıkışta) çalışan canlı köprüyü durdur
+  useEffect(() => {
+    if (!isTauri) return undefined;
+    return () => { stopBridge(setBridge); };
   }, [curRace]);
 
   // canlı yakıt öğrenici: kendi araç yakıtından litre/tur + depo → model önerisi (opt-in)
@@ -984,6 +992,14 @@ ${bottomBar}
   const canEditTeam = myRole === "owner" || myRole === "editor";
   /* rozet/rol yönetimi: takım sahibi veya site admini */
   const canManageTeam = myRole === "owner" || isAdmin;
+
+  /* Canlı köprü (masaüstü): paketli Python sidecar'ı --emit modunda çalıştır,
+     verisini kullanıcının oturumuyla teams/{tid}/live/{rid}'e yaz (bot gerekmez). */
+  const startLiveBridge = (mock = false) => {
+    if (!isTauri || !canEditTeam || !curTeam || !curRace) return;
+    startBridge({ tid: curTeam, rid: curRace, hz: 2, mock, by: user?.email || "masaüstü" }, setBridge);
+  };
+  const stopLiveBridge = () => stopBridge(setBridge);
   /* not: yetki rozetten türer — 🎧 mühendis editor, 🛞 sürücü/rozetsiz viewer */
   const myBadges = teamBadgesOf(teamData, user?.uid, udoc);
 
@@ -2924,7 +2940,9 @@ ${bottomBar}
             </div>
           </>)}
 
-          {tab === "live" && <LiveTab t={t} live={live} tid={curTeam} rid={curRace} />}
+          {tab === "live" && <LiveTab t={t} live={live} tid={curTeam} rid={curRace}
+            bridge={bridge} canEdit={canEditTeam}
+            onStartBridge={startLiveBridge} onStopBridge={stopLiveBridge} />}
 
           {tab === "tyre" && (
             <TyreTab t={t} st={st} up={up} tyreInfo={tyreInfo} racePlan={racePlan}

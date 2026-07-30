@@ -20,7 +20,9 @@ import os
 import sys
 import time
 
-from fb import FirebaseClient
+# Not: `from fb import FirebaseClient` üstte DEĞİL — yalnız Firebase'e yazan
+# yollarda (cmd_selftest/run_loop) lazy import edilir. Böylece `--emit`/`--dump`
+# (masaüstü sidecar) `requests` yüklü olmadan da çalışır.
 
 CONFIG_TEMPLATE = """; Caspian Live Bridge — yapılandırma
 ; [firebase] email/password ve [race] team_id/race_id'yi doldur.
@@ -96,12 +98,13 @@ def read_config_or_die(path):
 
 
 def make_source(mock):
+    # Bilgi satırları stderr'e — stdout `--emit` modunda saf JSON kalmalı.
     if mock:
         from rf2_source import MockSource
-        print("[kaynak] MOCK — sahte veri (oyun okunmuyor)")
+        print("[kaynak] MOCK — sahte veri (oyun okunmuyor)", file=sys.stderr)
         return MockSource()
     from rf2_source import RF2Source
-    print("[kaynak] rFactor2/LMU paylaşımlı bellek")
+    print("[kaynak] rFactor2/LMU paylaşımlı bellek", file=sys.stderr)
     return RF2Source()
 
 
@@ -126,8 +129,45 @@ def cmd_dump(mock):
           f"own={'var' if own else 'yok'} · session alanları: {list(payload['session'])}")
 
 
+def cmd_emit(mock, hz):
+    """Masaüstü sidecar modu: kaynaktan oku, her kareyi stdout'a bir JSON satırı
+    olarak bas — Firebase'e DOKUNMA. Uygulama (JS) satırları okuyup ts/by ekleyerek
+    kullanıcının oturumuyla yazar. team_id/race_id burada gerekmez."""
+    period = 1.0 / max(0.2, min(hz, 10))
+    try:
+        src = make_source(mock)
+    except Exception as e:  # noqa: BLE001  (okuyucu/lib yok → hata karesi bas, çıkma)
+        err = f"Okuyucu başlatılamadı: {e}"
+        try:
+            while True:
+                sys.stdout.write(json.dumps({"error": err}, ensure_ascii=False) + "\n")
+                sys.stdout.flush()
+                time.sleep(2.0)
+        except (KeyboardInterrupt, BrokenPipeError):
+            return
+    try:
+        while True:
+            t0 = time.time()
+            try:
+                data = src.read()
+            except Exception as e:  # noqa: BLE001  (oyun kapalı/okuma hatası → satır bas, devam)
+                data = {"error": str(e)}
+            # tek satır JSON (JS satır satır ayrıştırır); flush şart (pipe tamponu)
+            sys.stdout.write(json.dumps(data, ensure_ascii=False) + "\n")
+            sys.stdout.flush()
+            dt = time.time() - t0
+            if dt < period:
+                time.sleep(period - dt)
+    except (KeyboardInterrupt, BrokenPipeError):
+        pass
+    finally:
+        if hasattr(src, "close"):
+            src.close()
+
+
 def cmd_selftest(cp):
     """Firebase'e küçük bir işaret yaz, geri oku, eşleşiyorsa PASS."""
+    from fb import FirebaseClient
     fb = FirebaseClient(cp["firebase"]["api_key"], cp["firebase"]["database_url"],
                         cp["firebase"]["email"], cp["firebase"]["password"])
     tid, rid = cp["race"]["team_id"].strip(), cp["race"]["race_id"].strip()
@@ -161,6 +201,7 @@ def cmd_selftest(cp):
 
 
 def run_loop(cp, mock, once):
+    from fb import FirebaseClient
     fb = FirebaseClient(cp["firebase"]["api_key"], cp["firebase"]["database_url"],
                         cp["firebase"]["email"], cp["firebase"]["password"])
     tid, rid = cp["race"]["team_id"].strip(), cp["race"]["race_id"].strip()
@@ -209,11 +250,17 @@ def main():
     ap.add_argument("--mock", action="store_true", help="Oyunsuz sahte veri")
     ap.add_argument("--selftest", action="store_true", help="Firebase yaz+oku turu (PASS/FAIL)")
     ap.add_argument("--dump", action="store_true", help="Bir örnek oku, JSON bas (yazmaz)")
+    ap.add_argument("--emit", action="store_true",
+                    help="Sidecar: her kareyi stdout'a JSON satırı bas (Firebase'e yazmaz)")
+    ap.add_argument("--hz", type=float, default=2.0, help="--emit gönderim hızı (varsayılan 2)")
     ap.add_argument("--once", action="store_true", help="Bir kez oku+gönder, çık")
     ap.add_argument("--nogui", action="store_true", help="Arayüzsüz, doğrudan config.ini ile çalış")
     args = ap.parse_args()
 
     try:
+        if args.emit:                     # masaüstü sidecar — Firebase/config gerekmez
+            cmd_emit(args.mock, args.hz)
+            return
         if args.dump:                     # kaynağı göster — Firebase/config gerekmez
             cmd_dump(args.mock)
             return

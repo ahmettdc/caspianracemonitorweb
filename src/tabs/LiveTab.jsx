@@ -2,6 +2,7 @@ import { useState } from "react";
 import { fmtLap, fmtHMS } from "../engine";
 import { Ring } from "../components";
 import { BRIDGE_EXE_URL } from "../constants";
+import { isTauri } from "../tauriEnv";
 
 /* Canlı Timing — LMU köprüsünün yazdığı teams/{tid}/live/{rid} düğümünü gösterir.
    Köprü .exe oyunun PC'sinde çalışır, paylaşımlı bellekten okuyup Firebase'e yazar;
@@ -113,24 +114,92 @@ function BridgeCfg({ t, tid, rid }) {
   );
 }
 
-export default function LiveTab({ t, live, tid, rid }) {
+/* Masaüstü uygulamasında canlı köprüyü buradan başlat/durdur.
+   Oyunun çalıştığı PC'de: giriş yap → yarışı aç → Başlat. Sidecar oyunun
+   paylaşımlı belleğini okur, veri senin oturumunla yazılır (bot gerekmez). */
+function BridgeControl({ t, bridge, canEdit, onStart, onStop }) {
+  const [mock, setMock] = useState(false);
+  const running = !!bridge?.running;
+  const phase = bridge?.phase || "idle";
+  const dot = phase === "running" ? "var(--green)"
+    : phase === "error" ? "var(--red)"
+      : phase === "starting" ? "var(--yellow)" : "var(--muted)";
+  return (
+    <div className="card" style={{ marginBottom: 12 }}>
+      <h2 style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        🛰 {t("Canlı Köprü")}
+        <span style={{ width: 9, height: 9, borderRadius: "50%", background: dot,
+          boxShadow: `0 0 8px ${dot}` }} />
+      </h2>
+      {!canEdit ? (
+        <div className="hint">{t("Köprüyü başlatmak için takımda owner/editor olmalısın (yalnız görüntüleyicisin).")}</div>
+      ) : (
+        <>
+          <div className="hint" style={{ marginBottom: 10 }}>
+            {t("Bu bilgisayarda oyun (LMU) açıkken Başlat'a bas — köprü oyunu okuyup canlı timing'i takımla paylaşır. Ayrı .exe ve bot hesabı gerekmez.")}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            {!running ? (
+              <button className="bigbtn" onClick={() => onStart(mock)}
+                style={{ width: "auto", padding: "10px 20px" }}>
+                ▶ {t("Canlı Köprü Başlat")}</button>
+            ) : (
+              <button className="act" onClick={onStop}
+                style={{ padding: "10px 20px", borderColor: "var(--red)", color: "var(--red)" }}>
+                ■ {t("Durdur")}</button>
+            )}
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12,
+              color: "var(--dim)", cursor: "pointer" }}>
+              <input type="checkbox" checked={mock} disabled={running}
+                onChange={(e) => setMock(e.target.checked)} />
+              {t("Mock veri (oyunsuz test)")}
+            </label>
+          </div>
+          {bridge?.msg && (
+            <div className="hint" style={{ marginTop: 8,
+              color: phase === "error" ? "var(--red)" : "var(--dim)" }}>
+              {running || phase === "error" ? "• " : ""}{bridge.msg}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+export default function LiveTab({ t, live, tid, rid, bridge, canEdit,
+  onStartBridge, onStopBridge }) {
+  const bridgeCard = isTauri ? (
+    <BridgeControl t={t} bridge={bridge} canEdit={canEdit}
+      onStart={onStartBridge} onStop={onStopBridge} />
+  ) : null;
+
   if (!live || !live.ts) {
     return (
-      <div className="card" data-tour="livecard">
-        <h2>📡 {t("Canlı Timing")}</h2>
-        <div className="hint" style={{ lineHeight: 1.7 }}>
-          {t("Köprü bağlı değil. Canlı timing için oyunun çalıştığı PC'de Caspian Live Bridge (.exe) çalışmalı:")}
-          <br />1. {t("rFactor2 paylaşımlı bellek eklentisi LMU'da kurulu olmalı (zaten ekte).")}
-          <br />2. {t("Köprü uygulamasını indir, config'e takım/yarış bilgini gir, çift tıkla çalıştır.")}
-          <br />3. {t("Yarış başlayınca bu ekran canlı dolar.")}
+      <div data-tour="livecard">
+        {bridgeCard}
+        <div className="card">
+          <h2>📡 {t("Canlı Timing")}</h2>
+          <div className="hint" style={{ lineHeight: 1.7 }}>
+            {isTauri
+              ? t("Köprü henüz veri göndermedi. Yukarıdan 'Canlı Köprü Başlat'a bas (oyun açıkken). Yarış başlayınca bu ekran canlı dolar.")
+              : t("Köprü bağlı değil. Canlı timing için oyunun çalıştığı PC'de Caspian Live Bridge çalışmalı:")}
+            {!isTauri && <>
+              <br />1. {t("rFactor2 paylaşımlı bellek eklentisi LMU'da kurulu olmalı (zaten ekte).")}
+              <br />2. {t("Masaüstü uygulamasını oyunun PC'sine kur, giriş yap, yarışı aç, 'Canlı Köprü Başlat'a bas — ya da ayrı köprü .exe'sini indir.")}
+              <br />3. {t("Yarış başlayınca bu ekran canlı dolar.")}
+            </>}
+          </div>
+          {!isTauri && (
+            <div style={{ marginTop: 12 }}>
+              <a className="bigbtn" href={BRIDGE_EXE_URL} target="_blank" rel="noopener noreferrer"
+                style={{ display: "inline-flex", alignItems: "center", gap: 8, width: "auto",
+                  padding: "10px 18px", textDecoration: "none" }}>
+                ⬇ {t("Köprüyü indir (.exe · Windows)")}</a>
+            </div>
+          )}
+          {!isTauri && <BridgeCfg t={t} tid={tid} rid={rid} />}
         </div>
-        <div style={{ marginTop: 12 }}>
-          <a className="bigbtn" href={BRIDGE_EXE_URL} target="_blank" rel="noopener noreferrer"
-            style={{ display: "inline-flex", alignItems: "center", gap: 8, width: "auto",
-              padding: "10px 18px", textDecoration: "none" }}>
-            ⬇ {t("Köprüyü indir (.exe · Windows)")}</a>
-        </div>
-        <BridgeCfg t={t} tid={tid} rid={rid} />
       </div>
     );
   }
@@ -142,6 +211,7 @@ export default function LiveTab({ t, live, tid, rid }) {
 
   return (
     <div data-tour="livecard">
+      {bridgeCard}
       <div className="card" style={{ marginBottom: 12 }}>
         <h2 style={{ display: "flex", alignItems: "center", gap: 10 }}>
           📡 {t("Canlı Timing")}
