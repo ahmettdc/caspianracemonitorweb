@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { classAccent } from "../constants";
+import { classId, classAccent } from "../constants";
 
 /* Canlı pist haritası — iki katman:
    • Dış boşluk halkası: her araç tur mesafesine (lapDist/trackLength) göre daire
@@ -22,6 +22,17 @@ export default function TrackMap({ t, field, trackLength }) {
 
   const cars = (Array.isArray(field) ? field : [])
     .filter((c) => c.posX != null && c.posZ != null);
+
+  // sınıf-içi pozisyon (Pn) — pos sırasında sınıfa göre say (LiveTab ile aynı mantık)
+  const order = (Array.isArray(field) ? field : []).slice()
+    .sort((a, b) => (a.pos > 0 ? a.pos : 999) - (b.pos > 0 ? b.pos : 999));
+  const clsN = {};
+  const classPos = new Map();
+  for (const c of order) {
+    const id = classId(c.carClass);
+    clsN[id] = (clsN[id] || 0) + 1;
+    classPos.set(c, clsN[id]);
+  }
 
   // her araç → lapDist kutusu (yalnız boş kutuyu doldur → pist şekli birikir)
   if (trackLength > 0) {
@@ -57,20 +68,32 @@ export default function TrackMap({ t, field, trackLength }) {
     return [cx + R * Math.sin(a), cy - R * Math.cos(a)];
   };
 
-  const dot = (c, x, y, rBase) => {
+  // daire + içinde sınıf-içi pozisyon (num). renk = sınıf; oyuncu beyaz/#960018.
+  const dot = (c, x, y, rBase, num) => {
     const col = classAccent(c.carClass) || "var(--muted)";
+    const label = num > 0 ? String(num) : "";
+    const fs = num >= 10 ? rBase : rBase + 2;   // 2 haneli biraz küçük
     if (c.isPlayer) {
       return (
         <g key={`p${c.pos}`}>
-          <circle cx={x} cy={y} r={rBase + 3} fill="#fff" stroke={BRAND} strokeWidth={2.5} />
-          <circle cx={x} cy={y} r={rBase + 7} fill="none" stroke={BRAND}
+          <circle cx={x} cy={y} r={rBase + 2} fill="#fff" stroke={BRAND} strokeWidth={2.5} />
+          <circle cx={x} cy={y} r={rBase + 6} fill="none" stroke={BRAND}
             strokeWidth={1.4} opacity={0.55} />
+          {label && <text x={x} y={y} fill={BRAND} fontSize={fs} fontWeight="800"
+            textAnchor="middle" dominantBaseline="central">{label}</text>}
         </g>
       );
     }
-    return <circle key={c.pos} cx={x} cy={y} r={rBase}
-      fill={col} stroke={c.inPits || c.location === "PIT" ? "#fff" : "none"}
-      strokeWidth={c.inPits || c.location === "PIT" ? 1.4 : 0} opacity={0.95} />;
+    const pit = c.inPits || c.location === "PIT";
+    return (
+      <g key={c.pos}>
+        <circle cx={x} cy={y} r={rBase} fill={col}
+          stroke={pit ? "#fff" : "none"} strokeWidth={pit ? 1.6 : 0} opacity={0.97} />
+        {label && <text x={x} y={y} fill="#fff" fontSize={fs} fontWeight="700"
+          textAnchor="middle" dominantBaseline="central"
+          stroke="rgba(0,0,0,.4)" strokeWidth="0.5" paintOrder="stroke">{label}</text>}
+      </g>
+    );
   };
 
   const building = pts.length < NB * 0.45;
@@ -98,10 +121,11 @@ export default function TrackMap({ t, field, trackLength }) {
           {outline && <path d={outline} fill="none" stroke="var(--muted)"
             strokeWidth={2} strokeLinejoin="round" opacity={0.9} />}
           {/* araçlar — dış halka */}
-          {cars.map((c) => { const [x, y] = ringXY(c.lapDist); return dot(c, x, y, 5); })}
+          {cars.map((c) => { const [x, y] = ringXY(c.lapDist); return dot(c, x, y, 9, classPos.get(c)); })}
           {/* araçlar — iç şekil */}
           {toScreen && cars.map((c) => {
-            const [x, y] = toScreen(c.posX, c.posZ); return dot({ ...c, pos: `i${c.pos}` }, x, y, 4);
+            const [x, y] = toScreen(c.posX, c.posZ);
+            return dot({ ...c, pos: `i${c.pos}` }, x, y, 8, classPos.get(c));
           })}
         </svg>
       </div>
