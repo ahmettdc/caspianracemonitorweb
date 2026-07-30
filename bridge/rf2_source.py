@@ -14,10 +14,12 @@
             stintSec, tyreCompound:{front,rear}, tyres:{fl,fr,rl,rr:{wear,tempC,pressKpa}}}
   field[]: {pos, driver, carClass, lapsDone, lastSec, bestSec, gapSec, intervalSec,
             inPits, location, pitStops, tyreWear, damage, avg5Sec, avgSec, stintSec,
-            isPlayer}
+            laps, lapsFrom, isPlayer}
 
-avg5Sec/avgSec/stintSec Aggregator (durumlu sarmalayıcı) tarafından türetilir;
-RF2Source/MockSource tek-kare okur, Aggregator kare kare geçmiş biriktirir.
+avg5Sec/avgSec/stintSec ve laps/lapsFrom Aggregator (durumlu sarmalayıcı) tarafından
+türetilir; RF2Source/MockSource tek-kare okur, Aggregator kare kare geçmiş biriktirir.
+laps = köprü çalışırken tamamlanan son ~LAP_LOG_MAX turun süresi; lapsFrom = ilk
+elemanın tur numarası (satırdaki "+" → tur zaman listesi popup'ı için).
 """
 import math
 import random
@@ -28,6 +30,10 @@ _PHASE = {
     0: "Garaj", 1: "Isınma", 2: "Grid", 3: "Formasyon", 4: "Geri Sayım",
     5: "Yeşil", 6: "FCY", 7: "Durduruldu", 8: "Bitti",
 }
+
+# Satırdaki "+" → tur zaman listesi için sürücü başına saklanan son tur sayısı
+# (Firebase yükünü sınırlar; endurance'ta bir-iki stint'i rahat kapsar).
+LAP_LOG_MAX = 50
 
 
 def _s(b):
@@ -269,7 +275,8 @@ class Aggregator:
 
     def __init__(self, inner):
         self.inner = inner
-        self.hist = {}          # sürücü → deque(son ~30 geçerli lastSec)
+        self.hist = {}          # sürücü → deque(son ~30 geçerli lastSec) — avg için
+        self.lap_log = {}       # sürücü → deque((lapNo, sec)) — tam tur listesi (popup)
         self.prev_laps = {}     # sürücü → son görülen lapsDone
         self.prev_pits = {}     # sürücü → son görülen inPits
         self.stint_start = {}   # sürücü → stint başlangıcı (time.time())
@@ -300,12 +307,15 @@ class Aggregator:
             first = key not in self.prev_laps
             if first or laps < self.prev_laps.get(key, laps):   # ilk görüş / yeni seans
                 self.hist[key] = deque(maxlen=30)
+                self.lap_log[key] = deque(maxlen=LAP_LOG_MAX)
                 self.stint_start[key] = now
                 self.prev_pits[key] = in_pits
                 self.prev_laps[key] = laps
             elif laps > self.prev_laps[key]:                     # tur tamamlandı
                 if self._valid_lap(last, best):
-                    self.hist[key].append(round(last, 3))
+                    self.hist[key].append(round(last, 3))       # avg (filtreli)
+                if last and last > 0:                            # tam liste (her tur)
+                    self.lap_log[key].append((laps, round(last, 3)))
                 self.prev_laps[key] = laps
 
             # stint: pit çıkışı (True→False) → süreyi sıfırla
@@ -319,10 +329,14 @@ class Aggregator:
             r["avgSec"] = round(sum(h) / len(h), 3) if h else None
             r["stintSec"] = int(now - self.stint_start.get(key, now))
 
+            log = list(self.lap_log.get(key, ()))
+            r["laps"] = [sec for _, sec in log]
+            r["lapsFrom"] = log[0][0] if log else None
+
         own = data.get("own")
         if own is not None:
             me = next((r for r in field if r.get("isPlayer")), None)
             if me is not None:
-                for k in ("avg5Sec", "avgSec", "stintSec"):
+                for k in ("avg5Sec", "avgSec", "stintSec", "laps", "lapsFrom"):
                     own[k] = me.get(k)
         return data

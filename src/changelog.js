@@ -5,6 +5,14 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.15",
+    date: "2026-07-30",
+    tr: [
+      "➕ Canlı Timing saha tablosunda her aracın satır sonuna '+' butonu — tıklayınca o aracın o ana kadar attığı tüm turların zaman listesi küçük bir pencerede açılır (en yeni üstte; en hızlı tur mor, out/pit turu soluk sarı, best'e göre fark)",
+      "ℹ️ Not: liste köprü çalışmaya başladığından itibaren tamamlanan turları içerir (oyunun paylaşımlı belleği geçmiş turların tamamını vermez); köprü yeniden başlarsa liste sıfırlanır",
+    ],
+  },
+  {
     v: "v1.4.14",
     date: "2026-07-30",
     tr: [
