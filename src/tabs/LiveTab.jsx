@@ -9,6 +9,9 @@ import { isTauri } from "../tauriEnv";
    web burada yalnız salt-okunur dinler. Bağlantı yoksa bilgilendirir. */
 
 const lap = (v) => (v > 0 ? fmtLap(v) : "—");
+/* lastik diş oranı (0..1) → renk: yeşil→sarı→kırmızı (OwnCar ile aynı eşik) */
+const wearColor = (w) => (w == null ? "var(--dim)"
+  : w < 0.4 ? "var(--red)" : w < 0.7 ? "var(--yellow)" : "var(--green)");
 const gap = (v) => {
   if (!(v > 0)) return "—";
   if (v < 60) return `+${v.toFixed(1)}`;
@@ -89,6 +92,10 @@ function OwnCar({ t, own, liveFuelObs }) {
             <div className="l">{t("Tur")}</div></div>
           <div className="kpi"><div className="v">{own.pitStops ?? "—"}</div>
             <div className="l">{t("Pit")}</div></div>
+          <div className="kpi"><div className="v" style={{ color: (own.damage || 0) > 0.15
+            ? "var(--red)" : (own.damage || 0) > 0.02 ? "var(--yellow)" : "var(--txt)" }}>
+            {own.damage != null ? `${Math.round(own.damage * 100)}%` : "—"}</div>
+            <div className="l">{t("Hasar")}</div></div>
           <div className="kpi"><div className="v mono" style={{ fontSize: 15 }}>
             {sec(own.s1)} <span style={{ color: "var(--dim)" }}>/</span> {sec(own.s2)}</div>
             <div className="l">S1 / S2</div></div>
@@ -258,10 +265,12 @@ export default function LiveTab({ t, live, bridge, canEdit,
     const id = classId(c.carClass);
     classCounts[id] = (classCounts[id] || 0) + 1;
     const prevGap = fieldAll[i - 1]?.gapSec;
-    const interval = (i > 0 && c.gapSec > 0 && prevGap > 0)
-      ? c.gapSec - prevGap : null;                   // öndeki araca fark
+    // öndeki araca fark: köprü intervalSec verdiyse onu kullan, yoksa gap farkı
+    const interval = (c.intervalSec != null && c.intervalSec > 0) ? c.intervalSec
+      : (i > 0 && c.gapSec > 0 && prevGap > 0) ? c.gapSec - prevGap : null;
     const lapsDown = Math.max(0, leaderLaps - (c.lapsDone ?? 0));
-    return { c, i, id, classPos: classCounts[id], interval, lapsDown,
+    const delta = (c.lastSec > 0 && c.bestSec > 0) ? c.lastSec - c.bestSec : null;
+    return { c, i, id, classPos: classCounts[id], interval, lapsDown, delta,
       isFastest: c.bestSec > 0 && c.bestSec === fastestBest };
   });
   const shown = myClassOnly && playerClass
@@ -314,11 +323,12 @@ export default function LiveTab({ t, live, bridge, canEdit,
             <table aria-label={t("Canlı timing tablosu")}>
               <thead><tr>
                 <th>#</th><th>{t("Pilot")}</th><th>{t("Sınıf")}</th><th>{t("Tur")}</th>
-                <th>{t("Son")}</th><th>{t("En İyi")}</th><th>Gap</th>
-                <th>{t("Aralık")}</th><th>Pit</th>
+                <th>{t("Son")}</th><th>{t("En İyi")}</th><th>Δ</th><th>Gap</th>
+                <th>{t("Aralık")}</th><th>{t("Konum")}</th><th>{t("Lastik")}</th>
+                <th>{t("Hasar")}</th><th>Pit</th>
               </tr></thead>
               <tbody>
-                {shown.map(({ c, i, id, classPos, interval, lapsDown, isFastest }) => {
+                {shown.map(({ c, i, id, classPos, interval, lapsDown, delta, isFastest }) => {
                   const acc = classAccent(c.carClass);
                   return (
                     <tr key={c.pos ?? i} ref={c.isPlayer ? playerRowRef : null}
@@ -342,8 +352,23 @@ export default function LiveTab({ t, live, bridge, canEdit,
                       <td>{lap(c.lastSec)}</td>
                       <td style={{ color: isFastest ? "var(--purple)" : "var(--dim)",
                         fontWeight: isFastest ? 700 : 400 }}>{lap(c.bestSec)}</td>
+                      <td style={{ color: delta == null ? "var(--dim)"
+                        : delta <= 0 ? "var(--green)" : "var(--red)", fontSize: 12 }}>
+                        {delta == null ? "—" : `${delta > 0 ? "+" : ""}${delta.toFixed(2)}`}</td>
                       <td>{i === 0 ? t("Lider") : lapsDown >= 1 ? `+${lapsDown} ${t("Tur")}` : gap(c.gapSec)}</td>
                       <td style={{ color: "var(--dim)" }}>{interval != null ? gap(interval) : "—"}</td>
+                      <td style={{ fontSize: 11, color: c.location === "PIT" ? "var(--yellow)"
+                        : c.location === "GARAGE" ? "var(--red)" : "var(--dim)" }}>
+                        {c.location ? t(c.location) : "—"}</td>
+                      <td style={{ whiteSpace: "nowrap" }}>
+                        {c.tyreWear != null ? <>
+                          <span style={{ display: "inline-block", width: 9, height: 9, borderRadius: "50%",
+                            background: wearColor(c.tyreWear), marginRight: 5, verticalAlign: "middle" }} />
+                          <span style={{ color: "var(--dim)", fontSize: 12 }}>{Math.round(c.tyreWear * 100)}%</span>
+                        </> : "—"}</td>
+                      <td style={{ fontSize: 12, color: (c.damage || 0) > 0.15 ? "var(--red)"
+                        : (c.damage || 0) > 0.02 ? "var(--yellow)" : "var(--dim)" }}>
+                        {c.damage != null ? `${Math.round(c.damage * 100)}%` : "—"}</td>
                       <td style={{ whiteSpace: "nowrap" }}>
                         {c.inPits && <span className="chip" style={{ marginRight: 4,
                           color: "var(--yellow)", borderColor: "var(--yellow)" }}>PIT</span>}

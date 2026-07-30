@@ -5,6 +5,15 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.13",
+    date: "2026-07-30",
+    tr: [
+      "📋 Canlı Timing saha tablosuna yeni sütunlar: Δ (son−en iyi), Konum (TRACK/PIT/GARAGE), her araç için Lastik aşınması (renkli nokta + %) ve Hasar (%). Aralık artık oyunun kendi 'öndeki araca fark' değerini kullanıyor (mTimeBehindNext)",
+      "🏎 Kendi Araç kartına Hasar (%) eklendi",
+      "ℹ️ Not: DR/SR rating ve sanal enerji (NRG) oyunun paylaşımlı belleğinde yok, çekilemez",
+    ],
+  },
+  {
     v: "v1.4.12",
     date: "2026-07-30",
     tr: [
