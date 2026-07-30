@@ -16,6 +16,9 @@ const lap = (v) => (v > 0 ? fmtLap(v) : "—");
 /* lastik diş oranı (0..1) → renk: yeşil→sarı→kırmızı (OwnCar ile aynı eşik) */
 const wearColor = (w) => (w == null ? "var(--dim)"
   : w < 0.4 ? "var(--red)" : w < 0.7 ? "var(--yellow)" : "var(--green)");
+/* virtual energy % → renk: yüksek yeşil, düşük kırmızı */
+const veColor = (v) => (v == null ? "var(--dim)"
+  : v > 50 ? "var(--green)" : v > 20 ? "var(--yellow)" : "var(--red)");
 const gap = (v) => {
   if (!(v > 0)) return "—";
   if (v < 60) return `+${v.toFixed(1)}`;
@@ -148,6 +151,9 @@ function OwnCar({ t, own, liveFuelObs }) {
         <div className="kpis" style={{ flex: 1, minWidth: 220, marginBottom: 0 }}>
           <div className="kpi"><div className="v">{own.position || "—"}</div>
             <div className="l">{t("Pozisyon")}</div></div>
+          <div className="kpi"><div className="v" style={{ color: veColor(own.virtualEnergy) }}>
+            {own.virtualEnergy != null ? `${Math.round(own.virtualEnergy)}%` : "—"}</div>
+            <div className="l">NRG</div></div>
           <div className="kpi"><div className="v mono">
             {own.curLapSec > 0 ? fmtLap(own.curLapSec) : "—"}</div>
             <div className="l">{t("Mevcut Tur")}</div></div>
@@ -381,6 +387,7 @@ export default function LiveTab({ t, live, bridge, canEdit, liveFuelObs, tid, ri
               <thead><tr>
                 <th>#</th><th>{t("Pilot")}</th><th>{t("Sınıf")}</th><th>{t("Tur")}</th>
                 <th>{t("Son")}</th><th>{t("En İyi")}</th><th>AVG5</th><th>AVG</th>
+                <th>NRG</th>
                 <th>Δ</th><th>Gap</th><th>{t("Aralık")}</th><th>{t("Konum")}</th>
                 <th>Stint</th><th>{t("Lastik")}</th><th>{t("Hasar")}</th><th>Pit</th>
                 <th aria-label={t("Turlar")}></th>
@@ -412,6 +419,8 @@ export default function LiveTab({ t, live, bridge, canEdit, liveFuelObs, tid, ri
                         fontWeight: isFastest ? 700 : 400 }}>{lap(c.bestSec)}</td>
                       <td style={{ color: "var(--dim)" }}>{lap(c.avg5Sec)}</td>
                       <td style={{ color: "var(--dim)" }}>{lap(c.avgSec)}</td>
+                      <td style={{ color: veColor(c.virtualEnergy), fontSize: 12 }}>
+                        {c.virtualEnergy != null ? `${Math.round(c.virtualEnergy)}%` : "—"}</td>
                       <td style={{ color: delta == null ? "var(--dim)"
                         : delta <= 0 ? "var(--green)" : "var(--red)", fontSize: 12 }}>
                         {delta == null ? "—" : `${delta > 0 ? "+" : ""}${delta.toFixed(2)}`}</td>
