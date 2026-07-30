@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.21",
+    date: "2026-07-30",
+    tr: [
+      "🗺 Canlı Timing'e Pist Haritası eklendi: dış halka araçları pist üzerindeki konuma göre gösterir (S/F tepede), iç şekil gerçek devreyi çizer (araçların dünya konumlarından birkaç saniyede oluşur). Renk = sınıf, beyaz halka = sen, beyaz kenar = pit",
+      "🔧 Köprü artık araç konumlarını (pist mesafesi + dünya koordinatları) ve pist uzunluğunu da gönderiyor",
+    ],
+    en: [
+      "🗺 Added a Track Map to Live Timing: the outer ring shows cars by their position on track (S/F at top), the inner shape draws the real circuit (built from cars' world positions in a few seconds). Color = class, white ring = you, white edge = pit",
+      "🔧 The bridge now also sends car positions (track distance + world coordinates) and track length",
+    ],
+  },
+  {
     v: "v1.4.20",
     date: "2026-07-30",
     tr: [

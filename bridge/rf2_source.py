@@ -8,13 +8,16 @@
                   makinende doğrula (LMU sürümü offset kaydırabilir → tek nokta).
 
 Şema (web LiveTab ile birebir):
-  session: {phase, flag, timeLeftSec, totalLaps, trackTemp, ambientTemp, raining}
+  session: {phase, flag, timeLeftSec, totalLaps, trackTemp, ambientTemp, raining,
+            trackLength}
   own:     {fuel, fuelCapacity, position, lastLapSec, bestLapSec, curLapSec,
             s1, s2, lapsDone, inPits, pitStops, location, damage, avg5Sec, avgSec,
             stintSec, tyreCompound:{front,rear}, tyres:{fl,fr,rl,rr:{wear,tempC,pressKpa}}}
-  field[]: {pos, driver, carClass, lapsDone, lastSec, bestSec, gapSec, intervalSec,
-            inPits, location, pitStops, tyreWear, damage, avg5Sec, avgSec, stintSec,
-            laps, lapsFrom, lapKey, isPlayer}
+  field[]: {pos, driver, carClass, lapsDone, lapDist, posX, posZ, lastSec, bestSec,
+            gapSec, intervalSec, inPits, location, pitStops, tyreWear, damage,
+            avg5Sec, avgSec, stintSec, laps, lapsFrom, lapKey, isPlayer}
+  (lapDist/posX/posZ + session.trackLength = trackmap: dış boşluk halkası
+   lapDist/trackLength ile, iç pist şekli dünya posX/posZ ile çizilir.)
 
 avg5Sec/avgSec/stintSec ve laps/lapsFrom/lapKey Aggregator (durumlu sarmalayıcı)
 tarafından türetilir; RF2Source/MockSource tek-kare okur, Aggregator kare kare geçmiş
@@ -70,12 +73,25 @@ class MockSource:
         self.base = [88.0 + i * 0.35 + random.random() for i in range(self.n)]  # tur temposu
         self.total = 6 * 3600  # 6 saat
 
+    TRACK_LEN = 4000.0  # sahte pist uzunluğu (m)
+
+    @staticmethod
+    def _track_xy(frac):
+        """Tur oranı (0..1) → sahte pist üzerinde dünya (x, z) — trackmap testi için
+        kıvrımlı kapalı bir devre çizer."""
+        a = 2 * math.pi * frac
+        x = 700 * math.sin(a) + 250 * math.sin(2 * a)
+        z = 500 * math.cos(a) + 180 * math.cos(3 * a)
+        return round(x, 1), round(z, 1)
+
     def read(self):
         el = time.time() - self.t0
         rows = []
         for i in range(self.n):
             lap_t = self.base[i] + math.sin(el / 30 + i) * 0.4
             laps = int(el / lap_t)
+            frac = (el % lap_t) / lap_t          # tur içi ilerleme 0..1
+            px, pz = self._track_xy(frac)
             rows.append({
                 "pos": 0, "driver": self.NAMES[i],
                 "carClass": self.CLASSES[0] if i < 3 else self.CLASSES[1],
@@ -86,6 +102,7 @@ class MockSource:
                 "pitStops": laps // 45,  # ~45 turda bir durak
                 "tyreWear": round(max(0.15, 1 - (el % 1500 / 1500) * 0.7), 3),
                 "damage": round(min(0.4, i * 0.01 + (el % 600) / 6000), 3),
+                "lapDist": round(frac * self.TRACK_LEN, 1), "posX": px, "posZ": pz,
             })
         rows.sort(key=lambda r: -r["_prog"])
         leadprog = rows[0]["_prog"]
@@ -104,6 +121,7 @@ class MockSource:
                 "trackTemp": round(30 + math.sin(el / 300) * 4, 1),
                 "ambientTemp": round(22 + math.sin(el / 400) * 2, 1),
                 "raining": (int(el / 200) % 5) == 4,
+                "trackLength": self.TRACK_LEN,
             },
             "own": {
                 "fuel": round(max(2, 78 - (stint / 1500) * 70), 1), "fuelCapacity": 78.0,
@@ -193,6 +211,17 @@ class RF2Source:
             return None
 
     @staticmethod
+    def _pos(v):
+        """Aracın dünya (x, z) konumu (m) — trackmap iç pist şekli için. y yükseklik."""
+        try:
+            mp = getattr(v, "mPos", None)
+            if mp is None:
+                return None, None
+            return round(float(mp.x), 1), round(float(mp.z), 1)
+        except Exception:
+            return None, None
+
+    @staticmethod
     def _location(v):
         """Aracın konumu: GARAGE / PIT / TRACK."""
         if bool(getattr(v, "mInGarageStall", 0)):
@@ -221,6 +250,8 @@ class RF2Source:
             "trackTemp": round(float(getattr(info, "mTrackTemp", 0.0)), 1),
             "ambientTemp": round(float(getattr(info, "mAmbientTemp", 0.0)), 1),
             "raining": float(getattr(info, "mRaining", 0.0)) > 0.1,
+            # pist uzunluğu (m) — trackmap dış boşluk halkası için (lapDist/trackLength)
+            "trackLength": round(float(getattr(info, "mLapDist", 0.0)), 1) or None,
         }
 
         # telemetriyi mID ile eşle (saha başına lastik aşınması + hasar için)
@@ -237,11 +268,14 @@ class RF2Source:
             if is_player:
                 player_scor = v
             tv = tele_by_id.get(int(getattr(v, "mID", -2)))
+            px, pz = self._pos(v)
             field.append({
                 "pos": int(getattr(v, "mPlace", 0)),
                 "driver": _s(getattr(v, "mDriverName", b"")),
                 "carClass": _s(getattr(v, "mVehicleClass", b"")),
                 "lapsDone": int(getattr(v, "mTotalLaps", 0)),
+                "lapDist": round(float(getattr(v, "mLapDist", 0.0)), 1),
+                "posX": px, "posZ": pz,
                 "lastSec": round(float(getattr(v, "mLastLapTime", -1.0)), 3),
                 "bestSec": round(float(getattr(v, "mBestLapTime", -1.0)), 3),
                 "gapSec": round(float(getattr(v, "mTimeBehindLeader", 0.0)), 1),

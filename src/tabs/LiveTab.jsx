@@ -4,6 +4,7 @@ import { Ring } from "../components";
 import { DESKTOP_RELEASE_URL, ASSET, classId, classAccent } from "../constants";
 import { isTauri } from "../tauriEnv";
 import { liveLapsSubscribe } from "../storage";
+import TrackMap from "./TrackMap";
 
 /* Canlı Timing — LMU köprüsünün yazdığı teams/{tid}/live/{rid} düğümünü gösterir.
    Köprü .exe oyunun PC'sinde çalışır, paylaşımlı bellekten okuyup Firebase'e yazar;
@@ -375,6 +376,10 @@ export default function LiveTab({ t, live, bridge, canEdit,
             <div className="l">{t("Hava")} {s.ambientTemp != null ? `${Math.round(s.ambientTemp)}°` : ""}</div></div>
         </div>
       </div>
+
+      {s.trackLength > 0 && fieldAll.some((c) => c.posX != null) && (
+        <TrackMap t={t} field={fieldAll} trackLength={s.trackLength} />
+      )}
 
       {own && <OwnCar t={t} own={own} liveFuelObs={liveFuelObs} />}
 
