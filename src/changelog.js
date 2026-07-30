@@ -5,6 +5,13 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.16",
+    date: "2026-07-30",
+    tr: [
+      "📈 Tur zaman listesi (satır sonu '+') artık tüm yarışı kapsıyor — 50 tur sınırı kalktı. Tur geçmişi canlı kareden ayrılıp kalıcı bir düğüme her tur bir kez yazılıyor; '+' açılınca yalnız o aracın tüm turları yükleniyor (300+ tur sorunsuz). Canlı kare küçük kaldığı için Firebase kotası da korunuyor",
+    ],
+  },
+  {
     v: "v1.4.15",
     date: "2026-07-30",
     tr: [

@@ -2932,7 +2932,7 @@ ${bottomBar}
           </>)}
 
           {tab === "live" && <LiveTab t={t} live={live} liveFuelObs={liveFuelObs}
-            bridge={bridge} canEdit={canEditTeam}
+            bridge={bridge} canEdit={canEditTeam} tid={curTeam} rid={curRace}
             onStartBridge={startLiveBridge} onStopBridge={stopLiveBridge} />}
 
           {tab === "tyre" && (
