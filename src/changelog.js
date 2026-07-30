@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.22",
+    date: "2026-07-30",
+    tr: [
+      "📈 Canlı Timing'e Pozisyon Grafiği eklendi: her aracın tur-tur pozisyonu çizgi grafiğinde (Y ekseni ters, P1 üstte), renk = sınıf, kalın #960018 = sen, 'P' = pit turu. Köprü çalışırken tur-tur birikir ve kalıcıdır (tüm takım aynı grafiği görür, geç açan da geçmişi görür)",
+    ],
+    en: [
+      "📈 Added a Position Chart to Live Timing: each car's position lap by lap as a line chart (Y axis reversed, P1 on top), color = class, thick #960018 = you, 'P' = pit lap. It accumulates lap by lap while the bridge runs and is persistent (the whole team sees the same chart, latecomers see the history)",
+    ],
+  },
+  {
     v: "v1.4.21",
     date: "2026-07-30",
     tr: [

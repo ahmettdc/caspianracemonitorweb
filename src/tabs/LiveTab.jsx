@@ -5,6 +5,7 @@ import { DESKTOP_RELEASE_URL, ASSET, classId, classAccent } from "../constants";
 import { isTauri } from "../tauriEnv";
 import { liveLapsSubscribe } from "../storage";
 import TrackMap from "./TrackMap";
+import PosChart from "./PosChart";
 
 /* Canlı Timing — LMU köprüsünün yazdığı teams/{tid}/live/{rid} düğümünü gösterir.
    Köprü .exe oyunun PC'sinde çalışır, paylaşımlı bellekten okuyup Firebase'e yazar;
@@ -473,6 +474,8 @@ export default function LiveTab({ t, live, bridge, canEdit,
         )}
         <div className="hint">{t("Gap: lidere · Aralık: öndeki araca · Pn: sınıf-içi sıra (sarı = sınıf lideri) · mor: seansın en hızlı turu · satır sonundaki + ile o aracın tur zamanları. Veriler köprü ile canlı gelir; tüm takım aynı anda görür.")}</div>
       </div>
+      {!big && <PosChart t={t} tid={tid} rid={rid} field={fieldAll} />}
+
       {lapsFor && <LapsModal t={t} tid={tid} rid={rid} row={lapsFor}
         onClose={() => setLapsFor(null)} />}
     </div>

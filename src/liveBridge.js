@@ -14,7 +14,8 @@
    Yalnız Tauri kabuğunda anlamlıdır; `@tauri-apps/plugin-shell` dinamik import
    edilir (web derlemesi bu modülü yüklese de sidecar'ı hiç çalıştırmaz).
    ============================================================ */
-import { liveTimingSet, liveLapsAppend, liveLapsClear } from "./storage";
+import { liveTimingSet, liveLapsAppend, liveLapsClear,
+  livePosAppend, livePosClear } from "./storage";
 
 let child = null;          // çalışan sidecar süreci (Child)
 let stopping = false;
@@ -51,6 +52,7 @@ export async function startBridge(opts, onStatus) {
   let writeTimer = null;
   let cars = 0;
   const lastLap = {};      // lapKey → yazılmış en yüksek tur no (append idempotent)
+  const lastPit = {};      // lapKey → son görülen pit durak sayısı (pit turu işareti)
 
   /* Kareyi yazmadan önce tur geçmişini kalıcı livelaps düğümüne taşı:
      her satırın laps[]/lapsFrom'undan yeni turları (n > lastLap) topla, tek update
@@ -58,7 +60,8 @@ export async function startBridge(opts, onStatus) {
      Böylece 300+ turluk yarış tümüyle kapsanır ama canlı kare şişmez. */
   const harvestLaps = async (frame) => {
     const rows = Array.isArray(frame?.field) ? frame.field : [];
-    const entries = {};
+    const entries = {};      // livelaps: lapKey/n → süre
+    const posEntries = {};   // livepos: lapKey/n → pozisyon (pit turu → negatif)
     let clears = [];
     for (const r of rows) {
       const key = r.lapKey;
@@ -68,24 +71,32 @@ export async function startBridge(opts, onStatus) {
         // yeni seans: gelen ilk tur no, yazdığımızdan küçük/eşit → geçmişi sıfırla
         if (lastLap[key] != null && from <= lastLap[key]
             && (from + laps.length - 1) < lastLap[key]) {
-          clears.push(key); lastLap[key] = 0;
+          clears.push(key); lastLap[key] = 0; lastPit[key] = r.pitStops || 0;
         }
         const prev = lastLap[key] || 0;
+        const maxN = from + laps.length - 1;
+        // bu turlarda pit atıldı mı (durak sayısı arttı mı)? → maxN turu pit işaretli
+        const pits = r.pitStops || 0;
+        const pitted = pits > (lastPit[key] ?? pits);
         for (let i = 0; i < laps.length; i++) {
           const n = from + i;
           if (n > prev && laps[i] > 0) entries[`${key}/${n}`] = laps[i];
+          if (n > prev && r.pos > 0) {   // pozisyon geçmişi (pit turu → negatif)
+            posEntries[`${key}/${n}`] = (n === maxN && pitted) ? -r.pos : r.pos;
+          }
         }
-        const maxN = from + laps.length - 1;
         if (maxN > (lastLap[key] || 0)) lastLap[key] = maxN;
+        lastPit[key] = pits;
       }
       // canlı kareyi küçük tut — geçmiş ayrı düğümde
       delete r.laps; delete r.lapsFrom;
     }
     try {
-      for (const k of clears) await liveLapsClear(tid, rid, k);
+      for (const k of clears) { await liveLapsClear(tid, rid, k); await livePosClear(tid, rid, k); }
       if (Object.keys(entries).length) await liveLapsAppend(tid, rid, entries);
+      if (Object.keys(posEntries).length) await livePosAppend(tid, rid, posEntries);
     } catch (e) {
-      say({ running: true, phase: "running", msg: "Tur geçmişi yazılamadı: " + (e?.message || e) });
+      say({ running: true, phase: "running", msg: "Geçmiş yazılamadı: " + (e?.message || e) });
     }
   };
 
