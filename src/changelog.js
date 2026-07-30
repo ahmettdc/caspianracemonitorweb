@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.30",
+    date: "2026-07-30",
+    tr: [
+      "🔋 Kendi Araç kartında artık iki halka: VE (Sanal Enerji) büyük ve yeşil (yakıttan önemli), Yakıt sarı. 'NRG' adı her yerde 'VE' oldu",
+    ],
+    en: [
+      "🔋 The Own Car card now has two rings: VE (Virtual Energy) large and green (more important than fuel), Fuel yellow. 'NRG' renamed to 'VE' everywhere",
+    ],
+  },
+  {
     v: "v1.4.29",
     date: "2026-07-30",
     tr: [
