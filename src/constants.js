@@ -3,7 +3,7 @@
 export const SLOT_COLORS = { A: "#40D68C", B: "#F0604D", C: "#F2A33C", D: "#6694FF" };
 
 /* ---------- pist & araç seçimi ---------- */
-export const APP_VERSION = "v1.4.10";   // tek kaynak — sürüm yazısı buradan
+export const APP_VERSION = "v1.4.11";   // tek kaynak — sürüm yazısı buradan
 export const REPO_URL = "https://github.com/ahmettdc/caspianracemonitorweb";
 export const SEEN_VER_KEY = "rm_seen_version";
 export const ASSET = import.meta.env.BASE_URL + "assets/";
@@ -116,6 +116,15 @@ export const classId = (raw) => {
   if (s.includes("gt3")) return "gt3";   // lmgt3 dahil
   return "";
 };
+/* Sınıf renk vurgusu (satır sol şeridi) — rozet görselleriyle uyumlu tonlar. */
+export const CLASS_ACCENT = {
+  hypercar: "#E7443B",  // HY kırmızı
+  gt3: "#EF8A2B",       // GT3 turuncu
+  lmp2: "#4C9AFF",      // P2 mavi
+  lmp3: "#B58BFF",      // P3 mor
+  gte: "#37D67A",       // GTE yeşil
+};
+export const classAccent = (raw) => CLASS_ACCENT[classId(raw)] || "";
 export const trackName = (id) => TRACKS.find((t) => t.id === id)?.name || "";
 export const carName = (cls, id) => CARS[cls]?.find((c) => c.id === id)?.name || "";
 /* araç görseli: dosya adı id'den farklıysa CARS girişindeki img alanı kullanılır */

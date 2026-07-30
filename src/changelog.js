@@ -5,6 +5,14 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.11",
+    date: "2026-07-30",
+    tr: [
+      "📊 Canlı Timing zenginleştirildi: sınıf-içi pozisyon (Pn, sarı = sınıf lideri), 'Kendi sınıfım' filtresi, öndeki araca 'Aralık' sütunu, tur-altı araçlar için '+n Tur', seansın en hızlı turu tek araçta mor vurgu ve satır sol kenarında sınıf renk şeridi",
+      "🏎 Kendi Araç kartına: mevcut tur canlı sayacı + S1/S2 sektörleri, PIT rozeti ve mevcut yakıtla ~kaç tur kaldığı tahmini (canlıdan öğrenilen tüketimle)",
+    ],
+  },
+  {
     v: "v1.4.10",
     date: "2026-07-30",
     tr: [
