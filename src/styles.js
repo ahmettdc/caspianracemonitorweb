@@ -504,6 +504,14 @@ export const css = `
 .rc .livebadge.lag i{background:var(--yellow)}
 .rc .livebadge.off{color:var(--muted)}
 .rc .livebadge.off i{background:var(--muted)}
+/* --- büyük pano (pit duvarı / tam ekran) — uzaktan okunur --- */
+.rc .bigboard{background:var(--bg);overflow:auto;padding:16px}
+.rc .bigboard .card{margin-bottom:14px}
+.rc .bigboard h2{font-size:22px}
+.rc .bigboard table{font-size:19px}
+.rc .bigboard td,.rc .bigboard th{padding:9px 12px}
+.rc .bigboard .disp{font-size:22px}
+.rc .bigboard .hint{display:none}
 /* --- masaüstü (Tauri) güncelleme şeridi --- */
 .rc .updatebar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
   padding:8px 20px;background:linear-gradient(90deg,rgba(150,0,24,.35),rgba(150,0,24,.12));

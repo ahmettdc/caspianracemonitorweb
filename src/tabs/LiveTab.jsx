@@ -49,10 +49,17 @@ function OwnCar({ t, own, liveFuelObs }) {
   const lpl = liveFuelObs?.litersPerLap;
   const lapsLeft = (lpl > 0 && own.fuel > 0) ? Math.floor(own.fuel / lpl) : null;
   const sec = (v) => (v > 0 ? `${v.toFixed(1)}` : "—");
+  // lastik bileşimi (ön/arka aynıysa tek göster)
+  const tc = own.tyreCompound || {};
+  const compound = tc.front && tc.rear
+    ? (tc.front === tc.rear ? tc.front : `${tc.front}/${tc.rear}`)
+    : (tc.front || tc.rear || "");
   return (
     <div className="card" data-tour="ownlive" style={{ marginBottom: 12 }}>
-      <h2 style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
         🏎 {t("Kendi Araç")}
+        {compound && <span className="chip" style={{ fontSize: 11, color: "var(--teal)",
+          borderColor: "var(--teal)" }}>🛞 {compound}</span>}
         {own.inPits && <span className="chip"
           style={{ color: "var(--yellow)", borderColor: "var(--yellow)", fontSize: 11 }}>PIT</span>}
       </h2>
@@ -80,6 +87,8 @@ function OwnCar({ t, own, liveFuelObs }) {
             {lap(own.bestLapSec)}</div><div className="l">{t("En İyi")}</div></div>
           <div className="kpi"><div className="v">{own.lapsDone ?? "—"}</div>
             <div className="l">{t("Tur")}</div></div>
+          <div className="kpi"><div className="v">{own.pitStops ?? "—"}</div>
+            <div className="l">{t("Pit")}</div></div>
           <div className="kpi"><div className="v mono" style={{ fontSize: 15 }}>
             {sec(own.s1)} <span style={{ color: "var(--dim)" }}>/</span> {sec(own.s2)}</div>
             <div className="l">S1 / S2</div></div>
@@ -164,12 +173,41 @@ function BridgeControl({ t, bridge, canEdit, onStart, onStop }) {
 export default function LiveTab({ t, live, bridge, canEdit,
   onStartBridge, onStopBridge, liveFuelObs }) {
   const [myClassOnly, setMyClassOnly] = useState(false);
+  const [big, setBig] = useState(false);
+  const rootRef = useRef(null);
   const playerRowRef = useRef(null);
+  const posRef = useRef({});   // sürücü → son pozisyon
+  const dirRef = useRef({});   // sürücü → 'up'|'down' (son değişim yönü kalır)
   // uzun grid'de oyuncu satırını görünür tut (canlı güncellemede)
   useEffect(() => {
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
     playerRowRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [live?.own?.position, myClassOnly]);
+  // pozisyon değişim yönünü izle (kare kare) → ▲/▼ okları
+  useEffect(() => {
+    const f = Array.isArray(live?.field) ? live.field : [];
+    for (const c of f) {
+      const prev = posRef.current[c.driver];
+      if (prev != null && c.pos > 0 && prev !== c.pos) {
+        dirRef.current[c.driver] = prev > c.pos ? "up" : "down";
+      }
+      if (c.pos > 0) posRef.current[c.driver] = c.pos;
+    }
+  }, [live?.ts]);
+  // büyük pano (tam ekran)
+  const toggleBig = () => {
+    const el = rootRef.current;
+    if (!document.fullscreenElement) {
+      Promise.resolve(el?.requestFullscreen?.()).then(() => setBig(true)).catch(() => setBig(true));
+    } else {
+      Promise.resolve(document.exitFullscreen?.()).catch(() => {});
+    }
+  };
+  useEffect(() => {
+    const onFs = () => setBig(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onFs);
+    return () => document.removeEventListener("fullscreenchange", onFs);
+  }, []);
 
   const bridgeCard = isTauri ? (
     <BridgeControl t={t} bridge={bridge} canEdit={canEdit}
@@ -230,13 +268,17 @@ export default function LiveTab({ t, live, bridge, canEdit,
     ? rows.filter((r) => r.id === playerClass) : rows;
 
   return (
-    <div data-tour="livecard">
-      {bridgeCard}
+    <div data-tour="livecard" ref={rootRef} className={big ? "bigboard" : ""}>
+      {!big && bridgeCard}
       <div className="card" style={{ marginBottom: 12 }}>
-        <h2 style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           📡 {t("Canlı Timing")}
           <span className={`livebadge ${conn.cls}`}>
             <i /> {t(conn.lbl)} · {ageSec}s</span>
+          {document.fullscreenEnabled && (
+            <button className="act" style={{ marginLeft: "auto", fontSize: 11, padding: "3px 10px" }}
+              onClick={toggleBig}>{big ? t("✕ Küçült") : t("⛶ Büyük Pano")}</button>
+          )}
         </h2>
         <div className="kpis" style={{ marginBottom: 0 }}>
           <div className="kpi"><div className="v disp">{s.flag ? t(s.flag) : (s.phase || "—")}</div>
@@ -282,7 +324,13 @@ export default function LiveTab({ t, live, bridge, canEdit,
                     <tr key={c.pos ?? i} ref={c.isPlayer ? playerRowRef : null}
                       className={c.isPlayer ? "live" : ""}
                       style={!c.isPlayer && acc ? { borderLeft: `3px solid ${acc}` } : undefined}>
-                      <td className="disp" style={{ fontSize: 15 }}>{c.pos ?? i + 1}</td>
+                      <td className="disp" style={{ fontSize: 15, whiteSpace: "nowrap" }}>
+                        {c.pos ?? i + 1}
+                        {dirRef.current[c.driver] === "up" && <span
+                          style={{ color: "var(--green)", fontSize: 10, marginLeft: 3 }}>▲</span>}
+                        {dirRef.current[c.driver] === "down" && <span
+                          style={{ color: "var(--red)", fontSize: 10, marginLeft: 3 }}>▼</span>}
+                      </td>
                       <td style={{ fontFamily: "'Inter',system-ui,sans-serif" }}>{c.driver || "—"}</td>
                       <td style={{ whiteSpace: "nowrap" }}>
                         <ClassBadge raw={c.carClass} />
@@ -296,8 +344,11 @@ export default function LiveTab({ t, live, bridge, canEdit,
                         fontWeight: isFastest ? 700 : 400 }}>{lap(c.bestSec)}</td>
                       <td>{i === 0 ? t("Lider") : lapsDown >= 1 ? `+${lapsDown} ${t("Tur")}` : gap(c.gapSec)}</td>
                       <td style={{ color: "var(--dim)" }}>{interval != null ? gap(interval) : "—"}</td>
-                      <td>{c.inPits ? <span className="chip"
-                        style={{ color: "var(--yellow)", borderColor: "var(--yellow)" }}>PIT</span> : ""}</td>
+                      <td style={{ whiteSpace: "nowrap" }}>
+                        {c.inPits && <span className="chip" style={{ marginRight: 4,
+                          color: "var(--yellow)", borderColor: "var(--yellow)" }}>PIT</span>}
+                        <span style={{ color: "var(--dim)" }}>{c.pitStops ?? "—"}</span>
+                      </td>
                     </tr>
                   );
                 })}
