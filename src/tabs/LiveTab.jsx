@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { fmtLap, fmtHMS } from "../engine";
 import { Ring } from "../components";
-import { DESKTOP_RELEASE_URL } from "../constants";
+import { DESKTOP_RELEASE_URL, classColor } from "../constants";
 import { isTauri } from "../tauriEnv";
 
 /* Canlı Timing — LMU köprüsünün yazdığı teams/{tid}/live/{rid} düğümünü gösterir.
@@ -206,11 +206,15 @@ export default function LiveTab({ t, live, bridge, canEdit,
                 <th>{t("Son")}</th><th>{t("En İyi")}</th><th>Gap</th><th>Pit</th>
               </tr></thead>
               <tbody>
-                {field.map((c, i) => (
+                {field.map((c, i) => {
+                  const cc = classColor(c.carClass);
+                  return (
                   <tr key={c.pos ?? i} className={c.isPlayer ? "live" : ""}>
                     <td className="disp" style={{ fontSize: 15 }}>{c.pos ?? i + 1}</td>
                     <td style={{ fontFamily: "'Inter',system-ui,sans-serif" }}>{c.driver || "—"}</td>
-                    <td><span className="chip" style={{ fontSize: 10 }}>{c.carClass || "—"}</span></td>
+                    <td><span className="chip" style={{ fontSize: 10,
+                      ...(cc && { color: cc, borderColor: cc, background: `${cc}1F` }) }}>
+                      {c.carClass || "—"}</span></td>
                     <td>{c.lapsDone ?? "—"}</td>
                     <td>{lap(c.lastSec)}</td>
                     <td style={{ color: "var(--purple)" }}>{lap(c.bestSec)}</td>
@@ -218,7 +222,8 @@ export default function LiveTab({ t, live, bridge, canEdit,
                     <td>{c.inPits ? <span className="chip"
                       style={{ color: "var(--yellow)", borderColor: "var(--yellow)" }}>PIT</span> : ""}</td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

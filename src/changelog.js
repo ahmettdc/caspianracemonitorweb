@@ -5,6 +5,13 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.9",
+    date: "2026-07-30",
+    tr: [
+      "🎨 Canlı Timing tablosunda sınıf (SINIF) çipleri artık kategoriye göre renkli: Hypercar kırmızı, LMP2 mavi, LMP3 mor, GTE amber, LMGT3/GT3 yeşil — sahayı sınıflara göre tek bakışta ayırt edersin",
+    ],
+  },
+  {
     v: "v1.4.8",
     date: "2026-07-30",
     tr: [
