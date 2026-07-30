@@ -62,12 +62,16 @@ class MockSource:
                 "_prog": laps * 1e6 + (el % lap_t),  # sıralama için ilerleme
                 "inPits": (int(el / 90) % 11) == i, "isPlayer": i == 4,
                 "pitStops": laps // 45,  # ~45 turda bir durak
+                "tyreWear": round(max(0.15, 1 - (el % 1500 / 1500) * 0.7), 3),
+                "damage": round(min(0.4, i * 0.01 + (el % 600) / 6000), 3),
             })
         rows.sort(key=lambda r: -r["_prog"])
         leadprog = rows[0]["_prog"]
         for p, r in enumerate(rows):
             r["pos"] = p + 1
             r["gapSec"] = 0.0 if p == 0 else round((leadprog - r["_prog"]) / 1e6 * r["lastSec"], 1)
+            r["intervalSec"] = 0.0 if p == 0 else round(r["gapSec"] - rows[p - 1]["gapSec"], 1)
+            r["location"] = "PIT" if r["inPits"] else "TRACK"
             r.pop("_prog", None)
         me = next(r for r in rows if r["isPlayer"])
         stint = el % 1500
@@ -85,6 +89,7 @@ class MockSource:
                 "curLapSec": round(stint % me["lastSec"], 1), "s1": round(me["lastSec"] * 0.32, 3),
                 "s2": round(me["lastSec"] * 0.35, 3), "lapsDone": me["lapsDone"],
                 "inPits": me["inPits"], "pitStops": me["pitStops"],
+                "location": me["location"], "damage": me["damage"],
                 "tyreCompound": (lambda comp: {"front": comp, "rear": comp})(
                     ["Medium", "Hard", "Soft"][int(el / 1500) % 3]),
                 "tyres": {c: {"wear": round(max(0.2, 1 - (stint / 1500) * 0.7), 3),
@@ -133,6 +138,33 @@ class RF2Source:
                 out[k] = {}
         return out
 
+    @staticmethod
+    def _worst_wear(tele):
+        """4 tekerin en kötü (en düşük) diş oranı 0..1 — saha lastik göstergesi."""
+        try:
+            ws = [float(getattr(tele.mWheels[i], "mWear", 1.0)) for i in range(4)]
+            return round(min(ws), 3) if ws else None
+        except Exception:
+            return None
+
+    @staticmethod
+    def _damage(tele):
+        """mDentSeverity (her biri 0..2) → 0..1 hasar oranı."""
+        try:
+            dents = list(getattr(tele, "mDentSeverity", []))
+            return round(sum(int(d) for d in dents) / (len(dents) * 2.0), 3) if dents else None
+        except Exception:
+            return None
+
+    @staticmethod
+    def _location(v):
+        """Aracın konumu: GARAGE / PIT / TRACK."""
+        if bool(getattr(v, "mInGarageStall", 0)):
+            return "GARAGE"
+        if bool(getattr(v, "mInPits", 0)) or int(getattr(v, "mPitState", 0)) in (2, 3, 4):
+            return "PIT"
+        return "TRACK"
+
     def read(self):
         scor = self.api.Rf2Scor
         tele = self.api.Rf2Tele
@@ -155,13 +187,20 @@ class RF2Source:
             "raining": float(getattr(info, "mRaining", 0.0)) > 0.1,
         }
 
-        # saha (scoring)
+        # telemetriyi mID ile eşle (saha başına lastik aşınması + hasar için)
+        tele_by_id = {}
+        for i in range(min(num, len(tele.mVehicles))):
+            tv = tele.mVehicles[i]
+            tele_by_id[int(getattr(tv, "mID", -1))] = tv
+
+        # saha (scoring + eşleşen telemetri)
         field, player_scor = [], None
         for i in range(min(num, len(scor.mVehicles))):
             v = scor.mVehicles[i]
             is_player = bool(getattr(v, "mIsPlayer", 0))
             if is_player:
                 player_scor = v
+            tv = tele_by_id.get(int(getattr(v, "mID", -2)))
             field.append({
                 "pos": int(getattr(v, "mPlace", 0)),
                 "driver": _s(getattr(v, "mDriverName", b"")),
@@ -170,8 +209,12 @@ class RF2Source:
                 "lastSec": round(float(getattr(v, "mLastLapTime", -1.0)), 3),
                 "bestSec": round(float(getattr(v, "mBestLapTime", -1.0)), 3),
                 "gapSec": round(float(getattr(v, "mTimeBehindLeader", 0.0)), 1),
+                "intervalSec": round(float(getattr(v, "mTimeBehindNext", 0.0)), 1),
                 "inPits": bool(getattr(v, "mInPits", 0)),
+                "location": self._location(v),
                 "pitStops": int(getattr(v, "mNumPitstops", 0)),
+                "tyreWear": self._worst_wear(tv) if tv is not None else None,
+                "damage": self._damage(tv) if tv is not None else None,
                 "isPlayer": is_player,
             })
         field.sort(key=lambda r: r["pos"] if r["pos"] > 0 else 999)
@@ -193,6 +236,7 @@ class RF2Source:
                     "front": _s(getattr(pt, "mFrontTireCompoundName", b"")) or None,
                     "rear": _s(getattr(pt, "mRearTireCompoundName", b"")) or None,
                 },
+                "damage": self._damage(pt),
                 "tyres": self._wheels(pt),
             }
             if player_scor is not None:
@@ -206,6 +250,7 @@ class RF2Source:
                     "lapsDone": int(getattr(player_scor, "mTotalLaps", 0)),
                     "inPits": bool(getattr(player_scor, "mInPits", 0)),
                     "pitStops": int(getattr(player_scor, "mNumPitstops", 0)),
+                    "location": self._location(player_scor),
                 })
 
         return {"session": session, "own": own, "field": field}
