@@ -1453,7 +1453,8 @@ ${bottomBar}
               <h4>{c.v}{c.v === APP_VERSION &&
                 <span className="cur">{t("ŞU AN")}</span>}</h4>
               <div className="cdate">{c.date}</div>
-              <ul>{(lang === "en" ? c.en : c.tr).map((x, i) => <li key={i}>{x}</li>)}</ul>
+              <ul>{((lang === "en" ? c.en : c.tr) || c.tr || c.en || []).map((x, i) =>
+                <li key={i}>{x}</li>)}</ul>
             </div>
           ))}
         </div>
