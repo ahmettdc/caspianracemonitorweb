@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.26",
+    date: "2026-07-30",
+    tr: [
+      "🔋 Virtual Energy (NRG) eklendi: paylaşımlı bellekte olmadığı için köprü LMU'nun kendi yerel API'sinden (localhost:6397) çekiyor. Kendi Araç kartında ve saha tablosunda NRG % görünür (yüksek yeşil → düşük kırmızı). LMU'da API/eklentiler açık olmalı; kapalıysa '—' gösterir",
+    ],
+    en: [
+      "🔋 Added Virtual Energy (NRG): since it isn't in shared memory, the bridge reads it from LMU's own local API (localhost:6397). NRG % shows on the Own Car card and the field table (green high → red low). LMU's API/plugins must be enabled; if off, it shows '—'",
+    ],
+  },
+  {
     v: "v1.4.25",
     date: "2026-07-30",
     tr: [

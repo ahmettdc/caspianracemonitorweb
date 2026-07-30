@@ -10,9 +10,11 @@
 Şema (web LiveTab ile birebir):
   session: {phase, flag, timeLeftSec, totalLaps, trackTemp, ambientTemp, raining,
             trackLength}
-  own:     {fuel, fuelCapacity, position, lastLapSec, bestLapSec, curLapSec,
-            s1, s2, lapsDone, inPits, pitStops, location, damage, avg5Sec, avgSec,
-            stintSec, tyreCompound:{front,rear}, tyres:{fl,fr,rl,rr:{wear,tempC,pressKpa}}}
+  own:     {fuel, fuelCapacity, virtualEnergy, position, lastLapSec, bestLapSec,
+            curLapSec, s1, s2, lapsDone, inPits, pitStops, location, damage, avg5Sec,
+            avgSec, stintSec, tyreCompound:{front,rear},
+            tyres:{fl,fr,rl,rr:{wear,tempC,pressKpa}}}
+  (virtualEnergy = LMU REST API'den; paylaşımlı bellekte yok. REST kapalıysa gelmez.)
   field[]: {pos, driver, carClass, lapsDone, lapDist, posX, posZ, lastSec, bestSec,
             gapSec, intervalSec, inPits, location, pitStops, tyreWear, damage,
             avg5Sec, avgSec, stintSec, laps, lapsFrom, lapKey, isPlayer}
@@ -103,6 +105,7 @@ class MockSource:
                 "tyreWear": round(max(0.15, 1 - (el % 1500 / 1500) * 0.7), 3),
                 "damage": round(min(0.4, i * 0.01 + (el % 600) / 6000), 3),
                 "lapDist": round(frac * self.TRACK_LEN, 1), "posX": px, "posZ": pz,
+                "virtualEnergy": round(max(3.0, 100 - ((el + i * 40) % 1500 / 1500) * 92), 1),
             })
         rows.sort(key=lambda r: -r["_prog"])
         leadprog = rows[0]["_prog"]
@@ -125,6 +128,7 @@ class MockSource:
             },
             "own": {
                 "fuel": round(max(2, 78 - (stint / 1500) * 70), 1), "fuelCapacity": 78.0,
+                "virtualEnergy": me["virtualEnergy"],
                 "position": me["pos"], "lastLapSec": me["lastSec"], "bestLapSec": me["bestSec"],
                 "curLapSec": round(stint % me["lastSec"], 1), "s1": round(me["lastSec"] * 0.32, 3),
                 "s2": round(me["lastSec"] * 0.35, 3), "lapsDone": me["lapsDone"],
@@ -153,6 +157,12 @@ class RF2Source:
         # Bağımlılık yalnız burada; --mock modunda hiç import edilmez.
         from pyRfactor2SharedMemory.sharedMemoryAPI import SimInfoAPI  # noqa
         self.api = SimInfoAPI()
+        # Virtual Energy paylaşımlı bellekte yok → LMU yerel REST API'den (opsiyonel)
+        try:
+            from lmu_api import LmuApi
+            self.lmu = LmuApi()
+        except Exception:
+            self.lmu = None
 
     def close(self):
         try:
@@ -325,6 +335,22 @@ class RF2Source:
                     "pitStops": int(getattr(player_scor, "mNumPitstops", 0)),
                     "location": self._location(player_scor),
                 })
+
+        # Virtual Energy — LMU REST API'den (paylaşımlı bellekte yok); toleranslı,
+        # sürücü adıyla eşlenir. REST kapalı/farklıysa sessizce atlanır.
+        if getattr(self, "lmu", None) is not None:
+            try:
+                by_driver, own_ve = self.lmu.fetch()
+            except Exception:
+                by_driver, own_ve = {}, None
+            for r in field:
+                ve = by_driver.get(str(r.get("driver") or "").strip().lower())
+                if ve is not None:
+                    r["virtualEnergy"] = ve
+            if own is not None:
+                pdrv = _s(getattr(player_scor, "mDriverName", b"")).strip().lower() \
+                    if player_scor is not None else ""
+                own["virtualEnergy"] = own_ve if own_ve is not None else by_driver.get(pdrv)
 
         return {"session": session, "own": own, "field": field}
 
