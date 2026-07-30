@@ -5,6 +5,13 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.17",
+    date: "2026-07-30",
+    tr: [
+      "🔒 Canlı Timing sekmesi şimdilik yalnız site adminlerine görünür (test aşaması) — tamamlanınca tüm takım üyelerine açılacak",
+    ],
+  },
+  {
     v: "v1.4.16",
     date: "2026-07-30",
     tr: [

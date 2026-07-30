@@ -2861,7 +2861,9 @@ ${bottomBar}
             {[["dash", "Dashboard", "\u{1F4CA}"], ["stint", "Stint", "\u{1F4CB}"],
               /* ["code80", "Code 80"], — şimdilik arayüzden gizli, kod korunuyor */
               ["fuel", t("Son Stint Yakıtı"), "\u26A1"],
-              ["live", t("Canlı"), "📡"],
+              /* Canlı timing şimdilik yalnız site adminlerine görünür (test aşaması);
+                 bitince bu koşul kaldırılıp tüm üyelere açılacak. */
+              ...(isAdmin ? [["live", t("Canlı"), "📡"]] : []),
               ["tyre", t("Lastik"), <Tyre size={12} />],
               ["drivers", t("Pilotlar"), <Wheel size={12} />],
               ["tele", t("Telemetri"), "\u{1F4C8}"],
@@ -2931,7 +2933,7 @@ ${bottomBar}
             </div>
           </>)}
 
-          {tab === "live" && <LiveTab t={t} live={live} liveFuelObs={liveFuelObs}
+          {tab === "live" && isAdmin && <LiveTab t={t} live={live} liveFuelObs={liveFuelObs}
             bridge={bridge} canEdit={canEditTeam} tid={curTeam} rid={curRace}
             onStartBridge={startLiveBridge} onStopBridge={stopLiveBridge} />}
 
