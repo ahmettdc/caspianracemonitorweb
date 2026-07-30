@@ -10,6 +10,12 @@
     "updater:default",
     "process:default",
     {
+      "identifier": "shell:allow-spawn",
+      "allow": [
+        { "name": "binaries/caspian-bridge", "sidecar": true, "args": true }
+      ]
+    },
+    {
       "identifier": "shell:allow-execute",
       "allow": [
         { "name": "binaries/caspian-bridge", "sidecar": true, "args": true }
