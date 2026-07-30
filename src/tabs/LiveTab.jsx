@@ -43,6 +43,58 @@ function ClassBadge({ raw }) {
   return <span className="chip" style={{ fontSize: 10 }}>{raw || "—"}</span>;
 }
 
+/* Bir aracın o ana kadar attığı turların zaman listesi (satırdaki "+" ile açılır).
+   Köprü çalışırken tamamlanan turlar; en yeni üstte. En hızlı tur mor, out/pit
+   turu (best'in %110'undan büyük) soluk. wxmodal desenini yeniden kullanır. */
+function LapsModal({ t, row, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  const laps = Array.isArray(row.laps) ? row.laps : [];
+  const from = row.lapsFrom || 1;
+  const best = laps.length ? Math.min(...laps.filter((v) => v > 0)) : 0;
+  // en yeni üstte: tur no = from + index
+  const items = laps.map((sec, i) => ({ n: from + i, sec })).reverse();
+  return (
+    <div className="wxmodal" onClick={onClose} role="dialog" aria-modal="true">
+      <div className="wxmbox" onClick={(e) => e.stopPropagation()}>
+        <div className="wxmhead">
+          <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <ClassBadge raw={row.carClass} /> {row.driver || "—"}
+            <span style={{ fontSize: 12, color: "var(--dim)", textTransform: "none",
+              letterSpacing: 0 }}>· {laps.length} {t("tur")}</span>
+          </span>
+          <button className="act" style={{ fontSize: 12, padding: "2px 10px" }}
+            onClick={onClose}>✕</button>
+        </div>
+        <div className="wxmlist">
+          {!items.length && <div className="hint">{t("Henüz tamamlanmış tur yok.")}</div>}
+          {items.map(({ n, sec }) => {
+            const isBest = sec > 0 && sec === best;
+            const isOut = best > 0 && sec > best * 1.10;
+            return (
+              <div key={n} className="wxrow">
+                <span className="wxnm" style={{ minWidth: 64, color: "var(--dim)" }}>
+                  {t("Tur")} {n}</span>
+                <span className="mono" style={{ fontSize: 15, fontWeight: isBest ? 700 : 500,
+                  color: isBest ? "var(--purple)" : isOut ? "var(--yellow)" : "var(--txt)" }}>
+                  {fmtLap(sec)}</span>
+                <span className="wxat mono">
+                  {isBest ? "★" : best > 0 ? `+${(sec - best).toFixed(2)}` : ""}</span>
+              </div>
+            );
+          })}
+        </div>
+        <div className="wxmfoot">
+          <button className="act" onClick={onClose}>{t("Kapat")}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function OwnCar({ t, own, liveFuelObs }) {
   const cap = own.fuelCapacity > 0 ? own.fuelCapacity : 0;
   const frac = cap ? Math.max(0, Math.min(1, own.fuel / cap)) : 0;
@@ -188,6 +240,7 @@ export default function LiveTab({ t, live, bridge, canEdit,
   onStartBridge, onStopBridge, liveFuelObs }) {
   const [myClassOnly, setMyClassOnly] = useState(false);
   const [big, setBig] = useState(false);
+  const [lapsFor, setLapsFor] = useState(null);   // "+" ile açılan tur listesi satırı
   const rootRef = useRef(null);
   const playerRowRef = useRef(null);
   const posRef = useRef({});   // sürücü → son pozisyon
@@ -333,6 +386,7 @@ export default function LiveTab({ t, live, bridge, canEdit,
                 <th>{t("Son")}</th><th>{t("En İyi")}</th><th>AVG5</th><th>AVG</th>
                 <th>Δ</th><th>Gap</th><th>{t("Aralık")}</th><th>{t("Konum")}</th>
                 <th>Stint</th><th>{t("Lastik")}</th><th>{t("Hasar")}</th><th>Pit</th>
+                <th aria-label={t("Turlar")}></th>
               </tr></thead>
               <tbody>
                 {shown.map(({ c, i, id, classPos, interval, lapsDown, delta, isFastest }) => {
@@ -385,6 +439,14 @@ export default function LiveTab({ t, live, bridge, canEdit,
                           color: "var(--yellow)", borderColor: "var(--yellow)" }}>PIT</span>}
                         <span style={{ color: "var(--dim)" }}>{c.pitStops ?? "—"}</span>
                       </td>
+                      <td style={{ textAlign: "center" }}>
+                        {c.laps?.length > 0 && (
+                          <button className="act" title={t("Tur zamanları")}
+                            aria-label={t("Tur zamanları")}
+                            style={{ fontSize: 14, lineHeight: 1, padding: "1px 8px" }}
+                            onClick={() => setLapsFor(c)}>+</button>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
@@ -392,8 +454,9 @@ export default function LiveTab({ t, live, bridge, canEdit,
             </table>
           </div>
         )}
-        <div className="hint">{t("Gap: lidere · Aralık: öndeki araca · Pn: sınıf-içi sıra (sarı = sınıf lideri) · mor: seansın en hızlı turu. Veriler köprü ile canlı gelir; tüm takım aynı anda görür.")}</div>
+        <div className="hint">{t("Gap: lidere · Aralık: öndeki araca · Pn: sınıf-içi sıra (sarı = sınıf lideri) · mor: seansın en hızlı turu · satır sonundaki + ile o aracın tur zamanları. Veriler köprü ile canlı gelir; tüm takım aynı anda görür.")}</div>
       </div>
+      {lapsFor && <LapsModal t={t} row={lapsFor} onClose={() => setLapsFor(null)} />}
     </div>
   );
 }
