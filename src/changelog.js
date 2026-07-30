@@ -5,6 +5,13 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.5",
+    date: "2026-07-30",
+    tr: [
+      "🖥️ Masaüstü uygulaması artık kapatınca tamamen kapanmıyor: pencereyi (X) kapatınca Windows sistem tepsisine (saatin yanı) küçülüp arka planda çalışmaya devam ediyor — yanlışlıkla kapatıp canlı köprünün veri akışını kesme riski yok. Tepsi ikonuna tıklayınca geri gelir; gerçekten kapatmak için ikona sağ tık → 'Çıkış'. Ayrıca menüde 'Windows açılışında başlat' seçeneği (isteğe bağlı, varsayılan kapalı)",
+    ],
+  },
+  {
     v: "v1.4.4",
     date: "2026-07-30",
     tr: [

@@ -1,5 +1,17 @@
-use tauri::{AppHandle, Emitter};
+use tauri::menu::{CheckMenuItem, Menu, MenuItem};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::{AppHandle, Emitter, Manager};
+use tauri_plugin_autostart::ManagerExt;
 use tauri_plugin_opener::OpenerExt;
+
+/* Pencereyi tepsiden geri getir (gizli/simge durumundaysa). */
+fn show_main(app: &AppHandle) {
+  if let Some(w) = app.get_webview_window("main") {
+    let _ = w.show();
+    let _ = w.unminimize();
+    let _ = w.set_focus();
+  }
+}
 
 /* Geçici loopback OAuth sunucusu (127.0.0.1:PORT) başlatır; sistem tarayıcısı
    redirect'le döndüğünde tam URL'yi "oauth://url" olayıyla ön yüze iletir. */
@@ -68,12 +80,25 @@ pub fn run() {
     .plugin(tauri_plugin_shell::init())
     .plugin(tauri_plugin_updater::Builder::new().build())
     .plugin(tauri_plugin_process::init())
+    .plugin(tauri_plugin_autostart::init(
+      tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+      Some(vec![]),
+    ))
     .invoke_handler(tauri::generate_handler![
       start_oauth_server,
       stop_oauth_server,
       open_external_url,
       exchange_google_code
     ])
+    // Pencereyi (X) kapatınca uygulama kapanmasın — gizle, sistem tepsisinde
+    // çalışmaya devam etsin (canlı köprü veri akışı kesilmesin). Gerçek çıkış
+    // yalnız tepsi menüsündeki "Çıkış" iledir.
+    .on_window_event(|window, event| {
+      if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+        let _ = window.hide();
+        api.prevent_close();
+      }
+    })
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(
@@ -82,6 +107,45 @@ pub fn run() {
             .build(),
         )?;
       }
+
+      // ---- Sistem tepsisi (bildirim alanı) ikonu + menüsü ----
+      let show_i = MenuItem::with_id(app, "show", "Göster", true, None::<&str>)?;
+      let autostart_on = app.autolaunch().is_enabled().unwrap_or(false);
+      let auto_i = CheckMenuItem::with_id(
+        app, "autostart", "Windows açılışında başlat", true, autostart_on, None::<&str>,
+      )?;
+      let quit_i = MenuItem::with_id(app, "quit", "Çıkış", true, None::<&str>)?;
+      let menu = Menu::with_items(app, &[&show_i, &auto_i, &quit_i])?;
+
+      let auto_ref = auto_i.clone();
+      TrayIconBuilder::with_id("main-tray")
+        .icon(app.default_window_icon().unwrap().clone())
+        .tooltip("Caspian Race Monitor")
+        .menu(&menu)
+        .show_menu_on_left_click(false)
+        .on_menu_event(move |app, event| match event.id().as_ref() {
+          "show" => show_main(app),
+          "quit" => app.exit(0),
+          "autostart" => {
+            let mgr = app.autolaunch();
+            let now = mgr.is_enabled().unwrap_or(false);
+            let _ = if now { mgr.disable() } else { mgr.enable() };
+            let _ = auto_ref.set_checked(mgr.is_enabled().unwrap_or(!now));
+          }
+          _ => {}
+        })
+        .on_tray_icon_event(|tray, event| {
+          if let TrayIconEvent::Click {
+            button: MouseButton::Left,
+            button_state: MouseButtonState::Up,
+            ..
+          } = event
+          {
+            show_main(tray.app_handle());
+          }
+        })
+        .build(app)?;
+
       Ok(())
     })
     .run(tauri::generate_context!())
