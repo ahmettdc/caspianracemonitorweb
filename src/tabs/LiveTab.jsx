@@ -99,6 +99,13 @@ function OwnCar({ t, own, liveFuelObs }) {
           <div className="kpi"><div className="v mono" style={{ fontSize: 15 }}>
             {sec(own.s1)} <span style={{ color: "var(--dim)" }}>/</span> {sec(own.s2)}</div>
             <div className="l">S1 / S2</div></div>
+          <div className="kpi"><div className="v mono">{lap(own.avg5Sec)}</div>
+            <div className="l">AVG5</div></div>
+          <div className="kpi"><div className="v mono">{lap(own.avgSec)}</div>
+            <div className="l">AVG</div></div>
+          <div className="kpi"><div className="v mono">
+            {own.stintSec > 0 ? fmtHMS(own.stintSec) : "—"}</div>
+            <div className="l">{t("Stint")}</div></div>
         </div>
       </div>
       <div className="row4" style={{ marginTop: 12 }}>
@@ -323,9 +330,9 @@ export default function LiveTab({ t, live, bridge, canEdit,
             <table aria-label={t("Canlı timing tablosu")}>
               <thead><tr>
                 <th>#</th><th>{t("Pilot")}</th><th>{t("Sınıf")}</th><th>{t("Tur")}</th>
-                <th>{t("Son")}</th><th>{t("En İyi")}</th><th>Δ</th><th>Gap</th>
-                <th>{t("Aralık")}</th><th>{t("Konum")}</th><th>{t("Lastik")}</th>
-                <th>{t("Hasar")}</th><th>Pit</th>
+                <th>{t("Son")}</th><th>{t("En İyi")}</th><th>AVG5</th><th>AVG</th>
+                <th>Δ</th><th>Gap</th><th>{t("Aralık")}</th><th>{t("Konum")}</th>
+                <th>Stint</th><th>{t("Lastik")}</th><th>{t("Hasar")}</th><th>Pit</th>
               </tr></thead>
               <tbody>
                 {shown.map(({ c, i, id, classPos, interval, lapsDown, delta, isFastest }) => {
@@ -352,6 +359,8 @@ export default function LiveTab({ t, live, bridge, canEdit,
                       <td>{lap(c.lastSec)}</td>
                       <td style={{ color: isFastest ? "var(--purple)" : "var(--dim)",
                         fontWeight: isFastest ? 700 : 400 }}>{lap(c.bestSec)}</td>
+                      <td style={{ color: "var(--dim)" }}>{lap(c.avg5Sec)}</td>
+                      <td style={{ color: "var(--dim)" }}>{lap(c.avgSec)}</td>
                       <td style={{ color: delta == null ? "var(--dim)"
                         : delta <= 0 ? "var(--green)" : "var(--red)", fontSize: 12 }}>
                         {delta == null ? "—" : `${delta > 0 ? "+" : ""}${delta.toFixed(2)}`}</td>
@@ -360,6 +369,8 @@ export default function LiveTab({ t, live, bridge, canEdit,
                       <td style={{ fontSize: 11, color: c.location === "PIT" ? "var(--yellow)"
                         : c.location === "GARAGE" ? "var(--red)" : "var(--dim)" }}>
                         {c.location ? t(c.location) : "—"}</td>
+                      <td className="mono" style={{ color: "var(--dim)", fontSize: 12 }}>
+                        {c.stintSec > 0 ? fmtHMS(c.stintSec) : "—"}</td>
                       <td style={{ whiteSpace: "nowrap" }}>
                         {c.tyreWear != null ? <>
                           <span style={{ display: "inline-block", width: 9, height: 9, borderRadius: "50%",
