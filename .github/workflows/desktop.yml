@@ -19,6 +19,7 @@ on:
       - "src/**"
       - "public/**"
       - "src-tauri/**"
+      - "bridge/**"
       - "package.json"
       - "package-lock.json"
       - "vite.config.js"
@@ -50,17 +51,18 @@ jobs:
           python-version: "3.11"
 
       - name: Köprü sidecar bağımlılıkları
-        run: pip install requests pyinstaller
-
-      - name: rF2 okuyucu (gerçek mod — best-effort)
-        continue-on-error: true
-        run: pip install -r bridge/requirements.txt
+        run: pip install pyinstaller -r bridge/requirements.txt
 
       - name: Köprü sidecar .exe derle
         shell: pwsh
+        # rF2 okuyucu (pyRfactor2SharedMemory) repoya gömülü: bridge/pyRfactor2SharedMemory/.
+        # --paths bridge → gömülü paketi bul; --collect-submodules → tüm alt modülleri
+        # (rF2data dahil) topla; psutil onun bağımlılığı (requirements.txt'ten kurulur).
         run: |
           pyinstaller --onefile --name caspian-bridge `
-            --hidden-import pyRfactor2SharedMemory.sharedMemoryAPI `
+            --paths bridge `
+            --collect-submodules pyRfactor2SharedMemory `
+            --hidden-import psutil `
             --distpath bridge/dist bridge/main.py
           New-Item -ItemType Directory -Force -Path src-tauri/binaries | Out-Null
           Copy-Item bridge/dist/caspian-bridge.exe `
