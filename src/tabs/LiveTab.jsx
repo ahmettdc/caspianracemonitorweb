@@ -198,12 +198,10 @@ function OwnCar({ t, own, liveFuelObs }) {
   );
 }
 
-/* Masaüstü uygulamasında canlı köprüyü buradan başlat/durdur.
-   Oyunun çalıştığı PC'de: giriş yap → yarışı aç → Başlat. Sidecar oyunun
-   paylaşımlı belleğini okur, veri senin oturumunla yazılır (bot gerekmez). */
-function BridgeControl({ t, bridge, canEdit, onStart, onStop }) {
-  const [mock, setMock] = useState(false);
-  const running = !!bridge?.running;
+/* Canlı köprü durum kartı (yalnız gösterim). Köprü masaüstünde OTOMATİK çalışır
+   (App.jsx yönetir): oyunun PC'sinde uygulama açık + owner/editor + yarış seçiliyse
+   kendiliğinden bağlanır, koparsa ~4 sn'de bir yeniden dener. Elle başlatma yok. */
+function BridgeControl({ t, bridge, canEdit }) {
   const phase = bridge?.phase || "idle";
   const dot = phase === "running" ? "var(--green)"
     : phase === "error" ? "var(--red)"
@@ -214,45 +212,24 @@ function BridgeControl({ t, bridge, canEdit, onStart, onStop }) {
         🛰 {t("Canlı Köprü")}
         <span style={{ width: 9, height: 9, borderRadius: "50%", background: dot,
           boxShadow: `0 0 8px ${dot}` }} />
+        <span style={{ fontSize: 11, color: "var(--dim)", fontWeight: 400 }}>{t("otomatik")}</span>
       </h2>
-      {!canEdit ? (
-        <div className="hint">{t("Köprüyü başlatmak için takımda owner/editor olmalısın (yalnız görüntüleyicisin).")}</div>
-      ) : (
-        <>
-          <div className="hint" style={{ marginBottom: 10 }}>
-            {t("Bu bilgisayarda oyun (LMU) açıkken Başlat'a bas — köprü oyunu okuyup canlı timing'i takımla paylaşır. Ayrı .exe ve bot hesabı gerekmez.")}
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            {!running ? (
-              <button className="bigbtn" onClick={() => onStart(mock)}
-                style={{ width: "auto", padding: "10px 20px" }}>
-                ▶ {t("Canlı Köprü Başlat")}</button>
-            ) : (
-              <button className="act" onClick={onStop}
-                style={{ padding: "10px 20px", borderColor: "var(--red)", color: "var(--red)" }}>
-                ■ {t("Durdur")}</button>
-            )}
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12,
-              color: "var(--dim)", cursor: "pointer" }}>
-              <input type="checkbox" checked={mock} disabled={running}
-                onChange={(e) => setMock(e.target.checked)} />
-              {t("Mock veri (oyunsuz test)")}
-            </label>
-          </div>
-          {bridge?.msg && (
-            <div className="hint" style={{ marginTop: 8,
-              color: phase === "error" ? "var(--red)" : "var(--dim)" }}>
-              {running || phase === "error" ? "• " : ""}{bridge.msg}
-            </div>
-          )}
-        </>
+      <div className="hint">
+        {canEdit
+          ? t("Bu bilgisayarda oyun (LMU) açıkken köprü kendiliğinden bağlanır ve canlı timing'i takımla paylaşır. Elle başlatmaya gerek yok; oyun kapalıyken bekler, açılınca otomatik başlar.")
+          : t("Köprü otomatik çalışır; veri yazmak için takımda owner/editor olman gerekir (yalnız görüntüleyicisin).")}
+      </div>
+      {canEdit && bridge?.msg && (
+        <div className="hint" style={{ marginTop: 6,
+          color: phase === "error" ? "var(--red)" : "var(--dim)" }}>
+          • {bridge.msg}
+        </div>
       )}
     </div>
   );
 }
 
-export default function LiveTab({ t, live, bridge, canEdit,
-  onStartBridge, onStopBridge, liveFuelObs, tid, rid }) {
+export default function LiveTab({ t, live, bridge, canEdit, liveFuelObs, tid, rid }) {
   const [myClassOnly, setMyClassOnly] = useState(false);
   const [big, setBig] = useState(false);
   const [lapsFor, setLapsFor] = useState(null);   // "+" ile açılan tur listesi satırı
@@ -292,8 +269,7 @@ export default function LiveTab({ t, live, bridge, canEdit,
   }, []);
 
   const bridgeCard = isTauri ? (
-    <BridgeControl t={t} bridge={bridge} canEdit={canEdit}
-      onStart={onStartBridge} onStop={onStopBridge} />
+    <BridgeControl t={t} bridge={bridge} canEdit={canEdit} />
   ) : null;
 
   if (!live || !live.ts) {
