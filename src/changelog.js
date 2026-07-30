@@ -5,7 +5,7 @@
    ============================================================ */
 export const CHANGELOG = [
   {
-    v: "v1.4.2",
+    v: "v1.4.3",
     date: "2026-07-30",
     tr: [
       "🖥️ Masaüstü uygulaması Google girişi tamamen yenilendi: giriş artık uygulamanın içinde değil, senin VARSAYILAN sistem tarayıcında açılıyor; onayladıktan sonra otomatik olarak uygulamaya dönüyor (güvenli loopback + PKCE). Gömülü tarayıcı popup/redirect'i engellediği için giriş başa dönüyordu, bu sorun giderildi",
