@@ -140,7 +140,7 @@ def cmd_emit(mock, hz):
         err = f"Okuyucu başlatılamadı: {e}"
         try:
             while True:
-                sys.stdout.write(json.dumps({"error": err}, ensure_ascii=False) + "\n")
+                sys.stdout.write(json.dumps({"error": err}) + "\n")
                 sys.stdout.flush()
                 time.sleep(2.0)
         except (KeyboardInterrupt, BrokenPipeError):
@@ -152,8 +152,10 @@ def cmd_emit(mock, hz):
                 data = src.read()
             except Exception as e:  # noqa: BLE001  (oyun kapalı/okuma hatası → satır bas, devam)
                 data = {"error": str(e)}
-            # tek satır JSON (JS satır satır ayrıştırır); flush şart (pipe tamponu)
-            sys.stdout.write(json.dumps(data, ensure_ascii=False) + "\n")
+            # tek satır JSON (JS satır satır ayrıştırır); flush şart (pipe tamponu).
+            # ensure_ascii=True → Türkçe \uXXXX olarak kaçışlanır; reconfigure başarısız
+            # olsa bile stdout saf ASCII (her zaman geçerli UTF-8). JS JSON.parse çözer.
+            sys.stdout.write(json.dumps(data) + "\n")
             sys.stdout.flush()
             dt = time.time() - t0
             if dt < period:
@@ -245,6 +247,15 @@ def run_loop(cp, mock, once):
 
 
 def main():
+    # Windows'ta Python stdout/stderr varsayılan olarak sistem locale'i (Türkçe
+    # cp1254) olabilir → Türkçe karakterler (ör. "Yeşil"deki ş) tek bayt yazılır
+    # ve Tauri sidecar çıktıyı UTF-8 çözerken hata verir. Çıktıyı UTF-8'e zorla.
+    for _s in (sys.stdout, sys.stderr):
+        try:
+            _s.reconfigure(encoding="utf-8")
+        except Exception:  # noqa: BLE001  (bazı ortamlarda stdout None/ayarlanamaz)
+            pass
+
     ap = argparse.ArgumentParser(description="Caspian Live Bridge")
     ap.add_argument("--config", default="config.ini")
     ap.add_argument("--mock", action="store_true", help="Oyunsuz sahte veri")
