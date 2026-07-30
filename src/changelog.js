@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.23",
+    date: "2026-07-30",
+    tr: [
+      "🎯 Canlı Timing'e Strateji rozetleri eklendi (kendi araç için): Önünde/Arkanda (araç kodu + fark), Temiz hava (en yakın araca zaman), Trafik (±3s içinde kaç araç) ve Pit çıkışı tahmini (şimdi pit'e girersen ~hangi sıra). Pistine göre 'pit kaybı' (saniye) girilir, hatırlanır. Ek veri gerekmez, gap'lerden hesaplanır",
+    ],
+    en: [
+      "🎯 Added Strategy chips to Live Timing (for your own car): Ahead/Behind (car code + gap), Clean air (time to nearest car), Traffic (how many cars within ±3s) and a Pit-exit estimate (what position you'd rejoin if you pit now). Enter your track's 'pit loss' (seconds), remembered. No extra data — computed from the gaps",
+    ],
+  },
+  {
     v: "v1.4.22",
     date: "2026-07-30",
     tr: [
