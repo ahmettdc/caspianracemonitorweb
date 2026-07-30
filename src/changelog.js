@@ -5,6 +5,13 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.10",
+    date: "2026-07-30",
+    tr: [
+      "🏷 Canlı Timing sınıf sütununda artık uygulamanın kendi renkli rozet vektörleri (HY / P2 / P3 / GTE / GT3) kullanılıyor — pist/araç seçim ekranıyla birebir aynı görsel dil",
+    ],
+  },
+  {
     v: "v1.4.9",
     date: "2026-07-30",
     tr: [

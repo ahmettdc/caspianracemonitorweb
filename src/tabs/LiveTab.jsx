@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { fmtLap, fmtHMS } from "../engine";
 import { Ring } from "../components";
-import { DESKTOP_RELEASE_URL, classColor } from "../constants";
+import { DESKTOP_RELEASE_URL, ASSET, classId } from "../constants";
 import { isTauri } from "../tauriEnv";
 
 /* Canlı Timing — LMU köprüsünün yazdığı teams/{tid}/live/{rid} düğümünü gösterir.
@@ -23,6 +23,21 @@ function connOf(ts) {
   if (dt < 6000) return { cls: "on", lbl: "canlı" };
   if (dt < 30000) return { cls: "lag", lbl: "gecikmeli" };
   return { cls: "off", lbl: "bağlantı koptu" };
+}
+
+/* Sınıf rozeti — pick ekranındaki renkli vektör (assets/class/<id>.png).
+   Görsel yüklenmezse sınıf adını nötr çip olarak gösterir. */
+function ClassBadge({ raw }) {
+  const [err, setErr] = useState(false);
+  const id = classId(raw);
+  if (id && !err) {
+    return (
+      <img src={`${ASSET}class/${id}.png`} alt={raw || ""} title={raw || ""}
+        style={{ height: 18, verticalAlign: "middle", borderRadius: 3 }}
+        onError={() => setErr(true)} />
+    );
+  }
+  return <span className="chip" style={{ fontSize: 10 }}>{raw || "—"}</span>;
 }
 
 function OwnCar({ t, own }) {
@@ -206,15 +221,11 @@ export default function LiveTab({ t, live, bridge, canEdit,
                 <th>{t("Son")}</th><th>{t("En İyi")}</th><th>Gap</th><th>Pit</th>
               </tr></thead>
               <tbody>
-                {field.map((c, i) => {
-                  const cc = classColor(c.carClass);
-                  return (
+                {field.map((c, i) => (
                   <tr key={c.pos ?? i} className={c.isPlayer ? "live" : ""}>
                     <td className="disp" style={{ fontSize: 15 }}>{c.pos ?? i + 1}</td>
                     <td style={{ fontFamily: "'Inter',system-ui,sans-serif" }}>{c.driver || "—"}</td>
-                    <td><span className="chip" style={{ fontSize: 10,
-                      ...(cc && { color: cc, borderColor: cc, background: `${cc}1F` }) }}>
-                      {c.carClass || "—"}</span></td>
+                    <td><ClassBadge raw={c.carClass} /></td>
                     <td>{c.lapsDone ?? "—"}</td>
                     <td>{lap(c.lastSec)}</td>
                     <td style={{ color: "var(--purple)" }}>{lap(c.bestSec)}</td>
@@ -222,8 +233,7 @@ export default function LiveTab({ t, live, bridge, canEdit,
                     <td>{c.inPits ? <span className="chip"
                       style={{ color: "var(--yellow)", borderColor: "var(--yellow)" }}>PIT</span> : ""}</td>
                   </tr>
-                  );
-                })}
+                ))}
               </tbody>
             </table>
           </div>
