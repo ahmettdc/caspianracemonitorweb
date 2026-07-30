@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.24",
+    date: "2026-07-30",
+    tr: [
+      "🗺 Pist Haritası daireleri büyütüldü ve içine sınıf-içi pozisyon numarası yazıldı — kim sınıfında kaçıncı bir bakışta okunur (renk = sınıf, beyaz halka = sen)",
+    ],
+    en: [
+      "🗺 Track Map dots are bigger and now show the in-class position number inside — read each car's class position at a glance (color = class, white ring = you)",
+    ],
+  },
+  {
     v: "v1.4.23",
     date: "2026-07-30",
     tr: [
