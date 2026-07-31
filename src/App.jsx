@@ -43,7 +43,7 @@ import {
 } from "./state";
 import {
   TourOverlay, Wheel, Num, Bolt, Tyre, Ring,
-  BADGES, teamBadgesOf, hasBadge, ChatPanel, SetupForm, SetupTable, VersionModal,
+  BADGES, teamBadgesOf, hasBadge, ChatPanel, SetupForm, SetupTable, VersionModal, RaceEditModal,
 } from "./components";
 
 /* Sekmeler talep üzerine yüklenir (kod bölme) — ilk bundle küçülür,
@@ -1095,98 +1095,33 @@ ${bottomBar}
 
   const timeline = buildTimeline(plan);
 
-  /* yarış ekleme / düzenleme penceresi */
-  const raceForm = rForm && (
-    <div className="wxmodal" onClick={() => setRForm(null)}>
-      <div className="wxmbox" style={{ width: "min(560px,95vw)" }}
-        onClick={(e) => e.stopPropagation()}>
-        <div className="wxmhead">
-          <span>🏁 {rForm.rid ? t("Yarışı Düzenle") : t("Yarış Ekle")}</span>
-          <button className="lbclose" onClick={() => setRForm(null)}>✕</button>
-        </div>
-        <div style={{ padding: "12px 16px", maxHeight: "62vh", overflow: "auto" }}>
-          <div className="row2">
-            <div><label>{t("Sezon")}</label>
-              <select value={rForm.seasonId || ""}
-                onChange={(e) => setRForm({ ...rForm, seasonId: e.target.value || null })}>
-                <option value="">{t("Takvim dışı (tekli yarış)")}</option>
-                {Object.entries(seasons).map(([sid, se]) => (
-                  <option key={sid} value={sid}>{se.name}</option>
-                ))}
-              </select></div>
-            <div><label>{t("Round")}</label>
-              <input type="number" value={rForm.round || ""}
-                onChange={(e) => setRForm({ ...rForm, round: e.target.value })} /></div>
-          </div>
-          <label>{t("Yarış adı")}</label>
-          <input type="text" value={rForm.name || ""} style={{ textTransform: "none" }}
-            placeholder={t("örn. 6 Hours of Spa")}
-            onChange={(e) => setRForm({ ...rForm, name: e.target.value })} />
-          <div className="row2">
-            <div><label>{t("Pist")}</label>
-              <select value={rForm.trackId || ""}
-                onChange={(e) => setRForm({ ...rForm, trackId: e.target.value })}>
-                <option value="">—</option>
-                {TRACKS.map((tr) => (
-                  <option key={tr.id} value={tr.id}>{tr.name}</option>
-                ))}
-              </select></div>
-            <div><label>{t("Yarış Süresi")}</label>
-              <input type="text" value={rForm.raceTime || ""} placeholder="6:00:00"
-                onChange={(e) => setRForm({ ...rForm, raceTime: e.target.value })} /></div>
-          </div>
-          <div className="row2">
-            <div><label>{t("Sınıf")}</label>
-              <select value={rForm.carClass || ""}
-                onChange={(e) => setRForm({ ...rForm, carClass: e.target.value, carId: "" })}>
-                {CAR_CLASSES.map(([id, nm]) => (
-                  <option key={id} value={id}>{nm}</option>
-                ))}
-              </select></div>
-            <div><label>{t("Araç")}</label>
-              <select value={rForm.carId || ""}
-                onChange={(e) => setRForm({ ...rForm, carId: e.target.value })}>
-                <option value="">—</option>
-                {(CARS[rForm.carClass] || []).map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select></div>
-          </div>
-          <label>{t("Başlangıç (yerel saat)")}</label>
-          <input type="datetime-local" value={msToLocalInput(rForm.startsAt || Date.now())}
-            onChange={(e) => {
-              const v = new Date(e.target.value).getTime();
-              if (!isNaN(v)) setRForm({ ...rForm, startsAt: v });
-            }} />
-        </div>
-        <div className="wxmfoot" style={{ gap: 8 }}>
-          <button className="histbtn" onClick={() => setRForm(null)}>{t("Vazgeç")}</button>
-          <button className="gbtn ubtn" onClick={async () => {
-            const payload = {
-              seasonId: rForm.seasonId || null,
-              round: rForm.round ? Number(rForm.round) : null,
-              name: rForm.name || "", trackId: rForm.trackId || "",
-              carClass: rForm.carClass || "", carId: rForm.carId || "",
-              raceTime: rForm.raceTime || "", startsAt: rForm.startsAt || 0,
-            };
-            if (rForm.rid) {
-              await updateRace(curTeam, rForm.rid, payload).catch(() => {});
-            } else {
-              /* yarış verisi önceden hazırlanır: pist/araç/süre/başlangıç dolu gelir */
-              const init = migrate({
-                ...DEFAULT_STATE,
-                track: payload.trackId, carClass: payload.carClass, car: payload.carId,
-                raceTime: payload.raceTime || DEFAULT_STATE.raceTime,
-                raceStartMs: payload.startsAt || Date.now(),
-                pitLaneTime: PIT_LANE_TIMES[payload.trackId] ?? DEFAULT_STATE.pitLaneTime,
-              });
-              await createRace(curTeam, payload, init, user?.uid).catch(() => {});
-            }
-            setRForm(null);
-          }}>{t("Kaydet")}</button>
-        </div>
-      </div>
-    </div>
+  /* yarış ekleme / düzenleme penceresi → RaceEditModal (sunum); kaydetme iş
+     mantığı burada (createRace/updateRace + init state hazırlığı). */
+  const saveRaceForm = async (f) => {
+    const payload = {
+      seasonId: f.seasonId || null,
+      round: f.round ? Number(f.round) : null,
+      name: f.name || "", trackId: f.trackId || "",
+      carClass: f.carClass || "", carId: f.carId || "",
+      raceTime: f.raceTime || "", startsAt: f.startsAt || 0,
+    };
+    if (f.rid) {
+      await updateRace(curTeam, f.rid, payload).catch(() => {});
+    } else {
+      /* yarış verisi önceden hazırlanır: pist/araç/süre/başlangıç dolu gelir */
+      const init = migrate({
+        ...DEFAULT_STATE,
+        track: payload.trackId, carClass: payload.carClass, car: payload.carId,
+        raceTime: payload.raceTime || DEFAULT_STATE.raceTime,
+        raceStartMs: payload.startsAt || Date.now(),
+        pitLaneTime: PIT_LANE_TIMES[payload.trackId] ?? DEFAULT_STATE.pitLaneTime,
+      });
+      await createRace(curTeam, payload, init, user?.uid).catch(() => {});
+    }
+    setRForm(null);
+  };
+  const raceForm = (
+    <RaceEditModal rForm={rForm} setRForm={setRForm} t={t} seasons={seasons} onSave={saveRaceForm} />
   );
 
   /* takım penceresi — hem lobide hem ana arayüzde kullanılır */
