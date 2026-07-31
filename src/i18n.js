@@ -535,4 +535,8 @@ export const EN = {
   "Test": "Testing", "Antrenman": "Practice",
   /* bağlantı durumu */
   "gecikmeli": "delayed", "bağlı değil": "not connected", "bağlantı koptu": "disconnected",
+  /* tek-yazıcı seçimi (livewriter) */
+  "Beklemede": "Standby", "yayınlıyor": "is broadcasting",
+  "aktif sürücü canlıyı yazıyor": "the active driver is writing live data",
+  "Canlı kaynak": "Live source",
 };

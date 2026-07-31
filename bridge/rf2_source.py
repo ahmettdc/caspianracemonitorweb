@@ -178,6 +178,7 @@ class MockSource:
                 "s2": round(me["lastSec"] * 0.35, 3), "lapsDone": me["lapsDone"],
                 "inPits": me["inPits"], "pitStops": me["pitStops"],
                 "location": me["location"], "damage": me["damage"],
+                "control": 0, "driving": True,   # mock: bu PC aktif sürücü (yazar)
                 "tyreCompound": (lambda comp: {"front": comp, "rear": comp})(
                     ["Medium", "Hard", "Soft"][int(el / 1500) % 3]),
                 "tyres": {c: {"wear": round(max(0.2, 1 - (stint / 1500) * 0.7), 3),
@@ -396,6 +397,11 @@ class RF2Source:
                     "inPits": bool(getattr(player_scor, "mInPits", 0)),
                     "pitStops": int(getattr(player_scor, "mNumPitstops", 0)),
                     "location": self._location(player_scor),
+                    # arabayı kim sürüyor: 0=yerel oyuncu, 1=AI, 2=uzak, 3=replay,
+                    # 255=yok (c_ubyte). driving=True → bu PC aktif sürücü → tek-yazıcı
+                    # seçiminde (livewriter lease) kirayı önceliklendirir.
+                    "control": int(getattr(player_scor, "mControl", 255)),
+                    "driving": int(getattr(player_scor, "mControl", 255)) == 0,
                 })
 
         # Virtual Energy — LMU REST API'den (paylaşımlı bellekte yok); toleranslı,
