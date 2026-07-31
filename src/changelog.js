@@ -5,6 +5,30 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.53",
+    date: "2026-07-31",
+    tr: [
+      "🧮 Stint planı: 'Avg Lap' ya da strateji tur sayısı alanı boşaltıldığında tablo 64 sahte stint satırına şişiyordu (üstelik odadaki herkeste). Artık plan üretilmiyor ve nedenini söyleyen bir uyarı çıkıyor",
+      "🏁 Tur sayısını '+' ile yarışa sığmayacak kadar artırınca stint bayrağın ötesine taşıyordu (End Stint yarış süresinden büyük, Time Left eksi, zaman çizelgesi ve pilot şeridi hizasını kaybediyordu) — artık süre override'ıyla aynı şekilde bayrakta bitiyor",
+      "⛽ PIT tuşuna araç pit yolundayken ikinci kez basmak, pit yolunda geçen saniyeleri stint süresine ekleyip kaydı bozuyordu — tuş artık pit boyunca pasif ('PIT YOLUNDA'); düzeltmek için ↩ Geri Al",
+      "⏱ Gerçek pitler plandan erken işaretlendiğinde yarışın sonunda 'stint süresi' tüm yarışı gösteriyordu — artık son pit çıkışından sayıyor",
+      "🚩 Son stintte pit olmadığı hâlde 'Sıradaki Pit' yazıp son 5 dakikada sarı pit alarmı veriyordu — artık 'Bayrağa' yazıyor, yanlış alarm yok",
+      "⚡ 'Toplam VE' göstergesi karma havada (ör. yarışın sonuna doğru yağmur) tablodaki stint toplamıyla tutmuyordu — 2:24'lük bir yarışta ~18 L'ye varan sapma; artık satırların gerçek toplamı",
+      "⚠️ Plan 64 stint sınırına takılırsa (çok uzun yarış + çok kısa stint) sessizce yarım kalıyordu — artık ne kadarının planlanmadığını söylüyor",
+      "🖨 Pilot Programı PDF'inde son satır vurgusu çalışmıyordu",
+    ],
+    en: [
+      "🧮 Stint plan: clearing the 'Avg Lap' or strategy lap-count field inflated the table to 64 phantom stint rows (for everyone in the room). The plan is no longer computed and a warning explains why",
+      "🏁 Bumping a stint's lap count past what fits in the race pushed the stint beyond the flag (End Stint greater than race time, negative Time Left, timeline and driver lane losing alignment) — it now ends at the flag, exactly like a time override",
+      "⛽ Pressing PIT a second time while the car was in the pit lane added the pit-lane seconds to the stint duration and corrupted the record — the button is now disabled during the pit ('IN PIT LANE'); use ↩ Undo to correct",
+      "⏱ When real pits were marked earlier than planned, the 'stint time' showed the whole race near the end — it now counts from the last pit exit",
+      "🚩 The final stint has no pit, yet it said 'Next Pit' and raised a yellow pit alarm in the last 5 minutes — it now says 'To Flag', with no false alarm",
+      "⚡ The 'Total VE' figure disagreed with the stint table in mixed weather (e.g. rain late in the race) — up to ~18 L off in a 2:24 race; it is now the real sum of the rows",
+      "⚠️ If the plan hit the 64-stint ceiling (very long race + very short stints) it was silently left half-done — it now reports how much went unplanned",
+      "🖨 The last-row highlight in the Driver Programme PDF never worked",
+    ],
+  },
+  {
     v: "v1.4.52",
     date: "2026-07-31",
     tr: [

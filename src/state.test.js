@@ -6,6 +6,7 @@ import {
   applyUpStintLap, applyUpTyreCell, applyAssignDriver, applyUpPit,
   computeTyreInfo, computeDriverPlan, computeSlotStats, computeChartData,
   computeLiveInfo, buildTimeline,
+  applyMarkPit, applyUnmarkPit, applyResetPits,
 } from "./state.js";
 
 /* DEFAULT_STATE'ten türeyen temel durum — DERİN kopya (iç diziler paylaşılmasın,
@@ -193,6 +194,90 @@ describe("computeLiveInfo (enjekte edilen now)", () => {
   });
   it("raceStartMs NaN → idle", () => {
     expect(computeLiveInfo(base({ raceStartMs: NaN }), rp, 0).status).toBe("idle");
+  });
+
+  /* REGRESYON (v1.4.53): gerçek pitler plandan ERKEN işaretlenirse zincir bayraktan
+     önce tükenir. Eskiden yedek `stintStartMs` yarış başlangıcı kalıyor, son stintte
+     "stint süresi" TÜM YARIŞ gibi görünüyordu. */
+  it("plandan erken pitlerde son stint yarış başlangıcından başlamaz", () => {
+    const start = 1_000_000;
+    const long = base({ raceTime: "2:24:00", raceStartMs: start });
+    const rpL = computePlan(long, "race");
+    expect(rpL.rows.length).toBeGreaterThan(2);   // çok stintli kurgu
+    // her stinti plandan ~5 dk erken bitir
+    const actualPits = rpL.rows.slice(0, -1).map((_, i) =>
+      start + (i + 1) * (rpL.rows[0].stintSec - 300) * 1000);
+    const st2 = base({ raceTime: "2:24:00", raceStartMs: start, actualPits });
+    const rp2 = computePlan(st2, "race");
+    const chainEnd = actualPits[actualPits.length - 1]
+      + rp2.rows[actualPits.length - 1].pitSec * 1000
+      + rp2.rows[actualPits.length].stintSec * 1000;
+    const now = chainEnd + 120_000;              // zincir bittikten 2 dk sonra
+    const li = computeLiveInfo(st2, rp2, now);
+    expect(li.status).toBe("live");
+    expect(li.stintIdx).toBe(rp2.rows.length - 1);
+    expect(li.stintStartMs).toBeGreaterThan(start);       // eskiden === start
+    expect(now - li.stintStartMs).toBeLessThan(li.elapsed); // stint süresi ≠ yarış süresi
+  });
+});
+
+/* ============================================================
+   REGRESYON — gerçek pit işaretleme (v1.4.53)
+   ============================================================ */
+describe("applyMarkPit / applyUnmarkPit / applyResetPits", () => {
+  const start = 1_000_000;
+  const st = base({ raceTime: "1:00:00", raceStartMs: start });
+  const liveAt = (s, now) => computeLiveInfo(s, computePlan(s, "race"), now);
+
+  it("stint fazında: gerçek pit + otomatik süre override'ı yazar", () => {
+    const now = start + 20 * 60_000;
+    const patch = applyMarkPit(st, liveAt(st, now), now);
+    expect(patch.actualPits[0]).toBe(now);
+    expect(patch.overrides[0]).toBe("00:20:00");
+    expect(patch.autoOvr[0]).toBe(true);
+  });
+
+  it("PİT FAZINDA ikinci basış YOK SAYILIR (eskiden pit yolu süresi stint'e eklenirdi)", () => {
+    const t1 = start + 20 * 60_000;
+    const marked = { ...st, ...applyMarkPit(st, liveAt(st, t1), t1) };
+    const t2 = t1 + 35_000;                       // 35 sn sonra, araç pit yolunda
+    const li2 = liveAt(marked, t2);
+    expect(li2.phase).toBe("pit");
+    expect(li2.stintIdx).toBe(0);
+    expect(applyMarkPit(marked, li2, t2)).toBeNull();
+    expect(marked.overrides[0]).toBe("00:20:00"); // bozulmadı
+  });
+
+  it("canlı değilken null döner", () => {
+    expect(applyMarkPit(st, { status: "pre", phase: "stint", stintIdx: 0 }, start)).toBeNull();
+    expect(applyMarkPit(st, null, start)).toBeNull();
+  });
+
+  it("süre override'ı yazılınca bayat tur override'ı temizlenir (applyUpOvr ile aynı)", () => {
+    const lapOverrides = Array(14).fill(""); lapOverrides[0] = "7";
+    const s = { ...st, lapOverrides };
+    const now = start + 20 * 60_000;
+    const patch = applyMarkPit(s, liveAt(s, now), now);
+    expect(patch.lapOverrides[0]).toBe("");
+  });
+
+  it("applyUnmarkPit son pit'i ve yalnız otomatik override'ı geri alır", () => {
+    const t1 = start + 20 * 60_000;
+    const marked = { ...st, ...applyMarkPit(st, liveAt(st, t1), t1) };
+    const patch = applyUnmarkPit(marked);
+    expect(patch.actualPits.length).toBe(0);
+    expect(patch.overrides[0]).toBe("");
+    expect(patch.autoOvr[0]).toBe(false);
+    expect(applyUnmarkPit(st)).toBeNull();       // işaretli pit yok
+  });
+
+  it("applyResetPits elle girilen override'ları KORUR", () => {
+    const overrides = [...st.overrides]; overrides[0] = "0:30:00"; overrides[1] = "0:25:00";
+    const autoOvr = [false, true];
+    const patch = applyResetPits({ ...st, overrides, autoOvr });
+    expect(patch.actualPits).toEqual([]);
+    expect(patch.overrides[0]).toBe("0:30:00");  // elle → korunur
+    expect(patch.overrides[1]).toBe("");         // otomatik → silinir
   });
 });
 

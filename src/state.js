@@ -3,7 +3,7 @@
    App.jsx'teki setSt(s0 => …) gövdeleri ve useMemo türetmeleri buraya
    birebir taşındı; App bunları çağırır. state.test.js doğrudan test eder.
    ============================================================ */
-import { computePlan, tyState, parseHMS } from "./engine";
+import { computePlan, tyState, parseHMS, fmtHMS } from "./engine";
 import { quantile } from "./constants";
 
 /* ---------- uzak state güvenli ayrıştırma ---------- */
@@ -353,15 +353,20 @@ export function computeLiveInfo(st, racePlan, now) {
   /* zincir: her stint gerçek pit varsa oradan biter, yoksa plandan */
   let cur = startMs, phase = "stint", stintIdx = racePlan.rows.length - 1;
   let phaseEnd = finishMs, stintStartMs = startMs;
+  let inChain = false;
   for (let i = 0; i < racePlan.rows.length; i++) {
     const r = racePlan.rows[i];
     const realEnd = Number.isFinite(ap[i]) ? ap[i] : null;
     const sEnd = realEnd != null ? realEnd : cur + r.stintSec * 1000;
-    if (now < sEnd) { phase = "stint"; stintIdx = i; phaseEnd = sEnd; stintStartMs = cur; break; }
+    if (now < sEnd) { phase = "stint"; stintIdx = i; phaseEnd = sEnd; stintStartMs = cur; inChain = true; break; }
     const pEnd = sEnd + r.pitSec * 1000;
-    if (now < pEnd) { phase = "pit"; stintIdx = i; phaseEnd = pEnd; stintStartMs = cur; break; }
+    if (now < pEnd) { phase = "pit"; stintIdx = i; phaseEnd = pEnd; stintStartMs = cur; inChain = true; break; }
     cur = pEnd;
   }
+  /* Zincir bayraktan ÖNCE tükendiyse (gerçek pitler plandan erken işaretlenmişse sık
+     görülür) son stint bayrağa kadar uzar. `stintStartMs` yedeği yarış başlangıcı
+     kalırsa "stint süresi" TÜM YARIŞ gibi görünürdü → son pitin bitişinden başlat. */
+  if (!inChain) stintStartMs = cur;
   let lastPitIdx = -1;
   for (let i = 0; i < ap.length; i++) if (Number.isFinite(ap[i])) lastPitIdx = i;
   const lastDev = lastPitIdx >= 0 && plannedPitStart[lastPitIdx] != null
@@ -375,6 +380,65 @@ export function computeLiveInfo(st, racePlan, now) {
     driver: st.driverAssign[stintIdx] || "",
     nextDriver: st.driverAssign[stintIdx + 1] || "",
   };
+}
+
+/* ============================================================
+   GERÇEK PİT İŞARETLEME — saf; App'teki up(patch) gövdeleri buraya taşındı.
+   Uygulanacak bir şey yoksa null döner (çağıran hiçbir şey yapmaz).
+   ============================================================ */
+
+/* Araç pit yoluna girdiği an: gerçek zamanı kaydet + o stintin süresini override'a
+   yaz (plan gerçeğe kilitlenir). PIT FAZINDA ÇALIŞMAZ: buton pit yolundayken de
+   aynı stintIdx'i gösterdiği için ikinci basış, pit yolunda geçen saniyeleri stint
+   süresine ekleyip kaydı bozuyordu. */
+export function applyMarkPit(st, liveInfo, nowMs) {
+  if (!liveInfo || liveInfo.status !== "live" || liveInfo.phase !== "stint") return null;
+  const i = liveInfo.stintIdx;
+  const actualPits = [...(st.actualPits || [])];
+  while (actualPits.length <= i) actualPits.push(null);
+  actualPits[i] = nowMs;
+  const patch = { actualPits };
+  const durSec = Math.round((nowMs - liveInfo.stintStartMs) / 1000);
+  if (durSec > 0) {
+    const overrides = [...(st.overrides || [])];
+    while (overrides.length <= i) overrides.push("");
+    overrides[i] = fmtHMS(durSec);
+    const autoOvr = [...(st.autoOvr || [])];
+    while (autoOvr.length <= i) autoOvr.push(false);
+    autoOvr[i] = true;
+    patch.overrides = overrides;
+    patch.autoOvr = autoOvr;
+    /* süre override'ı kazanır → bayat tur override'ı temizle (applyUpOvr ile aynı
+       karşılıklı dışlama; yoksa "↩ Geri Al" sonrası eski tur override'ı geri gelirdi) */
+    if ((Number((st.lapOverrides || [])[i]) || 0) > 0) {
+      const lapOverrides = [...(st.lapOverrides || [])]; lapOverrides[i] = "";
+      patch.lapOverrides = lapOverrides;
+    }
+  }
+  return patch;
+}
+
+/* Son işaretlenen pit'i geri al (yalnız otomatik yazılan override silinir). */
+export function applyUnmarkPit(st) {
+  const ap = [...(st.actualPits || [])];
+  let idx = -1;
+  for (let i = 0; i < ap.length; i++) if (Number.isFinite(ap[i])) idx = i;
+  if (idx < 0) return null;
+  ap[idx] = null;
+  while (ap.length && !Number.isFinite(ap[ap.length - 1])) ap.pop();
+  const patch = { actualPits: ap };
+  if ((st.autoOvr || [])[idx]) {
+    const overrides = [...(st.overrides || [])]; overrides[idx] = "";
+    const autoOvr = [...(st.autoOvr || [])]; autoOvr[idx] = false;
+    patch.overrides = overrides; patch.autoOvr = autoOvr;
+  }
+  return patch;
+}
+
+/* Tüm gerçek pit işaretlemelerini sıfırla (elle girilen override'lar korunur). */
+export function applyResetPits(st) {
+  const overrides = (st.overrides || []).map((v, i) => ((st.autoOvr || [])[i] ? "" : v));
+  return { actualPits: [], pitRepairs: [], autoOvr: [], overrides };
 }
 
 export function buildTimeline(plan) {

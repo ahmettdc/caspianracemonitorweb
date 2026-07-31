@@ -197,7 +197,17 @@ export function computePlan(st, mode /* "race" | "code80" */) {
         const nl = Math.max(1, Math.round(Number(st.lapOverrides[i])));
         const full = walkFull(cum, nl, fixLap);
         isLast = (cum + full.sec) >= raceSec - 0.5;
-        stintSec = full.sec; lapsInStint = nl; fuelUnits = full.fuel;
+        if (isLast) {
+          /* İstenen tur yarışa sığmıyor → süre override'ıyla AYNI davranış: stint
+             bayrakta biter (yoksa endSec > raceSec, timeLeft negatif ve zaman
+             çizelgesi %100'ü aşıyordu). Depodaki lapOverrides değişmez (✕ ile
+             otomatiğe dönülür); tablo gerçekte sığan tur sayısını gösterir. */
+          stintSec = startLeft;
+          const wb = walkByTime(cum, startLeft, true, fixLap);
+          lapsInStint = Math.max(1, wb.laps); fuelUnits = wb.fuel;
+        } else {
+          stintSec = full.sec; lapsInStint = nl; fuelUnits = full.fuel;
+        }
       } else {
         const full = walkFull(cum, laps, fixLap);         // tam stint (tur limitli)
         isLast = full.sec >= startLeft - 0.5;
@@ -209,6 +219,11 @@ export function computePlan(st, mode /* "race" | "code80" */) {
           stintSec = full.sec; lapsInStint = full.laps; fuelUnits = full.fuel;
         }
       }
+      /* Yozlaşmış girdi koruması: "Ort. Tur" boşaltılırsa ya da strateji tur sayısı 0
+         olursa stint 0 saniye çıkar, `cum` ilerlemez ve döngü MAX_STINTS'e kadar
+         HAYALET satır üretirdi (64 satır, uydurma toplam tur). Geçerli bir stint her
+         zaman pozitif sürelidir → burada dur, `truncated` bayrağı UI'da uyarı gösterir. */
+      if (!(stintSec > 0)) break;
       cum += stintSec;
       const p = st.pits[i] || EMPTY_PIT;
       const tyreCount = p.tyres.reduce((a, v) => a + (tyState(v) > 0 ? 1 : 0), 0);
@@ -265,7 +280,17 @@ export function computePlan(st, mode /* "race" | "code80" */) {
   }
   const fullStints = rows.length;
   const totalLaps = rows.reduce((a, r) => a + r.lapsInStint, 0);
-  return { rows, raceSec, lapSec, laps, fullStints, totalLaps, flagExtra, lastRefuelPct };
+  /* totalFuel: satırların tur-tur (gerçek havayla) yürütülmüş VE toplamı. KPI'ı
+     `effCons × totalLaps` ile hesaplamak karma havada saparıydı (yalnız EN GÜNCEL
+     hava çarpanı uygulanıyordu) — tek havada iki formül birebir aynı sonucu verir. */
+  const totalFuel = rows.reduce((a, r) => a + r.fuelNeed, 0);
+  /* Plan bayrağa ulaşamadıysa (64 stint tavanı ya da yozlaşmış girdi) satırlarda
+     FINISH yok, son satırın Time Left'i pozitif kalır → sessizce yarım plan.
+     UI bu bayraklarla uyarır. */
+  const invalid = !(raceSec > 0) || !(baseLap > 0) || !(laps > 0);
+  const truncated = rows.length > 0 && !rows[rows.length - 1].isLast;
+  return { rows, raceSec, lapSec, laps, fullStints, totalLaps, totalFuel,
+    flagExtra, lastRefuelPct, invalid, truncated };
 }
 
 /* eski oda kayıtlarına yeni alanları güvenle ekler */

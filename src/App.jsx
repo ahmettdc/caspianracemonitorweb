@@ -38,6 +38,7 @@ import {
   applyQuickTyre, applyUpStintLap, applyUpTyreCell, applyAssignDriver,
   computeTyreInfo, computeDriverPlan,
   computeLiveInfo, buildTimeline,
+  applyMarkPit, applyUnmarkPit, applyResetPits,
 } from "./state";
 import {
   TourOverlay, Wheel, Num, Bolt, Tyre, Ring,
@@ -212,7 +213,11 @@ export default function App() {
   const racePlan = useMemo(() => computePlan(st, "race"), [st]);
   const lsf = useMemo(() => lastStintFuel(st.lastStintCountdown, st, computePlan(st, "race").flagExtra), [st]);
   const lsf80 = useMemo(() => lastStintFuel(st.code80LastStint, st), [st]);
-  const totalVE = effCons(st) * plan.totalLaps + st.extraLap * effCons(st); // % VE (DATA I2)
+  /* Toplam VE = satırların tur-tur (gerçek havayla) yürütülmüş toplamı + güvenlik turu.
+     Eskiden `effCons × totalLaps` idi; effCons yalnız EN GÜNCEL havayı uygular →
+     karma havada tablo toplamıyla saparıydı (dry→wet 2:24 yarışta ~21% VE ≈ 18 L eksik).
+     Tek havada iki formül birebir aynı sonucu verir. */
+  const totalVE = plan.totalFuel + st.extraLap * effCons(st); // % VE (DATA I2)
   const totalFuelL = totalVE * st.fuelRatio;            // gerçek litre karşılığı
   const fuelCarried = 100 * st.fuelRatio;               // %100 = taşınan yakıt (L)
   const realPerLap = st.consumption * st.fuelRatio;     // gerçek tüketim L/tur
@@ -333,47 +338,18 @@ export default function App() {
     if (liveFuelObs.obsCons) patch.consumption = liveFuelObs.obsCons;
     if (Object.keys(patch).length) up(patch);
   };
+  /* gerçek pit işaretleme mantığı → ./state.js (saf, test edilebilir) */
   const markPit = () => {
-    if (liveInfo.status !== "live") return;
-    const nowMs = Date.now();
-    const i = liveInfo.stintIdx; // şu an sürülen (bitirilmekte olan) stint
-    const actualPits = [...(st.actualPits || [])];
-    while (actualPits.length <= i) actualPits.push(null);
-    actualPits[i] = nowMs;
-    const patch = { actualPits };
-    /* gerçek stint süresini o stintin override'ına yaz → plan gerçeğe kilitlenir */
-    const durSec = Math.round((nowMs - liveInfo.stintStartMs) / 1000);
-    if (durSec > 0) {
-      const overrides = [...(st.overrides || [])];
-      while (overrides.length <= i) overrides.push("");
-      overrides[i] = fmtHMS(durSec);
-      const autoOvr = [...(st.autoOvr || [])];
-      while (autoOvr.length <= i) autoOvr.push(false);
-      autoOvr[i] = true;
-      patch.overrides = overrides;
-      patch.autoOvr = autoOvr;
-    }
-    up(patch);
+    const patch = applyMarkPit(st, liveInfo, Date.now());
+    if (patch) up(patch);
   };
   const unmarkPit = () => {
-    const ap = [...(st.actualPits || [])];
-    let idx = -1;
-    for (let i = 0; i < ap.length; i++) if (Number.isFinite(ap[i])) idx = i;
-    if (idx < 0) return;
-    ap[idx] = null;
-    while (ap.length && !Number.isFinite(ap[ap.length - 1])) ap.pop();
-    const patch = { actualPits: ap };
-    if ((st.autoOvr || [])[idx]) { // sadece otomatik yazılan override silinir
-      const overrides = [...(st.overrides || [])]; overrides[idx] = "";
-      const autoOvr = [...(st.autoOvr || [])]; autoOvr[idx] = false;
-      patch.overrides = overrides; patch.autoOvr = autoOvr;
-    }
-    up(patch);
+    const patch = applyUnmarkPit(st);
+    if (patch) up(patch);
   };
   const resetPits = () => {
     if (!confirm(t("Gerçek pit işaretlemelerini sıfırla?"))) return;
-    const overrides = (st.overrides || []).map((v, i) => ((st.autoOvr || [])[i] ? "" : v));
-    up({ actualPits: [], pitRepairs: [], autoOvr: [], overrides });
+    up(applyResetPits(st));
   };
   const setRepair = (i, v) => {
     const arr = [...(st.pitRepairs || [])];
@@ -458,7 +434,9 @@ export default function App() {
           fmtHMS(r.dur / 1000), st.driverAssign[i] || "—",
         ]),
         ["c-idx", "", "", "c-lap", "c-drv"],
-        (ri) => rows[ri].isLast ? "r-last" : "");
+        /* driverPlan satırlarında `isLast` alanı YOK (yalnız idx/start/finish/dur) →
+           eski koşul hep undefined'dı, son satır hiç vurgulanmıyordu. */
+        (ri) => (ri === rows.length - 1 ? "r-last" : ""));
       const tot = (st.roster || []).filter((n) => driverPlan.totals[n]);
       if (tot.length) {
         html += `<h2>${esc(t("Pilot Toplamları"))}</h2>` + mkTable(
@@ -596,8 +574,13 @@ ${bottomBar}
 <script>window.onload=function(){window.print()}<\/script></body></html>`);
     w.document.close();
   };
+  /* Son stintte pit YOK: phaseEnd = yarış bitişi olduğu için nextPitIn aslında
+     bayrağa kalan süredir. "Sıradaki Pit" etiketi + son 5 dk'daki sarı pit alarmı
+     olmayan bir pit için uyarı veriyordu → son stintte ikisi de kapalı. */
+  const onLastStint = liveInfo.status === "live"
+    && !!racePlan.rows[liveInfo.stintIdx]?.isLast;
   const pitSoon = liveInfo.status === "live" && liveInfo.phase === "stint"
-    && liveInfo.nextPitIn < 300000;
+    && !onLastStint && liveInfo.nextPitIn < 300000;
   /* son stint countdown — canlıdan DEĞİL, stint planından: sondan önceki stintin Time Left'i.
      Pit tuşu override yazdıkça racePlan güncellenir, bu değer gerçeğe göre kayar. */
   const planLastCd = racePlan.rows.length >= 2
@@ -1899,7 +1882,7 @@ ${bottomBar}
               {liveInfo.driver && <span className="hdrv">{liveInfo.driver}</span>}
             </div>
             <div className="hcell hgauge">
-              <span className="lbl">{liveInfo.phase === "pit" ? t("Pit Çıkışı") : t("Sıradaki Pit")}</span>
+              <span className="lbl">{liveInfo.phase === "pit" ? t("Pit Çıkışı") : onLastStint ? t("Bayrağa") : t("Sıradaki Pit")}</span>
               <Ring value={pitFrac} size={78} fs={16} glow
                 color={pitSoon ? "var(--yellow)" : "var(--teal)"}
                 big={fmtHMS(liveInfo.nextPitIn / 1000)} />
@@ -1959,7 +1942,7 @@ ${bottomBar}
             </div>
             <div className="pbrow">
               <div className="pbcard pbgauge">
-                <div className="plbl">{liveInfo.phase === "pit" ? t("Pit Çıkışı") : t("Sıradaki Pit")}</div>
+                <div className="plbl">{liveInfo.phase === "pit" ? t("Pit Çıkışı") : onLastStint ? t("Bayrağa") : t("Sıradaki Pit")}</div>
                 <Ring value={pitFrac} size={150} thickness={12} fs={30} glow
                   color={pitSoon ? "var(--yellow)" : "var(--teal)"}
                   big={fmtHMS(liveInfo.nextPitIn / 1000)} />
@@ -2013,13 +1996,19 @@ ${bottomBar}
               <div onClick={(e) => e.stopPropagation()}
                 style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
                 {liveInfo.pitsDone < racePlan.rows.length - 1 ? (
-                  <button onClick={markPit}
-                    title={t("Araç PİT YOLUNA GİRDİĞİ an bas. Pit süresi plandan otomatik eklenir, sonraki stint pit çıkışıyla başlar.")}
-                    style={{ padding: "16px 34px", borderRadius: 12, cursor: "pointer",
+                  /* pit fazında PASİF: buton aynı stinti gösterdiği için ikinci basış
+                     pit yolunda geçen saniyeleri stint süresine ekliyordu */
+                  <button onClick={markPit} disabled={liveInfo.phase === "pit"}
+                    title={liveInfo.phase === "pit"
+                      ? t("Araç pit yolunda — bu stintin pit'i işaretlendi. Düzeltmek için ↩ Geri Al.")
+                      : t("Araç PİT YOLUNA GİRDİĞİ an bas. Pit süresi plandan otomatik eklenir, sonraki stint pit çıkışıyla başlar.")}
+                    style={{ padding: "16px 34px", borderRadius: 12,
+                      cursor: liveInfo.phase === "pit" ? "default" : "pointer",
+                      opacity: liveInfo.phase === "pit" ? 0.45 : 1,
                       background: "var(--car)", color: "#FFE9ED", border: "2px solid var(--teal)",
                       fontFamily: "'Rajdhani'", fontSize: 26, fontWeight: 700,
                       letterSpacing: ".06em" }}>
-                    {t("✔ PIT")} — S{liveInfo.stintIdx + 1}
+                    {liveInfo.phase === "pit" ? t("⛽ PIT YOLUNDA") : t("✔ PIT")} — S{liveInfo.stintIdx + 1}
                   </button>
                 ) : (
                   <div className="plbl" style={{ color: "var(--green)" }}>

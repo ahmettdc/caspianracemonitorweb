@@ -1,4 +1,5 @@
-import { fmtHMS, parseHMS, wxLog, wxAtRel, tyState, TYRE_2_SEC, TYRE_4_SEC, EMPTY_PIT } from "../engine";
+import { fmtHMS, parseHMS, wxLog, wxAtRel, tyState, TYRE_2_SEC, TYRE_4_SEC, EMPTY_PIT,
+  MAX_STINTS } from "../engine";
 import { Tyre } from "../components";
 
 /* Stint plan sekmesi (stint + code80) — KPI'lar, S1 lastik kısayolları, stint/hava
@@ -24,6 +25,16 @@ export default function StintTab({
         <div className="kpi"><div className="v" style={{ color: "var(--green)" }}>{totalVE.toFixed(0)}%</div>
           <div className="l">⚡ {t("Toplam VE")} · {totalFuelL.toFixed(1)} L {t("yakıt")}</div></div>
       </div>
+
+      {/* plan bayrağa ulaşamadıysa sessiz kalmasın: yarım plan tamam sanılıyordu */}
+      {(plan.truncated || !plan.rows.length) && (
+        <div className="hint warn" style={{ marginTop: 0, marginBottom: 10 }}>
+          {plan.invalid
+            ? t("⚠ Plan hesaplanamıyor — süre, \"Avg Lap\" ve seçili stratejinin tur sayısı dolu olmalı.")
+            : `${t("⚠ Plan tamamlanamadı")} — ${fmtHMS(plan.rows.length
+                ? plan.rows[plan.rows.length - 1].timeLeft : plan.raceSec)} ${t("planlanmadı")} (${t("stint sınırı")}: ${MAX_STINTS}).`}
+        </div>
+      )}
 
       {tab === "stint" && (
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
