@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.46",
+    date: "2026-07-31",
+    tr: [
+      "🧹 İç yeniden düzenleme (davranış aynı): App.jsx render bölme 3. tur — sohbet penceresi (ChatModal) ayrı bir sunum bileşenine taşındı. Kullanıcı arayüzü değişmedi",
+    ],
+    en: [
+      "🧹 Internal refactor (same behavior): App.jsx render split round 3 — the chat window (ChatModal) moved into its own presentational component. No UI change",
+    ],
+  },
+  {
     v: "v1.4.45",
     date: "2026-07-31",
     tr: [
