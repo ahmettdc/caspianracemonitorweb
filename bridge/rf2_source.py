@@ -187,6 +187,8 @@ class MockSource:
                           for c in ("fl", "fr", "rl", "rr")},
             },
             "field": rows,
+            "_diag": {"shm": True, "cars": len(rows), "lmu": True,
+                      "ve": sum(1 for r in rows if r.get("virtualEnergy") is not None)},
         }
 
 
@@ -406,9 +408,11 @@ class RF2Source:
 
         # Virtual Energy — LMU REST API'den (paylaşımlı bellekte yok); toleranslı,
         # sürücü adıyla eşlenir. REST kapalı/farklıysa sessizce atlanır.
+        lmu_ok = False
         if getattr(self, "lmu", None) is not None:
             try:
                 by_driver, own_ve = self.lmu.standings()
+                lmu_ok = bool(by_driver)
             except Exception:
                 by_driver, own_ve = {}, None
 
@@ -439,7 +443,17 @@ class RF2Source:
                 if own.get("virtualEnergy") is None and own_ve is not None:
                     own["virtualEnergy"] = own_ve
 
-        return {"session": session, "own": own, "field": field}
+        # Gizli teşhis (_diag): köprü sağlığı — arayüzde GÖSTERİLMEZ, Firebase'e
+        # YAZILMAZ (liveBridge.js kareden siler); yalnız yerel konsol/tooltip için.
+        # shm=paylaşımlı bellek okundu, cars=araç sayısı, lmu=LMU REST yanıtı,
+        # ve=VE gelen araç sayısı. "VE gelmiyor / veri yok" teşhisini kolaylaştırır.
+        diag = {
+            "shm": True,   # read() buraya ulaştıysa paylaşımlı bellek eşlendi
+            "cars": len(field),
+            "lmu": lmu_ok,
+            "ve": sum(1 for r in field if r.get("virtualEnergy") is not None),
+        }
+        return {"session": session, "own": own, "field": field, "_diag": diag}
 
 
 # ----------------------------------------------------------------------------

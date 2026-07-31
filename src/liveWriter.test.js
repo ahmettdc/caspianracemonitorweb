@@ -1,0 +1,53 @@
+import { describe, it, expect } from "vitest";
+import { shouldClaim, LIVE_WRITER_STALE_MS } from "./liveWriter.js";
+
+/* Tek-yazıcı seçimi (livewriter lease) saf kararı. now = server-hizalı ms.
+   Kira: { uid, by, driving, ts }. STALE = LIVE_WRITER_STALE_MS. */
+describe("shouldClaim — tek-yazıcı seçimi", () => {
+  const NOW = 1_000_000;
+  const fresh = (uid, driving) => ({ uid, by: uid, driving, ts: NOW });
+
+  it("kira yoksa alır", () => {
+    expect(shouldClaim(null, "A", false, NOW)).toBe(true);
+    expect(shouldClaim(undefined, "A", true, NOW)).toBe(true);
+  });
+
+  it("kira benimse tazeler (alır)", () => {
+    expect(shouldClaim(fresh("A", false), "A", false, NOW)).toBe(true);
+    expect(shouldClaim(fresh("A", true), "A", true, NOW)).toBe(true);
+  });
+
+  it("kira başkasının ve taze ise — ben sürmüyorsam dokunmaz", () => {
+    expect(shouldClaim(fresh("B", true), "A", false, NOW)).toBe(false);
+    expect(shouldClaim(fresh("B", false), "A", false, NOW)).toBe(false);
+  });
+
+  it("kira bayatsa devralır (oyun kapandı → tazelenmedi)", () => {
+    const stale = { uid: "B", by: "B", driving: true, ts: NOW - LIVE_WRITER_STALE_MS - 1 };
+    expect(shouldClaim(stale, "A", false, NOW)).toBe(true);
+  });
+
+  it("tam eşikte henüz bayat değil (> katı)", () => {
+    const edge = { uid: "B", by: "B", driving: false, ts: NOW - LIVE_WRITER_STALE_MS };
+    expect(shouldClaim(edge, "A", false, NOW)).toBe(false);
+  });
+
+  it("BEN aktif sürücüyüm + tutan sürmüyor → önceliklendirir (anında devir)", () => {
+    expect(shouldClaim(fresh("B", false), "A", true, NOW)).toBe(true);
+  });
+
+  it("BEN sürüyorum ama tutan da sürüyorsa çalmaz (yapışkan)", () => {
+    expect(shouldClaim(fresh("B", true), "A", true, NOW)).toBe(false);
+  });
+
+  it("uid yoksa asla yazmaz (kimliksiz seçim yok)", () => {
+    expect(shouldClaim(null, "", true, NOW)).toBe(false);
+    expect(shouldClaim(fresh("A", true), "", true, NOW)).toBe(false);
+  });
+
+  it("kira ts sayı değilse bayat sayılmaz (benim/preempt dışında dokunmaz)", () => {
+    const noTs = { uid: "B", by: "B", driving: false, ts: null };
+    expect(shouldClaim(noTs, "A", false, NOW)).toBe(false);
+    expect(shouldClaim(noTs, "A", true, NOW)).toBe(true);   // preempt yine geçerli
+  });
+});

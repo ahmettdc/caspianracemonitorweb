@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.37",
+    date: "2026-07-31",
+    tr: [
+      "🔧 Canlı köprü güvenilirlik iyileştirmeleri (arayüz değişmez): köprü artık paylaşımlı bellek / LMU REST / araç sayısı / VE durumunu teşhis ediyor — arayüzde gösterilmez, sorun olursa köprü durum noktasının üstüne gelince (hover) ve tarayıcı konsolunda görünür",
+      "🧪 Tek-yazıcı seçimi (aktif sürücü) mantığı ayrı bir modüle alınıp birim testleriyle korundu; canlı köprü yaşam döngüsü ayrı bir hook'a taşındı (iç iyileştirme, davranış aynı)",
+    ],
+    en: [
+      "🔧 Live bridge reliability improvements (no UI change): the bridge now diagnoses shared memory / LMU REST / car count / VE status — hidden from the UI, surfaced on hovering the bridge status dot and in the browser console if something's wrong",
+      "🧪 The single-writer (active-driver) election logic was moved to its own module and locked down with unit tests; the live bridge lifecycle moved into a dedicated hook (internal cleanup, same behavior)",
+    ],
+  },
+  {
     v: "v1.4.36",
     date: "2026-07-31",
     tr: [

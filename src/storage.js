@@ -8,6 +8,7 @@ import { initializeApp } from "firebase/app";
 import { getDatabase, ref, get, set, update, remove, onValue,
   push, query, limitToLast, runTransaction, serverTimestamp } from "firebase/database";
 import { firebaseConfig } from "./firebase-config";
+import { LIVE_WRITER_STALE_MS } from "./liveWriter";
 
 export const firebaseReady =
   !!firebaseConfig?.databaseURL && !firebaseConfig.databaseURL.includes("XXXX");
@@ -445,9 +446,8 @@ export function liveSecSubscribe(tid, rid, lapKey, cb) {
    teams/{tid}/livewriter/{rid} = { uid, by, driving, ts }. Yalnız kirayı tutan makine
    kareyi yazar. Aktif sürücü (own.driving) kirayı önceliklendirir; kira bayatlarsa
    (oyun kapandı → kare gelmez → tazelenmez) başka makine devralır. ts SERVER saatidir
-   (serverTimestamp) → PC saat kayması karşılaştırmayı bozmaz. */
-export const LIVE_WRITER_STALE_MS = 6000;
-
+   (serverTimestamp) → PC saat kayması karşılaştırmayı bozmaz. STALE eşiği + saf
+   "yazmalı mı" kararı ./liveWriter.js'te (test edilebilir). */
 let _serverOffset = 0;
 if (db) {
   onValue(ref(db, ".info/serverTimeOffset"),
