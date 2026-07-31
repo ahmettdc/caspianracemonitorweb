@@ -9,6 +9,7 @@ import TrackMap from "./TrackMap";
 import PosChart from "./PosChart";
 import StrategyBar from "./StrategyBar";
 import CarDiagram from "./CarDiagram";
+import { demoFrame } from "./liveDemo";
 
 /* Canlı Timing — LMU köprüsünün yazdığı teams/{tid}/live/{rid} düğümünü gösterir.
    Köprü .exe oyunun PC'sinde çalışır, paylaşımlı bellekten okuyup Firebase'e yazar;
@@ -282,7 +283,8 @@ function BridgeControl({ t, bridge, canEdit }) {
 
 /* Kompakt üst şerit — eski Seans başlık kartı + Köprü kartını tek ince satırda birleştirir.
    Köprü durumu küçük bir nokta olur; mesaj/detay yalnız tıklayınca açılır (masaüstünde). */
-function LiveTopBar({ t, s, conn, ageSec, big, toggleBig, bridge, canEdit, showBridge, trackId }) {
+function LiveTopBar({ t, s, conn, ageSec, big, toggleBig, bridge, canEdit, showBridge,
+  trackId, demo, onDemo }) {
   const [bExp, setBExp] = useState(false);
   const [imgOk, setImgOk] = useState(true);
   const phase = bridge?.phase || "idle";
@@ -301,6 +303,7 @@ function LiveTopBar({ t, s, conn, ageSec, big, toggleBig, bridge, canEdit, showB
           borderColor: "var(--teal)", color: "var(--teal)", fontWeight: 700 }}>
           {t(s.sessionType)}</span>}
         <span className={`livebadge ${conn.cls}`}><i /> {t(conn.lbl)} · {ageSec}s</span>
+        {demo && <span className="demobadge">DEMO</span>}
       </div>
       <div className="lbstats">
         <div className="livestat">
@@ -317,6 +320,10 @@ function LiveTopBar({ t, s, conn, ageSec, big, toggleBig, bridge, canEdit, showB
           <span>{t("Hava")}</span></div>
       </div>
       <div className="lbright">
+        <button className={`act${demo ? " on" : ""}`} title={t("Temsili veri modu")}
+          style={{ fontSize: 11, padding: "3px 10px",
+            ...(demo && { borderColor: "var(--yellow)", color: "var(--yellow)" }) }}
+          onClick={onDemo}>{demo ? t("● Demo") : t("Demo")}</button>
         {showBridge && (
           <span className="lbbridge" title={t("Canlı Köprü")}
             onClick={() => setBExp((v) => !v)}>
@@ -353,18 +360,41 @@ export default function LiveTab({ t, live, bridge, canEdit, liveFuelObs, tid, ri
     try { localStorage.setItem("rm_live_cols", nv ? "1" : "0"); } catch { /* yoksay */ }
     return nv;
   });
+  // DEMO modu: oyun/köprü yokken ekranı temsili veriyle doldurur (Firebase'e dokunmaz)
+  const [demo, setDemo] = useState(() => {
+    try { return localStorage.getItem("rm_live_demo") === "1"; } catch { return false; }
+  });
+  const [demoLive, setDemoLive] = useState(null);
+  const demoT0 = useRef(0);
+  const toggleDemo = () => setDemo((v) => {
+    const nv = !v;
+    try { localStorage.setItem("rm_live_demo", nv ? "1" : "0"); } catch { /* yoksay */ }
+    return nv;
+  });
+  useEffect(() => {
+    if (!demo) { setDemoLive(null); demoT0.current = 0; return undefined; }
+    if (!demoT0.current) demoT0.current = Date.now();
+    const tick = () => {
+      const el = 1800 + (Date.now() - demoT0.current) / 1000;   // ~30dk'dan başlat (tur/gap yayılı)
+      setDemoLive({ ts: Date.now(), ...demoFrame(el) });
+    };
+    tick();
+    const iv = setInterval(tick, 1000);
+    return () => clearInterval(iv);
+  }, [demo]);
   const rootRef = useRef(null);
   const playerRowRef = useRef(null);
   const posRef = useRef({});   // sürücü → son pozisyon
   const dirRef = useRef({});   // sürücü → 'up'|'down' (son değişim yönü kalır)
+  const srcLive = demo ? demoLive : live;   // effect'ler için demo-farkında kaynak
   // uzun grid'de oyuncu satırını görünür tut (canlı güncellemede)
   useEffect(() => {
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
     playerRowRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [live?.own?.position, myClassOnly]);
+  }, [srcLive?.own?.position, myClassOnly]);
   // pozisyon değişim yönünü izle (kare kare) → ▲/▼ okları
   useEffect(() => {
-    const f = Array.isArray(live?.field) ? live.field : [];
+    const f = Array.isArray(srcLive?.field) ? srcLive.field : [];
     for (const c of f) {
       const prev = posRef.current[c.driver];
       if (prev != null && c.pos > 0 && prev !== c.pos) {
@@ -372,7 +402,7 @@ export default function LiveTab({ t, live, bridge, canEdit, liveFuelObs, tid, ri
       }
       if (c.pos > 0) posRef.current[c.driver] = c.pos;
     }
-  }, [live?.ts]);
+  }, [srcLive?.ts]);
   // büyük pano (tam ekran)
   const toggleBig = () => {
     const el = rootRef.current;
@@ -392,7 +422,10 @@ export default function LiveTab({ t, live, bridge, canEdit, liveFuelObs, tid, ri
     <BridgeControl t={t} bridge={bridge} canEdit={canEdit} />
   ) : null;
 
-  if (!live || !live.ts) {
+  // görüntülenen kaynak: demo açıksa temsili veri, değilse gerçek canlı
+  const view = demo ? (demoLive || { ts: Date.now(), ...demoFrame(1800) }) : live;
+
+  if (!view || !view.ts) {
     return (
       <div data-tour="livecard">
         {bridgeCard}
@@ -408,23 +441,30 @@ export default function LiveTab({ t, live, bridge, canEdit, liveFuelObs, tid, ri
                 <br />3. {t("Yarış başlayınca bu ekran (ve tüm takım) canlı dolar.")}
               </>}
           </div>
-          {!isTauri && (
-            <div style={{ marginTop: 12 }}>
+          <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button className="bigbtn" onClick={toggleDemo}
+              style={{ display: "inline-flex", alignItems: "center", gap: 8, width: "auto",
+                padding: "10px 18px", cursor: "pointer" }}>
+              ▶ {t("Temsili Veri (Demo)")}</button>
+            {!isTauri && (
               <a className="bigbtn" href={DESKTOP_RELEASE_URL} target="_blank" rel="noopener noreferrer"
                 style={{ display: "inline-flex", alignItems: "center", gap: 8, width: "auto",
                   padding: "10px 18px", textDecoration: "none" }}>
                 🖥 {t("Masaüstü Uygulamasını İndir")}</a>
-            </div>
-          )}
+            )}
+          </div>
+          <div className="hint" style={{ marginTop: 8 }}>
+            {t("Demo: oyun olmadan ekranı temsili yarış verisiyle doldurur (yalnız görüntü, takımla paylaşılmaz).")}
+          </div>
         </div>
       </div>
     );
   }
-  const conn = connOf(live.ts);
-  const s = live.session || {};
-  const own = live.own || null;
-  const fieldAll = Array.isArray(live.field) ? live.field : [];
-  const ageSec = Math.max(0, Math.round((Date.now() - live.ts) / 1000));
+  const conn = demo ? { cls: "on", lbl: "demo" } : connOf(view.ts);
+  const s = view.session || {};
+  const own = view.own || null;
+  const fieldAll = Array.isArray(view.field) ? view.field : [];
+  const ageSec = Math.max(0, Math.round((Date.now() - view.ts) / 1000));
 
   // türetilmiş: sınıf-içi pozisyon, seans en hızlı turu, oyuncu sınıfı
   const leaderLaps = fieldAll[0]?.lapsDone ?? 0;
@@ -462,7 +502,8 @@ export default function LiveTab({ t, live, bridge, canEdit, liveFuelObs, tid, ri
   return (
     <div data-tour="livecard" ref={rootRef} className={rootCls}>
       <LiveTopBar t={t} s={s} conn={conn} ageSec={ageSec} big={big} toggleBig={toggleBig}
-        bridge={bridge} canEdit={canEdit} showBridge={isTauri && !big} trackId={trackId} />
+        bridge={bridge} canEdit={canEdit} showBridge={isTauri && !big} trackId={trackId}
+        demo={demo} onDemo={toggleDemo} />
 
       {fs && <div className={`flagbanner fb-${fs.cls}`}>{fs.label}</div>}
 
@@ -603,9 +644,9 @@ export default function LiveTab({ t, live, bridge, canEdit, liveFuelObs, tid, ri
         )}
         <div className="hint">{t("Gap: lidere · Aralık: öndeki araca · Pn: sınıf-içi sıra (sarı = sınıf lideri) · mor: seansın en hızlı turu · satır sonundaki + ile o aracın tur zamanları. Veriler köprü ile canlı gelir; tüm takım aynı anda görür.")}</div>
       </div>
-      {!big && <PosChart t={t} tid={tid} rid={rid} field={fieldAll} />}
+      {!big && !demo && <PosChart t={t} tid={tid} rid={rid} field={fieldAll} />}
 
-      {lapsFor && <LapsModal t={t} tid={tid} rid={rid} row={lapsFor}
+      {!demo && lapsFor && <LapsModal t={t} tid={tid} rid={rid} row={lapsFor}
         onClose={() => setLapsFor(null)} />}
     </div>
   );

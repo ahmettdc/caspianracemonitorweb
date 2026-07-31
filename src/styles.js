@@ -534,6 +534,9 @@ export const css = `
   vertical-align:middle}
 .rc .lbtrackname{font-family:'Rajdhani';font-size:13px;font-weight:600;color:var(--dim);
   letter-spacing:.03em;text-transform:none}
+.rc .demobadge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:99px;
+  font-family:'Rajdhani';font-weight:800;font-size:11px;letter-spacing:.10em;
+  background:var(--yellow);color:#231A00;text-transform:uppercase}
 /* --- bayrak & durum bandı + pano glow --- */
 .rc .flagbanner{display:flex;align-items:center;justify-content:center;gap:8px;
   font-family:'Rajdhani';font-weight:700;font-size:17px;letter-spacing:.10em;
