@@ -388,7 +388,7 @@ export default function LiveTab({ t, live, bridge, canEdit, liveFuelObs, tid, ri
           <div className="kpi"><div className="v mono">
             {s.timeLeftSec != null ? fmtHMS(s.timeLeftSec) : "—"}</div>
             <div className="l">{t("Kalan")}</div></div>
-          <div className="kpi"><div className="v">{s.trackTemp != null ? `${Math.round(s.trackTemp)}°` : "—"}
+          <div className="kpi"><div className="v">🛣 {s.trackTemp != null ? `${Math.round(s.trackTemp)}°` : "—"}
             <span style={{ fontSize: 13, color: "var(--dim)" }}> {t("pist")}</span></div>
             <div className="l">{t("Pist Sıcaklığı")}</div></div>
           <div className="kpi"><div className="v">
