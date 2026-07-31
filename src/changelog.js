@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.43",
+    date: "2026-07-31",
+    tr: [
+      "🧹 İç yeniden düzenleme (davranış aynı): App.jsx bölme 6. tur — telemetri (MoTeC içe aktarma, %105 kuralı, stint analizi, kutu/çizgi grafik) useTelemetry hook dosyasına çıkarıldı; kullanılmayan ölü kod temizlendi. Kullanıcı arayüzü değişmedi",
+    ],
+    en: [
+      "🧹 Internal refactor (same behavior): App.jsx split round 6 — telemetry (MoTeC import, 105% rule, stint analysis, box/line chart) moved into the useTelemetry hook file; dead code removed. No UI change",
+    ],
+  },
+  {
     v: "v1.4.42",
     date: "2026-07-31",
     tr: [
