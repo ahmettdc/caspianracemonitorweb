@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.48",
+    date: "2026-07-31",
+    tr: [
+      "🧪 Test altyapısı: App.jsx'ten çıkarılan 5 modal bileşeni (sürüm/yarış/sohbet/setup/takım) için smoke-render testleri eklendi — sahte prop'larla render edilip çökmedikleri (eksik prop / tanımsız referans) otomatik doğrulanıyor. Kullanıcı arayüzü değişmedi",
+    ],
+    en: [
+      "🧪 Test infrastructure: added smoke-render tests for the 5 modal components extracted from App.jsx (version/race/chat/setup/team) — they're rendered with mock props and verified not to crash (missing prop / undefined reference). No UI change",
+    ],
+  },
+  {
     v: "v1.4.47",
     date: "2026-07-31",
     tr: [
