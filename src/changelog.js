@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.41",
+    date: "2026-07-31",
+    tr: [
+      "🧹 İç yeniden düzenleme (davranış aynı): App.jsx bölme 4. tur — setup deposu (liste, yükleme, indirme, süzgeç) useSetups hook dosyasına çıkarıldı. Kullanıcı arayüzü değişmedi",
+    ],
+    en: [
+      "🧹 Internal refactor (same behavior): App.jsx split round 4 — the setup library (list, upload, download, filter) moved into the useSetups hook file. No UI change",
+    ],
+  },
+  {
     v: "v1.4.40",
     date: "2026-07-31",
     tr: [
