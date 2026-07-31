@@ -14,6 +14,8 @@ const BRAND = "#960018";        // ana tema
 const cx = 260, cy = 262;       // merkez
 const R = 236;                  // dış halka yarıçapı
 const PAD = 148;                // iç şekil yarım-uzanımı (px)
+const R_OUT = 9;                // dış halka araç noktası yarıçapı (yol kalınlığı = 2×)
+const R_IN = 8;                 // iç şekil araç noktası yarıçapı (yol kalınlığı = 2×)
 
 export default function TrackMap({ t, field, trackLength }) {
   // pist uzunluğu değişince (yeni pist/seans) biriktirmeyi sıfırla
@@ -108,24 +110,25 @@ export default function TrackMap({ t, field, trackLength }) {
       <div style={{ display: "flex", justifyContent: "center" }}>
         <svg viewBox="0 0 520 520" width="100%" style={{ maxWidth: 460 }}
           role="img" aria-label={t("Canlı pist haritası")}>
-          {/* dış halka */}
-          <circle cx={cx} cy={cy} r={R} fill="none" stroke="var(--line)" strokeWidth={1.5} />
-          {/* S/F işareti (tepe) */}
-          <line x1={cx} y1={cy - R - 8} x2={cx} y2={cy - R + 8}
+          {/* dış halka — kalınlık = araç noktası çapı (yol gibi) */}
+          <circle cx={cx} cy={cy} r={R} fill="none" stroke="var(--line2)"
+            strokeWidth={R_OUT * 2} opacity={0.7} />
+          {/* S/F işareti (tepe) — bandı kapsayacak boyda */}
+          <line x1={cx} y1={cy - R - R_OUT - 2} x2={cx} y2={cy - R + R_OUT + 2}
             stroke={BRAND} strokeWidth={2.5} />
-          <text x={cx} y={cy - R - 13} fill={BRAND} fontSize="11" fontWeight="700"
+          <text x={cx} y={cy - R - R_OUT - 6} fill={BRAND} fontSize="11" fontWeight="700"
             textAnchor="middle">S/F</text>
-          {/* iç pist şekli */}
-          {outline && <path d={outline} fill="none" stroke="var(--line)"
-            strokeWidth={11} strokeLinejoin="round" strokeLinecap="round" opacity={0.55} />}
+          {/* iç pist şekli — taban bant kalınlığı = iç nokta çapı */}
+          {outline && <path d={outline} fill="none" stroke="var(--line2)"
+            strokeWidth={R_IN * 2} strokeLinejoin="round" strokeLinecap="round" opacity={0.7} />}
           {outline && <path d={outline} fill="none" stroke="var(--muted)"
             strokeWidth={2} strokeLinejoin="round" opacity={0.9} />}
           {/* araçlar — dış halka */}
-          {cars.map((c) => { const [x, y] = ringXY(c.lapDist); return dot(c, x, y, 9, classPos.get(c)); })}
+          {cars.map((c) => { const [x, y] = ringXY(c.lapDist); return dot(c, x, y, R_OUT, classPos.get(c)); })}
           {/* araçlar — iç şekil */}
           {toScreen && cars.map((c) => {
             const [x, y] = toScreen(c.posX, c.posZ);
-            return dot({ ...c, pos: `i${c.pos}` }, x, y, 8, classPos.get(c));
+            return dot({ ...c, pos: `i${c.pos}` }, x, y, R_IN, classPos.get(c));
           })}
         </svg>
       </div>
