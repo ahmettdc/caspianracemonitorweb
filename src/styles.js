@@ -504,6 +504,73 @@ export const css = `
 .rc .livebadge.lag i{background:var(--yellow)}
 .rc .livebadge.off{color:var(--muted)}
 .rc .livebadge.off i{background:var(--muted)}
+/* --- canlı timing: kompakt üst şerit + panel düzeni + KPI gruplama --- */
+.rc .livebar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--panel);
+  border:1px solid var(--line);border-radius:10px;padding:9px 14px;margin-bottom:12px}
+.rc .livebar .lbtitle{display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+  font-family:'Rajdhani';font-size:16px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--teal)}
+.rc .livebar .lbstats{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.rc .livestat{display:flex;flex-direction:column;gap:1px;line-height:1.05}
+.rc .livestat b{font-family:'Rajdhani';font-size:17px;font-weight:700;color:var(--txt);
+  font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.rc .livestat span{color:var(--dim);font-size:9.5px;text-transform:uppercase;letter-spacing:.06em}
+.rc .livebar .lbright{margin-left:auto;display:flex;align-items:center;gap:10px}
+.rc .lbbridge{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--dim);
+  cursor:pointer;user-select:none}
+.rc .lbbridge i{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+.rc .panelrow{display:grid;grid-template-columns:minmax(300px,1fr) minmax(300px,1fr);
+  gap:12px;align-items:start;margin-bottom:12px}
+@media(max-width:820px){.rc .panelrow{grid-template-columns:1fr}}
+.rc .kpigroup .gh{color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.08em;
+  font-weight:600;margin:0 0 6px}
+.rc .kpigrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(94px,1fr));gap:8px}
+.rc .kpigrid .kpi{padding:7px 8px}
+.rc .kpigrid .kpi .v{font-size:19px}
+.rc .stratbar{padding:10px 14px}
+.rc .stratbar h2{margin-bottom:8px}
+/* üst şeritte pist görseli + adı */
+.rc .lbtrack{height:26px;border-radius:5px;border:1px solid var(--line2);object-fit:cover;
+  vertical-align:middle}
+.rc .lbtrackname{font-family:'Rajdhani';font-size:13px;font-weight:600;color:var(--dim);
+  letter-spacing:.03em;text-transform:none}
+.rc .demobadge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:99px;
+  font-family:'Rajdhani';font-weight:800;font-size:11px;letter-spacing:.10em;
+  background:var(--yellow);color:#231A00;text-transform:uppercase}
+/* --- bayrak & durum bandı + pano glow --- */
+.rc .flagbanner{display:flex;align-items:center;justify-content:center;gap:8px;
+  font-family:'Rajdhani';font-weight:700;font-size:17px;letter-spacing:.10em;
+  text-transform:uppercase;padding:8px 14px;border-radius:10px;margin-bottom:12px;
+  animation:rcflag 1.1s ease-in-out infinite}
+.rc .fb-fcy{background:linear-gradient(90deg,#B4700B,#F59E0B);color:#1B1200}
+.rc .fb-yellow{background:linear-gradient(90deg,#B8860B,#F5B23D);color:#1B1200}
+.rc .fb-red{background:linear-gradient(90deg,#B01221,#FF4D5E);color:#fff}
+.rc .fb-finish{background:repeating-linear-gradient(45deg,#111,#111 12px,#eee 12px,#eee 24px);
+  color:#fff;text-shadow:0 0 4px #000;animation:none}
+.rc .board-fcy{box-shadow:inset 0 0 0 2px rgba(245,158,11,.5),0 0 26px rgba(245,158,11,.18)}
+.rc .board-yellow{box-shadow:inset 0 0 0 2px rgba(245,178,61,.5),0 0 26px rgba(245,178,61,.16)}
+.rc .board-red{box-shadow:inset 0 0 0 2px rgba(255,77,94,.55),0 0 30px rgba(255,77,94,.20)}
+@keyframes rcflag{0%,100%{opacity:1}50%{opacity:.78}}
+@media(prefers-reduced-motion:reduce){.rc .flagbanner{animation:none}}
+/* --- sınıf lejantı --- */
+.rc .clslegend{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px}
+.rc .clschip{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:99px;
+  border:1px solid var(--line);background:var(--panel2)}
+.rc .clsdot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+/* --- podyum + en hızlı tur rozeti --- */
+.rc .pod{font-weight:800}
+.rc .pod-1{color:#FFD24A;text-shadow:0 0 8px rgba(255,210,74,.35)}
+.rc .pod-2{color:#CBD5E1}
+.rc .pod-3{color:#D9915B}
+.rc .badge-fl{display:inline-block;margin-left:6px;padding:0 5px;border-radius:4px;
+  background:var(--purple);color:#1A0A2E;font-family:'Rajdhani';font-weight:800;
+  font-size:10px;letter-spacing:.04em;vertical-align:middle}
+/* --- tema derinliği (yalnız canlı sekme; global .card bozulmaz) --- */
+.rc .liveui .card{background:linear-gradient(180deg,#170F12,#130C0F);
+  box-shadow:0 1px 0 rgba(255,255,255,.02) inset,0 6px 18px rgba(0,0,0,.28)}
+.rc .liveui .livebar{background:linear-gradient(180deg,#181014,#130C10);
+  box-shadow:0 6px 18px rgba(0,0,0,.24)}
+.rc .bigboard .flagbanner{font-size:24px;padding:12px 18px}
 /* --- büyük pano (pit duvarı / tam ekran) — uzaktan okunur --- */
 .rc .bigboard{background:var(--bg);overflow:auto;padding:16px}
 .rc .bigboard .card{margin-bottom:14px}
@@ -512,6 +579,10 @@ export const css = `
 .rc .bigboard td,.rc .bigboard th{padding:9px 12px}
 .rc .bigboard .disp{font-size:22px}
 .rc .bigboard .hint{display:none}
+.rc .bigboard .livebar .lbtitle{font-size:22px}
+.rc .bigboard .livestat b{font-size:26px}
+.rc .bigboard .livestat span{font-size:12px}
+.rc .bigboard .kpigrid .kpi .v{font-size:26px}
 /* --- masaüstü (Tauri) güncelleme şeridi --- */
 .rc .updatebar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
   padding:8px 20px;background:linear-gradient(90deg,rgba(150,0,24,.35),rgba(150,0,24,.12));

@@ -5,6 +5,34 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.32",
+    date: "2026-07-31",
+    tr: [
+      "🏎 Kendi Araç lastik/hasar diyagramında artık ortada gerçek üstten-görünüş araç görseli (şematik çizim yerine). Görsel yoksa şematik yedeğe düşer; ileride her araç kendi top fotoğrafını gösterecek",
+    ],
+    en: [
+      "🏎 The Own Car tyre/damage diagram now shows a real top-down car image in the center (instead of the schematic). Falls back to the schematic if the image is missing; per-car top photos coming next",
+    ],
+  },
+  {
+    v: "v1.4.31",
+    date: "2026-07-31",
+    tr: [
+      "🎨 Canlı Timing arayüzü baştan düzenlendi: kompakt üst şerit, gruplu 'Kendi Araç' kartı (Yarış / Tempo / Durum) ve çekirdek + 'Detay' sütunlu saha tablosu — çok daha okunur",
+      "🏁 Bayrak & durum bandı: FCY / Sarı / Kırmızı bayrakta tam-genişlik renkli bant + pano kenarında uyarı ışığı",
+      "🛞 Kendi araç için lastik & hasar diyagramı: üstten görünüş araç, lastikler aşınmaya göre renkli (compound kenarlığı), gövde tonu hasara göre. VE + Yakıt iki-halka korundu",
+      "🥇 Podyum renkleri (altın/gümüş/bronz), en hızlı tur 'FL' rozeti ve sınıf lejantı; pist görseli + adı üst şeritte; pist haritası yol kalınlığı iyileştirildi",
+      "▶ Demo modu: oyun yokken ekranı temsili yarış verisiyle doldurur (yalnız görüntü) — arayüzü oyunsuz incelemek için",
+    ],
+    en: [
+      "🎨 Live Timing UI reorganized: compact top bar, grouped 'Own Car' card (Race / Pace / Status) and a core + 'Details' column field table — much more readable",
+      "🏁 Flag & status banner: full-width colored banner + board edge glow on FCY / Yellow / Red flags",
+      "🛞 Tyre & damage diagram for your car: top-down car, tyres colored by wear (compound-colored border), body tint by damage. VE + Fuel two-ring kept",
+      "🥇 Podium colors (gold/silver/bronze), fastest-lap 'FL' badge and class legend; circuit image + name in the top bar; track map road thickness improved",
+      "▶ Demo mode: fills the screen with representative race data when the game is off (view only) — to review the UI without the sim",
+    ],
+  },
+  {
     v: "v1.4.30",
     date: "2026-07-30",
     tr: [

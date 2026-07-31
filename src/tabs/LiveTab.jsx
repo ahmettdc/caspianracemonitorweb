@@ -1,12 +1,15 @@
 import { useState, useRef, useEffect } from "react";
 import { fmtLap, fmtHMS } from "../engine";
 import { Ring } from "../components";
-import { DESKTOP_RELEASE_URL, ASSET, classId, classAccent, brandKey, manufacturerKey } from "../constants";
+import { DESKTOP_RELEASE_URL, ASSET, classId, classAccent, brandKey, manufacturerKey,
+  trackName, TRACK_ASSET } from "../constants";
 import { isTauri } from "../tauriEnv";
 import { liveLapsSubscribe } from "../storage";
 import TrackMap from "./TrackMap";
 import PosChart from "./PosChart";
 import StrategyBar from "./StrategyBar";
+import CarDiagram from "./CarDiagram";
+import { demoFrame } from "./liveDemo";
 
 /* Canlı Timing — LMU köprüsünün yazdığı teams/{tid}/live/{rid} düğümünü gösterir.
    Köprü .exe oyunun PC'sinde çalışır, paylaşımlı bellekten okuyup Firebase'e yazar;
@@ -25,6 +28,28 @@ const gap = (v) => {
   const m = Math.floor(v / 60);
   return `+${m}:${(v - m * 60).toFixed(1).padStart(4, "0")}`;
 };
+
+/* Seans durumu → bayrak bandı ({cls, label}) veya normal yarışta null.
+   flag: Green|Yellow|FCY (rf2_source), phase: Yeşil|FCY|Durduruldu|Bitti… */
+function flagState(s, t) {
+  const flag = s.flag, phase = s.phase;
+  if (phase === "Durduruldu") return { cls: "red", label: `🔴 ${t("KIRMIZI BAYRAK")}` };
+  if (phase === "Bitti") return { cls: "finish", label: `🏁 ${t("YARIŞ BİTTİ")}` };
+  if (flag === "FCY" || phase === "FCY") return { cls: "fcy", label: `🟠 ${t("FULL COURSE YELLOW / SC")}` };
+  if (flag === "Yellow") return { cls: "yellow", label: `🟡 ${t("SARI BAYRAK")}` };
+  return null;   // Green / Yeşil / normal → bant yok
+}
+
+/* Lastik bileşimi adı → renk (soft kırmızı, medium sarı, hard beyaz, wet mavi, inter yeşil) */
+function compoundColor(n) {
+  const s = String(n || "").toLowerCase();
+  if (/soft|yumu|kırmız|\bred\b/.test(s)) return "var(--red)";
+  if (/medium|orta/.test(s)) return "var(--yellow)";
+  if (/hard|sert/.test(s)) return "#E4E4EA";
+  if (/inter/.test(s)) return "var(--green)";
+  if (/wet|yağ|rain|ıslak/.test(s)) return "#4D9FFF";
+  return "var(--teal)";
+}
 
 /* son güncelleme yaşından bağlantı durumu */
 function connOf(ts) {
@@ -130,12 +155,23 @@ function LapsModal({ t, tid, rid, row, onClose }) {
   );
 }
 
+/* Tek KPI kutusu — OwnCar gruplarında yeniden kullanılır. */
+function Kpi({ v, l, color, mono, fs }) {
+  return (
+    <div className="kpi">
+      <div className={`v${mono ? " mono" : ""}`}
+        style={{ ...(color && { color }), ...(fs && { fontSize: fs }) }}>{v}</div>
+      <div className="l">{l}</div>
+    </div>
+  );
+}
+
 function OwnCar({ t, own, liveFuelObs }) {
+  const [det, setDet] = useState(false);   // "Detay" → ikincil tempo metrikleri
   const cap = own.fuelCapacity > 0 ? own.fuelCapacity : 0;
   const frac = cap ? Math.max(0, Math.min(1, own.fuel / cap)) : 0;
   const veFrac = own.virtualEnergy != null
     ? Math.max(0, Math.min(1, own.virtualEnergy / 100)) : 0;
-  const corners = [["FL", "fl"], ["FR", "fr"], ["RL", "rl"], ["RR", "rr"]];
   const ty = own.tyres || {};
   // Mevcut yakıtla ~kaç tur kaldığı — App'in canlı öğrenicisinden (litre/tur).
   const lpl = liveFuelObs?.litersPerLap;
@@ -147,15 +183,20 @@ function OwnCar({ t, own, liveFuelObs }) {
     ? (tc.front === tc.rear ? tc.front : `${tc.front}/${tc.rear}`)
     : (tc.front || tc.rear || "");
   return (
-    <div className="card" data-tour="ownlive" style={{ marginBottom: 12 }}>
+    <div className="card" data-tour="ownlive">
       <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
         🏎 {t("Kendi Araç")}
-        {compound && <span className="chip" style={{ fontSize: 11, color: "var(--teal)",
-          borderColor: "var(--teal)" }}>🛞 {compound}</span>}
+        {compound && <span className="chip" style={{ fontSize: 11,
+          color: compoundColor(tc.front || tc.rear),
+          borderColor: compoundColor(tc.front || tc.rear) }}>🛞 {compound}</span>}
         {own.inPits && <span className="chip"
           style={{ color: "var(--yellow)", borderColor: "var(--yellow)", fontSize: 11 }}>PIT</span>}
+        <button className={`act${det ? " on" : ""}`}
+          style={{ marginLeft: "auto", fontSize: 11, padding: "3px 10px",
+            ...(det && { borderColor: "var(--teal)", color: "var(--teal)" }) }}
+          onClick={() => setDet((v) => !v)}>{det ? t("Detay ▾") : t("Detay ▸")}</button>
       </h2>
-      <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "flex-start" }}>
         {/* VE (Sanal Enerji) yakıttan önemli → önce ve daha büyük, yeşil */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
           <Ring value={veFrac} size={104} thickness={11} fs={26} color="var(--green)"
@@ -174,55 +215,44 @@ function OwnCar({ t, own, liveFuelObs }) {
               ~{lapsLeft} {t("tur")}</div>
           )}
         </div>
-        <div className="kpis" style={{ flex: 1, minWidth: 220, marginBottom: 0 }}>
-          <div className="kpi"><div className="v">{own.position || "—"}</div>
-            <div className="l">{t("Pozisyon")}</div></div>
-          <div className="kpi"><div className="v mono">
-            {own.curLapSec > 0 ? fmtLap(own.curLapSec) : "—"}</div>
-            <div className="l">{t("Mevcut Tur")}</div></div>
-          <div className="kpi"><div className="v mono">{lap(own.lastLapSec)}</div>
-            <div className="l">{t("Son Tur")}</div></div>
-          <div className="kpi"><div className="v mono" style={{ color: "var(--purple)" }}>
-            {lap(own.bestLapSec)}</div><div className="l">{t("En İyi")}</div></div>
-          <div className="kpi"><div className="v">{own.lapsDone ?? "—"}</div>
-            <div className="l">{t("Tur")}</div></div>
-          <div className="kpi"><div className="v">{own.pitStops ?? "—"}</div>
-            <div className="l">{t("Pit")}</div></div>
-          <div className="kpi"><div className="v" style={{ color: (own.damage || 0) > 0.15
-            ? "var(--red)" : (own.damage || 0) > 0.02 ? "var(--yellow)" : "var(--txt)" }}>
-            {own.damage != null ? `${Math.round(own.damage * 100)}%` : "—"}</div>
-            <div className="l">{t("Hasar")}</div></div>
-          <div className="kpi"><div className="v mono" style={{ fontSize: 15 }}>
-            {sec(own.s1)} <span style={{ color: "var(--dim)" }}>/</span> {sec(own.s2)}</div>
-            <div className="l">S1 / S2</div></div>
-          <div className="kpi"><div className="v mono">{lap(own.avg5Sec)}</div>
-            <div className="l">AVG5</div></div>
-          <div className="kpi"><div className="v mono">{lap(own.avgSec)}</div>
-            <div className="l">AVG</div></div>
-          <div className="kpi"><div className="v mono">
-            {own.stintSec > 0 ? fmtHMS(own.stintSec) : "—"}</div>
-            <div className="l">{t("Stint")}</div></div>
+        <div style={{ flex: 1, minWidth: 220, display: "flex", flexDirection: "column", gap: 10 }}>
+          <div className="kpigroup">
+            <div className="gh">{t("Yarış")}</div>
+            <div className="kpigrid">
+              <Kpi v={own.position || "—"} l={t("Pozisyon")} />
+              <Kpi v={own.lapsDone ?? "—"} l={t("Tur")} />
+              <Kpi v={own.pitStops ?? "—"} l={t("Pit")} />
+              <Kpi mono v={own.stintSec > 0 ? fmtHMS(own.stintSec) : "—"} l={t("Stint")} />
+            </div>
+          </div>
+          <div className="kpigroup">
+            <div className="gh">{t("Tempo")}</div>
+            <div className="kpigrid">
+              <Kpi mono v={lap(own.lastLapSec)} l={t("Son Tur")} />
+              <Kpi mono color="var(--purple)" v={lap(own.bestLapSec)} l={t("En İyi")} />
+              {det && <Kpi mono v={own.curLapSec > 0 ? fmtLap(own.curLapSec) : "—"} l={t("Mevcut Tur")} />}
+              {det && <Kpi mono fs={15}
+                v={<>{sec(own.s1)} <span style={{ color: "var(--dim)" }}>/</span> {sec(own.s2)}</>}
+                l="S1 / S2" />}
+              {det && <Kpi mono v={lap(own.avg5Sec)} l="AVG5" />}
+              {det && <Kpi mono v={lap(own.avgSec)} l="AVG" />}
+            </div>
+          </div>
+          <div className="kpigroup">
+            <div className="gh">{t("Durum")}</div>
+            <div className="kpigrid">
+              <Kpi v={own.damage != null ? `${Math.round(own.damage * 100)}%` : "—"} l={t("Hasar")}
+                color={(own.damage || 0) > 0.15 ? "var(--red)"
+                  : (own.damage || 0) > 0.02 ? "var(--yellow)" : "var(--txt)"} />
+            </div>
+          </div>
         </div>
       </div>
-      <div className="row4" style={{ marginTop: 12 }}>
-        {corners.map(([lbl, k]) => {
-          const c = ty[k] || {};
-          const wear = c.wear != null ? Math.round(c.wear * 100) : null;
-          return (
-            <div key={k} className="kpi" style={{ textAlign: "center" }}>
-              <div className="l" style={{ marginTop: 0 }}>{lbl}</div>
-              <div className="v" style={{ fontSize: 18,
-                color: wear != null && wear < 40 ? "var(--red)"
-                  : wear != null && wear < 70 ? "var(--yellow)" : "var(--green)" }}>
-                {wear != null ? `${wear}%` : "—"}</div>
-              <div className="l" style={{ marginTop: 2 }}>
-                {c.tempC != null ? `${Math.round(c.tempC)}°` : "—"}
-                {c.pressKpa != null ? ` · ${Math.round(c.pressKpa)}kPa` : ""}</div>
-            </div>
-          );
-        })}
+      <div className="kpigroup" style={{ marginTop: 10 }}>
+        <div className="gh">{t("Lastik & Hasar")}</div>
+        <CarDiagram t={t} tyres={ty} damage={own.damage} compound={tc} />
       </div>
-      <div className="hint">{t("Lastik: kalan diş % (yeşil→sarı→kırmızı) · sıcaklık · basınç. Köprüden salt-okunur gelir.")}</div>
+      <div className="hint">{t("Lastik: kalan diş % (yeşil→sarı→kırmızı) · sıcaklık · basınç. Gövde tonu = hasar. Köprüden salt-okunur gelir.")}</div>
     </div>
   );
 }
@@ -258,23 +288,120 @@ function BridgeControl({ t, bridge, canEdit }) {
   );
 }
 
-export default function LiveTab({ t, live, bridge, canEdit, liveFuelObs, tid, rid }) {
+/* Kompakt üst şerit — eski Seans başlık kartı + Köprü kartını tek ince satırda birleştirir.
+   Köprü durumu küçük bir nokta olur; mesaj/detay yalnız tıklayınca açılır (masaüstünde). */
+function LiveTopBar({ t, s, conn, ageSec, big, toggleBig, bridge, canEdit, showBridge,
+  trackId, demo, onDemo }) {
+  const [bExp, setBExp] = useState(false);
+  const [imgOk, setImgOk] = useState(true);
+  const phase = bridge?.phase || "idle";
+  const dot = phase === "running" ? "var(--green)"
+    : phase === "error" ? "var(--red)"
+      : phase === "starting" ? "var(--yellow)" : "var(--muted)";
+  const trackImg = trackId && imgOk ? `${ASSET}tracks/${TRACK_ASSET(trackId)}.png` : "";
+  return (
+    <div className="livebar">
+      <div className="lbtitle">
+        {trackImg && <img className="lbtrack" src={trackImg} alt=""
+          onError={() => setImgOk(false)} />}
+        📡 {t("Canlı Timing")}
+        {trackId && <span className="lbtrackname">{trackName(trackId)}</span>}
+        {s.sessionType && <span className="chip" style={{ fontSize: 11,
+          borderColor: "var(--teal)", color: "var(--teal)", fontWeight: 700 }}>
+          {t(s.sessionType)}</span>}
+        <span className={`livebadge ${conn.cls}`}><i /> {t(conn.lbl)} · {ageSec}s</span>
+        {demo && <span className="demobadge">DEMO</span>}
+      </div>
+      <div className="lbstats">
+        <div className="livestat">
+          <b className="disp">{s.flag ? t(s.flag) : (s.phase || "—")}</b>
+          <span>{t("Bayrak / Faz")}</span></div>
+        <div className="livestat">
+          <b className="mono">{s.timeLeftSec != null ? fmtHMS(s.timeLeftSec) : "—"}</b>
+          <span>{t("Kalan")}</span></div>
+        <div className="livestat">
+          <b>{s.trackTemp != null ? `${Math.round(s.trackTemp)}°` : "—"}</b>
+          <span>{t("Pist Sıc.")}</span></div>
+        <div className="livestat">
+          <b>{s.raining ? "🌧" : "☀️"} {s.ambientTemp != null ? `${Math.round(s.ambientTemp)}°` : ""}</b>
+          <span>{t("Hava")}</span></div>
+      </div>
+      <div className="lbright">
+        <button className={`act${demo ? " on" : ""}`} title={t("Temsili veri modu")}
+          style={{ fontSize: 11, padding: "3px 10px",
+            ...(demo && { borderColor: "var(--yellow)", color: "var(--yellow)" }) }}
+          onClick={onDemo}>{demo ? t("● Demo") : t("Demo")}</button>
+        {showBridge && (
+          <span className="lbbridge" title={t("Canlı Köprü")}
+            onClick={() => setBExp((v) => !v)}>
+            <i style={{ background: dot, boxShadow: `0 0 8px ${dot}` }} /> 🛰</span>
+        )}
+        {document.fullscreenEnabled && (
+          <button className="act" style={{ fontSize: 11, padding: "3px 10px" }}
+            onClick={toggleBig}>{big ? t("✕ Küçült") : t("⛶ Büyük Pano")}</button>
+        )}
+      </div>
+      {showBridge && bExp && (
+        <div className="hint" style={{ width: "100%", marginTop: 4,
+          color: phase === "error" ? "var(--red)" : "var(--dim)" }}>
+          🛰 {canEdit
+            ? (bridge?.msg || t("Bu bilgisayarda oyun (LMU) açıkken köprü kendiliğinden bağlanır ve canlı timing'i takımla paylaşır. Elle başlatmaya gerek yok."))
+            : t("Köprü otomatik çalışır; veri yazmak için takımda owner/editor olman gerekir (yalnız görüntüleyicisin).")}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function LiveTab({ t, live, bridge, canEdit, liveFuelObs, tid, rid, trackId }) {
   const [myClassOnly, setMyClassOnly] = useState(false);
   const [big, setBig] = useState(false);
   const [lapsFor, setLapsFor] = useState(null);   // "+" ile açılan tur listesi satırı
   const [showTeam, setShowTeam] = useState(false); // Pilot ↔ Takım sütun geçişi
+  // Saha tablosu: çekirdek sütunlar hep görünür; ikincil sütunlar "Detay" ile açılır
+  const [detailed, setDetailed] = useState(() => {
+    try { return localStorage.getItem("rm_live_cols") === "1"; } catch { return false; }
+  });
+  const toggleDetailed = () => setDetailed((v) => {
+    const nv = !v;
+    try { localStorage.setItem("rm_live_cols", nv ? "1" : "0"); } catch { /* yoksay */ }
+    return nv;
+  });
+  // DEMO modu: oyun/köprü yokken ekranı temsili veriyle doldurur (Firebase'e dokunmaz)
+  const [demo, setDemo] = useState(() => {
+    try { return localStorage.getItem("rm_live_demo") === "1"; } catch { return false; }
+  });
+  const [demoLive, setDemoLive] = useState(null);
+  const demoT0 = useRef(0);
+  const toggleDemo = () => setDemo((v) => {
+    const nv = !v;
+    try { localStorage.setItem("rm_live_demo", nv ? "1" : "0"); } catch { /* yoksay */ }
+    return nv;
+  });
+  useEffect(() => {
+    if (!demo) { setDemoLive(null); demoT0.current = 0; return undefined; }
+    if (!demoT0.current) demoT0.current = Date.now();
+    const tick = () => {
+      const el = 1800 + (Date.now() - demoT0.current) / 1000;   // ~30dk'dan başlat (tur/gap yayılı)
+      setDemoLive({ ts: Date.now(), ...demoFrame(el) });
+    };
+    tick();
+    const iv = setInterval(tick, 1000);
+    return () => clearInterval(iv);
+  }, [demo]);
   const rootRef = useRef(null);
   const playerRowRef = useRef(null);
   const posRef = useRef({});   // sürücü → son pozisyon
   const dirRef = useRef({});   // sürücü → 'up'|'down' (son değişim yönü kalır)
+  const srcLive = demo ? demoLive : live;   // effect'ler için demo-farkında kaynak
   // uzun grid'de oyuncu satırını görünür tut (canlı güncellemede)
   useEffect(() => {
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
     playerRowRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [live?.own?.position, myClassOnly]);
+  }, [srcLive?.own?.position, myClassOnly]);
   // pozisyon değişim yönünü izle (kare kare) → ▲/▼ okları
   useEffect(() => {
-    const f = Array.isArray(live?.field) ? live.field : [];
+    const f = Array.isArray(srcLive?.field) ? srcLive.field : [];
     for (const c of f) {
       const prev = posRef.current[c.driver];
       if (prev != null && c.pos > 0 && prev !== c.pos) {
@@ -282,7 +409,7 @@ export default function LiveTab({ t, live, bridge, canEdit, liveFuelObs, tid, ri
       }
       if (c.pos > 0) posRef.current[c.driver] = c.pos;
     }
-  }, [live?.ts]);
+  }, [srcLive?.ts]);
   // büyük pano (tam ekran)
   const toggleBig = () => {
     const el = rootRef.current;
@@ -302,7 +429,10 @@ export default function LiveTab({ t, live, bridge, canEdit, liveFuelObs, tid, ri
     <BridgeControl t={t} bridge={bridge} canEdit={canEdit} />
   ) : null;
 
-  if (!live || !live.ts) {
+  // görüntülenen kaynak: demo açıksa temsili veri, değilse gerçek canlı
+  const view = demo ? (demoLive || { ts: Date.now(), ...demoFrame(1800) }) : live;
+
+  if (!view || !view.ts) {
     return (
       <div data-tour="livecard">
         {bridgeCard}
@@ -318,23 +448,30 @@ export default function LiveTab({ t, live, bridge, canEdit, liveFuelObs, tid, ri
                 <br />3. {t("Yarış başlayınca bu ekran (ve tüm takım) canlı dolar.")}
               </>}
           </div>
-          {!isTauri && (
-            <div style={{ marginTop: 12 }}>
+          <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button className="bigbtn" onClick={toggleDemo}
+              style={{ display: "inline-flex", alignItems: "center", gap: 8, width: "auto",
+                padding: "10px 18px", cursor: "pointer" }}>
+              ▶ {t("Temsili Veri (Demo)")}</button>
+            {!isTauri && (
               <a className="bigbtn" href={DESKTOP_RELEASE_URL} target="_blank" rel="noopener noreferrer"
                 style={{ display: "inline-flex", alignItems: "center", gap: 8, width: "auto",
                   padding: "10px 18px", textDecoration: "none" }}>
                 🖥 {t("Masaüstü Uygulamasını İndir")}</a>
-            </div>
-          )}
+            )}
+          </div>
+          <div className="hint" style={{ marginTop: 8 }}>
+            {t("Demo: oyun olmadan ekranı temsili yarış verisiyle doldurur (yalnız görüntü, takımla paylaşılmaz).")}
+          </div>
         </div>
       </div>
     );
   }
-  const conn = connOf(live.ts);
-  const s = live.session || {};
-  const own = live.own || null;
-  const fieldAll = Array.isArray(live.field) ? live.field : [];
-  const ageSec = Math.max(0, Math.round((Date.now() - live.ts) / 1000));
+  const conn = demo ? { cls: "on", lbl: "demo" } : connOf(view.ts);
+  const s = view.session || {};
+  const own = view.own || null;
+  const fieldAll = Array.isArray(view.field) ? view.field : [];
+  const ageSec = Math.max(0, Math.round((Date.now() - view.ts) / 1000));
 
   // türetilmiş: sınıf-içi pozisyon, seans en hızlı turu, oyuncu sınıfı
   const leaderLaps = fieldAll[0]?.lapsDone ?? 0;
@@ -357,50 +494,33 @@ export default function LiveTab({ t, live, bridge, canEdit, liveFuelObs, tid, ri
   const shown = myClassOnly && playerClass
     ? rows.filter((r) => r.id === playerClass) : rows;
 
+  // bayrak/durum bandı (normal yarışta null) + pano kenar glow sınıfı
+  const fs = flagState(s, t);
+  // sınıf lejantı: alandaki sınıflar + araç sayısı (pozisyon sırasını koru)
+  const classLegend = [];
+  const seenCls = new Set();
+  for (const c of fieldAll) {
+    const id = classId(c.carClass);
+    if (id && !seenCls.has(id)) { seenCls.add(id); classLegend.push(c.carClass); }
+  }
+  const rootCls = [big ? "bigboard" : "", "liveui", fs ? `board-${fs.cls}` : ""]
+    .filter(Boolean).join(" ");
+
   return (
-    <div data-tour="livecard" ref={rootRef} className={big ? "bigboard" : ""}>
-      {!big && bridgeCard}
-      <div className="card" style={{ marginBottom: 12 }}>
-        <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          📡 {t("Canlı Timing")}
-          {s.sessionType && <span className="chip" style={{ fontSize: 11,
-            borderColor: "var(--teal)", color: "var(--teal)", fontWeight: 700 }}>
-            {t(s.sessionType)}</span>}
-          <span className={`livebadge ${conn.cls}`}>
-            <i /> {t(conn.lbl)} · {ageSec}s</span>
-          {document.fullscreenEnabled && (
-            <button className="act" style={{ marginLeft: "auto", fontSize: 11, padding: "3px 10px" }}
-              onClick={toggleBig}>{big ? t("✕ Küçült") : t("⛶ Büyük Pano")}</button>
-          )}
-        </h2>
-        <div className="kpis" style={{ marginBottom: 0 }}>
-          <div className="kpi"><div className="v disp">{s.flag ? t(s.flag) : (s.phase || "—")}</div>
-            <div className="l">{t("Bayrak / Faz")}</div></div>
-          <div className="kpi"><div className="v mono">
-            {s.timeLeftSec != null ? fmtHMS(s.timeLeftSec) : "—"}</div>
-            <div className="l">{t("Kalan")}</div></div>
-          <div className="kpi"><div className="v">{s.trackTemp != null ? `${Math.round(s.trackTemp)}°` : "—"}
-            <span style={{ fontSize: 13, color: "var(--dim)" }}> {t("pist")}</span></div>
-            <div className="l">{t("Pist Sıcaklığı")}</div></div>
-          <div className="kpi"><div className="v">
-            {s.raining ? `🌧 ${t("Yağmur")}` : `☀️ ${t("Kuru")}`}</div>
-            <div className="l">{t("Hava")} {s.ambientTemp != null ? `${Math.round(s.ambientTemp)}°` : ""}</div></div>
-        </div>
-      </div>
+    <div data-tour="livecard" ref={rootRef} className={rootCls}>
+      <LiveTopBar t={t} s={s} conn={conn} ageSec={ageSec} big={big} toggleBig={toggleBig}
+        bridge={bridge} canEdit={canEdit} showBridge={isTauri && !big} trackId={trackId}
+        demo={demo} onDemo={toggleDemo} />
+
+      {fs && <div className={`flagbanner fb-${fs.cls}`}>{fs.label}</div>}
 
       {!big && <StrategyBar t={t} field={fieldAll} />}
 
-      {/* Pist haritası (sol) + Kendi Araç (sağ) yan yana; dar ekranda alt alta */}
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
+      {/* Kendi Araç (sol) + Pist haritası (sağ) yan yana; dar ekranda alt alta */}
+      <div className="panelrow">
+        {own && <OwnCar t={t} own={own} liveFuelObs={liveFuelObs} />}
         {s.trackLength > 0 && fieldAll.some((c) => c.posX != null) && (
-          <div style={{ flex: "1 1 360px", minWidth: 300 }}>
-            <TrackMap t={t} field={fieldAll} trackLength={s.trackLength} />
-          </div>
-        )}
-        {own && (
-          <div style={{ flex: "1 1 420px", minWidth: 300 }}>
-            <OwnCar t={t} own={own} liveFuelObs={liveFuelObs} />
-          </div>
+          <TrackMap t={t} field={fieldAll} trackLength={s.trackLength} />
         )}
       </div>
 
@@ -409,12 +529,28 @@ export default function LiveTab({ t, live, bridge, canEdit, liveFuelObs, tid, ri
           🏁 {t("Saha")} ({shown.length})
           {playerClass && (
             <button className={`act${myClassOnly ? " on" : ""}`}
-              style={{ fontSize: 11, padding: "3px 10px",
+              style={{ marginLeft: "auto", fontSize: 11, padding: "3px 10px",
                 ...(myClassOnly && { borderColor: "var(--teal)", color: "var(--teal)" }) }}
               onClick={() => setMyClassOnly((v) => !v)}>
               {myClassOnly ? t("Tüm saha") : t("Kendi sınıfım")}</button>
           )}
+          <button className={`act${detailed ? " on" : ""}`}
+            title={t("AVG5 · AVG · VE · Δ · Stint · Lastik · Hasar sütunları")}
+            style={{ marginLeft: playerClass ? 0 : "auto", fontSize: 11, padding: "3px 10px",
+              ...(detailed && { borderColor: "var(--teal)", color: "var(--teal)" }) }}
+            onClick={toggleDetailed}>{detailed ? t("Detay ▾") : t("Detay ▸")}</button>
         </h2>
+        {classLegend.length > 1 && (
+          <div className="clslegend">
+            {classLegend.map((cl) => (
+              <span key={cl} className="clschip"
+                style={{ borderColor: classAccent(cl) || "var(--line)" }}>
+                <span className="clsdot" style={{ background: classAccent(cl) || "var(--muted)" }} />
+                <ClassBadge raw={cl} />
+              </span>
+            ))}
+          </div>
+        )}
         {!shown.length && <div className="hint">{t("Henüz araç verisi yok.")}</div>}
         {shown.length > 0 && (
           <div style={{ overflowX: "auto" }}>
@@ -427,10 +563,11 @@ export default function LiveTab({ t, live, bridge, canEdit, liveFuelObs, tid, ri
                     cursor: "pointer", padding: 0, textDecoration: "underline dotted" }}>
                   {showTeam ? t("Takım") : t("Pilot")}</button></th>
                 <th>{t("Sınıf")}</th><th>{t("Tur")}</th>
-                <th>{t("Son")}</th><th>{t("En İyi")}</th><th>AVG5</th><th>AVG</th>
-                <th>VE</th>
-                <th>Δ</th><th>Gap</th><th>{t("Aralık")}</th><th>{t("Konum")}</th>
-                <th>Stint</th><th>{t("Lastik")}</th><th>{t("Hasar")}</th><th>Pit</th>
+                <th>{t("Son")}</th><th>{t("En İyi")}</th>
+                {detailed && <><th>AVG5</th><th>AVG</th><th>VE</th><th>Δ</th></>}
+                <th>Gap</th><th>{t("Aralık")}</th><th>{t("Konum")}</th>
+                {detailed && <><th>Stint</th><th>{t("Lastik")}</th><th>{t("Hasar")}</th></>}
+                <th>Pit</th>
                 <th aria-label={t("Turlar")}></th>
               </tr></thead>
               <tbody>
@@ -441,7 +578,8 @@ export default function LiveTab({ t, live, bridge, canEdit, liveFuelObs, tid, ri
                       className={c.isPlayer ? "live" : ""}
                       style={!c.isPlayer && acc ? { borderLeft: `3px solid ${acc}` } : undefined}>
                       <td className="disp" style={{ fontSize: 15, whiteSpace: "nowrap" }}>
-                        {c.pos ?? i + 1}
+                        <span className={c.pos >= 1 && c.pos <= 3 ? `pod pod-${c.pos}` : ""}>
+                          {c.pos ?? i + 1}</span>
                         {dirRef.current[c.driver] === "up" && <span
                           style={{ color: "var(--green)", fontSize: 10, marginLeft: 3 }}>▲</span>}
                         {dirRef.current[c.driver] === "down" && <span
@@ -461,30 +599,36 @@ export default function LiveTab({ t, live, bridge, canEdit, liveFuelObs, tid, ri
                       <td>{c.lapsDone ?? "—"}</td>
                       <td>{lap(c.lastSec)}</td>
                       <td style={{ color: isFastest ? "var(--purple)" : "var(--dim)",
-                        fontWeight: isFastest ? 700 : 400 }}>{lap(c.bestSec)}</td>
-                      <td style={{ color: "var(--dim)" }}>{lap(c.avg5Sec)}</td>
-                      <td style={{ color: "var(--dim)" }}>{lap(c.avgSec)}</td>
-                      <td style={{ color: veColor(c.virtualEnergy), fontSize: 12 }}>
-                        {c.virtualEnergy != null ? `${Math.round(c.virtualEnergy)}%` : "—"}</td>
-                      <td style={{ color: delta == null ? "var(--dim)"
-                        : delta <= 0 ? "var(--green)" : "var(--red)", fontSize: 12 }}>
-                        {delta == null ? "—" : `${delta > 0 ? "+" : ""}${delta.toFixed(2)}`}</td>
+                        fontWeight: isFastest ? 700 : 400, whiteSpace: "nowrap" }}>
+                        {lap(c.bestSec)}
+                        {isFastest && c.bestSec > 0 && <span className="badge-fl">FL</span>}</td>
+                      {detailed && <>
+                        <td style={{ color: "var(--dim)" }}>{lap(c.avg5Sec)}</td>
+                        <td style={{ color: "var(--dim)" }}>{lap(c.avgSec)}</td>
+                        <td style={{ color: veColor(c.virtualEnergy), fontSize: 12 }}>
+                          {c.virtualEnergy != null ? `${Math.round(c.virtualEnergy)}%` : "—"}</td>
+                        <td style={{ color: delta == null ? "var(--dim)"
+                          : delta <= 0 ? "var(--green)" : "var(--red)", fontSize: 12 }}>
+                          {delta == null ? "—" : `${delta > 0 ? "+" : ""}${delta.toFixed(2)}`}</td>
+                      </>}
                       <td>{i === 0 ? t("Lider") : lapsDown >= 1 ? `+${lapsDown} ${t("Tur")}` : gap(c.gapSec)}</td>
                       <td style={{ color: "var(--dim)" }}>{interval != null ? gap(interval) : "—"}</td>
                       <td style={{ fontSize: 11, color: c.location === "PIT" ? "var(--yellow)"
                         : c.location === "GARAGE" ? "var(--red)" : "var(--dim)" }}>
                         {c.location ? t(c.location) : "—"}</td>
-                      <td className="mono" style={{ color: "var(--dim)", fontSize: 12 }}>
-                        {c.stintSec > 0 ? fmtHMS(c.stintSec) : "—"}</td>
-                      <td style={{ whiteSpace: "nowrap" }}>
-                        {c.tyreWear != null ? <>
-                          <span style={{ display: "inline-block", width: 9, height: 9, borderRadius: "50%",
-                            background: wearColor(c.tyreWear), marginRight: 5, verticalAlign: "middle" }} />
-                          <span style={{ color: "var(--dim)", fontSize: 12 }}>{Math.round(c.tyreWear * 100)}%</span>
-                        </> : "—"}</td>
-                      <td style={{ fontSize: 12, color: (c.damage || 0) > 0.15 ? "var(--red)"
-                        : (c.damage || 0) > 0.02 ? "var(--yellow)" : "var(--dim)" }}>
-                        {c.damage != null ? `${Math.round(c.damage * 100)}%` : "—"}</td>
+                      {detailed && <>
+                        <td className="mono" style={{ color: "var(--dim)", fontSize: 12 }}>
+                          {c.stintSec > 0 ? fmtHMS(c.stintSec) : "—"}</td>
+                        <td style={{ whiteSpace: "nowrap" }}>
+                          {c.tyreWear != null ? <>
+                            <span style={{ display: "inline-block", width: 9, height: 9, borderRadius: "50%",
+                              background: wearColor(c.tyreWear), marginRight: 5, verticalAlign: "middle" }} />
+                            <span style={{ color: "var(--dim)", fontSize: 12 }}>{Math.round(c.tyreWear * 100)}%</span>
+                          </> : "—"}</td>
+                        <td style={{ fontSize: 12, color: (c.damage || 0) > 0.15 ? "var(--red)"
+                          : (c.damage || 0) > 0.02 ? "var(--yellow)" : "var(--dim)" }}>
+                          {c.damage != null ? `${Math.round(c.damage * 100)}%` : "—"}</td>
+                      </>}
                       <td style={{ whiteSpace: "nowrap" }}>
                         {c.inPits && <span className="chip" style={{ marginRight: 4,
                           color: "var(--yellow)", borderColor: "var(--yellow)" }}>PIT</span>}
@@ -507,9 +651,9 @@ export default function LiveTab({ t, live, bridge, canEdit, liveFuelObs, tid, ri
         )}
         <div className="hint">{t("Gap: lidere · Aralık: öndeki araca · Pn: sınıf-içi sıra (sarı = sınıf lideri) · mor: seansın en hızlı turu · satır sonundaki + ile o aracın tur zamanları. Veriler köprü ile canlı gelir; tüm takım aynı anda görür.")}</div>
       </div>
-      {!big && <PosChart t={t} tid={tid} rid={rid} field={fieldAll} />}
+      {!big && !demo && <PosChart t={t} tid={tid} rid={rid} field={fieldAll} />}
 
-      {lapsFor && <LapsModal t={t} tid={tid} rid={rid} row={lapsFor}
+      {!demo && lapsFor && <LapsModal t={t} tid={tid} rid={rid} row={lapsFor}
         onClose={() => setLapsFor(null)} />}
     </div>
   );
