@@ -9,6 +9,7 @@ import { useTeams } from "./useTeams";
 import { useChat } from "./useChat";
 import { useSetups } from "./useSetups";
 import { useRaceSync } from "./useRaceSync";
+import { useTelemetry } from "./useTelemetry";
 import { firebaseReady,
   requestAccess, watchAllUsers, setUserAllowed, updateProfile,
   createTeam, joinTeam,
@@ -28,7 +29,6 @@ import {
 } from "./engine";
 import { css } from "./styles";
 import { EN } from "./i18n";
-import { msFromCell, parseMotecLog, parseTelemetryText, guessMapping } from "./parsers";
 import {
   SLOT_COLORS, APP_VERSION, REPO_URL, SEEN_VER_KEY, ASSET, AV,
   TRACKS, PIT_LANE_TIMES, TRACK_ASSET, trackFlag,
@@ -39,7 +39,7 @@ import {
   safeParseState, carriedTyre,
   applyUpPit, applyUpTyre, applyUpOvr, applyBumpLaps, applyClearLaps,
   applyQuickTyre, applyUpStintLap, applyUpTyreCell, applyAssignDriver,
-  computeTyreInfo, computeDriverPlan, computeSlotStats, computeChartData,
+  computeTyreInfo, computeDriverPlan,
   computeLiveInfo, buildTimeline,
 } from "./state";
 import {
@@ -308,105 +308,10 @@ export default function App() {
     return parts.slice(0, 3).join(" ");
   };
 
-  /* ---------- Faz 4: telemetri ---------- */
-  const [slot, setSlot] = useState("A");
-  const [chartMode, setChartMode] = useState("box"); // "box" | "line"
-  const [rawTele, setRawTele] = useState("");
-  const [parsed, setParsed] = useState(null);   // {headers, lapRows, ncols} | {error}
-  const [mapping, setMapping] = useState(null); // {labelCol,timeCol,fuelCol,wear:[4]}
-  const fmtMs = (ms) => fmtLap(ms / 1000);
-
-  const doParse = (text) => {
-    const m = parseMotecLog(text);          // önce ham kanal log'u dene
-    if (m) { setParsed(m); setMapping(null); return; }
-    const p = parseTelemetryText(text);
-    setParsed(p);
-    if (p && !p.error) setMapping(guessMapping(p));
-  };
-  const onTeleFile = (e) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    const rd = new FileReader();
-    rd.onload = () => { setRawTele(String(rd.result)); doParse(String(rd.result)); };
-    rd.readAsText(f);
-  };
-
-  /* %105 kuralı: dahil turlar içinde en iyisini bul, %105'ini aşanların tikini kaldır.
-     Trafik, sarı bayrak, hata yapılan turlar ortalamayı ve medyanı bozmasın diye. */
-  const P105 = 1.05;
-  const apply105 = (laps) => {
-    const cand = laps.filter((l) => l.use && l.ms > 0);
-    if (cand.length < 2) return laps;
-    const best = Math.min(...cand.map((l) => l.ms));
-    const lim = best * P105;
-    return laps.map((l) => (l.use && l.ms > lim ? { ...l, use: false } : l));
-  };
-  const apply105Slot = (sl) => setSt((s) => {
-    const t0 = s.telemetry[sl];
-    if (!t0) return s;
-    return { ...s, telemetry: { ...s.telemetry, [sl]: { ...t0, laps: apply105(t0.laps) } } };
-  });
-
-  /* ham log → mevcut tur modeline çevir (yakıt litre → VE %) */
-  const saveMotec = () => {
-    if (!parsed?.motec) return;
-    const ratio = st.fuelRatio > 0 ? st.fuelRatio : null;
-    const laps = parsed.laps.map((l) => ({
-      label: `Lap ${l.lap}`,
-      ms: Math.round(l.sec * 1000),
-      fuel: l.fuelL != null && ratio ? +(l.fuelL / ratio).toFixed(2) : null,
-      fuelL: l.fuelL != null ? +l.fuelL.toFixed(2) : null,
-      w: l.w.map((x) => (x == null ? null : +x.toFixed(2))),
-      avgSpd: l.avgSpd != null ? Math.round(l.avgSpd) : null,
-      maxSpd: l.maxSpd != null ? Math.round(l.maxSpd) : null,
-      partial: !!l.partial, pit: !!l.pit,
-      use: !l.pit,
-    }));
-    setSt((s) => ({ ...s, telemetry: { ...s.telemetry,
-      [slot]: { laps: apply105(laps), name: `Stint ${slot}`, src: parsed.meta } } }));
-    setRawTele(""); setParsed(null); setMapping(null);
-  };
-
-  const saveSlot = () => {
-    if (!parsed || parsed.error || !mapping || mapping.timeCol < 0) return;
-    const laps = parsed.lapRows.map((r) => {
-      const label = String(r[mapping.labelCol] || "").trim();
-      const ms = msFromCell(r[mapping.timeCol]);
-      const fuelRaw = mapping.fuelCol >= 0
-        ? parseFloat(String(r[mapping.fuelCol] || "").replace(",", ".")) : NaN;
-      const w = mapping.wear.map((wi) => wi >= 0
-        ? parseFloat(String(r[wi] || "").replace(",", ".")) : NaN);
-      const refuel = !isNaN(fuelRaw) && fuelRaw > 0; // pozitif değişim = dolum turu
-      const abs = isNaN(fuelRaw) ? null : Math.abs(fuelRaw);
-      const lit = mapping.fuelIsLitre && st.fuelRatio > 0;
-      return {
-        label, ms,
-        fuel: abs == null ? null : (lit ? +(abs / st.fuelRatio).toFixed(2) : abs),
-        fuelL: lit ? +abs.toFixed(2) : null,
-        w: w.map((x) => (isNaN(x) ? null : x)),
-        use: ms != null && !/^out/i.test(label) && !refuel,
-      };
-    }).filter((l) => l.ms != null);
-    if (!laps.length) return;
-    setSt((s) => ({ ...s, telemetry: { ...s.telemetry,
-      [slot]: { laps: apply105(laps), name: `Stint ${slot}` } } }));
-    setRawTele(""); setParsed(null); setMapping(null);
-  };
-
-  const toggleLap = (sl, li) => setSt((s) => {
-    const t = s.telemetry[sl]; if (!t) return s;
-    const laps = t.laps.map((l, i) => (i === li ? { ...l, use: !l.use } : l));
-    return { ...s, telemetry: { ...s.telemetry, [sl]: { ...t, laps } } };
-  });
-  const removeSlot = (sl) => setSt((s) => ({
-    ...s, telemetry: { ...s.telemetry, [sl]: null } }));
-
-  const slotStats = useMemo(() => computeSlotStats(st), [st.telemetry]);
-
-  const chartData = useMemo(() => computeChartData(st), [st.telemetry]);
-
-  const loadedSlots = ["A", "B", "C", "D"].filter((sl) => st.telemetry[sl]);
-  const baseSlot = loadedSlots[0];
+  /* ---------- Faz 4: telemetri → useTelemetry hook'u (MoTeC içe aktar + analiz) ---------- */
+  const { slot, setSlot, chartMode, setChartMode, rawTele, setRawTele, parsed, mapping,
+    setMapping, onTeleFile, doParse, apply105Slot, saveMotec, saveSlot, toggleLap,
+    removeSlot, slotStats, chartData, loadedSlots, baseSlot } = useTelemetry({ st, setSt });
 
   /* ---------- canlı yarış modu ---------- */
   const [now, setNow] = useState(Date.now());
