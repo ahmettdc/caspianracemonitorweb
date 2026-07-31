@@ -5,6 +5,22 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.56",
+    date: "2026-07-31",
+    tr: [
+      "🗺 Pist haritası artık akıcı: araç noktaları kareler arasında kayarak ilerliyor (yarım saniyede bir zıplama yok); sollamada nokta animasyonu da kesilmiyor",
+      "📊 AVG5/AVG yanıp sönmesi düzeltildi: oyunun paylaşımlı belleği tam yazım anında okununca 'yırtık' kare gelebiliyor, tur sayısı bir anlığına düşük görünüyor ve ortalama geçmişi sıfırlanıyordu — artık veriler sürüm-kontrollü tutarlı kopyayla okunuyor ve tek karelik düşüşler yok sayılıyor",
+      "🌡 Kendi Araç lastik sıcaklığı artık İÇ (karkas) sıcaklık — pit duvarı için anlamlı olan bu; eskiden anlık/oynak yüzey sıcaklığı gösteriliyordu",
+      "⏱ Kendi Araç kartına S3 eklendi (S1 / S2 / S3); ayrıca S2 artık gerçek sektör süresi (eskiden S1+S2 toplamı gösteriliyordu)",
+    ],
+    en: [
+      "🗺 The track map is now fluid: car dots glide between frames (no more half-second jumps), and overtakes no longer break the dot animation",
+      "📊 Fixed AVG5/AVG flickering: reading the game's shared memory mid-write could produce a 'torn' frame where the lap count briefly looked lower, resetting the average history — data is now read via a version-checked consistent copy and single-frame dips are ignored",
+      "🌡 Own Car tyre temperature is now the INNER (carcass) temperature — the one that matters on the pit wall; previously the volatile surface temperature was shown",
+      "⏱ Added S3 to the Own Car card (S1 / S2 / S3); S2 is now the real sector time (previously the cumulative S1+S2 was shown)",
+    ],
+  },
+  {
     v: "v1.4.55",
     date: "2026-07-31",
     tr: [

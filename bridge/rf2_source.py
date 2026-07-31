@@ -204,7 +204,8 @@ class MockSource:
                 "manufacturer": me["manufacturer"], "number": me["number"],
                 "position": me["pos"], "lastLapSec": me["lastSec"], "bestLapSec": me["bestSec"],
                 "curLapSec": round(stint % me["lastSec"], 1), "s1": round(me["lastSec"] * 0.32, 3),
-                "s2": round(me["lastSec"] * 0.35, 3), "lapsDone": me["lapsDone"],
+                "s2": round(me["lastSec"] * 0.35, 3), "s3": round(me["lastSec"] * 0.33, 3),
+                "lapsDone": me["lapsDone"],
                 "inPits": me["inPits"], "pitStops": me["pitStops"],
                 "location": me["location"], "damage": me["damage"],
                 "control": 0, "driving": True,   # mock: bu PC aktif sürücü (yazar)
@@ -248,17 +249,20 @@ class RF2Source:
 
     @staticmethod
     def _tyre_c(w):
-        """Lastik yüzey sıcaklığı → °C. rF2 alanları Kelvin; oyun doldurmadıysa 0
-        gelir (0 K → -273°C saçmalığı). Makul (K > 200 ≈ -73°C) değeri C'ye çevir;
-        birincil boşsa taşıyıcı/iç katman alanlarını dene; hiçbiri makul değilse None."""
-        for field in ("mTemperature", "mTireInnerLayerTemperature"):
+        """Lastik İÇ sıcaklığı → °C. Öncelik: mTireCarcassTemperature (karkas) →
+        mTireInnerLayerTemperature (iç kauçuk katmanı) ort. → mTemperature (yüzey) ort.
+        Pit duvarı için anlamlı olan iç/karkas sıcaklığıdır (LMU HUD ile uyumlu);
+        yüzey sıcaklığı anlık ve oynaktır — eskiden önce o okunuyordu (kullanıcı isteği).
+        rF2 alanları Kelvin; oyun doldurmadıysa 0 gelir (0 K → -273°C saçmalığı) →
+        makul (K > 200 ≈ -73°C) değer C'ye çevrilir; hiçbiri makul değilse None."""
+        carc = float(getattr(w, "mTireCarcassTemperature", 0.0) or 0.0)
+        if carc > 200:
+            return round(carc - 273.15, 0)
+        for field in ("mTireInnerLayerTemperature", "mTemperature"):
             vals = [float(t) for t in getattr(w, field, []) or []]
             vals = [v for v in vals if v > 200]        # 0/başlatılmamış'ı ele
             if vals:
                 return round(sum(vals) / len(vals) - 273.15, 0)
-        carc = float(getattr(w, "mTireCarcassTemperature", 0.0) or 0.0)
-        if carc > 200:
-            return round(carc - 273.15, 0)
         return None
 
     @classmethod
@@ -330,9 +334,28 @@ class RF2Source:
             return "PIT"
         return "TRACK"
 
+    @staticmethod
+    def _stable_copy(live):
+        """Paylaşımlı bellekten TUTARLI anlık kopya. `from_buffer` canlı görünümdür:
+        oyun tam yazarken okunan kare YIRTIK olabilir (ör. lapsDone bir anlığına düşük
+        görünür → Aggregator 'yeni seans' sanıp geçmişi sıfırlar → AVG yanıp söner).
+        rF2SMMP bunun için mVersionUpdateBegin/End sayaçlarını sunar: yazım sırasında
+        begin != end. Kopyala, sayaçlar eşitse kabul et; değilse birkaç kez dene
+        (TinyPedal tekniği). Son deneme de yırtıksa yine KOPYA döner — en azından kare
+        işlenirken veri altımızdan değişmez."""
+        snap = None
+        for _ in range(6):
+            snap = type(live).from_buffer_copy(live)
+            try:
+                if int(snap.mVersionUpdateBegin) == int(snap.mVersionUpdateEnd):
+                    return snap
+            except Exception:
+                return snap    # sayaç alanı yoksa (eski struct) kopya yeterli
+        return snap
+
     def read(self):
-        scor = self.api.Rf2Scor
-        tele = self.api.Rf2Tele
+        scor = self._stable_copy(self.api.Rf2Scor)
+        tele = self._stable_copy(self.api.Rf2Tele)
         ext = getattr(self.api, "Rf2Ext", None)
         info = scor.mScoringInfo
         num = int(getattr(info, "mNumVehicles", 0))
@@ -435,8 +458,13 @@ class RF2Source:
                     "lastLapSec": round(float(getattr(player_scor, "mLastLapTime", -1.0)), 3),
                     "bestLapSec": round(float(getattr(player_scor, "mBestLapTime", -1.0)), 3),
                     "curLapSec": round(float(getattr(player_scor, "mTimeIntoLap", 0.0)), 1),
+                    # mCurSector2 KÜMÜLATİF (S1+S2) → s2 arındırılır; s3 = son turun
+                    # S3'ü (_sectors) — kart S1/S2/S3'ü tekil süreler olarak gösterir.
                     "s1": round(float(getattr(player_scor, "mCurSector1", -1.0)), 3),
-                    "s2": round(float(getattr(player_scor, "mCurSector2", -1.0)), 3),
+                    "s2": (lambda c1, c2: round(c2 - c1, 3) if c1 > 0 and c2 > c1 else -1.0)(
+                        float(getattr(player_scor, "mCurSector1", -1.0)),
+                        float(getattr(player_scor, "mCurSector2", -1.0))),
+                    "s3": self._sectors(player_scor)[2] or -1.0,
                     "lapsDone": int(getattr(player_scor, "mTotalLaps", 0)),
                     "inPits": bool(getattr(player_scor, "mInPits", 0)),
                     "pitStops": int(getattr(player_scor, "mNumPitstops", 0)),
@@ -504,6 +532,11 @@ class Aggregator:
     her field satırına ve own'a avg5Sec / avgSec / stintSec ekler.
     Anahtar = sürücü adı. Köprü yeniden başlarsa geçmiş sıfırlanır."""
 
+    #: lapsDone gerilemesi kaç ARDIŞIK karede sürerse "yeni seans" sayılır.
+    #: Tek karelik düşüşler paylaşımlı bellekten yırtık okuma olabilir (oyun tam
+    #: yazarken) — hemen sıfırlamak AVG5/AVG'yi yanıp söndürüyordu.
+    REGRESS_FRAMES = 3
+
     def __init__(self, inner):
         self.inner = inner
         self.hist = {}          # sürücü → deque(son ~30 geçerli lastSec) — avg için
@@ -511,6 +544,7 @@ class Aggregator:
         self.prev_laps = {}     # sürücü → son görülen lapsDone
         self.prev_pits = {}     # sürücü → son görülen inPits
         self.stint_start = {}   # sürücü → stint başlangıcı (time.time())
+        self.regress = {}       # sürücü → ardışık gerileme sayacı (yırtık kare filtresi)
 
     def close(self):
         if hasattr(self.inner, "close"):
@@ -536,12 +570,23 @@ class Aggregator:
             in_pits = bool(r.get("inPits"))
 
             first = key not in self.prev_laps
-            if first or laps < self.prev_laps.get(key, laps):   # ilk görüş / yeni seans
+            regressed = not first and laps < self.prev_laps[key]
+            if regressed:
+                self.regress[key] = self.regress.get(key, 0) + 1
+            else:
+                self.regress[key] = 0
+            if first or (regressed and self.regress[key] >= self.REGRESS_FRAMES):
+                # ilk görüş / KALICI gerileme (gerçek yeni seans) → geçmişi sıfırla.
+                # Tek karelik gerileme yırtık okuma olabilir → aşağıda satır atlanır,
+                # hist/prev korunur (AVG5/AVG yanıp sönmez).
                 self.hist[key] = deque(maxlen=30)
                 self.lap_log[key] = deque(maxlen=LAP_LOG_MAX)
                 self.stint_start[key] = now
                 self.prev_pits[key] = in_pits
                 self.prev_laps[key] = laps
+                self.regress[key] = 0
+            elif regressed:
+                pass                                             # şüpheli kare — dokunma
             elif laps > self.prev_laps[key]:                     # tur tamamlandı
                 if self._valid_lap(last, best):
                     self.hist[key].append(round(last, 3))       # avg (filtreli)

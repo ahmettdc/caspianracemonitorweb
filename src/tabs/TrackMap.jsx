@@ -116,28 +116,36 @@ export default function TrackMap({ t, field, trackLength, tid, trackKey, canSave
     return [cx + R * Math.sin(a), cy - R * Math.cos(a)];
   };
 
-  // daire + içinde sınıf-içi pozisyon (num). renk = sınıf; oyuncu beyaz/#960018.
-  const dot = (c, x, y, rBase, num) => {
+  /* daire + içinde sınıf-içi pozisyon (num). renk = sınıf; oyuncu beyaz/#960018.
+     AKICILIK: daire (0,0)'da çizilir, konum sarmalayıcı <g>'nin CSS transform'uyla
+     verilir → köprü ~2.5 Hz kare atsa da tarayıcı kareler arasını kendisi animate
+     eder (zıplama yok, rAF gerekmez). key ARAÇ kimliği (kprefix+lapKey): pozisyon
+     değişince remount olup animasyonu kırmasın. S/F geçişi xy uzayında komşu nokta
+     olduğu için sarma problemi yoktur. */
+  const dot = (c, x, y, rBase, num, keyPrefix) => {
     const col = classAccent(c.carClass) || "var(--muted)";
     const label = num > 0 ? String(num) : "";
     const fs = num >= 10 ? rBase : rBase + 2;   // 2 haneli biraz küçük
+    const key = `${keyPrefix}${c.lapKey || c.driver || c.pos}`;
+    const gStyle = { transform: `translate(${x}px, ${y}px)`,
+      transition: "transform .5s linear" };
     if (c.isPlayer) {
       return (
-        <g key={`p${c.pos}`}>
-          <circle cx={x} cy={y} r={rBase + 2} fill="#fff" stroke={BRAND} strokeWidth={2.5} />
-          <circle cx={x} cy={y} r={rBase + 6} fill="none" stroke={BRAND}
+        <g key={key} style={gStyle}>
+          <circle r={rBase + 2} fill="#fff" stroke={BRAND} strokeWidth={2.5} />
+          <circle r={rBase + 6} fill="none" stroke={BRAND}
             strokeWidth={1.4} opacity={0.55} />
-          {label && <text x={x} y={y} fill={BRAND} fontSize={fs} fontWeight="800"
+          {label && <text fill={BRAND} fontSize={fs} fontWeight="800"
             textAnchor="middle" dominantBaseline="central">{label}</text>}
         </g>
       );
     }
     const pit = c.inPits || c.location === "PIT";
     return (
-      <g key={c.pos}>
-        <circle cx={x} cy={y} r={rBase} fill={col}
+      <g key={key} style={gStyle}>
+        <circle r={rBase} fill={col}
           stroke={pit ? "#fff" : "none"} strokeWidth={pit ? 1.6 : 0} opacity={0.97} />
-        {label && <text x={x} y={y} fill="#fff" fontSize={fs} fontWeight="700"
+        {label && <text fill="#fff" fontSize={fs} fontWeight="700"
           textAnchor="middle" dominantBaseline="central"
           stroke="rgba(0,0,0,.4)" strokeWidth="0.5" paintOrder="stroke">{label}</text>}
       </g>
@@ -164,11 +172,11 @@ export default function TrackMap({ t, field, trackLength, tid, trackKey, canSave
     {outline && <path d={outline} fill="none" stroke="var(--muted)"
       strokeWidth={2} strokeLinejoin="round" opacity={0.9} />}
     {/* araçlar — dış halka */}
-    {cars.map((c) => { const [x, y] = ringXY(c.lapDist); return dot(c, x, y, 9, classPos.get(c)); })}
+    {cars.map((c) => { const [x, y] = ringXY(c.lapDist); return dot(c, x, y, 9, classPos.get(c), "r"); })}
     {/* araçlar — iç şekil */}
     {toScreen && cars.map((c) => {
       const [x, y] = toScreen(c.posX, c.posZ);
-      return dot({ ...c, pos: `i${c.pos}` }, x, y, 8, classPos.get(c));
+      return dot(c, x, y, 8, classPos.get(c), "i");
     })}
   </>);
 

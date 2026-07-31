@@ -77,9 +77,27 @@ def test_ardisik_normal_durum():
 
 
 def test_yeni_seans_sifirlar():
-    # lapsDone geriler (yeni seans) → geçmiş sıfırlanır
-    r = _run([(0, -1), (1, 101.0), (2, 100.5), (0, -1), (1, 99.0)])
+    """lapsDone KALICI gerilerse (≥REGRESS_FRAMES ardışık kare) → yeni seans, geçmiş
+    sıfırlanır. Tek karelik gerileme artık sıfırlamaz (yırtık okuma filtresi) —
+    gerileme bu yüzden 3 kare beslenir."""
+    r = _run([(0, -1), (1, 101.0), (2, 100.5),
+              (0, -1), (0, -1), (0, -1),           # kalıcı gerileme → sıfırla
+              (1, 99.0)])
     assert r["lapNums"] == [1], r["lapNums"]
+
+
+def test_tek_karelik_gerileme_gecmisi_korur():
+    """Paylaşımlı bellek YIRTIK okunduğunda (oyun tam yazarken) lapsDone bir anlığına
+    düşük görünebilir. Eskiden bu 'yeni seans' sayılıp hist sıfırlanıyor, AVG5/AVG
+    ekranda yanıp sönüyordu. Tek karelik düşüş artık yok sayılır."""
+    seq = [(1, 101.0), (2, 100.5), (3, 100.7), (0, -1.0), (3, 100.7), (4, 100.9)]
+    agg = Aggregator(_Fake(seq))
+    frames = [agg.read()["field"][0] for _ in range(len(seq))]
+    dip = frames[3]                                   # yırtık kare
+    assert dip["avgSec"] is not None                  # AVG kaybolmadı (eskiden None)
+    assert dip["lapNums"] == [2, 3], dip["lapNums"]   # log korundu
+    final = frames[-1]
+    assert final["lapNums"] == [2, 3, 4], final["lapNums"]  # akış kesintisiz sürdü
 
 
 def test_pilot_degisiminde_arac_gecmisi_korunur():
