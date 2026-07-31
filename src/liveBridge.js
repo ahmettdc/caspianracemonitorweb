@@ -18,6 +18,7 @@ import { liveTimingSet, liveLapsAppend, liveLapsClear,
   livePosAppend, livePosClear, liveSecAppend, liveSecClear,
   liveWriterClaim, liveWriterRelease, liveWriterSubscribe, serverNow } from "./storage";
 import { shouldClaim } from "./liveWriter";
+import { lapNumbersOf } from "./liveLaps";
 
 let child = null;          // çalışan sidecar süreci (Child)
 let stopping = false;
@@ -83,20 +84,22 @@ export async function startBridge(opts, onStatus) {
     for (const r of rows) {
       const key = r.lapKey;
       const laps = Array.isArray(r.laps) ? r.laps : null;
-      const from = r.lapsFrom;
-      if (key && laps && laps.length && from > 0) {
-        // yeni seans: gelen ilk tur no, yazdığımızdan küçük/eşit → geçmişi sıfırla
-        if (lastLap[key] != null && from <= lastLap[key]
-            && (from + laps.length - 1) < lastLap[key]) {
+      /* GERÇEK tur numaraları köprüden (lapNums); eski köprüde lapsFrom+i'ye düşer.
+         Ardışık varsaymak, log'da bir boşluk olduğunda tur kaymasına yol açıyordu. */
+      const nums = lapNumbersOf(r);
+      if (key && laps && laps.length && nums.length === laps.length) {
+        const first = nums[0];
+        const maxN = nums[nums.length - 1];
+        // yeni seans: gelen turlar yazdığımızdan geride → geçmişi sıfırla
+        if (lastLap[key] != null && first <= lastLap[key] && maxN < lastLap[key]) {
           clears.push(key); lastLap[key] = 0; lastPit[key] = r.pitStops || 0;
         }
         const prev = lastLap[key] || 0;
-        const maxN = from + laps.length - 1;
         // bu turlarda pit atıldı mı (durak sayısı arttı mı)? → maxN turu pit işaretli
         const pits = r.pitStops || 0;
         const pitted = pits > (lastPit[key] ?? pits);
         for (let i = 0; i < laps.length; i++) {
-          const n = from + i;
+          const n = nums[i];
           if (n > prev && laps[i] > 0) entries[`${key}/${n}`] = laps[i];
           if (n > prev && r.pos > 0) {   // pozisyon geçmişi (pit turu → negatif)
             posEntries[`${key}/${n}`] = (n === maxN && pitted) ? -r.pos : r.pos;
@@ -111,7 +114,13 @@ export async function startBridge(opts, onStatus) {
         lastPit[key] = pits;
       }
       // canlı kareyi küçük tut — geçmiş ayrı düğümde
-      delete r.laps; delete r.lapsFrom; delete r.lastSectors;
+      delete r.laps; delete r.lapsFrom; delete r.lapNums; delete r.lastSectors;
+    }
+    /* own da aynı tur listesini taşır (Aggregator oyuncu satırından kopyalar) ama web
+       onu kullanmaz — geçmiş livelaps'ten okunur. Kareden çıkar: her yazımda ~50 sayı
+       boşuna gitmesin. */
+    if (frame && frame.own) {
+      delete frame.own.laps; delete frame.own.lapsFrom; delete frame.own.lapNums;
     }
     try {
       for (const k of clears) {

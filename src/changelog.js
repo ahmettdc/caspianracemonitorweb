@@ -5,6 +5,22 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.50",
+    date: "2026-07-31",
+    tr: [
+      "🐛 Canlı timing'de yanlış '+1 Tur' düzeltildi: lider start/finish çizgisini geçtiği anda, aynı turda olan araçlar Gap sütununda tur-altı gibi görünüyordu. Artık oyunun kendi tur-altı verisi kullanılıyor (Aralık sütununda da)",
+      "🐛 Tur geçmişi numaraları düzeltildi: bir tur geçersiz sayılırsa (ya da köprü bir kare kaçırırsa) sonraki tüm turlar bir kaydırılarak kaydediliyordu — '+' listesindeki, pozisyon grafiğindeki ve sektörlerdeki tur numaraları yanlış oluyordu. Artık gerçek tur numaraları köprüden geliyor",
+      "🐛 Gap/Aralık gösteriminde '+1:60.0' gibi hatalı değerler düzeltildi",
+      "⚡ Canlı kare küçüldü: kendi araç bilgisinde gereksiz yere her saniye gönderilen tur listesi kaldırıldı",
+    ],
+    en: [
+      "🐛 Fixed wrong '+1 Lap' in live timing: the moment the leader crossed the start/finish line, cars on the same lap appeared lapped in the Gap column. The game's own laps-behind data is now used (in the Interval column too)",
+      "🐛 Fixed lap-history numbering: if a lap was counted invalid (or the bridge missed a frame), every following lap was stored shifted by one — lap numbers in the '+' list, the position chart and the sectors were wrong. Real lap numbers now come from the bridge",
+      "🐛 Fixed malformed values like '+1:60.0' in the Gap/Interval display",
+      "⚡ Smaller live frame: the lap list that was needlessly sent every second inside own-car data was removed",
+    ],
+  },
+  {
     v: "v1.4.49",
     date: "2026-07-31",
     tr: [

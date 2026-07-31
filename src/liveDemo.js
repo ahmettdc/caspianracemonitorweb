@@ -65,6 +65,10 @@ export function demoLive(el) {
     r.pos = p + 1;
     r.gapSec = p === 0 ? 0 : +((lead - r._prog) / 1e6 * r.lastSec).toFixed(1);
     r.intervalSec = p === 0 ? 0 : +(r.gapSec - rows[p - 1].gapSec).toFixed(1);
+    /* tur-altı: yalnız fark bir TAM turu aşınca (oyunun mLapsBehind* karşılığı) */
+    r.lapsBehind = p === 0 ? 0 : Math.floor(r.gapSec / Math.max(1, r.lastSec));
+    r.lapsBehindNext = p === 0 ? 0
+      : Math.floor(Math.max(0, r.intervalSec) / Math.max(1, r.lastSec));
     r.location = r.inPits ? "PIT" : "TRACK";
     r.avg5Sec = +(r.bestSec + 0.4).toFixed(3);
     r.avgSec = +(r.bestSec + 0.7).toFixed(3);

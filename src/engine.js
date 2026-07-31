@@ -45,6 +45,18 @@ export const fmtLap = (sec) => {
   return `${neg ? "-" : ""}${m}:${s.toFixed(2).padStart(5, "0")}`;
 };
 
+/* Canlı timing gap/aralık biçimi: "+12.3" (<60 sn) veya "+1:02.3".
+   fmtLap ile aynı teknik: TEK noktada yuvarla (desisaniye) → saniye 60'a taşarsa
+   dakikaya geçer ("+1:60.0" hatası yok). Geçersiz/sıfır/negatif → "—". */
+export const fmtGap = (sec) => {
+  if (!(sec > 0)) return "—";
+  const ds = Math.round(sec * 10);              // toplam desisaniye
+  if (ds < 600) return `+${(ds / 10).toFixed(1)}`;
+  const m = Math.floor(ds / 600);
+  const s = (ds - m * 600) / 10;                 // 0..59.9 — taşma olmaz
+  return `+${m}:${s.toFixed(1).padStart(4, "0")}`;
+};
+
 /* ---------- varsayılan durum (Excel'deki mevcut değerler) ---------- */
 export const DEFAULT_STATE = {
   raceTime: "2:24:00",

@@ -23,6 +23,8 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm test
+      # köprü (Python) tur-log sözleşmesi — lapNums kayması regresyonu
+      - run: python3 bridge/test_aggregator.py
 
   rules-test:
     # Firebase RTDB güvenlik kuralları emülatörde test edilir (firebase-rules.json).
