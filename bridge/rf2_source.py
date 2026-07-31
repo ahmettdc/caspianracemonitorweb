@@ -9,7 +9,7 @@
 
 Şema (web LiveTab ile birebir):
   session: {phase, flag, timeLeftSec, totalLaps, trackTemp, ambientTemp, raining,
-            trackLength}
+            rain, wetness, trackName, trackLength, sessionType}
   own:     {fuel, fuelCapacity, virtualEnergy, position, lastLapSec, bestLapSec,
             curLapSec, s1, s2, lapsDone, inPits, pitStops, location, damage, avg5Sec,
             avgSec, stintSec, tyreCompound:{front,rear},
@@ -191,6 +191,9 @@ class MockSource:
                 "trackTemp": round(30 + math.sin(el / 300) * 4, 1),
                 "ambientTemp": round(22 + math.sin(el / 400) * 2, 1),
                 "raining": (int(el / 200) % 5) == 4,
+                "rain": max(0, int(60 * math.sin(el / 200)) if (int(el / 200) % 5) == 4 else 0),
+                "wetness": max(0, min(100, int(40 + 30 * math.sin(el / 250)))),
+                "trackName": "Mock Circuit",
                 "trackLength": self.TRACK_LEN,
                 "sessionType": "Antrenman",
             },
@@ -347,6 +350,11 @@ class RF2Source:
             "trackTemp": round(float(getattr(info, "mTrackTemp", 0.0)), 1),
             "ambientTemp": round(float(getattr(info, "mAmbientTemp", 0.0)), 1),
             "raining": float(getattr(info, "mRaining", 0.0)) > 0.1,
+            # yağmur şiddeti % (mRaining 0..1) ve zemin ıslaklığı % (mAvgPathWetness 0..1)
+            "rain": round(max(0.0, min(1.0, float(getattr(info, "mRaining", 0.0)))) * 100),
+            "wetness": round(max(0.0, min(1.0, float(getattr(info, "mAvgPathWetness", 0.0)))) * 100),
+            # pist adı — paylaşımlı iç-harita şekli bu ada göre anahtarlanır (pist başına)
+            "trackName": _s(getattr(info, "mTrackName", b"")) or None,
             # pist uzunluğu (m) — trackmap dış boşluk halkası için (lapDist/trackLength)
             "trackLength": round(float(getattr(info, "mLapDist", 0.0)), 1) or None,
             "sessionType": _session_type(int(getattr(info, "mSession", -1))),

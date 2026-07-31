@@ -48,4 +48,10 @@ describe("TrackMap", () => {
       <TrackMap t={t} field={mkField(6)} trackLength={LEN} />);
     expect(html).toContain("#960018");
   });
+
+  it("paylaşımlı prop'larla (tid/trackKey/canSave) çökmeden render olur", () => {
+    expect(() => renderToStaticMarkup(
+      <TrackMap t={t} field={mkField(8)} trackLength={LEN}
+        tid="team1" trackKey="Spa" canSave />)).not.toThrow();
+  });
 });

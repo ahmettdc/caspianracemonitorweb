@@ -4,6 +4,7 @@ import { Ring } from "../components";
 import { DESKTOP_RELEASE_URL, ASSET, classId, classAccent, brandKey, manufacturerKey } from "../constants";
 import { isTauri } from "../tauriEnv";
 import { liveLapsSubscribe, liveSecSubscribe, serverNow } from "../storage";
+import { binKey } from "../trackShape";
 import { demoLive } from "../liveDemo";
 import TrackMap from "./TrackMap";
 import PosChart from "./PosChart";
@@ -426,9 +427,6 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
       <div className="card" style={{ marginBottom: 12 }}>
         <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           📡 {t("Canlı Timing")}
-          {s.sessionType && <span className="chip" style={{ fontSize: 11,
-            borderColor: "var(--teal)", color: "var(--teal)", fontWeight: 700 }}>
-            {t(s.sessionType)}</span>}
           <span className={`livebadge ${conn.cls}`}>
             <i /> {t(conn.lbl)} · {ageSec}s</span>
           <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
@@ -440,6 +438,8 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
           </span>
         </h2>
         <div className="kpis" style={{ marginBottom: 0 }}>
+          <div className="kpi"><div className="v disp">{s.sessionType ? t(s.sessionType) : "—"}</div>
+            <div className="l">{t("Seans")}</div></div>
           <div className="kpi"><div className="v disp">{s.flag ? t(s.flag) : (s.phase || "—")}</div>
             <div className="l">{t("Bayrak / Faz")}</div></div>
           <div className="kpi"><div className="v mono">
@@ -447,10 +447,15 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
             <div className="l">{t("Kalan")}</div></div>
           <div className="kpi"><div className="v">🛣 {s.trackTemp != null ? `${Math.round(s.trackTemp)}°` : "—"}
             <span style={{ fontSize: 13, color: "var(--dim)" }}> {t("pist")}</span></div>
-            <div className="l">{t("Pist Sıcaklığı")}</div></div>
+            <div className="l">{t("Pist")} · {t("Ortam")} {s.ambientTemp != null ? `${Math.round(s.ambientTemp)}°` : "—"}</div></div>
           <div className="kpi"><div className="v">
-            {s.raining ? `🌧 ${t("Yağmur")}` : `☀️ ${t("Kuru")}`}</div>
-            <div className="l">{t("Hava")} {s.ambientTemp != null ? `${Math.round(s.ambientTemp)}°` : ""}</div></div>
+            {s.rain != null
+              ? (s.rain > 0 ? `🌧 %${Math.round(s.rain)}` : "☀️ %0")
+              : (s.raining ? `🌧 ${t("Yağmur")}` : `☀️ ${t("Kuru")}`)}</div>
+            <div className="l">{t("Yağmur")}</div></div>
+          <div className="kpi"><div className="v">
+            💧 {s.wetness != null ? `%${Math.round(s.wetness)}` : "—"}</div>
+            <div className="l">{t("Zemin ıslaklığı")}</div></div>
         </div>
       </div>
 
@@ -460,7 +465,8 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
         {s.trackLength > 0 && fieldAll.some((c) => c.posX != null) && (
           <div style={{ flex: "1 1 360px", minWidth: 300 }}>
-            <TrackMap t={t} field={fieldAll} trackLength={s.trackLength} />
+            <TrackMap t={t} field={fieldAll} trackLength={s.trackLength}
+              tid={tid} trackKey={binKey(s.trackName, s.trackLength)} canSave={canEdit} />
           </div>
         )}
         {own && (
