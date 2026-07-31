@@ -78,9 +78,9 @@ export default function TrackMap({ t, field, trackLength }) {
     if (c.isPlayer) {
       return (
         <g key={`p${c.pos}`}>
-          <circle cx={x} cy={y} r={rBase + 2} fill="#fff" stroke={BRAND} strokeWidth={2.5} />
           <circle cx={x} cy={y} r={rBase + 6} fill="none" stroke={BRAND}
-            strokeWidth={1.4} opacity={0.55} />
+            strokeWidth={1.6} opacity={0.7} filter="url(#pglow)" />
+          <circle cx={x} cy={y} r={rBase + 2} fill="#fff" stroke={BRAND} strokeWidth={2.5} />
           {label && <text x={x} y={y} fill={BRAND} fontSize={fs} fontWeight="800"
             textAnchor="middle" dominantBaseline="central">{label}</text>}
         </g>
@@ -110,6 +110,12 @@ export default function TrackMap({ t, field, trackLength }) {
       <div style={{ display: "flex", justifyContent: "center" }}>
         <svg viewBox="0 0 520 520" width="100%" style={{ maxWidth: 460 }}
           role="img" aria-label={t("Canlı pist haritası")}>
+          <defs>
+            <filter id="pglow" x="-70%" y="-70%" width="240%" height="240%">
+              <feGaussianBlur stdDeviation="3.2" result="b" />
+              <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+            </filter>
+          </defs>
           {/* dış halka — kalınlık = araç noktası çapı (yol gibi) */}
           <circle cx={cx} cy={cy} r={R} fill="none" stroke="var(--line2)"
             strokeWidth={R_OUT * 2} opacity={0.7} />
@@ -118,6 +124,10 @@ export default function TrackMap({ t, field, trackLength }) {
             stroke={BRAND} strokeWidth={2.5} />
           <text x={cx} y={cy - R - R_OUT - 6} fill={BRAND} fontSize="11" fontWeight="700"
             textAnchor="middle">S/F</text>
+          {/* yön oku — saat yönü (lapDist artışı) */}
+          <path d={`M${cx + 13} ${cy - R - 5} l11 5 l-11 5`} fill="none" stroke={BRAND}
+            strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" opacity={0.85} />
+          <title>{t("Yön: saat yönü")}</title>
           {/* iç pist şekli — taban bant kalınlığı = iç nokta çapı */}
           {outline && <path d={outline} fill="none" stroke="var(--line2)"
             strokeWidth={R_IN * 2} strokeLinejoin="round" strokeLinecap="round" opacity={0.7} />}

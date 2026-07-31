@@ -2940,7 +2940,7 @@ ${bottomBar}
           </>)}
 
           {tab === "live" && isAdmin && <LiveTab t={t} live={live} liveFuelObs={liveFuelObs}
-            bridge={bridge} canEdit={canEditTeam} tid={curTeam} rid={curRace} />}
+            bridge={bridge} canEdit={canEditTeam} tid={curTeam} rid={curRace} trackId={st.track} />}
 
           {tab === "tyre" && (
             <TyreTab t={t} st={st} up={up} tyreInfo={tyreInfo} racePlan={racePlan}
