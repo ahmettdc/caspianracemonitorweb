@@ -3,7 +3,7 @@ import { fmtLap, fmtHMS } from "../engine";
 import { Ring } from "../components";
 import { DESKTOP_RELEASE_URL, ASSET, classId, classAccent, brandKey, manufacturerKey } from "../constants";
 import { isTauri } from "../tauriEnv";
-import { liveLapsSubscribe } from "../storage";
+import { liveLapsSubscribe, liveSecSubscribe } from "../storage";
 import TrackMap from "./TrackMap";
 import PosChart from "./PosChart";
 import StrategyBar from "./StrategyBar";
@@ -73,16 +73,18 @@ function Brand({ manufacturer, vehicleName }) {
    (best'in %110'undan büyük) soluk. wxmodal desenini yeniden kullanır. */
 function LapsModal({ t, tid, rid, row, onClose }) {
   const [lapMap, setLapMap] = useState(null);   // {n: sec} livelaps'ten
+  const [secMap, setSecMap] = useState(null);   // {n: "s1,s2,s3"} livesec'ten
   useEffect(() => {
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
-  // açıkken o aracın tüm tur geçmişini dinle (kapanınca abonelik biter)
+  // açıkken o aracın tur geçmişini + sektörlerini dinle (kapanınca abonelik biter)
   useEffect(() => {
-    if (!row?.lapKey) { setLapMap(null); return undefined; }
-    const off = liveLapsSubscribe(tid, rid, row.lapKey, setLapMap);
-    return off;
+    if (!row?.lapKey) { setLapMap(null); setSecMap(null); return undefined; }
+    const off1 = liveLapsSubscribe(tid, rid, row.lapKey, setLapMap);
+    const off2 = liveSecSubscribe(tid, rid, row.lapKey, setSecMap);
+    return () => { off1(); off2(); };
   }, [tid, rid, row?.lapKey]);
   // {n: sec} → [{n, sec}] sayısal sıralı; en yeni üstte
   const entries = lapMap && typeof lapMap === "object"
@@ -109,8 +111,10 @@ function LapsModal({ t, tid, rid, row, onClose }) {
           {items.map(({ n, sec }) => {
             const isBest = sec > 0 && sec === best;
             const isOut = best > 0 && sec > best * 1.10;
+            const sc = secMap && secMap[n]
+              ? String(secMap[n]).split(",").map(Number) : null;
             return (
-              <div key={n} className="wxrow">
+              <div key={n} className="wxrow" style={{ flexWrap: "wrap" }}>
                 <span className="wxnm" style={{ minWidth: 64, color: "var(--dim)" }}>
                   {t("Tur")} {n}</span>
                 <span className="mono" style={{ fontSize: 15, fontWeight: isBest ? 700 : 500,
@@ -118,6 +122,11 @@ function LapsModal({ t, tid, rid, row, onClose }) {
                   {fmtLap(sec)}</span>
                 <span className="wxat mono">
                   {isBest ? "★" : best > 0 ? `+${(sec - best).toFixed(2)}` : ""}</span>
+                {sc && sc.length === 3 && sc.every((v) => v > 0) && (
+                  <span className="mono" style={{ flexBasis: "100%", paddingLeft: 64,
+                    fontSize: 11, color: "var(--dim)" }}>
+                    S1 {sc[0].toFixed(1)} · S2 {sc[1].toFixed(1)} · S3 {sc[2].toFixed(1)}</span>
+                )}
               </div>
             );
           })}

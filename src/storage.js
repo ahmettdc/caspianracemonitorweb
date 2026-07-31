@@ -419,3 +419,22 @@ export function livePosSubscribe(tid, rid, cb) {
     (s) => cb(s.exists() ? s.val() : null),
     (err) => { console.warn("livepos read failed:", err?.message); cb(null); });
 }
+
+/* ---- kalıcı sektör geçmişi (livesec) — tur listesi popup'ı için ----
+   teams/{tid}/livesec/{rid}/{lapKey}/{n} = "s1,s2,s3" (metin). livelaps deseniyle
+   aynı; tur başına bir kez yazılır. Popup, tur toplamının yanında S1/S2/S3 gösterir. */
+export async function liveSecAppend(tid, rid, entries) {
+  if (!db || !tid || !rid || !entries) return;
+  await update(ref(db, `teams/${tid}/livesec/${rid}`), entries);
+}
+export async function liveSecClear(tid, rid, lapKey) {
+  if (!db || !tid || !rid || !lapKey) return;
+  await set(ref(db, `teams/${tid}/livesec/${rid}/${lapKey}`), null);
+}
+/* Bir aracın sektör geçmişini dinle (popup açıkken). cb({n: "s1,s2,s3"}) alır. */
+export function liveSecSubscribe(tid, rid, lapKey, cb) {
+  if (!db || !tid || !rid || !lapKey) { cb(null); return () => {}; }
+  return onValue(ref(db, `teams/${tid}/livesec/${rid}/${lapKey}`),
+    (s) => cb(s.exists() ? s.val() : null),
+    (err) => { console.warn("livesec read failed:", err?.message); cb(null); });
+}
