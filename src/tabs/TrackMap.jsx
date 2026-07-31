@@ -34,9 +34,14 @@ export default function TrackMap({ t, field, trackLength }) {
     classPos.set(c, clsN[id]);
   }
 
-  // her araç → lapDist kutusu (yalnız boş kutuyu doldur → pist şekli birikir)
+  /* her araç → lapDist kutusu (yalnız boş kutuyu doldur → pist şekli birikir).
+     YALNIZ PİSTTEKİ araçlar: pit yolundaki/garajdaki araçların dünya konumu pistin
+     yanındadır ve kutular bir daha güncellenmediği için o hatalı nokta tüm seans
+     boyunca kalırdı (seans başında herkes garajda → devre şeklinde kalıcı çıkıntı). */
   if (trackLength > 0) {
     for (const c of cars) {
+      const onTrack = c.location ? c.location === "TRACK" : !c.inPits;
+      if (!onTrack) continue;
       const b = ((Math.floor((c.lapDist / trackLength) * NB) % NB) + NB) % NB;
       if (!acc.current.bins[b]) acc.current.bins[b] = { x: c.posX, z: c.posZ };
     }

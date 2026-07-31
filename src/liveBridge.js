@@ -161,7 +161,9 @@ export async function startBridge(opts, onStatus) {
     }
     try {
       await harvestLaps(frame);   // laps'i livelaps'e taşı + kareden çıkar
-      await liveTimingSet(tid, rid, { ts: Date.now(), by, ...frame });
+      /* ts SERVER-hizalı olmalı: izleyen taraf tazeliği kendi saatiyle ölçüyor;
+         yazan PC'nin saati kayıksa veri akarken bile "bağlantı koptu" görünüyordu. */
+      await liveTimingSet(tid, rid, { ts: serverNow(), by, ...frame });
       say({ running: true, phase: "running", msg: "Gönderiliyor", lastTs: lastWrite, cars, writerBy: by, diag });
     } catch (e) {
       say({ running: true, phase: "error", msg: "Firebase yazma hatası: " + (e?.message || e) });

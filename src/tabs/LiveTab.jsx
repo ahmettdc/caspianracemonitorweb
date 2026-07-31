@@ -3,7 +3,7 @@ import { fmtLap, fmtHMS, fmtGap } from "../engine";
 import { Ring } from "../components";
 import { DESKTOP_RELEASE_URL, ASSET, classId, classAccent, brandKey, manufacturerKey } from "../constants";
 import { isTauri } from "../tauriEnv";
-import { liveLapsSubscribe, liveSecSubscribe } from "../storage";
+import { liveLapsSubscribe, liveSecSubscribe, serverNow } from "../storage";
 import { demoLive } from "../liveDemo";
 import TrackMap from "./TrackMap";
 import PosChart from "./PosChart";
@@ -23,10 +23,12 @@ const veColor = (v) => (v == null ? "var(--dim)"
 /* gap biçimi → engine.fmtGap (taşma düzeltmesi + birim testli) */
 const gap = fmtGap;
 
-/* son güncelleme yaşından bağlantı durumu */
+/* son güncelleme yaşından bağlantı durumu.
+   ts SERVER-hizalı yazılır (liveBridge) → burada da serverNow() ile karşılaştırılır;
+   yoksa yazan/izleyen PC saat farkı yanlış "bağlantı koptu" veriyordu. */
 function connOf(ts) {
   if (!ts) return { cls: "off", lbl: "bağlı değil" };
-  const dt = Date.now() - ts;
+  const dt = serverNow() - ts;
   if (dt < 6000) return { cls: "on", lbl: "canlı" };
   if (dt < 30000) return { cls: "lag", lbl: "gecikmeli" };
   return { cls: "off", lbl: "bağlantı koptu" };
@@ -385,7 +387,7 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
   const s = live.session || {};
   const own = live.own || null;
   const fieldAll = Array.isArray(live.field) ? live.field : [];
-  const ageSec = Math.max(0, Math.round((Date.now() - live.ts) / 1000));
+  const ageSec = Math.max(0, Math.round((serverNow() - live.ts) / 1000));
 
   // türetilmiş: sınıf-içi pozisyon, seans en hızlı turu, oyuncu sınıfı
   const leaderLaps = fieldAll[0]?.lapsDone ?? 0;
@@ -398,8 +400,10 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
     classCounts[id] = (classCounts[id] || 0) + 1;
     const prevGap = fieldAll[i - 1]?.gapSec;
     // öndeki araca fark: köprü intervalSec verdiyse onu kullan, yoksa gap farkı
+    /* prevGap >= 0: liderin gapSec'i 0 olduğu için ">0" şartı P2'de yedeği hep
+       kapatıyordu (Aralık sütunu "—" kalıyordu). */
     const interval = (c.intervalSec != null && c.intervalSec > 0) ? c.intervalSec
-      : (i > 0 && c.gapSec > 0 && prevGap > 0) ? c.gapSec - prevGap : null;
+      : (i > 0 && c.gapSec > 0 && prevGap >= 0) ? c.gapSec - prevGap : null;
     /* tur-altı: oyunun YETKİLİ alanı (mLapsBehindLeader). Lider-tur eksi araç-tur
        çıkarması, lider S/F'yi geçip diğeri geçmeden önceki pencerede aynı turdaki
        aracı yanlışlıkla "+1 Tur" gösteriyordu. Köprü vermezse (eski .exe) eskiye düş. */
