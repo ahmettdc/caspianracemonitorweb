@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.45",
+    date: "2026-07-31",
+    tr: [
+      "🧹 İç yeniden düzenleme (davranış aynı): App.jsx render bölme 2. tur — yarış ekleme/düzenleme penceresi (RaceEditModal) ayrı bir sunum bileşenine taşındı; kaydetme iş mantığı App'te kaldı. Kullanıcı arayüzü değişmedi",
+    ],
+    en: [
+      "🧹 Internal refactor (same behavior): App.jsx render split round 2 — the add/edit race window (RaceEditModal) moved into its own presentational component; save logic stays in App. No UI change",
+    ],
+  },
+  {
     v: "v1.4.44",
     date: "2026-07-31",
     tr: [
