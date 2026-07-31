@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.57",
+    date: "2026-07-31",
+    tr: [
+      "🟡 Sarı bayraklar düzeltildi: oyunda sarı bayrak varken uygulama Green gösteriyordu — LOKAL sektör sarıları (kaza/spin) hiç okunmuyordu, yalnız tam pist sarısı (FCY) izleniyordu. Artık bayrak kartı 'Yellow S2' gibi hangi sektörde sarı olduğunu da söylüyor; Green yeşil, Yellow/FCY sarı renkte",
+      "🚩 İki ek bayrak hatası: oyunun 'geçersiz' işareti (255) yanlışlıkla sarı sayılabiliyordu; tam pist sarısı durumları (pit kapalı/açık vb.) 'Yellow' yerine doğru şekilde 'FCY' olarak sınıflanıyor",
+    ],
+    en: [
+      "🟡 Yellow flags fixed: the app showed Green while a yellow flag was out in the game — LOCAL sector yellows (crash/spin) were never read, only the full-course yellow (FCY) state. The flag card now also tells you which sector is yellow ('Yellow S2'); Green renders green, Yellow/FCY yellow",
+      "🚩 Two more flag bugs: the game's 'invalid' marker (255) could be miscounted as yellow; full-course-yellow states (pits closed/open etc.) are now correctly classified as 'FCY' instead of 'Yellow'",
+    ],
+  },
+  {
     v: "v1.4.56",
     date: "2026-07-31",
     tr: [

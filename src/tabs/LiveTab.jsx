@@ -441,7 +441,13 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
         <div className="kpis" style={{ marginBottom: 0 }}>
           <div className="kpi"><div className="v disp">{s.sessionType ? t(s.sessionType) : "—"}</div>
             <div className="l">{t("Seans")}</div></div>
-          <div className="kpi"><div className="v disp">{s.flag ? t(s.flag) : (s.phase || "—")}</div>
+          <div className="kpi"><div className="v disp" style={{
+            color: s.flag === "Green" ? "var(--green)"
+              : (s.flag === "Yellow" || s.flag === "FCY") ? "var(--yellow)" : undefined }}>
+            {s.flag ? t(s.flag) : (s.phase || "—")}
+            {s.flag === "Yellow" && s.yellowSectors?.length > 0 && (
+              <span style={{ fontSize: 13 }}> S{s.yellowSectors.join("·S")}</span>
+            )}</div>
             <div className="l">{t("Bayrak / Faz")}</div></div>
           <div className="kpi"><div className="v mono">
             {s.timeLeftSec != null ? fmtHMS(s.timeLeftSec) : "—"}</div>

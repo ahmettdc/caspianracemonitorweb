@@ -80,7 +80,11 @@ export function demoLive(el) {
   return {
     ts: Date.now(),
     session: {
-      phase: "Yeşil", flag: "Green", sessionType: "Yarış",
+      phase: "Yeşil", sessionType: "Yarış",
+      // döngü: çoğunlukla Green, ara sıra lokal sarı (S2) / FCY — bayrak KPI testi
+      flag: Math.floor(el / 60) % 8 === 3 ? "Yellow"
+        : Math.floor(el / 60) % 8 === 6 ? "FCY" : "Green",
+      yellowSectors: Math.floor(el / 60) % 8 === 3 ? [2] : [],
       timeLeftSec: Math.max(0, 6 * 3600 - Math.floor(el)),
       trackTemp: +(30 + Math.sin(el / 300) * 4).toFixed(1),
       ambientTemp: +(22 + Math.sin(el / 400) * 2).toFixed(1),

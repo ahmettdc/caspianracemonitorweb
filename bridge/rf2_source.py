@@ -47,8 +47,27 @@ from collections import deque
 
 _PHASE = {
     0: "Garaj", 1: "Isınma", 2: "Grid", 3: "Formasyon", 4: "Geri Sayım",
-    5: "Yeşil", 6: "FCY", 7: "Durduruldu", 8: "Bitti",
+    5: "Yeşil", 6: "FCY", 7: "Durduruldu", 8: "Bitti", 9: "Duraklatıldı",
 }
+
+
+def _flag_of(phase, yellow, sector_flags):
+    """Bayrak durumu → (flag, yellowSectors).
+
+    İki AYRI kaynak var ve eskiden yalnız biri okunuyordu:
+      * mYellowFlagState — TAM PİST sarısının (FCY) durum makinesi
+        (0=yok, 1=Pending, 2=PitClosed, … 7=RaceHalt). >0 ⇒ FCY sürecindeyiz.
+      * mSectorFlag[3]  — LOKAL sektör sarıları (kaza/spin). Oyundaki tipik
+        "sarı bayrak" budur; okunmadığı için uygulama Green gösteriyordu.
+    Index → sektör eşlemesi rF2Sector enum'una göre SIRALI DEĞİL: 0=S3, 1=S1, 2=S2.
+    Alanlar c_ubyte: Invalid(-1) → 255 gelir ⇒ makullük şartı 0 < v < 200
+    (eskiden `yellow > 0` Invalid'i de sarı sayardı)."""
+    sec_no = (3, 1, 2)
+    ysec = sorted(sec_no[i] for i, v in enumerate(list(sector_flags or [])[:3])
+                  if 0 < int(v) < 200)
+    if phase == 6 or 0 < int(yellow) < 200:
+        return "FCY", ysec
+    return ("Yellow" if ysec else "Green"), ysec
 
 # Satırdaki "+" → tur zaman listesi için sürücü başına saklanan son tur sayısı
 # (Firebase yükünü sınırlar; endurance'ta bir-iki stint'i rahat kapsar).
@@ -186,7 +205,11 @@ class MockSource:
         stint = el % 1500
         return {
             "session": {
-                "phase": "Yeşil", "flag": "FCY" if (int(el / 120) % 10) == 0 else "Green",
+                "phase": "Yeşil",
+                # döngü: çoğunlukla Green, ara sıra FCY ya da LOKAL sarı (S2) — UI testi
+                "flag": ("FCY" if (int(el / 120) % 10) == 0
+                         else "Yellow" if (int(el / 120) % 10) == 5 else "Green"),
+                "yellowSectors": [2] if (int(el / 120) % 10) == 5 else [],
                 "timeLeftSec": max(0, int(self.total - el)), "totalLaps": 0,
                 "trackTemp": round(30 + math.sin(el / 300) * 4, 1),
                 "ambientTemp": round(22 + math.sin(el / 400) * 2, 1),
@@ -364,10 +387,11 @@ class RF2Source:
         cur, end = float(info.mCurrentET), float(info.mEndET)
         phase = int(getattr(info, "mGamePhase", 0))
         yellow = int(getattr(info, "mYellowFlagState", 0))
-        flag = "FCY" if phase == 6 else ("Yellow" if yellow > 0 else "Green")
+        flag, ysec = _flag_of(phase, yellow, getattr(info, "mSectorFlag", []))
         maxlaps = int(getattr(info, "mMaxLaps", 0))
         session = {
             "phase": _PHASE.get(phase, str(phase)), "flag": flag,
+            "yellowSectors": ysec,   # lokal sarı olan sektörler (ör. [2]) — UI eki
             "timeLeftSec": max(0, int(end - cur)) if end > 0 else None,
             "totalLaps": maxlaps if 0 < maxlaps < 30000 else 0,
             "trackTemp": round(float(getattr(info, "mTrackTemp", 0.0)), 1),
@@ -522,6 +546,10 @@ class RF2Source:
             "cars": len(field),
             "lmu": lmu_ok,
             "ve": sum(1 for r in field if r.get("virtualEnergy") is not None),
+            # bayrak ham değerleri — sahada bayrak yine ters düşerse --dump ile
+            # alan semantiği buradan doğrulanır (LMU sürümü alanları kaydırabilir)
+            "flagRaw": {"phase": phase, "yellow": yellow,
+                        "sectors": [int(x) for x in list(getattr(info, "mSectorFlag", []) or [])[:3]]},
         }
         return {"session": session, "own": own, "field": field, "_diag": diag}
 
