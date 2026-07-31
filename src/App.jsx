@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef, lazy, Suspense } from "react";
 import UpdateBanner from "./UpdateBanner";
 import { isTauri } from "./tauriEnv";
-import { startBridge, stopBridge, bridgeRunning } from "./liveBridge";
+import { useLiveBridge } from "./useLiveBridge";
 import { firebaseReady, touchUserProfile, watchUserDoc,
   requestAccess, watchAllUsers, setUserAllowed, updateProfile,
   createTeam, joinTeam, watchMyTeams, watchTeam,
@@ -156,7 +156,6 @@ export default function App() {
   const [userName, setUserName] = useState("");
   const [curRace, setCurRace] = useState("");    // aktif yarış id (takım içinde)
   const [live, setLive] = useState(null);        // canlı timing (LMU köprüsü) — teams/{tid}/live/{rid}
-  const [bridge, setBridge] = useState({ supported: isTauri, running: false, phase: "idle", msg: "" });
   const [liveFuelObs, setLiveFuelObs] = useState(null); // canlıdan öğrenilen yakıt (litre/tur, ratio, cons)
   const fuelObsRef = useRef({ prevLap: null, prevFuel: null, buf: [] });
   const [role, setRole] = useState("editor");    // "editor" | "viewer" (takım rolünden)
@@ -987,24 +986,9 @@ ${bottomBar}
   /* rozet/rol yönetimi: takım sahibi veya site admini */
   const canManageTeam = myRole === "owner" || isAdmin;
 
-  /* Canlı köprü (masaüstü) OTOMATİK: oyunun PC'sinde uygulama açık + owner/editor +
-     yarış seçiliyse köprüyü kendiliğinden başlatır; çalışmıyorsa ~4 sn'de bir yeniden
-     dener (oyun sonradan açılırsa da bağlanır). Koşul kalkınca / çıkışta durdurur.
-     Elle Başlat/Durdur yok — sidecar oyunu okuyup veriyi kullanıcının oturumuyla
-     teams/{tid}/live/{rid}'e yazar (bot gerekmez). */
-  useEffect(() => {
-    if (!isTauri) return undefined;
-    if (!canEditTeam || !curTeam || !curRace || !user) { stopBridge(setBridge); return undefined; }
-    let stopped = false, timer = null;
-    const by = user?.email || "masaüstü";
-    const tick = () => {
-      if (stopped) return;
-      if (!bridgeRunning()) startBridge({ tid: curTeam, rid: curRace, hz: 2, by, uid: user.uid }, setBridge);
-      timer = setTimeout(tick, 4000);
-    };
-    tick();
-    return () => { stopped = true; if (timer) clearTimeout(timer); stopBridge(setBridge); };
-  }, [isTauri, canEditTeam, curTeam, curRace, user]);
+  /* Canlı köprü (masaüstü) OTOMATİK yaşam döngüsü → useLiveBridge hook'una çıkarıldı
+     (App.jsx Tanrı-bileşen borcunu azaltan ilk güvenli dilim). Davranış birebir aynı. */
+  const bridge = useLiveBridge({ canEditTeam, curTeam, curRace, user });
   /* not: yetki rozetten türer — 🎧 mühendis editor, 🛞 sürücü/rozetsiz viewer */
   const myBadges = teamBadgesOf(teamData, user?.uid, udoc);
 

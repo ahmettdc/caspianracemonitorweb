@@ -253,12 +253,18 @@ function BridgeControl({ t, bridge, canEdit }) {
     : phase === "error" ? "var(--red)"
       : phase === "starting" || phase === "standby" ? "var(--yellow)" : "var(--muted)";
   const writerBy = bridge?.writerBy || "";
+  // gizli teşhis: yalnız durum noktasının hover tooltip'inde (arayüzde satır olarak
+  // gösterilmez). "VE gelmiyor / veri yok" gibi durumları sessizce açıklar.
+  const d = bridge?.diag;
+  const diagTitle = d
+    ? `paylaşımlı-bellek ${d.shm ? "✓" : "✗"} · araç ${d.cars ?? 0} · LMU-REST ${d.lmu ? "✓" : "✗"} · VE ${d.ve ?? 0}`
+    : undefined;
   return (
     <div className="card" style={{ marginBottom: 12 }}>
       <h2 style={{ display: "flex", alignItems: "center", gap: 10 }}>
         🛰 {t("Canlı Köprü")}
-        <span style={{ width: 9, height: 9, borderRadius: "50%", background: dot,
-          boxShadow: `0 0 8px ${dot}` }} />
+        <span title={diagTitle} style={{ width: 9, height: 9, borderRadius: "50%", background: dot,
+          boxShadow: `0 0 8px ${dot}`, cursor: diagTitle ? "help" : "default" }} />
         <span style={{ fontSize: 11, color: "var(--dim)", fontWeight: 400 }}>{t("otomatik")}</span>
       </h2>
       <div className="hint">

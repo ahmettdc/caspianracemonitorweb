@@ -16,8 +16,8 @@
    ============================================================ */
 import { liveTimingSet, liveLapsAppend, liveLapsClear,
   livePosAppend, livePosClear, liveSecAppend, liveSecClear,
-  liveWriterClaim, liveWriterRelease, liveWriterSubscribe, serverNow,
-  LIVE_WRITER_STALE_MS } from "./storage";
+  liveWriterClaim, liveWriterRelease, liveWriterSubscribe, serverNow } from "./storage";
+import { shouldClaim } from "./liveWriter";
 
 let child = null;          // çalışan sidecar süreci (Child)
 let stopping = false;
@@ -60,6 +60,8 @@ export async function startBridge(opts, onStatus) {
   let cars = 0;
   const lastLap = {};      // lapKey → yazılmış en yüksek tur no (append idempotent)
   const lastPit = {};      // lapKey → son görülen pit durak sayısı (pit turu işareti)
+  let diag = null;         // gizli teşhis (shm/lmu/cars/ve) — arayüzde gösterilmez
+  let diagSig = "";        // teşhis özeti (yalnız durum değişince konsola yaz)
 
   // tek-yazıcı seçimi: kirayı dinle (yalnız kira sahibi / aktif sürücü kareyi yazar)
   const electing = !!uid;
@@ -134,27 +136,24 @@ export async function startBridge(opts, onStatus) {
       return;
     }
     lastWrite = Date.now();
-    // tek-yazıcı seçimi: yalnız kira sahibi / aktif sürücü yazar (iki köprü çakışmasın)
+    // tek-yazıcı seçimi: yalnız kira sahibi / aktif sürücü yazar (iki köprü çakışmasın).
+    // Karar mantığı saf fonksiyonda (liveWriter.shouldClaim) → birim testlerle kilitli.
     if (electing) {
       const driving = !!(frame.own && frame.own.driving);
-      const now = serverNow();
-      const mine = lease && lease.uid === uid;
-      const stale = !lease || (typeof lease.ts === "number" && now - lease.ts > LIVE_WRITER_STALE_MS);
-      const preempt = driving && lease && !lease.driving && lease.uid !== uid;
-      if (!(mine || stale || preempt)) {
-        say({ running: true, phase: "standby", msg: "Beklemede", writerBy: lease?.by || "", cars });
+      if (!shouldClaim(lease, uid, driving, serverNow())) {
+        say({ running: true, phase: "standby", msg: "Beklemede", writerBy: lease?.by || "", cars, diag });
         return;
       }
       const hold = await liveWriterClaim(tid, rid, { uid, by, driving });
       if (!hold) {
-        say({ running: true, phase: "standby", msg: "Beklemede", writerBy: lease?.by || "", cars });
+        say({ running: true, phase: "standby", msg: "Beklemede", writerBy: lease?.by || "", cars, diag });
         return;
       }
     }
     try {
       await harvestLaps(frame);   // laps'i livelaps'e taşı + kareden çıkar
       await liveTimingSet(tid, rid, { ts: Date.now(), by, ...frame });
-      say({ running: true, phase: "running", msg: "Gönderiliyor", lastTs: lastWrite, cars, writerBy: by });
+      say({ running: true, phase: "running", msg: "Gönderiliyor", lastTs: lastWrite, cars, writerBy: by, diag });
     } catch (e) {
       say({ running: true, phase: "error", msg: "Firebase yazma hatası: " + (e?.message || e) });
     }
@@ -164,6 +163,21 @@ export async function startBridge(opts, onStatus) {
     if (frame && frame.error) {
       say({ running: true, phase: "error", msg: "Okuma: " + frame.error });
       return;
+    }
+    // gizli teşhis: kareden _diag'ı al, Firebase'e gitmesin diye SİL. Arayüzde
+    // gösterilmez; yalnız durum değişince (oyun/REST açıldı-kapandı) konsola yazılır
+    // ve durum objesine eklenir (LiveTab'de dot'un title tooltip'inde erişilebilir).
+    if (frame && frame._diag) {
+      diag = frame._diag;
+      delete frame._diag;
+      const sig = `${!!diag.shm}|${!!diag.lmu}|${(diag.cars || 0) > 0}`;
+      if (sig !== diagSig) {
+        diagSig = sig;
+        try {
+          console.info(`[köprü] paylaşımlı-bellek=${diag.shm ? "✓" : "✗"} · araç=${diag.cars ?? 0}`
+            + ` · LMU-REST=${diag.lmu ? "✓" : "✗"} · VE-alan=${diag.ve ?? 0}`);
+        } catch { /* yoksay */ }
+      }
     }
     cars = Array.isArray(frame?.field) ? frame.field.length : 0;
     pending = frame;
