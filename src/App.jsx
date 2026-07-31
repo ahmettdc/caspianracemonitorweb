@@ -20,7 +20,6 @@ import { firebaseReady,
   createRace, updateRace, deleteRace,
   raceStateGet } from "./storage";
 import { signInGoogle, signOut, authReady } from "./auth";
-import { CHANGELOG } from "./changelog";
 import {
   parseHMS, fmtHMS, fmtLap, msToLocalInput,
   DEFAULT_STATE, EMPTY_PIT, TYRE_2_SEC, TYRE_4_SEC,
@@ -30,7 +29,7 @@ import {
 import { css } from "./styles";
 import { EN } from "./i18n";
 import {
-  SLOT_COLORS, APP_VERSION, REPO_URL, SEEN_VER_KEY, ASSET, AV,
+  SLOT_COLORS, APP_VERSION, SEEN_VER_KEY, ASSET, AV,
   TRACKS, PIT_LANE_TIMES, TRACK_ASSET, trackFlag,
   CARS, CAR_CLASSES, trackName, carName, carImg,
   PIE_COLORS, DESKTOP_RELEASE_URL,
@@ -44,7 +43,7 @@ import {
 } from "./state";
 import {
   TourOverlay, Wheel, Num, Bolt, Tyre, Ring,
-  BADGES, teamBadgesOf, hasBadge, ChatPanel, SetupForm, SetupTable,
+  BADGES, teamBadgesOf, hasBadge, ChatPanel, SetupForm, SetupTable, VersionModal,
 } from "./components";
 
 /* Sekmeler talep üzerine yüklenir (kod bölme) — ilk bundle küçülür,
@@ -1045,40 +1044,9 @@ ${bottomBar}
       i{verNew && <span className="nd" />}
     </button>
   );
-  const versionModal = verOpen && (
-    <div className="wxmodal" onClick={() => setVerOpen(false)}>
-      <div className="wxmbox" style={{ width: "min(560px,94vw)" }}
-        onClick={(e) => e.stopPropagation()}>
-        <div className="wxmhead">
-          <span>ℹ {t("Neler değişti")}</span>
-          <button className="lbclose" onClick={() => setVerOpen(false)}>✕</button>
-        </div>
-        <div className="wxmlist" style={{ padding: 0, maxHeight: "62vh" }}>
-          {CHANGELOG.map((c) => (
-            <div className="clgv" key={c.v}>
-              <h4>{c.v}{c.v === APP_VERSION &&
-                <span className="cur">{t("ŞU AN")}</span>}</h4>
-              <div className="cdate">{c.date}</div>
-              <ul>{((lang === "en" ? c.en : c.tr) || c.tr || c.en || []).map((x, i) =>
-                <li key={i}>{x}</li>)}</ul>
-            </div>
-          ))}
-        </div>
-        <div className="wxmfoot" style={{ justifyContent: "space-between" }}>
-          <span style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <a className="hint" href={`${REPO_URL}/commits/main`}
-              target="_blank" rel="noreferrer"
-              style={{ color: "var(--muted)" }}>{t("GitHub'da tüm değişiklikler ↗")}</a>
-            <button className="hint" style={{ background: "none", border: 0,
-              color: "var(--teal)", cursor: "pointer", padding: 0,
-              textDecoration: "underline" }}
-              onClick={() => { setVerOpen(false); setTour(curRace ? "main" : "lobby"); }}>
-              🎓 {t("Rehberi başlat")}</button>
-          </span>
-          <button className="histbtn" onClick={() => setVerOpen(false)}>{t("Kapat")}</button>
-        </div>
-      </div>
-    </div>
+  const versionModal = (
+    <VersionModal open={verOpen} onClose={() => setVerOpen(false)} t={t} lang={lang}
+      onStartGuide={() => { setVerOpen(false); setTour(curRace ? "main" : "lobby"); }} />
   );
 
   const [wxHist, setWxHist] = useState(false); // hava geçmişi penceresi

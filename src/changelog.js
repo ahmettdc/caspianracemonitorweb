@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.44",
+    date: "2026-07-31",
+    tr: [
+      "🧹 İç yeniden düzenleme (davranış aynı): App.jsx render bölme başladı — sürüm notları penceresi (VersionModal) ayrı bir sunum bileşenine taşındı. Kullanıcı arayüzü değişmedi",
+    ],
+    en: [
+      "🧹 Internal refactor (same behavior): App.jsx render split started — the version-notes window (VersionModal) moved into its own presentational component. No UI change",
+    ],
+  },
+  {
     v: "v1.4.43",
     date: "2026-07-31",
     tr: [
