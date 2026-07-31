@@ -6,11 +6,12 @@ import { useLive } from "./useLive";
 import { useMiniPlayer } from "./useMiniPlayer";
 import { useAuth } from "./useAuth";
 import { useTeams } from "./useTeams";
+import { useChat } from "./useChat";
 import { firebaseReady,
   requestAccess, watchAllUsers, setUserAllowed, updateProfile,
   createTeam, joinTeam,
   setTeamRole, toggleTeamBadge, leaveTeam, setTeamMemberName,
-  sendChat, watchChat, deleteChat, renameTeam, syncMyTeamName,
+  deleteChat, renameTeam, syncMyTeamName,
   addSetup, watchSetups, deleteSetup,
   createSeason, deleteSeason,
   createRace, updateRace, deleteRace,
@@ -32,7 +33,6 @@ import {
   CARS, CAR_CLASSES, trackName, carName, carImg,
   PIE_COLORS, DESKTOP_RELEASE_URL,
 } from "./constants";
-import { chatBeep } from "./sound";
 import {
   safeParseState, carriedTyre,
   applyUpPit, applyUpTyre, applyUpOvr, applyBumpLaps, applyClearLaps,
@@ -100,7 +100,6 @@ const LiveTab = lazyRetry(() => import("./tabs/LiveTab"));
 /* EMPTY_PIT, TYRE_2_SEC, TYRE_4_SEC → ./engine.js (import edildi) */
 /* zemin/hava durumu: tur süresi çarpanı + yakıt tüketim çarpanı (LMU) */
 /* direksiyon simgesi — Unicode'da direksiyon emojisi yok, rozet rengini devralır */
-/* Sohbet bildirim sesi (chatBeep) → ./sound.js (import edildi). */
 
 /* ============================================================
    REHBER TURU — ekranı karartır, sıradaki öğeyi ışıklandırır.
@@ -865,7 +864,7 @@ ${bottomBar}
   const { streamCorner, streamMin, setStreamMin, streamW, streamDrag,
     startResize, moveStream } = useMiniPlayer();
 
-  /* ---- sohbet bildirim sesi (mini oynatıcıdan bağımsız) ---- */
+  /* ---- sohbet bildirim sesi (mini oynatıcıdan bağımsız; useChat'e girdi) ---- */
   const [chatSound, setChatSound] = useState(() => {
     try { return localStorage.getItem("rm_chat_sound") !== "0"; } catch { return true; }
   });
@@ -873,20 +872,9 @@ ${bottomBar}
     try { localStorage.setItem("rm_chat_sound", v ? "0" : "1"); } catch { /* yoksay */ }
     return !v;
   });
-  const prevUnreadRef = useRef(null);
 
   const [lobSeason, setLobSeason] = useState("all"); // lobide şampiyona süzgeci
   const [tnEdit, setTnEdit] = useState(null);        // takım adı düzenleme metni
-  const [chatOpen, setChatOpen] = useState(false);
-  const [chatChan, setChatChan] = useState("team");
-  const [chatAll, setChatAll] = useState({});   // { path: [mesajlar] }
-  const [chatText, setChatText] = useState("");
-  const [chatSeen, setChatSeen] = useState(() => {   // { path: sonGörülenTs }
-    try { return JSON.parse(localStorage.getItem("rm_chat_seen_v2") || "{}"); }
-    catch { return {}; }
-  });
-  const chatEndRef = useRef(null);
-  const raceEndRef = useRef(null);
 
   const myRole = teamData?.members?.[user?.uid] || "";
   const canEditTeam = myRole === "owner" || myRole === "editor";
@@ -910,88 +898,11 @@ ${bottomBar}
   /* Rozet yetkiyi belirler: 🎧 Mühendis → editor (datayı değiştirir),
      🛞 Sürücü / rozetsiz → viewer (sadece görür). Takım sahibi her zaman owner.
      Firebase kuralları rolü baz aldığı için rozet değişince rol de yazılır. */
-  /* Kanallar. Yazma yetkisi role bağlı değil — sürücüler de konuşur. */
-  /* Pencerede genel + takım; yarış sohbeti kendi sekmesinde (Telemetri'nin sağında) */
-  const chatChans = useMemo(() => {
-    const out = [{ id: "global", lbl: "Genel", ico: "🌍", path: "globalChat" }];
-    if (curTeam) out.push({ id: "team", lbl: "Takım", ico: "🏢",
-      path: `teams/${curTeam}/chat` });
-    return out;
-  }, [curTeam]);
-
-  const raceChan = useMemo(() => (curTeam && curRace
-    ? { id: "race", ico: "🏁", lbl: races[curRace]?.name || "",
-      path: `teams/${curTeam}/raceChat/${curRace}` }
-    : null), [curTeam, curRace, races]);
-
-  const allChans = useMemo(() => (raceChan ? [...chatChans, raceChan] : chatChans),
-    [chatChans, raceChan]);
-
-  /* açık olmayan kanalları da dinliyoruz — okunmamış sayacı için */
-  useEffect(() => {
-    if (!user) { setChatAll({}); return; }
-    const offs = allChans.map((c) =>
-      watchChat(c.path, (msgs) => setChatAll((a) => ({ ...a, [c.path]: msgs }))));
-    return () => offs.forEach((f) => f && f());
-  }, [user, allChans]);
-
-  /* seçili kanal kaybolursa (yarıştan çıkınca) geçerli bir kanala düş */
-  useEffect(() => {
-    if (!chatChans.some((c) => c.id === chatChan)) {
-      setChatChan(chatChans[chatChans.length - 1]?.id || "global");
-    }
-  }, [chatChans, chatChan]);
-
-  const curChan = chatChans.find((c) => c.id === chatChan) || chatChans[0];
-  const chatMsgs = (curChan && chatAll[curChan.path]) || [];
-  const unreadOf = (c) => ((chatAll[c.path] || [])
-    .filter((m) => (m.at || 0) > (chatSeen[c.path] || 0) && m.uid !== user?.uid).length);
-  const chatUnread = chatChans.reduce((a, c) => a + unreadOf(c), 0);
-  const raceUnread = raceChan ? unreadOf(raceChan) : 0;
-
-  /* yeni mesaj sesi: toplam okunmamış ARTTIĞINDA çal.
-     İlk yüklemede çalmaz (önceki değer bilinmeden karşılaştırma yapılmaz);
-     kendi mesajların unreadOf'ta zaten sayılmıyor. */
-  useEffect(() => {
-    const total = chatUnread + raceUnread;
-    if (prevUnreadRef.current !== null
-        && total > prevUnreadRef.current && chatSound) chatBeep();
-    prevUnreadRef.current = total;
-  }, [chatUnread, raceUnread, chatSound]);
-
-  /* yarış sekmesi açıkken o kanalı okundu say */
-  useEffect(() => {
-    if (tab !== "rchat" || !raceChan) return;
-    const ms = chatAll[raceChan.path] || [];
-    const last = ms.length ? (ms[ms.length - 1].at || 0) : 0;
-    if (last && (chatSeen[raceChan.path] || 0) < last) {
-      const next = { ...chatSeen, [raceChan.path]: last };
-      setChatSeen(next);
-      try { localStorage.setItem("rm_chat_seen_v2", JSON.stringify(next)); }
-      catch { /* yoksay */ }
-    }
-    raceEndRef.current?.scrollIntoView({ block: "end" });
-  }, [tab, raceChan, chatAll, chatSeen]);
-
-  useEffect(() => {
-    if (!chatOpen || !curChan) return;
-    const last = chatMsgs.length ? (chatMsgs[chatMsgs.length - 1].at || 0) : Date.now();
-    if ((chatSeen[curChan.path] || 0) < last) {
-      const next = { ...chatSeen, [curChan.path]: last };
-      setChatSeen(next);
-      try { localStorage.setItem("rm_chat_seen_v2", JSON.stringify(next)); }
-      catch { /* yoksay */ }
-    }
-    chatEndRef.current?.scrollIntoView({ block: "end" });
-  }, [chatOpen, chatMsgs, curChan, chatSeen]);
-
-  const doSendTo = async (chan) => {
-    const v = chatText.trim();
-    if (!v || !chan) return;
-    setChatText("");
-    try { await sendChat(chan.path, user, userName, v); }
-    catch (e) { console.warn("mesaj gönderilemedi:", e?.message); }
-  };
+  /* ---- sohbet (kanallar / okunmamış / ses / okundu takibi) → useChat hook'u ---- */
+  const { chatOpen, setChatOpen, chatChan, setChatChan, chatChans, raceChan,
+    chatAll, chatText, setChatText, doSendTo, curChan, chatEndRef, raceEndRef,
+    unreadOf, chatUnread, raceUnread } = useChat({
+    user, userName, curTeam, curRace, races, tab, chatSound });
 
   /* Sohbet gövdesi — hem pencerede hem yarış sekmesinde kullanılır */
   /* Sohbet paneli artık <ChatPanel> (./components). chatBody, doğru prop'ları

@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.40",
+    date: "2026-07-31",
+    tr: [
+      "🧹 İç yeniden düzenleme (davranış aynı hedefleniyor): App.jsx bölme 3. tur — sohbet mantığı (kanallar, okunmamış sayacı, bildirim sesi, okundu takibi) useChat hook dosyasına çıkarıldı. Kullanıcı arayüzü değişmedi",
+    ],
+    en: [
+      "🧹 Internal refactor (behavior intended identical): App.jsx split round 3 — chat logic (channels, unread counter, notification sound, read tracking) moved into the useChat hook file. No UI change",
+    ],
+  },
+  {
     v: "v1.4.39",
     date: "2026-07-31",
     tr: [
