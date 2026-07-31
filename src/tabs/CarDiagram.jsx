@@ -1,8 +1,16 @@
+import { ASSET, AV } from "../constants";
+
 /* Top-down araç şeması — OwnCar için görsel lastik & hasar özeti.
-   Veri-güdümlü SVG: 4 lastik kalan-diş %'sine göre renklenir (yeşil→sarı→kırmızı),
-   compound rengi lastik kenarlığı olur, gövde tonu hasara göre kızarır. Her köşede
-   kalan-diş % / sıcaklık° / basınç kPa etiketi. Yeni sim verisi gerektirmez —
-   own.tyres/own.damage/own.tyreCompound'dan gelir. */
+   Ortada GERÇEK araç top-down görseli (assets/cartop/<key>.png; yoksa default.png),
+   çevresinde 4 lastik kalan-diş %'sine göre renklenir (yeşil→sarı→kırmızı), compound
+   rengi lastik kenarlığı olur. Hasar, araç silueti içine kırmızı ton olarak bindirilir.
+   Görsel yüklenemezse (dosya yoksa) şematik gövdeye düşer — hiçbir şey bozulmaz.
+   Yeni sim verisi gerektirmez — own.tyres/own.damage/own.tyreCompound'dan gelir. */
+
+const DEFAULT_TOP = `${ASSET}cartop/default.png${AV}`;
+/* araç gövdesi silueti — görsel yoksa yedek çizim + hasar tonu için clip */
+const BODY = "M117 20 C150 20 156 44 156 72 L156 196 C156 228 146 244 117 244 "
+  + "C88 244 78 228 78 196 L78 72 C78 44 84 20 117 20 Z";
 
 /* kalan diş oranı (0..1) → renk (LiveTab wearColor ile aynı eşik) */
 const wcol = (w) => (w == null ? "var(--muted)"
@@ -19,14 +27,13 @@ const ccol = (n) => {
   return "var(--line2)";
 };
 
-export default function CarDiagram({ t, tyres, damage, compound }) {
+export default function CarDiagram({ t, tyres, damage, compound, src }) {
+  const img = src || DEFAULT_TOP;
   const ty = tyres || {};
   const tc = compound || {};
   const dmg = damage || 0;
-  // gövde hasar tonu: hasar arttıkça kırmızı overlay opaklığı
-  const dmgOp = Math.min(0.6, dmg * 3);
+  const dmgOp = Math.min(0.55, dmg * 3);   // hasar → kırmızı ton opaklığı
 
-  // köşe: [anahtar, compound tarafı(ön/arka), lastik x,y, etiket x, hizalama]
   const TW = 26, TH = 46;   // lastik boyutu
   const corners = [
     { k: "fl", side: "front", tx: 40, ty: 48, lx: 34, anchor: "end" },
@@ -44,30 +51,28 @@ export default function CarDiagram({ t, tyres, damage, compound }) {
             <stop offset="0" stopColor="#241820" />
             <stop offset="1" stopColor="#160F14" />
           </linearGradient>
+          <clipPath id="cdclip"><path d={BODY} /></clipPath>
         </defs>
-        {/* gövde silueti (yukarı bakan) */}
-        <path d="M117 20 C150 20 156 44 156 72 L156 196 C156 228 146 244 117 244
-          C88 244 78 228 78 196 L78 72 C78 44 84 20 117 20 Z"
-          fill="url(#cdbody)" stroke="var(--line2)" strokeWidth="2" />
-        {/* hasar tonu */}
+        {/* şematik gövde (arka plan / yedek) — görsel yoksa bu görünür */}
+        <path d={BODY} fill="url(#cdbody)" />
+        <ellipse cx="117" cy="120" rx="20" ry="34" fill="#0E0A0C" opacity="0.6" />
+        {/* ortada gerçek araç top-down görseli (üstte) */}
+        <image href={img} x={64} y={10} width={106} height={244}
+          preserveAspectRatio="xMidYMid meet" />
+        {/* hasar tonu — araç silueti içine kırpılı kırmızı */}
         {dmgOp > 0.02 && (
-          <path d="M117 20 C150 20 156 44 156 72 L156 196 C156 228 146 244 117 244
-            C88 244 78 228 78 196 L78 72 C78 44 84 20 117 20 Z"
-            fill="var(--red)" opacity={dmgOp} />
+          <rect x="78" y="20" width="78" height="224" fill="var(--red)"
+            opacity={dmgOp} clipPath="url(#cdclip)" />
         )}
-        {/* kokpit */}
-        <ellipse cx="117" cy="120" rx="20" ry="34" fill="#0E0A0C" opacity="0.7" />
         {/* lastikler + etiketler */}
         {corners.map(({ k, side, tx, ty: tyy, lx, anchor }) => {
           const c = ty[k] || {};
-          const w = c.wear;                 // 0..1 kalan diş
+          const w = c.wear;
           const wpct = w != null ? Math.round(w * 100) : null;
-          const fill = wcol(w);
-          const border = ccol(tc[side]);
           return (
             <g key={k}>
               <rect x={tx} y={tyy} width={TW} height={TH} rx="7"
-                fill={fill} stroke={border} strokeWidth="3" opacity="0.95" />
+                fill={wcol(w)} stroke={ccol(tc[side])} strokeWidth="3" opacity="0.95" />
               <text x={tx + TW / 2} y={tyy + TH / 2} fill="#0B0708" fontSize="13"
                 fontWeight="800" textAnchor="middle" dominantBaseline="central">
                 {wpct != null ? wpct : "—"}</text>
