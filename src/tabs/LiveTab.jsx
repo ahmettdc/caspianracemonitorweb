@@ -170,6 +170,8 @@ function OwnCar({ t, own, liveFuelObs }) {
   const [det, setDet] = useState(false);   // "Detay" → ikincil tempo metrikleri
   const cap = own.fuelCapacity > 0 ? own.fuelCapacity : 0;
   const frac = cap ? Math.max(0, Math.min(1, own.fuel / cap)) : 0;
+  const veFrac = own.virtualEnergy != null
+    ? Math.max(0, Math.min(1, own.virtualEnergy / 100)) : 0;
   const ty = own.tyres || {};
   // Mevcut yakıtla ~kaç tur kaldığı — App'in canlı öğrenicisinden (litre/tur).
   const lpl = liveFuelObs?.litersPerLap;
@@ -194,9 +196,16 @@ function OwnCar({ t, own, liveFuelObs }) {
             ...(det && { borderColor: "var(--teal)", color: "var(--teal)" }) }}
           onClick={() => setDet((v) => !v)}>{det ? t("Detay ▾") : t("Detay ▸")}</button>
       </h2>
-      <div style={{ display: "flex", gap: 18, flexWrap: "wrap", alignItems: "flex-start" }}>
+      <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "flex-start" }}>
+        {/* VE (Sanal Enerji) yakıttan önemli → önce ve daha büyük, yeşil */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-          <Ring value={frac} size={92} thickness={9} fs={22} color="var(--green)"
+          <Ring value={veFrac} size={104} thickness={11} fs={26} color="var(--green)"
+            big={own.virtualEnergy != null ? `${Math.round(own.virtualEnergy)}%` : "—"} />
+          <div className="l" style={{ color: "var(--dim)", fontSize: 11 }}>VE ({t("Sanal Enerji")})</div>
+        </div>
+        {/* Yakıt → sarı, biraz küçük */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+          <Ring value={frac} size={84} thickness={9} fs={20} color="var(--yellow)"
             big={cap ? `${Math.round(frac * 100)}%` : "—"} />
           <div className="l" style={{ color: "var(--dim)", fontSize: 11 }}>
             {t("Yakıt")} {own.fuel != null ? `${own.fuel.toFixed(1)} L` : "—"}
@@ -232,8 +241,6 @@ function OwnCar({ t, own, liveFuelObs }) {
           <div className="kpigroup">
             <div className="gh">{t("Durum")}</div>
             <div className="kpigrid">
-              <Kpi color={veColor(own.virtualEnergy)}
-                v={own.virtualEnergy != null ? `${Math.round(own.virtualEnergy)}%` : "—"} l="NRG" />
               <Kpi v={own.damage != null ? `${Math.round(own.damage * 100)}%` : "—"} l={t("Hasar")}
                 color={(own.damage || 0) > 0.15 ? "var(--red)"
                   : (own.damage || 0) > 0.02 ? "var(--yellow)" : "var(--txt)"} />
@@ -528,7 +535,7 @@ export default function LiveTab({ t, live, bridge, canEdit, liveFuelObs, tid, ri
               {myClassOnly ? t("Tüm saha") : t("Kendi sınıfım")}</button>
           )}
           <button className={`act${detailed ? " on" : ""}`}
-            title={t("AVG5 · AVG · NRG · Δ · Stint · Lastik · Hasar sütunları")}
+            title={t("AVG5 · AVG · VE · Δ · Stint · Lastik · Hasar sütunları")}
             style={{ marginLeft: playerClass ? 0 : "auto", fontSize: 11, padding: "3px 10px",
               ...(detailed && { borderColor: "var(--teal)", color: "var(--teal)" }) }}
             onClick={toggleDetailed}>{detailed ? t("Detay ▾") : t("Detay ▸")}</button>
@@ -557,7 +564,7 @@ export default function LiveTab({ t, live, bridge, canEdit, liveFuelObs, tid, ri
                   {showTeam ? t("Takım") : t("Pilot")}</button></th>
                 <th>{t("Sınıf")}</th><th>{t("Tur")}</th>
                 <th>{t("Son")}</th><th>{t("En İyi")}</th>
-                {detailed && <><th>AVG5</th><th>AVG</th><th>NRG</th><th>Δ</th></>}
+                {detailed && <><th>AVG5</th><th>AVG</th><th>VE</th><th>Δ</th></>}
                 <th>Gap</th><th>{t("Aralık")}</th><th>{t("Konum")}</th>
                 {detailed && <><th>Stint</th><th>{t("Lastik")}</th><th>{t("Hasar")}</th></>}
                 <th>Pit</th>
