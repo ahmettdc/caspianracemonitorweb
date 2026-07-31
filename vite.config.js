@@ -6,6 +6,9 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   plugins: [react()],
   base: "./",
+  // Vitest'in JSX'i (ör. components.jsx testi) otomatik runtime ile çevirsin —
+  // React global'i gerekmesin. Üretim derlemesi zaten plugin-react kullanır.
+  esbuild: { jsx: "automatic" },
   // Güvenlik kuralı testleri (*.rules.test.js) emülatör ister → varsayılan
   // `npm test`'ten hariç; ayrı `npm run test:rules` ile koşar.
   test: { exclude: [...configDefaults.exclude, "**/*.rules.test.js"] },
