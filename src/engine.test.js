@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  parseHMS, parseLap, fmtHMS, fmtLap, msToLocalInput,
+  parseHMS, parseLap, fmtHMS, fmtLap, fmtGap, msToLocalInput,
   DEFAULT_STATE, WEATHER, wxLog, wxAtRel, WX, effLapSec, effCons, tyState,
   computePlan, migrate, lastStintFuel,
 } from "./engine.js";
@@ -56,6 +56,23 @@ describe("zaman/tur ayrıştırma", () => {
   it("fmtLap: negatif değer (delta) doğru gösterilir", () => {
     expect(fmtLap(-5.2)).toBe("-0:05.20");
     expect(fmtLap(-65)).toBe("-1:05.00");
+  });
+  it("fmtGap: 60 sn altı ondalık, üstü m:ss.s", () => {
+    expect(fmtGap(12.34)).toBe("+12.3");
+    expect(fmtGap(59.94)).toBe("+59.9");
+    expect(fmtGap(60)).toBe("+1:00.0");
+    expect(fmtGap(125.5)).toBe("+2:05.5");
+  });
+  it("fmtGap: saniye 60'a yuvarlanınca dakikaya taşar (+1:60.0 hatası yok)", () => {
+    expect(fmtGap(59.96)).toBe("+1:00.0");
+    expect(fmtGap(119.96)).toBe("+2:00.0");
+    expect(fmtGap(3599.97)).toBe("+60:00.0");
+  });
+  it("fmtGap: geçersiz/sıfır/negatif → tire", () => {
+    expect(fmtGap(0)).toBe("—");
+    expect(fmtGap(-3)).toBe("—");
+    expect(fmtGap(null)).toBe("—");
+    expect(fmtGap(undefined)).toBe("—");
   });
   it("msToLocalInput: geçersizde boş", () => {
     expect(msToLocalInput(0)).toBe("");

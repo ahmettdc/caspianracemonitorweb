@@ -17,8 +17,12 @@
   (virtualEnergy = LMU REST API'den; paylaşımlı bellekte yok. REST kapalıysa gelmez.)
   field[]: {pos, driver, vehicleName, team, manufacturer, number, carClass, lapsDone,
             lapDist, posX, posZ, lastSec, lastSectors:[s1,s2,s3], bestSec, gapSec,
-            intervalSec, inPits, location, pitStops, tyreWear, damage, virtualEnergy,
-            avg5Sec, avgSec, stintSec, laps, lapsFrom, lapKey, isPlayer}
+            intervalSec, lapsBehind, lapsBehindNext, inPits, location, pitStops, tyreWear,
+            damage, virtualEnergy, avg5Sec, avgSec, stintSec, laps, lapsFrom, lapNums,
+            lapKey, isPlayer}
+  (lapsBehind/lapsBehindNext = oyunun mLapsBehindLeader/mLapsBehindNext alanları — web
+   tur-altı ("+N Tur") göstergesi bunları kullanır; lider-tur eksi araç-tur çıkarması
+   lider S/F'yi geçtiği pencerede YANLIŞ "+1 Tur" verirdi.)
   (team/manufacturer/number = LMU araç kataloğundan (getAllVehicles) vehicleName/sürücü
    ile eşlenir — mPitGroup takım adı değil pit-grup no. manufacturer → marka logosu.
    session.sessionType = Antrenman/Sıralama/Yarış…)
@@ -28,8 +32,10 @@
 avg5Sec/avgSec/stintSec ve laps/lapsFrom/lapKey Aggregator (durumlu sarmalayıcı)
 tarafından türetilir; RF2Source/MockSource tek-kare okur, Aggregator kare kare geçmiş
 biriktirir. laps = köprü çalışırken tamamlanan son ~LAP_LOG_MAX turun süresi (JS taşıma
-tamponu); lapsFrom = ilk elemanın tur numarası; lapKey = sürücünün Firebase-güvenli
-anahtarı. Köprü JS (liveBridge) bu turları kalıcı append-only düğüme (livelaps/{rid}/
+tamponu); lapNums = bu sürelerin GERÇEK tur numaraları (log boşluklu olabilir: geçersiz
+tur atlanır ya da lapsDone >1 atlar → ardışık varsaymak tur kaymasına yol açıyordu);
+lapsFrom = ilk elemanın tur numarası (eski sözleşme, geriye uyum); lapKey = sürücünün
+Firebase-güvenli anahtarı. Köprü JS (liveBridge) bu turları kalıcı append-only düğüme (livelaps/{rid}/
 {lapKey}/{n}=sec) tur başına bir kez yazar; canlı kareden laps/lapsFrom çıkarılır ki kare
 küçük kalsın. Web "+" → o aracın tüm yarış geçmişini livelaps'ten talep üzerine okur.
 """
@@ -154,6 +160,10 @@ class MockSource:
             r["pos"] = p + 1
             r["gapSec"] = 0.0 if p == 0 else round((leadprog - r["_prog"]) / 1e6 * r["lastSec"], 1)
             r["intervalSec"] = 0.0 if p == 0 else round(r["gapSec"] - rows[p - 1]["gapSec"], 1)
+            # tur-altı: yalnız fark bir TAM turu aşınca (oyunun mLapsBehind* karşılığı)
+            _lt = max(1.0, r["lastSec"])
+            r["lapsBehind"] = 0 if p == 0 else int(r["gapSec"] // _lt)
+            r["lapsBehindNext"] = 0 if p == 0 else int(max(0.0, r["intervalSec"]) // _lt)
             r["location"] = "PIT" if r["inPits"] else "TRACK"
             r.pop("_prog", None)
         me = next(r for r in rows if r["isPlayer"])
@@ -354,6 +364,11 @@ class RF2Source:
                 "bestSec": round(float(getattr(v, "mBestLapTime", -1.0)), 3),
                 "gapSec": round(float(getattr(v, "mTimeBehindLeader", 0.0)), 1),
                 "intervalSec": round(float(getattr(v, "mTimeBehindNext", 0.0)), 1),
+                # Tur-altı: oyunun YETKİLİ alanları. lider/araç tur sayısını çıkarmak
+                # yanlış "+1 Tur" verir (lider S/F'yi geçip diğeri geçmeden önceki
+                # pencerede aynı turdaki araç tur-altı görünür).
+                "lapsBehind": int(getattr(v, "mLapsBehindLeader", 0) or 0),
+                "lapsBehindNext": int(getattr(v, "mLapsBehindNext", 0) or 0),
                 "inPits": bool(getattr(v, "mInPits", 0)),
                 "location": self._location(v),
                 "pitStops": int(getattr(v, "mNumPitstops", 0)),
@@ -521,12 +536,17 @@ class Aggregator:
             log = list(self.lap_log.get(key, ()))
             r["laps"] = [sec for _, sec in log]
             r["lapsFrom"] = log[0][0] if log else None
+            # GERÇEK tur numaraları — log boşluklu olabilir (geçersiz tur atlanır ya da
+            # lapsDone >1 atlar). JS bunu kullanır; ardışık varsayım tur kaymasına yol
+            # açıyordu. laps/lapsFrom eski köprü sözleşmesi için korunur.
+            r["lapNums"] = [n for n, _ in log]
             r["lapKey"] = _fbkey(key)   # Firebase-güvenli anahtar (livelaps yolu)
 
         own = data.get("own")
         if own is not None:
             me = next((r for r in field if r.get("isPlayer")), None)
             if me is not None:
-                for k in ("avg5Sec", "avgSec", "stintSec", "laps", "lapsFrom", "lapKey"):
+                for k in ("avg5Sec", "avgSec", "stintSec", "laps", "lapsFrom",
+                          "lapNums", "lapKey"):
                     own[k] = me.get(k)
         return data

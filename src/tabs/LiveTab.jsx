@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { fmtLap, fmtHMS } from "../engine";
+import { fmtLap, fmtHMS, fmtGap } from "../engine";
 import { Ring } from "../components";
 import { DESKTOP_RELEASE_URL, ASSET, classId, classAccent, brandKey, manufacturerKey } from "../constants";
 import { isTauri } from "../tauriEnv";
@@ -20,12 +20,8 @@ const wearColor = (w) => (w == null ? "var(--dim)"
 /* virtual energy % → renk: yüksek yeşil, düşük kırmızı */
 const veColor = (v) => (v == null ? "var(--dim)"
   : v > 50 ? "var(--green)" : v > 20 ? "var(--yellow)" : "var(--red)");
-const gap = (v) => {
-  if (!(v > 0)) return "—";
-  if (v < 60) return `+${v.toFixed(1)}`;
-  const m = Math.floor(v / 60);
-  return `+${m}:${(v - m * 60).toFixed(1).padStart(4, "0")}`;
-};
+/* gap biçimi → engine.fmtGap (taşma düzeltmesi + birim testli) */
+const gap = fmtGap;
 
 /* son güncelleme yaşından bağlantı durumu */
 function connOf(ts) {
@@ -404,9 +400,14 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
     // öndeki araca fark: köprü intervalSec verdiyse onu kullan, yoksa gap farkı
     const interval = (c.intervalSec != null && c.intervalSec > 0) ? c.intervalSec
       : (i > 0 && c.gapSec > 0 && prevGap > 0) ? c.gapSec - prevGap : null;
-    const lapsDown = Math.max(0, leaderLaps - (c.lapsDone ?? 0));
+    /* tur-altı: oyunun YETKİLİ alanı (mLapsBehindLeader). Lider-tur eksi araç-tur
+       çıkarması, lider S/F'yi geçip diğeri geçmeden önceki pencerede aynı turdaki
+       aracı yanlışlıkla "+1 Tur" gösteriyordu. Köprü vermezse (eski .exe) eskiye düş. */
+    const lapsDown = c.lapsBehind != null
+      ? Math.max(0, c.lapsBehind) : Math.max(0, leaderLaps - (c.lapsDone ?? 0));
+    const lapsDownNext = c.lapsBehindNext != null ? Math.max(0, c.lapsBehindNext) : 0;
     const delta = (c.lastSec > 0 && c.bestSec > 0) ? c.lastSec - c.bestSec : null;
-    return { c, i, id, classPos: classCounts[id], interval, lapsDown, delta,
+    return { c, i, id, classPos: classCounts[id], interval, lapsDown, lapsDownNext, delta,
       isFastest: c.bestSec > 0 && c.bestSec === fastestBest };
   });
   const shown = myClassOnly && playerClass
@@ -492,7 +493,8 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
                 <th aria-label={t("Turlar")}></th>
               </tr></thead>
               <tbody>
-                {shown.map(({ c, i, id, classPos, interval, lapsDown, delta, isFastest }) => {
+                {shown.map(({ c, i, id, classPos, interval, lapsDown, lapsDownNext,
+                  delta, isFastest }) => {
                   const acc = classAccent(c.carClass);
                   return (
                     <tr key={c.pos ?? i} ref={c.isPlayer ? playerRowRef : null}
@@ -528,7 +530,9 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
                         : delta <= 0 ? "var(--green)" : "var(--red)", fontSize: 12 }}>
                         {delta == null ? "—" : `${delta > 0 ? "+" : ""}${delta.toFixed(2)}`}</td>
                       <td>{i === 0 ? t("Lider") : lapsDown >= 1 ? `+${lapsDown} ${t("Tur")}` : gap(c.gapSec)}</td>
-                      <td style={{ color: "var(--dim)" }}>{interval != null ? gap(interval) : "—"}</td>
+                      <td style={{ color: "var(--dim)" }}>
+                        {lapsDownNext >= 1 ? `+${lapsDownNext} ${t("Tur")}`
+                          : interval != null ? gap(interval) : "—"}</td>
                       <td style={{ fontSize: 11, color: c.location === "PIT" ? "var(--yellow)"
                         : c.location === "GARAGE" ? "var(--red)" : "var(--dim)" }}>
                         {c.location ? t(c.location) : "—"}</td>
