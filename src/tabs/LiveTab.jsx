@@ -327,11 +327,14 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
   useEffect(() => {
     const f = Array.isArray(live?.field) ? live.field : [];
     for (const c of f) {
-      const prev = posRef.current[c.driver];
+      /* ARAÇ kimliğiyle anahtarla (lapKey): sürücü adı pilot değişiminde değişir ve
+         aynı isimli iki araç çakışırdı. */
+      const k = c.lapKey || c.driver;
+      const prev = posRef.current[k];
       if (prev != null && c.pos > 0 && prev !== c.pos) {
-        dirRef.current[c.driver] = prev > c.pos ? "up" : "down";
+        dirRef.current[k] = prev > c.pos ? "up" : "down";
       }
-      if (c.pos > 0) posRef.current[c.driver] = c.pos;
+      if (c.pos > 0) posRef.current[k] = c.pos;
     }
   }, [live?.ts]);
   // büyük pano (tam ekran)
@@ -506,9 +509,9 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
                       style={!c.isPlayer && acc ? { borderLeft: `3px solid ${acc}` } : undefined}>
                       <td className="disp" style={{ fontSize: 15, whiteSpace: "nowrap" }}>
                         {c.pos ?? i + 1}
-                        {dirRef.current[c.driver] === "up" && <span
+                        {dirRef.current[c.lapKey || c.driver] === "up" && <span
                           style={{ color: "var(--green)", fontSize: 10, marginLeft: 3 }}>▲</span>}
-                        {dirRef.current[c.driver] === "down" && <span
+                        {dirRef.current[c.lapKey || c.driver] === "down" && <span
                           style={{ color: "var(--red)", fontSize: 10, marginLeft: 3 }}>▼</span>}
                       </td>
                       <td style={{ fontFamily: "'Inter',system-ui,sans-serif", whiteSpace: "nowrap" }}>

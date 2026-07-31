@@ -142,6 +142,45 @@ class LmuApi:
                     return v
         return []
 
+    @staticmethod
+    def parse_standings(cars):
+        """standings listesi → ({sürücü_küçük: {ve, team, number}}, own_ve). SAF —
+        ağ yok, test edilebilir (bridge/test_lmu_api.py).
+
+        VE birimi toleranslı: veFraction 0..1 → ×100; 1..100 → zaten yüzde; bunların
+        dışında/eksik/geçersizse toleranslı `_energy_of` yedeği. (Eskiden yedek yalnız
+        float() İSTİSNA atarsa çalışıyordu; sayısal ama aralık dışı bir değer VE'yi
+        elde veri olsa bile sessizce None yapıyordu.)"""
+        by_driver, own_ve = {}, None
+        for c in cars:
+            if not isinstance(c, dict):
+                continue
+            nm = c.get("driverName")
+            if not (isinstance(nm, str) and nm.strip()):
+                _, nm = _find(c, _NAME_KEY)          # yedek: adı 'name' içeren alan
+            ve = None
+            try:
+                vf = float(c.get("veFraction"))
+            except (TypeError, ValueError):
+                vf = None
+            if vf is not None and 0.0 <= vf <= 1.0:
+                ve = round(vf * 100, 1)
+            elif vf is not None and 1.0 < vf <= 100.0:
+                ve = round(vf, 1)                    # yüzde olarak gelmiş
+            if ve is None:
+                ve = _energy_of(c)                   # toleranslı yedek
+            info = {
+                "ve": ve,
+                "team": str(c.get("fullTeamName") or c.get("teamName") or "").strip(),
+                "number": (str(c.get("carNumber")).strip()
+                           if c.get("carNumber") not in (None, "") else None),
+            }
+            if isinstance(nm, str) and nm.strip():
+                by_driver[nm.strip().lower()] = info
+            if c.get("player") or c.get("isPlayer") or c.get("hasFocus"):
+                own_ve = ve if ve is not None else own_ve
+        return by_driver, own_ve
+
     def standings(self):
         """/rest/watch/standings → canlı saha: her araç için virtual energy (veFraction),
         gerçek takım adı (fullTeamName) ve numara (carNumber). Sürücü adıyla eşlenir.
@@ -161,33 +200,7 @@ class LmuApi:
                     self.path = p
                     break
         cars = self._pick_list(data)
-        by_driver, own_ve = {}, None
-        for c in cars:
-            if not isinstance(c, dict):
-                continue
-            nm = c.get("driverName")
-            if not (isinstance(nm, str) and nm.strip()):
-                _, nm = _find(c, _NAME_KEY)          # yedek: adı 'name' içeren alan
-            # VE: önce veFraction (0..1), yoksa toleranslı enerji araması
-            ve = None
-            vf = c.get("veFraction")
-            try:
-                vf = float(vf)
-                if 0.0 <= vf <= 1.0:
-                    ve = round(vf * 100, 1)
-            except (TypeError, ValueError):
-                ve = _energy_of(c)
-            info = {
-                "ve": ve,
-                "team": str(c.get("fullTeamName") or c.get("teamName") or "").strip(),
-                "number": (str(c.get("carNumber")).strip()
-                           if c.get("carNumber") not in (None, "") else None),
-            }
-            if isinstance(nm, str) and nm.strip():
-                by_driver[nm.strip().lower()] = info
-            if c.get("player") or c.get("isPlayer") or c.get("hasFocus"):
-                own_ve = ve if ve is not None else own_ve
-        self.cache = (by_driver, own_ve)
+        self.cache = self.parse_standings(cars)
         if not self.diag_done:
             self.diag_done = True
             self._diag(cars)

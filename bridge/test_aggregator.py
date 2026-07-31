@@ -13,16 +13,36 @@ from rf2_source import Aggregator
 class _Fake:
     """Tek aracı kare kare besler: (lapsDone, lastSec) dizisi."""
 
-    def __init__(self, seq):
+    def __init__(self, seq, car_id=None, driver="A. Demircan"):
         self.seq = list(seq)
         self.i = 0
+        self.car_id = car_id
+        self.driver = driver
 
     def read(self):
         laps, last = self.seq[min(self.i, len(self.seq) - 1)]
         self.i += 1
+        row = {"pos": 1, "driver": self.driver, "lapsDone": laps, "lastSec": last,
+               "bestSec": 100.0, "inPits": False}
+        if self.car_id is not None:
+            row["carId"] = self.car_id
+        return {"session": {}, "own": None, "field": [row]}
+
+
+class _Swap:
+    """Aynı ARAÇ (carId sabit), belirtilen turda pilot değişimi (driver swap)."""
+
+    def __init__(self, seq, car_id=7):
+        self.seq = list(seq)   # (lapsDone, lastSec, driver)
+        self.i = 0
+        self.car_id = car_id
+
+    def read(self):
+        laps, last, drv = self.seq[min(self.i, len(self.seq) - 1)]
+        self.i += 1
         return {"session": {}, "own": None, "field": [{
-            "pos": 1, "driver": "A. Demircan", "lapsDone": laps, "lastSec": last,
-            "bestSec": 100.0, "inPits": False}]}
+            "pos": 1, "carId": self.car_id, "driver": drv, "lapsDone": laps,
+            "lastSec": last, "bestSec": 100.0, "inPits": False}]}
 
 
 def _run(seq):
@@ -60,6 +80,42 @@ def test_yeni_seans_sifirlar():
     # lapsDone geriler (yeni seans) → geçmiş sıfırlanır
     r = _run([(0, -1), (1, 101.0), (2, 100.5), (0, -1), (1, 99.0)])
     assert r["lapNums"] == [1], r["lapNums"]
+
+
+def test_pilot_degisiminde_arac_gecmisi_korunur():
+    """Endurance driver swap: sürücü adı değişir ama ARAÇ aynıdır → lapKey ve tur
+    geçmişi kesintisiz kalmalı. (Eskiden sürücü adıyla anahtarlandığı için lapKey
+    değişiyor, tur log'u sıfırlanıyor, "+" listesi yarışın başını kaybediyordu.)"""
+    agg = Aggregator(_Swap([(1, 101.0, "A. Demircan"), (2, 100.5, "A. Demircan"),
+                            (3, 100.7, "M. Yilmaz"), (4, 100.9, "M. Yilmaz")]))
+    keys, data = [], None
+    for _ in range(4):
+        data = agg.read()
+        keys.append(data["field"][0]["lapKey"])
+    r = data["field"][0]
+    assert len(set(keys)) == 1, keys                  # lapKey hiç değişmedi
+    assert keys[0] == "c7", keys[0]
+    assert r["lapNums"] == [2, 3, 4], r["lapNums"]    # geçmiş kesintisiz
+    assert r["avgSec"] is not None                    # ortalama sıfırlanmadı
+
+
+def test_ayni_isimli_iki_arac_ayri_anahtar_alir():
+    a = Aggregator(_Fake([(1, 100.0)], car_id=3, driver="Ali Veli"))
+    b = Aggregator(_Fake([(1, 100.0)], car_id=9, driver="Ali Veli"))
+    ka = a.read()["field"][0]["lapKey"]
+    kb = b.read()["field"][0]["lapKey"]
+    assert ka != kb, (ka, kb)
+
+
+def test_carid_yoksa_surucu_adina_duser():
+    """Eski köprü akışı / carId üretmeyen kaynak → geriye uyumlu davranış."""
+    r = _run([(0, -1), (1, 101.0)])
+    assert r["lapKey"] == "A__Demircan", r["lapKey"]
+
+
+def test_carid_sifir_gecerli_kimliktir():
+    r = Aggregator(_Fake([(1, 100.0)], car_id=0)).read()["field"][0]
+    assert r["lapKey"] == "c0", r["lapKey"]
 
 
 if __name__ == "__main__":
