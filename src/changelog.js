@@ -5,6 +5,20 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.52",
+    date: "2026-07-31",
+    tr: [
+      "🔑 Pilot değişimi artık aracın canlı geçmişini silmiyor: canlı timing aracı sürücü ADIYLA takip ettiği için, endurance'ta direksiyon değişince aynı araç yeni bir kayıt gibi başlıyordu — '+' tur listesi yarışın başını kaybediyor, pozisyon grafiğinde araç her değişimde yeni bir çizgi oluyor, ortalamalar sıfırlanıyordu. Artık araç kimliğiyle takip ediliyor; geçmiş kesintisiz. (Aynı isimli iki araç sorunu da çözüldü)",
+      "⚡ Virtual Energy daha dayanıklı: LMU değeri yüzde olarak gönderirse ya da beklenmedik bir aralıkta verirse VE sütunu sessizce boşalabiliyordu — artık yedek okuma devreye giriyor",
+      "📈 Pozisyon grafiği temizlendi: yarışta artık bulunmayan araçların eski kayıtları renksiz/etiketsiz çizgi olarak çiziliyordu",
+    ],
+    en: [
+      "🔑 Driver changes no longer wipe a car's live history: live timing tracked cars by driver NAME, so in endurance racing a driver swap made the same car start over as a new entry — the '+' lap list lost the start of the race, the position chart drew a new line per stint, and averages reset. Cars are now tracked by car identity, so history is continuous. (Two cars sharing a driver name is fixed too)",
+      "⚡ Virtual Energy is more robust: if LMU reports the value as a percentage or in an unexpected range, the VE column could silently go empty — a fallback read now kicks in",
+      "📈 Position chart cleaned up: stale records from cars no longer in the race were drawn as unlabeled, colorless lines",
+    ],
+  },
+  {
     v: "v1.4.51",
     date: "2026-07-31",
     tr: [

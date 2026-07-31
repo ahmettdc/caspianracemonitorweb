@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { classAccent } from "../constants";
 import { livePosSubscribe } from "../storage";
+import { buildPosData } from "../posData";
 
 /* Pozisyon–tur grafiği — kalıcı livepos düğümünden (teams/{tid}/livepos/{rid})
    tüm sahanın tur-tur pozisyonunu okur. Her araç bir çizgi (sınıf renginde),
@@ -37,27 +38,11 @@ export default function PosChart({ t, tid, rid, field }) {
     return m;
   }, [field]);
 
-  // grafik verisi: her tur için { lap, [lapKey]: pos } + pit noktaları
-  const { data, keys, maxPos, pitSet } = useMemo(() => {
-    const pm = posMap && typeof posMap === "object" ? posMap : {};
-    const byLap = {};
-    const pit = new Set();
-    let mx = 0;
-    const ks = Object.keys(pm);
-    for (const k of ks) {
-      const laps = pm[k] || {};
-      for (const nStr of Object.keys(laps)) {
-        const n = +nStr; const raw = +laps[nStr];
-        if (!n || !raw) continue;
-        const pos = Math.abs(raw);
-        if (raw < 0) pit.add(`${k}|${n}`);
-        (byLap[n] || (byLap[n] = { lap: n }))[k] = pos;
-        if (pos > mx) mx = pos;
-      }
-    }
-    const arr = Object.values(byLap).sort((a, b) => a.lap - b.lap);
-    return { data: arr, keys: ks, maxPos: mx, pitSet: pit };
-  }, [posMap]);
+  /* grafik verisi: her tur için { lap, [lapKey]: pos } + pit noktaları.
+     Mantık saf modülde (posData.js) — bayat anahtarlar (sahada olmayan araçlar)
+     elenir; testlerle korunur. */
+  const { data, keys, maxPos, pitSet } = useMemo(
+    () => buildPosData(posMap, meta), [posMap, meta]);
 
   if (!data.length) return null;
 

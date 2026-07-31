@@ -15,7 +15,7 @@
             avgSec, stintSec, tyreCompound:{front,rear},
             tyres:{fl,fr,rl,rr:{wear,tempC,pressKpa}}}
   (virtualEnergy = LMU REST API'den; paylaşımlı bellekte yok. REST kapalıysa gelmez.)
-  field[]: {pos, driver, vehicleName, team, manufacturer, number, carClass, lapsDone,
+  field[]: {pos, carId, driver, vehicleName, team, manufacturer, number, carClass, lapsDone,
             lapDist, posX, posZ, lastSec, lastSectors:[s1,s2,s3], bestSec, gapSec,
             intervalSec, lapsBehind, lapsBehindNext, inPits, location, pitStops, tyreWear,
             damage, virtualEnergy, avg5Sec, avgSec, stintSec, laps, lapsFrom, lapNums,
@@ -34,8 +34,9 @@ tarafından türetilir; RF2Source/MockSource tek-kare okur, Aggregator kare kare
 biriktirir. laps = köprü çalışırken tamamlanan son ~LAP_LOG_MAX turun süresi (JS taşıma
 tamponu); lapNums = bu sürelerin GERÇEK tur numaraları (log boşluklu olabilir: geçersiz
 tur atlanır ya da lapsDone >1 atlar → ardışık varsaymak tur kaymasına yol açıyordu);
-lapsFrom = ilk elemanın tur numarası (eski sözleşme, geriye uyum); lapKey = sürücünün
-Firebase-güvenli anahtarı. Köprü JS (liveBridge) bu turları kalıcı append-only düğüme (livelaps/{rid}/
+lapsFrom = ilk elemanın tur numarası (eski sözleşme, geriye uyum); lapKey = ARACIN
+Firebase-güvenli anahtarı (carId/mID tabanlı — sürücü adı DEĞİL: pilot değişiminde
+aracın geçmişi bölünmesin diye). Köprü JS (liveBridge) bu turları kalıcı append-only düğüme (livelaps/{rid}/
 {lapKey}/{n}=sec) tur başına bir kez yazar; canlı kareden laps/lapsFrom çıkarılır ki kare
 küçük kalsın. Web "+" → o aracın tüm yarış geçmişini livelaps'ten talep üzerine okur.
 """
@@ -75,6 +76,21 @@ def _s(b):
         return bytes(b).split(b"\x00", 1)[0].decode("utf-8", "ignore").strip()
     except Exception:
         return ""
+
+
+def _car_key(row):
+    """Bir field satırı → ARACIN kimliği (durum ve lapKey anahtarı).
+
+    Sürücü adı KULLANILMAZ: endurance'ta pilot değişince (driver swap) ad değişir ve
+    aracın tur geçmişi/ortalamaları/lapKey'i sıfırlanıp Firebase'de ikiye bölünüyordu
+    ("+" listesi yarışın başını kaybediyor, pozisyon grafiğinde araç iki çizgi oluyordu).
+    rF2 `mID` (slot ID) pilot değişse de aynı kalır → araç kimliği odur.
+    Not: mID çok-oyunculuda biri ayrılınca yeniden kullanılabilir (struct notu).
+    carId yoksa (eski akış/mock) sürücü adına düşülür — geriye uyumlu."""
+    cid = row.get("carId")
+    if isinstance(cid, int) and not isinstance(cid, bool) and cid >= 0:
+        return f"c{cid}"
+    return row.get("driver") or f"#{row.get('pos')}"
 
 
 def _fbkey(name):
@@ -138,7 +154,7 @@ class MockSource:
             px, pz = self._track_xy(frac)
             veh = self.VEH_HY[i] if i < 3 else self.VEH_GT[(i - 3) % len(self.VEH_GT)]
             rows.append({
-                "pos": 0, "driver": self.NAMES[i],
+                "pos": 0, "carId": i, "driver": self.NAMES[i],
                 "team": self.TEAMS[i % len(self.TEAMS)],
                 "vehicleName": veh, "manufacturer": self._manuf(veh), "number": 10 + i,
                 "carClass": self.CLASSES[0] if i < 3 else self.CLASSES[1],
@@ -353,6 +369,9 @@ class RF2Source:
             px, pz = self._pos(v)
             field.append({
                 "pos": int(getattr(v, "mPlace", 0)),
+                # ARAÇ kimliği (slot ID) — sürücü adı endurance'ta pilot değişiminde
+                # değişir; tur geçmişi/ortalama/lapKey buna değil buna bağlanmalı.
+                "carId": int(getattr(v, "mID", -1)),
                 "driver": _s(getattr(v, "mDriverName", b"")),
                 "vehicleName": _s(getattr(v, "mVehicleName", b"")),
                 "carClass": _s(getattr(v, "mVehicleClass", b"")),
@@ -502,7 +521,7 @@ class Aggregator:
         now = time.time()
         field = data.get("field") or []
         for r in field:
-            key = r.get("driver") or f"#{r.get('pos')}"
+            key = _car_key(r)
             laps = int(r.get("lapsDone") or 0)
             last = float(r.get("lastSec") or 0)
             best = float(r.get("bestSec") or 0)
