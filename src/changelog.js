@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.32",
+    date: "2026-07-31",
+    tr: [
+      "🏎 Kendi Araç lastik/hasar diyagramında artık ortada gerçek üstten-görünüş araç görseli (şematik çizim yerine). Görsel yoksa şematik yedeğe düşer; ileride her araç kendi top fotoğrafını gösterecek",
+    ],
+    en: [
+      "🏎 The Own Car tyre/damage diagram now shows a real top-down car image in the center (instead of the schematic). Falls back to the schematic if the image is missing; per-car top photos coming next",
+    ],
+  },
+  {
     v: "v1.4.31",
     date: "2026-07-31",
     tr: [
