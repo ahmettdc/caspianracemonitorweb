@@ -1,2 +1,5 @@
 node_modules/
 dist/
+# Firebase emülatör (test:rules) günlükleri
+*-debug.log
+firebase-export-*/
