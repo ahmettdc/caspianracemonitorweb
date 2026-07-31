@@ -8,6 +8,7 @@ import { useAuth } from "./useAuth";
 import { useTeams } from "./useTeams";
 import { useChat } from "./useChat";
 import { useSetups } from "./useSetups";
+import { useRaceSync } from "./useRaceSync";
 import { firebaseReady,
   requestAccess, watchAllUsers, setUserAllowed, updateProfile,
   createTeam, joinTeam,
@@ -16,7 +17,7 @@ import { firebaseReady,
   deleteSetup,
   createSeason, deleteSeason,
   createRace, updateRace, deleteRace,
-  raceStateGet, raceStateSet, raceStateSubscribe } from "./storage";
+  raceStateGet } from "./storage";
 import { signInGoogle, signOut, authReady } from "./auth";
 import { CHANGELOG } from "./changelog";
 import {
@@ -162,52 +163,11 @@ export default function App() {
   /* canlı timing + yakıt öğrenici → useLive hook'u (aşağıda, curTeamRef kurulduktan
      sonra çağrılır). live/liveFuelObs oradan gelir. */
   const [role, setRole] = useState("editor");    // "editor" | "viewer" (takım rolünden)
-  const [syncMsg, setSyncMsg] = useState("");
-  const [lastSync, setLastSync] = useState(null); // {by, at}
-  const sync = useRef({ rev: 0, applying: false, timer: null });
+  /* stRef: mevcut st'nin ref aynası — useRaceSync (push) ve useLive salt-okur.
+     İşbirlikçi yarış-durumu senkronizasyonu → useRaceSync (curTeamRef kurulduktan
+     sonra aşağıda çağrılır); syncMsg / lastSync / sync oradan gelir. */
   const stRef = useRef(st);
   stRef.current = st;
-
-  const pushState = async (rid) => {
-    try {
-      const rev = sync.current.rev + 1;
-      await raceStateSet(curTeamRef.current, rid, {
-        stateJson: JSON.stringify(stRef.current), rev,
-        updatedBy: userName || "isimsiz", updatedAt: Date.now(),
-      });
-      sync.current.rev = rev; setLastSync({ by: t("sen"), at: Date.now() }); setSyncMsg("");
-    } catch (e) { setSyncMsg(t("Yazma hatası — tekrar denenecek")); }
-  };
-
-  const schedulePush = () => {
-    if (!curRace || role !== "editor" || sync.current.applying) return;
-    clearTimeout(sync.current.timer);
-    sync.current.timer = setTimeout(() => pushState(curRace), 800);
-  };
-
-  // her state değişiminde (kullanıcı kaynaklı) paylaş
-  useEffect(() => { schedulePush(); /* eslint-disable-next-line */ }, [st]);
-
-  // odayı anlık dinle (Firebase onValue — polling'e gerek yok)
-  useEffect(() => {
-    if (!curRace) return;
-    const off = raceStateSubscribe(curTeamRef.current, curRace, (remote) => {
-      if (remote.rev > sync.current.rev) {
-        /* bozuk/yarım uzak veri gelirse rev'i ilerletme, son iyi durumu koru */
-        const parsed = safeParseState(remote.stateJson);
-        if (!parsed) { console.warn("Bozuk uzak state atlandı (rev", remote.rev, ")"); return; }
-        sync.current.applying = true;
-        sync.current.rev = remote.rev;
-        setSt(migrate(parsed));
-        setLastSync({ by: remote.updatedBy, at: remote.updatedAt });
-        /* başka bir editör yazdı → kısa görünürlük uyarısı (son yazan kazanır) */
-        if (remote.updatedBy && remote.updatedBy !== userName)
-          setSyncMsg(t("Uzaktan güncellendi: ") + remote.updatedBy);
-        setTimeout(() => { sync.current.applying = false; }, 50);
-      }
-    });
-    return () => off();
-  }, [curRace]);
 
   /* ---------- YARIŞ AÇ / KAPAT (oda kodu ve PIN yok) ---------- */
   const openRace = async (rid) => {
@@ -775,6 +735,10 @@ ${bottomBar}
   const [profName, setProfName] = useState("");
   const curTeamRef = useRef("");
   curTeamRef.current = curTeam;
+  /* işbirlikçi yarış-durumu senkronizasyonu (debounce push + canlı dinle) → hook.
+     openRace/leaveRace App'te kalır ve dönen `sync` ref'ini + setter'ları kullanır. */
+  const { syncMsg, setSyncMsg, lastSync, setLastSync, sync } = useRaceSync({
+    st, setSt, curRace, curTeamRef, role, userName, stRef, t });
   /* canlı timing aboneliği + yakıt öğrenici (App.jsx'ten çıkarıldı) */
   const { live, liveFuelObs } = useLive({ curRace, curTeamRef, stRef });
   /* ---- sohbet: genel / takım / yarış kanalları ---- */

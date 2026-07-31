@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.42",
+    date: "2026-07-31",
+    tr: [
+      "🧹 İç yeniden düzenleme (davranış aynı): App.jsx bölme 5. tur — işbirlikçi yarış-durumu senkronizasyonu (debounce yazma + canlı dinleme, son yazan kazanır) useRaceSync hook dosyasına çıkarıldı. Kullanıcı arayüzü ve senkron davranışı değişmedi",
+    ],
+    en: [
+      "🧹 Internal refactor (same behavior): App.jsx split round 5 — collaborative race-state sync (debounced write + live listen, last-writer-wins) moved into the useRaceSync hook file. No UI or sync behavior change",
+    ],
+  },
+  {
     v: "v1.4.41",
     date: "2026-07-31",
     tr: [
