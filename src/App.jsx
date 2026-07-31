@@ -12,12 +12,10 @@ import { useRaceSync } from "./useRaceSync";
 import { useTelemetry } from "./useTelemetry";
 import { firebaseReady,
   requestAccess, watchAllUsers, setUserAllowed, updateProfile,
-  createTeam, joinTeam,
-  setTeamRole, toggleTeamBadge, leaveTeam, setTeamMemberName,
-  deleteChat, renameTeam, syncMyTeamName,
+  setTeamRole, toggleTeamBadge, setTeamMemberName,
+  deleteChat, syncMyTeamName,
   deleteSetup,
-  createSeason, deleteSeason,
-  createRace, updateRace, deleteRace,
+  createRace, updateRace,
   raceStateGet } from "./storage";
 import { signInGoogle, signOut, authReady } from "./auth";
 import {
@@ -44,7 +42,7 @@ import {
 import {
   TourOverlay, Wheel, Num, Bolt, Tyre, Ring,
   BADGES, teamBadgesOf, hasBadge, ChatPanel, SetupForm, SetupTable, VersionModal, RaceEditModal,
-  ChatModal,
+  ChatModal, SetupModal, TeamModal,
 } from "./components";
 
 /* Sekmeler talep üzerine yüklenir (kod bölme) — ilk bundle küçülür,
@@ -743,47 +741,11 @@ ${bottomBar}
         deleteSetup(su.id).catch(() => {}); }} />
   );
 
-  const setupModal = suOpen && (
-    <div className="wxmodal" onClick={() => setSuOpen(false)}>
-      <div className="wxmbox" style={{ width: "min(1080px,97vw)" }}
-        onClick={(e) => e.stopPropagation()}>
-        <div className="wxmhead">
-          <span>🔧 {t("Setup Havuzu")} · {t("Ortak")} ({suList.length}/{setups.length})</span>
-          <button className="lbclose" style={{ marginLeft: "auto", marginRight: 4 }}
-            title={t("Setup Ekle")}
-            onClick={() => setSuUpOpen((v) => !v)}>{suUpOpen ? "▾" : "＋"}</button>
-          <button className="lbclose" onClick={() => setSuOpen(false)}>✕</button>
-        </div>
-        <div style={{ padding: "12px 16px", maxHeight: "70vh", overflowY: "auto" }}>
-          {suUpOpen && (
-            <div className="card" style={{ marginBottom: 12 }}>
-              <h2>🔧 {t("Setup Yükle")}</h2>
-              {setupForm()}
-            </div>
-          )}
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-            <select value={suFTrack} onChange={(e) => setSuFTrack(e.target.value)}>
-              <option value="">{t("Tüm pistler")}</option>
-              {TRACKS.filter((tr) => setups.some((x) => x.track === tr.id))
-                .map((tr) => <option key={tr.id} value={tr.id}>{tr.name}</option>)}
-            </select>
-            <select value={suFCond} onChange={(e) => setSuFCond(e.target.value)}>
-              <option value="">{t("Kuru + Wet")}</option>
-              <option value="dry">☀️ {t("Kuru")}</option>
-              <option value="wet">🌧 Wet</option>
-            </select>
-            <select value={suFSess} onChange={(e) => setSuFSess(e.target.value)}>
-              <option value="">{t("Yarış + Sıralama")}</option>
-              <option value="R">{t("Yarış")}</option>
-              <option value="Q">{t("Sıralama")}</option>
-            </select>
-          </div>
-          {!suList.length
-            ? <div className="hint">{t("Bu süzgeçle setup yok.")}</div>
-            : setupTable(suList)}
-        </div>
-      </div>
-    </div>
+  const setupModal = (
+    <SetupModal open={suOpen} onClose={() => setSuOpen(false)} t={t}
+      suUpOpen={suUpOpen} setSuUpOpen={setSuUpOpen} suList={suList} setups={setups}
+      suFTrack={suFTrack} setSuFTrack={setSuFTrack} suFCond={suFCond} setSuFCond={setSuFCond}
+      suFSess={suFSess} setSuFSess={setSuFSess} setupForm={setupForm} setupTable={setupTable} />
   );
 
   const chatModal = (
@@ -1104,232 +1066,17 @@ ${bottomBar}
     <RaceEditModal rForm={rForm} setRForm={setRForm} t={t} seasons={seasons} onSave={saveRaceForm} />
   );
 
-  /* takım penceresi — hem lobide hem ana arayüzde kullanılır */
-  const teamModal = teamOpen && user && (
-        <div className="wxmodal" onClick={() => setTeamOpen(false)}>
-          <div className="wxmbox" style={{ width: "min(680px,95vw)" }}
-            onClick={(e) => e.stopPropagation()}>
-            <div className="wxmhead">
-              <span>🏢 {t("Takımlar")}</span>
-              <button className="lbclose" onClick={() => setTeamOpen(false)}>✕</button>
-            </div>
-
-            {/* takım seçici */}
-            {Object.keys(myTeams).length > 0 && (
-              <div className="tmtabs">
-                {Object.entries(myTeams).map(([tid, nm]) => (
-                  <button key={tid} className={curTeam === tid ? "on" : ""}
-                    onClick={() => setCurTeam(tid)}>{nm}</button>
-                ))}
-              </div>
-            )}
-
-            <div className="wxmlist" style={{ padding: "10px 14px" }}>
-              {!curTeam && (
-                <div className="hint" style={{ marginBottom: 12 }}>
-                  {t("Henüz bir takımın yok. Yeni takım kur ya da katılım kodu ile katıl.")}
-                </div>
-              )}
-
-              {curTeam && teamData && (<>
-                {/* takım adı */}
-                <div className="tmsec">{t("Takım Adı")}</div>
-                {tnEdit === null ? (
-                  <div style={{ display: "flex", alignItems: "center", gap: 8,
-                    marginBottom: 10 }}>
-                    <b style={{ fontSize: 15 }}>{teamData?.meta?.name || "—"}</b>
-                    {canManageTeam && (
-                      <button className="minibtn" style={{ width: "auto", padding: "0 8px" }}
-                        onClick={() => setTnEdit(teamData?.meta?.name || "")}>
-                        {t("Düzenle")}</button>
-                    )}
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", gap: 8, marginBottom: 10, maxWidth: 420 }}>
-                    <input type="text" value={tnEdit} maxLength={40} autoFocus
-                      style={{ textTransform: "none", margin: 0 }}
-                      onChange={(e) => setTnEdit(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Escape") setTnEdit(null); }} />
-                    <button className="gbtn ubtn" disabled={!tnEdit.trim()}
-                      style={{ opacity: tnEdit.trim() ? 1 : .45 }}
-                      onClick={async () => {
-                        const nm = tnEdit.trim();
-                        setTnEdit(null);
-                        try {
-                          await renameTeam(curTeam, nm);
-                          await syncMyTeamName(user.uid, curTeam, nm);
-                        } catch (e) { console.warn("ad değiştirilemedi:", e?.message); }
-                      }}>{t("Kaydet")}</button>
-                    <button className="histbtn"
-                      onClick={() => setTnEdit(null)}>{t("Vazgeç")}</button>
-                  </div>
-                )}
-                {tnEdit !== null && (
-                  <div className="hint" style={{ marginTop: -6, marginBottom: 10 }}>
-                    {t("Yeni ad diğer üyelerde uygulamayı açtıklarında güncellenir.")}</div>
-                )}
-
-                {/* sezonlar */}
-                <div className="tmsec">{t("Sezonlar")}</div>
-                <div className="tmtabs" style={{ padding: "0 0 8px" }}>
-                  <button className={curSeason === "" ? "on" : ""}
-                    onClick={() => setCurSeason("")}>{t("Tümü")}</button>
-                  {Object.entries(seasons).map(([sid, se]) => (
-                    <button key={sid} className={curSeason === sid ? "on" : ""}
-                      onClick={() => setCurSeason(sid)}>{se.name}</button>
-                  ))}
-                  {canEditTeam && (
-                    <button onClick={async () => {
-                      const nm = window.prompt(t("Sezon adı"), `${new Date().getFullYear()} WEC`);
-                      if (nm) await createSeason(curTeam, nm, new Date().getFullYear())
-                        .catch(() => {});
-                    }}>+ {t("Sezon")}</button>
-                  )}
-                </div>
-
-                {/* yarış takvimi */}
-                <div className="tmsec">{t("Yarış Takvimi")}</div>
-                {Object.entries(races)
-                  .filter(([, r]) => !curSeason || r.seasonId === curSeason)
-                  .sort(([, a], [, b]) => (a.startsAt || 0) - (b.startsAt || 0))
-                  .map(([rid, r]) => (
-                    <div key={rid} className="tmroom">
-                      {r.round ? <span className="rcode mono">R{r.round}</span> : null}
-                      <span className="rlabel">
-                        <b>{r.name || trackName(r.trackId) || "—"}</b>
-                        <span className="rmeta">
-                          {r.trackId ? trackName(r.trackId) : ""}
-                          {r.raceTime ? ` · ${r.raceTime}` : ""}
-                          {r.startsAt ? ` · ${new Date(r.startsAt)
-                            .toLocaleString(lang === "en" ? "en-GB" : "tr-TR",
-                              { day: "2-digit", month: "2-digit", hour: "2-digit",
-                                minute: "2-digit" })}` : ""}
-                        </span>
-                      </span>
-                      <button className="gbtn ubtn" onClick={() => openRace(rid)}>
-                        {t("Aç")}</button>
-                      {canEditTeam && (<>
-                        <button className="minibtn" title={t("Düzenle")}
-                          onClick={() => setRForm({ rid, ...r })}>✎</button>
-                        <button className="minibtn" title={t("Sil")}
-                          onClick={() => { if (window.confirm(t("Yarış silinsin mi?")))
-                            deleteRace(curTeam, rid).catch(() => {}); }}>✕</button>
-                      </>)}
-                    </div>
-                  ))}
-                {Object.keys(races).length === 0 && (
-                  <div className="hint">{t("Takvimde yarış yok.")}</div>
-                )}
-                {canEditTeam && (
-                  <button className="gbtn ubtn" style={{ width: "100%", marginTop: 8 }}
-                    onClick={() => setRForm({
-                      rid: null, seasonId: curSeason || null, round: "", name: "",
-                      trackId: st.track || "", carClass: st.carClass || "hypercar",
-                      carId: st.car || "", raceTime: st.raceTime || "6:00:00",
-                      startsAt: Date.now(),
-                    })}>
-                    ➕ {t("Yarış Ekle")}
-                  </button>
-                )}
-
-                {/* üyeler */}
-                <div className="tmsec" style={{ marginTop: 16 }}>{t("Takım Üyeleri")}</div>
-                {canManageTeam && (
-                  <div className="hint" style={{ marginBottom: 6, lineHeight: 1.6 }}>
-                    {t("Rozet yetkiyi belirler:")}<br />
-                    🎧 {t("Yarış Mühendisi")} — {t("yarış datasını değiştirebilir, üyelere dokunamaz")}<br />
-                    <span style={{ verticalAlign: -2 }}><Wheel size={12} /></span> {t("Sürücü")}
-                    {" "}— {t("her şeyi görür, hiçbir şeyi değiştiremez")}<br />
-                    👑 {t("Takım Sahibi")} — {t("rozetleri ve yetkileri yönetir")}
-                  </div>
-                )}
-                {Object.entries(teamData.members || {}).map(([uid, role]) => {
-                  const mbs = teamBadgesOf(teamData, uid, null);
-                  return (
-                    <div key={uid} className="tmmem">
-                      <span className="mbadges">
-                        {mbs.length ? mbs.map((b) => (
-                          <span key={b.lbl} className="ubadge" title={t(b.lbl)}
-                            style={{ color: b.col, background: b.bg, borderColor: b.col }}>
-                            {b.ico}</span>
-                        )) : <span className="ubadge" style={{ opacity: .25 }}>·</span>}
-                      </span>
-                      <span className="mrole" title={t("Yetki")}>{t(roleLabel(role))}</span>
-                      <span className="muid">
-                        {teamData?.names?.[uid]
-                          ? <>{teamData.names[uid]}
-                            {uid === user.uid && <> {t("(sen)")}</>}</>
-                          : <span className="mono">
-                            {uid === user.uid ? t("(sen)") : uid.slice(0, 10) + "…"}</span>}
-                      </span>
-                      {canManageTeam && (
-                        <span style={{ marginLeft: "auto", display: "flex", gap: 5,
-                          alignItems: "center" }}>
-                          {["driver", "engineer"].map((id) => {
-                            const on = hasBadge(teamData, uid, id);
-                            const b = BADGES[id];
-                            return (
-                              <button key={id} className={`btgl ${on ? "on" : ""}`}
-                                title={`${t(b.lbl)} — ${t(id === "engineer"
-                                  ? "datayı değiştirebilir" : "sadece görür")}`}
-                                style={on ? { color: b.col, borderColor: b.col,
-                                  background: b.bg } : undefined}
-                                onClick={() => setBadge(uid, id, !on)}>
-                                {b.ico}
-                              </button>
-                            );
-                          })}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-                <div className="hint" style={{ marginTop: 8 }}>
-                  {t("Katılım kodu")}: <b className="mono">{teamData?.meta?.joinCode || "—"}</b>
-                  {" · "}{t("PIN'leri yalnız düzenleyiciler görür.")}
-                </div>
-                {myRole !== "owner" && (
-                  <div style={{ marginTop: 10 }}>
-                    <button className="histbtn" onClick={() => {
-                      leaveTeam(curTeam, user.uid).catch(() => {}); setCurTeam("");
-                    }}>{t("Takımdan ayrıl")}</button>
-                  </div>
-                )}
-              </>)}
-            </div>
-
-            {/* kur / katıl */}
-            <div className="tmfoot">
-              <input placeholder={t("Yeni takım adı")} value={tForm.name}
-                onChange={(e) => setTForm({ ...tForm, name: e.target.value })}
-                style={{ textTransform: "none" }} />
-              <button className="histbtn" disabled={!tForm.name.trim()}
-                onClick={async () => {
-                  setTErr("");
-                  try {
-                    const tid = await createTeam(user, tForm.name.trim(), userName);
-                    setCurTeam(tid); setTForm({ ...tForm, name: "" });
-                  } catch (e) { setTErr(t("Takım kurulamadı")); }
-                }}>{t("Takım Kur")}</button>
-              <input placeholder={t("KATILIM KODU")} maxLength={6} value={tForm.join}
-                onChange={(e) => setTForm({ ...tForm, join: e.target.value.toUpperCase() })}
-                style={{ width: 130 }} />
-              <button className="histbtn" disabled={tForm.join.trim().length < 4}
-                onClick={async () => {
-                  setTErr("");
-                  try {
-                    const tid = await joinTeam(user, tForm.join, userName);
-                    setCurTeam(tid); setTForm({ ...tForm, join: "" });
-                  } catch (e) {
-                    setTErr(e.message === "NOT_FOUND" ? t("Takım bulunamadı") : t("Katılınamadı"));
-                  }
-                }}>{t("Katıl")}</button>
-            </div>
-            {tErr && <div className="hint" style={{ color: "var(--red)", padding: "0 14px 10px" }}>
-              {tErr}</div>}
-          </div>
-        </div>
-      );
+  /* takım penceresi → TeamModal (sunum); depo fn'leri bileşende, navigasyon/
+     rozet/rol yardımcıları (openRace/setRForm/setBadge/roleLabel) App'ten prop. */
+  const teamModal = (
+    <TeamModal open={teamOpen} onClose={() => setTeamOpen(false)} user={user} t={t} lang={lang}
+      myTeams={myTeams} curTeam={curTeam} setCurTeam={setCurTeam} teamData={teamData}
+      tnEdit={tnEdit} setTnEdit={setTnEdit} canManageTeam={canManageTeam} canEditTeam={canEditTeam}
+      curSeason={curSeason} setCurSeason={setCurSeason} seasons={seasons} races={races} st={st}
+      myRole={myRole} tForm={tForm} setTForm={setTForm} setTErr={setTErr} tErr={tErr}
+      userName={userName} openRace={openRace} setRForm={setRForm} setBadge={setBadge}
+      roleLabel={roleLabel} />
+  );
 
   /* ---------- ortak data kartları (setup + ana arayüz sol kolon) ---------- */
   const dataCards = (<>
