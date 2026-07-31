@@ -504,6 +504,31 @@ export const css = `
 .rc .livebadge.lag i{background:var(--yellow)}
 .rc .livebadge.off{color:var(--muted)}
 .rc .livebadge.off i{background:var(--muted)}
+/* --- canlı timing: kompakt üst şerit + panel düzeni + KPI gruplama --- */
+.rc .livebar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--panel);
+  border:1px solid var(--line);border-radius:10px;padding:9px 14px;margin-bottom:12px}
+.rc .livebar .lbtitle{display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+  font-family:'Rajdhani';font-size:16px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--teal)}
+.rc .livebar .lbstats{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.rc .livestat{display:flex;flex-direction:column;gap:1px;line-height:1.05}
+.rc .livestat b{font-family:'Rajdhani';font-size:17px;font-weight:700;color:var(--txt);
+  font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.rc .livestat span{color:var(--dim);font-size:9.5px;text-transform:uppercase;letter-spacing:.06em}
+.rc .livebar .lbright{margin-left:auto;display:flex;align-items:center;gap:10px}
+.rc .lbbridge{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--dim);
+  cursor:pointer;user-select:none}
+.rc .lbbridge i{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+.rc .panelrow{display:grid;grid-template-columns:minmax(300px,1fr) minmax(300px,1fr);
+  gap:12px;align-items:start;margin-bottom:12px}
+@media(max-width:820px){.rc .panelrow{grid-template-columns:1fr}}
+.rc .kpigroup .gh{color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.08em;
+  font-weight:600;margin:0 0 6px}
+.rc .kpigrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(94px,1fr));gap:8px}
+.rc .kpigrid .kpi{padding:7px 8px}
+.rc .kpigrid .kpi .v{font-size:19px}
+.rc .stratbar{padding:10px 14px}
+.rc .stratbar h2{margin-bottom:8px}
 /* --- büyük pano (pit duvarı / tam ekran) — uzaktan okunur --- */
 .rc .bigboard{background:var(--bg);overflow:auto;padding:16px}
 .rc .bigboard .card{margin-bottom:14px}
@@ -512,6 +537,10 @@ export const css = `
 .rc .bigboard td,.rc .bigboard th{padding:9px 12px}
 .rc .bigboard .disp{font-size:22px}
 .rc .bigboard .hint{display:none}
+.rc .bigboard .livebar .lbtitle{font-size:22px}
+.rc .bigboard .livestat b{font-size:26px}
+.rc .bigboard .livestat span{font-size:12px}
+.rc .bigboard .kpigrid .kpi .v{font-size:26px}
 /* --- masaüstü (Tauri) güncelleme şeridi --- */
 .rc .updatebar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
   padding:8px 20px;background:linear-gradient(90deg,rgba(150,0,24,.35),rgba(150,0,24,.12));

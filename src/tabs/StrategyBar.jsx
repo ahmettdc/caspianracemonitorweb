@@ -57,8 +57,8 @@ export default function StrategyBar({ t, field }) {
   const rejoinBehind = rows.find((c) => c !== me && (c.gapSec || 0) >= newGap);
 
   return (
-    <div className="card" style={{ marginBottom: 12 }}>
-      <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+    <div className="card stratbar" style={{ marginBottom: 12 }}>
+      <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontSize: 13 }}>
         🎯 {t("Strateji")}
         <span className="chip" style={{ fontSize: 11, borderColor: BRAND, color: "#fff",
           background: BRAND }}>{codeOf(me.driver)} · P{me.pos}</span>
