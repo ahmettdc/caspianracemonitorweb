@@ -202,8 +202,9 @@ function OwnCar({ t, own, liveFuelObs }) {
             {own.damage != null ? `${Math.round(own.damage * 100)}%` : "—"}</div>
             <div className="l">{t("Hasar")}</div></div>
           <div className="kpi"><div className="v mono" style={{ fontSize: 15 }}>
-            {sec(own.s1)} <span style={{ color: "var(--dim)" }}>/</span> {sec(own.s2)}</div>
-            <div className="l">S1 / S2</div></div>
+            {sec(own.s1)} <span style={{ color: "var(--dim)" }}>/</span> {sec(own.s2)}
+            <span style={{ color: "var(--dim)" }}>/</span> {sec(own.s3)}</div>
+            <div className="l">S1 / S2 / S3</div></div>
           <div className="kpi"><div className="v mono">{lap(own.avg5Sec)}</div>
             <div className="l">AVG5</div></div>
           <div className="kpi"><div className="v mono">{lap(own.avgSec)}</div>

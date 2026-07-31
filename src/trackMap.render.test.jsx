@@ -54,4 +54,13 @@ describe("TrackMap", () => {
       <TrackMap t={t} field={mkField(8)} trackLength={LEN}
         tid="team1" trackKey="Spa" canSave />)).not.toThrow();
   });
+
+  it("noktalar CSS transform + transition ile konumlanır (akıcı hareket)", () => {
+    // Regresyon (v1.4.56): daireler cx/cy ile konumlanıp her karede zıplıyordu;
+    // artık <g style=transform/transition> sarmalar → tarayıcı kareler arasını animate eder.
+    const html = renderToStaticMarkup(
+      <TrackMap t={t} field={mkField(6)} trackLength={LEN} />);
+    expect(html).toContain("transition:transform .5s linear");
+    expect(html).toMatch(/transform:translate\([-\d.]+px, ?[-\d.]+px\)/);
+  });
 });
