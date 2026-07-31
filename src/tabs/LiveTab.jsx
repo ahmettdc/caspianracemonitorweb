@@ -3,7 +3,7 @@ import { fmtLap, fmtHMS } from "../engine";
 import { Ring } from "../components";
 import { DESKTOP_RELEASE_URL, ASSET, classId, classAccent, brandKey, manufacturerKey } from "../constants";
 import { isTauri } from "../tauriEnv";
-import { liveLapsSubscribe, liveSecSubscribe } from "../storage";
+import { liveLapsSubscribe, liveSecSubscribe, liveLockSubscribe, LIVE_LEASE_MS } from "../storage";
 import { demoLive } from "../liveDemo";
 import TrackMap from "./TrackMap";
 import PosChart from "./PosChart";
@@ -299,6 +299,14 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
         ...(demo && { borderColor: "var(--yellow)", color: "var(--yellow)" }) }}>
       🎬 {demo ? t("Demo kapat") : t("Demo")}</button>
   );
+  // aktif yayıncı (yazma kilidini tutan PC) — kim canlı veri gönderiyor?
+  const [writer, setWriter] = useState(null);
+  useEffect(() => {
+    if (!tid || !rid) { setWriter(null); return undefined; }
+    return liveLockSubscribe(tid, rid, setWriter);
+  }, [tid, rid]);
+  const activeWriter = writer && writer.by && (Date.now() - (writer.ts || 0) < LIVE_LEASE_MS)
+    ? writer.by : null;
   const rootRef = useRef(null);
   const playerRowRef = useRef(null);
   const posRef = useRef({});   // sürücü → son pozisyon
@@ -406,6 +414,11 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
             {t(s.sessionType)}</span>}
           <span className={`livebadge ${conn.cls}`}>
             <i /> {t(conn.lbl)} · {ageSec}s</span>
+          {activeWriter && (
+            <span className="chip" title={t("Canlı veriyi gönderen (aktif yayıncı)")}
+              style={{ fontSize: 10, borderColor: "var(--green)", color: "var(--green)" }}>
+              🛰 {activeWriter}</span>
+          )}
           <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
             {demoBtn}
             {document.fullscreenEnabled && (

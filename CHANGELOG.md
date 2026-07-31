@@ -1,5 +1,18 @@
 # Changelog
 
+## Yayınlanmamış
+
+### Canlı köprü — eşzamanlı yazar çakışması + sorunsuz sürücü devri
+- **Sürüş algılama**: köprü artık `mControl` (yerel kontrol) + konuma bakarak "bu PC
+  sürüyor mu, izliyor mu?" ayrımı yapar. Yalnız süren PC canlı düğüme yazar; izleyici
+  (garaj/spectator) hiç yazmaz — bir sürücü sürerken başka üye izlemek için oyuna
+  girince oluşan `own`/`by` titremesi giderildi.
+- **Yazma kilidi (lease)**: `teams/{tid}/livelock/{rid}` üzerinden aynı yarışa aynı anda
+  tek yazar garanti edilir (Firebase transaction; standalone .exe'de ETag CAS). Kilit
+  ~12 sn bayatlar → A oyunu kapatınca B sürerken devri **otomatik ve kesintisiz** alır.
+- Live sekmesinde **aktif yayıncı göstergesi** (🛰) — canlı veriyi kimin gönderdiği görünür.
+- Firebase kuralları: `livelock` düğümü için lease doğrulaması (taze kilit çalınamaz).
+
 ## v1.0.0 — 2026-07-23
 
 İlk kararlı sürüm. Le Mans Ultimate endurance yarışları için pit wall / strateji aracı.

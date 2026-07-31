@@ -114,7 +114,9 @@ def build_payload(src, by):
     data = src.read()
     return {"ts": int(time.time() * 1000), "by": by,
             "session": data.get("session") or {},
-            "own": data.get("own"), "field": data.get("field") or []}
+            "own": data.get("own"), "field": data.get("field") or [],
+            # bu PC sürüyor mu (izleyici değil)? lease/yazma kapısı için.
+            "driving": bool(data.get("driving", True))}
 
 
 def cmd_dump(mock):
@@ -223,12 +225,24 @@ def run_loop(cp, mock, once):
         t0 = time.time()
         try:
             payload = build_payload(src, by)
-            fb.put_live(tid, rid, payload)
+            # İzleyici/garaj → yazma (çakışmayı önle). Kilidi bırak ki süren devralsın.
+            if not payload.get("driving"):
+                fb.release_lock(tid, rid)
+                sys.stdout.write(f"\r[izleyici] {time.strftime('%H:%M:%S')} · "
+                                 f"bu PC sürmüyor, yazılmıyor           ")
+                sys.stdout.flush()
+            # Süren PC: yazma kilidini al; başka taze kilit varsa bu turda yazma.
+            elif fb.claim_lock(tid, rid):
+                fb.put_live(tid, rid, payload)
+                fuel = (payload["own"] or {}).get("fuel")
+                sys.stdout.write(f"\r[gönderildi] {time.strftime('%H:%M:%S')} · "
+                                 f"{len(payload['field'])} araç · yakıt {fuel if fuel is not None else '—'}   ")
+                sys.stdout.flush()
+            else:
+                sys.stdout.write(f"\r[bekleniyor] {time.strftime('%H:%M:%S')} · "
+                                 f"başka PC yayında                     ")
+                sys.stdout.flush()
             fails = 0
-            fuel = (payload["own"] or {}).get("fuel")
-            sys.stdout.write(f"\r[gönderildi] {time.strftime('%H:%M:%S')} · "
-                             f"{len(payload['field'])} araç · yakıt {fuel if fuel is not None else '—'}   ")
-            sys.stdout.flush()
             if once:
                 print("\n[once] bir gönderim yapıldı, çıkılıyor.")
                 break
@@ -243,6 +257,7 @@ def run_loop(cp, mock, once):
         dt = time.time() - t0
         if dt < period:
             time.sleep(period - dt)
+    fb.release_lock(tid, rid)
     print("\n[kapandı]")
     if hasattr(src, "close"):
         src.close()

@@ -186,6 +186,7 @@ class MockSource:
                           for c in ("fl", "fr", "rl", "rr")},
             },
             "field": rows,
+            "driving": True,   # mock hep "sürüyor" — boru hattı testi için yazsın
         }
 
 
@@ -433,7 +434,15 @@ class RF2Source:
                 if own.get("virtualEnergy") is None and own_ve is not None:
                     own["virtualEnergy"] = own_ve
 
-        return {"session": session, "own": own, "field": field}
+        # Bu PC gerçekten SÜRÜYOR mu, yoksa izliyor/garajda mı? Eşzamanlı yazar
+        # çakışmasını önlemenin birincil ayracı: yalnız süren PC canlı düğüme yazar.
+        # mControl: 0 = yerel oyuncu sürüyor (rF2data.h). İzleyici/monitor/replay/uzak
+        # → control != 0. Ek olarak pistte ya da pit'te olmalı (garaj = sürmüyor).
+        control = int(getattr(player_scor, "mControl", -1)) if player_scor is not None else -1
+        loc = own.get("location") if own else None
+        driving = own is not None and control == 0 and loc in ("TRACK", "PIT")
+
+        return {"session": session, "own": own, "field": field, "driving": driving}
 
 
 # ----------------------------------------------------------------------------

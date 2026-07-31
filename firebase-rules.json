@@ -79,6 +79,13 @@
             ".validate": "newData.hasChild('ts') && newData.child('ts').isNumber()"
           }
         },
+        "livelock": {
+          ".read": "auth != null && (root.child('bridgeBots').child(auth.uid).val() == true || (root.child('users').child(auth.uid).child('allowed').val() == true && root.child('teams').child($tid).child('members').child(auth.uid).exists()))",
+          "$rid": {
+            ".write": "auth != null && (root.child('bridgeBots').child(auth.uid).val() == true || (root.child('users').child(auth.uid).child('allowed').val() == true && (root.child('teams').child($tid).child('members').child(auth.uid).val() == 'owner' || root.child('teams').child($tid).child('members').child(auth.uid).val() == 'editor'))) && ((newData.val() == null && data.child('uid').val() == auth.uid) || (newData.child('uid').val() == auth.uid && (!data.exists() || data.child('uid').val() == auth.uid || (now - data.child('ts').val()) > 12000)))",
+            ".validate": "newData.hasChildren(['uid', 'ts']) && newData.child('uid').isString() && newData.child('ts').isNumber() && newData.child('ts').val() <= (now + 5000)"
+          }
+        },
         "livelaps": {
           ".read": "auth != null && (root.child('bridgeBots').child(auth.uid).val() == true || (root.child('users').child(auth.uid).child('allowed').val() == true && root.child('teams').child($tid).child('members').child(auth.uid).exists()))",
           "$rid": {

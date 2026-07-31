@@ -6,7 +6,7 @@
    ============================================================ */
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, get, set, update, remove, onValue,
-  push, query, limitToLast } from "firebase/database";
+  push, query, limitToLast, runTransaction } from "firebase/database";
 import { firebaseConfig } from "./firebase-config";
 
 export const firebaseReady =
@@ -378,6 +378,41 @@ export function liveTimingSubscribe(tid, rid, cb) {
 export async function liveTimingSet(tid, rid, payload) {
   if (!db || !tid || !rid) return;
   await set(ref(db, `teams/${tid}/live/${rid}`), payload);
+}
+
+/* ---- canlı yazma kilidi (lease) — teams/{tid}/livelock/{rid} = {uid, by, ts} ----
+   Aynı yarışa aynı anda birden çok köprü yazarsa (ör. bir sürücü sürerken başka üye
+   izlemek için oyuna girince) kareler birbirini ezer. Yazmadan önce bu kilit alınır;
+   yalnız kilit sahibi yazar. Kilit ~LIVE_LEASE_MS bayatlayınca serbest kalır → süren
+   PC oyunu kapatınca devir otomatik geçer. Firebase transaction ile atomik. */
+export const LIVE_LEASE_MS = 12000;
+
+/* Kilidi al/yenile. Tuttuysak true; başka taze kilit varsa false döner. */
+export async function liveLockClaim(tid, rid, uid, by) {
+  if (!db || !tid || !rid || !uid) return false;
+  const now = Date.now();
+  const res = await runTransaction(ref(db, `teams/${tid}/livelock/${rid}`), (cur) => {
+    if (cur && cur.uid && cur.uid !== uid && (now - (cur.ts || 0)) <= LIVE_LEASE_MS) {
+      return undefined;   // başka PC taze tutuyor → iptal (dokunma)
+    }
+    return { uid, by: by || "", ts: now };   // boş/bayat/bizim → al/yenile
+  });
+  return !!(res.committed && res.snapshot.val()?.uid === uid);
+}
+
+/* Kilidi bırak (yalnız biz tutuyorsak). Devri hızlandırır. */
+export async function liveLockRelease(tid, rid, uid) {
+  if (!db || !tid || !rid || !uid) return;
+  await runTransaction(ref(db, `teams/${tid}/livelock/${rid}`),
+    (cur) => (cur && cur.uid === uid ? null : cur));
+}
+
+/* Aktif yayıncıyı dinle (LiveTab göstergesi). cb({uid, by, ts}) veya cb(null). */
+export function liveLockSubscribe(tid, rid, cb) {
+  if (!db || !tid || !rid) { cb(null); return () => {}; }
+  return onValue(ref(db, `teams/${tid}/livelock/${rid}`),
+    (s) => cb(s.exists() ? s.val() : null),
+    (err) => { console.warn("livelock read failed:", err?.message); cb(null); });
 }
 
 /* ---- kalıcı tur geçmişi (livelaps) ----

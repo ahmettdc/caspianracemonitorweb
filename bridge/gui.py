@@ -228,11 +228,19 @@ class BridgeGUI:
             t0 = time.time()
             try:
                 payload = build_payload(src, self.vars["email"].get().strip())
-                fb.put_live(tid, rid, payload)
+                # İzleyici/garaj → yazma; kilidi bırak ki süren PC devralsın.
+                if not payload.get("driving"):
+                    fb.release_lock(tid, rid)
+                    self.set_status("○ İzleyici — bu PC sürmüyor", DIM)
+                # Süren PC: yazma kilidini al; başka taze kilit varsa bu turda yazma.
+                elif fb.claim_lock(tid, rid):
+                    fb.put_live(tid, rid, payload)
+                    fuel = (payload["own"] or {}).get("fuel")
+                    self.set_status(f"● {len(payload['field'])} araç · yakıt "
+                                    f"{fuel if fuel is not None else '—'}", GOOD)
+                else:
+                    self.set_status("○ Başka PC yayında (bekleniyor)", WARN)
                 fails = 0
-                fuel = (payload["own"] or {}).get("fuel")
-                self.set_status(f"● {len(payload['field'])} araç · yakıt "
-                                f"{fuel if fuel is not None else '—'}", GOOD)
             except Exception as e:  # noqa: BLE001
                 fails += 1
                 self.log(f"[hata {fails}] {e}")
@@ -241,6 +249,7 @@ class BridgeGUI:
             if dt < period:
                 time.sleep(period - dt)
         try:
+            fb.release_lock(tid, rid)
             if hasattr(src, "close"):
                 src.close()
         except Exception:  # noqa: BLE001

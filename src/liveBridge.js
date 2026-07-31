@@ -15,16 +15,20 @@
    edilir (web derlemesi bu modülü yüklese de sidecar'ı hiç çalıştırmaz).
    ============================================================ */
 import { liveTimingSet, liveLapsAppend, liveLapsClear,
-  livePosAppend, livePosClear, liveSecAppend, liveSecClear } from "./storage";
+  livePosAppend, livePosClear, liveSecAppend, liveSecClear,
+  liveLockClaim, liveLockRelease } from "./storage";
+import { leaseDecision } from "./leaseDecision";
+
+export { leaseDecision };
 
 let child = null;          // çalışan sidecar süreci (Child)
 let stopping = false;
 let starting = false;      // spawn sürerken tekrar başlatmayı engelle (oto-yeniden dene)
 
-/* Köprüyü başlat. opts: { tid, rid, hz, mock, by }. onStatus(state) çağrılır:
+/* Köprüyü başlat. opts: { tid, rid, hz, mock, by, uid }. onStatus(state) çağrılır:
    { running, phase: "starting|running|error|stopped", msg, lastTs, cars } */
 export async function startBridge(opts, onStatus) {
-  const { tid, rid, hz = 2, mock = false, by = "" } = opts || {};
+  const { tid, rid, hz = 2, mock = false, by = "", uid = "" } = opts || {};
   const say = (s) => { try { if (onStatus) onStatus(s); } catch { /* yoksay */ } };
 
   if (!tid || !rid) { say({ running: false, phase: "error", msg: "Takım/yarış seçili değil" }); return; }
@@ -54,6 +58,8 @@ export async function startBridge(opts, onStatus) {
   let pending = null;      // en son çözülen kare (throttle penceresinde)
   let writeTimer = null;
   let cars = 0;
+  let leaseHeld = false;   // yazma kilidini tutuyor muyuz (son claim sonucu)
+  let leaseAt = 0;         // son claim/yenileme zamanı (throttle: lease < renew < expire)
   const lastLap = {};      // lapKey → yazılmış en yüksek tur no (append idempotent)
   const lastPit = {};      // lapKey → son görülen pit durak sayısı (pit turu işareti)
 
@@ -118,12 +124,31 @@ export async function startBridge(opts, onStatus) {
     if (!pending || stopping) return;
     const frame = pending; pending = null;
     // oyun kapalı / seans yok (0 araç) → Firebase'e boşuna yazma (kota + eski veri)
-    if (!Array.isArray(frame.field) || frame.field.length === 0) {
+    if (leaseDecision(frame, true) === "skip-empty") {
       say({ running: true, phase: "running", msg: "Oyun/seans bekleniyor…" });
       return;
     }
-    lastWrite = Date.now();
+    // izleyici/garaj (bu PC sürmüyor) → yazma; kilidi bırak ki süren PC devralsın
+    if (frame.driving === false) {
+      leaseHeld = false; leaseAt = 0;
+      try { if (uid) await liveLockRelease(tid, rid, uid); } catch { /* yoksay */ }
+      say({ running: true, phase: "running", msg: "İzleyici modu — bu PC sürmüyor, yazılmıyor" });
+      return;
+    }
     try {
+      // yazma kilidini al/yenile (renew < lease olacak şekilde ~4 sn'de bir).
+      // Aynı yarışa iki köprü yazamaz → titreme olmaz; kilit sahibi devri sürdürür.
+      const now = Date.now();
+      if (uid && now - leaseAt > 4000) {
+        leaseHeld = await liveLockClaim(tid, rid, uid, by);
+        leaseAt = now;
+      }
+      const decision = leaseDecision(frame, uid ? leaseHeld : true);
+      if (decision === "skip-other") {
+        say({ running: true, phase: "running", msg: "Başka PC yayında — bekleniyor" });
+        return;
+      }
+      lastWrite = Date.now();
       await harvestLaps(frame);   // laps'i livelaps'e taşı + kareden çıkar
       await liveTimingSet(tid, rid, { ts: Date.now(), by, ...frame });
       say({ running: true, phase: "running", msg: "Gönderiliyor", lastTs: lastWrite, cars });
@@ -166,6 +191,9 @@ export async function startBridge(opts, onStatus) {
   cmd.on("close", (data) => {
     if (writeTimer) { clearTimeout(writeTimer); writeTimer = null; }
     child = null;
+    // kilidi bırak → süren bir başka PC devri beklemeden devralsın
+    if (uid && leaseHeld) { liveLockRelease(tid, rid, uid).catch(() => {}); }
+    leaseHeld = false; leaseAt = 0;
     say({ running: false, phase: "stopped",
       msg: stopping ? "Durduruldu" : `Köprü kapandı (kod ${data?.code ?? "?"})` });
   });

@@ -999,7 +999,7 @@ ${bottomBar}
     const by = user?.email || "masaüstü";
     const tick = () => {
       if (stopped) return;
-      if (!bridgeRunning()) startBridge({ tid: curTeam, rid: curRace, hz: 2, by }, setBridge);
+      if (!bridgeRunning()) startBridge({ tid: curTeam, rid: curRace, hz: 2, by, uid: user.uid }, setBridge);
       timer = setTimeout(tick, 4000);
     };
     tick();
