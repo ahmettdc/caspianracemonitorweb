@@ -2,7 +2,10 @@ import { useState, useMemo, useEffect, useRef, lazy, Suspense } from "react";
 import UpdateBanner from "./UpdateBanner";
 import { isTauri } from "./tauriEnv";
 import { useLiveBridge } from "./useLiveBridge";
-import { firebaseReady, touchUserProfile, watchUserDoc,
+import { useLive } from "./useLive";
+import { useMiniPlayer } from "./useMiniPlayer";
+import { useAuth } from "./useAuth";
+import { firebaseReady,
   requestAccess, watchAllUsers, setUserAllowed, updateProfile,
   createTeam, joinTeam, watchMyTeams, watchTeam,
   setTeamRole, toggleTeamBadge, leaveTeam, setTeamMemberName,
@@ -10,8 +13,8 @@ import { firebaseReady, touchUserProfile, watchUserDoc,
   addSetup, watchSetups, deleteSetup,
   createSeason, deleteSeason, watchSeasons,
   createRace, updateRace, deleteRace, watchRaces,
-  raceStateGet, raceStateSet, raceStateSubscribe, liveTimingSubscribe } from "./storage";
-import { signInGoogle, signOut, watchAuth, authReady } from "./auth";
+  raceStateGet, raceStateSet, raceStateSubscribe } from "./storage";
+import { signInGoogle, signOut, authReady } from "./auth";
 import { CHANGELOG } from "./changelog";
 import {
   parseHMS, fmtHMS, fmtLap, msToLocalInput,
@@ -155,9 +158,8 @@ export default function App() {
   const [setupDone, setSetupDone] = useState(false); // data giriş adımı tamamlandı mı
   const [userName, setUserName] = useState("");
   const [curRace, setCurRace] = useState("");    // aktif yarış id (takım içinde)
-  const [live, setLive] = useState(null);        // canlı timing (LMU köprüsü) — teams/{tid}/live/{rid}
-  const [liveFuelObs, setLiveFuelObs] = useState(null); // canlıdan öğrenilen yakıt (litre/tur, ratio, cons)
-  const fuelObsRef = useRef({ prevLap: null, prevFuel: null, buf: [] });
+  /* canlı timing + yakıt öğrenici → useLive hook'u (aşağıda, curTeamRef kurulduktan
+     sonra çağrılır). live/liveFuelObs oradan gelir. */
   const [role, setRole] = useState("editor");    // "editor" | "viewer" (takım rolünden)
   const [syncMsg, setSyncMsg] = useState("");
   const [lastSync, setLastSync] = useState(null); // {by, at}
@@ -205,45 +207,6 @@ export default function App() {
     });
     return () => off();
   }, [curRace]);
-
-  // canlı timing düğümünü dinle (LMU köprüsü yazar; salt-okunur)
-  useEffect(() => {
-    if (!curRace) { setLive(null); return undefined; }
-    fuelObsRef.current = { prevLap: null, prevFuel: null, buf: [] }; // yarış değişti → öğreniciyi sıfırla
-    setLiveFuelObs(null);
-    const off = liveTimingSubscribe(curTeamRef.current, curRace, setLive);
-    return () => off();
-  }, [curRace]);
-
-  // canlı yakıt öğrenici: kendi araç yakıtından litre/tur + depo → model önerisi (opt-in)
-  useEffect(() => {
-    const own = live?.own;
-    if (!own || typeof own.fuel !== "number") return;
-    const r = fuelObsRef.current;
-    const lap = typeof own.lapsDone === "number" ? own.lapsDone : null;
-    if (r.prevLap != null && lap != null && lap > r.prevLap && r.prevFuel != null) {
-      const perLap = (r.prevFuel - own.fuel) / (lap - r.prevLap);
-      if (perLap > 0.2 && perLap < 30) {           // pit/refuel artışı ve anomaliyi ele
-        r.buf.push(perLap);
-        if (r.buf.length > 6) r.buf.shift();
-      }
-    }
-    if (lap != null) r.prevLap = lap;
-    r.prevFuel = own.fuel;
-
-    const cap = own.fuelCapacity > 0 ? own.fuelCapacity : null;
-    const buf = r.buf;
-    if (!buf.length && !cap) { setLiveFuelObs(null); return; }
-    const sorted = [...buf].sort((a, b) => a - b);
-    const median = sorted.length ? sorted[Math.floor((sorted.length - 1) / 2)] : null;
-    const obsRatio = cap ? +(cap / 100).toFixed(3) : null;
-    const ratioForCons = obsRatio || stRef.current.fuelRatio || 0.86;
-    const obsCons = median != null ? +(median / ratioForCons).toFixed(2) : null;
-    setLiveFuelObs({
-      litersPerLap: median != null ? +median.toFixed(2) : null,
-      samples: buf.length, fuelCap: cap, obsRatio, obsCons,
-    });
-  }, [live]);
 
   /* ---------- YARIŞ AÇ / KAPAT (oda kodu ve PIN yok) ---------- */
   const openRace = async (rid) => {
@@ -781,20 +744,15 @@ ${bottomBar}
   const [autoCd, setAutoCd] = useState(true); // plandan otomatik countdown
   const [barOpen, setBarOpen] = useState(true); // oda katılım çubuğu aç/kapa
   const [sideOpen, setSideOpen] = useState(true); // sol data sidebar aç/kapa
-  /* ---- kimlik doğrulama (Google) ---- */
-  const [user, setUser] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
+  /* ---- kimlik doğrulama (Google) → useAuth hook'u ---- */
+  const { user, authLoading, udoc } = useAuth();
   const [authErr, setAuthErr] = useState("");
-  const [udoc, setUdoc] = useState(null);   // null=yükleniyor, {}=kayıt yok
   const [authMode, setAuthMode] = useState("in"); // "in" giriş | "up" kayıt
   const [regNote, setRegNote] = useState("");
   const [regName, setRegName] = useState("");
-  useEffect(() => watchAuth((u) => { setUser(u); setAuthLoading(false); }), []);
+  // kayıt adı ön-doldurma (useAuth'tan gelen user'a göre) — hook'tan ayrı tutuldu
   useEffect(() => {
-    if (!user) { setUdoc(null); return; }
-    setRegName((v) => v || user.displayName || "");
-    touchUserProfile(user).catch(() => {});
-    return watchUserDoc(user.uid, (d) => setUdoc(d));
+    if (user) setRegName((v) => v || user.displayName || "");
   }, [user]);
   /* oda üyelik adı: kayıtta verilen ad soyad (yoksa Google adı) */
   useEffect(() => {
@@ -826,6 +784,8 @@ ${bottomBar}
   }, [user, access]);
   const curTeamRef = useRef("");
   curTeamRef.current = curTeam;
+  /* canlı timing aboneliği + yakıt öğrenici (App.jsx'ten çıkarıldı) */
+  const { live, liveFuelObs } = useLive({ curRace, curTeamRef, stRef });
   useEffect(() => {
     if (!curTeam) { setTeamData(null); setSeasons({}); setRaces({}); return; }
     const o1 = watchTeam(curTeam, setTeamData);
@@ -917,11 +877,11 @@ ${bottomBar}
     && (!suFCond || x.cond === suFCond)
     && (!suFSess || x.sess === suFSess));
 
-  /* ---- yüzen mini oynatıcı ---- */
-  const [streamCorner, setStreamCorner] = useState(() => {
-    try { return localStorage.getItem("rm_stream_corner") || "br"; } catch { return "br"; }
-  });                                                 // br | bl | tr | tl
-  const [streamMin, setStreamMin] = useState(false);  // tek satıra küçült
+  /* ---- yüzen mini oynatıcı → useMiniPlayer hook'u (konum/boyut/sürükle) ---- */
+  const { streamCorner, streamMin, setStreamMin, streamW, streamDrag,
+    startResize, moveStream } = useMiniPlayer();
+
+  /* ---- sohbet bildirim sesi (mini oynatıcıdan bağımsız) ---- */
   const [chatSound, setChatSound] = useState(() => {
     try { return localStorage.getItem("rm_chat_sound") !== "0"; } catch { return true; }
   });
@@ -930,43 +890,6 @@ ${bottomBar}
     return !v;
   });
   const prevUnreadRef = useRef(null);
-
-  const [streamW, setStreamW] = useState(() => {
-    try { return Math.min(1080, Math.max(240,
-      +(localStorage.getItem("rm_stream_w") || 320))); } catch { return 320; }
-  });
-  const [streamDrag, setStreamDrag] = useState(false);
-  const dragRef = useRef(null);   // { startX, startW, dir }
-
-  /* tutamaçtan sürükleyerek boyutlandır — yükseklik 16:9'dan kendiliğinden gelir */
-  const startResize = (e) => {
-    e.preventDefault();
-    const dir = streamCorner === "br" || streamCorner === "tr" ? -1 : 1;
-    dragRef.current = { startX: e.clientX, startW: streamW, dir };
-    setStreamDrag(true);
-    const move = (ev) => {
-      const d = dragRef.current; if (!d) return;
-      const w = d.startW + (ev.clientX - d.startX) * d.dir;
-      setStreamW(Math.min(Math.min(1080, window.innerWidth - 32), Math.max(240, w)));
-    };
-    const upFn = () => {
-      dragRef.current = null;
-      setStreamDrag(false);
-      setStreamW((w) => {
-        try { localStorage.setItem("rm_stream_w", String(Math.round(w))); }
-        catch { /* yoksay */ }
-        return w;
-      });
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", upFn);
-    };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", upFn);
-  };
-  const moveStream = (c) => {
-    setStreamCorner(c);
-    try { localStorage.setItem("rm_stream_corner", c); } catch { /* yoksay */ }
-  };
 
   const [lobSeason, setLobSeason] = useState("all"); // lobide şampiyona süzgeci
   const [tnEdit, setTnEdit] = useState(null);        // takım adı düzenleme metni

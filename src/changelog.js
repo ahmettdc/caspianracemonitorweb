@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.38",
+    date: "2026-07-31",
+    tr: [
+      "🧹 İç yeniden düzenleme (davranış aynı): App.jsx büyük dosyası kademeli olarak parçalara ayrılıyor — bu turda canlı timing aboneliği + yakıt öğrenici (useLive), yüzen mini oynatıcı (useMiniPlayer) ve kimlik doğrulama (useAuth) kendi hook dosyalarına çıkarıldı. Kullanıcı arayüzü değişmedi",
+    ],
+    en: [
+      "🧹 Internal refactor (same behavior): the large App.jsx is being split up incrementally — this round the live-timing subscription + fuel learner (useLive), the floating mini player (useMiniPlayer) and authentication (useAuth) moved into their own hook files. No UI change",
+    ],
+  },
+  {
     v: "v1.4.37",
     date: "2026-07-31",
     tr: [
