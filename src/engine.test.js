@@ -46,6 +46,16 @@ describe("zaman/tur ayrıştırma", () => {
     expect(fmtLap(239.5)).toBe("3:59.50");
     expect(fmtLap(65)).toBe("1:05.00");
     expect(fmtLap(5)).toBe("0:05.00");
+    expect(fmtLap(0)).toBe("0:00.00");
+  });
+  it("fmtLap: saniye 60'a yuvarlanınca dakikaya taşar (1:60.00 hatası yok)", () => {
+    expect(fmtLap(119.996)).toBe("2:00.00");
+    expect(fmtLap(59.999)).toBe("1:00.00");
+    expect(fmtLap(3599.999)).toBe("60:00.00");
+  });
+  it("fmtLap: negatif değer (delta) doğru gösterilir", () => {
+    expect(fmtLap(-5.2)).toBe("-0:05.20");
+    expect(fmtLap(-65)).toBe("-1:05.00");
   });
   it("msToLocalInput: geçersizde boş", () => {
     expect(msToLocalInput(0)).toBe("");
