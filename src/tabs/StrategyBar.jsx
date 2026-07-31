@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { fmtDur } from "../engine";
 
 /* Strateji rozetleri — kendi araç için gap'lerden hesaplanan pit-wall ipuçları:
    önündeki/arkandaki araç, temiz hava, trafik riski ve pit çıkışı tahmini.
@@ -12,8 +13,9 @@ const codeOf = (name) => {
   const p = String(name || "").trim().split(/\s+/);
   return (p[p.length - 1] || "—").slice(0, 3).toUpperCase();
 };
-const fmt = (v) => (v == null ? "—" : (v < 60 ? v.toFixed(1)
-  : `${Math.floor(v / 60)}:${(v % 60).toFixed(1).padStart(4, "0")}`));
+/* süre biçimi → engine.fmtDur (taşma düzeltmesi + birim testli; yerel kopya
+   "1:60.0" gibi değerler üretiyordu) */
+const fmt = fmtDur;
 
 function Chip({ label, value, color, title }) {
   return (

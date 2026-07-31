@@ -5,6 +5,24 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.51",
+    date: "2026-07-31",
+    tr: [
+      "⛽ 'Canlıdan Öğren' artık gerçekten çalışıyor: canlı yakıt öğrenici tüketimi yanlışlıkla tur yerine yarım saniyelik aralıklarla ölçtüğü için hiçbir zaman örnek toplayamıyordu — litre/tur ve VE %/tur boş kalıyor, Kendi Araç'taki '~N tur kaldı' tahmini hiç görünmüyordu. Artık tur tur öğreniyor",
+      "🐛 Strateji rozetlerinde '1:60.0' gibi hatalı süreler düzeltildi (süre biçimleyici tek merkeze alındı)",
+      "🗺 Pist haritası düzeltildi: seans başında garajda/pit yolunda duran araçların konumu devre şekline kalıcı olarak işleniyordu (harita çarpık çıkıyordu). Artık şekil yalnız pistteki araçlardan oluşuyor",
+      "🔌 Bağlantı rozeti artık sunucu saatine göre: yayınlayan ve izleyen bilgisayarların saatleri farklıysa veri akarken bile 'bağlantı koptu' yazabiliyordu",
+      "🐛 Aralık sütunu 2. sıradaki araçta boş kalıyordu — düzeltildi",
+    ],
+    en: [
+      "⛽ 'Learn from live' actually works now: the live fuel learner measured consumption over half-second frames instead of over a lap, so it never collected a single sample — litres/lap and VE %/lap stayed empty and the '~N laps left' estimate on Own Car never appeared. It now learns lap by lap",
+      "🐛 Fixed malformed durations like '1:60.0' on the strategy chips (duration formatting is now in one place)",
+      "🗺 Fixed the track map: cars sitting in the garage/pit lane at session start were permanently baked into the circuit outline (making the map skewed). The shape is now built only from cars out on track",
+      "🔌 The connection badge now uses server time: if the broadcasting and viewing PCs had different clocks it could show 'disconnected' while data was flowing fine",
+      "🐛 The Interval column stayed empty for the car in 2nd place — fixed",
+    ],
+  },
+  {
     v: "v1.4.50",
     date: "2026-07-31",
     tr: [

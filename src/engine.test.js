@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  parseHMS, parseLap, fmtHMS, fmtLap, fmtGap, msToLocalInput,
+  parseHMS, parseLap, fmtHMS, fmtLap, fmtGap, fmtDur, msToLocalInput,
   DEFAULT_STATE, WEATHER, wxLog, wxAtRel, WX, effLapSec, effCons, tyState,
   computePlan, migrate, lastStintFuel,
 } from "./engine.js";
@@ -67,6 +67,20 @@ describe("zaman/tur ayrıştırma", () => {
     expect(fmtGap(59.96)).toBe("+1:00.0");
     expect(fmtGap(119.96)).toBe("+2:00.0");
     expect(fmtGap(3599.97)).toBe("+60:00.0");
+  });
+  it("fmtDur: işaretsiz süre — taşma yok (strateji rozetleri bunu kullanır)", () => {
+    expect(fmtDur(12.34)).toBe("12.3");
+    expect(fmtDur(59.96)).toBe("1:00.0");     // eski yerel kopya "60.0" veriyordu
+    expect(fmtDur(119.96)).toBe("2:00.0");    // eski: "1:60.0"
+    expect(fmtDur(3599.97)).toBe("60:00.0");  // eski: "59:60.0"
+    expect(fmtDur(125.5)).toBe("2:05.5");
+    expect(fmtDur(0)).toBe("—");
+    expect(fmtDur(null)).toBe("—");
+  });
+  it("fmtGap = '+' + fmtDur (tek kaynak)", () => {
+    for (const v of [12.34, 59.96, 119.96, 3599.97]) {
+      expect(fmtGap(v)).toBe(`+${fmtDur(v)}`);
+    }
   });
   it("fmtGap: geçersiz/sıfır/negatif → tire", () => {
     expect(fmtGap(0)).toBe("—");
