@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.36",
+    date: "2026-07-31",
+    tr: [
+      "🛰 Canlı Timing artık aynı yarışta birden çok masaüstü köprüsünü (ör. ayrı PC'lerdeki co-sürücüler) tek kaynağa indiriyor: arabayı o an gerçekten süren PC canlıyı yazar, izleyen/bekleyen PC'ler 'Beklemede' durumuna geçer — veri artık iki köprü arasında çakışmaz",
+      "🔄 Sürücü devri kesintisiz: A arabayı B'ye devredip oyunu kapattığında canlı kaynağı otomatik B'ye geçer (aktif sürücü öncelikli; kaynak birkaç saniyede el değiştirir). Canlı Köprü kartında 'Canlı kaynak' / 'Beklemede' göstergesi eklendi",
+    ],
+    en: [
+      "🛰 Live Timing now funnels multiple desktop bridges in the same race (e.g. co-drivers on separate PCs) to a single source: the PC actually driving the car writes live, while watching/waiting PCs go to 'Standby' — data no longer clashes between two bridges",
+      "🔄 Seamless driver handover: when A hands the car to B and closes the game, the live source automatically moves to B (active driver takes priority; the source changes hands within a few seconds). Added a 'Live source' / 'Standby' indicator on the Live Bridge card",
+    ],
+  },
+  {
     v: "v1.4.35",
     date: "2026-07-31",
     tr: [

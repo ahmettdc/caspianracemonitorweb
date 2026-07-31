@@ -251,7 +251,8 @@ function BridgeControl({ t, bridge, canEdit }) {
   const phase = bridge?.phase || "idle";
   const dot = phase === "running" ? "var(--green)"
     : phase === "error" ? "var(--red)"
-      : phase === "starting" ? "var(--yellow)" : "var(--muted)";
+      : phase === "starting" || phase === "standby" ? "var(--yellow)" : "var(--muted)";
+  const writerBy = bridge?.writerBy || "";
   return (
     <div className="card" style={{ marginBottom: 12 }}>
       <h2 style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -265,7 +266,17 @@ function BridgeControl({ t, bridge, canEdit }) {
           ? t("Bu bilgisayarda oyun (LMU) açıkken köprü kendiliğinden bağlanır ve canlı timing'i takımla paylaşır. Elle başlatmaya gerek yok; oyun kapalıyken bekler, açılınca otomatik başlar.")
           : t("Köprü otomatik çalışır; veri yazmak için takımda owner/editor olman gerekir (yalnız görüntüleyicisin).")}
       </div>
-      {canEdit && bridge?.msg && (
+      {canEdit && phase === "standby" && (
+        <div className="hint" style={{ marginTop: 6, color: "var(--yellow)" }}>
+          ⏸ {t("Beklemede")}{writerBy ? ` — ${writerBy} ${t("yayınlıyor")}` : ""} · {t("aktif sürücü canlıyı yazıyor")}
+        </div>
+      )}
+      {canEdit && phase === "running" && writerBy && (
+        <div className="hint" style={{ marginTop: 6, color: "var(--dim)" }}>
+          🛰 {t("Canlı kaynak")}: {writerBy}
+        </div>
+      )}
+      {canEdit && bridge?.msg && phase !== "standby" && (
         <div className="hint" style={{ marginTop: 6,
           color: phase === "error" ? "var(--red)" : "var(--dim)" }}>
           • {bridge.msg}

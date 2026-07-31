@@ -15,16 +15,20 @@
    edilir (web derlemesi bu modülü yüklese de sidecar'ı hiç çalıştırmaz).
    ============================================================ */
 import { liveTimingSet, liveLapsAppend, liveLapsClear,
-  livePosAppend, livePosClear, liveSecAppend, liveSecClear } from "./storage";
+  livePosAppend, livePosClear, liveSecAppend, liveSecClear,
+  liveWriterClaim, liveWriterRelease, liveWriterSubscribe, serverNow,
+  LIVE_WRITER_STALE_MS } from "./storage";
 
 let child = null;          // çalışan sidecar süreci (Child)
 let stopping = false;
 let starting = false;      // spawn sürerken tekrar başlatmayı engelle (oto-yeniden dene)
+let leaseCtx = null;       // { tid, rid, uid } — durdururken kirayı bırakmak için
+let unsubLease = null;     // livewriter aboneliğini kaldıran fonksiyon
 
 /* Köprüyü başlat. opts: { tid, rid, hz, mock, by }. onStatus(state) çağrılır:
    { running, phase: "starting|running|error|stopped", msg, lastTs, cars } */
 export async function startBridge(opts, onStatus) {
-  const { tid, rid, hz = 2, mock = false, by = "" } = opts || {};
+  const { tid, rid, hz = 2, mock = false, by = "", uid = "" } = opts || {};
   const say = (s) => { try { if (onStatus) onStatus(s); } catch { /* yoksay */ } };
 
   if (!tid || !rid) { say({ running: false, phase: "error", msg: "Takım/yarış seçili değil" }); return; }
@@ -56,6 +60,13 @@ export async function startBridge(opts, onStatus) {
   let cars = 0;
   const lastLap = {};      // lapKey → yazılmış en yüksek tur no (append idempotent)
   const lastPit = {};      // lapKey → son görülen pit durak sayısı (pit turu işareti)
+
+  // tek-yazıcı seçimi: kirayı dinle (yalnız kira sahibi / aktif sürücü kareyi yazar)
+  const electing = !!uid;
+  let lease = null;
+  leaseCtx = { tid, rid, uid };
+  if (unsubLease) { try { unsubLease(); } catch { /* yoksay */ } unsubLease = null; }
+  if (electing) unsubLease = liveWriterSubscribe(tid, rid, (v) => { lease = v; });
 
   /* Kareyi yazmadan önce tur geçmişini kalıcı livelaps düğümüne taşı:
      her satırın laps[]/lapsFrom'undan yeni turları (n > lastLap) topla, tek update
@@ -123,10 +134,27 @@ export async function startBridge(opts, onStatus) {
       return;
     }
     lastWrite = Date.now();
+    // tek-yazıcı seçimi: yalnız kira sahibi / aktif sürücü yazar (iki köprü çakışmasın)
+    if (electing) {
+      const driving = !!(frame.own && frame.own.driving);
+      const now = serverNow();
+      const mine = lease && lease.uid === uid;
+      const stale = !lease || (typeof lease.ts === "number" && now - lease.ts > LIVE_WRITER_STALE_MS);
+      const preempt = driving && lease && !lease.driving && lease.uid !== uid;
+      if (!(mine || stale || preempt)) {
+        say({ running: true, phase: "standby", msg: "Beklemede", writerBy: lease?.by || "", cars });
+        return;
+      }
+      const hold = await liveWriterClaim(tid, rid, { uid, by, driving });
+      if (!hold) {
+        say({ running: true, phase: "standby", msg: "Beklemede", writerBy: lease?.by || "", cars });
+        return;
+      }
+    }
     try {
       await harvestLaps(frame);   // laps'i livelaps'e taşı + kareden çıkar
       await liveTimingSet(tid, rid, { ts: Date.now(), by, ...frame });
-      say({ running: true, phase: "running", msg: "Gönderiliyor", lastTs: lastWrite, cars });
+      say({ running: true, phase: "running", msg: "Gönderiliyor", lastTs: lastWrite, cars, writerBy: by });
     } catch (e) {
       say({ running: true, phase: "error", msg: "Firebase yazma hatası: " + (e?.message || e) });
     }
@@ -166,6 +194,8 @@ export async function startBridge(opts, onStatus) {
   cmd.on("close", (data) => {
     if (writeTimer) { clearTimeout(writeTimer); writeTimer = null; }
     child = null;
+    if (unsubLease) { try { unsubLease(); } catch { /* yoksay */ } unsubLease = null; }
+    if (electing && uid) liveWriterRelease(tid, rid, uid);   // kirayı bırak → devir hızlı
     say({ running: false, phase: "stopped",
       msg: stopping ? "Durduruldu" : `Köprü kapandı (kod ${data?.code ?? "?"})` });
   });
@@ -186,6 +216,8 @@ export async function stopBridge(onStatus) {
   stopping = true;
   const c = child;
   child = null;
+  if (unsubLease) { try { unsubLease(); } catch { /* yoksay */ } unsubLease = null; }
+  if (leaseCtx?.uid) { liveWriterRelease(leaseCtx.tid, leaseCtx.rid, leaseCtx.uid); leaseCtx = null; }
   if (c) {
     try { await c.kill(); } catch { /* zaten kapanmış olabilir */ }
   }

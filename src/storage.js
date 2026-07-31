@@ -6,7 +6,7 @@
    ============================================================ */
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, get, set, update, remove, onValue,
-  push, query, limitToLast } from "firebase/database";
+  push, query, limitToLast, runTransaction, serverTimestamp } from "firebase/database";
 import { firebaseConfig } from "./firebase-config";
 
 export const firebaseReady =
@@ -437,4 +437,62 @@ export function liveSecSubscribe(tid, rid, lapKey, cb) {
   return onValue(ref(db, `teams/${tid}/livesec/${rid}/${lapKey}`),
     (s) => cb(s.exists() ? s.val() : null),
     (err) => { console.warn("livesec read failed:", err?.message); cb(null); });
+}
+
+/* ---- tek-yazıcı seçimi (livewriter lease) ----
+   Aynı yarışta birden çok masaüstü köprüsü (ör. ayrı PC'lerdeki co-sürücüler) canlı
+   düğüme AYNI ANDA yazıp çakışmasın diye tek bir "yazıcı kirası" tutulur:
+   teams/{tid}/livewriter/{rid} = { uid, by, driving, ts }. Yalnız kirayı tutan makine
+   kareyi yazar. Aktif sürücü (own.driving) kirayı önceliklendirir; kira bayatlarsa
+   (oyun kapandı → kare gelmez → tazelenmez) başka makine devralır. ts SERVER saatidir
+   (serverTimestamp) → PC saat kayması karşılaştırmayı bozmaz. */
+export const LIVE_WRITER_STALE_MS = 6000;
+
+let _serverOffset = 0;
+if (db) {
+  onValue(ref(db, ".info/serverTimeOffset"),
+    (s) => { _serverOffset = Number(s.val()) || 0; }, () => {});
+}
+/* Server ile hizalı "şimdi" (ms) — kira bayatlama karşılaştırması için. */
+export function serverNow() { return Date.now() + _serverOffset; }
+
+/* Kirayı almayı/tazelemeyi dener. Kural: kira yok / benim / bayat → al; ben sürüyorsam
+   ve tutan sürmüyorsa → önceliklendir/al; aksi halde dokunma. Dönüş: kirayı tutuyor
+   muyum (bool). */
+export async function liveWriterClaim(tid, rid, { uid, by = "", driving = false }) {
+  if (!db || !tid || !rid || !uid) return false;
+  const r = ref(db, `teams/${tid}/livewriter/${rid}`);
+  const now = serverNow();
+  try {
+    const res = await runTransaction(r, (cur) => {
+      const mine = cur && cur.uid === uid;
+      const stale = !cur || (typeof cur.ts === "number" && now - cur.ts > LIVE_WRITER_STALE_MS);
+      const preempt = !!driving && cur && !cur.driving && cur.uid !== uid;
+      if (!cur || mine || stale || preempt) {
+        return { uid, by, driving: !!driving, ts: serverTimestamp() };
+      }
+      return undefined;   // abort — kirayı koru (başkası aktif)
+    });
+    const v = res.committed ? res.snapshot.val() : null;
+    return !!(v && v.uid === uid);
+  } catch {
+    return false;
+  }
+}
+
+/* Kirayı bırak (yalnız bizimse). stopBridge'de çağrılır. */
+export async function liveWriterRelease(tid, rid, uid) {
+  if (!db || !tid || !rid || !uid) return;
+  const r = ref(db, `teams/${tid}/livewriter/${rid}`);
+  try {
+    await runTransaction(r, (cur) => (cur && cur.uid === uid ? null : undefined));
+  } catch { /* yoksay */ }
+}
+
+/* Kirayı dinle (UI: "kim yayınlıyor" + köprünün beklemede kararı). */
+export function liveWriterSubscribe(tid, rid, cb) {
+  if (!db || !tid || !rid) { cb(null); return () => {}; }
+  return onValue(ref(db, `teams/${tid}/livewriter/${rid}`),
+    (s) => cb(s.exists() ? s.val() : null),
+    (err) => { console.warn("livewriter read failed:", err?.message); cb(null); });
 }
