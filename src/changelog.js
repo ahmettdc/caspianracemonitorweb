@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.34",
+    date: "2026-07-31",
+    tr: [
+      "🎬 Canlı sekmesine 'Demo' düğmesi geri geldi: açınca arayüz sahte veriyle dolar (tablo, VE, sektör, logolar, trackmap, kendi araç, strateji) — oyun/köprü gerekmez, Firebase'e yazmaz (takım görmez). UI düzenlemek için; düğmeyle kapatınca gerçek veriye döner",
+    ],
+    en: [
+      "🎬 The 'Demo' button is back on the Live tab: turn it on to fill the UI with fake data (table, VE, sectors, logos, track map, own car, strategy) — no game/bridge needed, doesn't write to Firebase (team won't see it). For editing the UI; toggle off to return to real data",
+    ],
+  },
+  {
     v: "v1.4.33",
     date: "2026-07-31",
     tr: [

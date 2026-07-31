@@ -4,6 +4,7 @@ import { Ring } from "../components";
 import { DESKTOP_RELEASE_URL, ASSET, classId, classAccent, brandKey, manufacturerKey } from "../constants";
 import { isTauri } from "../tauriEnv";
 import { liveLapsSubscribe, liveSecSubscribe } from "../storage";
+import { demoLive } from "../liveDemo";
 import TrackMap from "./TrackMap";
 import PosChart from "./PosChart";
 import StrategyBar from "./StrategyBar";
@@ -274,11 +275,30 @@ function BridgeControl({ t, bridge, canEdit }) {
   );
 }
 
-export default function LiveTab({ t, live, bridge, canEdit, liveFuelObs, tid, rid }) {
+export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelObs, tid, rid }) {
   const [myClassOnly, setMyClassOnly] = useState(false);
   const [big, setBig] = useState(false);
   const [lapsFor, setLapsFor] = useState(null);   // "+" ile açılan tur listesi satırı
   const [showTeam, setShowTeam] = useState(false); // Pilot ↔ Takım sütun geçişi
+  // DEMO: yerel sahte veri (oyun/köprü/Firebase gerekmez) — UI düzenlemek için
+  const [demo, setDemo] = useState(false);
+  const [demoData, setDemoData] = useState(null);
+  useEffect(() => {
+    if (!demo) { setDemoData(null); return undefined; }
+    const t0 = Date.now();
+    const tick = () => setDemoData(demoLive((Date.now() - t0) / 1000));
+    tick();
+    const id = setInterval(tick, 500);
+    return () => clearInterval(id);
+  }, [demo]);
+  const live = demo ? demoData : liveProp;
+  const demoBtn = (
+    <button className={`act${demo ? " on" : ""}`}
+      onClick={() => setDemo((v) => !v)}
+      style={{ fontSize: 11, padding: "3px 10px",
+        ...(demo && { borderColor: "var(--yellow)", color: "var(--yellow)" }) }}>
+      🎬 {demo ? t("Demo kapat") : t("Demo")}</button>
+  );
   const rootRef = useRef(null);
   const playerRowRef = useRef(null);
   const posRef = useRef({});   // sürücü → son pozisyon
@@ -323,7 +343,9 @@ export default function LiveTab({ t, live, bridge, canEdit, liveFuelObs, tid, ri
       <div data-tour="livecard">
         {bridgeCard}
         <div className="card">
-          <h2>📡 {t("Canlı Timing")}</h2>
+          <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            📡 {t("Canlı Timing")}
+            <span style={{ marginLeft: "auto" }}>{demoBtn}</span></h2>
           <div className="hint" style={{ lineHeight: 1.7 }}>
             {isTauri
               ? t("Köprü henüz veri göndermedi. Yukarıdan 'Canlı Köprü Başlat'a bas (oyun açıkken). Yarış başlayınca bu ekran canlı dolar.")
@@ -384,10 +406,13 @@ export default function LiveTab({ t, live, bridge, canEdit, liveFuelObs, tid, ri
             {t(s.sessionType)}</span>}
           <span className={`livebadge ${conn.cls}`}>
             <i /> {t(conn.lbl)} · {ageSec}s</span>
-          {document.fullscreenEnabled && (
-            <button className="act" style={{ marginLeft: "auto", fontSize: 11, padding: "3px 10px" }}
-              onClick={toggleBig}>{big ? t("✕ Küçült") : t("⛶ Büyük Pano")}</button>
-          )}
+          <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+            {demoBtn}
+            {document.fullscreenEnabled && (
+              <button className="act" style={{ fontSize: 11, padding: "3px 10px" }}
+                onClick={toggleBig}>{big ? t("✕ Küçült") : t("⛶ Büyük Pano")}</button>
+            )}
+          </span>
         </h2>
         <div className="kpis" style={{ marginBottom: 0 }}>
           <div className="kpi"><div className="v disp">{s.flag ? t(s.flag) : (s.phase || "—")}</div>
