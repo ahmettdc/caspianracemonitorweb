@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.31",
+    date: "2026-07-30",
+    tr: [
+      "⏱ Tur listesi penceresinde (satır sonu '+') artık her tur için S1 / S2 / S3 sektör süreleri de gösteriliyor — köprü çalışırken tur-tur birikir",
+    ],
+    en: [
+      "⏱ The lap-list window (row-end '+') now shows S1 / S2 / S3 sector times for each lap too — accumulated lap by lap while the bridge runs",
+    ],
+  },
+  {
     v: "v1.4.30",
     date: "2026-07-30",
     tr: [

@@ -15,7 +15,7 @@
    edilir (web derlemesi bu modülü yüklese de sidecar'ı hiç çalıştırmaz).
    ============================================================ */
 import { liveTimingSet, liveLapsAppend, liveLapsClear,
-  livePosAppend, livePosClear } from "./storage";
+  livePosAppend, livePosClear, liveSecAppend, liveSecClear } from "./storage";
 
 let child = null;          // çalışan sidecar süreci (Child)
 let stopping = false;
@@ -65,6 +65,7 @@ export async function startBridge(opts, onStatus) {
     const rows = Array.isArray(frame?.field) ? frame.field : [];
     const entries = {};      // livelaps: lapKey/n → süre
     const posEntries = {};   // livepos: lapKey/n → pozisyon (pit turu → negatif)
+    const secEntries = {};   // livesec: lapKey/n → "s1,s2,s3" (yalnız en yeni tur)
     let clears = [];
     for (const r of rows) {
       const key = r.lapKey;
@@ -88,16 +89,25 @@ export async function startBridge(opts, onStatus) {
             posEntries[`${key}/${n}`] = (n === maxN && pitted) ? -r.pos : r.pos;
           }
         }
+        // sektörler: en yeni tur (maxN) için satırın son-tur S1/S2/S3'ü
+        const sc = r.lastSectors;
+        if (maxN > prev && Array.isArray(sc) && sc[0] > 0 && sc[1] > 0 && sc[2] > 0) {
+          secEntries[`${key}/${maxN}`] = `${sc[0]},${sc[1]},${sc[2]}`;
+        }
         if (maxN > (lastLap[key] || 0)) lastLap[key] = maxN;
         lastPit[key] = pits;
       }
       // canlı kareyi küçük tut — geçmiş ayrı düğümde
-      delete r.laps; delete r.lapsFrom;
+      delete r.laps; delete r.lapsFrom; delete r.lastSectors;
     }
     try {
-      for (const k of clears) { await liveLapsClear(tid, rid, k); await livePosClear(tid, rid, k); }
+      for (const k of clears) {
+        await liveLapsClear(tid, rid, k); await livePosClear(tid, rid, k);
+        await liveSecClear(tid, rid, k);
+      }
       if (Object.keys(entries).length) await liveLapsAppend(tid, rid, entries);
       if (Object.keys(posEntries).length) await livePosAppend(tid, rid, posEntries);
+      if (Object.keys(secEntries).length) await liveSecAppend(tid, rid, secEntries);
     } catch (e) {
       say({ running: true, phase: "running", msg: "Geçmiş yazılamadı: " + (e?.message || e) });
     }
