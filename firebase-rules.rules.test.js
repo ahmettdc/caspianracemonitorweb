@@ -118,6 +118,21 @@ describe("teams/livelaps + livesec (tur geçmişi)", () => {
   });
 });
 
+describe("teams/livetrack (paylaşımlı iç-harita şekli)", () => {
+  it("editor pist şeklini (string) yazar; takım üyesi okur", async () => {
+    await assertSucceeds(set(ref(db("bob"), "teams/team1/livetrack/Spa"), "0:1.0,2.0;1:3.0,4.0"));
+    await assertSucceeds(get(ref(db("carol"), "teams/team1/livetrack/Spa")));
+  });
+  it("string olmayan / çok uzun değer reddedilir (validate)", async () => {
+    await assertFails(set(ref(db("bob"), "teams/team1/livetrack/Spa"), 123));
+    await assertFails(set(ref(db("bob"), "teams/team1/livetrack/Spa"), "x".repeat(9001)));
+  });
+  it("viewer/yabancı yazamaz", async () => {
+    await assertFails(set(ref(db("carol"), "teams/team1/livetrack/Spa"), "0:1.0,2.0"));
+    await assertFails(set(ref(db("dave"), "teams/team1/livetrack/Spa"), "0:1.0,2.0"));
+  });
+});
+
 describe("teams/chat + raceState + badges", () => {
   it("üye kendi uid'iyle mesaj yazar; başkasının uid'iyle yazamaz", async () => {
     await assertSucceeds(set(ref(db("carol"), "teams/team1/chat/m1"), { uid: "carol", text: "selam" }));

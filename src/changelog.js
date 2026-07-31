@@ -5,6 +5,20 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.55",
+    date: "2026-07-31",
+    tr: [
+      "🗺 Pist haritasının iç şekli artık takımca kaydediliyor: bir kez oluşan devre şekli o pist için Firebase'de saklanıyor → sayfayı yenilediğinde, sekme değiştirdiğinde ya da başka bir takım arkadaşın (hiç sürmese bile) haritayı açtığında şekil SIFIRDAN çizilmiyor, anında dolu geliyor. (Şekli takımca yazan yalnız owner/editor'dür; herkes okur.)",
+      "🌧 Session bölümüne oyunun gerçek yağmur şiddeti (%) ve zemin ıslaklığı (%) eklendi — artık yalnız 'Kuru/Yağmur' değil, canlı yüzdeler görünüyor.",
+      "🏁 Seans adı (Antrenman / Sıralama / Yarış) session göstergelerine taşındı — hangi seansta olduğun tek bakışta belli.",
+    ],
+    en: [
+      "🗺 The track map's inner shape is now saved for the whole team: once the circuit shape is built it's stored in Firebase for that track → on a page refresh, tab switch, or when a teammate (even one who never drove) opens the map, it no longer redraws from scratch — it appears instantly. (Only owner/editor writes the shared shape; everyone reads it.)",
+      "🌧 The session panel now shows the game's real rain intensity (%) and track wetness (%) — not just 'Dry/Rain' but live percentages.",
+      "🏁 The session name (Practice / Qualifying / Race) moved into the session indicators — one glance tells you which session you're in.",
+    ],
+  },
+  {
     v: "v1.4.54",
     date: "2026-07-31",
     tr: [

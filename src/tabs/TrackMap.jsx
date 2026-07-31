@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { classId, classAccent } from "../constants";
+import { packBins, unpackBins } from "../trackShape";
+import { liveTrackSave, liveTrackSubscribe } from "../storage";
 
 /* Canlı pist haritası — iki katman:
    • Dış boşluk halkası: her araç tur mesafesine (lapDist/trackLength) göre daire
@@ -18,17 +20,35 @@ const cx = 260, cy = 262;       // merkez
 const R = 236;                  // dış halka yarıçapı
 const PAD = 148;                // iç şekil yarım-uzanımı (px)
 
-export default function TrackMap({ t, field, trackLength }) {
+export default function TrackMap({ t, field, trackLength, tid, trackKey, canSave }) {
   const [zoom, setZoom] = useState(false);   // ⛶ büyük pencere
+  const [, bump] = useState(0);              // paylaşımlı şekil gelince yeniden çiz
   useEffect(() => {
     if (!zoom) return undefined;
     const onKey = (e) => { if (e.key === "Escape") setZoom(false); };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [zoom]);
-  // pist uzunluğu değişince (yeni pist/seans) biriktirmeyi sıfırla
-  const acc = useRef({ len: 0, bins: {} });
-  if (acc.current.len !== trackLength) acc.current = { len: trackLength, bins: {} };
+  /* pist DEĞİŞİNCE biriktirmeyi sıfırla — anahtar artık trackKey (pist adı) → şekil
+     pist başına paylaşımlı olduğundan aynı pistin yarışları arasında da korunur. */
+  const acc = useRef({ key: null, bins: {}, saved: 0 });
+  if (acc.current.key !== trackKey) acc.current = { key: trackKey, bins: {}, saved: 0 };
+
+  /* takımca paylaşımlı şekli yükle: bir kez oluşan devre, tüm takımda (hiç sürmeyen
+     izleyici dahil) anında dolu gelir. Gelen kutular yalnız EKSİK olanlara yerleşir
+     (canlı gözlenenleri ezmez). */
+  useEffect(() => {
+    if (!tid || !trackKey) return undefined;
+    const off = liveTrackSubscribe(tid, trackKey, (packed) => {
+      const shared = unpackBins(packed);
+      let added = 0;
+      for (const b of Object.keys(shared)) {
+        if (!acc.current.bins[b]) { acc.current.bins[b] = shared[b]; added++; }
+      }
+      if (added) bump((v) => v + 1);
+    });
+    return off;
+  }, [tid, trackKey]);
 
   const cars = (Array.isArray(field) ? field : [])
     .filter((c) => c.posX != null && c.posZ != null);
@@ -60,6 +80,19 @@ export default function TrackMap({ t, field, trackLength }) {
   const bins = acc.current.bins;
   const idx = Object.keys(bins).map(Number).sort((a, b) => a - b);
   const pts = idx.map((i) => bins[i]);
+  const binCount = idx.length;
+
+  /* şekil olgunlaşınca (≈%90 kutu) takımca paylaş — owner/editor yazar, tur başına
+     değil bir kez (yeni kutular geldikçe 2 sn debounce ile). Viewer yalnız okur. */
+  useEffect(() => {
+    if (!canSave || !tid || !trackKey) return undefined;
+    if (binCount < NB * 0.9 || binCount <= acc.current.saved) return undefined;
+    const id = setTimeout(() => {
+      liveTrackSave(tid, trackKey, packBins(acc.current.bins));
+      acc.current.saved = binCount;
+    }, 2000);
+    return () => clearTimeout(id);
+  }, [canSave, tid, trackKey, binCount]);
 
   // iç şekil dönüşümü (dünya x/z → ekran), pist bbox'una göre ölçekli
   let toScreen = null, outline = "";

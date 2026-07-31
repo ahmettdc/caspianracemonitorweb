@@ -440,6 +440,21 @@ export function liveSecSubscribe(tid, rid, lapKey, cb) {
     (err) => { console.warn("livesec read failed:", err?.message); cb(null); });
 }
 
+/* ---- paylaşımlı iç-harita şekli (livetrack) ----
+   teams/{tid}/livetrack/{trackKey} = packBins(...) metni (bkz. trackShape.js).
+   PİST başına saklanır (rid değil) → bir kez oluşan devre şekli o pistin tüm
+   yarışlarında ve tüm takımda anında dolu gelir. Owner/editor yazar; herkes okur. */
+export async function liveTrackSave(tid, trackKey, packed) {
+  if (!db || !tid || !trackKey || typeof packed !== "string" || !packed) return;
+  await set(ref(db, `teams/${tid}/livetrack/${trackKey}`), packed);
+}
+export function liveTrackSubscribe(tid, trackKey, cb) {
+  if (!db || !tid || !trackKey) { cb(null); return () => {}; }
+  return onValue(ref(db, `teams/${tid}/livetrack/${trackKey}`),
+    (s) => cb(s.exists() ? s.val() : null),
+    (err) => { console.warn("livetrack read failed:", err?.message); cb(null); });
+}
+
 /* ---- tek-yazıcı seçimi (livewriter lease) ----
    Aynı yarışta birden çok masaüstü köprüsü (ör. ayrı PC'lerdeki co-sürücüler) canlı
    düğüme AYNI ANDA yazıp çakışmasın diye tek bir "yazıcı kirası" tutulur:

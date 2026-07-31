@@ -489,6 +489,7 @@ export const EN = {
   "Temiz hava": "Clean air",
   "Trafik": "Traffic",
   "Yağmur": "Rain",
+  "Ortam": "Ambient", "Zemin ıslaklığı": "Track wetness",
   ",": ",",
   "Önünde": "Ahead",
   "Arkanda": "Behind",

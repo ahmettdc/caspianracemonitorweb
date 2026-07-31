@@ -84,7 +84,10 @@ export function demoLive(el) {
       timeLeftSec: Math.max(0, 6 * 3600 - Math.floor(el)),
       trackTemp: +(30 + Math.sin(el / 300) * 4).toFixed(1),
       ambientTemp: +(22 + Math.sin(el / 400) * 2).toFixed(1),
-      raining: false, trackLength: TRACK_LEN,
+      raining: false,
+      rain: Math.max(0, Math.round(20 * Math.sin(el / 90))),
+      wetness: Math.max(0, Math.min(100, Math.round(30 + 25 * Math.sin(el / 120)))),
+      trackName: "Demo Circuit", trackLength: TRACK_LEN,
     },
     own: {
       fuel: +Math.max(2, 78 - (stint / 1500) * 70).toFixed(1), fuelCapacity: 78,
