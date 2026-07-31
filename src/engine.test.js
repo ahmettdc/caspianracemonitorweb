@@ -220,3 +220,94 @@ describe("computePlan — çekirdek strateji", () => {
     expect(computePlan(baseState(), "race").flagExtra).toBe(0);
   });
 });
+
+/* ============================================================
+   REGRESYON — stint bölümü derin taraması (v1.4.53)
+   ============================================================ */
+describe("computePlan — yozlaşmış girdi (hayalet stint koruması)", () => {
+  it("Avg Lap boşaltılırsa plan ÜRETİLMEZ (eskiden 64 hayalet satır + uydurma tur)", () => {
+    const plan = computePlan(baseState({ avgLap: "" }), "race");
+    expect(plan.rows.length).toBe(0);
+    expect(plan.totalLaps).toBe(0);
+    expect(plan.invalid).toBe(true);
+  });
+
+  it("seçili stratejinin tur sayısı 0 ise plan ÜRETİLMEZ", () => {
+    const plan = computePlan(baseState({ strategies: { A: 5, B: 8, C: 0, D: 11 } }), "race");
+    expect(plan.rows.length).toBe(0);
+    expect(plan.invalid).toBe(true);
+  });
+
+  it("geçerli girdide invalid=false ve plan bayrağa ulaşır", () => {
+    const plan = computePlan(baseState(), "race");
+    expect(plan.invalid).toBe(false);
+    expect(plan.truncated).toBe(false);
+    expect(plan.rows[plan.rows.length - 1].isLast).toBe(true);
+  });
+
+  it("64 stint tavanına takılan plan truncated işaretlenir", () => {
+    // 24 saat + 2 turluk stint → 64 stint yetmez
+    const plan = computePlan(
+      baseState({ raceTime: "24:00:00", strategies: { A: 5, B: 8, C: 2, D: 11 } }), "race");
+    expect(plan.rows.length).toBe(64);
+    expect(plan.rows[63].isLast).toBe(false);
+    expect(plan.truncated).toBe(true);
+    expect(plan.invalid).toBe(false);
+  });
+});
+
+describe("computePlan — tur override'ı yarışa sığmazsa bayrağa kırpılır", () => {
+  const withLapOvr = (i, n, over = {}) => {
+    const lapOverrides = Array(14).fill("");   // lapOverrides migrate ile eklenir
+    lapOverrides[i] = String(n);
+    return computePlan(baseState({ lapOverrides, ...over }), "race");
+  };
+
+  it("sığan tur override'ı aynen uygulanır", () => {
+    const plan = withLapOvr(0, 8);            // 8×240 = 1920 sn < 3600
+    expect(plan.rows[0].lapsInStint).toBe(8);
+    expect(plan.rows[0].stintSec).toBeCloseTo(1920, 6);
+    expect(plan.rows[0].isLast).toBe(false);
+  });
+
+  it("aşan tur override'ı stint'i bayrakta bitirir (eskiden endSec > raceSec, timeLeft < 0)", () => {
+    const plan = withLapOvr(0, 100);          // 100×240 = 24000 sn ≫ 3600
+    const r = plan.rows[0];
+    expect(r.isLast).toBe(true);
+    expect(r.stintSec).toBeCloseTo(plan.raceSec, 6);
+    expect(r.endSec).toBeCloseTo(plan.raceSec, 6);
+    expect(r.timeLeft).toBeCloseTo(0, 6);
+    expect(r.lapsInStint).toBe(16);           // 15 tam tur + bayrak turu
+    expect(r.fuelNeed).toBeLessThan(1000);    // eskiden 100 turluk uydurma VE
+  });
+
+  it("kırpılmış stint zaman çizelgesini %100'ün üstüne taşırmaz", () => {
+    const plan = withLapOvr(1, 100);
+    const total = plan.rows.reduce((a, r) => a + r.stintSec + r.pitSec, 0);
+    expect(total).toBeLessThanOrEqual(plan.raceSec + 0.001);
+  });
+});
+
+describe("computePlan — totalFuel (Toplam VE) satırlarla tutarlı", () => {
+  it("totalFuel = satırların fuelNeed toplamı", () => {
+    const plan = computePlan(baseState(), "race");
+    const sum = plan.rows.reduce((a, r) => a + r.fuelNeed, 0);
+    expect(plan.totalFuel).toBeCloseTo(sum, 9);
+  });
+
+  it("tek havada eski formülle (effCons × totalLaps) BİREBİR aynı — regresyon yok", () => {
+    for (const w of [[], [{ t: 0, w: "wet" }]]) {
+      const st = baseState({ weatherLog: w });
+      const plan = computePlan(st, "race");
+      expect(plan.totalFuel).toBeCloseTo(effCons(st) * plan.totalLaps, 6);
+    }
+  });
+
+  it("karma havada eski formülden AYRIŞIR (tur-tur gerçek hava)", () => {
+    // yarışın son çeyreği ıslak: eski formül tüm turlara wet çarpanı uygular
+    const st = baseState({ weatherLog: [{ t: 2700, w: "wet" }] });
+    const plan = computePlan(st, "race");
+    const eski = effCons(st) * plan.totalLaps;
+    expect(plan.totalFuel).toBeGreaterThan(eski + 1);   // eski değer yakıtı EKSİK sayıyordu
+  });
+});

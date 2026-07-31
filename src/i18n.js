@@ -51,6 +51,9 @@ export const EN = {
   "Pilotlar sekmesinden başlangıç zamanını gir": "Set the start time in the Drivers tab",
   "Son Pit VE": "Final Pit VE", "Pilot Değişimi": "Driver Change",
   "Sıradaki pit: ": "Next pit: ",
+  "Bayrağa": "To Flag", "⛽ PIT YOLUNDA": "⛽ IN PIT LANE",
+  "Araç pit yolunda — bu stintin pit'i işaretlendi. Düzeltmek için ↩ Geri Al.":
+    "Car is in the pit lane — this stint's pit is already marked. Use ↩ Undo to correct it.",
   // sekmeler
   "Son Stint Yakıtı": "Final Stint Fuel", "Lastik": "Tyres", "Pilotlar": "Drivers",
   "Telemetri": "Telemetry",
@@ -58,6 +61,10 @@ export const EN = {
   "Code 80 Kalan": "Code 80 Remaining", "Yarış Süresi": "Race Time",
   "Strateji": "Strategy", "Stint Sayısı": "Stint Count",
   "Tahmini Toplam Tur": "Est. Total Laps",
+  "⚠ Plan hesaplanamıyor — süre, \"Avg Lap\" ve seçili stratejinin tur sayısı dolu olmalı.":
+    "⚠ Plan cannot be computed — duration, \"Avg Lap\" and the selected strategy's lap count must all be filled in.",
+  "⚠ Plan tamamlanamadı": "⚠ Plan incomplete", "planlanmadı": "unplanned",
+  "stint sınırı": "stint limit",
   "S1 START LASTİKLERİ": "S1 STARTING TYRES",
   "QUAL İLE BAŞLA": "START ON QUAL", "4 YENİ": "4 NEW",
   "2 YENİ ÖN": "2 NEW FRONT", "2 YENİ ARKA": "2 NEW REAR",
