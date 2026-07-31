@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.54",
+    date: "2026-07-31",
+    tr: [
+      "🗺 Pist haritası artık istenince büyük pencerede açılıyor: kart başlığındaki '⛶ Büyüt' düğmesiyle harita ekranı kaplayan ayrı bir pencerede, çok daha büyük gösteriliyor — kalabalık sahada araç noktaları ve sınıf-içi pozisyon numaraları rahatça okunuyor. Harita canlı akmaya devam eder; ✕ / boşluğa tık / Esc ile kapanır",
+    ],
+    en: [
+      "🗺 The track map can now be opened in a large window on demand: the '⛶ Expand' button in the card header shows the map much bigger in a separate overlay — car dots and in-class position numbers stay readable even in a crowded field. The map keeps updating live; close with ✕ / click outside / Esc",
+    ],
+  },
+  {
     v: "v1.4.53",
     date: "2026-07-31",
     tr: [

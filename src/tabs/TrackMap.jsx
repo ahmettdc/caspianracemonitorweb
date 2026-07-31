@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { classId, classAccent } from "../constants";
 
 /* Canlı pist haritası — iki katman:
@@ -7,7 +7,10 @@ import { classId, classAccent } from "../constants";
    • İç pist şekli: araçların dünya (posX,posZ) konumları lapDist kutularına
      gömülerek gerçek devre çizilir (birkaç saniyede dolar); araçlar üzerine yerleşir.
    Renkler sınıfa göre (classAccent); oyuncu #960018 halkalı beyaz nokta.
-   Köprü lapDist/posX/posZ + session.trackLength göndermezse kart gösterilmez. */
+   Köprü lapDist/posX/posZ + session.trackLength göndermezse kart gösterilmez.
+   "⛶ Büyüt" → aynı harita ayrı bir pencerede (wxmodal deseni) ekranın izin verdiği
+   en büyük kare boyutta; durum bu bileşende tutulduğu için biriken pist şekli ve
+   canlı kareler paylaşılır (büyük görünüm de canlı akar, şekil yeniden birikmez). */
 
 const NB = 240;                 // lapDist kutu sayısı (pist şekli çözünürlüğü)
 const BRAND = "#960018";        // ana tema
@@ -16,6 +19,13 @@ const R = 236;                  // dış halka yarıçapı
 const PAD = 148;                // iç şekil yarım-uzanımı (px)
 
 export default function TrackMap({ t, field, trackLength }) {
+  const [zoom, setZoom] = useState(false);   // ⛶ büyük pencere
+  useEffect(() => {
+    if (!zoom) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") setZoom(false); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [zoom]);
   // pist uzunluğu değişince (yeni pist/seans) biriktirmeyi sıfırla
   const acc = useRef({ len: 0, bins: {} });
   if (acc.current.len !== trackLength) acc.current = { len: trackLength, bins: {} };
@@ -102,41 +112,70 @@ export default function TrackMap({ t, field, trackLength }) {
   };
 
   const building = pts.length < NB * 0.45;
+  const count = building ? t("iç harita oluşturuluyor…") : `${idx.length}/${NB}`;
 
-  return (
+  /* SVG içeriği tek yerde — küçük kart ve büyük pencere aynı çocukları kullanır.
+     Ölçek tamamen CSS'ten (viewBox sabit) → noktalar ve pozisyon numaraları
+     büyük pencerede orantılı olarak büyür. */
+  const svgKids = (<>
+    {/* dış halka */}
+    <circle cx={cx} cy={cy} r={R} fill="none" stroke="var(--line)" strokeWidth={1.5} />
+    {/* S/F işareti (tepe) */}
+    <line x1={cx} y1={cy - R - 8} x2={cx} y2={cy - R + 8}
+      stroke={BRAND} strokeWidth={2.5} />
+    <text x={cx} y={cy - R - 13} fill={BRAND} fontSize="11" fontWeight="700"
+      textAnchor="middle">S/F</text>
+    {/* iç pist şekli */}
+    {outline && <path d={outline} fill="none" stroke="var(--line)"
+      strokeWidth={11} strokeLinejoin="round" strokeLinecap="round" opacity={0.55} />}
+    {outline && <path d={outline} fill="none" stroke="var(--muted)"
+      strokeWidth={2} strokeLinejoin="round" opacity={0.9} />}
+    {/* araçlar — dış halka */}
+    {cars.map((c) => { const [x, y] = ringXY(c.lapDist); return dot(c, x, y, 9, classPos.get(c)); })}
+    {/* araçlar — iç şekil */}
+    {toScreen && cars.map((c) => {
+      const [x, y] = toScreen(c.posX, c.posZ);
+      return dot({ ...c, pos: `i${c.pos}` }, x, y, 8, classPos.get(c));
+    })}
+  </>);
+
+  const legend = t("Dış halka: pist üzerindeki konum (S/F tepede) · iç şekil: gerçek devre. Renk = sınıf; beyaz halka = sen, beyaz kenar = pit.");
+
+  return (<>
     <div className="card" style={{ marginBottom: 12 }}>
       <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
         🗺 {t("Pist Haritası")}
-        <span className="hint" style={{ margin: 0, fontWeight: 400 }}>
-          {building ? t("iç harita oluşturuluyor…") : `${idx.length}/${NB}`}</span>
+        <span className="hint" style={{ margin: 0, fontWeight: 400 }}>{count}</span>
+        <button className="act" style={{ marginLeft: "auto", fontSize: 11, padding: "3px 10px" }}
+          title={t("Haritayı büyük pencerede aç")}
+          onClick={() => setZoom(true)}>⛶ {t("Büyüt")}</button>
       </h2>
       <div style={{ display: "flex", justifyContent: "center" }}>
         <svg viewBox="0 0 520 520" width="100%" style={{ maxWidth: 460 }}
-          role="img" aria-label={t("Canlı pist haritası")}>
-          {/* dış halka */}
-          <circle cx={cx} cy={cy} r={R} fill="none" stroke="var(--line)" strokeWidth={1.5} />
-          {/* S/F işareti (tepe) */}
-          <line x1={cx} y1={cy - R - 8} x2={cx} y2={cy - R + 8}
-            stroke={BRAND} strokeWidth={2.5} />
-          <text x={cx} y={cy - R - 13} fill={BRAND} fontSize="11" fontWeight="700"
-            textAnchor="middle">S/F</text>
-          {/* iç pist şekli */}
-          {outline && <path d={outline} fill="none" stroke="var(--line)"
-            strokeWidth={11} strokeLinejoin="round" strokeLinecap="round" opacity={0.55} />}
-          {outline && <path d={outline} fill="none" stroke="var(--muted)"
-            strokeWidth={2} strokeLinejoin="round" opacity={0.9} />}
-          {/* araçlar — dış halka */}
-          {cars.map((c) => { const [x, y] = ringXY(c.lapDist); return dot(c, x, y, 9, classPos.get(c)); })}
-          {/* araçlar — iç şekil */}
-          {toScreen && cars.map((c) => {
-            const [x, y] = toScreen(c.posX, c.posZ);
-            return dot({ ...c, pos: `i${c.pos}` }, x, y, 8, classPos.get(c));
-          })}
-        </svg>
+          role="img" aria-label={t("Canlı pist haritası")}>{svgKids}</svg>
       </div>
-      <div className="hint">
-        {t("Dış halka: pist üzerindeki konum (S/F tepede) · iç şekil: gerçek devre. Renk = sınıf; beyaz halka = sen, beyaz kenar = pit.")}
-      </div>
+      <div className="hint">{legend}</div>
     </div>
-  );
+
+    {zoom && (
+      <div className="wxmodal" onClick={() => setZoom(false)} role="dialog" aria-modal="true">
+        <div className="wxmbox map" onClick={(e) => e.stopPropagation()}>
+          <div className="wxmhead">
+            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              🗺 {t("Pist Haritası")}
+              <span style={{ fontSize: 12, color: "var(--dim)", textTransform: "none",
+                letterSpacing: 0 }}>· {count}</span>
+            </span>
+            <button className="act" style={{ fontSize: 12, padding: "2px 10px" }}
+              title={t("Kapat")} onClick={() => setZoom(false)}>✕</button>
+          </div>
+          <div className="mapwrap">
+            <svg viewBox="0 0 520 520" role="img" aria-label={t("Canlı pist haritası")}>
+              {svgKids}</svg>
+          </div>
+          <div className="hint" style={{ padding: "0 14px 12px", marginTop: 0 }}>{legend}</div>
+        </div>
+      </div>
+    )}
+  </>);
 }
