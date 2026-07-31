@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.39",
+    date: "2026-07-31",
+    tr: [
+      "🧹 İç yeniden düzenleme (davranış aynı): App.jsx bölme 2. tur — takım/sezon/yarış abonelikleri (useTeams) kendi hook dosyasına çıkarıldı. Kullanıcı arayüzü değişmedi",
+    ],
+    en: [
+      "🧹 Internal refactor (same behavior): App.jsx split round 2 — team/season/race subscriptions (useTeams) moved into their own hook file. No UI change",
+    ],
+  },
+  {
     v: "v1.4.38",
     date: "2026-07-31",
     tr: [

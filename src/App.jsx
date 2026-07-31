@@ -5,14 +5,15 @@ import { useLiveBridge } from "./useLiveBridge";
 import { useLive } from "./useLive";
 import { useMiniPlayer } from "./useMiniPlayer";
 import { useAuth } from "./useAuth";
+import { useTeams } from "./useTeams";
 import { firebaseReady,
   requestAccess, watchAllUsers, setUserAllowed, updateProfile,
-  createTeam, joinTeam, watchMyTeams, watchTeam,
+  createTeam, joinTeam,
   setTeamRole, toggleTeamBadge, leaveTeam, setTeamMemberName,
   sendChat, watchChat, deleteChat, renameTeam, syncMyTeamName,
   addSetup, watchSetups, deleteSetup,
-  createSeason, deleteSeason, watchSeasons,
-  createRace, updateRace, deleteRace, watchRaces,
+  createSeason, deleteSeason,
+  createRace, updateRace, deleteRace,
   raceStateGet, raceStateSet, raceStateSubscribe } from "./storage";
 import { signInGoogle, signOut, authReady } from "./auth";
 import { CHANGELOG } from "./changelog";
@@ -765,34 +766,17 @@ ${bottomBar}
   const [profOpen, setProfOpen] = useState(false);
   /* ---- takımlar ---- */
   const [teamOpen, setTeamOpen] = useState(false);
-  const [myTeams, setMyTeams] = useState({});
-  const [curTeam, setCurTeam] = useState("");      // seçili takım id
-  const [teamData, setTeamData] = useState(null);
+  /* ---- takım/sezon/yarış abonelikleri → useTeams hook'u ---- */
+  const { myTeams, curTeam, setCurTeam, teamData, seasons, races } = useTeams({ user, access });
   const [tForm, setTForm] = useState({ name: "", join: "" });
-  const [seasons, setSeasons] = useState({});
-  const [races, setRaces] = useState({});
   const [curSeason, setCurSeason] = useState("");   // "" = tümü
   const [rForm, setRForm] = useState(null);          // yarış ekleme/düzenleme formu
   const [tErr, setTErr] = useState("");
   const [profName, setProfName] = useState("");
-  useEffect(() => {
-    if (!user || !access) return;
-    return watchMyTeams(user.uid, (t) => {
-      setMyTeams(t || {});
-      setCurTeam((c) => c || Object.keys(t || {})[0] || "");
-    });
-  }, [user, access]);
   const curTeamRef = useRef("");
   curTeamRef.current = curTeam;
   /* canlı timing aboneliği + yakıt öğrenici (App.jsx'ten çıkarıldı) */
   const { live, liveFuelObs } = useLive({ curRace, curTeamRef, stRef });
-  useEffect(() => {
-    if (!curTeam) { setTeamData(null); setSeasons({}); setRaces({}); return; }
-    const o1 = watchTeam(curTeam, setTeamData);
-    const o2 = watchSeasons(curTeam, (x) => setSeasons(x || {}));
-    const o3 = watchRaces(curTeam, (x) => setRaces(x || {}));
-    return () => { o1(); o2(); o3(); };
-  }, [curTeam]);
   /* ---- sohbet: genel / takım / yarış kanalları ---- */
   /* ---- rehber turu ---- */
   const [tour, setTour] = useState(null);            // "lobby" | "main" | null
