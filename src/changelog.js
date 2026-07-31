@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.32",
+    date: "2026-07-31",
+    tr: [
+      "🛣 Pist sıcaklığının yanına yol ikonu eklendi (hava sıcaklığındaki güneş gibi)",
+    ],
+    en: [
+      "🛣 Added a road icon next to the track temperature (like the sun next to air temp)",
+    ],
+  },
+  {
     v: "v1.4.31",
     date: "2026-07-30",
     tr: [
