@@ -7,12 +7,13 @@ import { useMiniPlayer } from "./useMiniPlayer";
 import { useAuth } from "./useAuth";
 import { useTeams } from "./useTeams";
 import { useChat } from "./useChat";
+import { useSetups } from "./useSetups";
 import { firebaseReady,
   requestAccess, watchAllUsers, setUserAllowed, updateProfile,
   createTeam, joinTeam,
   setTeamRole, toggleTeamBadge, leaveTeam, setTeamMemberName,
   deleteChat, renameTeam, syncMyTeamName,
-  addSetup, watchSetups, deleteSetup,
+  deleteSetup,
   createSeason, deleteSeason,
   createRace, updateRace, deleteRace,
   raceStateGet, raceStateSet, raceStateSubscribe } from "./storage";
@@ -783,82 +784,11 @@ ${bottomBar}
   const seenTour = (k) => { try { return localStorage.getItem(k) === "1"; } catch { return true; } };
   const markTour = (k) => { try { localStorage.setItem(k, "1"); } catch { /* yoksay */ } };
 
-  /* ---- setup deposu ---- */
-  const [setups, setSetups] = useState([]);
-  const [suFile, setSuFile] = useState(null);       // { name, b64, size }
-  const [suMeta, setSuMeta] = useState({ track: "", cls: "", car: "",
-    cond: "dry", sess: "R", champ: "", ver: "", note: "" });
-  const [suErr, setSuErr] = useState("");
-  const [suBusy, setSuBusy] = useState(false);
-  const [suOpen, setSuOpen] = useState(false);      // lobi setup penceresi
-  const [suUpOpen, setSuUpOpen] = useState(false);  // lobi yükleme formu açık mı
-  const [suFTrack, setSuFTrack] = useState("");     // liste süzgeçleri
-  const [suFCond, setSuFCond] = useState("");
-  const [suFSess, setSuFSess] = useState("");
-
-  useEffect(() => {
-    if (!user || !udoc?.allowed) { setSetups([]); return undefined; }
-    return watchSetups(setSetups);
-  }, [user, udoc]);
-
-  const onSetupFile = (e) => {
-    const f = e.target.files?.[0];
-    e.target.value = "";
-    if (!f) return;
-    if (f.size > 180 * 1024) {
-      setSuErr(t("Dosya çok büyük (sınır 180 KB) — setup dosyaları normalde birkaç KB'dır."));
-      return;
-    }
-    const rd = new FileReader();
-    rd.onload = () => {
-      const b64 = String(rd.result).split(",")[1] || "";
-      setSuFile({ name: f.name, b64, size: f.size });
-      setSuErr("");
-    };
-    rd.readAsDataURL(f);
-  };
-
-  const saveSetup = async () => {
-    if (!suFile || !curTeam || suBusy) return;
-    if (!suMeta.track) { setSuErr(t("Pist seçilmeli.")); return; }
-    setSuBusy(true);
-    try {
-      await addSetup(user, {
-        name: suFile.name, size: suFile.size,
-        uname: userName || user.displayName || "",
-        team: teamData?.meta?.name || "",
-        track: suMeta.track, cls: suMeta.cls, car: suMeta.car,
-        cond: suMeta.cond, sess: suMeta.sess,
-        champ: suMeta.champ.trim().slice(0, 40),
-        ver: suMeta.ver.trim().slice(0, 16),
-        note: suMeta.note.trim().slice(0, 140),
-      }, suFile.b64);
-      setSuFile(null);
-      setSuMeta((m) => ({ ...m, note: "" }));
-      setSuErr("");
-    } catch (e2) {
-      setSuErr(t("Yüklenemedi:") + " " + (e2?.message || ""));
-    }
-    setSuBusy(false);
-  };
-
-  const downloadSetup = (su) => {
-    try {
-      const bin = atob(su.data || "");
-      const arr = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-      const url = URL.createObjectURL(new Blob([arr]));
-      const a = document.createElement("a");
-      a.href = url; a.download = su.name || "setup";
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 4000);
-    } catch { /* bozuk kayıt */ }
-  };
-
-  const suList = setups.filter((x) =>
-    (!suFTrack || x.track === suFTrack)
-    && (!suFCond || x.cond === suFCond)
-    && (!suFSess || x.sess === suFSess));
+  /* ---- setup deposu → useSetups hook'u (liste/yükle/indir/süzgeç) ---- */
+  const { setups, suFile, suMeta, setSuMeta, suErr, suBusy, suOpen, setSuOpen,
+    suUpOpen, setSuUpOpen, suFTrack, setSuFTrack, suFCond, setSuFCond,
+    suFSess, setSuFSess, onSetupFile, saveSetup, downloadSetup, suList } = useSetups({
+    user, udoc, curTeam, userName, teamData, t });
 
   /* ---- yüzen mini oynatıcı → useMiniPlayer hook'u (konum/boyut/sürükle) ---- */
   const { streamCorner, streamMin, setStreamMin, streamW, streamDrag,
