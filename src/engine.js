@@ -36,9 +36,13 @@ export const msToLocalInput = (ms) => {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 };
 export const fmtLap = (sec) => {
-  const m = Math.floor(sec / 60);
-  const s = sec - m * 60;
-  return `${m}:${s.toFixed(2).padStart(5, "0")}`;
+  /* Tek noktada yuvarla (santisaniye) → saniye 60'a taşarsa dakikaya geçer
+     ("1:60.00" hatası yok); işaret ayrı ele alınır (negatif delta doğru gösterilir). */
+  const neg = sec < 0;
+  const cs = Math.round(Math.abs(sec) * 100);   // toplam santisaniye
+  const m = Math.floor(cs / 6000);
+  const s = (cs - m * 6000) / 100;               // 0..59.99 — taşma olmaz
+  return `${neg ? "-" : ""}${m}:${s.toFixed(2).padStart(5, "0")}`;
 };
 
 /* ---------- varsayılan durum (Excel'deki mevcut değerler) ---------- */

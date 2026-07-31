@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.49",
+    date: "2026-07-31",
+    tr: [
+      "🐛 Tur süresi gösterimi düzeltildi: saniyesi 60'a yuvarlanan turlar (ör. 119.996 sn) yanlışlıkla '1:60.00' görünüyordu, artık doğru şekilde '2:00.00' oluyor. Ayrıca negatif değerler (delta) doğru biçimleniyor",
+    ],
+    en: [
+      "🐛 Fixed lap-time display: laps whose seconds rounded up to 60 (e.g. 119.996 s) wrongly showed as '1:60.00'; now correctly '2:00.00'. Negative values (deltas) are also formatted correctly",
+    ],
+  },
+  {
     v: "v1.4.48",
     date: "2026-07-31",
     tr: [
