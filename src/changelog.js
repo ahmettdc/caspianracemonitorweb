@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.47",
+    date: "2026-07-31",
+    tr: [
+      "🧹 İç yeniden düzenleme (davranış aynı): App.jsx render bölme tamamlandı — setup havuzu penceresi (SetupModal) ve takım penceresi (TeamModal, en büyük) ayrı sunum bileşenlerine taşındı. Tüm modallar artık components.jsx'te. Kullanıcı arayüzü değişmedi",
+    ],
+    en: [
+      "🧹 Internal refactor (same behavior): App.jsx render split complete — the setup library window (SetupModal) and the team window (TeamModal, the largest) moved into their own presentational components. All modals now live in components.jsx. No UI change",
+    ],
+  },
+  {
     v: "v1.4.46",
     date: "2026-07-31",
     tr: [
