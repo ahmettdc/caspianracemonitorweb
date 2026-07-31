@@ -448,4 +448,91 @@ export const EN = {
   "Takım": "Team",
   "Takımdan ekle": "Add from team",
   "Hava zaman çizelgesi": "Weather timeline",
+  /* --- canlı timing --- */
+  "Canlı Timing": "Live Timing",
+  "Canlı Köprü": "Live Bridge",
+  "Masaüstü Uygulamasını İndir": "Download Desktop App",
+  "Kendi Araç": "Own Car",
+  "Saha": "Field",
+  "Pist Haritası": "Track Map",
+  "Pozisyon Grafiği": "Position Chart",
+  "Sanal Enerji": "Virtual Energy",
+  "Pist Sıcaklığı": "Track Temp",
+  "Mevcut Tur": "Current Lap",
+  "Son Tur": "Last Lap",
+  "En İyi": "Best",
+  "Turlar": "Laps",
+  "Tur zamanları": "Lap times",
+  "Pozisyon": "Position",
+  "Konum": "Location",
+  "Lider": "Leader",
+  "Aralık": "Interval",
+  "Öndeki araca fark": "Gap to car ahead",
+  "En yakın araca zaman farkı": "Time gap to the nearest car",
+  "Arkadaki aracın farkı": "Gap to the car behind",
+  "Kendi sınıfım": "My class",
+  "Tüm saha": "Whole field",
+  "Bayrak / Faz": "Flag / Phase",
+  "Hasar": "Damage",
+  "Stint": "Stint",
+  "Pit": "Pit",
+  "Pit çıkışı": "Pit exit",
+  "PIT KAYBI": "PIT LOSS",
+  "Pilot / Takım değiştir": "Toggle driver / team",
+  "Temiz hava": "Clean air",
+  "Trafik": "Traffic",
+  "Yağmur": "Rain",
+  ",": ",",
+  "Önünde": "Ahead",
+  "Arkanda": "Behind",
+  "en yakın": "nearest",
+  "içinde": "within",
+  "araç": "cars",
+  "otomatik": "auto",
+  "pist": "track",
+  "Demo": "Demo",
+  "Demo kapat": "Demo off",
+  "⛶ Büyük Pano": "⛶ Big Board",
+  "✕ Küçült": "✕ Shrink",
+  "Henüz araç verisi yok.": "No car data yet.",
+  "Henüz tamamlanmış tur yok.": "No completed laps yet.",
+  "Tur geçmişi yükleniyor…": "Loading lap history…",
+  "iç harita oluşturuluyor…": "building inner map…",
+  "Canlı pist haritası": "Live track map",
+  "Canlı timing tablosu": "Live timing table",
+  "Yarış başlayınca bu ekran (ve tüm takım) canlı dolar.":
+    "This screen (and the whole team) fills live once the race starts.",
+  "±3 sn içinde kaç araç var": "How many cars are within ±3 s",
+  "Şimdi pit'e girersen (pit kaybı kadar geriye) tahmini sıra":
+    "Estimated position if you pit now (dropped back by the pit loss)",
+  "Gap: lidere · Aralık: öndeki araca · Pn: sınıf-içi sıra (sarı = sınıf lideri) · mor: seansın en hızlı turu · satır sonundaki + ile o aracın tur zamanları. Veriler köprü ile canlı gelir; tüm takım aynı anda görür.":
+    "Gap: to the leader · Interval: to the car ahead · Pn: in-class position (yellow = class leader) · purple: session's fastest lap · the + at the end of a row shows that car's lap times. Data comes live via the bridge; the whole team sees it at once.",
+  "Dış halka: pist üzerindeki konum (S/F tepede) · iç şekil: gerçek devre. Renk = sınıf; beyaz halka = sen, beyaz kenar = pit.":
+    "Outer ring: position on track (S/F at the top) · inner shape: the real circuit. Color = class; white ring = you, white edge = pit.",
+  "Y ekseni ters (P1 üstte) · renk = sınıf · kalın #960018 = sen · 'P' = pit turu. Köprü çalışırken tur-tur birikir; tüm takım aynı grafiği görür.":
+    "Y axis inverted (P1 on top) · color = class · bold #960018 = you · 'P' = pit lap. It builds lap by lap while the bridge runs; the whole team sees the same chart.",
+  "Gap'lerden hesaplanır (yaklaşık); pit çıkışı = şu anki lidere farkın + pit kaybı. Pit kaybını pistine göre gir.":
+    "Estimated from the gaps (approximate); pit exit = your gap to the current leader + the pit loss. Enter the pit loss for your track.",
+  "Lastik: kalan diş % (renkli kutu, yeşil→sarı→kırmızı) · sıcaklık · basınç. Köprüden salt-okunur gelir.":
+    "Tyres: tread remaining % (colored box, green→yellow→red) · temperature · pressure. Read-only from the bridge.",
+  "Canlı timing, oyunun çalıştığı PC'deki Masaüstü Uygulaması ile gelir:":
+    "Live timing comes from the Desktop App on the PC running the game:",
+  "Masaüstü Uygulamasını oyunun PC'sine kur, giriş yap, yarışı aç, 'Canlı' sekmesinden 'Canlı Köprü Başlat'a bas.":
+    "Install the Desktop App on the game's PC, sign in, open the race, and press 'Start Live Bridge' from the 'Live' tab.",
+  "rFactor2 paylaşımlı bellek eklentisi LMU'da kurulu olmalı (zaten ekte).":
+    "The rFactor2 shared-memory plugin must be installed in LMU (already included).",
+  "Bu bilgisayarda oyun (LMU) açıkken köprü kendiliğinden bağlanır ve canlı timing'i takımla paylaşır. Elle başlatmaya gerek yok; oyun kapalıyken bekler, açılınca otomatik başlar.":
+    "While the game (LMU) is running on this computer the bridge connects on its own and shares live timing with the team. No manual start needed; it waits while the game is closed and starts automatically when it opens.",
+  "Köprü otomatik çalışır; veri yazmak için takımda owner/editor olman gerekir (yalnız görüntüleyicisin).":
+    "The bridge runs automatically; to write data you must be an owner/editor on the team (you are a viewer only).",
+  "Köprü henüz veri göndermedi. Yukarıdan 'Canlı Köprü Başlat'a bas (oyun açıkken). Yarış başlayınca bu ekran canlı dolar.":
+    "The bridge hasn't sent data yet. Press 'Start Live Bridge' above (with the game open). This screen fills live once the race starts.",
+  /* seans fazı (köprü _PHASE) */
+  "Garaj": "Garage", "Isınma": "Warmup", "Grid": "Grid", "Formasyon": "Formation",
+  "Geri Sayım": "Countdown", "Yeşil": "Green", "FCY": "FCY", "Durduruldu": "Stopped",
+  "Bitti": "Finished",
+  /* seans tipi */
+  "Test": "Testing", "Antrenman": "Practice",
+  /* bağlantı durumu */
+  "gecikmeli": "delayed", "bağlı değil": "not connected", "bağlantı koptu": "disconnected",
 };
