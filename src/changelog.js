@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.35",
+    date: "2026-07-31",
+    tr: [
+      "🌐 Canlı Timing sekmesinin İngilizce çevirisi tamamlandı: başlıklar, tablo sütunları (Saha, Konum, Aralık…), Kendi Araç, Pist Haritası, Pozisyon Grafiği, Strateji ve tüm ipuçları/tooltip'ler artık İngilizce. Seans fazı (Yeşil→Green, FCY…), seans tipi (Yarış→Race, Antrenman→Practice…) ve bağlantı durumu (gecikmeli→delayed…) etiketleri de çevrildi",
+    ],
+    en: [
+      "🌐 Completed the English translation of the Live Timing tab: headers, table columns (Field, Location, Interval…), Own Car, Track Map, Position Chart, Strategy and all hints/tooltips are now in English. Session phase (Yeşil→Green, FCY…), session type (Yarış→Race, Antrenman→Practice…) and connection status (gecikmeli→delayed…) labels are translated too",
+    ],
+  },
+  {
     v: "v1.4.34",
     date: "2026-07-31",
     tr: [
