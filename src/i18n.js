@@ -506,6 +506,7 @@ export const EN = {
   "Tur geçmişi yükleniyor…": "Loading lap history…",
   "iç harita oluşturuluyor…": "building inner map…",
   "Canlı pist haritası": "Live track map",
+  "Haritayı büyük pencerede aç": "Open the map in a large window",
   "Canlı timing tablosu": "Live timing table",
   "Yarış başlayınca bu ekran (ve tüm takım) canlı dolar.":
     "This screen (and the whole team) fills live once the race starts.",

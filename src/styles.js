@@ -300,6 +300,10 @@ export const css = `
 .rc .wxmhead{display:flex;align-items:center;justify-content:space-between;
   padding:12px 16px;border-bottom:1px solid var(--line);font-family:'Rajdhani';
   font-size:18px;letter-spacing:.04em;text-transform:uppercase}
+/* pist haritası penceresi: kare harita için geniş varyant (⛶ Büyüt) */
+.rc .wxmbox.map{width:auto;max-width:96vw;max-height:94vh}
+.rc .wxmbox.map .mapwrap{display:flex;justify-content:center;padding:10px}
+.rc .wxmbox.map .mapwrap svg{width:min(88vw,78vh);height:auto}
 .rc .wxmlist{overflow:auto;padding:8px}
 .rc .wxrow{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px}
 .rc .wxrow:nth-child(odd){background:rgba(255,255,255,.03)}
