@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.33",
+    date: "2026-07-31",
+    tr: [
+      "🏎 Kendi Araç kartında lastik verileri artık aracın üstten görselinin (cartop) etrafında 4 köşede gösteriliyor: sıcaklık · basınç · aşınma (renkli kutu). Gövdeye hasar tonu uygulanmıyor — araç görseli net görünür",
+    ],
+    en: [
+      "🏎 Own Car card now shows tyre data at the four corners around the top-down car image: temperature · pressure · wear (colored box). No damage tint on the body — the car image shows cleanly",
+    ],
+  },
+  {
     v: "v1.4.32",
     date: "2026-07-31",
     tr: [

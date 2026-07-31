@@ -213,25 +213,32 @@ function OwnCar({ t, own, liveFuelObs }) {
             <div className="l">{t("Stint")}</div></div>
         </div>
       </div>
-      <div className="row4" style={{ marginTop: 12 }}>
+      {/* Araç üstten görseli + 4 köşede lastik verisi (sıcaklık/basınç/aşınma). */}
+      <div style={{ position: "relative", height: 300, margin: "14px auto 0", maxWidth: 360 }}>
+        <img src={`${ASSET}cartop/default.png`} alt={t("Kendi Araç")}
+          style={{ height: "100%", width: "auto", display: "block", margin: "0 auto" }} />
         {corners.map(([lbl, k]) => {
           const c = ty[k] || {};
           const wear = c.wear != null ? Math.round(c.wear * 100) : null;
+          const pos = { fl: { top: 46, left: 4 }, fr: { top: 46, right: 4 },
+            rl: { bottom: 46, left: 4 }, rr: { bottom: 46, right: 4 } }[k];
           return (
-            <div key={k} className="kpi" style={{ textAlign: "center" }}>
-              <div className="l" style={{ marginTop: 0 }}>{lbl}</div>
-              <div className="v" style={{ fontSize: 18,
-                color: wear != null && wear < 40 ? "var(--red)"
-                  : wear != null && wear < 70 ? "var(--yellow)" : "var(--green)" }}>
-                {wear != null ? `${wear}%` : "—"}</div>
-              <div className="l" style={{ marginTop: 2 }}>
-                {c.tempC != null ? `${Math.round(c.tempC)}°` : "—"}
-                {c.pressKpa != null ? ` · ${Math.round(c.pressKpa)}kPa` : ""}</div>
+            <div key={k} style={{ position: "absolute", textAlign: "center",
+              minWidth: 54, ...pos }}>
+              <div className="mono" style={{ fontSize: 13, fontWeight: 700 }}>
+                {c.tempC != null ? `${Math.round(c.tempC)}°` : "—"}</div>
+              <div style={{ fontSize: 10, color: "var(--dim)" }}>
+                {c.pressKpa != null ? `${Math.round(c.pressKpa)} kPa` : "—"}</div>
+              <div style={{ marginTop: 3, display: "inline-block", minWidth: 30,
+                padding: "2px 7px", borderRadius: 6, fontWeight: 800, fontSize: 14,
+                color: "#0b0708", background: wearColor(c.wear) }}>
+                {wear != null ? wear : "—"}</div>
+              <div style={{ fontSize: 9, color: "var(--dim)", marginTop: 1 }}>{lbl}</div>
             </div>
           );
         })}
       </div>
-      <div className="hint">{t("Lastik: kalan diş % (yeşil→sarı→kırmızı) · sıcaklık · basınç. Köprüden salt-okunur gelir.")}</div>
+      <div className="hint">{t("Lastik: kalan diş % (renkli kutu, yeşil→sarı→kırmızı) · sıcaklık · basınç. Köprüden salt-okunur gelir.")}</div>
     </div>
   );
 }
