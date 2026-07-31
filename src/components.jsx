@@ -4,7 +4,9 @@ import { useState, useEffect, Fragment } from "react";
 import {
   ASSET, quantile, TRACKS, trackFlag, TRACK_ASSET,
   CAR_CLASSES, CARS, trackName, carImg, carName,
+  APP_VERSION, REPO_URL,
 } from "./constants";
+import { CHANGELOG } from "./changelog";
 
 /* Sohbet paneli — mesaj listesi + giriş çubuğu. Genel/takım/yarış kanalları
    için ortak (App.jsx'te iki yerde kullanılıyordu). Tüm veri prop ile gelir. */
@@ -494,5 +496,46 @@ export function Tyre({ size = 16 }) {
     <img src={`${ASSET}tyre.png`} alt="" aria-hidden="true"
       style={{ height: size, width: "auto", verticalAlign: "-2px", flexShrink: 0 }}
       onError={(e) => { e.currentTarget.style.display = "none"; }} />
+  );
+}
+
+/* Sürüm notları penceresi — CHANGELOG'u listeler. App.jsx'ten çıkarıldı; durum
+   tutmaz, tüm veri prop ile gelir. open=false iken null döner. */
+export function VersionModal({ open, onClose, t, lang, onStartGuide }) {
+  if (!open) return null;
+  return (
+    <div className="wxmodal" onClick={onClose}>
+      <div className="wxmbox" style={{ width: "min(560px,94vw)" }}
+        onClick={(e) => e.stopPropagation()}>
+        <div className="wxmhead">
+          <span>ℹ {t("Neler değişti")}</span>
+          <button className="lbclose" onClick={onClose}>✕</button>
+        </div>
+        <div className="wxmlist" style={{ padding: 0, maxHeight: "62vh" }}>
+          {CHANGELOG.map((c) => (
+            <div className="clgv" key={c.v}>
+              <h4>{c.v}{c.v === APP_VERSION &&
+                <span className="cur">{t("ŞU AN")}</span>}</h4>
+              <div className="cdate">{c.date}</div>
+              <ul>{((lang === "en" ? c.en : c.tr) || c.tr || c.en || []).map((x, i) =>
+                <li key={i}>{x}</li>)}</ul>
+            </div>
+          ))}
+        </div>
+        <div className="wxmfoot" style={{ justifyContent: "space-between" }}>
+          <span style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <a className="hint" href={`${REPO_URL}/commits/main`}
+              target="_blank" rel="noreferrer"
+              style={{ color: "var(--muted)" }}>{t("GitHub'da tüm değişiklikler ↗")}</a>
+            <button className="hint" style={{ background: "none", border: 0,
+              color: "var(--teal)", cursor: "pointer", padding: 0,
+              textDecoration: "underline" }}
+              onClick={onStartGuide}>
+              🎓 {t("Rehberi başlat")}</button>
+          </span>
+          <button className="histbtn" onClick={onClose}>{t("Kapat")}</button>
+        </div>
+      </div>
+    </div>
   );
 }
