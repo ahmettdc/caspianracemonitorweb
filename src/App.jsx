@@ -44,6 +44,7 @@ import {
 import {
   TourOverlay, Wheel, Num, Bolt, Tyre, Ring,
   BADGES, teamBadgesOf, hasBadge, ChatPanel, SetupForm, SetupTable, VersionModal, RaceEditModal,
+  ChatModal,
 } from "./components";
 
 /* Sekmeler talep üzerine yüklenir (kod bölme) — ilk bundle küçülür,
@@ -785,32 +786,11 @@ ${bottomBar}
     </div>
   );
 
-  const chatModal = chatOpen && user && curChan && (
-    <div className="wxmodal" onClick={() => setChatOpen(false)}>
-      <div className="wxmbox" style={{ width: "min(560px,94vw)" }}
-        onClick={(e) => e.stopPropagation()}>
-        <div className="wxmhead">
-          <span>💬 {t("Sohbet")}</span>
-          <button className="lbclose" style={{ marginLeft: "auto", marginRight: 4 }}
-            title={chatSound ? t("Bildirim sesini kapat") : t("Bildirim sesini aç")}
-            onClick={toggleChatSound}>{chatSound ? "🔔" : "🔕"}</button>
-          <button className="lbclose" onClick={() => setChatOpen(false)}>✕</button>
-        </div>
-        <div className="chattabs">
-          {chatChans.map((c) => {
-            const u2 = unreadOf(c);
-            return (
-              <button key={c.id} className={`ctab ${c.id === chatChan ? "on" : ""}`}
-                onClick={() => setChatChan(c.id)}>
-                {c.ico} {c.id === "team" ? (teamData?.meta?.name || t(c.lbl)) : t(c.lbl)}
-                {u2 > 0 && c.id !== chatChan && <b className="cdot">{u2 > 9 ? "9+" : u2}</b>}
-              </button>
-            );
-          })}
-        </div>
-        {chatBody(curChan)}
-      </div>
-    </div>
+  const chatModal = (
+    <ChatModal open={chatOpen && !!user && !!curChan} onClose={() => setChatOpen(false)}
+      t={t} chatSound={chatSound} toggleChatSound={toggleChatSound}
+      chatChans={chatChans} unreadOf={unreadOf} chatChan={chatChan} setChatChan={setChatChan}
+      teamData={teamData} curChan={curChan} chatBody={chatBody} />
   );
 
   /* Mini oynatıcı: sekmeden bağımsız, köşede sabit. iframe hep aynı ağaçta kalır,

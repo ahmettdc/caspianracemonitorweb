@@ -617,3 +617,38 @@ export function RaceEditModal({ rForm, setRForm, t, seasons, onSave }) {
     </div>
   );
 }
+
+/* Sohbet penceresi (kanal sekmeleri + gövde). App.jsx'ten çıkarıldı; sohbet gövdesi
+   (ChatPanel'i saran, iki yerde kullanılan) App'te kalıp `chatBody` render-prop'u ile
+   gelir. open=false → null döner. */
+export function ChatModal({ open, onClose, t, chatSound, toggleChatSound, chatChans,
+  unreadOf, chatChan, setChatChan, teamData, curChan, chatBody }) {
+  if (!open) return null;
+  return (
+    <div className="wxmodal" onClick={onClose}>
+      <div className="wxmbox" style={{ width: "min(560px,94vw)" }}
+        onClick={(e) => e.stopPropagation()}>
+        <div className="wxmhead">
+          <span>💬 {t("Sohbet")}</span>
+          <button className="lbclose" style={{ marginLeft: "auto", marginRight: 4 }}
+            title={chatSound ? t("Bildirim sesini kapat") : t("Bildirim sesini aç")}
+            onClick={toggleChatSound}>{chatSound ? "🔔" : "🔕"}</button>
+          <button className="lbclose" onClick={onClose}>✕</button>
+        </div>
+        <div className="chattabs">
+          {chatChans.map((c) => {
+            const u2 = unreadOf(c);
+            return (
+              <button key={c.id} className={`ctab ${c.id === chatChan ? "on" : ""}`}
+                onClick={() => setChatChan(c.id)}>
+                {c.ico} {c.id === "team" ? (teamData?.meta?.name || t(c.lbl)) : t(c.lbl)}
+                {u2 > 0 && c.id !== chatChan && <b className="cdot">{u2 > 9 ? "9+" : u2}</b>}
+              </button>
+            );
+          })}
+        </div>
+        {chatBody(curChan)}
+      </div>
+    </div>
+  );
+}
