@@ -44,7 +44,11 @@ export function demoLive(el) {
     const rr = i % 2 === 0 ? fr : +Math.max(0.2, 1 - (t % 2600) / 2600).toFixed(3);
     const t4 = [fr, +Math.max(0.2, fr - 0.01).toFixed(3), rr,
       +Math.max(0.2, rr - 0.02).toFixed(3)];
-    const comp = i === 3 && t > 600 ? "Wet" : "Medium";
+    // farklı hamur örnekleri: bazı araçlar Soft/Hard, biri ön/arka crossover
+    const comp = i === 3 && t > 600 ? "Wet"
+      : i === 1 ? "Soft" : i === 2 ? "Hard"
+        : i === 5 ? "Medium/Soft"         // ön Medium · arka Soft (crossover → iki ikon)
+          : "Medium";
     return {
       tyres4: t4, tyreWear: Math.min(...t4), tyreComp: comp, teleLag: 0,
       tyreChange: i % 2 === 0
