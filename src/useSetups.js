@@ -5,7 +5,7 @@
    BİREBİR korunur — mantık ve bağımlılıklar aynen taşındı. Sohbetin aksine
    zamanlama/scroll/effect-sırası riski yok (tek abonelik + form state + 3 handler).
 
-   Girdi: { user, udoc, curTeam, userName, teamData, t }.
+   Girdi: { user, udoc, userName, teamData, t }.
    Çıktı (App render'ının kullandığı yüzey):
      { setups, suFile, suMeta, setSuMeta, suErr, suBusy, suOpen, setSuOpen,
        suUpOpen, setSuUpOpen, suFTrack, setSuFTrack, suFCond, setSuFCond,
@@ -13,7 +13,7 @@
 import { useState, useEffect } from "react";
 import { addSetup, watchSetups } from "./storage";
 
-export function useSetups({ user, udoc, curTeam, userName, teamData, t }) {
+export function useSetups({ user, udoc, userName, teamData, t }) {
   const [setups, setSetups] = useState([]);
   const [suFile, setSuFile] = useState(null);       // { name, b64, size }
   const [suMeta, setSuMeta] = useState({ track: "", cls: "", car: "",
@@ -49,7 +49,9 @@ export function useSetups({ user, udoc, curTeam, userName, teamData, t }) {
   };
 
   const saveSetup = async () => {
-    if (!suFile || !curTeam || suBusy) return;
+    // Takım şartı YOK: setup'lar global havuza yazılır; onaylı her kullanıcı
+    // (takımı olmasa da) yükleyebilir. team meta'sı varsa etiket, yoksa boş.
+    if (!suFile || suBusy) return;
     if (!suMeta.track) { setSuErr(t("Pist seçilmeli.")); return; }
     setSuBusy(true);
     try {

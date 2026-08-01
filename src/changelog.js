@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.77",
+    date: "2026-08-01",
+    tr: [
+      "🛠 Düzeltme: onaylı kullanıcılar bir takıma girmeden/yarış seçmeden setup yükleyemiyordu — 'Yükle' düğmesi sessizce hiçbir şey yapmıyordu. Artık takım şartı kaldırıldı: onaylı her kullanıcı (takımı olmasa da) ortak havuza setup yükleyebilir (pist seçmesi yeterli).",
+      "🔒 Güvenlik: bir setup'ı artık yalnızca site admini silebilir (önceden yükleyen de silebiliyordu). Silme düğmesi yalnız adminde görünür ve sunucu kuralı da admin dışı silmeyi reddeder.",
+    ],
+    en: [
+      "🛠 Fix: approved users couldn't upload a setup without first joining a team / selecting a race — the 'Upload' button silently did nothing. The team requirement is removed: any approved user (even without a team) can upload to the shared setup pool (just pick a track).",
+      "🔒 Security: a setup can now be deleted only by a site admin (previously the uploader could too). The delete button shows only for admins, and the server rule also rejects non-admin deletes.",
+    ],
+  },
+  {
     v: "v1.4.76",
     date: "2026-08-01",
     tr: [
