@@ -16,7 +16,7 @@
    ============================================================ */
 import { liveTimingSet, liveLapsAppend, liveLapsClear,
   livePosAppend, livePosClear, liveSecAppend, liveSecClear,
-  liveDrvAppend, liveDrvClear,
+  liveDrvAppend, liveDrvClear, liveTyreAppend, liveTyreClear,
   liveWriterClaim, liveWriterRelease, liveWriterSubscribe, serverNow } from "./storage";
 import { shouldClaim } from "./liveWriter";
 import { lapNumbersOf } from "./liveLaps";
@@ -63,6 +63,7 @@ export async function startBridge(opts, onStatus) {
   const lastLap = {};      // lapKey → yazılmış en yüksek tur no (append idempotent)
   const lastPit = {};      // lapKey → son görülen pit durak sayısı (pit turu işareti)
   const lastDrv = {};      // lapKey → son yazılan pilot adı (yalnız DEĞİŞİNCE yazılır)
+  const lastTyre = {};     // lapKey → son yazılan pit-lastik-değişimi turu (idempotent)
   let diag = null;         // gizli teşhis (shm/lmu/cars/ve) — arayüzde gösterilmez
   let diagSig = "";        // teşhis özeti (yalnız durum değişince konsola yaz)
 
@@ -83,6 +84,7 @@ export async function startBridge(opts, onStatus) {
     const posEntries = {};   // livepos: lapKey/n → pozisyon (pit turu → negatif)
     const secEntries = {};   // livesec: lapKey/n → "s1,s2,s3" (yalnız en yeni tur)
     const drvEntries = {};   // livedrv: lapKey/n → pilot adı (yalnız DEĞİŞİM turunda)
+    const tyreEntries = {};  // livetyre: lapKey/n → "{adet}|{hamur}" (yalnız pit turunda)
     let clears = [];
     for (const r of rows) {
       const key = r.lapKey;
@@ -96,7 +98,7 @@ export async function startBridge(opts, onStatus) {
         // yeni seans: gelen turlar yazdığımızdan geride → geçmişi sıfırla
         if (lastLap[key] != null && first <= lastLap[key] && maxN < lastLap[key]) {
           clears.push(key); lastLap[key] = 0; lastPit[key] = r.pitStops || 0;
-          delete lastDrv[key];
+          delete lastDrv[key]; delete lastTyre[key];
         }
         const prev = lastLap[key] || 0;
         /* PİLOT: endurance'ta yarış içinde değişir; lapKey ARAÇ kimliği olduğu için
@@ -109,6 +111,17 @@ export async function startBridge(opts, onStatus) {
         if (drv && firstNew != null && lastDrv[key] !== drv) {
           drvEntries[`${key}/${firstNew}`] = drv;
           lastDrv[key] = drv;
+        }
+        /* PİT LASTİK DEĞİŞİMİ: köprü pit çıkışında tyreChange {n, comp, lap} üretir
+           (lap = in-lap). Yalnız YENİ bir değişim turu geldiğinde bir kez yaz →
+           "+" geçmişinde o turda "N× hamur ikonu" görünür. Hamur = duraktan sonraki
+           mevcut hamur ("aldığımız hamur"). Telemetrisi olmayan rakipte tyreChange
+           gelmez → o araçta işaret olmaz (kabul). */
+        const tch = r.tyreChange;
+        if (tch && Number.isFinite(tch.lap) && tch.lap > 0 && lastTyre[key] !== tch.lap) {
+          const comp = typeof r.tyreComp === "string" ? r.tyreComp : "";
+          tyreEntries[`${key}/${tch.lap}`] = `${tch.n ?? 0}|${comp}`;
+          lastTyre[key] = tch.lap;
         }
         // bu turlarda pit atıldı mı (durak sayısı arttı mı)? → maxN turu pit işaretli
         const pits = r.pitStops || 0;
@@ -130,6 +143,7 @@ export async function startBridge(opts, onStatus) {
       }
       // canlı kareyi küçük tut — geçmiş ayrı düğümde
       delete r.laps; delete r.lapsFrom; delete r.lapNums; delete r.lastSectors;
+      delete r.tyreChange;   // pit değişimi artık livetyre'de (tabloda gösterilmiyor)
     }
     /* own da aynı tur listesini taşır (Aggregator oyuncu satırından kopyalar) ama web
        onu kullanmaz — geçmiş livelaps'ten okunur. Kareden çıkar: her yazımda ~50 sayı
@@ -141,11 +155,13 @@ export async function startBridge(opts, onStatus) {
       for (const k of clears) {
         await liveLapsClear(tid, rid, k); await livePosClear(tid, rid, k);
         await liveSecClear(tid, rid, k); await liveDrvClear(tid, rid, k);
+        await liveTyreClear(tid, rid, k);
       }
       if (Object.keys(entries).length) await liveLapsAppend(tid, rid, entries);
       if (Object.keys(posEntries).length) await livePosAppend(tid, rid, posEntries);
       if (Object.keys(secEntries).length) await liveSecAppend(tid, rid, secEntries);
       if (Object.keys(drvEntries).length) await liveDrvAppend(tid, rid, drvEntries);
+      if (Object.keys(tyreEntries).length) await liveTyreAppend(tid, rid, tyreEntries);
     } catch (e) {
       say({ running: true, phase: "running", msg: "Geçmiş yazılamadı: " + (e?.message || e) });
     }

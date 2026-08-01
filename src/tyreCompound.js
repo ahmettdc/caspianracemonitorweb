@@ -74,3 +74,16 @@ export function compoundAxles(tyreComp) {
   const split = !!rear && (rear.cls !== front.cls || rear.raw !== front.raw);
   return { front, rear: split ? rear : null, split };
 }
+
+/* Pit lastik değişimi kaydı: köprü/harvest `"{adet}|{hamur}"` yazar (livetyre düğümü,
+   ör. "4|Medium", "2|Medium/Soft"). Tur geçmişi popup'ında "N× hamur ikonu" göstermek
+   için ayrıştırılır. Bozuk/eksik → null. */
+export function parseTyreLog(str) {
+  const s = String(str == null ? "" : str);
+  const bar = s.indexOf("|");
+  if (bar < 0) return null;
+  const n = Number(s.slice(0, bar).trim());
+  if (!Number.isInteger(n) || n < 0 || n > 4) return null;
+  const comp = s.slice(bar + 1).trim();
+  return { n, comp: comp || null };
+}

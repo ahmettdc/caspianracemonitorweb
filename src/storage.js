@@ -460,6 +460,25 @@ export function liveDrvSubscribe(tid, rid, lapKey, cb) {
     (err) => { console.warn("livedrv read failed:", err?.message); cb(null); });
 }
 
+/* ---- tur → pit lastik değişimi (livetyre) — "+" geçmişinde pit işareti ----
+   teams/{tid}/livetyre/{rid}/{lapKey}/{n} = "{adet}|{hamur}" (ör. "4|Medium"). SEYREK:
+   yalnız pit atılan tur yazılır. livedrv/livesec ile aynı desen. */
+export async function liveTyreAppend(tid, rid, entries) {
+  if (!db || !tid || !rid || !entries) return;
+  await update(ref(db, `teams/${tid}/livetyre/${rid}`), entries);
+}
+export async function liveTyreClear(tid, rid, lapKey) {
+  if (!db || !tid || !rid || !lapKey) return;
+  await set(ref(db, `teams/${tid}/livetyre/${rid}/${lapKey}`), null);
+}
+/* Bir aracın tur→pit lastik değişimi kayıtlarını dinle (popup açıkken). */
+export function liveTyreSubscribe(tid, rid, lapKey, cb) {
+  if (!db || !tid || !rid || !lapKey) { cb(null); return () => {}; }
+  return onValue(ref(db, `teams/${tid}/livetyre/${rid}/${lapKey}`),
+    (s) => cb(s.exists() ? s.val() : null),
+    (err) => { console.warn("livetyre read failed:", err?.message); cb(null); });
+}
+
 /* ---- paylaşımlı iç-harita şekli (livetrack) ----
    teams/{tid}/livetrack/{trackKey} = packBins(...) metni (bkz. trackShape.js).
    PİST başına saklanır (rid değil) → bir kez oluşan devre şekli o pistin tüm

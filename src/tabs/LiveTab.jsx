@@ -3,13 +3,14 @@ import { fmtLap, fmtHMS, fmtGap, WEATHER, wetnessLevel, rainLevel } from "../eng
 import { Ring } from "../components";
 import { DESKTOP_RELEASE_URL, ASSET, classId, classAccent, brandKey, manufacturerKey } from "../constants";
 import { isTauri } from "../tauriEnv";
-import { liveLapsSubscribe, liveSecSubscribe, liveDrvSubscribe, serverNow } from "../storage";
+import { liveLapsSubscribe, liveSecSubscribe, liveDrvSubscribe, liveTyreSubscribe,
+  serverNow } from "../storage";
 import { driverAtLap } from "../liveLaps";
 import { binKey } from "../trackShape";
 import { demoLive } from "../liveDemo";
 import { CALIB_WORDS, addSample, thresholdsFrom, exportPayload } from "../wxCalib";
-import { tyreTitle, tyreChangeBadge, teleStale } from "../tyreInfo";
-import { compoundAxles } from "../tyreCompound";
+import { tyreTitle, teleStale } from "../tyreInfo";
+import { compoundAxles, compoundInfo, parseTyreLog } from "../tyreCompound";
 import TrackMap from "./TrackMap";
 import PosChart from "./PosChart";
 import StrategyBar from "./StrategyBar";
@@ -74,23 +75,36 @@ function CompoundIcon({ info, size }) {
   );
 }
 
-/* Lastik hamuru hücresi — Soft/Medium/Hard/Wet ikonu. Ön≠arka ise (crossover) İKİ
-   ikon yan yana: ön + arka. Paylaşımlı bellek yalnız ön/arka verir (sol/sağ yok).
-   Bilinmeyen ad ham kısaltmayla; veri yoksa "—". Bayat telemetride soluk. */
-function CompoundCell({ comp, stale, t }) {
-  const ax = compoundAxles(comp);
-  if (!ax) return <span style={{ color: "var(--dim)" }}>—</span>;
+/* Ön/arka hamur ikon(lar)ı — ön≠arka ise (crossover) iki ikon yan yana. Paylaşımlı
+   bellek yalnız ön/arka verir (sol/sağ yok). size: ön ikon yüksekliği. */
+function CompoundIcons({ ax }) {
+  return (<>
+    <CompoundIcon info={ax.front} size={20} />
+    {ax.split && <>
+      <span style={{ color: "var(--dim)", fontSize: 11 }}>/</span>
+      <CompoundIcon info={ax.rear} size={16} />
+    </>}
+  </>);
+}
+
+/* Birleşik LASTİK hücresi: hamur ikonu/ikonları + en kötü aşınma %. Renkli nokta yok,
+   pit değişim rozeti yok (o artık "+" tur geçmişinde). Tooltip: hamur (ön/arka) +
+   köşe-köşe aşınma. Bayat telemetride soluk. Veri yoksa "—". */
+function TyreCell({ c, t }) {
+  const ax = compoundAxles(c.tyreComp);
+  const stale = teleStale(c.teleLag);
+  const wear = c.tyreWear != null ? `%${Math.round(c.tyreWear * 100)}` : null;
+  if (!ax && wear == null) return <span style={{ color: "var(--dim)" }}>—</span>;
   const lbl = (info) => (info.cls ? t(info.label) : info.raw);
-  const title = (ax.split ? `${t("Ön")}: ${lbl(ax.front)} · ${t("Arka")}: ${lbl(ax.rear)}`
-    : lbl(ax.front)) + (stale ? ` — ${t("telemetri bayat")}` : "");
+  const compTitle = ax
+    ? (ax.split ? `${t("Ön")}: ${lbl(ax.front)} · ${t("Arka")}: ${lbl(ax.rear)}` : lbl(ax.front))
+    : "";
+  const title = [compTitle, tyreTitle(c, t)].filter(Boolean).join("\n");
   return (
     <span style={{ opacity: stale ? 0.4 : 1, whiteSpace: "nowrap",
-      display: "inline-flex", alignItems: "center", gap: 3 }} title={title}>
-      <CompoundIcon info={ax.front} size={20} />
-      {ax.split && <>
-        <span style={{ color: "var(--dim)", fontSize: 11 }}>/</span>
-        <CompoundIcon info={ax.rear} size={16} />
-      </>}
+      display: "inline-flex", alignItems: "center", gap: 4 }} title={title}>
+      {ax && <CompoundIcons ax={ax} />}
+      {wear && <span style={{ color: "var(--dim)", fontSize: 12 }}>{wear}</span>}
     </span>
   );
 }
@@ -120,6 +134,7 @@ function LapsModal({ t, tid, rid, row, onClose }) {
   const [lapMap, setLapMap] = useState(null);   // {n: sec} livelaps'ten
   const [secMap, setSecMap] = useState(null);   // {n: "s1,s2,s3"} livesec'ten
   const [drvMap, setDrvMap] = useState(null);   // {n: "ad"} livedrv'den (SEYREK)
+  const [tyreMap, setTyreMap] = useState(null); // {n: "adet|hamur"} livetyre'den (pit turu)
   useEffect(() => {
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", onKey);
@@ -127,11 +142,14 @@ function LapsModal({ t, tid, rid, row, onClose }) {
   }, [onClose]);
   // açıkken o aracın tur geçmişini + sektörlerini + pilotlarını dinle
   useEffect(() => {
-    if (!row?.lapKey) { setLapMap(null); setSecMap(null); setDrvMap(null); return undefined; }
+    if (!row?.lapKey) {
+      setLapMap(null); setSecMap(null); setDrvMap(null); setTyreMap(null); return undefined;
+    }
     const off1 = liveLapsSubscribe(tid, rid, row.lapKey, setLapMap);
     const off2 = liveSecSubscribe(tid, rid, row.lapKey, setSecMap);
     const off3 = liveDrvSubscribe(tid, rid, row.lapKey, setDrvMap);
-    return () => { off1(); off2(); off3(); };
+    const off4 = liveTyreSubscribe(tid, rid, row.lapKey, setTyreMap);
+    return () => { off1(); off2(); off3(); off4(); };
   }, [tid, rid, row?.lapKey]);
   // {n: sec} → [{n, sec}] sayısal sıralı; en yeni üstte
   const entries = lapMap && typeof lapMap === "object"
@@ -165,6 +183,8 @@ function LapsModal({ t, tid, rid, row, onClose }) {
             const drv = driverAtLap(drvMap, n);
             const swap = !!drv && drv !== driverAtLap(drvMap, n - 1);
             const shortDrv = drv ? drv.split(/\s+/).pop() : "";
+            /* PİT: bu turda lastik değişimi/durak varsa "N× hamur ikonu" (livetyre). */
+            const pit = tyreMap && tyreMap[n] ? parseTyreLog(tyreMap[n]) : null;
             return (
               <div key={n} className="wxrow" style={{ flexWrap: "wrap",
                 ...(swap && { borderTop: "1px solid var(--teal)" }) }}>
@@ -180,6 +200,20 @@ function LapsModal({ t, tid, rid, row, onClose }) {
                   {fmtLap(sec)}</span>
                 <span className="wxat mono">
                   {isBest ? "★" : best > 0 ? `+${(sec - best).toFixed(2)}` : ""}</span>
+                {pit && (
+                  <span title={pit.n > 0
+                    ? `${t("Pit")}: ${pit.n} ${t("lastik")}${pit.comp ? ` · ${pit.comp}` : ""}`
+                    : t("Pit (yalnız yakıt/servis)")}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 3,
+                      fontSize: 11, color: "var(--yellow)" }}>
+                    {pit.n > 0 ? <>
+                      {pit.n}×
+                      {(() => { const info = compoundInfo(pit.comp);
+                        return info ? <CompoundIcon info={info} size={16} /> : null; })()}
+                    </> : <span className="chip" style={{ fontSize: 10,
+                      color: "var(--yellow)", borderColor: "var(--yellow)" }}>PIT</span>}
+                  </span>
+                )}
                 {sc && sc.length === 3 && sc.every((v) => v > 0) && (
                   <span className="mono" style={{ flexBasis: "100%", paddingLeft: 56,
                     fontSize: 11, color: "var(--dim)" }}>
@@ -649,7 +683,7 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
                 <th>{t("Son")}</th><th>{t("En İyi")}</th><th>AVG5</th><th>AVG</th>
                 <th>VE</th>
                 <th>Δ</th><th>Gap</th><th>{t("Aralık")}</th><th>{t("Konum")}</th>
-                <th>Stint</th><th>{t("Lastik")}</th><th>{t("Hamur")}</th>
+                <th>Stint</th><th>{t("Lastik")}</th>
                 <th>{t("Hasar")}</th><th>Pit</th>
                 <th aria-label={t("Turlar")}></th>
               </tr></thead>
@@ -699,26 +733,10 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
                         {c.location ? t(c.location) : "—"}</td>
                       <td className="mono" style={{ color: "var(--dim)", fontSize: 12 }}>
                         {c.stintSec > 0 ? fmtHMS(c.stintSec) : "—"}</td>
-                      {/* Lastik: yüzde = dört tekerin EN KÖTÜSÜ (tooltip'te köşe köşe
-                          + bileşim). Yanındaki 🛠 rozeti son pitte KAÇ lastiğin
-                          değiştiğini söyler — iki-lastik duraklarını görmek için. */}
-                      <td style={{ whiteSpace: "nowrap" }} title={tyreTitle(c, t)}>
-                        {c.tyreWear != null ? <>
-                          <span style={{ display: "inline-block", width: 9, height: 9, borderRadius: "50%",
-                            background: wearColor(c.tyreWear), marginRight: 5, verticalAlign: "middle",
-                            opacity: teleStale(c.teleLag) ? 0.35 : 1 }} />
-                          <span style={{ color: "var(--dim)", fontSize: 12 }}>{Math.round(c.tyreWear * 100)}%</span>
-                        </> : "—"}
-                        {(() => {
-                          const b = tyreChangeBadge(c.tyreChange, t);
-                          if (!b) return null;
-                          return <span title={b.title} style={{ marginLeft: 5, fontSize: 11,
-                            color: b.comp ? "var(--teal)" : b.n === 0 ? "var(--dim)" : "var(--yellow)" }}>
-                            🛠{b.txt}{b.comp ? `→${b.comp}` : ""}</span>;
-                        })()}</td>
-                      {/* Hamur: aracın taktığı lastik hamuru (Soft/Medium/Hard/Wet).
-                          İkon oyunun kendi görselinden; bayat telemetride soluk. */}
-                      <td><CompoundCell comp={c.tyreComp} stale={teleStale(c.teleLag)} t={t} /></td>
+                      {/* Lastik (birleşik): hamur ikonu + en kötü aşınma %. Renkli nokta
+                          yok. Pit lastik değişimi artık "+" tur geçmişinde. Tooltip'te
+                          hamur (ön/arka) + köşe-köşe aşınma; bayat telemetride soluk. */}
+                      <td><TyreCell c={c} t={t} /></td>
                       <td style={{ fontSize: 12, color: (c.damage || 0) > 0.15 ? "var(--red)"
                         : (c.damage || 0) > 0.02 ? "var(--yellow)" : "var(--dim)" }}>
                         {c.damage != null ? `${Math.round(c.damage * 100)}%` : "—"}</td>

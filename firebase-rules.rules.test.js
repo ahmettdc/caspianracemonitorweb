@@ -129,6 +129,19 @@ describe("teams/livelaps + livesec (tur geçmişi)", () => {
     await assertFails(set(ref(db("carol"), "teams/team1/livedrv/race1/c7/31"), "M. Yılmaz"));
     await assertFails(set(ref(db("dave"), "teams/team1/livedrv/race1/c7/31"), "M. Yılmaz"));
   });
+
+  it("livetyre: editor pit lastik değişimi yazar, üye okur", async () => {
+    await assertSucceeds(set(ref(db("bob"), "teams/team1/livetyre/race1/c7/25"), "4|Medium"));
+    await assertSucceeds(get(ref(db("carol"), "teams/team1/livetyre/race1/c7")));
+  });
+  it("livetyre: string olmayan / 40+ karakter reddedilir", async () => {
+    await assertFails(set(ref(db("bob"), "teams/team1/livetyre/race1/c7/26"), 4));
+    await assertFails(set(ref(db("bob"), "teams/team1/livetyre/race1/c7/27"), "x".repeat(40)));
+  });
+  it("livetyre: viewer/yabancı yazamaz", async () => {
+    await assertFails(set(ref(db("carol"), "teams/team1/livetyre/race1/c7/25"), "4|Medium"));
+    await assertFails(set(ref(db("dave"), "teams/team1/livetyre/race1/c7/25"), "4|Medium"));
+  });
 });
 
 describe("teams/livetrack (paylaşımlı iç-harita şekli)", () => {
