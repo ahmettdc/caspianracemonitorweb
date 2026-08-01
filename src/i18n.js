@@ -493,6 +493,8 @@ export const EN = {
   // lastik hamuru sütunu (v1.4.66) + ön/arka crossover (v1.4.67)
   "Hamur": "Compound", "telemetri bayat": "telemetry stale",
   "Ön": "Front", "Arka": "Rear",
+  // pit lastik değişimi tur geçmişinde (v1.4.68)
+  "Pit (yalnız yakıt/servis)": "Pit (fuel/service only)",
   // rakip lastikleri: köşe köşe aşınma + pit'te kaç lastik değişti (v1.4.65)
   "ÖnSol": "FL", "ÖnSağ": "FR", "ArkaSol": "RL", "ArkaSağ": "RR",
   "ÖN": "FRONT", "ARKA": "REAR", "SAĞ": "RIGHT", "SOL": "LEFT",

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { compoundClass, compoundInfo, compoundAxles, COMPOUNDS } from "./tyreCompound.js";
+import { compoundClass, compoundInfo, compoundAxles, parseTyreLog, COMPOUNDS }
+  from "./tyreCompound.js";
 
 describe("compoundClass — ham ad → kademe", () => {
   it("temel kelimeler (büyük-küçük harf duyarsız)", () => {
@@ -90,5 +91,20 @@ describe("compoundAxles — ön/arka ayrımı (crossover)", () => {
   it("veri yoksa null", () => {
     expect(compoundAxles("")).toBeNull();
     expect(compoundAxles(null)).toBeNull();
+  });
+});
+
+describe("parseTyreLog — pit lastik değişimi kaydı", () => {
+  it("adet + hamur ayrıştırılır", () => {
+    expect(parseTyreLog("4|Medium")).toEqual({ n: 4, comp: "Medium" });
+    expect(parseTyreLog("2|Medium/Soft")).toEqual({ n: 2, comp: "Medium/Soft" });
+    expect(parseTyreLog("0|")).toEqual({ n: 0, comp: null });   // yakıt-only
+  });
+  it("bozuk/eksik → null", () => {
+    expect(parseTyreLog("")).toBeNull();
+    expect(parseTyreLog(null)).toBeNull();
+    expect(parseTyreLog("Medium")).toBeNull();      // ayraç yok
+    expect(parseTyreLog("x|Medium")).toBeNull();    // adet sayı değil
+    expect(parseTyreLog("9|Medium")).toBeNull();    // 0..4 dışı
   });
 });

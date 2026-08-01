@@ -5,6 +5,20 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.68",
+    date: "2026-08-01",
+    tr: [
+      "🛞 Saha tablosunda Lastik ve Hamur sütunları TEK sütunda birleşti: artık hamur ikonu + aşınma yüzdesi (ör. 🟡M %40). Karışık kullanımda ön/arka iki ikon. Renkli aşınma noktası kaldırıldı — daha sade.",
+      "🔧 Pit lastik değişimi (kaç lastik + hangi hamur) artık tablodaki 🛠 rozetinde değil, bir aracın satırındaki '+' ile açılan TUR GEÇMİŞİNDE görünüyor: pit atılan turda 'N× hamur ikonu' (ör. 25. tur → 4× Medium). Böylece hangi turda ne aldığı kalıcı kayıt.",
+      "ℹ️ Not: pit lastik kaydı köprüden yazıldığı için sürüş PC'sindeki masaüstü uygulamasının güncellenmesi gerekir; kayıt o andan sonraki pitler için başlar. Telemetrisi olmayan rakipte işaret çıkmayabilir.",
+    ],
+    en: [
+      "🛞 The field table's Tyre and Compound columns merged into ONE: now the compound icon + wear percentage (e.g. 🟡M 40%). Two icons for a front/rear split. The coloured wear dot was removed — cleaner.",
+      "🔧 Pit tyre changes (how many tyres + which compound) no longer sit in the table's 🛠 badge; they now appear in the LAP HISTORY opened via a car's '+': at the pit lap, 'N× compound icon' (e.g. lap 25 → 4× Medium). A permanent record of what was fitted when.",
+      "ℹ️ Note: the pit tyre record is written by the bridge, so the desktop app on the driving PC must be updated; recording starts from pit stops after that. A rival without telemetry may show no marker.",
+    ],
+  },
+  {
     v: "v1.4.67",
     date: "2026-08-01",
     tr: [
