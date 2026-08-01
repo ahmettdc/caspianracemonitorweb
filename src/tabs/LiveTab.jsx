@@ -9,7 +9,7 @@ import { binKey } from "../trackShape";
 import { demoLive } from "../liveDemo";
 import { CALIB_WORDS, addSample, thresholdsFrom, exportPayload } from "../wxCalib";
 import { tyreTitle, tyreChangeBadge, teleStale } from "../tyreInfo";
-import { compoundInfo } from "../tyreCompound";
+import { compoundAxles } from "../tyreCompound";
 import TrackMap from "./TrackMap";
 import PosChart from "./PosChart";
 import StrategyBar from "./StrategyBar";
@@ -54,35 +54,43 @@ function ClassBadge({ raw }) {
   return <span className="chip" style={{ fontSize: 10 }}>{raw || "—"}</span>;
 }
 
-/* Lastik hamuru hücresi — Soft/Medium/Hard/Wet ikonu (assets/tyre-compound/<cls>.png).
-   ClassBadge deseni: ikon yüklenmezse renkli disk + harf yedeği. Bilinmeyen ad ham
-   kısaltmayla gösterilir (uydurma yok), veri yoksa "—". Bayat telemetride soluk. */
-function CompoundCell({ comp, stale, t }) {
+/* Tek hamur ikonu (assets/tyre-compound/<cls>.png) — ClassBadge deseni: ikon
+   yüklenmezse renkli disk + harf yedeği. size: ikon yüksekliği (px). */
+function CompoundIcon({ info, size }) {
   const [err, setErr] = useState(false);
-  const info = compoundInfo(comp);
-  if (!info) return <span style={{ color: "var(--dim)" }}>—</span>;
-  const style = { opacity: stale ? 0.4 : 1, whiteSpace: "nowrap" };
-  const title = (info.cls ? t(info.label) : info.raw)
-    + (info.crossover ? ` (${info.raw})` : "")
-    + (stale ? ` — ${t("telemetri bayat")}` : "");
   if (info.cls && !err) {
-    return (
-      <span style={style} title={title}>
-        <img src={`${ASSET}tyre-compound/${info.cls}.png`} alt={info.label}
-          style={{ height: 20, verticalAlign: "middle" }} onError={() => setErr(true)} />
-        {info.crossover && <span style={{ fontSize: 10, color: "var(--yellow)",
-          marginLeft: 2 }}>*</span>}
-      </span>
-    );
+    return <img src={`${ASSET}tyre-compound/${info.cls}.png`} alt={info.label}
+      style={{ height: size, verticalAlign: "middle" }} onError={() => setErr(true)} />;
   }
-  // yedek: renkli disk + harf (ikon yoksa ya da bilinmeyen hamur)
+  const box = Math.round(size * 0.82);
   return (
-    <span style={{ ...style, display: "inline-flex", alignItems: "center", gap: 4 }}
-      title={title}>
-      <span style={{ display: "inline-block", width: 16, height: 16, borderRadius: "50%",
-        border: `2px solid ${info.color}`, fontSize: 9, lineHeight: "12px",
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 3,
+      verticalAlign: "middle" }}>
+      <span style={{ display: "inline-block", width: box, height: box, borderRadius: "50%",
+        border: `2px solid ${info.color}`, fontSize: box * 0.55, lineHeight: `${box - 4}px`,
         textAlign: "center", color: info.color, fontWeight: 700 }}>{info.short[0]}</span>
       {!info.cls && <span style={{ fontSize: 11, color: "var(--dim)" }}>{info.short}</span>}
+    </span>
+  );
+}
+
+/* Lastik hamuru hücresi — Soft/Medium/Hard/Wet ikonu. Ön≠arka ise (crossover) İKİ
+   ikon yan yana: ön + arka. Paylaşımlı bellek yalnız ön/arka verir (sol/sağ yok).
+   Bilinmeyen ad ham kısaltmayla; veri yoksa "—". Bayat telemetride soluk. */
+function CompoundCell({ comp, stale, t }) {
+  const ax = compoundAxles(comp);
+  if (!ax) return <span style={{ color: "var(--dim)" }}>—</span>;
+  const lbl = (info) => (info.cls ? t(info.label) : info.raw);
+  const title = (ax.split ? `${t("Ön")}: ${lbl(ax.front)} · ${t("Arka")}: ${lbl(ax.rear)}`
+    : lbl(ax.front)) + (stale ? ` — ${t("telemetri bayat")}` : "");
+  return (
+    <span style={{ opacity: stale ? 0.4 : 1, whiteSpace: "nowrap",
+      display: "inline-flex", alignItems: "center", gap: 3 }} title={title}>
+      <CompoundIcon info={ax.front} size={20} />
+      {ax.split && <>
+        <span style={{ color: "var(--dim)", fontSize: 11 }}>/</span>
+        <CompoundIcon info={ax.rear} size={16} />
+      </>}
     </span>
   );
 }

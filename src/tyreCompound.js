@@ -44,18 +44,33 @@ export function compoundClass(name) {
   return null;
 }
 
-/* UI için tam bilgi: {cls, short, label, color, raw, crossover}. Eşleşmezse cls=null
-   ama raw korunur (UI ham kısaltmayı gösterir). Veri hiç yoksa null döner. */
+/* TEK hamur adının UI bilgisi: {cls, short, label, color, raw}. Eşleşmezse cls=null
+   ama raw korunur (UI ham kısaltmayı gösterir). Veri hiç yoksa null döner.
+   (Ön/arka birleşiminin ayrıştırılması compoundAxles'ta — burası tek ad işler.) */
 export function compoundInfo(name) {
   const raw = String(name == null ? "" : name).trim();
   if (!raw) return null;
   const cls = compoundClass(raw);
-  const parts = raw.split(/[/,]/).map((x) => x.trim()).filter(Boolean);
-  const crossover = parts.length > 1 && new Set(parts.map(compoundClass)).size > 1;
   if (!cls) {
     // bilinmeyen ad — ham metnin ilk 3 harfi kısaltma, sınıf yok
-    return { cls: null, short: raw.slice(0, 3), label: raw, color: "var(--dim)",
-      raw, crossover };
+    return { cls: null, short: raw.slice(0, 3), label: raw, color: "var(--dim)", raw };
   }
-  return { ...COMPOUNDS[cls], cls, raw, crossover };
+  return { ...COMPOUNDS[cls], cls, raw };
+}
+
+/* Köprü ön≠arka iken `tyreComp = "Ön/Arka"` gönderir (rf2_source._compound, f"{f}/{r}");
+   aynıysa tek ad. Bunu ön/arka ikonlarına ayır. Paylaşımlı bellek yalnız ön+arka verir
+   (teker başına hamur YOK) → sol/sağ ayrımı rakiplerde yapılamaz; bu yüzden ekseni
+   ön/arka kabul ederiz. Döner: { front, rear, split } — front daima (varsa), rear yalnız
+   FARKLIYSA doludur, split o zaman true. Veri yoksa null. */
+export function compoundAxles(tyreComp) {
+  const raw = String(tyreComp == null ? "" : tyreComp).trim();
+  if (!raw) return null;
+  const parts = raw.split(/[/,]/).map((x) => x.trim()).filter(Boolean);
+  const front = compoundInfo(parts[0] ?? raw);
+  if (!front) return null;
+  const rear = parts.length > 1 ? compoundInfo(parts[1]) : null;
+  // ayrı kademe (ör. medium vs soft) ya da ham adlar farklı → gerçek crossover
+  const split = !!rear && (rear.cls !== front.cls || rear.raw !== front.raw);
+  return { front, rear: split ? rear : null, split };
 }

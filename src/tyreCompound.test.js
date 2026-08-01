@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { compoundClass, compoundInfo, COMPOUNDS } from "./tyreCompound.js";
+import { compoundClass, compoundInfo, compoundAxles, COMPOUNDS } from "./tyreCompound.js";
 
 describe("compoundClass — ham ad → kademe", () => {
   it("temel kelimeler (büyük-küçük harf duyarsız)", () => {
@@ -34,20 +34,13 @@ describe("compoundClass — ham ad → kademe", () => {
   });
 });
 
-describe("compoundInfo — UI bilgisi", () => {
+describe("compoundInfo — tek hamur UI bilgisi", () => {
   it("bilinen kademe: ikon/harf/renk alanları", () => {
     const m = compoundInfo("Medium");
     expect(m.cls).toBe("medium");
     expect(m.short).toBe("M");
     expect(m.label).toBe("Medium");
     expect(m.color).toBe(COMPOUNDS.medium.color);
-    expect(m.crossover).toBe(false);
-  });
-  it("crossover işaretlenir ama ilk kademe döner", () => {
-    const c = compoundInfo("Medium/Wet");
-    expect(c.cls).toBe("medium");
-    expect(c.crossover).toBe(true);
-    expect(c.raw).toBe("Medium/Wet");
   });
   it("bilinmeyen ad: cls null, ham kısaltma korunur", () => {
     const u = compoundInfo("Slick X17");
@@ -59,5 +52,43 @@ describe("compoundInfo — UI bilgisi", () => {
     expect(compoundInfo("")).toBeNull();
     expect(compoundInfo(null)).toBeNull();
     expect(compoundInfo("   ")).toBeNull();
+  });
+});
+
+describe("compoundAxles — ön/arka ayrımı (crossover)", () => {
+  it("tek hamur → front dolu, rear yok, split false", () => {
+    const a = compoundAxles("Medium");
+    expect(a.front.cls).toBe("medium");
+    expect(a.rear).toBeNull();
+    expect(a.split).toBe(false);
+  });
+  it("ön≠arka → iki kademe, split true (köprü sırası ön/arka)", () => {
+    const a = compoundAxles("Medium/Soft");
+    expect(a.front.cls).toBe("medium");
+    expect(a.rear.cls).toBe("soft");
+    expect(a.split).toBe(true);
+  });
+  it("ön=arka aynı ad → split false (tek ikon)", () => {
+    const a = compoundAxles("Medium/Medium");
+    expect(a.front.cls).toBe("medium");
+    expect(a.rear).toBeNull();
+    expect(a.split).toBe(false);
+  });
+  it("virgül ayraç ve boşluk toleransı", () => {
+    const a = compoundAxles("Wet , Medium");
+    expect(a.front.cls).toBe("wet");
+    expect(a.rear.cls).toBe("medium");
+    expect(a.split).toBe(true);
+  });
+  it("bilinmeyen + bilinen karışımı yine ayrılır", () => {
+    const a = compoundAxles("Slick X17/Soft");
+    expect(a.front.cls).toBeNull();
+    expect(a.front.short).toBe("Sli");
+    expect(a.rear.cls).toBe("soft");
+    expect(a.split).toBe(true);
+  });
+  it("veri yoksa null", () => {
+    expect(compoundAxles("")).toBeNull();
+    expect(compoundAxles(null)).toBeNull();
   });
 });

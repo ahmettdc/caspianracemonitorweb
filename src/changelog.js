@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.67",
+    date: "2026-08-01",
+    tr: [
+      "🛞 Hamur sütunu artık ÖN ve ARKA farklı hamur takan araçlarda iki ikon gösteriyor (ör. ön Medium · arka Soft). Aynıysa tek ikon. Tooltip'te 'Ön: … · Arka: …' yazıyor.",
+      "ℹ️ Not: oyun rakip araçlar için hamuru yalnızca ön/arka olarak veriyor — paylaşımlı bellekte tekerlek başına (sol/sağ) hamur verisi yok, o yüzden sol/sağ ayrımı rakiplerde gösterilemiyor.",
+    ],
+    en: [
+      "🛞 The Compound column now shows two icons for cars running different FRONT and REAR compounds (e.g. front Medium · rear Soft). If they're the same, one icon. The tooltip reads 'Front: … · Rear: …'.",
+      "ℹ️ Note: the game only exposes compound as front/rear for rival cars — there's no per-wheel (left/right) compound in shared memory, so a left/right split can't be shown for rivals.",
+    ],
+  },
+  {
     v: "v1.4.66",
     date: "2026-08-01",
     tr: [

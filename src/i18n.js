@@ -490,8 +490,9 @@ export const EN = {
   "Trafik": "Traffic",
   "Yağmur": "Rain",
   "Ortam": "Ambient", "Zemin ıslaklığı": "Track wetness",
-  // lastik hamuru sütunu (v1.4.66)
+  // lastik hamuru sütunu (v1.4.66) + ön/arka crossover (v1.4.67)
   "Hamur": "Compound", "telemetri bayat": "telemetry stale",
+  "Ön": "Front", "Arka": "Rear",
   // rakip lastikleri: köşe köşe aşınma + pit'te kaç lastik değişti (v1.4.65)
   "ÖnSol": "FL", "ÖnSağ": "FR", "ArkaSol": "RL", "ArkaSağ": "RR",
   "ÖN": "FRONT", "ARKA": "REAR", "SAĞ": "RIGHT", "SOL": "LEFT",
