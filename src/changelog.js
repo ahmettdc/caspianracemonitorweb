@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.72",
+    date: "2026-08-01",
+    tr: [
+      "🗺 Pist haritasında yol artık ince çizgi değil, araç dairesi kalınlığında bir ŞERİT — hem iç hem dış haritada. Araçlar yolun içine oturuyor, daha okunur. S/F ve sektör çizgileri şeridi kesiyor.",
+    ],
+    en: [
+      "🗺 On the track map the road is no longer a thin line but a BAND as thick as a car dot — on both the inner and outer map. Cars now sit inside the road, easier to read. The S/F and sector lines cross the band.",
+    ],
+  },
+  {
     v: "v1.4.71",
     date: "2026-08-01",
     tr: [
