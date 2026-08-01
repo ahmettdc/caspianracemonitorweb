@@ -490,6 +490,10 @@ export const EN = {
   "Trafik": "Traffic",
   "Yağmur": "Rain",
   "Ortam": "Ambient", "Zemin ıslaklığı": "Track wetness",
+  // Tutuş (rubber) tahmini — TinyPedal modeli (v1.4.74)
+  "Tutuş": "Grip (est.)",
+  "Turlardan modellenmiş tahmin (gerçek okuma değil)":
+    "Modeled estimate from laps (not a real reading)",
   // lastik hamuru sütunu (v1.4.66) + ön/arka crossover (v1.4.67)
   "Hamur": "Compound", "telemetri bayat": "telemetry stale",
   "Ön": "Front", "Arka": "Rear",

@@ -51,23 +51,20 @@ _PHASE = {
 }
 
 
-def _flag_of(phase, yellow, sector_flags):
-    """Bayrak durumu → (flag, yellowSectors).
+def _flag_of(phase, yellow):
+    """Bayrak durumu (SHMEM YEDEĞİ) → (flag, yellowSectors).
 
-    İki AYRI kaynak var ve eskiden yalnız biri okunuyordu:
-      * mYellowFlagState — TAM PİST sarısının (FCY) durum makinesi
-        (0=yok, 1=Pending, 2=PitClosed, … 7=RaceHalt). >0 ⇒ FCY sürecindeyiz.
-      * mSectorFlag[3]  — LOKAL sektör sarıları (kaza/spin). Oyundaki tipik
-        "sarı bayrak" budur; okunmadığı için uygulama Green gösteriyordu.
-    Index → sektör eşlemesi rF2Sector enum'una göre SIRALI DEĞİL: 0=S3, 1=S1, 2=S2.
-    Alanlar c_ubyte: Invalid(-1) → 255 gelir ⇒ makullük şartı 0 < v < 200
-    (eskiden `yellow > 0` Invalid'i de sarı sayardı)."""
-    sec_no = (3, 1, 2)
-    ysec = sorted(sec_no[i] for i, v in enumerate(list(sector_flags or [])[:3])
-                  if 0 < int(v) < 200)
+    v1.4.74: LOKAL sektör sarıları artık `mSectorFlag`'ten ÜRETİLMEZ. LMU'da bu dizi
+    GREEN iken bile üç sektörü birden sarı gösterip yanlış 'full yellow' üretiyordu
+    (kullanıcı bug'ı: "green olduğu halde full yellow"). Yetkili lokal-sarı kaynağı
+    LMU REST `/rest/watch/sessionInfo` (bkz. lmu_api.session_flags) → read() önce onu
+    kullanır; REST kapalıysa BU muhafazakâr yedek devreye girer: yalnız TAM PİST sarısını
+    (FCY) güvenle bilir → green→green garanti, uydurma lokal sarı yok.
+      * mYellowFlagState c_ubyte: Invalid(-1) → 255 gelir ⇒ makullük şartı 0 < v < 200
+        (eskiden `yellow > 0` Invalid'i de sarı sayardı). GamePhase 6 da FCY."""
     if phase == 6 or 0 < int(yellow) < 200:
-        return "FCY", ysec
-    return ("Yellow" if ysec else "Green"), ysec
+        return "FCY", []
+    return "Green", []
 
 # Satırdaki "+" → tur zaman listesi için sürücü başına saklanan son tur sayısı
 # (Firebase yükünü sınırlar; endurance'ta bir-iki stint'i rahat kapsar).
@@ -461,7 +458,18 @@ class RF2Source:
         cur, end = float(info.mCurrentET), float(info.mEndET)
         phase = int(getattr(info, "mGamePhase", 0))
         yellow = int(getattr(info, "mYellowFlagState", 0))
-        flag, ysec = _flag_of(phase, yellow, getattr(info, "mSectorFlag", []))
+        # Bayrak: önce YETKİLİ LMU REST (green iken yanlış full-yellow üretmez); REST
+        # kapalı/parse edilemezse muhafazakâr shmem yedeği (yalnız FCY, green→green).
+        rest_flag = None
+        if getattr(self, "lmu", None) is not None:
+            try:
+                rest_flag = self.lmu.session_flags()
+            except Exception:
+                rest_flag = None
+        if rest_flag:
+            flag, ysec = rest_flag["flag"], rest_flag["yellowSectors"]
+        else:
+            flag, ysec = _flag_of(phase, yellow)
         maxlaps = int(getattr(info, "mMaxLaps", 0))
         session = {
             "phase": _PHASE.get(phase, str(phase)), "flag": flag,
@@ -640,8 +648,9 @@ class RF2Source:
             "lmu": lmu_ok,
             "ve": sum(1 for r in field if r.get("virtualEnergy") is not None),
             # bayrak ham değerleri — sahada bayrak yine ters düşerse --dump ile
-            # alan semantiği buradan doğrulanır (LMU sürümü alanları kaydırabilir)
-            "flagRaw": {"phase": phase, "yellow": yellow,
+            # alan semantiği buradan doğrulanır (LMU sürümü alanları kaydırabilir).
+            # rest: REST YETKİLİ sonucu (varsa kullanıldı), sectors: shmem ham (güvenilmez).
+            "flagRaw": {"phase": phase, "yellow": yellow, "rest": rest_flag,
                         "sectors": [int(x) for x in list(getattr(info, "mSectorFlag", []) or [])[:3]]},
         }
         return {"session": session, "own": own, "field": field, "_diag": diag}
