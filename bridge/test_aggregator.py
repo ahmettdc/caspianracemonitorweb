@@ -160,6 +160,76 @@ def test_bayrak_invalid_255_yesil_kalir():
     assert _flag_of(5, 0, None) == ("Green", [])
 
 
+tc = Aggregator.tyre_change
+
+
+def test_lastik_degisimi_kac_ve_hangi_kose():
+    """Saha tablosundaki tek 'en kötü' yüzdesi iki-lastik değişimini GÖREMEZ;
+    köşe köşe karşılaştırma bunu çözer."""
+    # dördü de yenilendi
+    assert tc([0.42, 0.40, 0.38, 0.39], [1.0, 1.0, 1.0, 1.0])["n"] == 4
+    # yalnız ÖN ikisi (endurance'ta sık — kısa duraklar)
+    ch = tc([0.42, 0.40, 0.38, 0.39], [1.0, 1.0, 0.37, 0.38])
+    assert ch["n"] == 2 and ch["corners"] == ["fl", "fr"]
+    # yalnız SAĞ taraf (fr + rr)
+    assert tc([0.5, 0.5, 0.5, 0.5], [0.49, 1.0, 0.49, 1.0])["corners"] == ["fr", "rr"]
+    # hiç değişmedi (yalnız yakıt aldı) — aşınma pit boyunca hafifçe düşebilir
+    assert tc([0.5, 0.5, 0.5, 0.5], [0.49, 0.49, 0.48, 0.49])["n"] == 0
+
+
+def test_bilesim_degisimi_dort_lastik_demektir():
+    """Bileşimi tek köşede değiştirmek mümkün değil; aşınmış sete geçilse (sıçrama
+    küçük) bile bileşim adı değişmişse tüm set değişmiştir."""
+    ch = tc([0.5, 0.5, 0.5, 0.5], [0.52, 0.51, 0.52, 0.51], "Medium", "Wet")
+    assert ch["n"] == 4 and ch["comp"] == "Wet"
+    # aşınma hiç okunamıyor (rakip telemetrisi yok) ama bileşim değişti → yine kesin
+    ch2 = tc(None, None, "Medium", "Wet")
+    assert ch2["n"] == 4 and ch2["comp"] == "Wet"
+    # bileşim aynı + aşınma yok → karar verilemez, UYDURMA YOK
+    assert tc(None, None, "Medium", "Medium") is None
+
+
+def test_lastik_degisimi_bozuk_veri_cokmez():
+    assert tc([0.5, 0.5], [1.0, 1.0, 1.0, 1.0]) is None      # eksik köşe
+    assert tc([0.5, 0.5, 0.5, 0.5], ["a", 1.0, 1.0, 1.0]) is None
+    assert tc(None, [1.0, 1.0, 1.0, 1.0]) is None
+
+
+class _PitStop:
+    """Bir aracı pit'e sokup çıkarır: kare kare (inPits, tyres4, comp)."""
+
+    def __init__(self, seq):
+        self.seq = list(seq)
+        self.i = 0
+
+    def read(self):
+        in_pits, t4, comp = self.seq[min(self.i, len(self.seq) - 1)]
+        self.i += 1
+        return {"session": {}, "own": None, "field": [{
+            "pos": 1, "carId": 7, "driver": "A. Demircan", "lapsDone": 10 + self.i // 3,
+            "lastSec": 100.0, "bestSec": 100.0, "inPits": in_pits,
+            "tyres4": t4, "tyreComp": comp}]}
+
+
+def test_pit_turunda_iki_lastik_degisimi_yakalanir():
+    """Uçtan uca: pit girişinde eski lastikler saklanır, çıkışta karşılaştırılır ve
+    sonuç BİR SONRAKİ pite kadar satırda kalır (pit duvarı stint boyunca görsün)."""
+    old = [0.40, 0.38, 0.36, 0.37]
+    new_front = [1.0, 1.0, 0.36, 0.37]
+    a = Aggregator(_PitStop([
+        (False, old, "Medium"),          # pistte
+        (True, old, "Medium"),           # PİT GİRİŞİ → anlık görüntü
+        (True, old, "Medium"),
+        (False, new_front, "Medium"),    # PİT ÇIKIŞI → karşılaştır
+        (False, new_front, "Medium"),    # sonraki karelerde de görünür kalmalı
+    ]))
+    seen = [a.read()["field"][0].get("tyreChange") for _ in range(5)]
+    assert seen[0] is None and seen[1] is None and seen[2] is None
+    assert seen[3]["n"] == 2 and seen[3]["corners"] == ["fl", "fr"]
+    assert seen[3]["lap"] == 11
+    assert seen[4] == seen[3]           # kalıcı (bir sonraki pite kadar)
+
+
 if __name__ == "__main__":
     fails = 0
     for name, fn in sorted(globals().items()):

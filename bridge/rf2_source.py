@@ -163,6 +163,24 @@ class MockSource:
                 return m
         return ""
 
+    @staticmethod
+    def _mock_tyres(el, i):
+        """Sahte lastik durumu — pit döngüsüyle tutarlı, böylece Aggregator'ın
+        değişim tespiti mock'ta da uçtan uca çalışır.
+        TEK numaralı araçlar pit'te yalnız ÖN lastik değiştirir (arka sıfırlanmaz)
+        → arayüzde '2 lastik' rozeti görünür. 3 numaralı araç bir süre sonra
+        bileşim değiştirir (Medium → Wet)."""
+        since_pit = ((int(el / 90) - i) % 11) * 90 + (el % 90)   # son pitten bu yana sn
+        fr = round(max(0.2, 1 - since_pit / 1400), 3)
+        rr = fr if i % 2 == 0 else round(max(0.2, 1 - (el % 2600) / 2600), 3)
+        t4 = [fr, round(max(0.2, fr - 0.01), 3), rr, round(max(0.2, rr - 0.02), 3)]
+        return {
+            "tyres4": t4,
+            "tyreWear": min(t4),
+            "tyreComp": "Wet" if (i == 3 and el > 600) else "Medium",
+            "teleLag": 0.0,
+        }
+
     def read(self):
         el = time.time() - self.t0
         rows = []
@@ -184,7 +202,7 @@ class MockSource:
                 "_prog": laps * 1e6 + (el % lap_t),  # sıralama için ilerleme
                 "inPits": (int(el / 90) % 11) == i, "isPlayer": i == 4,
                 "pitStops": laps // 45,  # ~45 turda bir durak
-                "tyreWear": round(max(0.15, 1 - (el % 1500 / 1500) * 0.7), 3),
+                **self._mock_tyres(el, i),
                 "damage": round(min(0.4, i * 0.01 + (el % 600) / 6000), 3),
                 "lapDist": round(frac * self.TRACK_LEN, 1), "posX": px, "posZ": pz,
                 "virtualEnergy": round(max(3.0, 100 - ((el + i * 40) % 1500 / 1500) * 92), 1),
@@ -306,11 +324,48 @@ class RF2Source:
         return out
 
     @staticmethod
-    def _worst_wear(tele):
-        """4 tekerin en kötü (en düşük) diş oranı 0..1 — saha lastik göstergesi."""
+    def _wear4(tele):
+        """4 tekerin diş oranı [fl, fr, rl, rr] (0..1; 1.0 = yeni). Pit'te KAÇ lastik
+        değiştiğini anlamak için köşeler ayrı ayrı gerekir — tek bir 'en kötü' değeri
+        iki-lastik değişimini göremez."""
         try:
-            ws = [float(getattr(tele.mWheels[i], "mWear", 1.0)) for i in range(4)]
-            return round(min(ws), 3) if ws else None
+            return [round(float(getattr(tele.mWheels[i], "mWear", 1.0)), 3)
+                    for i in range(4)]
+        except Exception:
+            return None
+
+    @classmethod
+    def _worst_wear(cls, tele):
+        """4 tekerin en kötü (en düşük) diş oranı 0..1 — saha lastik göstergesi."""
+        w = cls._wear4(tele)
+        return round(min(w), 3) if w else None
+
+    @staticmethod
+    def _compound(tele):
+        """Bileşim: ön/arka aynıysa tek metin ('Wet'), farklıysa 'Ön/Arka'. Rakibin
+        slick→wet geçişi aşınma sıçramasından bağımsız ikinci bir değişim sinyalidir."""
+        try:
+            f = _s(getattr(tele, "mFrontTireCompoundName", b""))
+            r = _s(getattr(tele, "mRearTireCompoundName", b""))
+        except Exception:
+            return None
+        if not f and not r:
+            return None
+        if f and r and f != r:
+            return f"{f}/{r}"
+        return f or r
+
+    @staticmethod
+    def _tele_lag(tele, player_et):
+        """Bu aracın telemetri karesi oyuncununkinden kaç sn geride? Online yarışta
+        rakip telemetrisi güncellenmeyebilir; donmuş bir aşınma değerini gerçekmiş
+        gibi göstermemek için UI bunu kullanır. (TinyPedal'daki `desynced` kontrolünün
+        aynısı — orada eşik 0.01 sn, burada ham değeri taşıyıp kararı UI'a bırakıyoruz.)"""
+        try:
+            et = float(getattr(tele, "mElapsedTime", 0.0))
+            if not (player_et > 0 and et > 0):
+                return None
+            return round(player_et - et, 2)
         except Exception:
             return None
 
@@ -409,9 +464,12 @@ class RF2Source:
 
         # telemetriyi mID ile eşle (saha başına lastik aşınması + hasar için)
         tele_by_id = {}
+        player_et = 0.0        # oyuncunun telemetri saati — rakip karesi ne kadar geride?
         for i in range(min(num, len(tele.mVehicles))):
             tv = tele.mVehicles[i]
             tele_by_id[int(getattr(tv, "mID", -1))] = tv
+            if bool(getattr(tv, "mIsPlayer", 0)):
+                player_et = float(getattr(tv, "mElapsedTime", 0.0) or 0.0)
 
         # saha (scoring + eşleşen telemetri)
         field, player_scor = [], None
@@ -447,6 +505,11 @@ class RF2Source:
                 "location": self._location(v),
                 "pitStops": int(getattr(v, "mNumPitstops", 0)),
                 "tyreWear": self._worst_wear(tv) if tv is not None else None,
+                # köşe köşe aşınma + bileşim: pit'te kaç/hangi lastiğin değiştiği
+                # ancak bunlardan çıkar (Aggregator pit giriş/çıkışını karşılaştırır)
+                "tyres4": self._wear4(tv) if tv is not None else None,
+                "tyreComp": self._compound(tv) if tv is not None else None,
+                "teleLag": self._tele_lag(tv, player_et) if tv is not None else None,
                 "damage": self._damage(tv) if tv is not None else None,
                 "isPlayer": is_player,
             })
@@ -573,10 +636,18 @@ class Aggregator:
         self.prev_pits = {}     # sürücü → son görülen inPits
         self.stint_start = {}   # sürücü → stint başlangıcı (time.time())
         self.regress = {}       # sürücü → ardışık gerileme sayacı (yırtık kare filtresi)
+        self.pit_tyres = {}     # araç → pit GİRİŞİNDEKİ (tyres4, tyreComp) anlık görüntüsü
+        self.last_change = {}   # araç → son pit'te değişen lastikler (bir sonraki pite kadar)
 
     def close(self):
         if hasattr(self.inner, "close"):
             self.inner.close()
+
+    #: Bir köşenin "değişti" sayılması için diş oranının pit'te en az bu kadar
+    #: YÜKSELMESİ gerekir. Yeni lastik 1.0'a döner; aşınmış set takılırsa sıçrama
+    #: küçük olur → o durumda bileşim değişimi ikinci sinyaldir (bkz. tyre_change).
+    TYRE_JUMP = 0.05
+    CORNERS = ("fl", "fr", "rl", "rr")
 
     @staticmethod
     def _valid_lap(last, best):
@@ -585,6 +656,33 @@ class Aggregator:
         if best and best > 0 and last > best * 1.10:
             return False           # out-lap / pit turu → ortalamayı bozma
         return True
+
+    @classmethod
+    def tyre_change(cls, before, after, comp_before=None, comp_after=None):
+        """Pit ÖNCESİ ve SONRASI lastik durumundan değişimi çıkar — SAF (testli).
+
+        `before`/`after`: [fl, fr, rl, rr] diş oranı (0..1) ya da None.
+        Döner: {"n": kaç lastik, "corners": ["fl",...], "comp": yeni bileşim|None}
+        ya da karar verilemiyorsa None (veri yok → uydurma yapma).
+
+        Bileşim değiştiyse aşınma sıçraması küçük olsa bile TÜM lastikler değişmiştir
+        (oyunda bileşimi tek köşede değiştirmek mümkün değil)."""
+        comp_changed = bool(comp_before and comp_after and comp_before != comp_after)
+        ok = (isinstance(before, (list, tuple)) and isinstance(after, (list, tuple))
+              and len(before) >= 4 and len(after) >= 4)
+        if not ok:
+            # Aşınma okunamıyor (rakip telemetrisi yok) ama bileşim değiştiyse
+            # yine de "4 lastik" diyebiliriz — bu kesin bir bilgi.
+            if comp_changed:
+                return {"n": 4, "corners": list(cls.CORNERS), "comp": comp_after}
+            return None
+        try:
+            jumped = [i for i in range(4) if float(after[i]) - float(before[i]) >= cls.TYRE_JUMP]
+        except (TypeError, ValueError):
+            return None
+        if comp_changed:
+            return {"n": 4, "corners": list(cls.CORNERS), "comp": comp_after}
+        return {"n": len(jumped), "corners": [cls.CORNERS[i] for i in jumped], "comp": None}
 
     def read(self):
         data = self.inner.read()
@@ -613,6 +711,8 @@ class Aggregator:
                 self.prev_pits[key] = in_pits
                 self.prev_laps[key] = laps
                 self.regress[key] = 0
+                self.pit_tyres.pop(key, None)
+                self.last_change.pop(key, None)
             elif regressed:
                 pass                                             # şüpheli kare — dokunma
             elif laps > self.prev_laps[key]:                     # tur tamamlandı
@@ -622,10 +722,23 @@ class Aggregator:
                     self.lap_log[key].append((laps, round(last, 3)))
                 self.prev_laps[key] = laps
 
-            # stint: pit çıkışı (True→False) → süreyi sıfırla
-            if self.prev_pits.get(key) and not in_pits:
+            # stint + lastik değişimi: pit giriş/çıkış kenarları
+            was_pits = self.prev_pits.get(key)
+            if not was_pits and in_pits:
+                # PİT GİRİŞİ — o anki (eski) lastikleri sakla, çıkışta karşılaştıracağız
+                self.pit_tyres[key] = (r.get("tyres4"), r.get("tyreComp"))
+            elif was_pits and not in_pits:
+                # PİT ÇIKIŞI — hangi köşeler yenilendi?
                 self.stint_start[key] = now
+                before, comp_before = self.pit_tyres.pop(key, (None, None))
+                ch = self.tyre_change(before, r.get("tyres4"), comp_before, r.get("tyreComp"))
+                if ch is not None:
+                    ch["lap"] = laps
+                    self.last_change[key] = ch
             self.prev_pits[key] = in_pits
+            # Son pit'te ne değiştiği bir sonraki pite kadar görünür kalır (pit duvarı
+            # rakibin stint boyunca hangi lastiklerle gittiğini görmeli).
+            r["tyreChange"] = self.last_change.get(key)
 
             h = list(self.hist.get(key, ()))
             last5 = h[-5:]

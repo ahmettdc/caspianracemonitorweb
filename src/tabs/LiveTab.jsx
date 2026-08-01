@@ -8,6 +8,7 @@ import { driverAtLap } from "../liveLaps";
 import { binKey } from "../trackShape";
 import { demoLive } from "../liveDemo";
 import { CALIB_WORDS, addSample, thresholdsFrom, exportPayload } from "../wxCalib";
+import { tyreTitle, tyreChangeBadge, teleStale } from "../tyreInfo";
 import TrackMap from "./TrackMap";
 import PosChart from "./PosChart";
 import StrategyBar from "./StrategyBar";
@@ -655,12 +656,23 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
                         {c.location ? t(c.location) : "—"}</td>
                       <td className="mono" style={{ color: "var(--dim)", fontSize: 12 }}>
                         {c.stintSec > 0 ? fmtHMS(c.stintSec) : "—"}</td>
-                      <td style={{ whiteSpace: "nowrap" }}>
+                      {/* Lastik: yüzde = dört tekerin EN KÖTÜSÜ (tooltip'te köşe köşe
+                          + bileşim). Yanındaki 🛠 rozeti son pitte KAÇ lastiğin
+                          değiştiğini söyler — iki-lastik duraklarını görmek için. */}
+                      <td style={{ whiteSpace: "nowrap" }} title={tyreTitle(c, t)}>
                         {c.tyreWear != null ? <>
                           <span style={{ display: "inline-block", width: 9, height: 9, borderRadius: "50%",
-                            background: wearColor(c.tyreWear), marginRight: 5, verticalAlign: "middle" }} />
+                            background: wearColor(c.tyreWear), marginRight: 5, verticalAlign: "middle",
+                            opacity: teleStale(c.teleLag) ? 0.35 : 1 }} />
                           <span style={{ color: "var(--dim)", fontSize: 12 }}>{Math.round(c.tyreWear * 100)}%</span>
-                        </> : "—"}</td>
+                        </> : "—"}
+                        {(() => {
+                          const b = tyreChangeBadge(c.tyreChange, t);
+                          if (!b) return null;
+                          return <span title={b.title} style={{ marginLeft: 5, fontSize: 11,
+                            color: b.comp ? "var(--teal)" : b.n === 0 ? "var(--dim)" : "var(--yellow)" }}>
+                            🛠{b.txt}{b.comp ? `→${b.comp}` : ""}</span>;
+                        })()}</td>
                       <td style={{ fontSize: 12, color: (c.damage || 0) > 0.15 ? "var(--red)"
                         : (c.damage || 0) > 0.02 ? "var(--yellow)" : "var(--dim)" }}>
                         {c.damage != null ? `${Math.round(c.damage * 100)}%` : "—"}</td>

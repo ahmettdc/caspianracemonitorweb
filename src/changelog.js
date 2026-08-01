@@ -5,6 +5,22 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.65",
+    date: "2026-08-01",
+    tr: [
+      "🛠 Saha tablosunda rakiplerin pit'te KAÇ lastik değiştirdiği görünüyor: Lastik sütununun yanında '🛠2 ÖN', '🛠4' ya da '🛠0' rozeti. İki lastiklik kısa duraklar artık gözden kaçmıyor; rozet bir sonraki pite kadar kalır.",
+      "🛞 Lastik yüzdesinin üstüne gelince dört köşe ayrı ayrı görünüyor (ÖnSol · ÖnSağ · ArkaSol · ArkaSağ) — sütundaki tek sayı EN KÖTÜ lastiği gösteriyor, artık hangisi olduğu belli.",
+      "🌧 Rakibin lastik bileşimi de okunuyor. Pit'te bileşim değişirse rozet '🛠4→Wet' gibi vurgular — yağmur başlarken kimin ıslak lastiğe geçtiğini anında görürsün.",
+      "⚠️ Rakip telemetrisi güncellenmiyorsa (online yarışta olabiliyor) lastik noktası soluklaşır ve ipucunda uyarı çıkar — donmuş bir değer gerçekmiş gibi gösterilmez.",
+    ],
+    en: [
+      "🛠 The field table now shows how many tyres rivals changed at their stop: a '🛠2 FRONT', '🛠4' or '🛠0' badge next to the Tyre column. Short two-tyre stops no longer slip past; the badge stays until their next stop.",
+      "🛞 Hover the tyre percentage to see all four corners separately (FL · FR · RL · RR) — the single number in the column is the WORST tyre, and now you can tell which one that is.",
+      "🌧 Rival tyre compound is read too. If the compound changes at a stop the badge highlights it as '🛠4→Wet' — so you see instantly who switched to wets as rain arrives.",
+      "⚠️ If a rival's telemetry isn't updating (which happens online), the tyre dot dims and the tooltip warns you — a frozen value is never presented as fact.",
+    ],
+  },
+  {
     v: "v1.4.64",
     date: "2026-08-01",
     tr: [

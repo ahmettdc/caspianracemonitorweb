@@ -490,6 +490,14 @@ export const EN = {
   "Trafik": "Traffic",
   "Yağmur": "Rain",
   "Ortam": "Ambient", "Zemin ıslaklığı": "Track wetness",
+  // rakip lastikleri: köşe köşe aşınma + pit'te kaç lastik değişti (v1.4.65)
+  "ÖnSol": "FL", "ÖnSağ": "FR", "ArkaSol": "RL", "ArkaSağ": "RR",
+  "ÖN": "FRONT", "ARKA": "REAR", "SAĞ": "RIGHT", "SOL": "LEFT",
+  "Bileşim": "Compound", "Son pitte": "At the last stop", "lastik değişti": "tyres changed",
+  "Son pitte lastik değişmedi (yalnız yakıt/servis)":
+    "No tyres changed at the last stop (fuel/service only)",
+  "Bu aracın telemetrisi": "This car's telemetry is",
+  "sn geride — değer bayat olabilir": "s behind — the value may be stale",
   // hava kalibrasyonu (v1.4.64)
   "Hava Kalibrasyonu": "Weather Calibration",
   "Dışa aktar": "Export", "Temizle": "Clear", "damga": "stamps",
