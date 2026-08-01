@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.81",
+    date: "2026-08-01",
+    tr: [
+      "🎨 Canlı 'Zemin ıslaklığı' göstergesinde ikon artık büyük (hero), kelime ise daha küçük etiket boyutunda — önceden ikon çok küçük, yazı çok büyüktü.",
+    ],
+    en: [
+      "🎨 In the live 'Track wetness' readout the icon is now large (hero) and the word is a smaller label — previously the icon was tiny and the text oversized.",
+    ],
+  },
+  {
     v: "v1.4.80",
     date: "2026-08-01",
     tr: [
