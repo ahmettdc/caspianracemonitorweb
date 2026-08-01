@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { fmtLap, fmtHMS, fmtGap, WEATHER, wetnessLevel, rainLevel } from "../engine";
+import { fmtLap, fmtHMS, fmtGap, WEATHER, wetnessLevel, rainLevel, rubberPct } from "../engine";
 import { Ring } from "../components";
 import { DESKTOP_RELEASE_URL, ASSET, classId, classAccent, brandKey, manufacturerKey } from "../constants";
 import { isTauri } from "../tauriEnv";
@@ -239,8 +239,10 @@ function PedalBar({ label, val, color }) {
     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
       <span className="l" style={{ width: 34, fontSize: 11, color: "var(--dim)" }}>{label}</span>
       <div style={{ flex: 1, height: 10, background: "var(--line)", borderRadius: 5, overflow: "hidden" }}>
+        {/* köprü ~2.5 Hz kare atar; geçiş ~kare aralığı (0.4s) + linear → çubuk bir
+            sonraki kareye kadar sabit hızla akar (snap+donma yerine akıcı) */}
         <div style={{ width: `${has ? pct : 0}%`, height: "100%", background: color,
-          transition: "width .15s linear" }} />
+          transition: "width .4s linear" }} />
       </div>
       <span className="mono" style={{ width: 38, textAlign: "right", fontSize: 11 }}>
         {has ? `${pct}%` : "—"}</span>
@@ -350,7 +352,7 @@ function OwnCar({ t, own, liveFuelObs }) {
                 <span className="l" style={{ width: 34, fontSize: 11, color: "var(--dim)" }}>RPM</span>
                 <div style={{ flex: 1, height: 6, background: "var(--line)", borderRadius: 3, overflow: "hidden" }}>
                   <div style={{ width: `${Math.round(r * 100)}%`, height: "100%", background: col,
-                    transition: "width .15s linear" }} />
+                    transition: "width .4s linear" }} />
                 </div>
                 <span className="mono" style={{ width: 46, textAlign: "right", fontSize: 11,
                   color: "var(--dim)" }}>{own.rpm || 0}</span>
@@ -686,6 +688,14 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
                 style={{ color: WEATHER[id].col }}>💧 {t(WEATHER[id].lbl)}</span>;
             })()}</div>
             <div className="l">{t("Zemin ıslaklığı")}</div></div>
+          {/* Tutuş (rubber) — TinyPedal gibi turlardan MODELLENMİŞ tahmin, gerçek
+              okuma değil (title'da "tahmini"). Sahadaki tüm araçların tur toplamı. */}
+          <div className="kpi"><div className="v">
+            {fieldAll.length > 0
+              ? <span title={t("Turlardan modellenmiş tahmin (gerçek okuma değil)")}>
+                  🛞 %{rubberPct(s.sessionType, fieldAll.reduce((a, c) => a + (c.lapsDone || 0), 0))}</span>
+              : "—"}</div>
+            <div className="l">{t("Tutuş")}</div></div>
         </div>
         {canEdit && !big && <WxCalib t={t} s={s} />}
       </div>

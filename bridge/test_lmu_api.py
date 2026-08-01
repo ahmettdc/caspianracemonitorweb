@@ -95,6 +95,44 @@ def test_sky_float_indeks_ve_bosluk_temizligi():
     assert got == {3: "Overcast"}
 
 
+flags = LmuApi.parse_session_flags
+
+
+def test_flags_green_default():
+    """v1.4.74: YETKİLİ REST bayrağı. Yeşilken hiçbir sektör sarı olmamalı
+    (kullanıcı bug'ı: green iken 'full yellow' sallanıyordu)."""
+    assert flags({"GamePhase": 5, "YellowFlagState": "NoFlag",
+                  "SectorFlag": ["", "", ""]}) == {"flag": "Green", "yellowSectors": []}
+    # green kelimeleri de sarı sayılmaz
+    assert flags({"YellowFlagState": "None",
+                  "SectorFlag": ["Green", "Green", "Green"]})["flag"] == "Green"
+
+
+def test_flags_lokal_sektor_sarisi_konumsal():
+    assert flags({"GamePhase": 5, "YellowFlagState": "NoFlag",
+                  "SectorFlag": ["", "Yellow", ""]}) == {"flag": "Yellow",
+                                                         "yellowSectors": [2]}
+    assert flags({"SectorFlag": ["Yellow", "", "Yellow"]})["yellowSectors"] == [1, 3]
+
+
+def test_flags_fcy_gamephase_ve_yellowstate():
+    assert flags({"GamePhase": 6, "YellowFlagState": "NoFlag"})["flag"] == "FCY"
+    assert flags({"GamePhase": 5, "YellowFlagState": "PitClosed"})["flag"] == "FCY"
+    # FCY sırasında lokal sarı da raporlanır (bilgi kaybolmaz)
+    assert flags({"GamePhase": 6, "SectorFlag": ["", "", "Yellow"]}) == {
+        "flag": "FCY", "yellowSectors": [3]}
+
+
+def test_flags_alan_adi_buyuk_kucuk_tolere():
+    assert flags({"gamePhase": 6})["flag"] == "FCY"          # camelCase da çözülür
+
+
+def test_flags_bos_bozuk_none_doner():
+    assert flags(None) is None
+    assert flags([]) is None
+    assert flags({"foo": "bar"}) is None                     # sessionInfo değil
+
+
 if __name__ == "__main__":
     fails = 0
     for name, fn in sorted(globals().items()):

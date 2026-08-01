@@ -136,28 +136,24 @@ def test_carid_sifir_gecerli_kimliktir():
     assert r["lapKey"] == "c0", r["lapKey"]
 
 
-def test_bayrak_lokal_sari_gorunur():
-    """Kullanıcı bug'ı: oyunda sarı bayrak var ama uygulama Green gösteriyordu —
-    lokal sektör sarıları (mSectorFlag) hiç okunmuyordu. Index eşlemesi rF2Sector
-    enum'una göre SIRALI DEĞİL: 0=S3, 1=S1, 2=S2."""
-    assert _flag_of(5, 0, [0, 0, 1]) == ("Yellow", [2])   # index 2 → S2
-    assert _flag_of(5, 0, [0, 1, 0]) == ("Yellow", [1])   # index 1 → S1
-    assert _flag_of(5, 0, [1, 0, 0]) == ("Yellow", [3])   # index 0 → S3
-    assert _flag_of(5, 0, [1, 1, 0]) == ("Yellow", [1, 3])
+def test_bayrak_shmem_sektor_sarisi_uretmez():
+    """v1.4.74 sözleşme değişikliği: shmem yedeği artık `mSectorFlag`'ten LOKAL sarı
+    ÜRETMEZ (LMU'da green iken bile üç sektörü sarı gösterip yanlış full-yellow
+    veriyordu — kullanıcı bug'ı). Lokal sarılar yalnız YETKİLİ REST'ten gelir.
+    `_flag_of` yalnız TAM PİST sarısını (FCY) güvenle bilir → green→green garanti."""
+    assert _flag_of(5, 0) == ("Green", [])                 # yeşil faz → Green
+    # (eski sözleşmede _flag_of(5,0,[0,0,1]) == ("Yellow",[2]) idi — artık sektör yok)
 
 
 def test_bayrak_fcy_ve_yellowstate():
-    assert _flag_of(6, 0, [0, 0, 0])[0] == "FCY"          # FCY fazı
-    assert _flag_of(5, 2, [0, 0, 0])[0] == "FCY"          # PitClosed → FCY süreci
-    # FCY sırasında lokal sarılar da raporlanır (bilgi kaybolmaz)
-    assert _flag_of(6, 1, [0, 0, 1]) == ("FCY", [2])
+    assert _flag_of(6, 0) == ("FCY", [])                   # FCY fazı
+    assert _flag_of(5, 2) == ("FCY", [])                   # PitClosed → FCY süreci
 
 
 def test_bayrak_invalid_255_yesil_kalir():
     """c_ubyte alanlarda Invalid(-1) = 255. Eskiden `yellow > 0` bunu sarı sayardı."""
-    assert _flag_of(5, 255, [255, 255, 255]) == ("Green", [])
-    assert _flag_of(5, 0, []) == ("Green", [])
-    assert _flag_of(5, 0, None) == ("Green", [])
+    assert _flag_of(5, 255) == ("Green", [])
+    assert _flag_of(5, 0) == ("Green", [])
 
 
 tc = Aggregator.tyre_change

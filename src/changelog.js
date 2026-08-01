@@ -5,6 +5,20 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.74",
+    date: "2026-08-01",
+    tr: [
+      "✨ Akıcı gaz/fren: Kendi Araç panosundaki gaz/fren (ve RPM) çubukları donarak/adım adım ilerliyordu; artık kareler arasında akıcı geçiyor.",
+      "🛠 Düzeltme: oyun yeşilken Bayrak kartı ara sıra tüm sektörleri sarı ('full yellow') gösterip sallanıyordu. Bayrak artık öncelikle LMU'nun yetkili REST verisinden okunuyor (yeşil → yeşil); veri gelmezse yalnız tam pist sarısı (FCY) güvenle gösterilir, sahte lokal sarı üretilmez. (Bu düzeltme için sürüş PC'sinde masaüstü uygulamasının güncellenmesi gerekir.)",
+      "🛞 Yeni 'Tutuş' göstergesi: TinyPedal'daki gibi pistin kauçuk kaplama (tutuş) yüzdesi — sahadaki turlardan modellenmiş bir TAHMİN (gerçek okuma değil); Canlı seans şeridinde görünür.",
+    ],
+    en: [
+      "✨ Smooth throttle/brake: the throttle/brake (and RPM) bars in the Own Car dash used to advance in a frozen/stepping way; they now glide smoothly between frames.",
+      "🛠 Fix: while the game was green, the Flag card sometimes showed every sector yellow ('full yellow') and flickered. The flag is now read primarily from LMU's authoritative REST data (green → green); if that's unavailable, only full-course yellow (FCY) is shown safely — no fake local yellows. (This fix needs the desktop app updated on the driving PC.)",
+      "🛞 New 'Grip' indicator: like TinyPedal, an estimated track rubber (grip) percentage — a MODELED estimate from field laps (not a real reading); shown in the Live session strip.",
+    ],
+  },
+  {
     v: "v1.4.73",
     date: "2026-08-01",
     tr: [

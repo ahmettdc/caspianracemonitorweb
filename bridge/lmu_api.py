@@ -74,6 +74,8 @@ class LmuApi:
         self.catalog_diag = False
         self.sky = None             # {indeks: oyunun gökyüzü metni} — hava sözlüğü
         self.sky_at = 0.0
+        self.flags = None           # YETKİLİ bayrak {flag, yellowSectors} — REST'ten
+        self.flags_at = 0.0
 
     def _load_catalog(self):
         """/rest/sessions/getAllVehicles = statik araç kataloğu (tüm liveryler): temiz
@@ -260,3 +262,62 @@ class LmuApi:
         keys = list(cars[0].keys()) if isinstance(cars[0], dict) else []
         print(f"[LMU REST] standings endpoint={self.path} araç={len(cars)} "
               f"| ilk kayıt anahtarları: {keys}", file=sys.stderr)
+
+    @staticmethod
+    def parse_session_flags(data):
+        """/rest/watch/sessionInfo yanıtı → {flag, yellowSectors} ya da None. SAF —
+        ağ yok, test edilebilir (bridge/test_lmu_api.py).
+
+        Neden: paylaşımlı bellek `mSectorFlag` LMU'da GREEN iken de bütün sektörleri
+        sarı gösterip yanlış 'full yellow' üretiyor (güvenilmez). Bu endpoint YETKİLİ:
+          * GamePhase (float)      — 6 ⇒ FCY (tam pist)
+          * YellowFlagState (str)  — 'NoFlag/None/Invalid' DIŞI bir durum ⇒ FCY süreci
+          * SectorFlag ([]str)     — her parça sarı-ish ise o sektör (konumsal S1..S3)
+        Alan adı büyük/küçük kayabilir → toleranslı arama. Hiçbiri yoksa None (bu
+        endpoint gelmemiş → çağıran shmem yedeğine düşer)."""
+        if not isinstance(data, dict):
+            return None
+        low = {k.lower(): v for k, v in data.items() if isinstance(k, str)}
+
+        def g(name):
+            return data.get(name, low.get(name.lower()))
+
+        phase, yellow, sectors = g("GamePhase"), g("YellowFlagState"), g("SectorFlag")
+        if phase is None and yellow is None and sectors is None:
+            return None                      # sessionInfo değil / boş
+
+        _GREEN = ("", "green", "no", "none", "noflag", "no_flag", "nogreen",
+                  "clear", "invalid", "-1", "0")
+
+        def is_yellow_word(s):
+            s = str(s or "").strip().lower()
+            return s not in _GREEN and (
+                "yellow" in s or "caution" in s or "fcy" in s or "full" in s)
+
+        def is_fcy_state(s):
+            return str(s or "").strip().lower() not in _GREEN
+
+        try:
+            ph = int(float(phase)) if phase is not None else -1
+        except (TypeError, ValueError):
+            ph = -1
+        ysec = [i + 1 for i, sv in enumerate(list(sectors)[:3])
+                if is_yellow_word(sv)] if isinstance(sectors, (list, tuple)) else []
+        if ph == 6 or is_fcy_state(yellow):
+            return {"flag": "FCY", "yellowSectors": ysec}
+        return {"flag": "Yellow" if ysec else "Green", "yellowSectors": ysec}
+
+    def session_flags(self):
+        """YETKİLİ bayrak — /rest/watch/sessionInfo. Döner: {flag, yellowSectors} ya da
+        REST kapalı/parse edilemezse None (çağıran shmem yedeğine düşer). ~0.5 sn
+        throttle (bayrak canlı gelmeli ama her kareyi vurmaya gerek yok)."""
+        now = time.time()
+        if now - self.flags_at < 0.5:
+            return self.flags
+        self.flags_at = now
+        try:
+            self.flags = self.parse_session_flags(
+                _get("/rest/watch/sessionInfo", timeout=0.5))
+        except Exception:
+            self.flags = None
+        return self.flags

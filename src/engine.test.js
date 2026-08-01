@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   parseHMS, parseLap, fmtHMS, fmtLap, fmtGap, fmtDur, msToLocalInput,
   DEFAULT_STATE, WEATHER, wxLog, wxAtRel, WX, effLapSec, effCons, tyState,
-  computePlan, migrate, lastStintFuel, wetnessLevel, rainLevel,
+  computePlan, migrate, lastStintFuel, wetnessLevel, rainLevel, rubberPct,
 } from "./engine.js";
 
 /* Temiz, deterministik bir durum kur — testler bunun üstünden yürür. */
@@ -375,5 +375,33 @@ describe("WEATHER.xwet — 5. kademe", () => {
     const xw = computePlan(baseState({ weatherLog: [{ t: 0, w: "xwet" }] }), "race");
     expect(xw.lapSec).toBeCloseTo(dry.lapSec * WEATHER.xwet.lap, 6);
     expect(xw.totalLaps).toBeLessThan(dry.totalLaps);               // yavaş → az tur
+  });
+});
+
+describe("rubberPct — TinyPedal tutuş (rubber) tahmini", () => {
+  it("0 turda başlangıç kauçuğuna round-trip eder", () => {
+    expect(rubberPct("Yarış", 0)).toBe(50);        // yarış/qual/warmup start 0.5
+    expect(rubberPct("Isınma", 0)).toBe(50);
+    expect(rubberPct("Sıralama", 0)).toBe(50);
+    expect(rubberPct("Antrenman", 0)).toBe(25);    // practice/test start 0.25
+    expect(rubberPct("Test", 0)).toBe(25);
+  });
+  it("turlar biriktikçe artar (TinyPedal 'Dry 31%' ≈ antrenman ~120 tur)", () => {
+    expect(rubberPct("Antrenman", 120)).toBe(30);
+    expect(rubberPct("Yarış", 600)).toBe(73);
+  });
+  it("çok turda %100 tavanına oturur, monoton artan", () => {
+    expect(rubberPct("Yarış", 3000)).toBe(100);
+    expect(rubberPct("Yarış", 99999)).toBe(100);
+    const a = rubberPct("Yarış", 100);
+    const b = rubberPct("Yarış", 500);
+    const c = rubberPct("Yarış", 1500);
+    expect(b).toBeGreaterThan(a);
+    expect(c).toBeGreaterThan(b);
+  });
+  it("geçersiz/negatif totalLaps → başlangıç yüzdesi", () => {
+    expect(rubberPct("Yarış", null)).toBe(50);
+    expect(rubberPct("Yarış", -10)).toBe(50);
+    expect(rubberPct("Antrenman", undefined)).toBe(25);
   });
 });

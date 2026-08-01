@@ -162,6 +162,23 @@ export function rainLevel(pct) {
   for (const [min, lv] of RAIN_LEVELS) if (v > min) return lv;
   return RAIN_NONE;
 }
+
+/* ---------- Tutuş (rubber/kauçuk kaplama) tahmini — TinyPedal modeli ----------
+   DÜRÜST NOT: gerçek track-grip okuması paylaşımlı bellekte/REST'te YOK. TinyPedal
+   de "Dry 31%" derken bunu TURLARDAN modelliyor (laps_to_rubber). Aynı formülleri
+   birebir uyguluyoruz — modellenmiş tahmin, gerçek ölçüm değil. */
+const lapsToRubber = (v, m = 2000) =>
+  v > m * 2 ? 1 : v > m ? 0.75 + (v - m) / m / 4 : v > 0 ? (v * 0.75) / m : 0;
+const rubberToLaps = (v, m = 2000) =>
+  v >= 1 ? m * 2 : v > 0.75 ? m + (v - 0.75) * m * 4 : v > 0 ? (v * m) / 0.75 : 0;
+/* sessionType (bkz. köprü _session_type): Test/Antrenman → başlangıç 0.25, diğer
+   (Sıralama/Isınma/Yarış) → 0.5. totalLaps = sahadaki TÜM araçların tur toplamı
+   (TinyPedal module_vehicles). rubber_scale = 1. Döner: 0..100 (yuvarlanmış). */
+export function rubberPct(sessionType, totalLaps) {
+  const start = (sessionType === "Test" || sessionType === "Antrenman") ? 0.25 : 0.5;
+  const laps = rubberToLaps(start) + Math.max(0, Number(totalLaps) || 0);
+  return Math.round(lapsToRubber(laps) * 100);
+}
 export const wxLog = (st) => (st.weatherLog || []).slice().sort((a, b) => a.t - b.t);
 export const wxAtRel = (log, rel) => {  // rel saniyedeki hava (kronolojik log)
   let cur = WEATHER.dry;
