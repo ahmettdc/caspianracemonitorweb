@@ -205,6 +205,8 @@ class MockSource:
                 **self._mock_tyres(el, i),
                 "damage": round(min(0.4, i * 0.01 + (el % 600) / 6000), 3),
                 "lapDist": round(frac * self.TRACK_LEN, 1), "posX": px, "posZ": pz,
+                # sektör (0=S3, 1=S1, 2=S2): eşit olmayan sınırlar → ayırıcılar görünür
+                "sector": 1 if frac < 0.40 else 2 if frac < 0.73 else 0,
                 "virtualEnergy": round(max(3.0, 100 - ((el + i * 40) % 1500 / 1500) * 92), 1),
             })
         rows.sort(key=lambda r: -r["_prog"])
@@ -491,6 +493,9 @@ class RF2Source:
                 "lapsDone": int(getattr(v, "mTotalLaps", 0)),
                 "lapDist": round(float(getattr(v, "mLapDist", 0.0)), 1),
                 "posX": px, "posZ": pz,
+                # mevcut sektör (0=S3, 1=S1, 2=S2) — harita sektör ayırıcıları bunun
+                # lapDist ile değiştiği andan sınırı gözlemler (web tarafı)
+                "sector": int(getattr(v, "mSector", -1)),
                 "lastSec": round(float(getattr(v, "mLastLapTime", -1.0)), 3),
                 "lastSectors": self._sectors(v),   # [S1,S2,S3] (popup tur listesi)
                 "bestSec": round(float(getattr(v, "mBestLapTime", -1.0)), 3),

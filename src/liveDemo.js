@@ -76,6 +76,7 @@ export function demoLive(el) {
       damage: +Math.min(0.4, i * 0.01 + (el % 600) / 6000).toFixed(3),
       virtualEnergy: +Math.max(3, 100 - ((el + i * 40) % 1500 / 1500) * 92).toFixed(1),
       lapDist: +(frac * TRACK_LEN).toFixed(1), posX: +px.toFixed(1), posZ: +pz.toFixed(1),
+      sector: frac < 0.40 ? 1 : frac < 0.73 ? 2 : 0,   // 0=S3,1=S1,2=S2 (eşit değil)
       isPlayer: i === PLAYER,
       _prog: laps * 1e6 + (el % lapT),
     });
