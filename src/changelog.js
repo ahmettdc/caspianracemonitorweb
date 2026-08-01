@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.60",
+    date: "2026-08-01",
+    tr: [
+      "🛞 Geri alındı: taşınan (aynı) lastiği hücreden seçmek YİNE pit'te lastik işlemi sayılıyor — oyunda eski lastiği pitte geri takmak gerçekten süre kaybettiriyor (v1.4.59 bunu yanlışlıkla 'değişim değil' saymıştı). Değişim istemiyorsan hücreyi boş bırak (⟳ taşıma).",
+      "🛞 v1.4.59'un gerçek düzeltmeleri korunuyor: sonraki pit'lerin bayat kalması ve 'Tümünü Temizle'nin pit seçimlerini bırakması düzeltilmiş durumda.",
+    ],
+    en: [
+      "🛞 Reverted: explicitly selecting the carried (same) tyre in a cell once again counts as a pit tyre action — refitting the old tyre in the pit really does cost time in the game (v1.4.59 wrongly treated it as 'no change'). If you don't want a change, leave the cell empty (⟳ carry).",
+      "🛞 The real fixes from v1.4.59 remain: stale later-pit flags and 'Clear All' leaving pit selections behind are still fixed.",
+    ],
+  },
+  {
     v: "v1.4.59",
     date: "2026-08-01",
     tr: [

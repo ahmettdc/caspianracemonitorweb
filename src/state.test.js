@@ -51,19 +51,19 @@ describe("applyUpTyre — köşe döngüsü (fiziksel anlamsız durumlar atlanı
     for (let k = 0; k < 5; k++) { s = applyUpTyre(s, 1, 0); seq.push(pitTyres(s, 1)[0]); }
     expect(seq).toEqual([1, 2, 3, 4, 0]);
   });
-  it("S1 boşken (Qual taşınıyor) anlamsız durumlar atlanır: 1 → 3 → 0", () => {
-    /* Qual lastiği zaten araçta → "Qual'a dön" değişim değildir; köşede eski kuru
-       yok → 4 atlanır. Eskiden ham döngü 2/4'ü gösterip pit süresine sahte
-       lastik değişimi ekliyordu. */
+  it("S1 boşken döngü: 1 → 2 → 3 → 0 (ayrı eski kuru yok → 4 atlanır)", () => {
+    /* Qual'ı geri takmak da bir pit işlemidir (oyunda süre kaybettirir —
+       kullanıcı doğrulaması v1.4.60); yalnız köşede AYRI bir eski kuru
+       bulunmadığı için 4 adayı atlanır (Qual numarası 2 olarak sınıflanır). */
     let s = base({ tyreLimit: 26 });
     const seq = [];
-    for (let k = 0; k < 3; k++) { s = applyUpTyre(s, 0, 0); seq.push(pitTyres(s, 0)[0]); }
-    expect(seq).toEqual([1, 3, 0]);
+    for (let k = 0; k < 4; k++) { s = applyUpTyre(s, 0, 0); seq.push(pitTyres(s, 0)[0]); }
+    expect(seq).toEqual([1, 2, 3, 0]);
   });
-  it("limit doluyken yeni-kuru atlanır (Qual da taşınıyorsa → W)", () => {
+  it("limit doluyken yeni-kuru (1) atlanır → 2", () => {
     const s = base({ tyreLimit: 4 });   // qual 1-4 kullanılmış, S1 boş
     const r = applyUpTyre(s, 0, 0);
-    expect(pitTyres(r, 0)[0]).toBe(3);  // 1 limit, 2 anlamsız (Qual araçta) → W
+    expect(pitTyres(r, 0)[0]).toBe(2);  // 0→(1 limit)→2 Qual tak
   });
   it("lastik tablosu senkronu: yeni kuru sonraki stinte yazılır", () => {
     const s = base({ tyreLimit: 26 });
@@ -72,13 +72,14 @@ describe("applyUpTyre — köşe döngüsü (fiziksel anlamsız durumlar atlanı
   });
 });
 
-describe("pit lastik bayrağı — taşıma farkındalıklı türetme (v1.4.59)", () => {
-  it("taşınan lastiği yeniden seçmek DEĞİŞİM sayılmaz (pit süresi şişmez)", () => {
-    // S1 boş → Qual 1 taşınıyor; S2 FL'ye elle '1' yazmak fiziksel değişim değil.
-    // Eskiden ham karşılaştırma bunu Qual(2) sayıp pit'e 5 sn lastik süresi ekliyordu.
+describe("pit lastik bayrağı — tablodan türetme (v1.4.59/60)", () => {
+  it("taşınan lastiği ELLE seçmek pit işlemidir (oyunda süre kaybettirir)", () => {
+    /* S1 boş → Qual 1 taşınıyor; S2 FL'ye elle '1' yazmak = Qual lastiğini pitte
+       geri takmak → oyunda gerçek süre kaybı (kullanıcı doğrulaması v1.4.60).
+       Değişim istenmiyorsa hücre boş bırakılır. */
     const r = applyUpTyreCell(base(), 1, 0, "1");
-    expect(tyState(pitTyres(r, 0)[0])).toBe(0);
-    expect(computePlan(r, "race").rows[0].tyreCount).toBe(0);
+    expect(tyState(pitTyres(r, 0)[0])).toBe(2);
+    expect(computePlan(r, "race").rows[0].tyreCount).toBe(1);
   });
   it("aradaki hücre silinince SONRAKİ pit bayrağı tazelenir", () => {
     let s = base();
