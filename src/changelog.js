@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.58",
+    date: "2026-08-01",
+    tr: [
+      "👤 Tur geçmişinde PİLOT sütunu: saha tablosundaki '+' ile açılan tur listesinde artık her turun yanında o turu kimin attığı yazıyor — 8 saatlik yarışta 3 pilot dönerken hangi turun kimin olduğu belli oluyor",
+      "🔁 Pilot değişimi vurgulanıyor: direksiyonun el değiştirdiği tur ince bir çizgi ve renkli pilot adıyla işaretleniyor — stint sınırları tek bakışta görünüyor",
+    ],
+    en: [
+      "👤 DRIVER column in the lap history: the lap list opened with '+' in the field table now shows who drove each lap — in an 8-hour race with 3 drivers rotating, you can tell whose lap is whose",
+      "🔁 Driver changes are highlighted: the lap where the car changed hands is marked with a rule and a colored driver name — stint boundaries are visible at a glance",
+    ],
+  },
+  {
     v: "v1.4.57",
     date: "2026-07-31",
     tr: [

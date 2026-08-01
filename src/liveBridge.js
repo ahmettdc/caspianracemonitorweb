@@ -16,6 +16,7 @@
    ============================================================ */
 import { liveTimingSet, liveLapsAppend, liveLapsClear,
   livePosAppend, livePosClear, liveSecAppend, liveSecClear,
+  liveDrvAppend, liveDrvClear,
   liveWriterClaim, liveWriterRelease, liveWriterSubscribe, serverNow } from "./storage";
 import { shouldClaim } from "./liveWriter";
 import { lapNumbersOf } from "./liveLaps";
@@ -61,6 +62,7 @@ export async function startBridge(opts, onStatus) {
   let cars = 0;
   const lastLap = {};      // lapKey → yazılmış en yüksek tur no (append idempotent)
   const lastPit = {};      // lapKey → son görülen pit durak sayısı (pit turu işareti)
+  const lastDrv = {};      // lapKey → son yazılan pilot adı (yalnız DEĞİŞİNCE yazılır)
   let diag = null;         // gizli teşhis (shm/lmu/cars/ve) — arayüzde gösterilmez
   let diagSig = "";        // teşhis özeti (yalnız durum değişince konsola yaz)
 
@@ -80,6 +82,7 @@ export async function startBridge(opts, onStatus) {
     const entries = {};      // livelaps: lapKey/n → süre
     const posEntries = {};   // livepos: lapKey/n → pozisyon (pit turu → negatif)
     const secEntries = {};   // livesec: lapKey/n → "s1,s2,s3" (yalnız en yeni tur)
+    const drvEntries = {};   // livedrv: lapKey/n → pilot adı (yalnız DEĞİŞİM turunda)
     let clears = [];
     for (const r of rows) {
       const key = r.lapKey;
@@ -93,8 +96,20 @@ export async function startBridge(opts, onStatus) {
         // yeni seans: gelen turlar yazdığımızdan geride → geçmişi sıfırla
         if (lastLap[key] != null && first <= lastLap[key] && maxN < lastLap[key]) {
           clears.push(key); lastLap[key] = 0; lastPit[key] = r.pitStops || 0;
+          delete lastDrv[key];
         }
         const prev = lastLap[key] || 0;
+        /* PİLOT: endurance'ta yarış içinde değişir; lapKey ARAÇ kimliği olduğu için
+           tur geçmişi bölünmüyor ama turu kimin attığı kayboluyordu. Ad stint boyunca
+           sabit → yalnız DEĞİŞTİĞİ turu yaz (araç başına ~10 kayıt), okuma tarafı
+           ileri doldurur (liveLaps.driverAtLap). Değişim pit'te olduğu için yeni ad
+           ilk kez yeni pilotun out-lap'inde görünür — doğru atıf. */
+        const drv = typeof r.driver === "string" ? r.driver.trim() : "";
+        const firstNew = nums.find((n, i) => n > prev && laps[i] > 0);
+        if (drv && firstNew != null && lastDrv[key] !== drv) {
+          drvEntries[`${key}/${firstNew}`] = drv;
+          lastDrv[key] = drv;
+        }
         // bu turlarda pit atıldı mı (durak sayısı arttı mı)? → maxN turu pit işaretli
         const pits = r.pitStops || 0;
         const pitted = pits > (lastPit[key] ?? pits);
@@ -125,11 +140,12 @@ export async function startBridge(opts, onStatus) {
     try {
       for (const k of clears) {
         await liveLapsClear(tid, rid, k); await livePosClear(tid, rid, k);
-        await liveSecClear(tid, rid, k);
+        await liveSecClear(tid, rid, k); await liveDrvClear(tid, rid, k);
       }
       if (Object.keys(entries).length) await liveLapsAppend(tid, rid, entries);
       if (Object.keys(posEntries).length) await livePosAppend(tid, rid, posEntries);
       if (Object.keys(secEntries).length) await liveSecAppend(tid, rid, secEntries);
+      if (Object.keys(drvEntries).length) await liveDrvAppend(tid, rid, drvEntries);
     } catch (e) {
       say({ running: true, phase: "running", msg: "Geçmiş yazılamadı: " + (e?.message || e) });
     }
