@@ -20,6 +20,8 @@ import { liveTrackSave, liveTrackSubscribe,
 const NB = 240;                 // lapDist kutu sayısı (pist şekli çözünürlüğü)
 const BRAND = "#960018";        // ana tema
 const SECTOR_COL = "#5aa9e6";   // sektör ayırıcı (S/F kırmızısından ayrışan soğuk mavi)
+const ROAD_W = 20;              // yol bandı kalınlığı ≈ araç dairesi çapı (araç içine oturur)
+const ROAD_COL = "var(--line2)"; // yol rengi (siyah zeminde okunur; renkli noktalar üstte)
 const cx = 260, cy = 262;       // merkez
 const R = 236;                  // dış halka yarıçapı
 const PAD = 148;                // iç şekil yarım-uzanımı (px)
@@ -215,8 +217,8 @@ export default function TrackMap({ t, field, trackLength, tid, trackKey, canSave
     const a = f * 2 * Math.PI;
     const ux = Math.sin(a), uy = -Math.cos(a);   // ringXY ile aynı yön (dışa)
     const ring = (
-      <line x1={cx + (R - 9) * ux} y1={cy + (R - 9) * uy}
-        x2={cx + (R + 9) * ux} y2={cy + (R + 9) * uy}
+      <line x1={cx + (R - 13) * ux} y1={cy + (R - 13) * uy}
+        x2={cx + (R + 13) * ux} y2={cy + (R + 13) * uy}
         stroke={SECTOR_COL} strokeWidth={2} opacity={0.85} />
     );
     const rlabel = (
@@ -250,10 +252,10 @@ export default function TrackMap({ t, field, trackLength, tid, trackKey, canSave
           perpx = -ty; perpy = tx;
         }
         inner = (<>
-          <line x1={px - perpx * 10} y1={py - perpy * 10}
-            x2={px + perpx * 10} y2={py + perpy * 10}
+          <line x1={px - perpx * 13} y1={py - perpy * 13}
+            x2={px + perpx * 13} y2={py + perpy * 13}
             stroke={SECTOR_COL} strokeWidth={2.5} opacity={0.9} strokeLinecap="round" />
-          <text x={px + perpx * 17} y={py + perpy * 17} fill={SECTOR_COL} fontSize="9"
+          <text x={px + perpx * 20} y={py + perpy * 20} fill={SECTOR_COL} fontSize="9"
             fontWeight="700" textAnchor="middle" dominantBaseline="central">{lbl}</text>
         </>);
       }
@@ -269,20 +271,22 @@ export default function TrackMap({ t, field, trackLength, tid, trackKey, canSave
      Ölçek tamamen CSS'ten (viewBox sabit) → noktalar ve pozisyon numaraları
      büyük pencerede orantılı olarak büyür. */
   const svgKids = (<>
-    {/* dış halka */}
-    <circle cx={cx} cy={cy} r={R} fill="none" stroke="var(--line)" strokeWidth={1.5} />
-    {/* S/F işareti (tepe) */}
-    <line x1={cx} y1={cy - R - 8} x2={cx} y2={cy - R + 8}
+    {/* dış halka — araç çapı kalınlığında yol bandı + ince merkez çizgisi */}
+    <circle cx={cx} cy={cy} r={R} fill="none" stroke={ROAD_COL} strokeWidth={ROAD_W} />
+    <circle cx={cx} cy={cy} r={R} fill="none" stroke="var(--muted)"
+      strokeWidth={1.5} opacity={0.35} />
+    {/* S/F işareti (tepe) — kalın bandı kessin */}
+    <line x1={cx} y1={cy - R - 12} x2={cx} y2={cy - R + 12}
       stroke={BRAND} strokeWidth={2.5} />
-    <text x={cx} y={cy - R - 13} fill={BRAND} fontSize="11" fontWeight="700"
+    <text x={cx} y={cy - R - 17} fill={BRAND} fontSize="11" fontWeight="700"
       textAnchor="middle">S/F</text>
-    {/* sektör ayırıcıları (S1│S2, S2│S3) — gözlendiyse */}
+    {/* sektör ayırıcıları (S1, S2) — gözlendiyse */}
     {sectorMarks}
-    {/* iç pist şekli */}
-    {outline && <path d={outline} fill="none" stroke="var(--line)"
-      strokeWidth={11} strokeLinejoin="round" strokeLinecap="round" opacity={0.55} />}
+    {/* iç pist şekli — kalın yol bandı + ince merkez çizgisi (araç bandın içine oturur) */}
+    {outline && <path d={outline} fill="none" stroke={ROAD_COL}
+      strokeWidth={ROAD_W} strokeLinejoin="round" strokeLinecap="round" />}
     {outline && <path d={outline} fill="none" stroke="var(--muted)"
-      strokeWidth={2} strokeLinejoin="round" opacity={0.9} />}
+      strokeWidth={1.5} strokeLinejoin="round" opacity={0.35} />}
     {/* araçlar — dış halka */}
     {cars.map((c) => { const [x, y] = ringXY(c.lapDist); return dot(c, x, y, 9, classPos.get(c), "r"); })}
     {/* araçlar — iç şekil */}
