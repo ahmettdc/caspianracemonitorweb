@@ -139,7 +139,7 @@ export const WETNESS_STEPS = [
 ];
 /* Veri YOK ile 0 farklı şeydir: köprü alanı hiç göndermediyse kademe uydurmayız
    ("Dry"/"No Rain" demek de bir iddia). Number(null)===0 olduğu için ayrı süzülür. */
-const wxPct = (pct) => (pct == null || pct === "" ? NaN : Number(pct));
+export const wxPct = (pct) => (pct == null || pct === "" ? NaN : Number(pct));
 
 export function wetnessLevel(pct) {
   const v = wxPct(pct);
