@@ -252,6 +252,12 @@ class MockSource:
                 "inPits": me["inPits"], "pitStops": me["pitStops"],
                 "location": me["location"], "damage": me["damage"],
                 "control": 0, "driving": True,   # mock: bu PC aktif sürücü (yazar)
+                # sürüş panosu (animasyonlu): gaz/fren dönüşümlü, vites hıza bağlı
+                "throttle": round(max(0.0, math.sin(el * 1.3) * 0.5 + 0.5), 3),
+                "brake": round(max(0.0, -math.sin(el * 1.3) * 0.6), 3),
+                "gear": 1 + int((el % 12) / 2),
+                "speedKph": round(180 + math.sin(el / 6) * 90),
+                "rpm": round(6000 + math.sin(el * 1.3) * 2500), "rpmMax": 9000,
                 "tyreCompound": (lambda comp: {"front": comp, "rear": comp})(
                     ["Medium", "Hard", "Soft"][int(el / 1500) % 3]),
                 "tyres": {c: {"wear": round(max(0.2, 1 - (stint / 1500) * 0.7), 3),
@@ -356,6 +362,17 @@ class RF2Source:
         if f and r and f != r:
             return f"{f}/{r}"
         return f or r
+
+    @staticmethod
+    def _speed(tele):
+        """Hız (km/h) — mLocalVel (yerel hız vektörü, m/s) büyüklüğü × 3.6. Yoksa None."""
+        try:
+            v = getattr(tele, "mLocalVel", None)
+            if v is None:
+                return None
+            return math.hypot(float(v.x), float(v.y), float(v.z)) * 3.6
+        except Exception:
+            return None
 
     @staticmethod
     def _tele_lag(tele, player_et):
@@ -542,6 +559,14 @@ class RF2Source:
                 },
                 "damage": self._damage(pt),
                 "tyres": self._wheels(pt),
+                # canlı sürüş telemetrisi (pit duvarı "sürüş panosu")
+                "throttle": round(float(getattr(pt, "mUnfilteredThrottle", 0.0) or 0.0), 3),
+                "brake": round(float(getattr(pt, "mUnfilteredBrake", 0.0) or 0.0), 3),
+                "gear": (lambda g: int(g) if g is not None else None)(
+                    getattr(pt, "mGear", None)),
+                "speedKph": (lambda s: round(s) if s is not None else None)(self._speed(pt)),
+                "rpm": round(float(getattr(pt, "mEngineRPM", 0.0) or 0.0)),
+                "rpmMax": round(float(getattr(pt, "mEngineMaxRPM", 0.0) or 0.0)),
             }
             if player_scor is not None:
                 own.update({

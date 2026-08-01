@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.71",
+    date: "2026-08-01",
+    tr: [
+      "🏎 Kendi Araç kartına canlı sürüş panosu eklendi: anlık HIZ (km/h), VİTES, ve GAZ (yeşil) / FREN (kırmızı) çubukları — artı ince bir RPM göstergesi. Oyundaki telemetriyle senkron akar; izleyiciler de görür.",
+      "ℹ️ Gaz/fren HAM pedal girdisidir (sürücünün gerçek bastığı). Köprü değiştiği için sürüş PC'sindeki masaüstü uygulamasının güncellenmesi gerekir.",
+    ],
+    en: [
+      "🏎 A live driving dash was added to the Own Car card: instant SPEED (km/h), GEAR, and THROTTLE (green) / BRAKE (red) bars — plus a slim RPM meter. It flows in sync with the game telemetry; viewers see it too.",
+      "ℹ️ Throttle/brake are the RAW pedal input (what the driver actually presses). The bridge changed, so the desktop app on the driving PC must be updated.",
+    ],
+  },
+  {
     v: "v1.4.70",
     date: "2026-08-01",
     tr: [
