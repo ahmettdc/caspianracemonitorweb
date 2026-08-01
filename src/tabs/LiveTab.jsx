@@ -524,14 +524,11 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
       🎬 {demo ? t("Demo kapat") : t("Demo")}</button>
   );
   const rootRef = useRef(null);
-  const playerRowRef = useRef(null);
   const posRef = useRef({});   // sürücü → son pozisyon
   const dirRef = useRef({});   // sürücü → 'up'|'down' (son değişim yönü kalır)
-  // uzun grid'de oyuncu satırını görünür tut (canlı güncellemede)
-  useEffect(() => {
-    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
-    playerRowRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [live?.own?.position, myClassOnly]);
+  /* NOT: Oyuncu satırına otomatik kaydırma (scrollIntoView) KALDIRILDI — biz tur
+     atmayınca pozisyon değiştikçe sürekli tetikleniyor ve sayfayı kendiliğinden
+     aşağı çekiyordu (kullanıcı şikayeti). Satır zaten vurgulu (className "live"). */
   // pozisyon değişim yönünü izle (kare kare) → ▲/▼ okları
   useEffect(() => {
     const f = Array.isArray(live?.field) ? live.field : [];
@@ -750,7 +747,7 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
                   delta, isFastest }) => {
                   const acc = classAccent(c.carClass);
                   return (
-                    <tr key={c.pos ?? i} ref={c.isPlayer ? playerRowRef : null}
+                    <tr key={c.pos ?? i}
                       className={c.isPlayer ? "live" : ""}
                       style={!c.isPlayer && acc ? { borderLeft: `3px solid ${acc}` } : undefined}>
                       <td className="disp" style={{ fontSize: 15, whiteSpace: "nowrap" }}>
