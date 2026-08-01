@@ -1,4 +1,5 @@
-import { fmtHMS, parseHMS, wxLog, wxAtRel, tyState, EMPTY_PIT, MAX_STINTS } from "../engine";
+import { fmtHMS, parseHMS, wxLog, wxAtRel, wxId, tyState, EMPTY_PIT, MAX_STINTS } from "../engine";
+import { WetIcon } from "../WetIcon";
 import { Tyre } from "../components";
 
 /* Stint plan sekmesi (stint + code80) — KPI'lar, S1 lastik kısayolları, stint/hava
@@ -155,7 +156,7 @@ export default function StintTab({
               <div key={i} className={`wseg ${s2.wx.lap > 1 ? "rain" : ""}`}
                 style={{ width: `${s2.w}%`, background: s2.wx.col }}
                 title={`${t(s2.wx.lbl)} ×${s2.wx.lap.toFixed(2)}`}>
-                {s2.w > 6 && <span>{s2.wx.ico}</span>}
+                {s2.w > 6 && <WetIcon id={wxId(s2.wx)} size={13} />}
               </div>
             ))}
             {liveInfo.status === "live" && mode === "race" && (

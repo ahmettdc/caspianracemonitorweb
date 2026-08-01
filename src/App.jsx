@@ -46,6 +46,7 @@ import {
   BADGES, teamBadgesOf, hasBadge, ChatPanel, SetupForm, SetupTable, VersionModal, RaceEditModal,
   ChatModal, SetupModal, TeamModal,
 } from "./components";
+import { WetIcon } from "./WetIcon";
 
 /* Sekmeler talep üzerine yüklenir (kod bölme) — ilk bundle küçülür,
    recharts yalnız Telemetri açılınca gelir. */
@@ -1155,7 +1156,7 @@ ${bottomBar}
               .sort((a, b) => a.t - b.t);
             up({ weather: wxSug.id, weatherLog: log });
           }}>
-          {WEATHER[wxSug.id].ico} {t("Canlı")}: 🌧 {t(wxSug.rainLbl)} · 💧{" "}
+          <WetIcon id={wxSug.id} size={15} /> {t("Canlı")}: 🌧 {t(wxSug.rainLbl)} ·{" "}
           <b>{t(wxSug.label)}</b> → {t("geçişi ekle")}
         </button>
       )}
@@ -1175,7 +1176,7 @@ ${bottomBar}
               up({ weather: Object.keys(WEATHER).find((k) => WEATHER[k] === cur) || id,
                 weatherLog: log });
             }}>
-            {w.ico} {t(w.lbl)}<br /><small>×{w.lap.toFixed(2)}</small>
+            <WetIcon id={id} size={20} /> {t(w.lbl)}<br /><small>×{w.lap.toFixed(2)}</small>
           </button>
         ))}
       </div>
@@ -1737,7 +1738,9 @@ ${bottomBar}
                 return (
                   <div key={i} className="wxrow">
                     <span className="wxdot" style={{ background: wx.col }} />
-                    <span className="wxnm" style={{ color: wx.col }}>{wx.ico} {t(wx.lbl)}</span>
+                    <span className="wxnm" style={{ color: wx.col, display: "inline-flex",
+                      alignItems: "center", gap: 5 }}>
+                      <WetIcon id={WEATHER[e.w] ? e.w : "dry"} size={15} /> {t(wx.lbl)}</span>
                     <span className={`wxsrc ${e.src === "plan" ? "plan" : "live"}`}>
                       {e.src === "plan" ? t("planlı") : t("canlı")}
                       {isFuture ? " ⏳" : ""}</span>

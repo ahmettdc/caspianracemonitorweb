@@ -183,6 +183,9 @@ export function rubberPct(sessionType, totalLaps) {
   const laps = rubberToLaps(start) + Math.max(0, Number(totalLaps) || 0);
   return Math.round(lapsToRubber(laps) * 100);
 }
+/* Bir WEATHER nesnesinden id'sini bul (WetIcon ikon sistemi için — wxAtRel/WX nesne
+   döndürür, ikon id ister). Bulunamazsa "dry". */
+export const wxId = (wx) => Object.keys(WEATHER).find((k) => WEATHER[k] === wx) || "dry";
 export const wxLog = (st) => (st.weatherLog || []).slice().sort((a, b) => a.t - b.t);
 export const wxAtRel = (log, rel) => {  // rel saniyedeki hava (kronolojik log)
   let cur = WEATHER.dry;

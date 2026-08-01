@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { fmtLap, fmtHMS, fmtGap, WEATHER, wetnessLevel, rainLevel, rubberPct } from "../engine";
+import { WetIcon } from "../WetIcon";
 import { Ring } from "../components";
 import { DESKTOP_RELEASE_URL, ASSET, classId, classAccent, brandKey, manufacturerKey } from "../constants";
 import { isTauri } from "../tauriEnv";
@@ -683,9 +684,10 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
           <div className="kpi"><div className="v">
             {(() => {
               const id = wetnessLevel(s.wetness);
-              if (!id) return "💧 —";
+              if (!id) return "—";
               return <span title={`%${Math.round(s.wetness)}`}
-                style={{ color: WEATHER[id].col }}>💧 {t(WEATHER[id].lbl)}</span>;
+                style={{ color: WEATHER[id].col, display: "inline-flex", alignItems: "center", gap: 5 }}>
+                <WetIcon id={id} size={16} title={t(WEATHER[id].lbl)} /> {t(WEATHER[id].lbl)}</span>;
             })()}</div>
             <div className="l">{t("Zemin ıslaklığı")}</div></div>
           {/* Tutuş (rubber) — TinyPedal gibi turlardan MODELLENMİŞ tahmin, gerçek
