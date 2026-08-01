@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.73",
+    date: "2026-08-01",
+    tr: [
+      "🛠 Düzeltme: Canlı Timing'de biz tur atmayıp geriye düştükçe sayfa kendiliğinden aşağı kayıyordu (oyuncu satırına otomatik kaydırma). Bu davranış kaldırıldı — sayfa artık yerinde duruyor; kendi satırın zaten vurgulu.",
+    ],
+    en: [
+      "🛠 Fix: in Live Timing the page kept auto-scrolling down as we dropped positions without setting a lap time (auto-scroll to the player row). That behaviour was removed — the page now stays put; your own row is still highlighted.",
+    ],
+  },
+  {
     v: "v1.4.72",
     date: "2026-08-01",
     tr: [
