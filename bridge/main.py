@@ -131,6 +131,57 @@ def cmd_dump(mock):
           f"own={'var' if own else 'yok'} · session alanları: {list(payload['session'])}")
 
 
+def cmd_dump_wx(mock):
+    """HAVA DOĞRULAMA modu — Firebase'e dokunmaz, sürekli çalışır (Ctrl+C ile çık).
+
+    Neden: uygulamada yağış/ıslaklık yüzdesini kelimeye çeviriyoruz (Damp, Slightly
+    Wet…) ama bu eşikler TAHMİN — ne paylaşımlı bellekte ne de LMU REST'te ıslaklığı
+    KELİME olarak veren bir alan var. Bu mod iki şeyi yan yana koyar:
+      1) oyunun KENDİ gökyüzü/yağış sözlüğü (/rest/sessions/weather → WNV_SKY.stringValue)
+      2) canlı ıslaklık/yağış yüzdeleri
+    Islak bir seansta bunu açık bırakıp oyundaki yazıyla karşılaştırınca eşikler
+    ölçümle düzeltilebilir."""
+    try:
+        from lmu_api import LmuApi
+        sky = LmuApi().sky_labels() if not mock else {}
+    except Exception as e:  # noqa: BLE001  (REST kapalı → sözlük yok, canlı satır yine aksın)
+        sky, e_sky = {}, e
+        print(f"[hava sözlüğü] okunamadı: {e_sky}", file=sys.stderr)
+    if sky:
+        print("[hava sözlüğü] oyunun gökyüzü metinleri (/rest/sessions/weather · WNV_SKY):")
+        for i in sorted(sky):
+            print(f"   {i:>2} = {sky[i]}")
+    else:
+        print("[hava sözlüğü] boş — LMU REST kapalı ya da oyun açık değil "
+              "(mock modda zaten sorgulanmaz).")
+    print("\n[canlı] saniyede bir: ıslaklık ve yağış. Oyundaki yazıyla karşılaştır.\n"
+          "        (Ctrl+C ile çık)\n")
+    src = make_source(mock)
+    try:
+        while True:
+            t0 = time.time()
+            try:
+                s = (src.read() or {}).get("session") or {}
+            except Exception as e:  # noqa: BLE001  (okuma hatası → satır bas, devam)
+                s = {"_err": str(e)}
+            ts = time.strftime("%H:%M:%S")
+            if "_err" in s:
+                print(f"{ts}  okuma hatası: {s['_err']}")
+            else:
+                print(f"{ts}  ıslaklık %{s.get('wetness')}  ·  yağış %{s.get('rain')}"
+                      f"  ·  raining={s.get('raining')}  ·  {s.get('sessionType') or '?'}"
+                      f" / {s.get('phase') or '?'}")
+            sys.stdout.flush()
+            dt = time.time() - t0
+            if dt < 1.0:
+                time.sleep(1.0 - dt)
+    except (KeyboardInterrupt, BrokenPipeError):
+        pass
+    finally:
+        if hasattr(src, "close"):
+            src.close()
+
+
 def cmd_emit(mock, hz):
     """Masaüstü sidecar modu: kaynaktan oku, her kareyi stdout'a bir JSON satırı
     olarak bas — Firebase'e DOKUNMA. Uygulama (JS) satırları okuyup ts/by ekleyerek
@@ -263,6 +314,8 @@ def main():
     ap.add_argument("--mock", action="store_true", help="Oyunsuz sahte veri")
     ap.add_argument("--selftest", action="store_true", help="Firebase yaz+oku turu (PASS/FAIL)")
     ap.add_argument("--dump", action="store_true", help="Bir örnek oku, JSON bas (yazmaz)")
+    ap.add_argument("--dump-wx", action="store_true", dest="dump_wx",
+                    help="Hava doğrulama: oyunun gökyüzü sözlüğü + canlı ıslaklık/yağış")
     ap.add_argument("--emit", action="store_true",
                     help="Sidecar: her kareyi stdout'a JSON satırı bas (Firebase'e yazmaz)")
     ap.add_argument("--hz", type=float, default=2.0, help="--emit gönderim hızı (varsayılan 2)")
@@ -276,6 +329,9 @@ def main():
             return
         if args.dump:                     # kaynağı göster — Firebase/config gerekmez
             cmd_dump(args.mock)
+            return
+        if args.dump_wx:                  # hava sözlüğü + canlı yüzdeler (doğrulama)
+            cmd_dump_wx(args.mock)
             return
         if args.selftest:
             sys.exit(cmd_selftest(read_config_or_die(args.config)))

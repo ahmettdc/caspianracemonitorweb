@@ -7,6 +7,7 @@ import { liveLapsSubscribe, liveSecSubscribe, liveDrvSubscribe, serverNow } from
 import { driverAtLap } from "../liveLaps";
 import { binKey } from "../trackShape";
 import { demoLive } from "../liveDemo";
+import { CALIB_WORDS, addSample, thresholdsFrom, exportPayload } from "../wxCalib";
 import TrackMap from "./TrackMap";
 import PosChart from "./PosChart";
 import StrategyBar from "./StrategyBar";
@@ -300,6 +301,74 @@ function BridgeControl({ t, bridge, canEdit }) {
   );
 }
 
+const CALIB_KEY = "caspian.wxCalib";
+
+/* 🌦 HAVA KALİBRASYONU — oyundaki KELİMEYİ o anki yüzdeyle damgala.
+   Kademe eşiklerimiz (Damp/Slightly Wet/…) TAHMİN: oyun ıslaklığı ne paylaşımlı
+   bellekte ne de REST'inde kelime olarak veriyor (yalnız 0..1 sayı) → tek doğrulama
+   yolu ölçüm. Kayıt YEREL (localStorage), Firebase'e gitmez; kapalı gelir. */
+function WxCalib({ t, s }) {
+  const [open, setOpen] = useState(false);
+  const [rows, setRows] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(CALIB_KEY)) || []; } catch { return []; }
+  });
+  const save = (list) => {
+    setRows(list);
+    try { localStorage.setItem(CALIB_KEY, JSON.stringify(list)); } catch { /* kota / gizli mod */ }
+  };
+  const dl = () => {
+    const body = exportPayload(rows,
+      { track: s?.trackName || "", session: s?.sessionType || "" });
+    const url = URL.createObjectURL(new Blob([body], { type: "application/json" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `wx-calib-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  const pct = (v) => (v == null || v === "" || !Number.isFinite(Number(v))
+    ? "—" : `%${Math.round(Number(v))}`);
+  const sum = thresholdsFrom(rows);
+
+  if (!open) {
+    return (
+      <button className="act" style={{ fontSize: 11, padding: "3px 10px", marginTop: 8 }}
+        onClick={() => setOpen(true)}>🌦 {t("Hava Kalibrasyonu")}</button>
+    );
+  }
+  return (
+    <div style={{ marginTop: 8, padding: 10, border: "1px solid var(--line)", borderRadius: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <b style={{ fontSize: 12 }}>🌦 {t("Hava Kalibrasyonu")}</b>
+        <span className="mono" style={{ fontSize: 15 }}>
+          💧 {pct(s?.wetness)} · 🌧 {pct(s?.rain)}</span>
+        <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+          <button className="act" style={{ fontSize: 11, padding: "2px 8px" }}
+            onClick={dl} disabled={!rows.length}>⬇ {t("Dışa aktar")}</button>
+          <button className="act" style={{ fontSize: 11, padding: "2px 8px" }}
+            onClick={() => save([])} disabled={!rows.length}>{t("Temizle")}</button>
+          <button className="act" style={{ fontSize: 11, padding: "2px 8px" }}
+            onClick={() => setOpen(false)}>{t("Kapat")}</button>
+        </span>
+      </div>
+      <div className="hint" style={{ margin: "6px 0" }}>
+        {t("Oyundaki zemin durumu yazısı değiştiğinde aynı kelimeye bas — o anın yüzdesi kaydedilir. Birkaç damga sonra dışa aktarıp gönder, eşikleri ölçüme göre düzeltelim.")}
+      </div>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        {CALIB_WORDS.map((w) => (
+          <button key={w} className="act" style={{ fontSize: 11, padding: "3px 9px" }}
+            onClick={() => save(addSample(rows, w, s))}>{w}</button>
+        ))}
+      </div>
+      {sum.length > 0 && (
+        <div className="mono" style={{ fontSize: 11, marginTop: 8, color: "var(--dim)" }}>
+          {rows.length} {t("damga")} · {sum.map((x) => `${x.word}: %${x.min}–%${x.max} (${x.n})`).join("  |  ")}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelObs, tid, rid }) {
   const [myClassOnly, setMyClassOnly] = useState(false);
   const [big, setBig] = useState(false);
@@ -491,6 +560,7 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
             })()}</div>
             <div className="l">{t("Zemin ıslaklığı")}</div></div>
         </div>
+        {canEdit && !big && <WxCalib t={t} s={s} />}
       </div>
 
       {!big && <StrategyBar t={t} field={fieldAll} />}

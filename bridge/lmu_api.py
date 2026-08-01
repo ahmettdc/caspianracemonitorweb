@@ -72,6 +72,8 @@ class LmuApi:
         self.catalog = None         # (by_key, by_driver) — statik araç kataloğu
         self.catalog_at = 0.0
         self.catalog_diag = False
+        self.sky = None             # {indeks: oyunun gökyüzü metni} — hava sözlüğü
+        self.sky_at = 0.0
 
     def _load_catalog(self):
         """/rest/sessions/getAllVehicles = statik araç kataloğu (tüm liveryler): temiz
@@ -131,6 +133,49 @@ class LmuApi:
                 if k and (vn.startswith(k) or k.startswith(vn) or k in vn):
                     return info
         return {}
+
+    @staticmethod
+    def parse_sky_labels(data):
+        """/rest/sessions/weather yanıtı → {gökyüzü_indeksi: OYUNUN KENDİ METNİ}. SAF.
+
+        Neden: paylaşımlı bellek yağışı yalnız 0..1 sayı olarak verir (`mRaining`);
+        "Light Rain / Heavy Rain" gibi isimler orada YOK. Ama hava kurulum ekranının
+        beslediği bu endpoint her düğüm için `WNV_SKY: {currentValue, stringValue}`
+        döndürür ve `stringValue` oyunun kendi etiketidir → sözlüğü tahmin etmek yerine
+        oyundan okuyabiliriz. Yanıt şekli: {SEANS: {DÜĞÜM: {WNV_*: {...}}}} (PRACTICE/
+        QUALIFY/RACE × START/NODE_25/…/FINISH). Şekil değişirse boş döner (çökmez)."""
+        out = {}
+        if not isinstance(data, dict):
+            return out
+        for sess in data.values():
+            if not isinstance(sess, dict):
+                continue
+            for node in sess.values():
+                sky = node.get("WNV_SKY") if isinstance(node, dict) else None
+                if not isinstance(sky, dict):
+                    continue
+                lbl = str(sky.get("stringValue") or "").strip()
+                try:
+                    idx = int(float(sky.get("currentValue")))
+                except (TypeError, ValueError):
+                    continue
+                if lbl:
+                    out[idx] = lbl
+        return out
+
+    def sky_labels(self):
+        """Oyunun gökyüzü/yağış sözlüğü — {indeks: metin}. Bir kez çekilip önbelleğe
+        alınır (katalog deseni); REST kapalıysa boş döner. Yalnız teşhis/doğrulama
+        için — canlı akışa girmez."""
+        now = time.time()
+        if self.sky is not None and now - self.sky_at < 60:
+            return self.sky
+        self.sky_at = now
+        try:
+            self.sky = self.parse_sky_labels(_get("/rest/sessions/weather", timeout=3.0))
+        except Exception:
+            self.sky = {}
+        return self.sky
 
     def _pick_list(self, data):
         """Yanıttan araç listesini çıkar (doğrudan liste ya da içindeki bir liste alanı)."""

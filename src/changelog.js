@@ -5,6 +5,20 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.64",
+    date: "2026-08-01",
+    tr: [
+      "🌦 Yeni: Canlı sekmesinde 'Hava Kalibrasyonu' paneli (yalnız düzenleyiciler, kapalı gelir). Oyundaki zemin durumu yazısı değiştiğinde aynı kelimeye basarsın, o anın ıslaklık/yağış yüzdesi kaydedilir; birkaç damga sonra 'Dışa aktar' ile JSON alırsın. Kayıtlar cihazında kalır, odaya gönderilmez.",
+      "🔎 Köprüye '--dump-wx' teşhis modu: oyunun KENDİ gökyüzü sözlüğünü (Clear/Light Rain/… ) yerel API'sinden basar, altında saniyede bir canlı ıslaklık ve yağış yüzdesini gösterir.",
+      "ℹ️ Neden: v1.4.63'teki kademe eşikleri tahmindi. Araştırmada oyunun ıslaklığı hiçbir yerde kelime olarak vermediği kesinleşti (paylaşımlı bellekte ve REST'in tamamında yalnız sayı) — bu yüzden eşikleri ölçümle doğrulayacak araçlar eklendi. Kademe tabloları bu sürümde DEĞİŞMEDİ; ölçüm sonrası düzeltilecek.",
+    ],
+    en: [
+      "🌦 New: a 'Weather Calibration' panel on the Live tab (editors only, collapsed by default). When the game's track condition wording changes you press the matching word, and the current wetness/rain percentage is recorded; after a few stamps, 'Export' gives you a JSON. Records stay on your device and are not sent to the room.",
+      "🔎 New bridge diagnostic mode '--dump-wx': prints the game's OWN sky vocabulary (Clear/Light Rain/…) from its local API, then the live wetness and rain percentages once per second.",
+      "ℹ️ Why: the level thresholds in v1.4.63 were estimates. Research confirmed the game never exposes wetness as a word (only numbers, both in shared memory and across the whole REST API) — so these tools were added to verify the thresholds by measurement. The level tables are UNCHANGED in this release; they'll be corrected once measurements come in.",
+    ],
+  },
+  {
     v: "v1.4.63",
     date: "2026-08-01",
     tr: [

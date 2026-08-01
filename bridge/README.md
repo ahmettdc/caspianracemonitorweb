@@ -85,6 +85,17 @@ CaspianLiveBridge.exe --dump
 Bu, paylaşımlı bellekten çözülen JSON'u konsola basar (Firebase'e yazmaz). Alanlar
 boşsa eşleme/sürüm sorunudur → `rf2_source.py`. `--once` ile tek gönderim de yapılır.
 
+**Hava doğrulama (`--dump-wx`):** uygulama ıslaklık/yağış yüzdesini kelimeye çeviriyor
+(Damp, Slightly Wet…) ama bu eşikler tahmin — oyun ıslaklığı ne paylaşımlı bellekte ne
+de REST'inde kelime olarak veriyor. Bu mod ikisini yan yana koyar:
+```
+CaspianLiveBridge.exe --dump-wx
+```
+Önce oyunun **kendi gökyüzü sözlüğünü** basar (`/rest/sessions/weather` →
+`WNV_SKY.stringValue`), sonra saniyede bir canlı ıslaklık/yağış yüzdesini. Islak bir
+seansta açık bırakıp oyundaki yazıyla karşılaştırınca eşikler ölçümle düzeltilebilir.
+(Zemin ıslaklığı kelimesi için uygulamadaki **🌦 Hava Kalibrasyonu** paneli kullanılır.)
+
 ---
 
 ## 4) .exe üretmek

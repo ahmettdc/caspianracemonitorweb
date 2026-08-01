@@ -490,6 +490,11 @@ export const EN = {
   "Trafik": "Traffic",
   "Yağmur": "Rain",
   "Ortam": "Ambient", "Zemin ıslaklığı": "Track wetness",
+  // hava kalibrasyonu (v1.4.64)
+  "Hava Kalibrasyonu": "Weather Calibration",
+  "Dışa aktar": "Export", "Temizle": "Clear", "damga": "stamps",
+  "Oyundaki zemin durumu yazısı değiştiğinde aynı kelimeye bas — o anın yüzdesi kaydedilir. Birkaç damga sonra dışa aktarıp gönder, eşikleri ölçüme göre düzeltelim.":
+    "When the game's track condition wording changes, press the matching word — the current percentage is recorded. After a few stamps, export and send it so we can correct the thresholds from real measurements.",
   // canlı timing bağlantı koptu (v1.4.62)
   "çevrimdışı": "offline", "Canlı veri akışı durdu": "Live data feed stopped",
   "son veri": "last data", "önce": "ago", "sn": "s", "dk": "min",

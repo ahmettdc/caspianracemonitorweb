@@ -60,6 +60,41 @@ def test_bozuk_kayitlar_atlanir():
     assert own is None
 
 
+sky = LmuApi.parse_sky_labels
+
+
+def test_sky_sozlugu_tum_seans_ve_dugumlerden_toplanir():
+    """/rest/sessions/weather → {indeks: OYUNUN metni}. Oyunun yağış sözlüğünü tahmin
+    etmek yerine buradan okuyoruz (paylaşımlı bellek yalnız 0..1 sayı verir)."""
+    got = sky({
+        "PRACTICE": {
+            "START":  {"WNV_SKY": {"currentValue": 0, "stringValue": "Clear"}},
+            "FINISH": {"WNV_SKY": {"currentValue": 4, "stringValue": "Light Rain"}},
+        },
+        "RACE": {
+            "NODE_50": {"WNV_SKY": {"currentValue": 6, "stringValue": "Heavy Rain"}},
+        },
+    })
+    assert got == {0: "Clear", 4: "Light Rain", 6: "Heavy Rain"}
+
+
+def test_sky_bozuk_eksik_sekiller_cokmez():
+    assert sky(None) == {}
+    assert sky([]) == {}
+    assert sky({"RACE": "x"}) == {}
+    assert sky({"RACE": {"START": {}}}) == {}                       # WNV_SKY yok
+    assert sky({"RACE": {"START": {"WNV_SKY": {"currentValue": "a",
+                                               "stringValue": "Clear"}}}}) == {}
+    assert sky({"RACE": {"START": {"WNV_SKY": {"currentValue": 2,
+                                               "stringValue": "  "}}}}) == {}  # boş metin
+
+
+def test_sky_float_indeks_ve_bosluk_temizligi():
+    got = sky({"RACE": {"START": {"WNV_SKY": {"currentValue": 3.0,
+                                              "stringValue": " Overcast "}}}})
+    assert got == {3: "Overcast"}
+
+
 if __name__ == "__main__":
     fails = 0
     for name, fn in sorted(globals().items()):
