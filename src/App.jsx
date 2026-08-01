@@ -1802,6 +1802,12 @@ ${bottomBar}
         <button className="tourbtn" onClick={() => setTour("main")}
           title={t("Rehberi başlat")}>🎓</button>
         {infoBtn}
+        {/* Ana Menü: yarıştayken her zaman görünür (teambar katlansa da) → takvim/lobiye dön */}
+        {curRace && (
+          <button className="adminbtn" onClick={leaveRace} title={t("Ana menüye dön")}>
+            🏠 {t("Ana Menü")}
+          </button>
+        )}
         <span className="langsw">
           {["tr", "en"].map((l) => (
             <button key={l} className={lang === l ? "on" : ""}

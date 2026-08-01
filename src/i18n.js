@@ -346,6 +346,7 @@ export const EN = {
     "You don't have a team yet. Create one or join with a join code.",
   "Takvimi & Takımı Yönet": "Manage Calendar & Team",
   "Takvime Dön": "Back to Calendar",
+  "Ana Menü": "Main Menu", "Ana menüye dön": "Back to main menu",
   "Yarış Takvimi": "Race Calendar",
   "Yaklaşan Yarışlar": "Upcoming Races",
   "Takvimde yarış yok.": "No races on the calendar.",
