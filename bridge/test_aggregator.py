@@ -7,7 +7,33 @@ tur kaymasına (tur 4'ün süresi tur 3 diye) ve kalıcı veri bozulmasına yol 
 """
 import sys
 
-from rf2_source import Aggregator, _flag_of
+from rf2_source import Aggregator, RF2Source, _flag_of
+
+
+class _Wheel:
+    def __init__(self, wear):
+        self.mWear = wear
+
+
+class _Tele:
+    """mWheels[0..3].mWear taşıyan sahte telemetri (RF2Source._wear4 için)."""
+    def __init__(self, wears):
+        self.mWheels = [_Wheel(w) for w in wears]
+
+
+def test_wear4_online_donmus_tam_1_0_veri_yok_sayilir():
+    """Online rakip aşınması simüle edilmez → dört teker 1.0 donar (sahte %100).
+    En az bir tur atmış araçta hepsi 1.0 ise None (UI '—'); yarış başında (laps 0)
+    yeni lastik gerçekten 1.0 → korunur; gerçek aşınma her zaman gösterilir."""
+    frozen = _Tele([1.0, 1.0, 1.0, 1.0])
+    assert RF2Source._wear4(frozen, laps=5) is None            # donmuş → veri yok
+    assert RF2Source._worst_wear(frozen, laps=5) is None
+    assert RF2Source._wear4(frozen, laps=0) == [1.0, 1.0, 1.0, 1.0]  # yarış başı → koru
+    real = _Tele([0.98, 0.97, 0.95, 0.94])
+    assert RF2Source._wear4(real, laps=5) == [0.98, 0.97, 0.95, 0.94]  # gerçek → göster
+    assert RF2Source._worst_wear(real, laps=5) == 0.94
+    # tek teker 1.0 altına inmişse (gerçek) donmuş sayılmaz
+    assert RF2Source._wear4(_Tele([1.0, 1.0, 1.0, 0.999]), laps=5) == [1.0, 1.0, 1.0, 0.999]
 
 
 class _Fake:

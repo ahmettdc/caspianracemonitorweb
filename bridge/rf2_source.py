@@ -329,20 +329,31 @@ class RF2Source:
         return out
 
     @staticmethod
-    def _wear4(tele):
+    def _wear4(tele, laps=0):
         """4 tekerin diş oranı [fl, fr, rl, rr] (0..1; 1.0 = yeni). Pit'te KAÇ lastik
         değiştiğini anlamak için köşeler ayrı ayrı gerekir — tek bir 'en kötü' değeri
-        iki-lastik değişimini göremez."""
+        iki-lastik değişimini göremez.
+
+        ONLINE DÜZELTMESİ (v1.4.75): çok oyunculu yarışta oyunun paylaşımlı belleği
+        RAKİP araçların lastik aşınmasını simüle/yayın ETMEZ → dört teker de tam 1.0
+        (yeni) DONAR ve saha tablosunda herkes sahte '%100' görünür (single-player'da
+        AI telemetrisi yerel olduğu için doğru çalışır). En az bir tur atmış bir araçta
+        dört tekerin de tam 1.0 olması gerçek olamaz (gerçek lastik daha ilk turda
+        1.0'ın altına iner) → veriyi 'yok' say (None → UI '—'/yalnız bileşim gösterir).
+        Yarış başında (laps < 1) yeni lastik gerçekten 1.0 olabilir → dokunma."""
         try:
-            return [round(float(getattr(tele.mWheels[i], "mWear", 1.0)), 3)
-                    for i in range(4)]
+            w = [round(float(getattr(tele.mWheels[i], "mWear", 1.0)), 3)
+                 for i in range(4)]
         except Exception:
             return None
+        if laps >= 1 and all(x >= 1.0 for x in w):
+            return None      # simüle edilmemiş (donmuş) rakip aşınması — sahte %100
+        return w
 
     @classmethod
-    def _worst_wear(cls, tele):
+    def _worst_wear(cls, tele, laps=0):
         """4 tekerin en kötü (en düşük) diş oranı 0..1 — saha lastik göstergesi."""
-        w = cls._wear4(tele)
+        w = cls._wear4(tele, laps)
         return round(min(w), 3) if w else None
 
     @staticmethod
@@ -506,6 +517,7 @@ class RF2Source:
             if is_player:
                 player_scor = v
             tv = tele_by_id.get(int(getattr(v, "mID", -2)))
+            laps = int(getattr(v, "mTotalLaps", 0))
             px, pz = self._pos(v)
             field.append({
                 "pos": int(getattr(v, "mPlace", 0)),
@@ -515,7 +527,7 @@ class RF2Source:
                 "driver": _s(getattr(v, "mDriverName", b"")),
                 "vehicleName": _s(getattr(v, "mVehicleName", b"")),
                 "carClass": _s(getattr(v, "mVehicleClass", b"")),
-                "lapsDone": int(getattr(v, "mTotalLaps", 0)),
+                "lapsDone": laps,
                 "lapDist": round(float(getattr(v, "mLapDist", 0.0)), 1),
                 "posX": px, "posZ": pz,
                 # mevcut sektör (0=S3, 1=S1, 2=S2) — harita sektör ayırıcıları bunun
@@ -534,10 +546,10 @@ class RF2Source:
                 "inPits": bool(getattr(v, "mInPits", 0)),
                 "location": self._location(v),
                 "pitStops": int(getattr(v, "mNumPitstops", 0)),
-                "tyreWear": self._worst_wear(tv) if tv is not None else None,
+                "tyreWear": self._worst_wear(tv, laps) if tv is not None else None,
                 # köşe köşe aşınma + bileşim: pit'te kaç/hangi lastiğin değiştiği
                 # ancak bunlardan çıkar (Aggregator pit giriş/çıkışını karşılaştırır)
-                "tyres4": self._wear4(tv) if tv is not None else None,
+                "tyres4": self._wear4(tv, laps) if tv is not None else None,
                 "tyreComp": self._compound(tv) if tv is not None else None,
                 "teleLag": self._tele_lag(tv, player_et) if tv is not None else None,
                 "damage": self._damage(tv) if tv is not None else None,
