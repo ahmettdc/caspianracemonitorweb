@@ -1144,6 +1144,7 @@ ${bottomBar}
       {wxSug && canEdit && (
         <button className="act" style={{ marginBottom: 8, fontSize: 12,
           borderColor: WEATHER[wxSug.id].col, color: WEATHER[wxSug.id].col }}
+          title={`🌧 %${wxSug.rain} · 💧 %${wxSug.wetness}`}
           onClick={() => {
             const el = liveInfo.status === "live"
               ? Math.max(0, Math.round(liveInfo.elapsed / 1000)) : 0;
@@ -1154,8 +1155,8 @@ ${bottomBar}
               .sort((a, b) => a.t - b.t);
             up({ weather: wxSug.id, weatherLog: log });
           }}>
-          {WEATHER[wxSug.id].ico} {t("Canlı")}: 🌧 %{wxSug.rain} · 💧 %{wxSug.wetness} →{" "}
-          <b>{t(wxSug.label)}</b> {t("geçişi ekle")}
+          {WEATHER[wxSug.id].ico} {t("Canlı")}: 🌧 {t(wxSug.rainLbl)} · 💧{" "}
+          <b>{t(wxSug.label)}</b> → {t("geçişi ekle")}
         </button>
       )}
       <div className="wxsel">

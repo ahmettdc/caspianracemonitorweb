@@ -10,7 +10,7 @@
    kareyi yazan istemcide tetiklenir (live.by === user.email) — lease zaten tek
    yazıcı garanti eder; öneriler her editor'da gösterilebilir.
    ============================================================ */
-import { parseHMS, parseLap, fmtLap, WEATHER, WX } from "./engine";
+import { parseHMS, parseLap, fmtLap, WEATHER, WX, wetnessLevel, rainLevel } from "./engine";
 
 /* Araç PİT YOLUNA bu karede mi girdi? (✔ PIT butonunun elle yaptığı anın kendisi.)
    lapsDone > 0 şartı: seans başındaki garaj/grid konumu pit sanılmasın. */
@@ -42,8 +42,11 @@ export function alignedStartMs(st, session, now) {
   return now - (raceSec - session.timeLeftSec) * 1000;
 }
 
-/* Canlı yağmur %/zemin ıslaklığı %'sinden WEATHER kademesi türet; plandaki mevcut
-   havadan FARKLIYSA öneri döner, aynıysa null. (Yazma yok — öneri çipi içindir.) */
+/* Canlı zemin ıslaklığından WEATHER kademesi türet; plandaki mevcut havadan
+   FARKLIYSA öneri döner, aynıysa null. (Yazma yok — öneri çipi içindir.)
+   Kademe ESASI ıslaklıktır: lastik kararını zeminin durumu belirler (yağmur diner
+   ama pist ıslak kalır). Yağış yalnız çipte bilgi olarak gösterilir. Eşikler
+   engine.wetnessLevel'da — canlı satır, plan ve öneri hep aynı ölçeği kullanır. */
 export function weatherSuggestion(session, st) {
   if (!session) return null;
   const rain = Number(session.rain);
@@ -51,12 +54,10 @@ export function weatherSuggestion(session, st) {
   if (!Number.isFinite(rain) && !Number.isFinite(wet)) return null;
   const r = Number.isFinite(rain) ? rain : 0;
   const w = Number.isFinite(wet) ? wet : 0;
-  const id = r > 60 || w > 70 ? "wet"
-    : r > 25 || w > 45 ? "slwet"
-    : r > 5 || w > 20 ? "damp"
-    : "dry";
+  const id = wetnessLevel(w);
   if (WEATHER[id] === WX(st)) return null;         // plan zaten bu kademede
-  return { id, label: WEATHER[id].lbl, rain: Math.round(r), wetness: Math.round(w) };
+  return { id, label: WEATHER[id].lbl, rain: Math.round(r), wetness: Math.round(w),
+    rainLbl: rainLevel(r)?.lbl || "" };
 }
 
 /* Canlı AVG5 plandaki "Avg Lap"ten %1'den fazla sapıyorsa öneri (tek tık uygula). */

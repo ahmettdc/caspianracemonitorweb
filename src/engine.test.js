@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   parseHMS, parseLap, fmtHMS, fmtLap, fmtGap, fmtDur, msToLocalInput,
   DEFAULT_STATE, WEATHER, wxLog, wxAtRel, WX, effLapSec, effCons, tyState,
-  computePlan, migrate, lastStintFuel,
+  computePlan, migrate, lastStintFuel, wetnessLevel, rainLevel,
 } from "./engine.js";
 
 /* Temiz, deterministik bir durum kur — testler bunun üstünden yürür. */
@@ -309,5 +309,71 @@ describe("computePlan — totalFuel (Toplam VE) satırlarla tutarlı", () => {
     const plan = computePlan(st, "race");
     const eski = effCons(st) * plan.totalLaps;
     expect(plan.totalFuel).toBeGreaterThan(eski + 1);   // eski değer yakıtı EKSİK sayıyordu
+  });
+});
+
+/* ============================================================
+   Oyunun KELİMELERİ: yüzde → kademe (v1.4.63)
+   ============================================================ */
+describe("wetnessLevel — zemin ıslaklığı % → WEATHER kademesi", () => {
+  it("her kademenin sınırları", () => {
+    expect(wetnessLevel(0)).toBe("dry");
+    expect(wetnessLevel(8)).toBe("dry");        // sınır dahil değil
+    expect(wetnessLevel(8.1)).toBe("damp");
+    expect(wetnessLevel(30)).toBe("damp");
+    expect(wetnessLevel(30.1)).toBe("slwet");
+    expect(wetnessLevel(55)).toBe("slwet");
+    expect(wetnessLevel(55.1)).toBe("wet");
+    expect(wetnessLevel(80)).toBe("wet");
+    expect(wetnessLevel(80.1)).toBe("xwet");
+    expect(wetnessLevel(100)).toBe("xwet");
+  });
+  it("veri yoksa null (kademe uydurulmaz)", () => {
+    expect(wetnessLevel(null)).toBeNull();
+    expect(wetnessLevel(undefined)).toBeNull();
+    expect(wetnessLevel("abc")).toBeNull();
+  });
+  it("döndürülen id WEATHER'da var ve etiketi oyunun kelimesi", () => {
+    expect(WEATHER[wetnessLevel(90)].lbl).toBe("Extremely Wet");
+    expect(WEATHER[wetnessLevel(60)].lbl).toBe("Wet");
+    expect(WEATHER[wetnessLevel(40)].lbl).toBe("Slightly Wet");
+    expect(WEATHER[wetnessLevel(15)].lbl).toBe("Damp");
+    expect(WEATHER[wetnessLevel(1)].lbl).toBe("Dry");
+  });
+});
+
+describe("rainLevel — yağış % → kademe adı", () => {
+  it("kullanıcının belirttiği set: No Rain/Drizzle/Light Rain/Rain/Heavy Rain", () => {
+    expect(rainLevel(0).lbl).toBe("No Rain");
+    expect(rainLevel(2).lbl).toBe("No Rain");
+    expect(rainLevel(2.1).lbl).toBe("Drizzle");
+    expect(rainLevel(15).lbl).toBe("Drizzle");
+    expect(rainLevel(15.1).lbl).toBe("Light Rain");
+    expect(rainLevel(40).lbl).toBe("Light Rain");
+    expect(rainLevel(40.1).lbl).toBe("Rain");
+    expect(rainLevel(70).lbl).toBe("Rain");
+    expect(rainLevel(70.1).lbl).toBe("Heavy Rain");
+  });
+  it("veri yoksa null", () => {
+    expect(rainLevel(null)).toBeNull();
+    expect(rainLevel("x")).toBeNull();
+  });
+});
+
+describe("WEATHER.xwet — 5. kademe", () => {
+  it("ıslaklık arttıkça tur çarpanı artar, yakıt çarpanı azalır", () => {
+    const ids = ["dry", "damp", "slwet", "wet", "xwet"];
+    const laps = ids.map((i) => WEATHER[i].lap);
+    const fuels = ids.map((i) => WEATHER[i].fuel);
+    expect(laps).toEqual([...laps].sort((a, b) => a - b));          // artan
+    expect(fuels).toEqual([...fuels].sort((a, b) => b - a));        // azalan
+    expect(WEATHER.xwet.lap).toBeGreaterThan(WEATHER.wet.lap);
+    expect(WEATHER.xwet.fuel).toBeLessThan(WEATHER.wet.fuel);
+  });
+  it("plan hesabı 5. kademeyi kullanabiliyor (en ıslakta tur uzar)", () => {
+    const dry = computePlan(baseState(), "race");
+    const xw = computePlan(baseState({ weatherLog: [{ t: 0, w: "xwet" }] }), "race");
+    expect(xw.lapSec).toBeCloseTo(dry.lapSec * WEATHER.xwet.lap, 6);
+    expect(xw.totalLaps).toBeLessThan(dry.totalLaps);               // yavaş → az tur
   });
 });

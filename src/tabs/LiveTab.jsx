@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { fmtLap, fmtHMS, fmtGap } from "../engine";
+import { fmtLap, fmtHMS, fmtGap, WEATHER, wetnessLevel, rainLevel } from "../engine";
 import { Ring } from "../components";
 import { DESKTOP_RELEASE_URL, ASSET, classId, classAccent, brandKey, manufacturerKey } from "../constants";
 import { isTauri } from "../tauriEnv";
@@ -475,12 +475,20 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
             <span style={{ fontSize: 13, color: "var(--dim)" }}> {t("pist")}</span></div>
             <div className="l">{t("Pist")} · {t("Ortam")} {s.ambientTemp != null ? `${Math.round(s.ambientTemp)}°` : "—"}</div></div>
           <div className="kpi"><div className="v">
-            {s.rain != null
-              ? (s.rain > 0 ? `🌧 %${Math.round(s.rain)}` : "☀️ %0")
-              : (s.raining ? `🌧 ${t("Yağmur")}` : `☀️ ${t("Kuru")}`)}</div>
+            {/* oyunun kelimesi (yüzde tooltip'te) — sayı yerine ad daha okunur */}
+            {(() => {
+              const lv = rainLevel(s.rain);
+              if (!lv) return s.raining ? `🌧 ${t("Yağmur")}` : `☀️ ${t("Kuru")}`;
+              return <span title={`%${Math.round(s.rain)}`}>{lv.ico} {t(lv.lbl)}</span>;
+            })()}</div>
             <div className="l">{t("Yağmur")}</div></div>
           <div className="kpi"><div className="v">
-            💧 {s.wetness != null ? `%${Math.round(s.wetness)}` : "—"}</div>
+            {(() => {
+              const id = wetnessLevel(s.wetness);
+              if (!id) return "💧 —";
+              return <span title={`%${Math.round(s.wetness)}`}
+                style={{ color: WEATHER[id].col }}>💧 {t(WEATHER[id].lbl)}</span>;
+            })()}</div>
             <div className="l">{t("Zemin ıslaklığı")}</div></div>
         </div>
       </div>
