@@ -133,9 +133,13 @@ export const WEATHER = {
    yerde adlandırılmış sabit: sahada kayarsa yalnız bu tablolar düzeltilir. */
 
 /* Zemin ıslaklığı % → WEATHER id (plan kademeleriyle AYNI dil: canlı satır ile
-   strateji planı ve öneri çipi hep aynı kelimeyi söyler). */
+   strateji planı ve öneri çipi hep aynı kelimeyi söyler).
+   Eşikler OYUNDAN DOĞRULANDI (kullanıcı ölçtü, v1.4.76) — aralıklar dahil:
+   dry %0-4 · damp %5-11 · slightly wet %12-39 · wet %40-99 · extremely wet %100.
+   Değerler her kademenin ALT sınırı; karşılaştırma `>=` (üst uçlar bir sonraki
+   kademenin alt sınırından türer; "extremely wet" yalnız tam %100'de). */
 export const WETNESS_STEPS = [
-  [80, "xwet"], [55, "wet"], [30, "slwet"], [8, "damp"],
+  [100, "xwet"], [40, "wet"], [12, "slwet"], [5, "damp"],
 ];
 /* Veri YOK ile 0 farklı şeydir: köprü alanı hiç göndermediyse kademe uydurmayız
    ("Dry"/"No Rain" demek de bir iddia). Number(null)===0 olduğu için ayrı süzülür. */
@@ -144,7 +148,7 @@ export const wxPct = (pct) => (pct == null || pct === "" ? NaN : Number(pct));
 export function wetnessLevel(pct) {
   const v = wxPct(pct);
   if (!Number.isFinite(v)) return null;
-  for (const [min, id] of WETNESS_STEPS) if (v > min) return id;
+  for (const [min, id] of WETNESS_STEPS) if (v >= min) return id;
   return "dry";
 }
 

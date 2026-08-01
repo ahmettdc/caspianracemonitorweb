@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.76",
+    date: "2026-08-01",
+    tr: [
+      "🛠 Düzeltme: zemin ıslaklığı (track wetness) kademe eşikleri oyundan ölçülen gerçek aralıklara çekildi: Dry %0-4 · Damp %5-11 · Slightly Wet %12-39 · Wet %40-99 · Extremely Wet %100. Önceki eşikler tahminidi ve örn. ~%85 ıslaklığı yanlışlıkla 'Extremely Wet' gösteriyordu (artık 'Wet'; Extremely Wet yalnız tam %100'de). Bu, Hava kartındaki canlı öneri çipine, Canlı seans 'Zemin ıslaklığı' göstergesine ve plana tek noktadan uygulanır. (Yağış/rain kademeleri değişmedi.)",
+    ],
+    en: [
+      "🛠 Fix: track-wetness stage thresholds now match the real ranges measured from the game: Dry 0-4% · Damp 5-11% · Slightly Wet 12-39% · Wet 40-99% · Extremely Wet 100%. The old thresholds were estimates and e.g. classified ~85% wetness as 'Extremely Wet' (now 'Wet'; Extremely Wet only at exactly 100%). This applies in one place to the Weather card's live suggestion chip, the Live session 'Track wetness' readout, and the plan. (Rainfall stages are unchanged.)",
+    ],
+  },
+  {
     v: "v1.4.75",
     date: "2026-08-01",
     tr: [

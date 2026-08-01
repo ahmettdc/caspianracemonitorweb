@@ -316,17 +316,16 @@ describe("computePlan — totalFuel (Toplam VE) satırlarla tutarlı", () => {
    Oyunun KELİMELERİ: yüzde → kademe (v1.4.63)
    ============================================================ */
 describe("wetnessLevel — zemin ıslaklığı % → WEATHER kademesi", () => {
-  it("her kademenin sınırları", () => {
+  it("oyun aralıkları: dry 0-4 · damp 5-11 · slwet 12-39 · wet 40-99 · xwet 100", () => {
     expect(wetnessLevel(0)).toBe("dry");
-    expect(wetnessLevel(8)).toBe("dry");        // sınır dahil değil
-    expect(wetnessLevel(8.1)).toBe("damp");
-    expect(wetnessLevel(30)).toBe("damp");
-    expect(wetnessLevel(30.1)).toBe("slwet");
-    expect(wetnessLevel(55)).toBe("slwet");
-    expect(wetnessLevel(55.1)).toBe("wet");
-    expect(wetnessLevel(80)).toBe("wet");
-    expect(wetnessLevel(80.1)).toBe("xwet");
-    expect(wetnessLevel(100)).toBe("xwet");
+    expect(wetnessLevel(4)).toBe("dry");        // dry üst sınır (dahil)
+    expect(wetnessLevel(5)).toBe("damp");       // damp alt sınır (dahil)
+    expect(wetnessLevel(11)).toBe("damp");
+    expect(wetnessLevel(12)).toBe("slwet");
+    expect(wetnessLevel(39)).toBe("slwet");
+    expect(wetnessLevel(40)).toBe("wet");
+    expect(wetnessLevel(99)).toBe("wet");
+    expect(wetnessLevel(100)).toBe("xwet");     // yalnız tam %100 extremely wet
   });
   it("veri yoksa null (kademe uydurulmaz)", () => {
     expect(wetnessLevel(null)).toBeNull();
@@ -334,11 +333,11 @@ describe("wetnessLevel — zemin ıslaklığı % → WEATHER kademesi", () => {
     expect(wetnessLevel("abc")).toBeNull();
   });
   it("döndürülen id WEATHER'da var ve etiketi oyunun kelimesi", () => {
-    expect(WEATHER[wetnessLevel(90)].lbl).toBe("Extremely Wet");
-    expect(WEATHER[wetnessLevel(60)].lbl).toBe("Wet");
-    expect(WEATHER[wetnessLevel(40)].lbl).toBe("Slightly Wet");
-    expect(WEATHER[wetnessLevel(15)].lbl).toBe("Damp");
-    expect(WEATHER[wetnessLevel(1)].lbl).toBe("Dry");
+    expect(WEATHER[wetnessLevel(100)].lbl).toBe("Extremely Wet");
+    expect(WEATHER[wetnessLevel(70)].lbl).toBe("Wet");
+    expect(WEATHER[wetnessLevel(20)].lbl).toBe("Slightly Wet");
+    expect(WEATHER[wetnessLevel(8)].lbl).toBe("Damp");
+    expect(WEATHER[wetnessLevel(2)].lbl).toBe("Dry");
   });
 });
 
