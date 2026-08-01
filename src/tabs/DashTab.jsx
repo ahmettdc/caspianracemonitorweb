@@ -1,4 +1,5 @@
-import { fmtHMS, WX } from "../engine";
+import { fmtHMS, WX, wxId } from "../engine";
+import { WetIcon } from "../WetIcon";
 import { ASSET, AV, TRACK_ASSET, PIT_LANE_TIMES, CAR_CLASSES, trackName, carImg, carName } from "../constants";
 import { Tyre, Bolt } from "../components";
 
@@ -55,8 +56,9 @@ export default function DashTab({
               <div className="hint">{t("Pit lane")}: {PIT_LANE_TIMES[st.track]}s</div>
             )}
             {WX(st).lap > 1 && (
-              <div className="hint" style={{ color: WX(st).col, fontWeight: 600 }}>
-                {WX(st).ico} {t(WX(st).lbl)} · ×{WX(st).lap.toFixed(2)}
+              <div className="hint" style={{ color: WX(st).col, fontWeight: 600,
+                display: "flex", alignItems: "center", gap: 5 }}>
+                <WetIcon id={wxId(WX(st))} size={15} /> {t(WX(st).lbl)} · ×{WX(st).lap.toFixed(2)}
                 {(st.weatherLog || []).length > 1 && <> · {st.weatherLog.length} {t("değişim")}</>}</div>
             )}
           </div>

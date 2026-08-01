@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.78",
+    date: "2026-08-01",
+    tr: [
+      "🎨 Zemin ıslaklığı (track wetness) için özel ikon sistemi eklendi (Dry · Damp · Slightly Wet · Wet · Extremely Wet). Emoji yerine tek renkli mavi damla ikonları; ıslaklık arttıkça damla/birikinti/dalga sayısı artar. Hava planlayıcı butonları, canlı 'Zemin ıslaklığı' göstergesi, canlı öneri çipi, hava geçmişi, stint hava çubuğu ve dashboard'da ortak kullanılır (inline SVG — her boyutta net).",
+    ],
+    en: [
+      "🎨 Added a dedicated track-wetness icon set (Dry · Damp · Slightly Wet · Wet · Extremely Wet). Single-hue blue droplet icons replace the emojis; more droplets/puddle/waves as it gets wetter. Used consistently across the weather planner buttons, the live 'Track wetness' readout, the live suggestion chip, weather history, the stint weather bar, and the dashboard (inline SVG — crisp at any size).",
+    ],
+  },
+  {
     v: "v1.4.77",
     date: "2026-08-01",
     tr: [
