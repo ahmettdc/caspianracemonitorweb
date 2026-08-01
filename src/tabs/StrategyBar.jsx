@@ -93,9 +93,6 @@ export default function StrategyBar({ t, field }) {
           color={BRAND}
           title={t("Şimdi pit'e girersen (pit kaybı kadar geriye) tahmini sıra")} />
       </div>
-      <div className="hint">
-        {t("Gap'lerden hesaplanır (yaklaşık); pit çıkışı = şu anki lidere farkın + pit kaybı. Pit kaybını pistine göre gir.")}
-      </div>
     </div>
   );
 }

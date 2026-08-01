@@ -5,6 +5,24 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.59",
+    date: "2026-08-01",
+    tr: [
+      "🛞 Lastik planı düzeltmeleri: taşınan (zaten araçtaki) lastiği menüden yeniden seçmek pit'te 'lastik değişimi' sayılıp plana 5-12 sn ekliyordu — artık fiziksel değişim olmayan seçimler pit süresine yansımıyor",
+      "🛞 Aradaki bir stint hücresi silinince SONRAKİ pit'lerin lastik bayrakları güncellenmiyordu (taşıma zinciri değişir) — pit bayrakları artık tablodan taşıma-farkındalıklı türetiliyor",
+      "🛞 Lastik sekmesindeki 'Tümünü Temizle' pit'lerdeki lastik seçimlerini bırakıyordu — tablo boşken plan lastik süresi eklemeye devam ediyordu; artık birlikte sıfırlanıyor",
+      "🛞 Stint tablosundaki köşe tıklama döngüsü fiziksel karşılığı olmayan durumları atlıyor (ör. Qual lastiği zaten araçtayken 'Qual'a dön')",
+      "🧹 Kartların altındaki açıklama metinleri kaldırıldı — arayüz sadeleşti (uyarılar ve canlı durum mesajları duruyor)",
+    ],
+    en: [
+      "🛞 Tyre plan fixes: re-selecting the carried (already fitted) tyre counted as a 'tyre change' in the pit, adding 5-12s to the plan — selections that aren't a physical change no longer affect pit time",
+      "🛞 Clearing an intermediate stint cell didn't refresh LATER pits' tyre flags (the carry chain changes) — pit flags are now derived carry-aware from the table",
+      "🛞 'Clear All' in the Tyres tab left pit tyre selections behind — the plan kept charging tyre time with an empty table; they now reset together",
+      "🛞 The corner click-cycle in the stint table now skips states with no physical meaning (e.g. 'back to Qual' while the Qual tyre is already on the car)",
+      "🧹 Removed the explanatory text under each card — cleaner UI (warnings and live status messages remain)",
+    ],
+  },
+  {
     v: "v1.4.58",
     date: "2026-08-01",
     tr: [

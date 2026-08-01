@@ -42,36 +42,29 @@ export function applyUpPit(s0, i, patch) {
 
 export function applyUpTyre(s0, i, t) {
   const s = grow(s0, i + 3); // i+1 satırına lastik yazılabilir
-  /* tık döngüsü: 0 taşı → 1 yeni kuru → 2 Qual'a dön → 3 wet → 0.
-     Yeni kuru için limit doluysa 1 atlanır (2'ye geçilir). */
+  /* tık döngüsü: 0 taşı → 1 yeni kuru → 2 Qual'a dön → 3 wet → 4 eski kuru → 0.
+     Bu köşede FİZİKSEL karşılığı olmayan durumlar atlanır: limit doluysa yeni kuru;
+     Qual lastiği zaten araçtaysa "Qual'a dön"; araçtaki wet iken "wet"; geçmişte
+     takılabilir eski kuru yoksa "eski kuru". (Eskiden yalnız limit atlanıyordu;
+     türetilmiş bayrak böyle durumları 0'a indirdiği için döngü kilitlenebiliyordu.) */
   const cur = tyState(s.pits[i].tyres[t]);
   const planLen = computePlan(s, "race").rows.length;
   const usedDry = new Set();
   s.tyreQual.forEach((v) => { const k = String(v).trim(); if (k && k !== "W") usedDry.add(k); });
   s.tyreStints.slice(0, planLen).forEach((r) => r.forEach((v) => {
     const k = String(v).trim(); if (k && k !== "W") usedDry.add(k); }));
-  let nextState = (cur + 1) % 5;
-  if (nextState === 1 && usedDry.size >= s.tyreLimit) nextState = 2;
-  const pits = s.pits.map((p, j) => {
-    if (j !== i) return p;
-    const tyres = [...p.tyres]; tyres[t] = nextState;
-    return { ...p, tyres };
-  });
-  /* Lastik tablosu senkronu: pit i = S(i+1) sonu → lastik S(i+2)'ye takılır
-     1: yeni numara · 2: o köşenin Qual numarası · 3: "W" · 0: önceki stintten devam */
-  let tyreStints = s.tyreStints;
   const next = i + 1; // tyreStints index'i (S(i+2) satırı)
-  if (next < s.tyreStints.length) {
-    const prevVal = String((s.tyreStints[i] || [])[t] || "").trim();
-    let val;
-    if (nextState === 1) {
+  const prevVal = String((s.tyreStints[i] || [])[t] || "").trim();
+  /* aday durum → takılacak numara (yoksa null = bu durum burada anlamsız) */
+  const valFor = (cand) => {
+    if (cand === 1) {
+      if (usedDry.size >= s.tyreLimit) return null;   // limit dolu
       let n = 1; while (usedDry.has(String(n))) n++;
-      val = String(n);
-    } else if (nextState === 2) {
-      val = String((s.tyreQual || [])[t] || "").trim();
-    } else if (nextState === 3) {
-      val = "W";
-    } else if (nextState === 4) {
+      return String(n);
+    }
+    if (cand === 2) return String((s.tyreQual || [])[t] || "").trim() || null;
+    if (cand === 3) return "W";
+    if (cand === 4) {
       /* eski (kullanılmış) kuru lastiği tekrar tak:
          bu köşenin geçmişinde en son kullanılan, öncekinden farklı numara */
       const hist = [];
@@ -81,14 +74,25 @@ export function applyUpTyre(s0, i, t) {
       }
       const q = String((s.tyreQual || [])[t] || "").trim();
       if (q) hist.push(q);
-      val = hist.find((v) => v !== prevVal) || q || prevVal;
-    } else {
-      val = prevVal; // taşı
+      return hist.find((v) => v !== prevVal) || null;
     }
-    tyreStints = s.tyreStints.map((r, j) =>
-      j === next ? r.map((c, ci) => (ci === t ? val : c)) : r);
+    return prevVal; // 0: taşı
+  };
+  let val = prevVal, chosen = 0;
+  for (let step = 1; step <= 5; step++) {
+    const cand = (cur + step) % 5;
+    const v = valFor(cand);
+    if (v == null) continue;
+    /* durum, türetilmiş bayrağıyla örtüşmeli (ör. taşınan lastiği "takmak" 0'dır) */
+    if (cand === 0 || pitTyreFlag(s, next, t, v) === cand) { val = v; chosen = cand; break; }
   }
-  return { ...s, pits, tyreStints };
+  void chosen;
+  const tyreStints = next < s.tyreStints.length
+    ? s.tyreStints.map((r, j) => (j === next ? r.map((c, ci) => (ci === t ? val : c)) : r))
+    : s.tyreStints;
+  /* pit bayrakları tabloya yazılan değerden TÜRETİLİR (taşıma-farkındalıklı) —
+     zaten takılı lastiği "tak"mak değişim sayılmaz, pit süresi şişmez. */
+  return syncPitTyres({ ...s, tyreStints });
 }
 
 export function applyUpOvr(s0, i, val) {
@@ -144,23 +148,10 @@ export function applyQuickTyre(s0, rowIdx, action) {
   else row = [0, 1, 2, 3].map((ci) =>
     FRESH_AT.includes(ci) ? fresh() : String(prev[ci] || "").trim());
   const tyreStints = s.tyreStints.map((r, i) => (i === rowIdx ? row : r));
-  /* pit butonu senkronu: S(rowIdx+1)'den önceki pit = pits[rowIdx-1]
-     önceki stintten farklı lastik taşıyan köşe = o pitte değişim var */
-  let pits = s.pits;
-  if (rowIdx >= 1) {
-    const pv = prev.map((v) => String(v || "").trim());
-    const flags = row.map((v, ci) => {
-      const k = String(v || "").trim();
-      const qualV = String((s.tyreQual || [])[ci] || "").trim();
-      const seen = s.tyreQual.some((x) => String(x).trim() === k) ||
-        s.tyreStints.slice(0, rowIdx).some((r2) =>
-          (r2 || []).some((x) => String(x).trim() === k));
-      return k === "" || k === pv[ci] ? 0 : k === "W" ? 3
-        : k === qualV ? 2 : seen ? 4 : 1;
-    });
-    pits = s.pits.map((p, j) => (j === rowIdx - 1 ? { ...p, tyres: flags } : p));
-  }
-  return { ...s, tyreStints, pits };
+  /* pit bayrakları taşıma-farkındalıklı türetilir; taşıma zinciri değiştiği için
+     SONRAKİ pit'ler de tazelenir (eski kod yalnız önceki pit'i günceller, taşınan
+     lastiği yeniden seçmeyi de değişim sayardı). */
+  return syncPitTyres({ ...s, tyreStints });
 }
 
 /* stinte özel ortalama tur süresi (boş → yarış datasındaki ortalama kullanılır) */
@@ -174,32 +165,27 @@ export function applyUpStintLap(s0, i, v) {
 export function applyUpTyreCell(s0, row, col, val) {
   const s = grow(s0, row + 2);
   if (row === -1) {
+    /* Qual değişince taşıma zinciri de değişir → pit bayrakları tazelenir */
     const tyreQual = [...s.tyreQual]; tyreQual[col] = val;
-    return { ...s, tyreQual };
+    return syncPitTyres({ ...s, tyreQual });
   }
   const tyreStints = s.tyreStints.map((r, i) =>
     i === row ? r.map((c, j) => (j === col ? val : c)) : r);
-  /* pit butonu senkronu (S1'in öncesinde pit yok, o hariç) */
-  let pits = s.pits;
-  if (row >= 1) {
-    const prevV = String((s.tyreStints[row - 1] || [])[col] ?? "").trim();
-    const k = String(val).trim();
-    const qualV = String((s.tyreQual || [])[col] || "").trim();
-    const seenBefore = (kk) => {
-      if (s.tyreQual.some((v) => String(v).trim() === kk)) return true;
-      for (let j = 0; j < row; j++)
-        if ((s.tyreStints[j] || []).some((v) => String(v).trim() === kk)) return true;
-      return false;
-    };
-    const flag = k === "" || k === prevV ? 0 : k === "W" ? 3
-      : k === qualV ? 2 : seenBefore(k) ? 4 : 1;
-    pits = s.pits.map((p, j) => {
-      if (j !== row - 1) return p;
-      const tyres = [...p.tyres]; tyres[col] = flag;
-      return { ...p, tyres };
-    });
-  }
-  return { ...s, tyreStints, pits };
+  /* pit bayrakları taşıma-farkındalıklı türetilir (S1'in öncesinde pit yok);
+     eski kod HAM önceki hücreyle karşılaştırıp taşınan lastiği yeniden seçmeyi
+     değişim sayıyor ve yalnız önceki pit'i güncelleyip sonrakileri bayat bırakıyordu. */
+  return syncPitTyres({ ...s, tyreStints });
+}
+
+/* Lastik sekmesi "Tümünü Temizle": tablo sıfırlanınca pit lastik bayrakları da
+   sıfırlanmalı — eskiden pits'te kalan seçimler plana lastik süresi eklemeye
+   devam ediyordu (tabloda hiç lastik görünmezken). */
+export function applyClearTyres(s0) {
+  return syncPitTyres({
+    ...s0,
+    tyreQual: ["1", "2", "3", "4"],
+    tyreStints: s0.tyreStints.map(() => ["", "", "", ""]),
+  });
 }
 
 export function applyAssignDriver(s0, i, n) {
@@ -218,6 +204,40 @@ export function carriedTyre(st, rowIndex, col) {
     if (v) return v;
   }
   return String((st.tyreQual || [])[col] || "").trim();
+}
+
+/* S(row+1) satırına GİRERKEN o köşede yapılan pit işlemi (pits[row-1].tyres[col]):
+   0 taşı · 1 yeni kuru · 2 Qual · 3 wet · 4 eski kuru tekrar.
+   KRİTİK: karşılaştırma TAŞINAN (etkin) lastiğe göre yapılır, önceki satırın HAM
+   hücresine göre değil — hücre boş (taşıma) iken aynı numarayı elle seçmek fiziksel
+   olarak değişim DEĞİLDİR; ham karşılaştırma bunu değişim sayıp pit süresine
+   5-12 sn ekliyordu. */
+export function pitTyreFlag(st, row, col, val) {
+  const k = String(val ?? "").trim();
+  if (!k) return 0;                                   // boş = taşı
+  if (k === carriedTyre(st, row, col)) return 0;      // zaten takılı olan lastik
+  if (k === "W") return 3;
+  if (k === String((st.tyreQual || [])[col] || "").trim()) return 2;
+  if ((st.tyreQual || []).some((x) => String(x).trim() === k)) return 4;
+  for (let j = 0; j < row; j++)
+    if ((st.tyreStints[j] || []).some((x) => String(x).trim() === k)) return 4;
+  return 1;                                           // hiç görülmemiş → yeni kuru
+}
+
+/* Tüm pit lastik bayraklarını tablodan TÜRET (tek doğruluk kaynağı: tyreStints).
+   Bir hücre düzenlendiğinde yalnız o satırın ÖNCEKİ pit'i güncelleniyordu; oysa
+   taşıma zinciri değiştiği için SONRAKİ pit'lerin bayrakları da bayatlıyordu
+   (ör. aradaki hücre silinince sonraki stint'in "aynı lastik devam"ı gerçekte
+   değişime dönüşür ama pit süresi güncellenmezdi). Yalnız tabloda karşılığı olan
+   pit'ler türetilir; plan ötesindeki pits kayıtları olduğu gibi kalır. */
+export function syncPitTyres(st) {
+  const pits = st.pits.map((p, i) => {
+    const nextRow = st.tyreStints[i + 1];
+    if (!nextRow) return p;
+    const tyres = [0, 1, 2, 3].map((c) => pitTyreFlag(st, i + 1, c, nextRow[c]));
+    return { ...p, tyres };
+  });
+  return { ...st, pits };
 }
 
 /* ============================================================

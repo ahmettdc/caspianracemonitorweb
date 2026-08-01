@@ -55,8 +55,6 @@ export default function FuelTab({ t, st, up, lsf, autoCd, setAutoCd, planLastCd,
       {liveFuelObs && (
         <div className="card">
           <h2>⚡ {t("Canlıdan Öğren")}</h2>
-          <div className="hint" style={{ marginTop: 2 }}>
-            {t("Kendi araç telemetrisinden gözlenen değerler.")}</div>
           <div className="kpis" style={{ marginTop: 10, marginBottom: 8 }}>
             <div className="kpi"><div className="v">{liveFuelObs.litersPerLap ?? "—"}
               <span style={{ fontSize: 12, color: "var(--dim)" }}> L</span></div>
@@ -68,16 +66,14 @@ export default function FuelTab({ t, st, up, lsf, autoCd, setAutoCd, planLastCd,
               <span style={{ fontSize: 12, color: "var(--dim)" }}> L</span></div>
               <div className="l">{t("Depo")}</div></div>
           </div>
-          <div className="hint">{t("Örnek")}: <b>{liveFuelObs.samples}</b> {t("tur")}
-            {" — "}{t("pit/refuel hariç, medyan.")}</div>
+          <div className="hint">{t("Örnek")}: <b>{liveFuelObs.samples}</b> {t("tur")}</div>
           <button className="act" onClick={applyLiveFuel} disabled={applyDisabled}
             style={{ marginTop: 12, background: "var(--car)", color: "#FFE9ED",
               borderColor: "var(--teal)", fontFamily: "'Rajdhani'", fontWeight: 700,
               letterSpacing: ".04em", padding: "8px 16px", opacity: applyDisabled ? .5 : 1 }}>
             {t("Yakıt modeline uygula")}</button>
-          <div className="hint" style={{ marginTop: 6 }}>
-            {t("fuelRatio ve consumption güncellenir; plan yeniden hesaplanır. Mevcut değerlerin üzerine yazar.")}
-            {!canEdit && <> · <b className="warn">{t("izleyici modunda pasif")}</b></>}</div>
+          {!canEdit && <div className="hint" style={{ marginTop: 6 }}>
+            <b className="warn">{t("izleyici modunda pasif")}</b></div>}
         </div>
       )}
     </div>

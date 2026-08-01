@@ -1,9 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { DEFAULT_STATE, computePlan } from "./engine.js";
+import { DEFAULT_STATE, computePlan, tyState } from "./engine.js";
 import {
   safeParseState, grow, carriedTyre,
   applyUpTyre, applyQuickTyre, applyUpOvr, applyBumpLaps, applyClearLaps,
   applyUpStintLap, applyUpTyreCell, applyAssignDriver, applyUpPit,
+  applyClearTyres, pitTyreFlag,
   computeTyreInfo, computeDriverPlan, computeSlotStats, computeChartData,
   computeLiveInfo, buildTimeline,
   applyMarkPit, applyUnmarkPit, applyResetPits,
@@ -40,23 +41,71 @@ describe("grow", () => {
   });
 });
 
-describe("applyUpTyre — köşe döngüsü 0→1→2→3→4→0", () => {
-  it("limit boşken tam döngü", () => {
-    let s = base({ tyreLimit: 26 });
+describe("applyUpTyre — köşe döngüsü (fiziksel anlamsız durumlar atlanır)", () => {
+  it("tam döngü: köşe geçmişinde takılabilir eski kuru ve farklı Qual varken", () => {
+    // S1=5,6,7,8 · S2 FL=9 → pit(S3 öncesi): yeni(1) → Qual(2) → W(3) → eski 5(4) → taşı(0)
+    const ts = Array.from({ length: 14 }, () => ["", "", "", ""]);
+    ts[0] = ["5", "6", "7", "8"]; ts[1] = ["9", "", "", ""];
+    let s = base({ tyreLimit: 26, tyreStints: ts });
     const seq = [];
-    for (let k = 0; k < 5; k++) { s = applyUpTyre(s, 0, 0); seq.push(pitTyres(s, 0)[0]); }
+    for (let k = 0; k < 5; k++) { s = applyUpTyre(s, 1, 0); seq.push(pitTyres(s, 1)[0]); }
     expect(seq).toEqual([1, 2, 3, 4, 0]);
   });
-  it("limit doluyken yeni-kuru (1) atlanır → 2", () => {
-    // tyreLimit=4, qual 1-4 zaten kullanılmış → yeni kuru yok
-    const s = base({ tyreLimit: 4 });
+  it("S1 boşken (Qual taşınıyor) anlamsız durumlar atlanır: 1 → 3 → 0", () => {
+    /* Qual lastiği zaten araçta → "Qual'a dön" değişim değildir; köşede eski kuru
+       yok → 4 atlanır. Eskiden ham döngü 2/4'ü gösterip pit süresine sahte
+       lastik değişimi ekliyordu. */
+    let s = base({ tyreLimit: 26 });
+    const seq = [];
+    for (let k = 0; k < 3; k++) { s = applyUpTyre(s, 0, 0); seq.push(pitTyres(s, 0)[0]); }
+    expect(seq).toEqual([1, 3, 0]);
+  });
+  it("limit doluyken yeni-kuru atlanır (Qual da taşınıyorsa → W)", () => {
+    const s = base({ tyreLimit: 4 });   // qual 1-4 kullanılmış, S1 boş
     const r = applyUpTyre(s, 0, 0);
-    expect(pitTyres(r, 0)[0]).toBe(2); // 0→(1 atlandı)→2
+    expect(pitTyres(r, 0)[0]).toBe(3);  // 1 limit, 2 anlamsız (Qual araçta) → W
   });
   it("lastik tablosu senkronu: yeni kuru sonraki stinte yazılır", () => {
     const s = base({ tyreLimit: 26 });
     const r = applyUpTyre(s, 0, 0); // pit0 FL → yeni kuru
     expect(r.tyreStints[1][0]).toBe("5"); // 1-4 qual, ilk boş 5
+  });
+});
+
+describe("pit lastik bayrağı — taşıma farkındalıklı türetme (v1.4.59)", () => {
+  it("taşınan lastiği yeniden seçmek DEĞİŞİM sayılmaz (pit süresi şişmez)", () => {
+    // S1 boş → Qual 1 taşınıyor; S2 FL'ye elle '1' yazmak fiziksel değişim değil.
+    // Eskiden ham karşılaştırma bunu Qual(2) sayıp pit'e 5 sn lastik süresi ekliyordu.
+    const r = applyUpTyreCell(base(), 1, 0, "1");
+    expect(tyState(pitTyres(r, 0)[0])).toBe(0);
+    expect(computePlan(r, "race").rows[0].tyreCount).toBe(0);
+  });
+  it("aradaki hücre silinince SONRAKİ pit bayrağı tazelenir", () => {
+    let s = base();
+    s = applyUpTyreCell(s, 1, 0, "5");
+    s = applyUpTyreCell(s, 2, 0, "5");            // aynı lastik devam → 0
+    expect(tyState(pitTyres(s, 1)[0])).toBe(0);
+    s = applyUpTyreCell(s, 1, 0, "");             // S2 temizlendi
+    // S3'teki 5 artık gerçek bir değişim (ilk kez takılıyor) — eskiden 0 kalıyordu
+    expect(tyState(pitTyres(s, 1)[0])).toBe(1);
+  });
+  it("applyClearTyres pit bayraklarını da sıfırlar", () => {
+    let s = applyQuickTyre(base(), 2, "new4");
+    expect(pitTyres(s, 1).some((v) => tyState(v) > 0)).toBe(true);
+    s = applyClearTyres(s);
+    expect(pitTyres(s, 1).every((v) => tyState(v) === 0)).toBe(true);
+    expect(computePlan(s, "race").rows[1].tyreCount).toBe(0);
+  });
+  it("pitTyreFlag sınıflaması: taşı/W/Qual/eski/yeni", () => {
+    const ts = Array.from({ length: 14 }, () => ["", "", "", ""]);
+    ts[0] = ["5", "6", "7", "8"];
+    const s = base({ tyreStints: ts });
+    expect(pitTyreFlag(s, 1, 0, "")).toBe(0);     // boş = taşı
+    expect(pitTyreFlag(s, 1, 0, "5")).toBe(0);    // zaten araçta
+    expect(pitTyreFlag(s, 1, 0, "W")).toBe(3);
+    expect(pitTyreFlag(s, 1, 0, "1")).toBe(2);    // o köşenin Qual'ı
+    expect(pitTyreFlag(s, 1, 0, "2")).toBe(4);    // başka köşenin Qual'ı = eski
+    expect(pitTyreFlag(s, 1, 0, "9")).toBe(1);    // hiç görülmemiş = yeni
   });
 });
 

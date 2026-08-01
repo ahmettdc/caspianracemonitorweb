@@ -253,7 +253,6 @@ function OwnCar({ t, own, liveFuelObs }) {
           );
         })}
       </div>
-      <div className="hint">{t("Lastik: kalan diş % (renkli kutu, yeşil→sarı→kırmızı) · sıcaklık · basınç. Köprüden salt-okunur gelir.")}</div>
     </div>
   );
 }
@@ -281,11 +280,6 @@ function BridgeControl({ t, bridge, canEdit }) {
           boxShadow: `0 0 8px ${dot}`, cursor: diagTitle ? "help" : "default" }} />
         <span style={{ fontSize: 11, color: "var(--dim)", fontWeight: 400 }}>{t("otomatik")}</span>
       </h2>
-      <div className="hint">
-        {canEdit
-          ? t("Bu bilgisayarda oyun (LMU) açıkken köprü kendiliğinden bağlanır ve canlı timing'i takımla paylaşır. Elle başlatmaya gerek yok; oyun kapalıyken bekler, açılınca otomatik başlar.")
-          : t("Köprü otomatik çalışır; veri yazmak için takımda owner/editor olman gerekir (yalnız görüntüleyicisin).")}
-      </div>
       {canEdit && phase === "standby" && (
         <div className="hint" style={{ marginTop: 6, color: "var(--yellow)" }}>
           ⏸ {t("Beklemede")}{writerBy ? ` — ${writerBy} ${t("yayınlıyor")}` : ""} · {t("aktif sürücü canlıyı yazıyor")}
@@ -601,7 +595,6 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
             </table>
           </div>
         )}
-        <div className="hint">{t("Gap: lidere · Aralık: öndeki araca · Pn: sınıf-içi sıra (sarı = sınıf lideri) · mor: seansın en hızlı turu · satır sonundaki + ile o aracın tur zamanları. Veriler köprü ile canlı gelir; tüm takım aynı anda görür.")}</div>
       </div>
       {!big && <PosChart t={t} tid={tid} rid={rid} field={fieldAll} />}
 
