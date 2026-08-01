@@ -117,11 +117,51 @@ export const MAX_STINTS = 64; // güvenlik tavanı (24h+ yarışlar için yeterl
 
 /* ---------- hava modeli ---------- */
 export const WEATHER = {
-  dry:   { lbl: "Dry",          ico: "☀️", lap: 1.00, fuel: 1.00, col: "#F5C84C" },
-  damp:  { lbl: "Damp",         ico: "🌦", lap: 1.07, fuel: 1.00, col: "#8FD0E8" },
-  slwet: { lbl: "Slightly Wet", ico: "🌧", lap: 1.09, fuel: 0.96, col: "#4D9FFF" },
-  wet:   { lbl: "Wet",          ico: "⛈", lap: 1.13, fuel: 0.92, col: "#7B8FF7" },
+  dry:   { lbl: "Dry",           ico: "☀️", lap: 1.00, fuel: 1.00, col: "#F5C84C" },
+  damp:  { lbl: "Damp",          ico: "🌦", lap: 1.07, fuel: 1.00, col: "#8FD0E8" },
+  slwet: { lbl: "Slightly Wet",  ico: "🌧", lap: 1.09, fuel: 0.96, col: "#4D9FFF" },
+  wet:   { lbl: "Wet",           ico: "⛈", lap: 1.13, fuel: 0.92, col: "#7B8FF7" },
+  /* 5. kademe (v1.4.63): oyunun en ıslak zemin durumu. Çarpanlar mevcut kademelerin
+     ilerlemesinden ekstrapolasyon (lap 1.13→1.20, fuel 0.92→0.88) — gerçek ıslak
+     yarışta doğrulanmalı; tek yerde durduğu için ayarı kolaydır. */
+  xwet:  { lbl: "Extremely Wet", ico: "🌊", lap: 1.20, fuel: 0.88, col: "#5C6BC0" },
 };
+
+/* ---------- oyunun KELİMELERİ: yüzde → kademe adı ----------
+   Paylaşımlı bellek yalnız 0..1 sayı verir (mAvgPathWetness / mRaining); oyunun
+   arayüzünde gördüğümüz isimler veride YOK → eşlemeyi burada kuruyoruz. Eşikler tek
+   yerde adlandırılmış sabit: sahada kayarsa yalnız bu tablolar düzeltilir. */
+
+/* Zemin ıslaklığı % → WEATHER id (plan kademeleriyle AYNI dil: canlı satır ile
+   strateji planı ve öneri çipi hep aynı kelimeyi söyler). */
+export const WETNESS_STEPS = [
+  [80, "xwet"], [55, "wet"], [30, "slwet"], [8, "damp"],
+];
+/* Veri YOK ile 0 farklı şeydir: köprü alanı hiç göndermediyse kademe uydurmayız
+   ("Dry"/"No Rain" demek de bir iddia). Number(null)===0 olduğu için ayrı süzülür. */
+const wxPct = (pct) => (pct == null || pct === "" ? NaN : Number(pct));
+
+export function wetnessLevel(pct) {
+  const v = wxPct(pct);
+  if (!Number.isFinite(v)) return null;
+  for (const [min, id] of WETNESS_STEPS) if (v > min) return id;
+  return "dry";
+}
+
+/* Yağış şiddeti % → kademe (zemin durumundan AYRI: yağmur diner ama pist ıslak kalır) */
+export const RAIN_LEVELS = [
+  [70, { id: "heavy",   lbl: "Heavy Rain", ico: "🌧️" }],
+  [40, { id: "rain",    lbl: "Rain",       ico: "🌧" }],
+  [15, { id: "light",   lbl: "Light Rain", ico: "🌦" }],
+  [2,  { id: "drizzle", lbl: "Drizzle",    ico: "💧" }],
+];
+export const RAIN_NONE = { id: "none", lbl: "No Rain", ico: "☀️" };
+export function rainLevel(pct) {
+  const v = wxPct(pct);
+  if (!Number.isFinite(v)) return null;
+  for (const [min, lv] of RAIN_LEVELS) if (v > min) return lv;
+  return RAIN_NONE;
+}
 export const wxLog = (st) => (st.weatherLog || []).slice().sort((a, b) => a.t - b.t);
 export const wxAtRel = (log, rel) => {  // rel saniyedeki hava (kronolojik log)
   let cur = WEATHER.dry;

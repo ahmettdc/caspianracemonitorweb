@@ -51,21 +51,32 @@ describe("clockDriftSec / alignedStartMs — oyun saati otorite", () => {
   });
 });
 
-describe("weatherSuggestion — canlı yağmur/ıslaklıktan kademe", () => {
-  it("eşikler: yağmur %", () => {
-    expect(weatherSuggestion({ rain: 70, wetness: 0 }, st()).id).toBe("wet");
-    expect(weatherSuggestion({ rain: 30, wetness: 0 }, st()).id).toBe("slwet");
-    expect(weatherSuggestion({ rain: 10, wetness: 0 }, st()).id).toBe("damp");
+describe("weatherSuggestion — canlı ıslaklıktan kademe (v1.4.63 ölçeği)", () => {
+  it("kademe ZEMİN ıslaklığından gelir (engine.wetnessLevel eşikleri)", () => {
+    expect(weatherSuggestion({ rain: 0, wetness: 85 }, st()).id).toBe("xwet");
+    expect(weatherSuggestion({ rain: 0, wetness: 60 }, st()).id).toBe("wet");
+    expect(weatherSuggestion({ rain: 0, wetness: 40 }, st()).id).toBe("slwet");
+    expect(weatherSuggestion({ rain: 0, wetness: 15 }, st()).id).toBe("damp");
   });
-  it("eşikler: zemin ıslaklığı % (yağmur dinse de zemin ıslak)", () => {
-    expect(weatherSuggestion({ rain: 0, wetness: 80 }, st()).id).toBe("wet");
-    expect(weatherSuggestion({ rain: 0, wetness: 50 }, st()).id).toBe("slwet");
-    expect(weatherSuggestion({ rain: 0, wetness: 25 }, st()).id).toBe("damp");
+  it("kademe adı oyunun kelimesidir (yüzde değil)", () => {
+    expect(weatherSuggestion({ rain: 0, wetness: 85 }, st()).label)
+      .toBe("Extremely Wet");
+    expect(weatherSuggestion({ rain: 0, wetness: 15 }, st()).label).toBe("Damp");
+  });
+  it("yağış yalnız BİLGİ (kademeyi belirlemez) — kelimeyle taşınır", () => {
+    // Sağanak ama zemin daha kurumamış: plan kademesi zeminden, çipte yağış adı.
+    const s = weatherSuggestion({ rain: 45, wetness: 60 }, st());
+    expect(s.id).toBe("wet");
+    expect(s.rainLbl).toBe("Rain");
+    // Yağmur var ama zemin kuru → kademe "dry" → plan zaten kuru → öneri yok.
+    expect(weatherSuggestion({ rain: 80, wetness: 0 }, st())).toBeNull();
   });
   it("plan zaten o kademedeyse null (kuru+kuru dahil)", () => {
     expect(weatherSuggestion({ rain: 0, wetness: 0 }, st())).toBeNull();
     const wetSt = st({ weatherLog: [{ t: 0, w: "wet" }] });
-    expect(weatherSuggestion({ rain: 80, wetness: 90 }, wetSt)).toBeNull();
+    expect(weatherSuggestion({ rain: 80, wetness: 60 }, wetSt)).toBeNull();
+    // Aynı planda zemin daha da ıslanırsa 5. kademe önerilebilir.
+    expect(weatherSuggestion({ rain: 80, wetness: 90 }, wetSt).id).toBe("xwet");
   });
   it("veri yoksa null", () => {
     expect(weatherSuggestion({}, st())).toBeNull();

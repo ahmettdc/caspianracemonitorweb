@@ -5,6 +5,20 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.63",
+    date: "2026-08-01",
+    tr: [
+      "🌧 Canlı seans şeridinde yağış ve zemin ıslaklığı artık yüzde değil, oyundaki KELİMELERLE yazıyor: yağış No Rain · Drizzle · Light Rain · Rain · Heavy Rain; zemin Dry · Damp · Slightly Wet · Wet · Extremely Wet. Ham yüzde kayıp değil — kutunun üstüne gelince görünüyor.",
+      "🌊 Hava planına 5. kademe eklendi: Extremely Wet (tur ve yakıt çarpanlarıyla). Hava seçicide artık beş düğme var; canlı öneri çipi de bu kademeyi önerebiliyor ve yağışı kelimeyle gösteriyor.",
+      "ℹ️ Kademe adı ZEMİN ıslaklığından türetilir (lastik kararını pistin durumu belirler; yağmur dinse de pist ıslak kalır). Yağış yalnız bilgi olarak gösterilir. Eşikler tek yerde durur — gerçek yarışta oyunun kelimeleriyle kayarsa tek dokunuşla ayarlanır.",
+    ],
+    en: [
+      "🌧 In the live session bar, rainfall and track wetness now read as the game's WORDS instead of a percentage: rain as No Rain · Drizzle · Light Rain · Rain · Heavy Rain; ground as Dry · Damp · Slightly Wet · Wet · Extremely Wet. The raw percentage isn't lost — hover the card to see it.",
+      "🌊 A 5th weather step was added to the plan: Extremely Wet (with its own lap and fuel multipliers). The weather picker now has five buttons, and the live suggestion chip can propose that step and names the rainfall in words.",
+      "ℹ️ The step name is derived from GROUND wetness (the track's state drives the tyre call; rain can stop while the track stays wet). Rainfall is shown as information only. Thresholds live in one place — if they drift from the game's wording in a real race, they're a one-line adjustment.",
+    ],
+  },
+  {
     v: "v1.4.62",
     date: "2026-08-01",
     tr: [

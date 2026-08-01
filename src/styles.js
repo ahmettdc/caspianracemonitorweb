@@ -175,7 +175,7 @@ export const css = `
 .rc .trackgrid button.on{border-color:var(--teal);background:rgba(150,0,24,.25);
   color:var(--teal);font-weight:600}
 .rc .classtoggle{display:flex;gap:8px}
-.rc .wxsel{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:4px 0 2px}
+.rc .wxsel{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:4px 0 2px}
 .rc .wxsel button{padding:6px 2px;border:1px solid var(--line);border-radius:8px;
   background:var(--panel2);color:var(--dim);cursor:pointer;font-size:11px;line-height:1.3;
   text-align:center;transition:border-color .15s,color .15s}
