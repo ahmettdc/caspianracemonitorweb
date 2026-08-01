@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.79",
+    date: "2026-08-01",
+    tr: [
+      "📡 Canlı Timing sekmesi artık tüm kullanıcılara açık (önceden yalnız site adminlerinde görünen test aşamasındaydı). Takım üyesi olan herkes yarışın canlı timing'ini görebilir; veri, takımın canlı düğümünden okunur (izin kuralları aynı).",
+    ],
+    en: [
+      "📡 The Live Timing tab is now open to all users (it was in a test phase, previously visible only to site admins). Any team member can view the race's live timing; data is read from the team's live node (permission rules unchanged).",
+    ],
+  },
+  {
     v: "v1.4.78",
     date: "2026-08-01",
     tr: [
