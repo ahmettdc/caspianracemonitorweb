@@ -366,16 +366,28 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
     <BridgeControl t={t} bridge={bridge} canEdit={canEdit} />
   ) : null;
 
-  if (!live || !live.ts) {
+  /* Bağlantı durumunu erken-return'den ÖNCE hesapla: veri GELDİKTEN sonra köprü/oyun
+     durursa kare tazelenmez → "off" (bağlantı koptu). Bu durumda tam UI'ı eski (bayat)
+     veriyle göstermek "açık/canlı" izlenimi veriyordu → boş-durum kartına düşülür.
+     "lag" (6-30 sn geçici tık) korunur; kısa hıçkırıkta pano titremesin. */
+  const conn = live?.ts ? connOf(live.ts) : { cls: "off", lbl: "bağlı değil" };
+  const staleOff = !!live?.ts && conn.cls === "off";
+  if (!live || !live.ts || staleOff) {
+    const ageSec = live?.ts ? Math.max(0, Math.round((serverNow() - live.ts) / 1000)) : 0;
+    const ageTxt = ageSec < 90 ? `${ageSec} ${t("sn")}` : `${Math.round(ageSec / 60)} ${t("dk")}`;
     return (
       <div data-tour="livecard">
         {bridgeCard}
         <div className="card">
           <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             📡 {t("Canlı Timing")}
+            {staleOff && <span className="livebadge off"><i /> {t("çevrimdışı")}</span>}
             <span style={{ marginLeft: "auto" }}>{demoBtn}</span></h2>
           <div className="hint" style={{ lineHeight: 1.7 }}>
-            {isTauri
+            {staleOff
+              ? <>⚠ {t("Canlı veri akışı durdu")} — {t("son veri")} {ageTxt} {t("önce")}.{" "}
+                {t("Oyun ya da köprü kapanmış olabilir.")}</>
+              : isTauri
               ? t("Köprü henüz veri göndermedi. Yukarıdan 'Canlı Köprü Başlat'a bas (oyun açıkken). Yarış başlayınca bu ekran canlı dolar.")
               : <>
                 {t("Canlı timing, oyunun çalıştığı PC'deki Masaüstü Uygulaması ile gelir:")}
@@ -384,7 +396,7 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
                 <br />3. {t("Yarış başlayınca bu ekran (ve tüm takım) canlı dolar.")}
               </>}
           </div>
-          {!isTauri && (
+          {!isTauri && !staleOff && (
             <div style={{ marginTop: 12 }}>
               <a className="bigbtn" href={DESKTOP_RELEASE_URL} target="_blank" rel="noopener noreferrer"
                 style={{ display: "inline-flex", alignItems: "center", gap: 8, width: "auto",
@@ -396,7 +408,6 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
       </div>
     );
   }
-  const conn = connOf(live.ts);
   const s = live.session || {};
   const own = live.own || null;
   const fieldAll = Array.isArray(live.field) ? live.field : [];

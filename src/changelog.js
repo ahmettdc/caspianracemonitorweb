@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.62",
+    date: "2026-08-01",
+    tr: [
+      "📡 Canlı veri akışı durunca (oyun/köprü kapanınca) Canlı Timing ekranı artık eski veriyle dolu kalmıyor — 'çevrimdışı' etiketiyle tek kutuya iniyor. Böylece kimse ekranı canlı/açık sanmıyor. Veri dönünce tam ekran geri gelir; kısa (30 sn altı) kesintilerde tablo korunur.",
+    ],
+    en: [
+      "📡 When the live data feed stops (game/bridge closed), the Live Timing screen no longer stays full of stale data — it collapses to a single box marked 'offline'. So nobody mistakes it for live. The full screen returns when data resumes; brief (<30s) hiccups keep the table.",
+    ],
+  },
+  {
     v: "v1.4.61",
     date: "2026-08-01",
     tr: [

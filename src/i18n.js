@@ -490,6 +490,10 @@ export const EN = {
   "Trafik": "Traffic",
   "Yağmur": "Rain",
   "Ortam": "Ambient", "Zemin ıslaklığı": "Track wetness",
+  // canlı timing bağlantı koptu (v1.4.62)
+  "çevrimdışı": "offline", "Canlı veri akışı durdu": "Live data feed stopped",
+  "son veri": "last data", "önce": "ago", "sn": "s", "dk": "min",
+  "Oyun ya da köprü kapanmış olabilir.": "The game or the bridge may have closed.",
   // stint ↔ canlı senkron (v1.4.61)
   "Canlı Senkron": "Live Sync", "Oto PIT": "Auto PIT", "Oto Saat": "Auto Clock",
   "otomatik işaretlendi": "auto-marked",
