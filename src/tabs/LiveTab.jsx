@@ -685,9 +685,12 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
             {(() => {
               const id = wetnessLevel(s.wetness);
               if (!id) return "—";
+              // ikon HERO (büyük), kelime daha küçük etiket — kullanıcı isteği
               return <span title={`%${Math.round(s.wetness)}`}
-                style={{ color: WEATHER[id].col, display: "inline-flex", alignItems: "center", gap: 5 }}>
-                <WetIcon id={id} size={16} title={t(WEATHER[id].lbl)} /> {t(WEATHER[id].lbl)}</span>;
+                style={{ color: WEATHER[id].col, display: "inline-flex", alignItems: "center", gap: 8 }}>
+                <WetIcon id={id} size={34} title={t(WEATHER[id].lbl)} />
+                <span style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.05 }}>
+                  {t(WEATHER[id].lbl)}</span></span>;
             })()}</div>
             <div className="l">{t("Zemin ıslaklığı")}</div></div>
           {/* Tutuş (rubber) — TinyPedal gibi turlardan MODELLENMİŞ tahmin, gerçek
