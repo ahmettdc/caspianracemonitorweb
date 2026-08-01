@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.69",
+    date: "2026-08-01",
+    tr: [
+      "🗺 Pist haritasında artık S/F'nin yanında sektör ayırıcıları da var: biten sektörü gösteren 'S1' ve 'S2' çizgileri — hem dış halkada (radyal tik) hem iç şekilde (pisti kesen çizgi). Bir aracın hangi sektörde olduğu tek bakışta okunur.",
+      "ℹ️ Sınırlar oyunun sektör verisinden (aracın sektör değiştiği tur mesafesinden) gözlemlenir; araçlar bir tur dönünce belirir ve takımca paylaşılır (izleyicilerde anında gelir). Not: köprü değiştiği için sürüş PC'sindeki masaüstü uygulamasının güncellenmesi gerekir.",
+    ],
+    en: [
+      "🗺 The track map now shows sector dividers alongside S/F: 'S1' and 'S2' lines marking the end of each sector — on both the outer ring (radial tick) and the inner shape (a line across the track). You can read at a glance which sector a car is in.",
+      "ℹ️ The boundaries are observed from the game's sector data (the lap distance where a car changes sector); they appear after cars complete a lap and are shared team-wide (instant for viewers). Note: the bridge changed, so the desktop app on the driving PC must be updated.",
+    ],
+  },
+  {
     v: "v1.4.68",
     date: "2026-08-01",
     tr: [

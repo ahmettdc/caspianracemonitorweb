@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { classId, classAccent } from "../constants";
 import { packBins, unpackBins } from "../trackShape";
-import { liveTrackSave, liveTrackSubscribe } from "../storage";
+import { observeSector, sectorFractions, packSectors, unpackSectors, emptySectors }
+  from "../trackSectors";
+import { liveTrackSave, liveTrackSubscribe,
+  liveTrackSecSave, liveTrackSecSubscribe } from "../storage";
 
 /* Canlı pist haritası — iki katman:
    • Dış boşluk halkası: her araç tur mesafesine (lapDist/trackLength) göre daire
@@ -16,6 +19,7 @@ import { liveTrackSave, liveTrackSubscribe } from "../storage";
 
 const NB = 240;                 // lapDist kutu sayısı (pist şekli çözünürlüğü)
 const BRAND = "#960018";        // ana tema
+const SECTOR_COL = "#5aa9e6";   // sektör ayırıcı (S/F kırmızısından ayrışan soğuk mavi)
 const cx = 260, cy = 262;       // merkez
 const R = 236;                  // dış halka yarıçapı
 const PAD = 148;                // iç şekil yarım-uzanımı (px)
@@ -31,8 +35,12 @@ export default function TrackMap({ t, field, trackLength, tid, trackKey, canSave
   }, [zoom]);
   /* pist DEĞİŞİNCE biriktirmeyi sıfırla — anahtar artık trackKey (pist adı) → şekil
      pist başına paylaşımlı olduğundan aynı pistin yarışları arasında da korunur. */
-  const acc = useRef({ key: null, bins: {}, saved: 0 });
-  if (acc.current.key !== trackKey) acc.current = { key: trackKey, bins: {}, saved: 0 };
+  const acc = useRef({ key: null, bins: {}, saved: 0, sec: emptySectors(), secSaved: "" });
+  const prevSec = useRef({});   // lapKey → son sektör (sınır geçişini yakalamak için)
+  if (acc.current.key !== trackKey) {
+    acc.current = { key: trackKey, bins: {}, saved: 0, sec: emptySectors(), secSaved: "" };
+    prevSec.current = {};
+  }
 
   /* takımca paylaşımlı şekli yükle: bir kez oluşan devre, tüm takımda (hiç sürmeyen
      izleyici dahil) anında dolu gelir. Gelen kutular yalnız EKSİK olanlara yerleşir
@@ -45,6 +53,24 @@ export default function TrackMap({ t, field, trackLength, tid, trackKey, canSave
       for (const b of Object.keys(shared)) {
         if (!acc.current.bins[b]) { acc.current.bins[b] = shared[b]; added++; }
       }
+      if (added) bump((v) => v + 1);
+    });
+    return off;
+  }, [tid, trackKey]);
+
+  /* takımca paylaşımlı sektör sınırları — izleyicilerde ayırıcılar anında gelsin.
+     Yalnız HENÜZ gözlenmemiş sınırı doldur (canlı gözlemi ezme): sum=frac, n=1. */
+  useEffect(() => {
+    if (!tid || !trackKey) return undefined;
+    const off = liveTrackSecSubscribe(tid, trackKey, (str) => {
+      const fr = unpackSectors(str);
+      if (!fr) return;
+      let added = false;
+      const seed = (acc0, f) => {
+        if (f != null && acc0.n === 0) { acc0.sum = f; acc0.n = 1; added = true; }
+      };
+      seed(acc.current.sec.b12, fr.f12);
+      seed(acc.current.sec.b20, fr.f20);
       if (added) bump((v) => v + 1);
     });
     return off;
@@ -72,8 +98,17 @@ export default function TrackMap({ t, field, trackLength, tid, trackKey, canSave
     for (const c of cars) {
       const onTrack = c.location ? c.location === "TRACK" : !c.inPits;
       if (!onTrack) continue;
-      const b = ((Math.floor((c.lapDist / trackLength) * NB) % NB) + NB) % NB;
+      const frac = ((c.lapDist / trackLength) % 1 + 1) % 1;
+      const b = Math.floor(frac * NB) % NB;
       if (!acc.current.bins[b]) acc.current.bins[b] = { x: c.posX, z: c.posZ };
+      /* sektör SINIRI: aracın mSector'ü değiştiği andaki lapDist oranı (1→2, 2→0).
+         prevSec ref'te tutulur; ilk görüşte yalnız kaydedilir (sahte geçiş olmasın). */
+      if (c.sector != null && c.sector >= 0) {
+        const key = c.lapKey || c.driver || c.pos;
+        const prev = prevSec.current[key];
+        if (prev != null && prev !== c.sector) observeSector(acc.current.sec, prev, c.sector, frac);
+        prevSec.current[key] = c.sector;
+      }
     }
   }
 
@@ -93,6 +128,22 @@ export default function TrackMap({ t, field, trackLength, tid, trackKey, canSave
     }, 2000);
     return () => clearTimeout(id);
   }, [canSave, tid, trackKey, binCount]);
+
+  // gözlenen sektör sınırları (ortalama) — çizim + paylaşım için
+  const secFr = sectorFractions(acc.current.sec);
+  const secStr = packSectors(secFr);
+  /* iki sınır da gözlenince takımca paylaş (owner/editor); değişince bir kez, 2 sn
+     debounce (şekil deseni). Viewer yalnız okur. */
+  useEffect(() => {
+    if (!canSave || !tid || !trackKey || !secStr) return undefined;
+    if (!(secFr && secFr.f12 != null && secFr.f20 != null)) return undefined;
+    if (secStr === acc.current.secSaved) return undefined;
+    const id = setTimeout(() => {
+      liveTrackSecSave(tid, trackKey, secStr);
+      acc.current.secSaved = secStr;
+    }, 2000);
+    return () => clearTimeout(id);
+  }, [canSave, tid, trackKey, secStr, secFr]);
 
   // iç şekil dönüşümü (dünya x/z → ekran), pist bbox'una göre ölçekli
   let toScreen = null, outline = "";
@@ -155,6 +206,65 @@ export default function TrackMap({ t, field, trackLength, tid, trackKey, canSave
   const building = pts.length < NB * 0.45;
   const count = building ? t("iç harita oluşturuluyor…") : `${idx.length}/${NB}`;
 
+  /* SEKTÖR AYIRICILARI — sınır oranı f için: dış halkada radyal tik + etiket, iç şekilde
+     pisti dik kesen kısa çizgi. Tik yönü: dış = merkezden dışa; iç = teğete dik
+     (komşu kutulardan tahmin). Yalnız gözlenen sınır çizilir. */
+  const binAt = (k) => bins[((Math.round(k) % NB) + NB) % NB];
+  const sectorMark = (f, lbl) => {
+    if (f == null) return null;
+    const a = f * 2 * Math.PI;
+    const ux = Math.sin(a), uy = -Math.cos(a);   // ringXY ile aynı yön (dışa)
+    const ring = (
+      <line x1={cx + (R - 9) * ux} y1={cy + (R - 9) * uy}
+        x2={cx + (R + 9) * ux} y2={cy + (R + 9) * uy}
+        stroke={SECTOR_COL} strokeWidth={2} opacity={0.85} />
+    );
+    const rlabel = (
+      <text x={cx + (R + 20) * ux} y={cy + (R + 20) * uy} fill={SECTOR_COL}
+        fontSize="10" fontWeight="700" textAnchor="middle" dominantBaseline="central"
+        opacity={0.9}>{lbl}</text>
+    );
+    // iç şekil dik çizgisi (şekil olgunsa)
+    let inner = null;
+    if (toScreen) {
+      const bi = f * NB;
+      let cB = null;
+      for (let d = 0; d <= 8 && cB == null; d++) {
+        if (binAt(bi + d)) cB = Math.round(bi + d);
+        else if (binAt(bi - d)) cB = Math.round(bi - d);
+      }
+      if (cB != null) {
+        let lo = null, hi = null;
+        for (let d = 1; d <= 12; d++) {
+          if (lo == null && binAt(cB - d)) lo = cB - d;
+          if (hi == null && binAt(cB + d)) hi = cB + d;
+        }
+        const cp = binAt(cB);
+        const [px, py] = toScreen(cp.x, cp.z);
+        let perpx = 0, perpy = -1;
+        if (lo != null && hi != null) {
+          const A = toScreen(binAt(lo).x, binAt(lo).z);
+          const B = toScreen(binAt(hi).x, binAt(hi).z);
+          let tx = B[0] - A[0], ty = B[1] - A[1];
+          const L = Math.hypot(tx, ty) || 1; tx /= L; ty /= L;
+          perpx = -ty; perpy = tx;
+        }
+        inner = (<>
+          <line x1={px - perpx * 10} y1={py - perpy * 10}
+            x2={px + perpx * 10} y2={py + perpy * 10}
+            stroke={SECTOR_COL} strokeWidth={2.5} opacity={0.9} strokeLinecap="round" />
+          <text x={px + perpx * 17} y={py + perpy * 17} fill={SECTOR_COL} fontSize="9"
+            fontWeight="700" textAnchor="middle" dominantBaseline="central">{lbl}</text>
+        </>);
+      }
+    }
+    return (<g key={`sec${lbl}`}>{ring}{rlabel}{inner}</g>);
+  };
+  // sınır etiketi: biten sektör (S1│S2 → "S1", S2│S3 → "S2"); S/F zaten S3'ün sonu
+  const sectorMarks = secFr
+    ? [sectorMark(secFr.f12, "S1"), sectorMark(secFr.f20, "S2")]
+    : null;
+
   /* SVG içeriği tek yerde — küçük kart ve büyük pencere aynı çocukları kullanır.
      Ölçek tamamen CSS'ten (viewBox sabit) → noktalar ve pozisyon numaraları
      büyük pencerede orantılı olarak büyür. */
@@ -166,6 +276,8 @@ export default function TrackMap({ t, field, trackLength, tid, trackKey, canSave
       stroke={BRAND} strokeWidth={2.5} />
     <text x={cx} y={cy - R - 13} fill={BRAND} fontSize="11" fontWeight="700"
       textAnchor="middle">S/F</text>
+    {/* sektör ayırıcıları (S1│S2, S2│S3) — gözlendiyse */}
+    {sectorMarks}
     {/* iç pist şekli */}
     {outline && <path d={outline} fill="none" stroke="var(--line)"
       strokeWidth={11} strokeLinejoin="round" strokeLinecap="round" opacity={0.55} />}
