@@ -231,6 +231,26 @@ function LapsModal({ t, tid, rid, row, onClose }) {
   );
 }
 
+/* Sürüş panosu pedal çubuğu — gaz (yeşil) / fren (kırmızı). val 0..1; yoksa "—". */
+function PedalBar({ label, val, color }) {
+  const has = val != null && Number.isFinite(Number(val));
+  const pct = Math.round(Math.max(0, Math.min(1, Number(val) || 0)) * 100);
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <span className="l" style={{ width: 34, fontSize: 11, color: "var(--dim)" }}>{label}</span>
+      <div style={{ flex: 1, height: 10, background: "var(--line)", borderRadius: 5, overflow: "hidden" }}>
+        <div style={{ width: `${has ? pct : 0}%`, height: "100%", background: color,
+          transition: "width .15s linear" }} />
+      </div>
+      <span className="mono" style={{ width: 38, textAlign: "right", fontSize: 11 }}>
+        {has ? `${pct}%` : "—"}</span>
+    </div>
+  );
+}
+
+/* Vites: -1=R, 0=N, 1+=n; veri yoksa "—". */
+const gearLabel = (g) => (g == null ? "—" : g === -1 ? "R" : g === 0 ? "N" : String(g));
+
 function OwnCar({ t, own, liveFuelObs }) {
   const cap = own.fuelCapacity > 0 ? own.fuelCapacity : 0;
   const frac = cap ? Math.max(0, Math.min(1, own.fuel / cap)) : 0;
@@ -304,6 +324,39 @@ function OwnCar({ t, own, liveFuelObs }) {
           <div className="kpi"><div className="v mono">
             {own.stintSec > 0 ? fmtHMS(own.stintSec) : "—"}</div>
             <div className="l">{t("Stint")}</div></div>
+        </div>
+      </div>
+      {/* Sürüş panosu: hız · vites · gaz/fren çubukları · RPM (canlı telemetri) */}
+      <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap",
+        marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--line)" }}>
+        <div style={{ textAlign: "center", minWidth: 76 }}>
+          <div className="disp" style={{ fontSize: 30, lineHeight: 1 }}>
+            {own.speedKph != null ? own.speedKph : "—"}</div>
+          <div className="l" style={{ color: "var(--dim)", fontSize: 11 }}>km/h · {t("Hız")}</div>
+        </div>
+        <div style={{ textAlign: "center", minWidth: 52 }}>
+          <div className="disp" style={{ fontSize: 30, lineHeight: 1, color: "var(--teal)" }}>
+            {gearLabel(own.gear)}</div>
+          <div className="l" style={{ color: "var(--dim)", fontSize: 11 }}>{t("Vites")}</div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: "1 1 220px", minWidth: 200 }}>
+          <PedalBar label={t("Gaz")} val={own.throttle} color="var(--green)" />
+          <PedalBar label={t("Fren")} val={own.brake} color="var(--red)" />
+          {own.rpmMax > 0 && (() => {
+            const r = Math.max(0, Math.min(1, (own.rpm || 0) / own.rpmMax));
+            const col = r > 0.92 ? "var(--red)" : r > 0.8 ? "var(--yellow)" : "var(--teal)";
+            return (
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span className="l" style={{ width: 34, fontSize: 11, color: "var(--dim)" }}>RPM</span>
+                <div style={{ flex: 1, height: 6, background: "var(--line)", borderRadius: 3, overflow: "hidden" }}>
+                  <div style={{ width: `${Math.round(r * 100)}%`, height: "100%", background: col,
+                    transition: "width .15s linear" }} />
+                </div>
+                <span className="mono" style={{ width: 46, textAlign: "right", fontSize: 11,
+                  color: "var(--dim)" }}>{own.rpm || 0}</span>
+              </div>
+            );
+          })()}
         </div>
       </div>
       {/* Araç üstten görseli + 4 köşede lastik verisi (sıcaklık/basınç/aşınma). */}

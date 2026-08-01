@@ -126,6 +126,12 @@ export function demoLive(el) {
       lapsDone: me.lapsDone, inPits: me.inPits, pitStops: me.pitStops,
       location: me.location, damage: me.damage, stintSec: Math.floor(stint),
       avg5Sec: me.avg5Sec, avgSec: me.avgSec,
+      // sürüş panosu (animasyonlu): gaz/fren dönüşümlü, hız/rpm sinüs
+      throttle: +Math.max(0, Math.sin(el * 1.3) * 0.5 + 0.5).toFixed(3),
+      brake: +Math.max(0, -Math.sin(el * 1.3) * 0.6).toFixed(3),
+      gear: 1 + Math.floor((el % 12) / 2),
+      speedKph: Math.round(180 + Math.sin(el / 6) * 90),
+      rpm: Math.round(6000 + Math.sin(el * 1.3) * 2500), rpmMax: 9000,
       tyreCompound: { front: "Medium", rear: "Medium" },
       tyres: Object.fromEntries(["fl", "fr", "rl", "rr"].map((c, j) => [c, {
         wear: +Math.max(0.2, 1 - (stint / 1500) * 0.7 - j * 0.03).toFixed(3),
