@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.75",
+    date: "2026-08-01",
+    tr: [
+      "🛠 Düzeltme: çok oyunculu (online) yarışta saha tablosunun Lastik sütununda her araç yanlışlıkla '%100' aşınma gösteriyordu (single-player'da doğru çalışıyordu). Sebep: oyun online rakip araçların lastik aşınmasını simüle/yayın etmiyor → değer '1.0 (yeni)' donuyor. Artık en az bir tur atmış bir araçta dört lastik de tam 1.0 ise bu 'veri yok' sayılıp sahte %100 gösterilmiyor (yalnız bileşim ikonu kalır); kendi aracın ve single-player aşınması eskisi gibi gerçek değerle görünür. (Bu düzeltme için sürüş PC'sinde masaüstü uygulaması güncellenmeli.)",
+    ],
+    en: [
+      "🛠 Fix: in multiplayer (online) races the Field table's Tyres column wrongly showed '100%' wear for every car (it worked correctly in single-player). Cause: the game does not simulate/broadcast opponents' tyre wear online, so the value freezes at '1.0 (new)'. Now, if a car that has completed at least one lap reads exactly 1.0 on all four tyres, that's treated as 'no data' and the fake 100% is hidden (only the compound icon remains); your own car and single-player wear still show real values. (This fix needs the desktop app updated on the driving PC.)",
+    ],
+  },
+  {
     v: "v1.4.74",
     date: "2026-08-01",
     tr: [
