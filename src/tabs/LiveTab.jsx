@@ -3,7 +3,8 @@ import { fmtLap, fmtHMS, fmtGap } from "../engine";
 import { Ring } from "../components";
 import { DESKTOP_RELEASE_URL, ASSET, classId, classAccent, brandKey, manufacturerKey } from "../constants";
 import { isTauri } from "../tauriEnv";
-import { liveLapsSubscribe, liveSecSubscribe, serverNow } from "../storage";
+import { liveLapsSubscribe, liveSecSubscribe, liveDrvSubscribe, serverNow } from "../storage";
+import { driverAtLap } from "../liveLaps";
 import { binKey } from "../trackShape";
 import { demoLive } from "../liveDemo";
 import TrackMap from "./TrackMap";
@@ -74,17 +75,19 @@ function Brand({ manufacturer, vehicleName }) {
 function LapsModal({ t, tid, rid, row, onClose }) {
   const [lapMap, setLapMap] = useState(null);   // {n: sec} livelaps'ten
   const [secMap, setSecMap] = useState(null);   // {n: "s1,s2,s3"} livesec'ten
+  const [drvMap, setDrvMap] = useState(null);   // {n: "ad"} livedrv'den (SEYREK)
   useEffect(() => {
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
-  // açıkken o aracın tur geçmişini + sektörlerini dinle (kapanınca abonelik biter)
+  // açıkken o aracın tur geçmişini + sektörlerini + pilotlarını dinle
   useEffect(() => {
-    if (!row?.lapKey) { setLapMap(null); setSecMap(null); return undefined; }
+    if (!row?.lapKey) { setLapMap(null); setSecMap(null); setDrvMap(null); return undefined; }
     const off1 = liveLapsSubscribe(tid, rid, row.lapKey, setLapMap);
     const off2 = liveSecSubscribe(tid, rid, row.lapKey, setSecMap);
-    return () => { off1(); off2(); };
+    const off3 = liveDrvSubscribe(tid, rid, row.lapKey, setDrvMap);
+    return () => { off1(); off2(); off3(); };
   }, [tid, rid, row?.lapKey]);
   // {n: sec} → [{n, sec}] sayısal sıralı; en yeni üstte
   const entries = lapMap && typeof lapMap === "object"
@@ -95,7 +98,7 @@ function LapsModal({ t, tid, rid, row, onClose }) {
   const items = entries.slice().reverse();
   return (
     <div className="wxmodal" onClick={onClose} role="dialog" aria-modal="true">
-      <div className="wxmbox" onClick={(e) => e.stopPropagation()}>
+      <div className="wxmbox laps" onClick={(e) => e.stopPropagation()}>
         <div className="wxmhead">
           <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <ClassBadge raw={row.carClass} /> {row.driver || "—"}
@@ -113,17 +116,28 @@ function LapsModal({ t, tid, rid, row, onClose }) {
             const isOut = best > 0 && sec > best * 1.10;
             const sc = secMap && secMap[n]
               ? String(secMap[n]).split(",").map(Number) : null;
+            /* PİLOT (endurance driver swap): livedrv seyrek — o tur için geçerli ad
+               ileri doldurmayla bulunur. Bir önceki turdan farklıysa DEĞİŞİM satırı. */
+            const drv = driverAtLap(drvMap, n);
+            const swap = !!drv && drv !== driverAtLap(drvMap, n - 1);
+            const shortDrv = drv ? drv.split(/\s+/).pop() : "";
             return (
-              <div key={n} className="wxrow" style={{ flexWrap: "wrap" }}>
-                <span className="wxnm" style={{ minWidth: 64, color: "var(--dim)" }}>
+              <div key={n} className="wxrow" style={{ flexWrap: "wrap",
+                ...(swap && { borderTop: "1px solid var(--teal)" }) }}>
+                <span className="wxnm" style={{ minWidth: 56, color: "var(--dim)" }}>
                   {t("Tur")} {n}</span>
+                <span title={drv || undefined} style={{ minWidth: 76, fontSize: 12,
+                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                  color: swap ? "var(--teal)" : "var(--dim)",
+                  fontWeight: swap ? 700 : 400 }}>
+                  {shortDrv || "—"}</span>
                 <span className="mono" style={{ fontSize: 15, fontWeight: isBest ? 700 : 500,
                   color: isBest ? "var(--purple)" : isOut ? "var(--yellow)" : "var(--txt)" }}>
                   {fmtLap(sec)}</span>
                 <span className="wxat mono">
                   {isBest ? "★" : best > 0 ? `+${(sec - best).toFixed(2)}` : ""}</span>
                 {sc && sc.length === 3 && sc.every((v) => v > 0) && (
-                  <span className="mono" style={{ flexBasis: "100%", paddingLeft: 64,
+                  <span className="mono" style={{ flexBasis: "100%", paddingLeft: 56,
                     fontSize: 11, color: "var(--dim)" }}>
                     S1 {sc[0].toFixed(1)} · S2 {sc[1].toFixed(1)} · S3 {sc[2].toFixed(1)}</span>
                 )}

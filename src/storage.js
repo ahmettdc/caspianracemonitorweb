@@ -440,6 +440,26 @@ export function liveSecSubscribe(tid, rid, lapKey, cb) {
     (err) => { console.warn("livesec read failed:", err?.message); cb(null); });
 }
 
+/* ---- tur → pilot eşlemesi (livedrv) — endurance driver swap ----
+   teams/{tid}/livedrv/{rid}/{lapKey}/{n} = "Pilot Adı". SEYREK: yalnız pilotun
+   DEĞİŞTİĞİ tur yazılır (stint boyunca sabit); okuma tarafı ileri doldurur
+   (liveLaps.driverAtLap). livelaps/livesec ile aynı desen. */
+export async function liveDrvAppend(tid, rid, entries) {
+  if (!db || !tid || !rid || !entries) return;
+  await update(ref(db, `teams/${tid}/livedrv/${rid}`), entries);
+}
+export async function liveDrvClear(tid, rid, lapKey) {
+  if (!db || !tid || !rid || !lapKey) return;
+  await set(ref(db, `teams/${tid}/livedrv/${rid}/${lapKey}`), null);
+}
+/* Bir aracın tur→pilot kayıtlarını dinle (popup açıkken). cb({n: "ad"}) alır. */
+export function liveDrvSubscribe(tid, rid, lapKey, cb) {
+  if (!db || !tid || !rid || !lapKey) { cb(null); return () => {}; }
+  return onValue(ref(db, `teams/${tid}/livedrv/${rid}/${lapKey}`),
+    (s) => cb(s.exists() ? s.val() : null),
+    (err) => { console.warn("livedrv read failed:", err?.message); cb(null); });
+}
+
 /* ---- paylaşımlı iç-harita şekli (livetrack) ----
    teams/{tid}/livetrack/{trackKey} = packBins(...) metni (bkz. trackShape.js).
    PİST başına saklanır (rid değil) → bir kez oluşan devre şekli o pistin tüm

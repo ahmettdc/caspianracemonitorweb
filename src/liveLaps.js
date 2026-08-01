@@ -25,3 +25,22 @@ export function lapNumbersOf(row) {
   if (!(from > 0)) return [];
   return laps.map((_, i) => from + i);
 }
+
+/* Bir turu KİMİN attığı (endurance driver swap).
+   `livedrv/{rid}/{lapKey}/{n} = ad` düğümü SEYREKTİR: pilot yalnız DEĞİŞTİĞİ turda
+   yazılır (stint boyunca sabit olduğu için her tura ad yazmak gereksiz yazma olurdu).
+   Bu yüzden okuma "ileri doldurma"dır: n turunun pilotu, n'den küçük/eşit EN BÜYÜK
+   anahtarın değeridir. Kayıt öncesi turlar (ör. köprü sonradan açıldı) → "". */
+export function driverAtLap(drvMap, n) {
+  if (!drvMap || typeof drvMap !== "object" || !(n > 0)) return "";
+  let bestN = -1, name = "";
+  for (const k of Object.keys(drvMap)) {
+    const kn = Number(k);
+    // sayısal sıralama şart: metin sıralamasında "10" < "9" olurdu
+    if (Number.isFinite(kn) && kn <= n && kn > bestN) {
+      const v = drvMap[k];
+      if (typeof v === "string" && v) { bestN = kn; name = v; }
+    }
+  }
+  return name;
+}

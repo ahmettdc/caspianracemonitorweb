@@ -116,6 +116,19 @@ describe("teams/livelaps + livesec (tur geçmişi)", () => {
   it("viewer tur geçmişi yazamaz", async () => {
     await assertFails(set(ref(db("carol"), "teams/team1/livelaps/race1/driver_1/5"), 92.3));
   });
+
+  it("livedrv: editor pilot adı yazar, üye okur (endurance driver swap)", async () => {
+    await assertSucceeds(set(ref(db("bob"), "teams/team1/livedrv/race1/c7/31"), "M. Yılmaz"));
+    await assertSucceeds(get(ref(db("carol"), "teams/team1/livedrv/race1/c7")));
+  });
+  it("livedrv: string olmayan / 60+ karakter reddedilir", async () => {
+    await assertFails(set(ref(db("bob"), "teams/team1/livedrv/race1/c7/32"), 5));
+    await assertFails(set(ref(db("bob"), "teams/team1/livedrv/race1/c7/33"), "x".repeat(60)));
+  });
+  it("livedrv: viewer/yabancı yazamaz", async () => {
+    await assertFails(set(ref(db("carol"), "teams/team1/livedrv/race1/c7/31"), "M. Yılmaz"));
+    await assertFails(set(ref(db("dave"), "teams/team1/livedrv/race1/c7/31"), "M. Yılmaz"));
+  });
 });
 
 describe("teams/livetrack (paylaşımlı iç-harita şekli)", () => {

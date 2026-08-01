@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { lapNumbersOf } from "./liveLaps.js";
+import { lapNumbersOf, driverAtLap } from "./liveLaps.js";
 
 /* Tur numarası eşlemesi — kalıcı livelaps/livepos/livesec düğümlerine YAZILAN
    anahtarları belirler; hata kalıcı veri bozulması demektir (append-only). */
@@ -39,5 +39,37 @@ describe("lapNumbersOf", () => {
     const eski = row.laps.map((_, i) => row.lapsFrom + i);   // eski JS mantığı
     expect(eski).toEqual([1, 2, 3, 4]);                       // tur 4/5 → 3/4 diye yazılırdı
     expect(lapNumbersOf(row)).not.toEqual(eski);              // artık düzeldi
+  });
+});
+
+/* ---- driverAtLap: tur → pilot (endurance driver swap, SEYREK kayıt) ---- */
+describe("driverAtLap", () => {
+  // A pilotu tur 1'den, B pilotu tur 31'den, C pilotu tur 60'tan itibaren
+  const map = { 1: "A. Demircan", 31: "M. Yılmaz", 60: "E. Kaya" };
+
+  it("değişim turunda ve sonrasında doğru pilot (ileri doldurma)", () => {
+    expect(driverAtLap(map, 1)).toBe("A. Demircan");
+    expect(driverAtLap(map, 15)).toBe("A. Demircan");
+    expect(driverAtLap(map, 31)).toBe("M. Yılmaz");
+    expect(driverAtLap(map, 59)).toBe("M. Yılmaz");
+    expect(driverAtLap(map, 60)).toBe("E. Kaya");
+    expect(driverAtLap(map, 300)).toBe("E. Kaya");
+  });
+
+  it("sayısal sıralama: metin sıralamasında '9' > '10' olurdu", () => {
+    expect(driverAtLap({ 9: "A", 10: "B" }, 12)).toBe("B");
+    expect(driverAtLap({ 2: "A", 100: "B" }, 99)).toBe("A");
+  });
+
+  it("ilk kayıttan önceki tur → boş (köprü sonradan açıldı)", () => {
+    expect(driverAtLap({ 31: "M. Yılmaz" }, 12)).toBe("");
+  });
+
+  it("boş / bozuk map ve geçersiz tur → boş", () => {
+    expect(driverAtLap(null, 5)).toBe("");
+    expect(driverAtLap({}, 5)).toBe("");
+    expect(driverAtLap("çöp", 5)).toBe("");
+    expect(driverAtLap(map, 0)).toBe("");
+    expect(driverAtLap({ 1: 42, 2: "" }, 5)).toBe("");   // string olmayan/boş atlanır
   });
 });

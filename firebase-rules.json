@@ -112,6 +112,17 @@
             }
           }
         },
+        "livedrv": {
+          ".read": "auth != null && (root.child('bridgeBots').child(auth.uid).val() == true || (root.child('users').child(auth.uid).child('allowed').val() == true && root.child('teams').child($tid).child('members').child(auth.uid).exists()))",
+          "$rid": {
+            ".write": "auth != null && (root.child('bridgeBots').child(auth.uid).val() == true || (root.child('users').child(auth.uid).child('allowed').val() == true && (root.child('teams').child($tid).child('members').child(auth.uid).val() == 'owner' || root.child('teams').child($tid).child('members').child(auth.uid).val() == 'editor')))",
+            "$lapKey": {
+              "$n": {
+                ".validate": "newData.isString() && newData.val().length < 60"
+              }
+            }
+          }
+        },
         "livewriter": {
           ".read": "auth != null && (root.child('bridgeBots').child(auth.uid).val() == true || (root.child('users').child(auth.uid).child('allowed').val() == true && root.child('teams').child($tid).child('members').child(auth.uid).exists()))",
           "$rid": {

@@ -300,6 +300,8 @@ export const css = `
 .rc .wxmhead{display:flex;align-items:center;justify-content:space-between;
   padding:12px 16px;border-bottom:1px solid var(--line);font-family:'Rajdhani';
   font-size:18px;letter-spacing:.04em;text-transform:uppercase}
+/* tur listesi penceresi: pilot sütunu için biraz geniş */
+.rc .wxmbox.laps{width:min(520px,94vw)}
 /* pist haritası penceresi: kare harita için geniş varyant (⛶ Büyüt) */
 .rc .wxmbox.map{width:auto;max-width:96vw;max-height:94vh}
 .rc .wxmbox.map .mapwrap{display:flex;justify-content:center;padding:10px}
