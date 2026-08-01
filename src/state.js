@@ -43,10 +43,9 @@ export function applyUpPit(s0, i, patch) {
 export function applyUpTyre(s0, i, t) {
   const s = grow(s0, i + 3); // i+1 satırına lastik yazılabilir
   /* tık döngüsü: 0 taşı → 1 yeni kuru → 2 Qual'a dön → 3 wet → 4 eski kuru → 0.
-     Bu köşede FİZİKSEL karşılığı olmayan durumlar atlanır: limit doluysa yeni kuru;
-     Qual lastiği zaten araçtaysa "Qual'a dön"; araçtaki wet iken "wet"; geçmişte
-     takılabilir eski kuru yoksa "eski kuru". (Eskiden yalnız limit atlanıyordu;
-     türetilmiş bayrak böyle durumları 0'a indirdiği için döngü kilitlenebiliyordu.) */
+     Bu köşede karşılığı olmayan durumlar atlanır: limit doluysa yeni kuru; köşenin
+     Qual numarası yoksa "Qual"; ayrı bir eski kuru yoksa "eski kuru" (türetilmiş
+     bayrakla örtüşmeyen aday atlanır — döngü kilitlenmez). */
   const cur = tyState(s.pits[i].tyres[t]);
   const planLen = computePlan(s, "race").rows.length;
   const usedDry = new Set();
@@ -78,20 +77,19 @@ export function applyUpTyre(s0, i, t) {
     }
     return prevVal; // 0: taşı
   };
-  let val = prevVal, chosen = 0;
+  let val = prevVal;
   for (let step = 1; step <= 5; step++) {
     const cand = (cur + step) % 5;
     const v = valFor(cand);
     if (v == null) continue;
-    /* durum, türetilmiş bayrağıyla örtüşmeli (ör. taşınan lastiği "takmak" 0'dır) */
-    if (cand === 0 || pitTyreFlag(s, next, t, v) === cand) { val = v; chosen = cand; break; }
+    /* aday, türetilmiş bayrağıyla örtüşmeli (ör. Qual numarası "eski kuru" olarak
+       değil Qual olarak sınıflanır → 4 adayı atlanıp sırası gelince 2 seçilir) */
+    if (cand === 0 || pitTyreFlag(s, next, t, v) === cand) { val = v; break; }
   }
-  void chosen;
   const tyreStints = next < s.tyreStints.length
     ? s.tyreStints.map((r, j) => (j === next ? r.map((c, ci) => (ci === t ? val : c)) : r))
     : s.tyreStints;
-  /* pit bayrakları tabloya yazılan değerden TÜRETİLİR (taşıma-farkındalıklı) —
-     zaten takılı lastiği "tak"mak değişim sayılmaz, pit süresi şişmez. */
+  /* pit bayrakları tabloya yazılan değerden TÜRETİLİR (tek doğruluk kaynağı) */
   return syncPitTyres({ ...s, tyreStints });
 }
 
@@ -148,9 +146,9 @@ export function applyQuickTyre(s0, rowIdx, action) {
   else row = [0, 1, 2, 3].map((ci) =>
     FRESH_AT.includes(ci) ? fresh() : String(prev[ci] || "").trim());
   const tyreStints = s.tyreStints.map((r, i) => (i === rowIdx ? row : r));
-  /* pit bayrakları taşıma-farkındalıklı türetilir; taşıma zinciri değiştiği için
-     SONRAKİ pit'ler de tazelenir (eski kod yalnız önceki pit'i günceller, taşınan
-     lastiği yeniden seçmeyi de değişim sayardı). */
+  /* pit bayrakları tablodan türetilir; komşu hücreler değiştiği için SONRAKİ
+     pit'ler de tazelenir (eski kod yalnız önceki pit'i güncelleyip sonrakileri
+     bayat bırakıyordu). */
   return syncPitTyres({ ...s, tyreStints });
 }
 
@@ -171,9 +169,8 @@ export function applyUpTyreCell(s0, row, col, val) {
   }
   const tyreStints = s.tyreStints.map((r, i) =>
     i === row ? r.map((c, j) => (j === col ? val : c)) : r);
-  /* pit bayrakları taşıma-farkındalıklı türetilir (S1'in öncesinde pit yok);
-     eski kod HAM önceki hücreyle karşılaştırıp taşınan lastiği yeniden seçmeyi
-     değişim sayıyor ve yalnız önceki pit'i güncelleyip sonrakileri bayat bırakıyordu. */
+  /* pit bayrakları tablodan türetilir (S1'in öncesinde pit yok); eski kod yalnız
+     önceki pit'i güncelleyip sonrakileri bayat bırakıyordu. */
   return syncPitTyres({ ...s, tyreStints });
 }
 
@@ -208,14 +205,15 @@ export function carriedTyre(st, rowIndex, col) {
 
 /* S(row+1) satırına GİRERKEN o köşede yapılan pit işlemi (pits[row-1].tyres[col]):
    0 taşı · 1 yeni kuru · 2 Qual · 3 wet · 4 eski kuru tekrar.
-   KRİTİK: karşılaştırma TAŞINAN (etkin) lastiğe göre yapılır, önceki satırın HAM
-   hücresine göre değil — hücre boş (taşıma) iken aynı numarayı elle seçmek fiziksel
-   olarak değişim DEĞİLDİR; ham karşılaştırma bunu değişim sayıp pit süresine
-   5-12 sn ekliyordu. */
+   Karşılaştırma önceki satırın HÜCRE değerine göredir: hücreye numara YAZMAK bir
+   pit işlemidir — oyunda taşınan (aynı) lastiği pitte geri takmak da gerçekten
+   süre kaybettirir (kullanıcı doğrulaması, v1.4.60). Değişim istemiyorsan hücreyi
+   BOŞ bırakırsın (taşıma). */
 export function pitTyreFlag(st, row, col, val) {
   const k = String(val ?? "").trim();
   if (!k) return 0;                                   // boş = taşı
-  if (k === carriedTyre(st, row, col)) return 0;      // zaten takılı olan lastik
+  const prevRaw = String(((st.tyreStints[row - 1] || []))[col] ?? "").trim();
+  if (k === prevRaw) return 0;      // önceki hücreyle aynı açık değer = işlem yok
   if (k === "W") return 3;
   if (k === String((st.tyreQual || [])[col] || "").trim()) return 2;
   if ((st.tyreQual || []).some((x) => String(x).trim() === k)) return 4;
