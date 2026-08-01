@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.80",
+    date: "2026-08-01",
+    tr: [
+      "🏠 Başlığa 'Ana Menü' butonu eklendi: yarış ekranındayken her zaman görünür (katılım çubuğu kapalı olsa da) ve tek tıkla takımın yarış takvimine/lobiye döndürür. Mevcut 'Takvime Dön' de yerinde kalıyor.",
+    ],
+    en: [
+      "🏠 Added a 'Main Menu' button to the header: while on the race screen it's always visible (even if the participation bar is collapsed) and returns you to the team's race calendar/lobby in one click. The existing 'Back to Calendar' button stays too.",
+    ],
+  },
+  {
     v: "v1.4.79",
     date: "2026-08-01",
     tr: [
