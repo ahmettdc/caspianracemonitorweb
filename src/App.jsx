@@ -3,6 +3,7 @@ import UpdateBanner from "./UpdateBanner";
 import { isTauri } from "./tauriEnv";
 import { useLiveBridge } from "./useLiveBridge";
 import { useLive } from "./useLive";
+import { useLiveSync } from "./useLiveSync";
 import { useMiniPlayer } from "./useMiniPlayer";
 import { useAuth } from "./useAuth";
 import { useTeams } from "./useTeams";
@@ -624,6 +625,10 @@ ${bottomBar}
     st, setSt, curRace, curTeamRef, role, userName, stRef, t });
   /* canlı timing aboneliği + yakıt öğrenici (App.jsx'ten çıkarıldı) */
   const { live, liveFuelObs } = useLive({ curRace, curTeamRef, stRef });
+  /* stint ↔ canlı senkron: oto-PIT + saat hizalama (yalnız canlı yazıcı PC yazar),
+     hava/avg-lap ÖNERİ çipleri (tek tık, otomatik yazmaz) */
+  const { sync: liveSyncOpt, setSyncOpt, drift, lastAuto, wxSug, avgSug, pitMismatch } =
+    useLiveSync({ live, st, liveInfo, up, markPit, canEdit, user });
   /* ---- sohbet: genel / takım / yarış kanalları ---- */
   /* ---- rehber turu ---- */
   const [tour, setTour] = useState(null);            // "lobby" | "main" | null
@@ -1066,7 +1071,13 @@ ${bottomBar}
         <div><label>Race Time (h:mm:ss)</label>
           <input type="text" value={st.raceTime} onChange={(e) => up({ raceTime: e.target.value })} /></div>
         <div><label>Avg Lap (m:ss.00)</label>
-          <input type="text" value={st.avgLap} onChange={(e) => up({ avgLap: e.target.value })} /></div>
+          <input type="text" value={st.avgLap} onChange={(e) => up({ avgLap: e.target.value })} />
+          {avgSug && canEdit && (
+            <button className="act" style={{ marginTop: 4, fontSize: 11, padding: "3px 8px" }}
+              title={t("Canlı son 5 turun ortalaması — tıkla, plana uygula")}
+              onClick={() => up({ avgLap: avgSug.txt })}>
+              ⚡ {t("Canlı AVG5")}: <b className="mono">{avgSug.txt}</b> — {t("uygula")}</button>
+          )}</div>
       </div>
       <div className="row4">
         {["A", "B", "C", "D"].map((k) => (
@@ -1129,6 +1140,24 @@ ${bottomBar}
 
     <div className="card" data-tour="wx" style={{ marginTop: 12 }}>
       <h2>🌦 {t("Hava Durumu")}</h2>
+      {/* canlı yağmur/ıslaklık plandaki havadan sapınca tek tıklık öneri (otomatik yazmaz) */}
+      {wxSug && canEdit && (
+        <button className="act" style={{ marginBottom: 8, fontSize: 12,
+          borderColor: WEATHER[wxSug.id].col, color: WEATHER[wxSug.id].col }}
+          onClick={() => {
+            const el = liveInfo.status === "live"
+              ? Math.max(0, Math.round(liveInfo.elapsed / 1000)) : 0;
+            let past = (st.weatherLog || []).filter((e) => e.t < el - 0.5);
+            const future = (st.weatherLog || []).filter((e) => e.t > el + 0.5);
+            if (el < 1) past = [];
+            const log = [...past, { t: el, w: wxSug.id, src: "live" }, ...future]
+              .sort((a, b) => a.t - b.t);
+            up({ weather: wxSug.id, weatherLog: log });
+          }}>
+          {WEATHER[wxSug.id].ico} {t("Canlı")}: 🌧 %{wxSug.rain} · 💧 %{wxSug.wetness} →{" "}
+          <b>{t(wxSug.label)}</b> {t("geçişi ekle")}
+        </button>
+      )}
       <div className="wxsel">
         {Object.entries(WEATHER).map(([id, w]) => (
           <button key={id} className={st.weather === id ? "on" : ""}
@@ -1984,6 +2013,41 @@ ${bottomBar}
             {canEdit && (
               <div onClick={(e) => e.stopPropagation()}
                 style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                {/* stint ↔ canlı senkron anahtarları (cihaz tercihi) + durum çipleri */}
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
+                  justifyContent: "center" }}>
+                  <span className="plbl" style={{ margin: 0 }}>🔗 {t("Canlı Senkron")}</span>
+                  <button className={`act${liveSyncOpt.autoPit ? " on" : ""}`}
+                    style={{ fontSize: 11, padding: "3px 10px",
+                      ...(liveSyncOpt.autoPit && { borderColor: "var(--green)", color: "var(--green)" }) }}
+                    title={t("Araç pit yoluna girince PIT otomatik işaretlenir (yalnız canlı kaynağı yazan PC tetikler)")}
+                    onClick={() => setSyncOpt("autoPit", !liveSyncOpt.autoPit)}>
+                    🤖 {t("Oto PIT")}</button>
+                  <button className={`act${liveSyncOpt.autoClock ? " on" : ""}`}
+                    style={{ fontSize: 11, padding: "3px 10px",
+                      ...(liveSyncOpt.autoClock && { borderColor: "var(--green)", color: "var(--green)" }) }}
+                    title={t("Planın geri sayımı oyunun kalan süresinden 5 sn'den fazla kayarsa başlangıç zamanı otomatik hizalanır")}
+                    onClick={() => setSyncOpt("autoClock", !liveSyncOpt.autoClock)}>
+                    ⏱ {t("Oto Saat")}</button>
+                  {drift != null && Math.abs(drift) > 1 && (
+                    <span className="chip" style={{ fontSize: 10,
+                      color: Math.abs(drift) > 5 ? "var(--yellow)" : "var(--dim)",
+                      borderColor: Math.abs(drift) > 5 ? "var(--yellow)" : "var(--line)" }}
+                      title={t("Plan saati − oyun saati")}>
+                      ⏱ {drift > 0 ? "+" : ""}{drift}s</span>
+                  )}
+                  {lastAuto && Date.now() - lastAuto.at < 120000 && (
+                    <span className="chip" style={{ fontSize: 10, color: "var(--green)",
+                      borderColor: "var(--green)" }}>
+                      🤖 S{lastAuto.stint} {t("otomatik işaretlendi")}</span>
+                  )}
+                </div>
+                {pitMismatch && (
+                  <div className="plbl" style={{ textTransform: "none", color: "var(--yellow)" }}>
+                    ⚠ {t("oyunda")} {pitMismatch.game} {t("pit")}, {t("planda")}{" "}
+                    {pitMismatch.marked} {t("işaretli")}
+                  </div>
+                )}
                 {liveInfo.pitsDone < racePlan.rows.length - 1 ? (
                   /* pit fazında PASİF: buton aynı stinti gösterdiği için ikinci basış
                      pit yolunda geçen saniyeleri stint süresine ekliyordu */

@@ -5,6 +5,26 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.61",
+    date: "2026-08-01",
+    tr: [
+      "🔗 Stint planı canlı timing'e senkronlandı — elle yapılan işlerin gerçeği artık köprüden geliyor:",
+      "🤖 Oto PIT: araç pit yoluna girince ✔ PIT kendiliğinden işaretleniyor (plan gerçeğe kilitlenir; buton yedek olarak duruyor, ↩ Geri Al çalışıyor). Yalnız canlı kaynağı yazan PC tetikler — çift yazma olmaz. Aç/kapa: pit panosundaki 🤖 Oto PIT anahtarı",
+      "⏱ Oto Saat: planın geri sayımı oyunun kalan süresinden 5 sn'den fazla kayarsa yarış başlangıç zamanı kendiliğinden hizalanıyor — geri sayımlar, sıradaki pit ve pilot programı oyunla birebir gider. Kayma her cihazda çip olarak görünür",
+      "🌧 Hava önerisi: oyunda yağmur/ıslaklık plandaki havadan sapınca hava kartında tek tıklık öneri çıkıyor ('Canlı: %38 → Slightly Wet geçişi ekle') — planı onayın olmadan değiştirmez",
+      "⚡ Canlı AVG5 önerisi: son 5 turun canlı ortalaması plandaki Avg Lap'ten saparsa Yarış·Data kartında tek tıkla uygulanabilir öneri görünür",
+      "⚠ Pit tutarsızlık uyarısı: oyundaki pit sayısı ile planda işaretli pit sayısı ayrışırsa pit panosunda uyarı",
+    ],
+    en: [
+      "🔗 The stint plan is now synced to live timing — manual chores are fed by the bridge's real data:",
+      "🤖 Auto PIT: when the car enters the pit lane, ✔ PIT is marked automatically (plan locks to reality; the button remains as backup, ↩ Undo works). Only the PC writing the live feed triggers it — no double writes. Toggle: 🤖 Auto PIT on the pit board",
+      "⏱ Auto Clock: if the plan's countdown drifts more than 5s from the game's remaining time, the race start time realigns itself — countdowns, next pit and the driver schedule track the game exactly. The drift shows as a chip on every device",
+      "🌧 Weather suggestion: when in-game rain/wetness diverges from the plan's weather, a one-click suggestion appears on the weather card ('Live: 38% → add Slightly Wet transition') — it never changes the plan without your approval",
+      "⚡ Live AVG5 suggestion: when the live 5-lap average drifts from the plan's Avg Lap, a one-click apply chip appears in the Race·Data card",
+      "⚠ Pit mismatch warning: if the game's pit-stop count and the plan's marked pits diverge, the pit board warns you",
+    ],
+  },
+  {
     v: "v1.4.60",
     date: "2026-08-01",
     tr: [

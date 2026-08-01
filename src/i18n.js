@@ -490,6 +490,19 @@ export const EN = {
   "Trafik": "Traffic",
   "Yağmur": "Rain",
   "Ortam": "Ambient", "Zemin ıslaklığı": "Track wetness",
+  // stint ↔ canlı senkron (v1.4.61)
+  "Canlı Senkron": "Live Sync", "Oto PIT": "Auto PIT", "Oto Saat": "Auto Clock",
+  "otomatik işaretlendi": "auto-marked",
+  "oyunda": "in game", "planda": "in plan", "işaretli": "marked", "pit": "pit stops",
+  "Canlı": "Live", "geçişi ekle": "add transition",
+  "Canlı AVG5": "Live AVG5", "uygula": "apply",
+  "Araç pit yoluna girince PIT otomatik işaretlenir (yalnız canlı kaynağı yazan PC tetikler)":
+    "PIT is marked automatically when the car enters the pit lane (only the PC writing the live feed triggers it)",
+  "Planın geri sayımı oyunun kalan süresinden 5 sn'den fazla kayarsa başlangıç zamanı otomatik hizalanır":
+    "If the plan's countdown drifts more than 5s from the game's remaining time, the start time is realigned automatically",
+  "Plan saati − oyun saati": "Plan clock − game clock",
+  "Canlı son 5 turun ortalaması — tıkla, plana uygula":
+    "Average of the last 5 live laps — click to apply to the plan",
   ",": ",",
   "Önünde": "Ahead",
   "Arkanda": "Behind",
