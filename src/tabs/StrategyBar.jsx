@@ -28,7 +28,7 @@ function Chip({ label, value, color, title }) {
   );
 }
 
-export default function StrategyBar({ t, field }) {
+export default function StrategyBar({ t, field, embedded }) {
   const [pitLoss, setPitLoss] = useState(() => {
     const v = Number(localStorage.getItem("rm_pitloss"));
     return v > 0 ? v : 30;
@@ -58,9 +58,9 @@ export default function StrategyBar({ t, field }) {
   const rejoinAhead = [...rows].reverse().find((c) => c !== me && (c.gapSec || 0) < newGap);
   const rejoinBehind = rows.find((c) => c !== me && (c.gapSec || 0) >= newGap);
 
-  return (
-    <div className="card" style={{ marginBottom: 12 }}>
-      <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+  const inner = (<>
+      <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
+        ...(embedded && { marginTop: 0 }) }}>
         🎯 {t("Strateji")}
         <span className="chip" style={{ fontSize: 11, borderColor: BRAND, color: "#fff",
           background: BRAND }}>{codeOf(me.driver)} · P{me.pos}</span>
@@ -93,6 +93,13 @@ export default function StrategyBar({ t, field }) {
           color={BRAND}
           title={t("Şimdi pit'e girersen (pit kaybı kadar geriye) tahmini sıra")} />
       </div>
-    </div>
-  );
+  </>);
+  // gömülü: dış kart yok (harita kartının içinde, en üstte) — ince ayraçla ayrılır
+  if (embedded) {
+    return (
+      <div style={{ paddingBottom: 10, marginBottom: 10,
+        borderBottom: "1px solid var(--line)" }}>{inner}</div>
+    );
+  }
+  return <div className="card" style={{ marginBottom: 12 }}>{inner}</div>;
 }
