@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.66",
+    date: "2026-08-01",
+    tr: [
+      "🛞 Saha tablosuna 'Hamur' sütunu eklendi: her aracın taktığı lastik hamuru oyundaki ikonuyla görünüyor — Soft (beyaz S), Medium (sarı M), Hard (kırmızı H), Wet (mavi W). Yağmur gelince kimin ıslak lastiğe geçtiğini tek bakışta görürsün.",
+      "ℹ️ Hamur adı köprüden zaten geliyordu (v1.4.65, telemetriden); artık ayrı sütunda ikonlu. Oyun tanımadığımız bir ad verirse ham kısaltma gösterilir (uydurma yok). Rakip telemetrisi bayatsa ikon soluklaşır.",
+    ],
+    en: [
+      "🛞 A 'Compound' column was added to the field table: each car's fitted tyre compound shows with the game's own icon — Soft (white S), Medium (yellow M), Hard (red H), Wet (blue W). See at a glance who switched to wets when rain arrives.",
+      "ℹ️ The compound name already came from the bridge (v1.4.65, from telemetry); now it has its own icon column. If the game reports a name we don't recognise, the raw short text is shown (nothing invented). If a rival's telemetry is stale, the icon dims.",
+    ],
+  },
+  {
     v: "v1.4.65",
     date: "2026-08-01",
     tr: [

@@ -9,6 +9,7 @@ import { binKey } from "../trackShape";
 import { demoLive } from "../liveDemo";
 import { CALIB_WORDS, addSample, thresholdsFrom, exportPayload } from "../wxCalib";
 import { tyreTitle, tyreChangeBadge, teleStale } from "../tyreInfo";
+import { compoundInfo } from "../tyreCompound";
 import TrackMap from "./TrackMap";
 import PosChart from "./PosChart";
 import StrategyBar from "./StrategyBar";
@@ -51,6 +52,39 @@ function ClassBadge({ raw }) {
     );
   }
   return <span className="chip" style={{ fontSize: 10 }}>{raw || "—"}</span>;
+}
+
+/* Lastik hamuru hücresi — Soft/Medium/Hard/Wet ikonu (assets/tyre-compound/<cls>.png).
+   ClassBadge deseni: ikon yüklenmezse renkli disk + harf yedeği. Bilinmeyen ad ham
+   kısaltmayla gösterilir (uydurma yok), veri yoksa "—". Bayat telemetride soluk. */
+function CompoundCell({ comp, stale, t }) {
+  const [err, setErr] = useState(false);
+  const info = compoundInfo(comp);
+  if (!info) return <span style={{ color: "var(--dim)" }}>—</span>;
+  const style = { opacity: stale ? 0.4 : 1, whiteSpace: "nowrap" };
+  const title = (info.cls ? t(info.label) : info.raw)
+    + (info.crossover ? ` (${info.raw})` : "")
+    + (stale ? ` — ${t("telemetri bayat")}` : "");
+  if (info.cls && !err) {
+    return (
+      <span style={style} title={title}>
+        <img src={`${ASSET}tyre-compound/${info.cls}.png`} alt={info.label}
+          style={{ height: 20, verticalAlign: "middle" }} onError={() => setErr(true)} />
+        {info.crossover && <span style={{ fontSize: 10, color: "var(--yellow)",
+          marginLeft: 2 }}>*</span>}
+      </span>
+    );
+  }
+  // yedek: renkli disk + harf (ikon yoksa ya da bilinmeyen hamur)
+  return (
+    <span style={{ ...style, display: "inline-flex", alignItems: "center", gap: 4 }}
+      title={title}>
+      <span style={{ display: "inline-block", width: 16, height: 16, borderRadius: "50%",
+        border: `2px solid ${info.color}`, fontSize: 9, lineHeight: "12px",
+        textAlign: "center", color: info.color, fontWeight: 700 }}>{info.short[0]}</span>
+      {!info.cls && <span style={{ fontSize: 11, color: "var(--dim)" }}>{info.short}</span>}
+    </span>
+  );
 }
 
 /* Araç markası logosu (assets/brands/<key>.png). Önce LMU katalog manufacturer'ı
@@ -607,7 +641,8 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
                 <th>{t("Son")}</th><th>{t("En İyi")}</th><th>AVG5</th><th>AVG</th>
                 <th>VE</th>
                 <th>Δ</th><th>Gap</th><th>{t("Aralık")}</th><th>{t("Konum")}</th>
-                <th>Stint</th><th>{t("Lastik")}</th><th>{t("Hasar")}</th><th>Pit</th>
+                <th>Stint</th><th>{t("Lastik")}</th><th>{t("Hamur")}</th>
+                <th>{t("Hasar")}</th><th>Pit</th>
                 <th aria-label={t("Turlar")}></th>
               </tr></thead>
               <tbody>
@@ -673,6 +708,9 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
                             color: b.comp ? "var(--teal)" : b.n === 0 ? "var(--dim)" : "var(--yellow)" }}>
                             🛠{b.txt}{b.comp ? `→${b.comp}` : ""}</span>;
                         })()}</td>
+                      {/* Hamur: aracın taktığı lastik hamuru (Soft/Medium/Hard/Wet).
+                          İkon oyunun kendi görselinden; bayat telemetride soluk. */}
+                      <td><CompoundCell comp={c.tyreComp} stale={teleStale(c.teleLag)} t={t} /></td>
                       <td style={{ fontSize: 12, color: (c.damage || 0) > 0.15 ? "var(--red)"
                         : (c.damage || 0) > 0.02 ? "var(--yellow)" : "var(--dim)" }}>
                         {c.damage != null ? `${Math.round(c.damage * 100)}%` : "—"}</td>
