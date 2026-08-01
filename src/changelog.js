@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.70",
+    date: "2026-08-01",
+    tr: [
+      "🎯 Strateji şeridi (Önünde/Arkanda/Temiz hava/Trafik/Pit çıkışı + Pit kaybı) artık ayrı kutu değil — Pist Haritası kutusunun en üstünde. Böylece harita ve strateji tek yerde.",
+    ],
+    en: [
+      "🎯 The strategy strip (Ahead/Behind/Clean air/Traffic/Pit exit + Pit loss) is no longer a separate box — it sits at the top of the Track Map box. Map and strategy now live in one place.",
+    ],
+  },
+  {
     v: "v1.4.69",
     date: "2026-08-01",
     tr: [

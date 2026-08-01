@@ -24,7 +24,7 @@ const cx = 260, cy = 262;       // merkez
 const R = 236;                  // dış halka yarıçapı
 const PAD = 148;                // iç şekil yarım-uzanımı (px)
 
-export default function TrackMap({ t, field, trackLength, tid, trackKey, canSave }) {
+export default function TrackMap({ t, field, trackLength, tid, trackKey, canSave, topSlot }) {
   const [zoom, setZoom] = useState(false);   // ⛶ büyük pencere
   const [, bump] = useState(0);              // paylaşımlı şekil gelince yeniden çiz
   useEffect(() => {
@@ -294,6 +294,8 @@ export default function TrackMap({ t, field, trackLength, tid, trackKey, canSave
 
   return (<>
     <div className="card" style={{ marginBottom: 12 }}>
+      {/* en üstte gömülü içerik (strateji şeridi) — ayrı kart yerine harita kutusunda */}
+      {topSlot}
       <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
         🗺 {t("Pist Haritası")}
         <span className="hint" style={{ margin: 0, fontWeight: 400 }}>{count}</span>

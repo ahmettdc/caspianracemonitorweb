@@ -640,14 +640,19 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
         {canEdit && !big && <WxCalib t={t} s={s} />}
       </div>
 
-      {!big && <StrategyBar t={t} field={fieldAll} />}
+      {/* Strateji artık Pist Haritası kutusunun İÇİNDE en üstte (aşağıda topSlot).
+          Harita yoksa (trackLength/posX gelmemiş) kaybolmasın diye yedek: bağımsız. */}
+      {!big && !(s.trackLength > 0 && fieldAll.some((c) => c.posX != null)) && (
+        <StrategyBar t={t} field={fieldAll} />
+      )}
 
-      {/* Pist haritası (sol) + Kendi Araç (sağ) yan yana; dar ekranda alt alta */}
+      {/* Pist haritası (sol, strateji üstünde) + Kendi Araç (sağ) yan yana */}
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
         {s.trackLength > 0 && fieldAll.some((c) => c.posX != null) && (
           <div style={{ flex: "1 1 360px", minWidth: 300 }}>
             <TrackMap t={t} field={fieldAll} trackLength={s.trackLength}
-              tid={tid} trackKey={binKey(s.trackName, s.trackLength)} canSave={canEdit} />
+              tid={tid} trackKey={binKey(s.trackName, s.trackLength)} canSave={canEdit}
+              topSlot={!big ? <StrategyBar t={t} field={fieldAll} embedded /> : null} />
           </div>
         )}
         {own && (
