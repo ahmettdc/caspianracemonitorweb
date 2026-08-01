@@ -35,6 +35,23 @@ const trackXY = (frac) => {
 export function demoLive(el) {
   const n = NAMES.length;
   const rows = [];
+  /* Demo lastikleri: köşe köşe aşınma + bileşim + son pit'te ne değiştiği.
+     Tek numaralı araçlar yalnız ÖN lastik değiştirmiş sayılır → "🛠 2" rozeti
+     demoda da görünür (gerçek tespit köprüde yapılır, burası yalnız gösterim). */
+  const demoTyres = (t, i) => {
+    const sincePit = ((Math.floor(t / 90) - i + 130) % 13) * 90 + (t % 90);
+    const fr = +Math.max(0.2, 1 - sincePit / 1400).toFixed(3);
+    const rr = i % 2 === 0 ? fr : +Math.max(0.2, 1 - (t % 2600) / 2600).toFixed(3);
+    const t4 = [fr, +Math.max(0.2, fr - 0.01).toFixed(3), rr,
+      +Math.max(0.2, rr - 0.02).toFixed(3)];
+    const comp = i === 3 && t > 600 ? "Wet" : "Medium";
+    return {
+      tyres4: t4, tyreWear: Math.min(...t4), tyreComp: comp, teleLag: 0,
+      tyreChange: i % 2 === 0
+        ? { n: 4, corners: ["fl", "fr", "rl", "rr"], comp: null }
+        : { n: 2, corners: ["fl", "fr"], comp: i === 3 ? "Wet" : null },
+    };
+  };
   for (let i = 0; i < n; i++) {
     const lapT = 88 + i * 0.35 + Math.sin(el / 30 + i) * 0.4;
     const laps = Math.floor(el / lapT) + 40;                 // biraz ilerlemiş yarış
@@ -51,7 +68,7 @@ export function demoLive(el) {
         +(last * 0.31).toFixed(3)],
       inPits: (Math.floor(el / 90) % 13) === i,
       pitStops: Math.floor(laps / 45),
-      tyreWear: +Math.max(0.15, 1 - (el % 1500 / 1500) * 0.7).toFixed(3),
+      ...demoTyres(el, i),
       damage: +Math.min(0.4, i * 0.01 + (el % 600) / 6000).toFixed(3),
       virtualEnergy: +Math.max(3, 100 - ((el + i * 40) % 1500 / 1500) * 92).toFixed(1),
       lapDist: +(frac * TRACK_LEN).toFixed(1), posX: +px.toFixed(1), posZ: +pz.toFixed(1),
