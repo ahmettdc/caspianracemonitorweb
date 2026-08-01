@@ -61,6 +61,25 @@ describe("users", () => {
   });
 });
 
+describe("globalSetups", () => {
+  it("onaylı kullanıcı kendi uid'iyle yükler; başkasının uid'iyle/onaysız yükleyemez", async () => {
+    await assertSucceeds(
+      set(ref(db("bob"), "globalSetups/s1"), { uid: "bob", data: "AAA", track: "spa" }));
+    // başkasının uid'iyle yazma → validate reddeder
+    await assertFails(set(ref(db("bob"), "globalSetups/s2"), { uid: "alice", data: "AAA" }));
+    // allowed:false → hiç yazamaz
+    await assertFails(set(ref(db("mallory"), "globalSetups/s3"), { uid: "mallory", data: "AAA" }));
+  });
+  it("silme YALNIZ admin — yükleyen bile silemez", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await set(ref(ctx.database(), "globalSetups/s1"), { uid: "bob", data: "AAA" });
+    });
+    await assertFails(set(ref(db("bob"), "globalSetups/s1"), null));     // yükleyen → red
+    await assertFails(set(ref(db("carol"), "globalSetups/s1"), null));   // başka üye → red
+    await assertSucceeds(set(ref(db("admin"), "globalSetups/s1"), null)); // admin → başarılı
+  });
+});
+
 describe("teams/live", () => {
   it("owner ve editor yazar; viewer yazamaz", async () => {
     await assertSucceeds(set(ref(db("alice"), "teams/team1/live/race1"), frame()));

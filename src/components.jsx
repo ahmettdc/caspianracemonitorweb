@@ -424,7 +424,7 @@ export function SetupForm({
 
 /* Ortak setup tablosu — pit wall Setup sekmesi + lobi penceresi ortak.
    onDownload/onDelete App'ten prop gelir (indirme + silme onayı orada). */
-export function SetupTable({ rows, t, st, lang, user, isAdmin, onDownload, onDelete }) {
+export function SetupTable({ rows, t, st, lang, isAdmin, onDownload, onDelete }) {
   return (
     <div style={{ overflowX: "auto" }}>
       <table style={{ fontSize: 12 }}>
@@ -481,7 +481,8 @@ export function SetupTable({ rows, t, st, lang, user, isAdmin, onDownload, onDel
               <td style={{ whiteSpace: "nowrap" }}>
                 <button className="act" style={{ fontSize: 11 }}
                   onClick={() => onDownload(su)}>⬇ {t("İndir")}</button>
-                {(su.uid === user?.uid || isAdmin) && (
+                {/* silme yalnız admin — yükleyen dahil kimse başkasınınkini/kendininkini silemez */}
+                {isAdmin && (
                   <button className="act danger" style={{ fontSize: 11, marginLeft: 4 }}
                     onClick={() => onDelete(su)}>✕</button>
                 )}

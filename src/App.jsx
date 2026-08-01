@@ -640,7 +640,7 @@ ${bottomBar}
   const { setups, suFile, suMeta, setSuMeta, suErr, suBusy, suOpen, setSuOpen,
     suUpOpen, setSuUpOpen, suFTrack, setSuFTrack, suFCond, setSuFCond,
     suFSess, setSuFSess, onSetupFile, saveSetup, downloadSetup, suList } = useSetups({
-    user, udoc, curTeam, userName, teamData, t });
+    user, udoc, userName, teamData, t });
 
   /* ---- yüzen mini oynatıcı → useMiniPlayer hook'u (konum/boyut/sürükle) ---- */
   const { streamCorner, streamMin, setStreamMin, streamW, streamDrag,
@@ -720,7 +720,7 @@ ${bottomBar}
   );
 
   const setupTable = (rows) => (
-    <SetupTable rows={rows} t={t} st={st} lang={lang} user={user} isAdmin={isAdmin}
+    <SetupTable rows={rows} t={t} st={st} lang={lang} isAdmin={isAdmin}
       onDownload={downloadSetup}
       onDelete={(su) => { if (window.confirm(t("Bu setup silinsin mi?") + "\n" + (su.name || "")))
         deleteSetup(su.id).catch(() => {}); }} />
