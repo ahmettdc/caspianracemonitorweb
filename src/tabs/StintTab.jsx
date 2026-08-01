@@ -1,5 +1,4 @@
-import { fmtHMS, parseHMS, wxLog, wxAtRel, tyState, TYRE_2_SEC, TYRE_4_SEC, EMPTY_PIT,
-  MAX_STINTS } from "../engine";
+import { fmtHMS, parseHMS, wxLog, wxAtRel, tyState, EMPTY_PIT, MAX_STINTS } from "../engine";
 import { Tyre } from "../components";
 
 /* Stint plan sekmesi (stint + code80) — KPI'lar, S1 lastik kısayolları, stint/hava
@@ -265,15 +264,6 @@ export default function StintTab({
           ))}
         </tbody>
       </table>
-      </div>
-      <div className="hint">
-        {t("Pit süresi = FUEL")}({st.fuelTime}s) + LANE({st.pitLaneTime}s) + {t("lastik")}
-        {tab === "code80"
-          ? ` (1-2: ${(TYRE_2_SEC / 4).toFixed(2)}s · 3-4: ${(TYRE_4_SEC / 4).toFixed(2)}s · Code 80: ÷4)`
-          : ` (1-2: ${TYRE_2_SEC}s · 3-4: ${TYRE_4_SEC}s)`}.
-        {t("Son stintte pit hesaplanmaz. Override girilirse stint süresi manuel değere kilitlenir.")}{" "}
-        {t("Pit'te seçilen lastikler (FL/FR/RL/RR) Lastik sekmesindeki tabloya otomatik işlenir:")}{" "}
-        {t("seçilen köşeye sonraki stint için yeni lastik atanır, seçim kaldırılırsa önceki lastikle devam edilir.")}
       </div>
     </div>
   );

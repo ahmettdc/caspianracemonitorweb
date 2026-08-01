@@ -104,9 +104,6 @@ export default function PosChart({ t, tid, rid, field }) {
           </LineChart>
         </ResponsiveContainer>
       </div>
-      <div className="hint">
-        {t("Y ekseni ters (P1 üstte) · renk = sınıf · kalın #960018 = sen · 'P' = pit turu. Köprü çalışırken tur-tur birikir; tüm takım aynı grafiği görür.")}
-      </div>
     </div>
   );
 }

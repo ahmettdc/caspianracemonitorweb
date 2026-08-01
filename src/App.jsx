@@ -35,7 +35,7 @@ import {
 import {
   safeParseState, carriedTyre,
   applyUpPit, applyUpTyre, applyUpOvr, applyBumpLaps, applyClearLaps,
-  applyQuickTyre, applyUpStintLap, applyUpTyreCell, applyAssignDriver,
+  applyQuickTyre, applyUpStintLap, applyUpTyreCell, applyAssignDriver, applyClearTyres,
   computeTyreInfo, computeDriverPlan,
   computeLiveInfo, buildTimeline,
   applyMarkPit, applyUnmarkPit, applyResetPits,
@@ -220,7 +220,6 @@ export default function App() {
   const totalVE = plan.totalFuel + st.extraLap * effCons(st); // % VE (DATA I2)
   const totalFuelL = totalVE * st.fuelRatio;            // gerçek litre karşılığı
   const fuelCarried = 100 * st.fuelRatio;               // %100 = taşınan yakıt (L)
-  const realPerLap = st.consumption * st.fuelRatio;     // gerçek tüketim L/tur
   const TY = ["FL", "FR", "RL", "RR"];
 
   /* ---------- Faz 3: lastik stratejisi ---------- */
@@ -232,11 +231,9 @@ export default function App() {
   const upStintLap = (i, v) => setSt((s0) => applyUpStintLap(s0, i, v));
 
   const upTyreCell = (row, col, val) => setSt((s0) => applyUpTyreCell(s0, row, col, val));
-  const clearTyres = () => setSt((s) => ({
-    ...s,
-    tyreQual: ["1", "2", "3", "4"],
-    tyreStints: s.tyreStints.map(() => ["", "", "", ""]),
-  }));
+  /* tablo + pit lastik bayrakları birlikte sıfırlanır (bayraklar kalırsa plan
+     tabloda olmayan lastik değişimlerine süre eklemeye devam ediyordu) */
+  const clearTyres = () => setSt((s0) => applyClearTyres(s0));
 
   /* boş hücre = o köşede lastik değişmedi → önceki stintten (yoksa Qual'dan) taşınan lastik.
      Depoya yazılmaz, sadece görsel; fiziksel olarak aynı lastik olduğu için sayıma girmez. */
@@ -1128,13 +1125,10 @@ ${bottomBar}
         <b className="mono" style={{ fontSize: 15, color: "var(--green)" }}>
           {driverPlan ? fmtClock(driverPlan.finishMs, driverPlan.startMs) : "—"}</b>
       </div>
-      <div className="hint">{t("Canlı yarış modu, pilot planı ve geri sayım bu zamana göre çalışır.")} 🌍 {t("Saat her üyeye kendi yerel diliminde gösterilir.")}</div>
     </div>
 
     <div className="card" data-tour="wx" style={{ marginTop: 12 }}>
       <h2>🌦 {t("Hava Durumu")}</h2>
-      <div className="hint" style={{ marginTop: 0, marginBottom: 6 }}>
-        {t("Şu anki zemin — canlı değişim buradan")}</div>
       <div className="wxsel">
         {Object.entries(WEATHER).map(([id, w]) => (
           <button key={id} className={st.weather === id ? "on" : ""}
@@ -1197,11 +1191,6 @@ ${bottomBar}
         <div><label>⛽ {t("%100 = Taşınan Yakıt")}</label>
           <div className="mono" style={{ padding: "6px 0", color: "var(--green)" }}>
             {fuelCarried.toFixed(1)} L</div></div>
-      </div>
-      <div className="hint">
-        {t("Depo daima")} <b>%100 VE</b> {t("kabul edilir. Gerçek yakıt = VE × ratio → gerçek tüketim ≈")}{" "}
-        <b className="mono">{realPerLap.toFixed(2)} {t("L/tur")}</b>.{" "}
-        {t("Ratio'yu düşürmek daha az yakıt taşımak demektir (örn. 0.84 → %100 = 84.0 L).")}
       </div>
     </div>
 

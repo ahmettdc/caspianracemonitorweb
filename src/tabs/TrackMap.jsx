@@ -180,8 +180,6 @@ export default function TrackMap({ t, field, trackLength, tid, trackKey, canSave
     })}
   </>);
 
-  const legend = t("Dış halka: pist üzerindeki konum (S/F tepede) · iç şekil: gerçek devre. Renk = sınıf; beyaz halka = sen, beyaz kenar = pit.");
-
   return (<>
     <div className="card" style={{ marginBottom: 12 }}>
       <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
@@ -195,7 +193,6 @@ export default function TrackMap({ t, field, trackLength, tid, trackKey, canSave
         <svg viewBox="0 0 520 520" width="100%" style={{ maxWidth: 460 }}
           role="img" aria-label={t("Canlı pist haritası")}>{svgKids}</svg>
       </div>
-      <div className="hint">{legend}</div>
     </div>
 
     {zoom && (
@@ -214,7 +211,6 @@ export default function TrackMap({ t, field, trackLength, tid, trackKey, canSave
             <svg viewBox="0 0 520 520" role="img" aria-label={t("Canlı pist haritası")}>
               {svgKids}</svg>
           </div>
-          <div className="hint" style={{ padding: "0 14px 12px", marginTop: 0 }}>{legend}</div>
         </div>
       </div>
     )}

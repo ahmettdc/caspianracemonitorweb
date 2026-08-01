@@ -125,7 +125,6 @@ export default function DriversTab({
         <div style={{ marginTop: 12 }}>
           <button className="act danger" onClick={clearAssign}>{t("Atamaları Temizle")}</button>
         </div>
-        <div className="hint">{t("Start/Finish zamanları stint planından otomatik zincirlenir (pit süreleri dahil). Yarış bitişini aşan kısım süreye sayılmaz; tamamen yarış dışı kalan stintler soluk görünür.")}</div>
       </>)}
       {!driverPlan && <div className="hint warn">{t("Geçerli bir yarış başlangıç zamanı gir.")}</div>}
     </div>

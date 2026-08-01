@@ -137,7 +137,6 @@ export default function TyreTab({
       <div style={{ marginTop: 12 }}>
         <button className="act danger" onClick={clearTyres}>{t("Tümünü Temizle")}</button>
       </div>
-      <div className="hint">{t("Her numara TEK bir lastiği temsil eder (set değil) — limit adet bazlıdır. Bir lastik ilk takıldığı köşeye kilitlenir ve diğer köşelerin menülerinden otomatik kalkar. Aynı lastik aynı köşede tekrar kullanılırsa hücre kullanım sayısına göre renklenir. Hızlı Atama ile tek tıkla 4 yeni / öncekiyle devam / kısmi değişim yapabilirsin.")}</div>
     </div>
   );
 }

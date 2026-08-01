@@ -72,9 +72,6 @@ export default function TeleTab({
               </tbody>
             </table>
           </div>
-          {parsed.laps.some((l) => l.partial) && (
-            <div className="hint">{t("Kısmi tur: log'da sonraki tur yok, süre örneklerden hesaplandı.")}</div>
-          )}
           {!(st.fuelRatio > 0) && (
             <div className="hint warn">{t("VE karşılığı için Yarış·Data'da yakıt oranı girilmeli.")}</div>
           )}
@@ -202,9 +199,6 @@ export default function TeleTab({
                   key: sl, label: `Stint ${sl}`, color: SLOT_COLORS[sl],
                   values: st.telemetry[sl].laps.filter((l) => l.use).map((l) => l.ms),
                 })).filter((s) => s.values.length)} />
-              <div className="hint">
-                {t("Kutu = turların ortadaki %50'si (Q1–Q3), kalın çizgi medyan. Bıyıklar uç turlara, halkalar aykırı turlara işaret eder.")}
-              </div>
             </div>
           ) : (
           <div style={{ height: 260 }}>
@@ -272,7 +266,6 @@ export default function TeleTab({
               </table>
             </details>
           ))}
-          <div className="hint">{t("Out lap ve dolum turları (yakıt Δ pozitif) otomatik hariç tutulur — Dahil kutusuyla elle değiştirebilirsin. Ortalamalar sadece dahil turlardan hesaplanır.")}</div>
         </div>
       )}
     </div>
