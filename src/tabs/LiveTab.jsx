@@ -456,7 +456,36 @@ function BridgeControl({ t, bridge, canEdit }) {
           🔒 {t("Rolün izleyici — köprü bu rolde yayın yapamaz. Yayınlayacak üyenin takımda 🎧 Mühendis (editor) ya da Sahip olması gerekir.")}
         </div>
       )}
+      {/* PERFORMANS (v1.4.97): oyun eklentisi bizim OKUMADIĞIMIZ buffer'ları da yazıyorsa
+          (FFB+Graphics saniyede 400'er kez) oyunda takılma yapar. Ayarı biz YAZMAYIZ —
+          başka araçların (CrewChief/SimHub/TinyPedal) ihtiyacını bilemeyiz; öneririz. */}
+      {canEdit && d?.plugin?.wastedFps > 0 && d.plugin.suggest != null && (
+        <div className="hint warn" style={{ marginTop: 6 }}>
+          ⚡ {t("Oyun eklentisi saniyede")} ~{d.plugin.wastedFps} {t("kez bu uygulamanın okumadığı veriyi yazıyor")}
+          {" "}({d.plugin.wasted.join(", ")}) — {t("bu, oyunda takılmaya yol açar.")}
+          {" "}<b>CustomPluginVariables.JSON</b> → <code>UnsubscribedBuffersMask: {d.plugin.suggest}</code>
+          {" "}<CopyBtn text={String(d.plugin.suggest)} t={t} />
+          <div style={{ marginTop: 2 }}>
+            {t("Oyunu kapatıp değiştir, sonra aç. Diğer araçların bu veriye ihtiyaç duyabilir — en güvenli değerle başla.")}
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+/* Küçük kopyala düğmesi — panoya yaz + kısa geri bildirim (köprü ayar değeri için). */
+function CopyBtn({ text, t }) {
+  const [ok, setOk] = useState(false);
+  return (
+    <button className="act" style={{ fontSize: 10, padding: "1px 6px" }}
+      onClick={() => {
+        try {
+          navigator.clipboard?.writeText(text);
+          setOk(true);
+          setTimeout(() => setOk(false), 1500);
+        } catch { /* pano yok (izin/eski tarayıcı) — değer zaten ekranda yazılı */ }
+      }}>{ok ? `✓ ${t("kopyalandı")}` : `⧉ ${t("kopyala")}`}</button>
   );
 }
 

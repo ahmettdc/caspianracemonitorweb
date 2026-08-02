@@ -709,6 +709,14 @@ export const EN = {
   "aktif sürücü canlıyı yazıyor": "the active driver is writing live data",
   "Canlı kaynak": "Live source",
 
+  /* eklenti buffer performans uyarısı (v1.4.97) */
+  "Oyun eklentisi saniyede": "The game plugin writes",
+  "kez bu uygulamanın okumadığı veriyi yazıyor": "times per second of data this app never reads",
+  "bu, oyunda takılmaya yol açar.": "which causes in-game stutter.",
+  "Oyunu kapatıp değiştir, sonra aç. Diğer araçların bu veriye ihtiyaç duyabilir — en güvenli değerle başla.":
+    "Close the game, change it, then start again. Your other tools may need this data — start with the safest value.",
+  "kopyala": "copy", "kopyalandı": "copied",
+
   /* pist haritası pit/pano (v1.4.96) */
   "Sen": "You",
   "Pit giriş/çıkış": "Pit in/out",

@@ -131,6 +131,56 @@ def cmd_dump(mock):
           f"own={'var' if own else 'yok'} · session alanları: {list(payload['session'])}")
 
 
+def cmd_check_plugin():
+    """PERFORMANS teşhisi — oyun eklentisinin hangi buffer'ları yazdığını göster.
+
+    Neden: paylaşımlı bellek OKUMASI ucuzdur (kare başına ~0.3 MB); asıl yük eklentinin
+    OYUN İÇİNDE yazdığı buffer'lardır (FFB+Graphics saniyede 400'er kez). Biz yalnız
+    Telemetry+Scoring+Extended okuduğumuz için gerisi boşa gider. Firebase/config
+    gerektirmez; hiçbir dosyaya YAZMAZ."""
+    from plugin_cfg import find_lmu_root, read_plugin_cfg, buffer_advice, cfg_path
+    exe = None
+    try:
+        import psutil
+        for p in psutil.process_iter(["name", "exe"]):
+            nm = (p.info.get("name") or "").lower()
+            if "le mans ultimate" in nm or nm.startswith("rfactor2"):
+                exe = p.info.get("exe")
+                print(f"[oyun] çalışıyor: {exe}")
+                break
+    except Exception:
+        pass
+    root = find_lmu_root(exe)
+    if not root:
+        print("[kurulum] LMU klasörü bulunamadı (oyun kapalı ve yol standart değil).")
+        print("          Ayar dosyası: <LMU>\\UserData\\player\\CustomPluginVariables.JSON")
+        return
+    print(f"[kurulum] {root}")
+    cfg = read_plugin_cfg(root)
+    if not cfg:
+        print(f"[ayar] okunamadı: {cfg_path(root)} (dosya yok ya da bozuk)")
+        return
+    print(f"[ayar] {cfg['path']}")
+    print(f"[eklenti] Enabled = {cfg['enabled']}"
+          + ("  ⚠ 0/None ise oyun eklentiyi hiç yüklemez" if not cfg["enabled"] else ""))
+    adv = buffer_advice(cfg["mask"])
+    print(f"[maske] UnsubscribedBuffersMask = {cfg['mask']}  (0 = hiçbiri kapalı değil)")
+    print(f"[yazılan] {', '.join(adv['on']) or '—'}")
+    if adv["wasted"]:
+        print(f"[BOŞA] {', '.join(adv['wasted'])} → saniyede ~{adv['wastedFps']} "
+              "gereksiz yazım (bu uygulama bunları okumuyor)")
+    else:
+        print("[BOŞA] yok — ayar bu uygulama için ideal")
+    if adv["suggest"] is not None:
+        print("\nÖnerilen kademeler (oyunu KAPAT, JSON'da değiştir, aç):")
+        for st in adv["steps"]:
+            mark = "→" if st["value"] == adv["suggest"] else " "
+            print(f"  {mark} UnsubscribedBuffersMask: {st['value']:>3}  {st['label']}")
+            print(f"      risk: {st['risk']}")
+        print("\nDiğer araçların (CrewChief/SimHub/TinyPedal) da açık olduğunu unutma —"
+              "\nen güvenli değerle başla, sorun çıkmazsa bir üst kademeye geç.")
+
+
 def cmd_dump_wx(mock):
     """HAVA DOĞRULAMA modu — Firebase'e dokunmaz, sürekli çalışır (Ctrl+C ile çık).
 
@@ -316,6 +366,8 @@ def main():
     ap.add_argument("--dump", action="store_true", help="Bir örnek oku, JSON bas (yazmaz)")
     ap.add_argument("--dump-wx", action="store_true", dest="dump_wx",
                     help="Hava doğrulama: oyunun gökyüzü sözlüğü + canlı ıslaklık/yağış")
+    ap.add_argument("--check-plugin", action="store_true", dest="check_plugin",
+                    help="PERFORMANS: eklenti hangi buffer'ları yazıyor + önerilen maske")
     ap.add_argument("--emit", action="store_true",
                     help="Sidecar: her kareyi stdout'a JSON satırı bas (Firebase'e yazmaz)")
     ap.add_argument("--hz", type=float, default=2.0, help="--emit gönderim hızı (varsayılan 2)")
@@ -332,6 +384,9 @@ def main():
             return
         if args.dump_wx:                  # hava sözlüğü + canlı yüzdeler (doğrulama)
             cmd_dump_wx(args.mock)
+            return
+        if args.check_plugin:             # performans teşhisi — yalnız OKUR
+            cmd_check_plugin()
             return
         if args.selftest:
             sys.exit(cmd_selftest(read_config_or_die(args.config)))

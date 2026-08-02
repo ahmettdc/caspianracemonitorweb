@@ -306,6 +306,50 @@ class RF2Source:
             self.lmu = LmuApi()
         except Exception:
             self.lmu = None
+        # Eklenti buffer ayarı (performans teşhisi) — DOSYA okuması pahalıdır, bu yüzden
+        # başlangıçta bir kez + PLUGIN_CFG_EVERY sn'de bir; asla kare başına değil.
+        self.plugin = None
+        self.plugin_at = 0.0
+
+    #: eklenti ayarını yeniden okuma aralığı (sn) — kullanıcı oyun kapalıyken düzeltir,
+    #: uyarının kaybolması için dakikada bir tazelemek yeterli.
+    PLUGIN_CFG_EVERY = 60.0
+
+    def _plugin_diag(self):
+        """{ enabled, mask, wasted, wastedFps, suggest } ya da None. Oyunun eklentisi
+        bizim OKUMADIĞIMIZ buffer'ları (FFB/Graphics 400 FPS!) hâlâ yazıyorsa arayüz
+        bunu söyleyip doğru `UnsubscribedBuffersMask` değerini önerir. Ayar dosyasına
+        YAZILMAZ — yalnız okunur (başka araçların ihtiyacını biz bilemeyiz)."""
+        now = time.time()
+        # Kontrol YALNIZ zamana bakar: sonuç None olsa da (ayar okunamadı) 60 sn beklenir.
+        # Aksi halde başarısız okuma HER KAREDE psutil.process_iter çalıştırırdı —
+        # düzeltmeye çalıştığımız sorunun aynısı.
+        if self.plugin_at and now - self.plugin_at < self.PLUGIN_CFG_EVERY:
+            return self.plugin
+        self.plugin_at = now
+        try:
+            from plugin_cfg import find_lmu_root, read_plugin_cfg, buffer_advice
+            exe = None
+            try:    # çalışan oyunun exe yolu → kurulum kökü (en güvenilir yol)
+                import psutil
+                for p in psutil.process_iter(["name", "exe"]):
+                    nm = (p.info.get("name") or "").lower()
+                    if "le mans ultimate" in nm or nm.startswith("rfactor2"):
+                        exe = p.info.get("exe")
+                        break
+            except Exception:
+                exe = None
+            cfg = read_plugin_cfg(find_lmu_root(exe))
+            if not cfg:
+                self.plugin = None
+                return None
+            adv = buffer_advice(cfg.get("mask"))
+            self.plugin = {"enabled": cfg.get("enabled"), "mask": adv["mask"],
+                           "wasted": adv["wasted"], "wastedFps": adv["wastedFps"],
+                           "suggest": adv["suggest"]}
+        except Exception:
+            self.plugin = None
+        return self.plugin
 
     def close(self):
         try:
@@ -701,6 +745,10 @@ class RF2Source:
         # Saha boşken bekleme NEDENİ — UI mesaj seçimi (noplugin/menu/novehicles).
         if not field:
             diag["wait"] = _wait_reason(bool(shm_ver), track_loaded, num)
+        # Eklenti buffer yükü (performans) — dakikada bir okunur, kare maliyeti yok.
+        pl = self._plugin_diag()
+        if pl:
+            diag["plugin"] = pl
         return {"session": session, "own": own, "field": field, "_diag": diag}
 
 
