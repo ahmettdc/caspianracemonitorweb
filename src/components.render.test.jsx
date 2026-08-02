@@ -1,8 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
-  VersionModal, RaceEditModal, ChatModal, SetupModal, TeamModal,
+  VersionModal, RaceEditModal, ChatModal, SetupModal, TeamModal, TourOverlay,
 } from "./components.jsx";
+import { buildTourSteps } from "./tourSteps";
 
 /* Smoke-render testleri — App.jsx'ten çıkarılan modal bileşenlerini SAHTE prop'larla
    render eder ve çökmediğini (eksik prop / tanımsız referans) doğrular. Render bölmenin
@@ -80,5 +81,32 @@ describe("modal bileşenleri: kapalı halde null döner (render yok)", () => {
       suList={[]} setups={[]} suFTrack="" setSuFTrack={noop} suFCond="" setSuFCond={noop}
       suFSess="" setSuFSess={noop} setupForm={() => null} setupTable={() => null} />)).toBe("");
     expect(render(<TeamModal open={false} onClose={noop} user={null} t={t} />)).toBe("");
+  });
+});
+
+/* Rehber turu — gerçek adım listesiyle çökmeden render olmalı (v1.4.85 sağlamlaştırma).
+   renderToStaticMarkup effect çalıştırmaz; querySelector için minik document stub'ı yeter. */
+describe("TourOverlay", () => {
+  globalThis.document ??= { querySelector: () => null };
+  globalThis.window ??= { innerWidth: 1280, innerHeight: 800 };
+
+  const steps = buildTourSteps("main", {
+    t, setTab: noop, setSideOpen: noop, setTourDemo: noop });
+
+  it("ilk adımı, sayacı ve ilerleme çubuğunu basar", () => {
+    const html = render(<TourOverlay steps={steps} onClose={noop} lang="tr" />);
+    expect(html).toContain("tourcard");
+    expect(html).toContain("tourbar");             // yeni ilerleme çubuğu
+    expect(html).toContain('role="dialog"');       // erişilebilirlik
+    expect(html).toContain("İleri");
+    /* Hedefi DOM'da olmayan (act'siz) adımlar elenir; act'li + sel'siz adımlar kalır.
+       Stub querySelector null döndüğü için beklenen sayı budur. */
+    const kept = steps.filter((s) => !s.sel || s.act).length;
+    expect(html).toContain(`1 / ${kept}`);
+    expect(kept).toBeGreaterThan(0);
+  });
+
+  it("adım kalmayınca (boş liste) render etmez", () => {
+    expect(render(<TourOverlay steps={[]} onClose={noop} lang="tr" />)).toBe("");
   });
 });

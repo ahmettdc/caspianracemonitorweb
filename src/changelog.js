@@ -5,6 +5,22 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.85",
+    date: "2026-08-02",
+    tr: [
+      "🎓 Rehber turu komple elden geçirildi. En büyük eksik kapandı: Canlı Timing artık rehberde — 9 adımda köprü/veri kaynağı, seans şeridi, Kendi Araç, pist haritası + strateji, saha tablosu, tur geçmişi (+), pozisyon grafiği ve Büyük Pano anlatılıyor. Rehber bu adımlarda 🎬 Demo'yu kendisi açıyor: oyun ya da köprü olmadan ekranı dolu görüp öğreniyorsun, tur bitince demo kapanıyor.",
+      "🎓 Canlı sekmesine kendi 🎓 düğmesi eklendi — sadece Canlı Timing bölümünü (9 adım) baştan izleyebilirsin.",
+      "📖 Yeni özellikler rehbere işlendi: 🏠 Ana Menü, yetki kutucuğu ve rol modeli, canlı↔stint senkronu (oto-PIT, saat hizalama, hava/AVG önerileri), setup yükleme/silme kuralları.",
+      "🔧 Rehber mekaniği sağlamlaştırıldı: adım sayacı (n/N) artık sekme değişince zıplamıyor, balonun dışına tıklamak turu kazara kapatmıyor (Geç/Esc/Bitti ile çıkılır), son adımda Enter turu bitiriyor, ilerleme çubuğu eklendi, klavye odağı ve ekran okuyucu desteği geldi, hareket azaltma tercihine uyuluyor.",
+    ],
+    en: [
+      "🎓 The guided tour was completely reworked. The biggest gap is closed: Live Timing is now in the guide — 9 steps covering the bridge/data source, session strip, Own Car, track map + strategy, field table, lap history (+), position chart and Big Board. The guide switches 🎬 Demo on for these steps, so you learn on a full screen without the game or the bridge; demo turns off when the tour ends.",
+      "🎓 The Live tab got its own 🎓 button — replay just the Live Timing section (9 steps) any time.",
+      "📖 Recent features added to the guide: 🏠 Main Menu, the permission box and role model, live↔stint sync (auto-PIT, clock alignment, weather/AVG suggestions), and the setup upload/delete rules.",
+      "🔧 Tour mechanics hardened: the step counter (n/N) no longer jumps when tabs change, clicking outside the bubble no longer ends the tour by accident (use Skip/Esc/Done), Enter finishes on the last step, a progress bar was added, keyboard focus and screen-reader support landed, and the reduced-motion preference is respected.",
+    ],
+  },
+  {
     v: "v1.4.84",
     date: "2026-08-02",
     tr: [

@@ -1,6 +1,6 @@
 /* Sunum komponentleri — durum tutmayan görsel parçalar.
    App.jsx içe aktarır. */
-import { useState, useEffect, Fragment } from "react";
+import { useState, useEffect, useRef, Fragment } from "react";
 import {
   ASSET, quantile, TRACKS, trackFlag, TRACK_ASSET,
   CAR_CLASSES, CARS, trackName, carImg, carName,
@@ -68,17 +68,26 @@ export function ChatPanel({
 export function TourOverlay({ steps, onClose, lang }) {
   const [idx, setIdx] = useState(0);
   const [rect, setRect] = useState(null);
-  /* act'li adımlar hedefi render eder (sekme açar) — DOM'da olmasa da tutulur */
-  const live = steps.filter((st2) => !st2.sel || st2.act || document.querySelector(st2.sel));
-  const step = live[idx];
+  const nextRef = useRef(null);
+  /* Adım listesi BİR KEZ süzülür (mount'ta), her render'da değil.
+     Eskiden her render'da document.querySelector ile süzülüyordu: act() sekme
+     değiştirince koşullu hedefler (pitboard/pdf/tabs) listeye girip çıkıyor,
+     "n / N" sayacı zıplıyor ve idx başka bir adıma denk gelebiliyordu.
+     act'li adımlar hedefi kendisi render eder → DOM'da olmasa da tutulur. */
+  const [live] = useState(() =>
+    steps.filter((st2) => !st2.sel || st2.act || document.querySelector(st2.sel)));
+  const safeIdx = Math.min(idx, Math.max(0, live.length - 1));
+  const step = live[safeIdx];
 
   useEffect(() => {
     if (!step) return undefined;
-    if (step.act) step.act();                       // sekmeyi aç
+    if (step.act) step.act();                       // sekmeyi aç / demoyu aç
+    /* hareket azaltma tercihi: yumuşak kaydırma yerine anında */
+    const smooth = !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     let el = null;
     const measure = () => {
       el = step.sel ? document.querySelector(step.sel) : null;
-      if (el) el.scrollIntoView({ block: "center", behavior: "smooth" });
+      if (el) el.scrollIntoView({ block: "center", behavior: smooth ? "smooth" : "auto" });
       if (!el) { setRect(null); return; }
       const r = el.getBoundingClientRect();
       setRect({ x: r.left - 8, y: r.top - 8, w: r.width + 16, h: r.height + 16 });
@@ -95,20 +104,28 @@ export function TourOverlay({ steps, onClose, lang }) {
     return () => { clearTimeout(t0); clearTimeout(t1);
       window.removeEventListener("resize", remeasure);
       window.removeEventListener("scroll", remeasure, true); };
-  }, [idx, step]);
+  }, [safeIdx, step]);
+
+  /* adım değişince "İleri" düğmesine odak → klavye ve ekran okuyucu takip eder */
+  useEffect(() => { nextRef.current?.focus(); }, [safeIdx]);
 
   useEffect(() => {
     const k = (e) => {
       if (e.key === "Escape") onClose();
-      if (e.key === "ArrowRight" || e.key === "Enter") setIdx((i) => Math.min(i + 1, live.length - 1));
+      /* son adımda İleri/Enter turu BİTİRİR (eskiden clamp'lenip takılıyordu) */
+      if (e.key === "ArrowRight" || e.key === "Enter") {
+        setIdx((i) => (i >= live.length - 1 ? (onClose(), i) : i + 1));
+      }
       if (e.key === "ArrowLeft") setIdx((i) => Math.max(i - 1, 0));
     };
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
   }, [live.length, onClose]);
 
-  if (!step) { onClose(); return null; }
-  const last = idx === live.length - 1;
+  /* adım kalmadıysa render sırasında değil, effect'te kapat (React anti-pattern'i giderir) */
+  useEffect(() => { if (!step) onClose(); }, [step, onClose]);
+  if (!step) return null;
+  const last = safeIdx === live.length - 1;
   const vw = window.innerWidth, vh = window.innerHeight;
   /* balon konumu: hedefin altına; sığmazsa üstüne; hedef yoksa ortaya */
   const CW = Math.min(360, vw - 24);
@@ -118,24 +135,28 @@ export function TourOverlay({ steps, onClose, lang }) {
     cy = rect.y + rect.h + 14;
     if (cy > vh - 190) cy = Math.max(12, rect.y - 178);
   }
+  /* NOT: sarmalayıcıya onClick={onClose} YOK — balon dışına değen tık 20 adımlık
+     turu kazara bitiriyordu. Çıkış yalnız Geç / Esc / Bitti ile. */
   return (
-    <div className="tourwrap" onClick={onClose}>
+    <div className="tourwrap" role="dialog" aria-modal="true" aria-labelledby="tourttl">
       {rect && <div className="tourhole" style={{
         left: rect.x, top: rect.y, width: rect.w, height: rect.h }} />}
       {!rect && <div className="tourdim" />}
-      <div className="tourcard" style={{ left: cx, top: cy, width: CW }}
-        onClick={(e) => e.stopPropagation()}>
-        <div className="tourstep">{idx + 1} / {live.length}</div>
-        <h3>{step.title}</h3>
+      <div className="tourcard" style={{ left: cx, top: cy, width: CW }}>
+        <div className="tourstep">{safeIdx + 1} / {live.length}</div>
+        <div className="tourbar" aria-hidden="true">
+          <i style={{ width: `${((safeIdx + 1) / live.length) * 100}%` }} />
+        </div>
+        <h3 id="tourttl">{step.title}</h3>
         <p>{step.body}</p>
         <div className="tourbtns">
           <button className="histbtn" onClick={onClose}>
             {lang === "en" ? "Skip" : "Geç"}</button>
           <span style={{ flex: 1 }} />
-          {idx > 0 && <button className="histbtn"
-            onClick={() => setIdx(idx - 1)}>←</button>}
-          <button className="gbtn ubtn"
-            onClick={() => (last ? onClose() : setIdx(idx + 1))}>
+          {safeIdx > 0 && <button className="histbtn"
+            onClick={() => setIdx(safeIdx - 1)}>←</button>}
+          <button className="gbtn ubtn" ref={nextRef}
+            onClick={() => (last ? onClose() : setIdx(safeIdx + 1))}>
             {last ? (lang === "en" ? "Done ✓" : "Bitti ✓")
               : (lang === "en" ? "Next →" : "İleri →")}</button>
         </div>

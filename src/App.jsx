@@ -41,6 +41,7 @@ import {
   computeLiveInfo, buildTimeline,
   applyMarkPit, applyUnmarkPit, applyResetPits,
 } from "./state";
+import { buildTourSteps } from "./tourSteps";
 import {
   TourOverlay, Wheel, Num, Bolt, Tyre, Ring,
   BADGES, teamBadgesOf, hasBadge, ChatPanel, SetupForm, SetupTable, VersionModal, RaceEditModal,
@@ -645,7 +646,9 @@ ${bottomBar}
     useLiveSync({ live, st, liveInfo, up, markPit, canEdit, user });
   /* ---- sohbet: genel / takım / yarış kanalları ---- */
   /* ---- rehber turu ---- */
-  const [tour, setTour] = useState(null);            // "lobby" | "main" | null
+  const [tour, setTour] = useState(null);            // "lobby" | "main" | "live" | null
+  /* rehber Canlı adımlarındayken demoyu açar (LiveTab'e prop) — tur kapanınca sıfırlanır */
+  const [tourDemo, setTourDemo] = useState(false);
   const TOUR_L = "rm_tour_lobby", TOUR_M = "rm_tour_main";
   const seenTour = (k) => { try { return localStorage.getItem(k) === "1"; } catch { return true; } };
   const markTour = (k) => { try { localStorage.setItem(k, "1"); } catch { /* yoksay */ } };
@@ -817,89 +820,19 @@ ${bottomBar}
   }, [curRace]);
 
   const closeTour = () => {
-    markTour(tour === "lobby" ? TOUR_L : TOUR_M);
+    /* "live" bölümü elle başlatılır (Canlı sekmesindeki 🎓) → otomatik-başlatma
+       damgasını bozmasın; yalnız lobi/ana tur damgalanır. */
+    if (tour === "lobby") markTour(TOUR_L);
+    else if (tour === "main") markTour(TOUR_M);
+    setTourDemo(false);          // rehberin açtığı demoyu kapat
     setTour(null);
   };
 
-  const tourSteps = tour === "lobby" ? [
-    { title: t("Race Monitor'a hoş geldin! 🏁"),
-      body: t("Bu araç, LMU endurance yarışlarında pit wall'unuz: stint planı, yakıt, lastik ve canlı takip. 1 dakikada temel akışı gösterelim.") },
-    { sel: "[data-tour='races']", title: t("Yarış Takvimi"),
-      body: t("Takımının yaklaşan yarışları burada, şampiyonaya göre gruplu. Bir yarışa tıkla — pist, araç ve süre önceden hazır, direkt pit wall açılır.") },
-    { sel: "[data-tour='manage']", title: t("Takvimi & Takımı Yönet"),
-      body: t("Sezon ve yarış eklemek, üyeleri ve rozetleri yönetmek burada. 🎧 Mühendis rozeti datayı değiştirebilir, sürücüler yalnızca görür.") },
-    { sel: "[data-tour='chat']", title: t("Sohbet"),
-      body: t("🌍 Genel ve 🏢 Takım kanalları burada. Yarış açıkken ayrıca yarışa özel bir sohbet sekmesi belirir.") },
-    { sel: "[data-tour='info']", title: t("Neler değişti"),
-      body: t("Uygulama sık güncellenir — yeni sürümde kırmızı nokta belirir, notları buradan okursun. Rehberi de buradan yeniden başlatabilirsin.") },
-  ] : [
-    { title: t("Pit Wall'a hoş geldin"),
-      body: t("Soldaki panel yarışın datası, sağı canlı plan. Kısaca gezelim — her şeyi değiştirdiğin anda takım arkadaşların da görür.") },
-    /* --- üst çubuk --- */
-    { sel: "[data-tour='hteam']", title: t("Takım düğmesi"),
-      body: t("Takvimi ve üyeleri yönetmek her an buradan — yarışın ortasında bile. Rozetler de burada atanır.") },
-    { sel: "[data-tour='hchat']", title: t("Sohbet düğmesi"),
-      body: t("Genel ve takım kanalları. Okunmamış mesaj varsa üzerinde kırmızı sayı belirir.") },
-    { sel: "[data-tour='uchip']", title: t("Profilin ve rozetlerin"),
-      body: t("Yanındaki simgeler yetkini gösterir: 👑 Takım Sahibi yönetir, 🎧 Yarış Mühendisi datayı değiştirir, direksiyon (Sürücü) yalnızca izler, 🛡 Admin her şeye erişir. Adına tıklayıp profili düzenlersin; ⏻ çıkış yapar.") },
-    { sel: "[data-tour='data']", act: () => setSideOpen(true),
-      title: t("Yarış · Data"),
-      body: t("Yarış süresi, ortalama tur, tüketim ve A/B/C/D stint stratejileri. Tüm plan bu değerlerden hesaplanır; telemetriden tek tıkla doldurabilirsin.") },
-    { sel: "[data-tour='wx']", act: () => setSideOpen(true),
-      title: t("Hava Durumu"),
-      body: t("Zemin değişince buradan işaretle — plan tur tur karma havayı hesaplar. İleri saatli planlı geçiş de ekleyebilirsin.") },
-    { sel: "[data-tour='rstart']", act: () => setSideOpen(true),
-      title: t("Yarış Başlangıcı"),
-      body: t("Start tarih-saatini gir — geri sayım ve canlı stint takibi buna göre çalışır. Saat her üyeye kendi saat diliminde gösterilir.") },
-    { sel: "[data-tour='pittimes']", act: () => setSideOpen(true),
-      title: t("Pit · Süreler"),
-      body: t("Pit lane geçişi ve tam depo dolum süresi. Dolum, alınan VE yüzdesine ölçeklenir; lastik süreleri LMU sabitleridir (1-2 lastik 5s, 3-4 lastik 12s).") },
-    { sel: "[data-tour='ve']", act: () => setSideOpen(true),
-      title: t("Virtual Energy"),
-      body: t("LMU'da depo daima %100 VE'dir. Ratio, VE'nin kaç litreye denk geldiğini söyler — tüm yakıt hesapları bu orandan litreye çevrilir.") },
-    { sel: "[data-tour='stream']", act: () => setSideOpen(true),
-      title: t("Canlı Yayın"),
-      body: t("YouTube linkini yapıştır — köşede yüzen mini oynatıcı açılır. Sekme değiştirsen de akmaya devam eder; köşesinden tutup boyutlandırabilirsin.") },
-    { sel: "[data-tour='tabs']", title: t("Sekmeler"),
-      body: t("Şimdi sekmeleri tek tek gezelim — rehber her birini senin için açacak.") },
-    /* --- Dashboard --- */
-    { sel: "[data-tour='dash-prog']", act: () => setTab("dash"),
-      title: t("📊 Dashboard — Stint Programı"),
-      body: t("Planın özeti: her stintin bitiş saati, kalan süre ve pilotu. Yarış başlayınca satırlar canlı ilerler.") },
-    { sel: "[data-tour='dash-lsf']", act: () => setTab("dash"),
-      title: t("Son Stint VE"),
-      body: t("Yarış sonuna kalan süreye göre son dolumda alınması gereken VE yüzdesi — extra lap ve bayrak payı dahil. Pit'te mühendisin baktığı tek sayı budur.") },
-    /* --- Stint --- */
-    { sel: "[data-tour='s1']", act: () => setTab("stint"),
-      title: t("📋 Stint — Önce start lastiği"),
-      body: t("S1 lastiklerini buradan seç — pit'lerdeki lastik seçimleri buna zincirlenir. Tekli, ikili ve dörtlü hızlı seçenekler hazır.") },
-    { sel: "[data-tour='stinttable']", act: () => setTab("stint"),
-      title: t("Stint Tablosu"),
-      body: t("Her satır bir stint: tur, VE ihtiyacı, pit ayarı, pilot. Ort. Tur sütununa değer yazarsan o stint o tempoyla hesaplanır (hava çarpanı uygulanmaz); Override süreyi kilitler.") },
-    /* --- Son Stint Yakıtı --- */
-    { sel: "[data-tour='fuelcalc']", act: () => setTab("fuel"),
-      title: t("⚡ Son Stint Hesaplayıcı"),
-      body: t("Yarış sonu geri sayımını gir (canlıda otomatik) — kalan tur ve gereken VE hesaplanır. Ondalık tur yukarı yuvarlanır, trafik payı için.") },
-    /* --- Lastik --- */
-    { sel: "[data-tour='setuptab']", act: () => setTab("setup"),
-      title: t("🔧 Setup Havuzu"),
-      body: t("Takımın setup arşivi: dosyayı pist, koşul, seans ve araç bilgisiyle yükle — herkes süzüp indirebilir. Aktif yarışın pisti vurgulanır.") },
-    { sel: "[data-tour='tyrecard']", act: () => setTab("tyre"),
-      title: t("Lastik Stratejisi"),
-      body: t("Limit sayacı, stint bazlı köşe tablosu ve hızlı atama. Wet lastikler limitten düşmez; siyah kutu eski kuru lastiği geri takar.") },
-    /* --- Pilotlar --- */
-    { sel: "[data-tour='roster']", act: () => setTab("drivers"),
-      title: t("Pilot Kadrosu"),
-      body: t("Kadroyu elle yaz ya da takım üyelerinden tek tıkla ekle. Stintlere atadıkça toplam sürüş süresi ve yüzde dağılımı hesaplanır.") },
-    /* --- Telemetri --- */
-    { sel: "[data-tour='teleimport']", act: () => setTab("tele"),
-      title: t("📈 Telemetri"),
-      body: t("MoTeC dosyanı bırak — tur raporu da ham kanal log'u da okunur. %105 kuralı yavaş turları otomatik eler, medyan tur tek tıkla DATA'ya yazılır.") },
-    { sel: "[data-tour='pitboard']", title: t("Pit Board"),
-      body: t("Yarış canlıyken tam ekran pit board: geri sayım, sıradaki pit ve PIT YAPILDI butonu. Gerçek pitler plana işlenir, sapma görünür.") },
-    { sel: "[data-tour='pdf']", title: t("PDF çıktısı"),
-      body: t("Stint programını takıma dağıtmak için tek tık — başlık sezon ve yarış adından otomatik gelir. Bu kadar! İyi yarışlar. 🏁") },
-  ];
+  /* Adım listesi ./tourSteps.js'te (saf + test edilebilir). "live" bölümü demoyu
+     açar → Canlı ekranı veri olmadan da dolu görünür, adımların hedefi oluşur. */
+  const tourSteps = useMemo(
+    () => (tour ? buildTourSteps(tour, { t, setTab, setSideOpen, setTourDemo }) : []),
+    [tour, lang]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const tourOverlay = tour && (
     <TourOverlay steps={tourSteps} onClose={closeTour} lang={lang} />
@@ -1825,7 +1758,8 @@ ${bottomBar}
         {infoBtn}
         {/* Ana Menü: yarıştayken her zaman görünür (teambar katlansa da) → takvim/lobiye dön */}
         {curRace && (
-          <button className="adminbtn" onClick={leaveRace} title={t("Ana menüye dön")}>
+          <button className="adminbtn" data-tour="home" onClick={leaveRace}
+            title={t("Ana menüye dön")}>
             🏠 {t("Ana Menü")}
           </button>
         )}
@@ -2243,7 +2177,8 @@ ${bottomBar}
           </>)}
 
           {tab === "live" && <LiveTab t={t} live={live} liveFuelObs={liveFuelObs}
-            bridge={bridge} canEdit={canEditTeam} tid={curTeam} rid={curRace} />}
+            bridge={bridge} canEdit={canEditTeam} tid={curTeam} rid={curRace}
+            tourDemo={tourDemo} onGuide={() => setTour("live")} />}
 
           {tab === "tyre" && (
             <TyreTab t={t} st={st} up={up} tyreInfo={tyreInfo} racePlan={racePlan}

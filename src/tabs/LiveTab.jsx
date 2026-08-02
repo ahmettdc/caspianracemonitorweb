@@ -521,7 +521,8 @@ function WxCalib({ t, s }) {
   );
 }
 
-export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelObs, tid, rid }) {
+export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelObs, tid, rid,
+  tourDemo, onGuide }) {
   const [myClassOnly, setMyClassOnly] = useState(false);
   const [big, setBig] = useState(false);
   const [lapsFor, setLapsFor] = useState(null);   // "+" ile açılan tur listesi satırı
@@ -529,21 +530,30 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
   // DEMO: yerel sahte veri (oyun/köprü/Firebase gerekmez) — UI düzenlemek için
   const [demo, setDemo] = useState(false);
   const [demoData, setDemoData] = useState(null);
+  /* tourDemo: rehber turu Canlı adımlarında demoyu geçici açar — veri yokken
+     tablo/harita DOM'da olmadığı için adımların vurgulayacağı hedef kalmıyordu.
+     Prop verilmezse davranış birebir eskisi gibi (yalnız kendi 🎬 düğmesi). */
+  const demoOn = demo || !!tourDemo;
   useEffect(() => {
-    if (!demo) { setDemoData(null); return undefined; }
+    if (!demoOn) { setDemoData(null); return undefined; }
     const t0 = Date.now();
     const tick = () => setDemoData(demoLive((Date.now() - t0) / 1000));
     tick();
     const id = setInterval(tick, 500);
     return () => clearInterval(id);
-  }, [demo]);
-  const live = demo ? demoData : liveProp;
+  }, [demoOn]);
+  const live = demoOn ? demoData : liveProp;
   const demoBtn = (
-    <button className={`act${demo ? " on" : ""}`}
+    <button className={`act${demo ? " on" : ""}`} data-tour="livedemo"
       onClick={() => setDemo((v) => !v)}
       style={{ fontSize: 11, padding: "3px 10px",
         ...(demo && { borderColor: "var(--yellow)", color: "var(--yellow)" }) }}>
       🎬 {demo ? t("Demo kapat") : t("Demo")}</button>
+  );
+  /* yalnız Canlı bölümünü anlatan kısa rehber (9 adım) — App setTour("live") yapar */
+  const guideBtn = onGuide && (
+    <button className="act" style={{ fontSize: 11, padding: "3px 10px" }}
+      onClick={onGuide} title={t("Canlı Timing rehberi")}>🎓</button>
   );
   const rootRef = useRef(null);
   const posRef = useRef({});   // sürücü → son pozisyon
@@ -600,7 +610,8 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
           <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             📡 {t("Canlı Timing")}
             {staleOff && <span className="livebadge off"><i /> {t("çevrimdışı")}</span>}
-            <span style={{ marginLeft: "auto" }}>{demoBtn}</span></h2>
+            <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+              {guideBtn}{demoBtn}</span></h2>
           <div className="hint" style={{ lineHeight: 1.7 }}>
             {staleOff
               ? <>⚠ {t("Canlı veri akışı durdu")} — {t("son veri")} {ageTxt} {t("önce")}.{" "}
@@ -665,17 +676,19 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
       <div className="card" style={{ marginBottom: 12 }}>
         <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           📡 {t("Canlı Timing")}
-          <span className={`livebadge ${conn.cls}`}>
+          <span className={`livebadge ${conn.cls}`} data-tour="liveconn">
             <i /> {t(conn.lbl)} · {ageSec}s</span>
           <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+            {!big && guideBtn}
             {demoBtn}
             {document.fullscreenEnabled && (
-              <button className="act" style={{ fontSize: 11, padding: "3px 10px" }}
+              <button className="act" data-tour="livebig"
+                style={{ fontSize: 11, padding: "3px 10px" }}
                 onClick={toggleBig}>{big ? t("✕ Küçült") : t("⛶ Büyük Pano")}</button>
             )}
           </span>
         </h2>
-        <div className="kpis" style={{ marginBottom: 0 }}>
+        <div className="kpis" data-tour="livesession" style={{ marginBottom: 0 }}>
           <div className="kpi"><div className="v disp">{s.sessionType ? t(s.sessionType) : "—"}</div>
             <div className="l">{t("Seans")}</div></div>
           <div className="kpi"><div className="v disp" style={{
@@ -746,7 +759,7 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
         )}
       </div>
 
-      <div className="card">
+      <div className="card" data-tour="livefield">
         <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           🏁 {t("Saha")} ({shown.length})
           {playerClass && (
@@ -835,6 +848,8 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
                         {c.lapsDone > 0 && c.lapKey && (
                           <button className="act" title={t("Tur zamanları")}
                             aria-label={t("Tur zamanları")}
+                            /* rehber turu ilk satırın "+"ını vurgular */
+                            data-tour={shown[0]?.c === c ? "livelapsbtn" : undefined}
                             style={{ fontSize: 14, lineHeight: 1, padding: "1px 8px" }}
                             onClick={() => setLapsFor(c)}>+</button>
                         )}

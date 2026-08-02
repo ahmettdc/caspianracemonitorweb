@@ -367,6 +367,50 @@ export const EN = {
   "Başlangıç (yerel saat)": "Start (local time)",
   "Sınıf": "Class",
   "Tümü": "All",
+  /* --- rehber turu (v1.4.85): yeni + güncellenen adımlar --- */
+  "🏠 Ana Menü": "🏠 Main Menu",
+  "Yarıştan takvime dönmek için — takım şeridi katlı olsa bile bu düğme hep görünür. Planın kaydedilir, istediğin an geri girersin.":
+    "Takes you from the race back to the calendar — this button stays visible even when the team bar is collapsed. Your plan is saved; you can jump back in any time.",
+  "Yetkin yoksa ne olur?": "What if you don't have edit rights?",
+  "Yalnız izleme yetkin varsa düzenleme alanları soluk görünür; yine de bir şeyi değiştirmeye kalkarsan ekranın altında 🔒 'yetkiniz yok' kutucuğu çıkar. Düzenleme için Takım Sahibinden 🎧 Yarış Mühendisi rozeti iste.":
+    "If you only have view access the editing controls look dimmed; if you still try to change something, a 🔒 'no permission' box appears at the bottom of the screen. Ask the Team Owner for the 🎧 Race Engineer badge to get editing rights.",
+  "Zemin değişince buradan işaretle — plan tur tur karma havayı hesaplar. İleri saatli planlı geçiş de ekleyebilirsin. Canlı veri varken oyunun havasından öneri çipi çıkar, tek tıkla uygulanır.":
+    "Mark it here when the track condition changes — the plan computes mixed weather lap by lap. You can also schedule a future transition. With live data connected, a suggestion chip appears from the game's weather and applies in one click.",
+  "Start tarih-saatini gir — geri sayım ve canlı stint takibi buna göre çalışır. Saat her üyeye kendi saat diliminde gösterilir. Canlı bağlıyken oyunun kalan süresine göre kendini hizalar.":
+    "Enter the start date-time — countdowns and live stint tracking run off it. Each member sees the clock in their own time zone. When live is connected it aligns itself to the game's remaining time.",
+  "Takımın setup arşivi: dosyayı pist, koşul, seans ve araç bilgisiyle yükle — herkes süzüp indirebilir. Yükleme herkese açıktır; silme yalnız adminde. Aktif yarışın pisti vurgulanır.":
+    "Your team's setup archive: upload a file tagged with track, condition, session and car — anyone can filter and download it. Uploading is open to everyone; only admins can delete. The active race's track is highlighted.",
+  "Yarış canlıyken tam ekran pit board: geri sayım, sıradaki pit ve PIT YAPILDI butonu. Gerçek pitler plana işlenir, sapma görünür. Canlı bağlıyken pit'e girdiğin an kendiliğinden işaretlenir (🤖).":
+    "A full-screen pit board while the race is live: countdown, next pit and the PIT DONE button. Real pit stops are written into the plan so you see the deviation. With live connected it marks itself the moment you enter the pits (🤖).",
+  "Stint programını takıma dağıtmak için tek tık — başlık sezon ve yarış adından otomatik gelir.":
+    "One click to hand the stint schedule to the team — the title comes automatically from the season and race name.",
+  "📡 Canlı Timing — ve 🎬 Demo": "📡 Live Timing — and 🎬 Demo",
+  "Oyundan gelen gerçek zamanlı yarış verisi: saha tablosu, pist haritası ve kendi aracın. Rehber şu an Demo'yu açtı — oyun ya da köprü olmadan ekranın nasıl göründüğünü görüyorsun. Demo sahte 14 araç akıtır ve hiçbir şeyi kaydetmez; kapatınca gerçek veriye döner.":
+    "Real-time race data from the game: the field table, the track map and your own car. The guide just switched Demo on — this is how the screen looks without the game or the bridge. Demo streams 14 fake cars and saves nothing; turn it off to go back to real data.",
+  "Veri nereden gelir?": "Where does the data come from?",
+  "Gerçek veri, oyunun çalıştığı PC'deki Masaüstü Uygulamasından gelir: orada 'Canlı Köprü Başlat'a basılır, veri tüm takıma akar. Buradaki rozet tazeliği gösterir — canlı, gecikmeli ya da çevrimdışı. Veri 30 sn durursa ekran tek kutuya iner ki kimse eski tabloyu canlı sanmasın.":
+    "Real data comes from the Desktop App on the PC running the game: you press 'Start Live Bridge' there and the data flows to the whole team. This badge shows freshness — live, delayed or offline. If the data stops for 30 s the screen collapses to a single box so nobody mistakes a stale table for a live one.",
+  "Seans şeridi": "Session strip",
+  "Seans tipi, bayrak/faz, kalan süre, pist ve ortam sıcaklığı, yağmur ile zemin ıslaklığı (oyunun kendi kelimeleriyle) ve 🛞 tutuş tahmini. Bayrak sarıya dönerse hangi sektörlerin sarı olduğu da yazar.":
+    "Session type, flag/phase, time remaining, track and ambient temperature, rain and track wetness (in the game's own wording) plus the 🛞 grip estimate. If the flag turns yellow it also shows which sectors are yellow.",
+  "Yakıt ve VE halkaları, dört köşe lastik (aşınma, iç sıcaklık, basınç), anlık gaz/fren/vites/hız, S1/S2/S3 sektörlerin ve AVG5/AVG/stint süresi. Yakıt tüketimi turlar geçtikçe öğrenilir — 'Son Stint Yakıtı' sekmesinde tek tıkla plana uygulanır.":
+    "Fuel and VE rings, all four tyre corners (wear, inner temperature, pressure), live throttle/brake/gear/speed, your S1/S2/S3 sectors and AVG5/AVG/stint time. Fuel consumption is learned as laps go by — apply it to the plan in one click from the 'Last Stint Fuel' tab.",
+  "Pist Haritası + 🎯 Strateji": "Track Map + 🎯 Strategy",
+  "Araçlar sınıf renginde, içlerinde sınıf-içi sıraları yazılı akar. Pist şekli turlar döndükçe oluşur ve takımca kaydedilir — sonraki girişte hazır gelir. Üstteki strateji şeridi önündeki/arkandaki aracı ve temiz hava penceresini söyler. ⛶ Büyüt ile harita tam ekran açılır.":
+    "Cars move in their class colour with their in-class position written inside. The track shape builds up as laps are run and is saved for the whole team — next time it is there instantly. The strategy strip on top tells you the car ahead/behind and your clear-air window. ⛶ Expand opens the map full screen.",
+  "Saha tablosu": "Field table",
+  "Her araç için sınıf-içi pozisyon, lidere Gap ve öndekine Aralık, tur-altı durumu, son/en iyi tur, lastik (hamur ikonu + en kötü aşınma) ve VE. 'Kendi sınıfım' ile yalnız kendi sınıfını süzersin; Pilot başlığına tıklayınca sütun takım adına döner.":
+    "For every car: in-class position, Gap to the leader and Interval to the car ahead, laps-down status, last/best lap, tyres (compound icon + worst wear) and VE. 'My class' filters down to your own class; clicking the Driver header switches the column to team names.",
+  "Tur geçmişi — satırdaki +": "Lap history — the + on a row",
+  "Bir aracın o ana kadarki tüm turları: süre, S1/S2/S3 sektörleri, o turu kimin sürdüğü (pilot değişimi vurgulanır), o turdaki pist koşulları (asfalt sıcaklığı · tutuş · ıslaklık) ve pit'te alınan lastikler. Yarış boyunca kalıcı birikir.":
+    "Every lap a car has run so far: the time, S1/S2/S3 sectors, who was driving it (driver changes are highlighted), the track conditions at that lap (track temp · grip · wetness) and the tyres taken in the pits. It accumulates and persists through the race.",
+  "Pozisyon grafiği": "Position chart",
+  "Tur tur sıralama değişimi — kimin nerede kazandığı/kaybettiği tek bakışta. Pit turları işaretlidir, böylece sıra düşüşünün pitten mi yoksa tempodan mı olduğu ayırt edilir.":
+    "Lap-by-lap order changes — who gained and lost where, at a glance. Pit laps are marked, so you can tell whether a drop came from a stop or from pace.",
+  "Tüm Canlı sekmesini tam ekran pit duvarı paneline çevirir — masadan uzaktan okunur. Bu kadar! Demo'yu kapatmayı unutma. İyi yarışlar. 🏁":
+    "Turns the whole Live tab into a full-screen pit-wall board — readable from across the desk. That's it! Don't forget to switch Demo off. Have a good race. 🏁",
+  "Canlı Timing rehberi": "Live Timing guide",
+
   /* --- hesap / profil / yetki --- */
   "Bu işlem için yetkiniz yok — düzenleme Yarış Mühendisi/Takım Sahibine açık":
     "You don't have permission for this action — editing is limited to the Race Engineer/Team Owner",
