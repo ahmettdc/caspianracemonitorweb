@@ -319,6 +319,7 @@ export const css = `
 .rc .setuprow:nth-child(even){background:rgba(255,255,255,.03)}
 .rc .setuprow-k{color:var(--muted)}
 .rc .setuprow-v{font-family:'IBM Plex Mono';color:var(--txt);text-align:right}
+.rc .fastlap{color:var(--green);font-weight:700}
 .rc .wxrow{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px}
 .rc .wxrow:nth-child(odd){background:rgba(255,255,255,.03)}
 .rc .wxrow .wxdot{width:11px;height:11px;border-radius:3px;flex:0 0 auto}

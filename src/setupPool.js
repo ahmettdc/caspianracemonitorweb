@@ -5,6 +5,7 @@
    süzgeç, boş-durum ve kırpma kuralları buraya alındı → birim test edilebilir.
    Desen: engine.js / liveLaps.js / tyreCompound.js (saf modül + vitest).
    ============================================================ */
+import { parseLap } from "./engine";
 
 /* Ham dosya sınırı. Base64'e çevrilince ~%33 büyür (180 KB → ~240 KB);
    Firebase kuralı `data` için < 260000 karakter istiyor → sınır buna göre. */
@@ -15,7 +16,7 @@ export const fileTooBig = (size) => Number(size) > SETUP_MAX_BYTES;
 /* Meta alan uzunlukları — form maxLength'leri ile kaydetme kırpması AYNI
    sözleşmeden beslensin diye tek yerde (eskiden yalnız kaydederken kırpılıyor,
    kullanıcı sessizce veri kaybediyordu). */
-export const SETUP_LIMITS = { champ: 40, ver: 16, note: 140 };
+export const SETUP_LIMITS = { champ: 40, ver: 16, note: 140, lap: 12 };
 
 const cut = (v, n) => String(v ?? "").trim().slice(0, n);
 
@@ -26,7 +27,27 @@ export function trimSetupMeta(meta) {
     champ: cut(meta?.champ, SETUP_LIMITS.champ),
     ver: cut(meta?.ver, SETUP_LIMITS.ver),
     note: cut(meta?.note, SETUP_LIMITS.note),
+    lap: cut(meta?.lap, SETUP_LIMITS.lap),
   };
+}
+
+/* Gösterilen satırlar arasında EN HIZLI setup id'leri — pist+sınıf grubunda en düşük
+   tur zamanı (parseLap>0). Farklı pist/sınıf kıyaslanmaz (anlamsız). Beraberlikte hepsi.
+   "hangi setup hızlı" tek bakışta anlaşılsın diye SetupTable bunları vurgular. */
+export function fastestSetupIds(rows) {
+  const list = Array.isArray(rows) ? rows : [];
+  const best = {};   // "track|cls" → { sec, ids:[] }
+  for (const r of list) {
+    const sec = parseLap(r?.lap);
+    if (!(sec > 0)) continue;
+    const key = `${r.track || ""}|${r.cls || ""}`;
+    const b = best[key];
+    if (!b || sec < b.sec - 1e-6) best[key] = { sec, ids: [r.id] };
+    else if (Math.abs(sec - b.sec) <= 1e-6) b.ids.push(r.id);
+  }
+  const out = new Set();
+  for (const k of Object.keys(best)) for (const id of best[k].ids) out.add(id);
+  return out;
 }
 
 /* Liste süzgeci — boş süzgeç "hepsi" demek. */

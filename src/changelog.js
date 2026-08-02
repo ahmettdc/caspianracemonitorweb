@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.89",
+    date: "2026-08-02",
+    tr: [
+      "⏱ Setup yüklerken artık opsiyonel bir 'Tur Zamanı' (best-lap) girebilirsin (ör. 1:58.234). Setup havuzu tablosunda yeni 'Tur' sütunu bu zamanı gösteriyor; aynı pist ve sınıftaki EN HIZLI setup ⚡ ile yeşil vurgulanıyor — hangi setup'ın hızlı olduğu bir bakışta belli oluyor. Zorunlu değil; boş bırakılabilir.",
+    ],
+    en: [
+      "⏱ You can now enter an optional 'Lap Time' (best lap) when uploading a setup (e.g. 1:58.234). The setup pool table has a new 'Lap' column for it, and the FASTEST setup for the same track and class is highlighted in green with a ⚡ — so you can tell at a glance which setup is quick. Optional; can be left blank.",
+    ],
+  },
+  {
     v: "v1.4.88",
     date: "2026-08-02",
     tr: [
