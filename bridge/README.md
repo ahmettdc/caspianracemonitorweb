@@ -46,6 +46,49 @@ yazar. İki adımın İKİSİ de şart:
 > Ayrıca veri ancak bir **seansa girince** (garaj/pist) akar; ana menüde
 > "Oyun açık, seans bekleniyor" görünür — bu normaldir.
 
+### a-2. ⚡ PERFORMANS: gereksiz buffer yazımını kapat (oyun donuyorsa İLK BURAYA BAK)
+
+Eklenti, buffer'ları **oyunun kendi karesinde** yazar ve hızları çok farklıdır:
+
+| Buffer | Bit | Yazım hızı | Bu uygulama okuyor mu? |
+|---|---|---|---|
+| Telemetry | 1 | 50 FPS | ✅ evet |
+| Scoring | 2 | 5 FPS | ✅ evet |
+| Rules | 4 | 3 FPS | ❌ hayır |
+| MultiRules | 8 | 3 FPS | ❌ hayır |
+| **ForceFeedback** | **16** | **400 FPS** | ❌ hayır |
+| **Graphics** | **32** | **400 FPS** | ❌ hayır |
+| PitInfo | 64 | 100 FPS | ❌ hayır |
+| Weather | 128 | 1 FPS | ❌ hayır |
+
+Varsayılan ayarda (`UnsubscribedBuffersMask: 0`) hepsi yazılır → **FFB + Graphics tek
+başına saniyede 800 yazım** ve bu uygulama onları hiç okumaz. Kapatmak için oyunu
+**kapat**, `…\Le Mans Ultimate\UserData\player\CustomPluginVariables.JSON` içinde:
+
+```json
+"rFactor2SharedMemoryMapPlugin64.dll": { " Enabled": 1, "UnsubscribedBuffersMask": 48 }
+```
+
+Kademeler (bitleri topla) — **en güvenliden başla, sorun çıkmazsa yükselt**:
+
+- **48** = FFB(16) + Graphics(32) → 400 FPS'lik iki yazım kalkar. Kazancın çoğu, riski en az.
+- **240** = + PitInfo(64) + Weather(128) → pit/hava bilgisini paylaşımlı bellekten okuyan
+  araçlar etkilenebilir.
+- **252** = + Rules(4) + MultiRules(8) → **CrewChief** gibi kural/FCY okuyan araçlar
+  etkilenir; yalnız başka araç çalıştırmıyorsan.
+
+> ⚠️ **Başka araçlar (CrewChief / SimHub / TinyPedal) da açıksa** onların ihtiyacı olan
+> buffer'ı kapatma. Uygulama bu dosyayı **asla kendisi yazmaz** — yalnız okuyup önerir
+> (Canlı Köprü kartındaki ⚡ uyarısı). Ne yazıldığını görmek için:
+> ```
+> caspian-bridge.exe --check-plugin
+> ```
+> (Firebase/config gerekmez, hiçbir şeye yazmaz; masaüstü kurulumunda exe yolu için
+> aşağıdaki Katman 3 notuna bak.)
+>
+> **Not:** Paylaşımlı belleği OKUMAK ucuzdur — ölçtük: kare başına ~0.3 MB, 2 Hz'de
+> ~1.5 MB/s. Donmanın kaynağı okuma değil, oyunun içinde boşuna yazılan buffer'lardır.
+
 ### b. Firebase "bot" hesabı (köprünün yazması için)
 1. Firebase Console → Authentication → **Sign-in method** → **Email/Password**'ü etkinleştir.
 2. **Authentication → Users** → **Add user** → bot hesabı ekle

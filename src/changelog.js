@@ -5,6 +5,22 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.97",
+    date: "2026-08-02",
+    tr: [
+      "⚡ OYUNDA DONMA/TAKILMA: sebebi bulundu ve uygulama artık söylüyor. Ölçtük — paylaşımlı belleği OKUMAK ucuz (kare başına ~0,3 MB); asıl yük oyunun İÇİNDE: paylaşımlı bellek eklentisi, bu uygulamanın hiç okumadığı buffer'ları da yazıyor — ForceFeedback ve Graphics saniyede 400'er kez, PitInfo 100 kez. Biz yalnız Telemetry (50) + Scoring (5) okuyoruz.",
+      "🔧 Canlı Köprü kartında artık ⚡ uyarısı çıkıyor: kaç gereksiz yazım olduğunu gösteriyor ve CustomPluginVariables.JSON için doğru 'UnsubscribedBuffersMask' değerini kopyalanabilir şekilde veriyor. En güvenli 48 (FFB+Grafik) ile başla; sorun çıkmazsa 240, tek araç sen kullanıyorsan 252.",
+      "🩺 Yeni teşhis komutu: caspian-bridge.exe --check-plugin → kurulum yolu, eklentinin açık olup olmadığı, mevcut maske, boşa yazılan buffer'lar ve önerilen kademeler. Uygulama oyun ayarını ASLA kendisi yazmaz (CrewChief/SimHub/TinyPedal gibi araçların hangi veriye ihtiyaç duyduğunu bilemeyiz) — okur ve önerir.",
+      "📖 Köprü README'sine buffer tablosu + adım adım ayar rehberi eklendi. Köprü değiştiği için sürüş PC'lerinin yeni masaüstü sürümünü kurması gerekir.",
+    ],
+    en: [
+      "⚡ IN-GAME STUTTER: root cause found, and the app now tells you. We measured it — READING shared memory is cheap (~0.3 MB per frame); the real cost is inside the game: the shared-memory plugin also writes buffers this app never reads — ForceFeedback and Graphics at 400 times per second each, PitInfo 100. We only read Telemetry (50) + Scoring (5).",
+      "🔧 The Live Bridge card now shows a ⚡ warning: how many wasted writes are happening, plus the correct 'UnsubscribedBuffersMask' value for CustomPluginVariables.JSON with a copy button. Start with the safest 48 (FFB+Graphics); move to 240 if nothing breaks, 252 if this is your only tool.",
+      "🩺 New diagnostic: caspian-bridge.exe --check-plugin → install path, whether the plugin is enabled, current mask, wasted buffers and suggested steps. The app NEVER writes the game config itself (we cannot know which data CrewChief/SimHub/TinyPedal need) — it reads and advises.",
+      "📖 Bridge README got a buffer table and a step-by-step guide. The bridge changed, so driving PCs need the new desktop build.",
+    ],
+  },
+  {
     v: "v1.4.96",
     date: "2026-08-02",
     tr: [
