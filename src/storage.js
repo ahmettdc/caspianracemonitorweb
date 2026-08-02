@@ -549,6 +549,20 @@ export function liveTrackSecSubscribe(tid, trackKey, cb) {
     (err) => { console.warn("livetracksec read failed:", err?.message); cb(null); });
 }
 
+/* ---- paylaşımlı pit giriş/çıkış (livetrackpit, v1.4.96) ----
+   teams/{tid}/livetrackpit/{trackKey} = "entry,exit" (bkz. trackSectors.js). Sektör
+   deseninin aynısı; owner/editor yazar, herkes okur → pit işaretleri anında gelir. */
+export async function liveTrackPitSave(tid, trackKey, str) {
+  if (!db || !tid || !trackKey || typeof str !== "string" || !str) return;
+  await set(ref(db, `teams/${tid}/livetrackpit/${trackKey}`), str);
+}
+export function liveTrackPitSubscribe(tid, trackKey, cb) {
+  if (!db || !tid || !trackKey) { cb(null); return () => {}; }
+  return onValue(ref(db, `teams/${tid}/livetrackpit/${trackKey}`),
+    (s) => cb(s.exists() ? s.val() : null),
+    (err) => { console.warn("livetrackpit read failed:", err?.message); cb(null); });
+}
+
 /* ---- tek-yazıcı seçimi (livewriter lease) ----
    Aynı yarışta birden çok masaüstü köprüsü (ör. ayrı PC'lerdeki co-sürücüler) canlı
    düğüme AYNI ANDA yazıp çakışmasın diye tek bir "yazıcı kirası" tutulur:

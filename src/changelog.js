@@ -5,6 +5,22 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.96",
+    date: "2026-08-02",
+    tr: [
+      "🅿 Pist Haritasında artık PİT giriş ve çıkış noktaları işaretleniyor: araçlar bir tur pite girip çıktıkça harita halkasında yeşil (giriş) ve mavi (çıkış) 'P' işaretleri belirir; takımca paylaşılır (izleyiciler de anında görür).",
+      "➤ Araçların hangi yöne gittiğini gösteren küçük bir yön oku eklendi (S/F'nin hemen ötesinde) — haritaya ilk bakan bile turun yönünü anlar.",
+      "⛶ Büyük Pano (⛶ Büyüt) gerçek bir pit duvarı panosu oldu: artık strateji şeridini de gösteriyor, üstte hava/bayrak/sıcaklık durum paneli, altta sınıf renkleri + işaret açıklaması (lejant) var.",
+      "Hepsi mevcut canlı veriden — köprü değişmez, ek kurulum yok. (Dürüst not: pit işaretleri bir gözlem turu ister; ilk pite kadar görünmez.)",
+    ],
+    en: [
+      "🅿 The Track Map now marks PIT entry and exit: as cars enter and leave the pits over a lap, green (entry) and blue (exit) 'P' markers appear on the map ring; shared across the team (viewers see them instantly).",
+      "➤ A small direction arrow (just past S/F) shows which way the cars travel — even a first-time viewer gets the lap direction.",
+      "⛶ The Big Board (⛶ Expand) became a real pit-wall board: it now also shows the strategy strip, a weather/flag/temperature status panel on top, and a legend (class colors + marker key) at the bottom.",
+      "All from existing live data — no bridge change, no extra setup. (Honest note: pit markers need one observation lap; they don't show until the first pit stop.)",
+    ],
+  },
+  {
     v: "v1.4.95",
     date: "2026-08-02",
     tr: [

@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { classId, classAccent } from "../constants";
+import { classId, classAccent, CAR_CLASSES } from "../constants";
 import { wetnessLevel, rainLevel, WEATHER } from "../engine";
 import { WetIcon } from "../WetIcon";
 import { packBins, unpackBins } from "../trackShape";
 import { observeSector, sectorFractions, sectorRanges,
-  packSectors, unpackSectors, emptySectors } from "../trackSectors";
+  packSectors, unpackSectors, emptySectors,
+  observePit, pitFractions, packPit, unpackPit, emptyPit } from "../trackSectors";
 import { liveTrackSave, liveTrackSubscribe,
-  liveTrackSecSave, liveTrackSecSubscribe } from "../storage";
+  liveTrackSecSave, liveTrackSecSubscribe,
+  liveTrackPitSave, liveTrackPitSubscribe } from "../storage";
 
 /* Canlı pist haritası — iki katman:
    • Dış boşluk halkası: her araç tur mesafesine (lapDist/trackLength) göre daire
@@ -43,11 +45,15 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
   }, [zoom]);
   /* pist DEĞİŞİNCE biriktirmeyi sıfırla — anahtar artık trackKey (pist adı) → şekil
      pist başına paylaşımlı olduğundan aynı pistin yarışları arasında da korunur. */
-  const acc = useRef({ key: null, bins: {}, saved: 0, sec: emptySectors(), secSaved: "" });
+  const acc = useRef({ key: null, bins: {}, saved: 0, sec: emptySectors(), secSaved: "",
+    pit: emptyPit(), pitSaved: "" });
   const prevSec = useRef({});   // lapKey → son sektör (sınır geçişini yakalamak için)
+  const prevLoc = useRef({});   // lapKey → son location (pit giriş/çıkış geçişi için)
   if (acc.current.key !== trackKey) {
-    acc.current = { key: trackKey, bins: {}, saved: 0, sec: emptySectors(), secSaved: "" };
+    acc.current = { key: trackKey, bins: {}, saved: 0, sec: emptySectors(), secSaved: "",
+      pit: emptyPit(), pitSaved: "" };
     prevSec.current = {};
+    prevLoc.current = {};
   }
 
   /* takımca paylaşımlı şekli yükle: bir kez oluşan devre, tüm takımda (hiç sürmeyen
@@ -84,6 +90,23 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
     return off;
   }, [tid, trackKey]);
 
+  /* takımca paylaşımlı pit giriş/çıkış — izleyicilerde işaretler anında gelsin. */
+  useEffect(() => {
+    if (!tid || !trackKey) return undefined;
+    const off = liveTrackPitSubscribe(tid, trackKey, (str) => {
+      const fr = unpackPit(str);
+      if (!fr) return;
+      let added = false;
+      const seed = (acc0, f) => {
+        if (f != null && acc0.n === 0) { acc0.sum = f; acc0.n = 1; added = true; }
+      };
+      seed(acc.current.pit.entry, fr.entry);
+      seed(acc.current.pit.exit, fr.exit);
+      if (added) bump((v) => v + 1);
+    });
+    return off;
+  }, [tid, trackKey]);
+
   const cars = (Array.isArray(field) ? field : [])
     .filter((c) => c.posX != null && c.posZ != null);
 
@@ -104,15 +127,21 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
      boyunca kalırdı (seans başında herkes garajda → devre şeklinde kalıcı çıkıntı). */
   if (trackLength > 0) {
     for (const c of cars) {
+      const frac = ((c.lapDist / trackLength) % 1 + 1) % 1;
+      const key = c.lapKey || c.driver || c.pos;
+      /* pit GİRİŞ/ÇIKIŞI: location TRACK↔PIT döndüğü andaki lapDist oranı. prevLoc'ta
+         tutulur; ilk görüşte yalnız kaydedilir (sahte geçiş olmasın). Tüm araçlar. */
+      const loc = c.location || (c.inPits ? "PIT" : "TRACK");
+      const pl = prevLoc.current[key];
+      if (pl != null && pl !== loc) observePit(acc.current.pit, pl, loc, frac);
+      prevLoc.current[key] = loc;
+
       const onTrack = c.location ? c.location === "TRACK" : !c.inPits;
       if (!onTrack) continue;
-      const frac = ((c.lapDist / trackLength) % 1 + 1) % 1;
       const b = Math.floor(frac * NB) % NB;
       if (!acc.current.bins[b]) acc.current.bins[b] = { x: c.posX, z: c.posZ };
-      /* sektör SINIRI: aracın mSector'ü değiştiği andaki lapDist oranı (1→2, 2→0).
-         prevSec ref'te tutulur; ilk görüşte yalnız kaydedilir (sahte geçiş olmasın). */
+      /* sektör SINIRI: aracın mSector'ü değiştiği andaki lapDist oranı (1→2, 2→0). */
       if (c.sector != null && c.sector >= 0) {
-        const key = c.lapKey || c.driver || c.pos;
         const prev = prevSec.current[key];
         if (prev != null && prev !== c.sector) observeSector(acc.current.sec, prev, c.sector, frac);
         prevSec.current[key] = c.sector;
@@ -152,6 +181,19 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
     }, 2000);
     return () => clearTimeout(id);
   }, [canSave, tid, trackKey, secStr, secFr]);
+
+  // gözlenen pit giriş/çıkış (ortalama) — işaret + paylaşım için
+  const pitFr = pitFractions(acc.current.pit);
+  const pitStr = packPit(pitFr);
+  useEffect(() => {
+    if (!canSave || !tid || !trackKey || !pitStr) return undefined;
+    if (pitStr === acc.current.pitSaved) return undefined;
+    const id = setTimeout(() => {
+      liveTrackPitSave(tid, trackKey, pitStr);
+      acc.current.pitSaved = pitStr;
+    }, 2000);
+    return () => clearTimeout(id);
+  }, [canSave, tid, trackKey, pitStr]);
 
   // iç şekil dönüşümü (dünya x/z → ekran), pist bbox'una göre ölçekli
   let toScreen = null, outline = "";
@@ -326,6 +368,56 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
     </div>
   ) : null;
 
+  /* ---- PİT İŞARETLERİ + HAREKET YÖNÜ (v1.4.96) ---- */
+  const ringXYFrac = (f) => {
+    const a = f * 2 * Math.PI;
+    return [cx + R * Math.sin(a), cy - R * Math.cos(a)];
+  };
+  // pit giriş/çıkış: halka üzerinde küçük "P" işareti (giriş yeşil, çıkış mavi)
+  const pitMark = (frac, col, key) => {
+    if (frac == null) return null;
+    const [x, y] = ringXYFrac(frac);
+    return (
+      <g key={key}>
+        <circle cx={x} cy={y} r={7.5} fill={col} stroke="#0b0708" strokeWidth={1} />
+        <text x={x} y={y} fill="#0b0708" fontSize="9.5" fontWeight="800"
+          textAnchor="middle" dominantBaseline="central">P</text>
+      </g>
+    );
+  };
+  const pitMarks = pitFr
+    ? [pitMark(pitFr.entry, "#37D67A", "pit-in"), pitMark(pitFr.exit, "#5aa9e6", "pit-out")]
+    : null;
+  // hareket yönü oku — S/F'nin hemen ötesinde, pist teğeti (saat yönü, jitter'sız)
+  const dirArrow = (() => {
+    if (!(trackLength > 0)) return null;
+    const f = 0.04, a = f * 2 * Math.PI, s = 8;
+    const [x, y] = ringXYFrac(f);
+    const dx = Math.cos(a), dy = Math.sin(a);   // teğet (ilerleme yönü)
+    const px = -dy, py = dx;                     // dike
+    const pt = (mx, my) => `${(x + dx * s * mx + px * s * my).toFixed(1)},`
+      + `${(y + dy * s * mx + py * s * my).toFixed(1)}`;
+    return <polygon points={`${pt(1, 0)} ${pt(-0.7, 0.7)} ${pt(-0.7, -0.7)}`}
+      fill="var(--muted)" opacity={0.85} />;
+  })();
+
+  // lejant (Büyük Pano) — sahadaki sınıf renkleri + oyuncu + pit
+  const clsSeen = [];
+  for (const c of cars) {
+    const id = classId(c.carClass);
+    if (id && !clsSeen.includes(id)) clsSeen.push(id);
+  }
+  const legend = (
+    <div className="maplegend">
+      {clsSeen.map((id) => (
+        <span key={id}><i style={{ background: classAccent(id) }} />
+          {CAR_CLASSES.find(([cid]) => cid === id)?.[1] || id}</span>
+      ))}
+      <span><i style={{ background: "#fff", boxShadow: `0 0 0 2px ${BRAND}` }} /> {t("Sen")}</span>
+      {pitMarks && <span><i style={{ background: "#37D67A" }} /> {t("Pit giriş/çıkış")}</span>}
+    </div>
+  );
+
   /* SVG içeriği tek yerde — küçük kart ve büyük pencere aynı çocukları kullanır.
      Ölçek tamamen CSS'ten (viewBox sabit) → noktalar ve pozisyon numaraları
      büyük pencerede orantılı olarak büyür. */
@@ -343,6 +435,9 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
       textAnchor="middle">S/F</text>
     {/* sektör ayırıcıları (S1, S2) — gözlendiyse */}
     {sectorMarks}
+    {/* pit giriş/çıkış işaretleri (gözlendiyse) + hareket yönü oku */}
+    {pitMarks}
+    {dirArrow}
     {/* iç pist şekli — kalın yol bandı + ince merkez çizgisi (araç bandın içine oturur) */}
     {outline && <path d={outline} fill="none" stroke={roadStroke}
       strokeWidth={ROAD_W} strokeLinejoin="round" strokeLinecap="round" />}
@@ -387,10 +482,15 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
             <button className="act" style={{ fontSize: 12, padding: "2px 10px" }}
               title={t("Kapat")} onClick={() => setZoom(false)}>✕</button>
           </div>
+          {/* Büyük Pano zenginleştirme (v1.4.96): strateji + durum paneli + lejant —
+              küçük kartta strateji topSlot'ta, burada da gösterilir; pit duvarı panosu. */}
+          {topSlot && <div className="mapbig-strat">{topSlot}</div>}
           <div className="mapwrap">
+            {conditionBadge}
             <svg viewBox="0 0 520 520" role="img" aria-label={t("Canlı pist haritası")}>
               {svgKids}</svg>
           </div>
+          {legend}
         </div>
       </div>
     )}
