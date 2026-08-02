@@ -663,8 +663,11 @@ ${bottomBar}
   const { setups, suFile, suMeta, setSuMeta, suErr, suMsg, suBusy,
     suUpOpen, setSuUpOpen, suFTrack, setSuFTrack,
     suFCond, setSuFCond, suFSess, setSuFSess,
-    onSetupFile, saveSetup, downloadSetup, suList } = useSetups({
-    user, udoc, userName, teamData, t, active: tab === "setup" || suOpen });
+    suQuery, setSuQuery, suSort, toggleSort,
+    onSetupFile, onSetupDrop, saveSetup, downloadSetup, suList } = useSetups({
+    user, udoc, userName, teamData, t, active: tab === "setup" || suOpen,
+    /* aktif yarıştan ön-doldurma: form açıldığında boş alanlar buradan dolar */
+    raceSel: { track: st.track, cls: st.carClass, car: st.car } });
 
   /* ---- yüzen mini oynatıcı → useMiniPlayer hook'u (konum/boyut/sürükle) ---- */
   const { streamCorner, streamMin, setStreamMin, streamW, streamDrag,
@@ -738,13 +741,15 @@ ${bottomBar}
   /* setupForm/setupTable artik <SetupForm>/<SetupTable> (./components) —
      ince sarmalayicilar dogru prop'lari iletir; lobi ve Setup sekmesi ayni. */
   const setupForm = () => (
-    <SetupForm t={t} onSetupFile={onSetupFile} suFile={suFile} suMeta={suMeta}
+    <SetupForm t={t} onSetupFile={onSetupFile} onSetupDrop={onSetupDrop}
+      suFile={suFile} suMeta={suMeta}
       setSuMeta={setSuMeta} seasons={seasons} suErr={suErr} suMsg={suMsg} suBusy={suBusy}
       saveSetup={saveSetup} />
   );
 
   const setupTable = (rows) => (
     <SetupTable rows={rows} t={t} st={st} lang={lang} isAdmin={isAdmin}
+      sort={suSort} onSort={toggleSort}
       onDownload={downloadSetup} onView={setViewSu}
       /* Silme hatası eskiden yutuluyordu (.catch(()=>{})) → kural reddi/ağ hatasında
          satır ekranda kalıyor, kullanıcı sebebini göremiyordu. */
@@ -758,7 +763,8 @@ ${bottomBar}
     <SetupModal open={suOpen} onClose={() => setSuOpen(false)} t={t}
       suUpOpen={suUpOpen} setSuUpOpen={setSuUpOpen} suList={suList} setups={setups}
       suFTrack={suFTrack} setSuFTrack={setSuFTrack} suFCond={suFCond} setSuFCond={setSuFCond}
-      suFSess={suFSess} setSuFSess={setSuFSess} setupForm={setupForm} setupTable={setupTable} />
+      suFSess={suFSess} setSuFSess={setSuFSess} suQuery={suQuery} setSuQuery={setSuQuery}
+      setupForm={setupForm} setupTable={setupTable} />
   );
 
   const setupContentModal = (
@@ -2178,6 +2184,9 @@ ${bottomBar}
                   <option value="R">{t("Yarış")}</option>
                   <option value="Q">{t("Sıralama")}</option>
                 </select>
+                <input type="text" value={suQuery} placeholder={`🔎 ${t("ara")}…`}
+                  style={{ textTransform: "none", minWidth: 160 }}
+                  onChange={(e) => setSuQuery(e.target.value)} />
                 {st.track && setups.some((x) => x.track === st.track) && (
                   <button className="act" style={{ fontSize: 11 }}
                     onClick={() => setSuFTrack(st.track)}>

@@ -16,9 +16,14 @@
        suFSess, setSuFSess, onSetupFile, saveSetup, downloadSetup, suList }. */
 import { useState, useEffect } from "react";
 import { addSetup, watchSetups } from "./storage";
-import { fileTooBig, filterSetups, trimSetupMeta, staleTrackFilter } from "./setupPool";
+import { fileTooBig, filterSetups, trimSetupMeta, staleTrackFilter,
+  searchSetups, sortSetups } from "./setupPool";
+import { parseSvm, b64ToText } from "./setupParse";
+import { detectVehicle } from "./setupAutofill";
+import { carName } from "./constants";
 
-export function useSetups({ user, udoc, userName, teamData, t, active = true }) {
+export function useSetups({ user, udoc, userName, teamData, t, active = true,
+  raceSel = null }) {
   const [setups, setSetups] = useState([]);
   const [suFile, setSuFile] = useState(null);       // { name, b64, size }
   const [suMeta, setSuMeta] = useState({ track: "", cls: "", car: "",
@@ -32,6 +37,8 @@ export function useSetups({ user, udoc, userName, teamData, t, active = true }) 
   const [suFTrack, setSuFTrack] = useState("");     // liste süzgeçleri
   const [suFCond, setSuFCond] = useState("");
   const [suFSess, setSuFSess] = useState("");
+  const [suQuery, setSuQuery] = useState("");       // serbest metin arama
+  const [suSort, setSuSort] = useState({ key: "date", dir: "desc" }); // sıralama
 
   /* Abonelik yalnız havuz görünürken (active) — bkz. başlıktaki not. */
   useEffect(() => {
@@ -39,9 +46,8 @@ export function useSetups({ user, udoc, userName, teamData, t, active = true }) 
     return watchSetups(setSetups);
   }, [user, udoc, active]);
 
-  const onSetupFile = (e) => {
-    const f = e.target.files?.[0];
-    e.target.value = "";
+  /* Ortak dosya alma yolu — hem <input type=file> hem sürükle-bırak buradan geçer. */
+  const handleFile = (f) => {
     if (!f) return;
     setSuMsg("");
     if (fileTooBig(f.size)) {
@@ -57,11 +63,50 @@ export function useSetups({ user, udoc, userName, teamData, t, active = true }) 
       const b64 = String(rd.result).split(",")[1] || "";
       setSuFile({ name: f.name, b64, size: f.size });
       setSuErr("");
+      /* Otomatik algılama: dosyanın VehicleClassSetting satırından sınıf/araç.
+         Kullanıcının elle yaptığı seçim EZİLMEZ — yalnız boş alanlar dolar. */
+      const v = detectVehicle(parseSvm(b64ToText(b64)));
+      if (v) {
+        setSuMeta((m) => {
+          if (!m.cls && !m.car) return { ...m, cls: v.cls, car: v.car };
+          if (m.cls === v.cls && !m.car) return { ...m, car: v.car };
+          return m;
+        });
+        setSuMsg(`✓ ${t("Araç dosyadan algılandı")}: ${carName(v.cls, v.car)}`);
+      }
     };
     /* Okuma hatası eskiden sessizdi: ne dosya sahneye giriyor ne uyarı çıkıyordu. */
     rd.onerror = () => { setSuFile(null); setSuErr(t("Dosya okunamadı — tekrar deneyin.")); };
     rd.readAsDataURL(f);
   };
+
+  const onSetupFile = (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    handleFile(f);
+  };
+
+  /* Sürükle-bırak: SetupForm'daki .sudrop bölgesi çağırır. */
+  const onSetupDrop = (e) => {
+    e.preventDefault();
+    handleFile(e.dataTransfer?.files?.[0]);
+  };
+
+  /* Aktif yarıştan ön-doldurma: form görünür olduğunda BOŞ alanlar yarış seçiminden
+     dolar (pist/sınıf/araç). Kullanıcının doldurduğu alanlara dokunulmaz; araç yalnız
+     sınıf yarışınkiyle aynıysa alınır. */
+  useEffect(() => {
+    if (!active || !raceSel?.track) return;
+    setSuMeta((m) => {
+      const cls = m.cls || raceSel.cls || "";
+      return {
+        ...m,
+        track: m.track || raceSel.track || "",
+        cls,
+        car: m.car || (cls === raceSel.cls ? raceSel.car || "" : ""),
+      };
+    });
+  }, [active]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   const saveSetup = async () => {
     // Takım şartı YOK: setup'lar global havuza yazılır; onaylı her kullanıcı
@@ -120,10 +165,23 @@ export function useSetups({ user, udoc, userName, teamData, t, active = true }) 
     if (setups.length && staleTrackFilter(setups, suFTrack)) setSuFTrack("");
   }, [setups, suFTrack]);
 
-  const suList = filterSetups(setups, { track: suFTrack, cond: suFCond, sess: suFSess });
+  /* Başlığa tıklayınca: aynı anahtar → yön değişir; yeni anahtar → doğal yönle
+     başlar (tarih en-yeni-üstte, tur en-hızlı-üstte). */
+  const toggleSort = (key) => setSuSort((s) =>
+    s.key === key
+      ? { key, dir: s.dir === "asc" ? "desc" : "asc" }
+      : { key, dir: key === "lap" ? "asc" : "desc" });
+
+  /* boru hattı: süzgeç → arama → sıralama */
+  const suList = sortSetups(
+    searchSetups(
+      filterSetups(setups, { track: suFTrack, cond: suFCond, sess: suFSess }),
+      suQuery),
+    suSort.key, suSort.dir);
 
   return { setups, suFile, suMeta, setSuMeta, suErr, suMsg, suBusy,
     suUpOpen, setSuUpOpen, suFTrack, setSuFTrack,
     suFCond, setSuFCond, suFSess, setSuFSess,
-    onSetupFile, saveSetup, downloadSetup, suList };
+    suQuery, setSuQuery, suSort, toggleSort,
+    onSetupFile, onSetupDrop, saveSetup, downloadSetup, suList };
 }

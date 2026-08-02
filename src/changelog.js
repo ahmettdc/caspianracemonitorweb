@@ -5,6 +5,20 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.90",
+    date: "2026-08-02",
+    tr: [
+      "🪄 Setup yükleme artık çok daha hızlı: .svm dosyasını forma SÜRÜKLEYİP BIRAKABİLİRSİN ve sınıf + araç dosyanın içinden KENDİLİĞİNDEN algılanıyor (dosyadaki VehicleClassSetting satırından). Elle yaptığın seçimler asla ezilmez — yalnız boş alanlar dolar.",
+      "📍 Yarış açıkken Setup formu pist/sınıf/araç alanlarını aktif yarıştan önceden dolduruyor — çoğu zaman sadece dosyayı bırakıp Yükle'ye basmak yetiyor.",
+      "🔎 Setup havuzuna arama kutusu eklendi (dosya adı, not, şampiyona, yükleyen, takım) ve 'Tarih' ile 'Tur' sütun başlıkları tıklanarak sıralanabiliyor — Tur'a tıkla, en hızlı setup en üstte.",
+    ],
+    en: [
+      "🪄 Uploading a setup is much faster now: you can DRAG & DROP the .svm file onto the form, and the class + car are AUTO-DETECTED from inside the file (its VehicleClassSetting line). Your manual choices are never overwritten — only empty fields get filled.",
+      "📍 With a race open, the Setup form pre-fills track/class/car from the active race — most of the time you just drop the file and press Upload.",
+      "🔎 The setup pool got a search box (file name, note, championship, uploader, team) and the 'Date' and 'Lap' column headers are click-to-sort — click Lap to see the fastest setup on top.",
+    ],
+  },
+  {
     v: "v1.4.89",
     date: "2026-08-02",
     tr: [

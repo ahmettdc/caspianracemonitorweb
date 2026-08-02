@@ -31,6 +31,37 @@ export function trimSetupMeta(meta) {
   };
 }
 
+/* Serbest metin arama — dosya adı / not / şampiyona / yükleyen / takım üzerinde
+   küçük-harf substring. Boş sorgu = hepsi. */
+export function searchSetups(rows, q) {
+  const list = Array.isArray(rows) ? rows : [];
+  const s = String(q || "").trim().toLowerCase();
+  if (!s) return list;
+  return list.filter((r) =>
+    [r?.name, r?.note, r?.champ, r?.uname, r?.team]
+      .some((v) => String(v || "").toLowerCase().includes(s)));
+}
+
+/* Sıralama — key: "date" | "lap". Lap'te geçersiz/boş süreler HER YÖNDE sonda
+   (en hızlı = asc). Varsayılan date-desc, watchSetups'ın bugünkü sırasıyla aynı. */
+export function sortSetups(rows, key = "date", dir = "desc") {
+  const list = [...(Array.isArray(rows) ? rows : [])];
+  const mul = dir === "asc" ? 1 : -1;
+  if (key === "lap") {
+    list.sort((a, b) => {
+      const la = parseLap(a?.lap), lb = parseLap(b?.lap);
+      const va = la > 0 ? la : null, vb = lb > 0 ? lb : null;
+      if (va == null && vb == null) return 0;
+      if (va == null) return 1;
+      if (vb == null) return -1;
+      return (va - vb) * mul;
+    });
+  } else {
+    list.sort((a, b) => ((a?.at || 0) - (b?.at || 0)) * mul);
+  }
+  return list;
+}
+
 /* Gösterilen satırlar arasında EN HIZLI setup id'leri — pist+sınıf grubunda en düşük
    tur zamanı (parseLap>0). Farklı pist/sınıf kıyaslanmaz (anlamsız). Beraberlikte hepsi.
    "hangi setup hızlı" tek bakışta anlaşılsın diye SetupTable bunları vurgular. */
