@@ -44,7 +44,7 @@ import {
 import {
   TourOverlay, Wheel, Num, Bolt, Tyre, Ring,
   BADGES, teamBadgesOf, hasBadge, ChatPanel, SetupForm, SetupTable, VersionModal, RaceEditModal,
-  ChatModal, SetupModal, TeamModal,
+  ChatModal, SetupModal, TeamModal, DenyToast,
 } from "./components";
 import { WetIcon } from "./WetIcon";
 
@@ -199,16 +199,28 @@ export default function App() {
     setEntered(false); setPickDone(false); setSetupDone(false);
   };
 
-  const up = (patch) => setSt((s) => ({ ...s, ...patch }));
+  /* Yetki muhafızı: viewer bir yarışta düzenleme denerse "yetkiniz yok" kutucuğu göster
+     ve state'i DEĞİŞTİRME. `edit` gövdesi yalnız kullanıcı etkileşiminde çalıştığından
+     canEdit/showDeny (aşağıda tanımlı) çağrı anında okunur — render sırasında erişilmez,
+     TDZ yok. Tüm kullanıcı-düzenleme sarmalayıcıları setSt yerine bundan geçer;
+     yalnız sync-apply (uzak state → viewer) doğrudan setSt kalır. */
+  const [deny, setDeny] = useState(0);
+  const showDeny = () => setDeny(Date.now());   // damga → toast tetikler + her tıkta yeniden animasyon
+  /* yarışta viewer → düzenleme kilitli (= !canEdit). canEdit aşağıda tanımlı olduğundan
+     no-use-before-define'a takılmamak için curRace/role doğrudan okunur (ikisi de yukarıda). */
+  const blocked = () => curRace && role !== "editor";
+  const edit = (updater) => { if (blocked()) { showDeny(); return; } setSt(updater); };
+
+  const up = (patch) => edit((s) => ({ ...s, ...patch }));
   /* dizileri gerektiği kadar uzatır (14 stint sınırını kaldırır) */
   /* grow + reducer'lar (upPit/upTyre/quickTyre/... ) → ./state.js */
 
-  const upPit = (i, patch) => setSt((s0) => applyUpPit(s0, i, patch));
-  const upTyre = (i, t) => setSt((s0) => applyUpTyre(s0, i, t));
-  const upOvr = (i, val) => setSt((s0) => applyUpOvr(s0, i, val));
+  const upPit = (i, patch) => edit((s0) => applyUpPit(s0, i, patch));
+  const upTyre = (i, t) => edit((s0) => applyUpTyre(s0, i, t));
+  const upOvr = (i, val) => edit((s0) => applyUpOvr(s0, i, val));
   /* Tur manuel override: computed'dan başlayıp ±adım; time override'ı temizler */
-  const bumpLaps = (i, curLaps, delta) => setSt((s0) => applyBumpLaps(s0, i, curLaps, delta));
-  const clearLaps = (i) => setSt((s0) => applyClearLaps(s0, i));
+  const bumpLaps = (i, curLaps, delta) => edit((s0) => applyBumpLaps(s0, i, curLaps, delta));
+  const clearLaps = (i) => edit((s0) => applyClearLaps(s0, i));
 
   const mode = tab === "code80" ? "code80" : "race";
   const plan = useMemo(() => computePlan(st, mode), [st, mode]);
@@ -227,15 +239,15 @@ export default function App() {
   /* ---------- Faz 3: lastik stratejisi ---------- */
   /* stint bazlı hızlı lastik atama
      FL=0 FR=1 RL=2 RR=3 · fresh: kullanılmamış en küçük numaralar */
-  const quickTyre = (rowIdx, action) => setSt((s0) => applyQuickTyre(s0, rowIdx, action));
+  const quickTyre = (rowIdx, action) => edit((s0) => applyQuickTyre(s0, rowIdx, action));
 
   /* stinte özel ortalama tur süresi (boş → yarış datasındaki ortalama kullanılır) */
-  const upStintLap = (i, v) => setSt((s0) => applyUpStintLap(s0, i, v));
+  const upStintLap = (i, v) => edit((s0) => applyUpStintLap(s0, i, v));
 
-  const upTyreCell = (row, col, val) => setSt((s0) => applyUpTyreCell(s0, row, col, val));
+  const upTyreCell = (row, col, val) => edit((s0) => applyUpTyreCell(s0, row, col, val));
   /* tablo + pit lastik bayrakları birlikte sıfırlanır (bayraklar kalırsa plan
      tabloda olmayan lastik değişimlerine süre eklemeye devam ediyordu) */
-  const clearTyres = () => setSt((s0) => applyClearTyres(s0));
+  const clearTyres = () => edit((s0) => applyClearTyres(s0));
 
   /* boş hücre = o köşede lastik değişmedi → önceki stintten (yoksa Qual'dan) taşınan lastik.
      Depoya yazılmaz, sadece görsel; fiziksel olarak aynı lastik olduğu için sayıma girmez. */
@@ -256,16 +268,17 @@ export default function App() {
   const addDriver = () => {
     const n = newDriver.trim();
     if (!n || st.roster.includes(n)) return;
+    if (blocked()) { showDeny(); return; }
     setSt((s) => ({ ...s, roster: [...s.roster, n] }));
     setNewDriver("");
   };
-  const removeDriver = (n) => setSt((s) => ({
+  const removeDriver = (n) => edit((s) => ({
     ...s,
     roster: s.roster.filter((x) => x !== n),
     driverAssign: s.driverAssign.map((a) => (a === n ? "" : a)),
   }));
-  const assignDriver = (i, n) => setSt((s0) => applyAssignDriver(s0, i, n));
-  const clearAssign = () => setSt((s) => ({
+  const assignDriver = (i, n) => edit((s0) => applyAssignDriver(s0, i, n));
+  const clearAssign = () => edit((s) => ({
     ...s, driverAssign: s.driverAssign.map(() => ""),
   }));
 
@@ -976,6 +989,13 @@ ${bottomBar}
     <VersionModal open={verOpen} onClose={() => setVerOpen(false)} t={t} lang={lang}
       onStartGuide={() => { setVerOpen(false); setTour(curRace ? "main" : "lobby"); }} />
   );
+  /* Yetki reddi kutucuğu — viewer bir yarışta düzenleme deneyince belirir (edit() muhafızı).
+     key={deny} her tıkta remount → animasyon yeniden oynar; ~2.6 sn sonra kendini kapatır. */
+  const denyToast = deny > 0 && (
+    <DenyToast key={deny}
+      text={t("Bu işlem için yetkiniz yok — düzenleme Yarış Mühendisi/Takım Sahibine açık")}
+      onDone={() => setDeny(0)} />
+  );
 
   const [wxHist, setWxHist] = useState(false); // hava geçmişi penceresi
   const [wxPlanW, setWxPlanW] = useState("wet"); // planlı geçiş: hava
@@ -1626,6 +1646,7 @@ ${bottomBar}
       <style>{css}</style>
       <UpdateBanner t={t} />
       {teamModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{streamPlayer}{setupModal}
+      {denyToast}
       {profOpen && user && (
         <div className="wxmodal" onClick={() => setProfOpen(false)}>
           <div className="wxmbox" style={{ width: "min(420px,94vw)" }}

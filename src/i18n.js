@@ -368,6 +368,8 @@ export const EN = {
   "Sınıf": "Class",
   "Tümü": "All",
   /* --- hesap / profil / yetki --- */
+  "Bu işlem için yetkiniz yok — düzenleme Yarış Mühendisi/Takım Sahibine açık":
+    "You don't have permission for this action — editing is limited to the Race Engineer/Team Owner",
   "Profil": "Profile",
   "Profili düzenle": "Edit profile",
   "Ad Soyad": "Full Name",
