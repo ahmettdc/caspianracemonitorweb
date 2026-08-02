@@ -307,6 +307,18 @@ export const css = `
 .rc .wxmbox.map .mapwrap{display:flex;justify-content:center;padding:10px}
 .rc .wxmbox.map .mapwrap svg{width:min(88vw,78vh);height:auto}
 .rc .wxmlist{overflow:auto;padding:8px}
+/* Setup içeriği penceresi — özet çipleri + bölüm/alan listesi */
+.rc .setupsum{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+.rc .setupchip{font-family:'IBM Plex Mono';font-size:11.5px;padding:4px 8px;border-radius:7px;
+  background:rgba(150,0,24,.12);border:1px solid rgba(210,67,87,.35);color:var(--txt)}
+.rc .setupchip b{color:var(--teal);font-weight:600;margin-right:4px}
+.rc .setupsec{margin:0 0 10px}
+.rc .setupsec-h{font-family:'Rajdhani';text-transform:uppercase;letter-spacing:.05em;
+  font-size:12px;color:var(--dim);border-bottom:1px solid var(--line);padding:0 2px 3px;margin-bottom:4px}
+.rc .setuprow{display:flex;justify-content:space-between;gap:12px;padding:3px 4px;font-size:12px}
+.rc .setuprow:nth-child(even){background:rgba(255,255,255,.03)}
+.rc .setuprow-k{color:var(--muted)}
+.rc .setuprow-v{font-family:'IBM Plex Mono';color:var(--txt);text-align:right}
 .rc .wxrow{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px}
 .rc .wxrow:nth-child(odd){background:rgba(255,255,255,.03)}
 .rc .wxrow .wxdot{width:11px;height:11px;border-radius:3px;flex:0 0 auto}

@@ -367,6 +367,37 @@ export const EN = {
   "Başlangıç (yerel saat)": "Start (local time)",
   "Sınıf": "Class",
   "Tümü": "All",
+  /* --- setup içeriği (v1.4.88) --- */
+  "İçerik": "Contents",
+  "Setup İçeriği": "Setup Contents",
+  "İçerik okunamadı — bu bir LMU setup dosyası değil ya da bozuk.":
+    "Could not read the contents — this is not an LMU setup file, or it's corrupted.",
+  /* setup .svm bölüm başlıkları */
+  "Gövde/Aero": "Body/Aero", "Süspansiyon": "Suspension",
+  "Kontroller": "Controls", "Motor": "Engine", "Aktarma": "Drivetrain",
+  "Ön Sol": "Front Left", "Ön Sağ": "Front Right", "Arka Sol": "Rear Left",
+  "Arka Sağ": "Rear Right", "Temel": "Basic", "Sol Çamurluk": "Left Fender",
+  "Sağ Çamurluk": "Right Fender",
+  /* setup .svm alan / özet adları */
+  "Ön Kanat": "Front Wing", "Arka Kanat": "Rear Wing",
+  "Ön Yükseklik": "Front Ride Height", "Arka Yükseklik": "Rear Ride Height",
+  "Ön Basınç": "Front Pressure", "Arka Basınç": "Rear Pressure",
+  "Ön Kamber": "Front Camber", "Arka Kamber": "Rear Camber",
+  "Ön ARB": "Front ARB", "Arka ARB": "Rear ARB",
+  "Fren Dengesi": "Brake Bias", "Fren Basıncı": "Brake Pressure",
+  "Karışım": "Mixture",
+  "Sanal Enerji (VE)": "Virtual Energy (VE)", "Su Radyatörü": "Water Radiator",
+  "Yağ Radyatörü": "Oil Radiator", "Fren Kanalı (Ön)": "Brake Duct (Front)",
+  "Fren Kanalı (Arka)": "Brake Duct (Rear)", "Ön Denge Çubuğu": "Front Anti-Roll Bar",
+  "Arka Denge Çubuğu": "Rear Anti-Roll Bar", "Ön Toe": "Front Toe", "Arka Toe": "Rear Toe",
+  "Direksiyon Kilidi": "Steering Lock", "Fren Göçü": "Brake Migration",
+  "TC Haritası": "TC Map", "TC Güç Kesme": "TC Power Cut", "TC Kayma Açısı": "TC Slip Angle",
+  "ABS Haritası": "ABS Map", "Devir Limiti": "Rev Limit", "Motor Karışımı": "Engine Mixture",
+  "Kamber": "Camber", "Lastik Basıncı": "Tyre Pressure", "Yay": "Spring", "Yükseklik": "Ride Height",
+  "Yavaş Sıkışma": "Slow Bump", "Hızlı Sıkışma": "Fast Bump",
+  "Yavaş Yaylanma": "Slow Rebound", "Hızlı Yaylanma": "Fast Rebound",
+  "Lastik Hamuru": "Tyre Compound",
+
   /* --- setup havuzu (v1.4.86) --- */
   "Dosya okunamadı — tekrar deneyin.": "Could not read the file — please try again.",
   "Setup yüklendi": "Setup uploaded",
