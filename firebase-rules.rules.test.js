@@ -161,6 +161,17 @@ describe("teams/livelaps + livesec (tur geçmişi)", () => {
     await assertFails(set(ref(db("carol"), "teams/team1/livetyre/race1/c7/25"), "4|Medium"));
     await assertFails(set(ref(db("dave"), "teams/team1/livetyre/race1/c7/25"), "4|Medium"));
   });
+
+  it("livecond: editor pist koşulu yazar, üye okur; string olmayan/40+ reddedilir", async () => {
+    await assertSucceeds(set(ref(db("bob"), "teams/team1/livecond/race1/c7/25"), "31,22,73"));
+    await assertSucceeds(get(ref(db("carol"), "teams/team1/livecond/race1/c7")));
+    await assertFails(set(ref(db("bob"), "teams/team1/livecond/race1/c7/26"), 31));
+    await assertFails(set(ref(db("bob"), "teams/team1/livecond/race1/c7/27"), "x".repeat(40)));
+  });
+  it("livecond: viewer/yabancı yazamaz", async () => {
+    await assertFails(set(ref(db("carol"), "teams/team1/livecond/race1/c7/25"), "31,22,73"));
+    await assertFails(set(ref(db("dave"), "teams/team1/livecond/race1/c7/25"), "31,22,73"));
+  });
 });
 
 describe("teams/livetrack (paylaşımlı iç-harita şekli)", () => {

@@ -44,3 +44,22 @@ export function driverAtLap(drvMap, n) {
   }
   return name;
 }
+
+/* Bir turdaki PİST KOŞULLARI: livecond/{rid}/{lapKey}/{n} = "temp,wet,grip"
+   (asfalt sıcaklığı °C, zemin ıslaklığı %, yol tutuş %). Köprü, tur tamamlandığı
+   karede o anki seans koşullarını yazar. Boş/eksik alan → null; hiçbiri yoksa → null.
+   (livesec parse deseninin aynısı; virgülle ayrık, toleranslı.) */
+export function parseLapCond(str) {
+  if (typeof str !== "string" || !str) return null;
+  const p = str.split(",");
+  const num = (x) => {
+    if (x == null || String(x).trim() === "") return null;
+    const v = Number(x);
+    return Number.isFinite(v) ? v : null;
+  };
+  const temp = num(p[0]);
+  const wet = num(p[1]);
+  const grip = num(p[2]);
+  if (temp == null && wet == null && grip == null) return null;
+  return { temp, wet, grip };
+}
