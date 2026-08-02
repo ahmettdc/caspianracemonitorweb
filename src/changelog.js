@@ -5,6 +5,20 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.98",
+    date: "2026-08-02",
+    tr: [
+      "🐢 OYUNDA TAKILMA (2. adım): masaüstü uygulaması artık Windows'ta DÜŞÜK ÖNCELİKLE (BELOW_NORMAL) çalışıyor — sürüş PC'sinde oyun her zaman öncelikli, uygulama yalnız boşta kalan işlemci gücünü kullanır, oyunun kare üretimini asla önlemez. Bu ayar hem arayüzü (WebView2) hem köprüyü kapsar (çocuk süreçler önceliği miras alır).",
+      "Neden: v1.4.97 buffer ayarından sonra takılma azaldı ama bitmemişti; testte uygulamayı kapatınca takılmanın tamamen geçtiği görüldü — yani kaynak bizim uygulamamızın işlemci çekişmesiydi. Düşük öncelik bunu giderir. Çekişme yalnız oyun açıkken olur; izleyici PC'lerde arayüz yine tam hızlı.",
+      "Köprü/kabuk değiştiği için sürüş PC'lerinin yeni masaüstü sürümünü kurması gerekir. (Dürüst not: takılma GPU kaynaklıysa sıradaki adım, uygulama tepsiye küçültülünce ağır canlı ekranı büsbütün duraklatmak olacak.)",
+    ],
+    en: [
+      "🐢 IN-GAME STUTTER (step 2): the desktop app now runs at LOW PRIORITY (BELOW_NORMAL) on Windows — on the driving PC the game always comes first, the app only uses spare CPU and never preempts the game's frame rendering. This covers both the UI (WebView2) and the bridge (child processes inherit the priority).",
+      "Why: after the v1.4.97 buffer setting the stutter dropped but didn't stop; a test showed closing the app removed it entirely — so the cause was our app's CPU contention. Low priority fixes that. Contention only happens while the game runs; on viewer PCs the UI stays full speed.",
+      "The bridge/shell changed, so driving PCs need the new desktop build. (Honest note: if the stutter is GPU-bound, the next step will be pausing the heavy live screen entirely when the app is minimized to tray.)",
+    ],
+  },
+  {
     v: "v1.4.97",
     date: "2026-08-02",
     tr: [

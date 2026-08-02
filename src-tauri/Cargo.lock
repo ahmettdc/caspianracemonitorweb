@@ -449,7 +449,7 @@ dependencies = [
 
 [[package]]
 name = "caspian-race-monitor"
-version = "1.4.97"
+version = "1.4.98"
 dependencies = [
  "log",
  "reqwest 0.12.28",
@@ -464,6 +464,7 @@ dependencies = [
  "tauri-plugin-process",
  "tauri-plugin-shell",
  "tauri-plugin-updater",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
