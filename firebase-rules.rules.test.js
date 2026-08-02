@@ -78,6 +78,41 @@ describe("globalSetups", () => {
     await assertFails(set(ref(db("carol"), "globalSetups/s1"), null));   // başka üye → red
     await assertSucceeds(set(ref(db("admin"), "globalSetups/s1"), null)); // admin → başarılı
   });
+  it("v1.4.93 şema bölme: meta data'sız yazılabilir (data artık zorunlu değil)", async () => {
+    await assertSucceeds(
+      set(ref(db("bob"), "globalSetups/s4"), { uid: "bob", track: "spa", hasBlob: true }));
+    // uid hâlâ auth.uid olmalı
+    await assertFails(
+      set(ref(db("bob"), "globalSetups/s5"), { uid: "alice", track: "spa", hasBlob: true }));
+  });
+});
+
+describe("globalSetupData (v1.4.93 şema bölme — dosya gövdesi)", () => {
+  it("onaylı kullanıcı kendi uid'iyle blob yazar; başkasının uid'i/onaysız reddedilir", async () => {
+    await assertSucceeds(
+      set(ref(db("bob"), "globalSetupData/s1"), { uid: "bob", data: "AAA" }));
+    await assertFails(
+      set(ref(db("bob"), "globalSetupData/s2"), { uid: "alice", data: "AAA" }));
+    await assertFails(
+      set(ref(db("mallory"), "globalSetupData/s3"), { uid: "mallory", data: "AAA" }));
+  });
+  it("takım üyesi olmayan onaylı kullanıcı da okur (havuz global)", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await set(ref(ctx.database(), "globalSetupData/s1"), { uid: "bob", data: "AAA" });
+    });
+    await assertSucceeds(get(ref(db("dave"), "globalSetupData/s1")));   // dave başka takımda
+  });
+  it("silme YALNIZ admin", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await set(ref(ctx.database(), "globalSetupData/s1"), { uid: "bob", data: "AAA" });
+    });
+    await assertFails(set(ref(db("bob"), "globalSetupData/s1"), null));      // yükleyen → red
+    await assertSucceeds(set(ref(db("admin"), "globalSetupData/s1"), null)); // admin → ok
+  });
+  it("260000+ karakter data reddedilir (validate)", async () => {
+    await assertFails(
+      set(ref(db("bob"), "globalSetupData/big"), { uid: "bob", data: "x".repeat(260001) }));
+  });
 });
 
 describe("teams/live", () => {

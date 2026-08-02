@@ -5,6 +5,22 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.93",
+    date: "2026-08-02",
+    tr: [
+      "⚡ Setup havuzu artık çok daha hafif açılıyor: setup dosyalarının içeriği (base64) listeyle birlikte inmiyor, yalnız İçerik/İndir/Karşılaştır dediğinde talep üzerine çekiliyor. Havuz büyüse de sekme hızlı açılır; internet tüketimi düşer.",
+      "📄 Havuz son 150 kaydı gösteriyor; alttaki 'Daha fazla yükle' ile daha eskiler açılır (sıralama/arama/süzgeçler yine tüm indirilen pencerede çalışır).",
+      "♻️ Aynı setup dosyasını ikinci kez yüklerken uyarı çıkıyor ('Bu dosya zaten havuzda: … Yine de yüklensin mi?') — mükerrer yüklemeler azalır. (Dürüst kısıt: yalnız o an inmiş liste penceresi kontrol edilir; çok eski kayıtlar yakalanmayabilir.)",
+      "Eski setuplar olduğu gibi çalışmaya devam eder — hiçbir kayıt taşınmaz, dosyaları kaybolmaz.",
+    ],
+    en: [
+      "⚡ The setup pool opens much lighter now: setup file contents (base64) no longer download with the list — they're fetched on demand only when you hit Content/Download/Compare. The tab opens fast even as the pool grows, and uses less data.",
+      "📄 The pool shows the latest 150 records; 'Load more' at the bottom reveals older ones (sort/search/filters still work across everything loaded).",
+      "♻️ Uploading the same setup file twice now warns you ('This file is already in the pool: … Upload anyway?') — fewer duplicates. (Honest limit: only the currently loaded window is checked; very old records may not be caught.)",
+      "Existing setups keep working as-is — no records are migrated, no files are lost.",
+    ],
+  },
+  {
     v: "v1.4.92",
     date: "2026-08-02",
     tr: [

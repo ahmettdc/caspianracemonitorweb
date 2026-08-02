@@ -389,6 +389,13 @@ export const EN = {
     "All meaningful values of the two setups are identical.",
   "Gösterilecek satır yok.": "Nothing to show.",
 
+  /* --- setup altyapı (v1.4.93) --- */
+  "Daha fazla yükle": "Load more",
+  "Dosya yükleniyor…": "Loading file…",
+  "Dosya alınamadı — bağlantıyı kontrol et.": "Could not fetch the file — check your connection.",
+  "Bu dosya zaten havuzda": "This file is already in the pool",
+  "Yine de yüklensin mi?": "Upload anyway?",
+
   /* --- setup tur zamanı (v1.4.89) --- */
   "Tur Zamanı": "Lap Time",
   "En hızlı": "Fastest",

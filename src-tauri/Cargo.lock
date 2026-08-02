@@ -449,7 +449,7 @@ dependencies = [
 
 [[package]]
 name = "caspian-race-monitor"
-version = "1.4.92"
+version = "1.4.93"
 dependencies = [
  "log",
  "reqwest 0.12.28",

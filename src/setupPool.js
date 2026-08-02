@@ -91,6 +91,21 @@ export function fastestSetupIds(rows) {
   return out;
 }
 
+/* base64 gövdenin SHA-256 hex'i — mükerrer yükleme kontrolü (v1.4.93). WebCrypto
+   ister (tarayıcı/Node); yoksa ya da bozuk girdide boş döner → dedupe sessizce
+   devre dışı kalır (yükleme engellenmez — dürüst düşüş). */
+export async function b64Sha256Hex(b64) {
+  try {
+    const bin = atob(String(b64 || ""));
+    if (!bin) return "";
+    const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+    const buf = await crypto.subtle.digest("SHA-256", bytes);
+    return [...new Uint8Array(buf)].map((x) => x.toString(16).padStart(2, "0")).join("");
+  } catch {
+    return "";
+  }
+}
+
 /* Liste süzgeci — boş süzgeç "hepsi" demek. */
 export function filterSetups(setups, { track, cond, sess } = {}) {
   const list = Array.isArray(setups) ? setups : [];

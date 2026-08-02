@@ -15,9 +15,9 @@
        suUpOpen, setSuUpOpen, suFTrack, setSuFTrack, suFCond, setSuFCond,
        suFSess, setSuFSess, onSetupFile, saveSetup, downloadSetup, suList }. */
 import { useState, useEffect } from "react";
-import { addSetup, watchSetups } from "./storage";
+import { addSetup, watchSetups, getSetupBlob } from "./storage";
 import { fileTooBig, filterSetups, trimSetupMeta, staleTrackFilter,
-  searchSetups, sortSetups } from "./setupPool";
+  searchSetups, sortSetups, b64Sha256Hex } from "./setupPool";
 import { parseSvm, b64ToText } from "./setupParse";
 import { detectVehicle } from "./setupAutofill";
 import { carName } from "./constants";
@@ -40,12 +40,18 @@ export function useSetups({ user, udoc, userName, teamData, t, active = true,
   const [suQuery, setSuQuery] = useState("");       // serbest metin arama
   const [suSort, setSuSort] = useState({ key: "date", dir: "desc" }); // sıralama
   const [suMine, setSuMine] = useState(false);      // yalnız benim yüklediklerim
+  const [suLimit, setSuLimit] = useState(150);      // sayfalama: son N kayıt
 
-  /* Abonelik yalnız havuz görünürken (active) — bkz. başlıktaki not. */
+  /* Abonelik yalnız havuz görünürken (active) — bkz. başlıktaki not.
+     limitToLast(suLimit): "Daha fazla yükle" limiti artırıp yeniden abone olur. */
   useEffect(() => {
     if (!user || !udoc?.allowed || !active) { setSetups([]); return undefined; }
-    return watchSetups(setSetups);
-  }, [user, udoc, active]);
+    return watchSetups(setSetups, suLimit);
+  }, [user, udoc, active, suLimit]);
+
+  /* Pencere doluysa (tam limit kadar kayıt indiyse) muhtemelen devamı vardır. */
+  const suHasMore = setups.length >= suLimit;
+  const loadMoreSetups = () => setSuLimit((n) => n + 150);
 
   /* Ortak dosya alma yolu — hem <input type=file> hem sürükle-bırak buradan geçer. */
   const handleFile = (f) => {
@@ -116,6 +122,19 @@ export function useSetups({ user, udoc, userName, teamData, t, active = true,
     if (!suMeta.track) { setSuErr(t("Pist seçilmeli.")); return; }
     setSuBusy(true);
     const trimmed = trimSetupMeta(suMeta);   // champ/ver/note kırpma tek sözleşmeden
+    /* Mükerrer koruması: aynı içeriğin SHA-256'sı yüklü penceredeki bir kayıtla
+       eşleşirse kullanıcıya sor. Dürüst kısıt: yalnız o an inmiş liste penceresi
+       kontrol edilir; eski (hash'siz) kayıtlar yakalanmaz. */
+    const hash = await b64Sha256Hex(suFile.b64);
+    if (hash) {
+      const dup = setups.find((x) => x.hash === hash);
+      if (dup && !window.confirm(
+        `${t("Bu dosya zaten havuzda")}: ${dup.name || "?"} · ${dup.uname || "?"}\n`
+        + t("Yine de yüklensin mi?"))) {
+        setSuBusy(false);
+        return;
+      }
+    }
     try {
       await addSetup(user, {
         name: suFile.name, size: suFile.size,
@@ -124,6 +143,7 @@ export function useSetups({ user, udoc, userName, teamData, t, active = true,
         track: trimmed.track, cls: trimmed.cls, car: trimmed.car,
         cond: trimmed.cond, sess: trimmed.sess,
         champ: trimmed.champ, ver: trimmed.ver, note: trimmed.note, lap: trimmed.lap,
+        ...(hash ? { hash } : {}),
       }, suFile.b64);
       const nm = suFile.name;
       setSuFile(null);
@@ -146,9 +166,13 @@ export function useSetups({ user, udoc, userName, teamData, t, active = true,
     return () => clearTimeout(id);
   }, [suMsg]);
 
-  const downloadSetup = (su) => {
+  /* İndirme async oldu (v1.4.93): yeni kayıtlarda gövde ayrı düğümde — legacy
+     su.data varsa doğrudan, yoksa getSetupBlob ile talep üzerine çekilir. */
+  const downloadSetup = async (su) => {
     try {
-      const bin = atob(su.data || "");
+      const b64 = su.data || await getSetupBlob(su.id);
+      if (!b64) { window.alert(t("Dosya alınamadı — bağlantıyı kontrol et.")); return; }
+      const bin = atob(b64);
       const arr = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
       const url = URL.createObjectURL(new Blob([arr]));
@@ -185,5 +209,6 @@ export function useSetups({ user, udoc, userName, teamData, t, active = true,
     suUpOpen, setSuUpOpen, suFTrack, setSuFTrack,
     suFCond, setSuFCond, suFSess, setSuFSess,
     suQuery, setSuQuery, suSort, toggleSort, suMine, setSuMine,
+    suHasMore, loadMoreSetups,
     onSetupFile, onSetupDrop, saveSetup, downloadSetup, suList };
 }

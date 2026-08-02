@@ -683,6 +683,7 @@ ${bottomBar}
     suUpOpen, setSuUpOpen, suFTrack, setSuFTrack,
     suFCond, setSuFCond, suFSess, setSuFSess,
     suQuery, setSuQuery, suSort, toggleSort, suMine, setSuMine,
+    suHasMore, loadMoreSetups,
     onSetupFile, onSetupDrop, saveSetup, downloadSetup, suList } = useSetups({
     user, udoc, userName, teamData, t, active: tab === "setup" || suOpen,
     /* aktif yarıştan ön-doldurma: form açıldığında boş alanlar buradan dolar */
@@ -810,6 +811,7 @@ ${bottomBar}
       suFTrack={suFTrack} setSuFTrack={setSuFTrack} suFCond={suFCond} setSuFCond={setSuFCond}
       suFSess={suFSess} setSuFSess={setSuFSess} suQuery={suQuery} setSuQuery={setSuQuery}
       suMine={suMine} setSuMine={setSuMine} suView={suView} toggleSuView={toggleSuView}
+      suHasMore={suHasMore} loadMoreSetups={loadMoreSetups}
       setupForm={setupForm} setupTable={setupTable} />
   );
 
@@ -2263,6 +2265,12 @@ ${bottomBar}
                 </div>
               )}
               {suList.length > 0 && setupTable(suList)}
+              {suHasMore && (
+                <div style={{ textAlign: "center", marginTop: 10 }}>
+                  <button className="act" onClick={loadMoreSetups}>
+                    ⬇ {t("Daha fazla yükle")}</button>
+                </div>
+              )}
             </div>
           </>)}
 
