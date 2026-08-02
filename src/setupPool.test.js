@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   SETUP_MAX_BYTES, SETUP_LIMITS, fileTooBig, filterSetups,
-  poolEmptyReason, trimSetupMeta, staleTrackFilter,
+  poolEmptyReason, trimSetupMeta, staleTrackFilter, fastestSetupIds,
 } from "./setupPool";
 
 const pool = [
@@ -81,6 +81,55 @@ describe("trimSetupMeta", () => {
     expect(out.champ).toBe("");
     expect(out.ver).toBe("");
     expect(out.note).toBe("");
+    expect(out.lap).toBe("");
+  });
+  it("lap alanı da kırpılır/trim'lenir", () => {
+    expect(trimSetupMeta({ lap: "  1:58.234  " }).lap).toBe("1:58.234");
+    expect(trimSetupMeta({ lap: "x".repeat(30) }).lap).toHaveLength(SETUP_LIMITS.lap);
+  });
+});
+
+describe("fastestSetupIds", () => {
+  it("aynı pist+sınıfta en düşük tur zamanının id'sini döndürür", () => {
+    const rows = [
+      { id: "a", track: "spa", cls: "gt3", lap: "2:20.000" },
+      { id: "b", track: "spa", cls: "gt3", lap: "2:18.500" },  // en hızlı
+      { id: "c", track: "spa", cls: "gt3", lap: "2:19.100" },
+    ];
+    const f = fastestSetupIds(rows);
+    expect(f.has("b")).toBe(true);
+    expect(f.has("a")).toBe(false);
+    expect(f.has("c")).toBe(false);
+  });
+  it("farklı pist/sınıf ayrı gruplanır (her grubun kendi en hızlısı)", () => {
+    const rows = [
+      { id: "spa-gt3", track: "spa", cls: "gt3", lap: "2:18.0" },
+      { id: "monza-gt3", track: "monza", cls: "gt3", lap: "1:48.0" },
+      { id: "spa-hy", track: "spa", cls: "hypercar", lap: "2:02.0" },
+    ];
+    const f = fastestSetupIds(rows);
+    expect(f.has("spa-gt3")).toBe(true);
+    expect(f.has("monza-gt3")).toBe(true);
+    expect(f.has("spa-hy")).toBe(true);   // hepsi kendi grubunun tek/en hızlısı
+  });
+  it("beraberlikte hepsi işaretlenir", () => {
+    const rows = [
+      { id: "a", track: "spa", cls: "gt3", lap: "2:18.000" },
+      { id: "b", track: "spa", cls: "gt3", lap: "2:18.00" },
+    ];
+    const f = fastestSetupIds(rows);
+    expect(f.has("a")).toBe(true);
+    expect(f.has("b")).toBe(true);
+  });
+  it("parse edilemeyen/boş lap atlanır; hiç lap yoksa boş küme", () => {
+    const rows = [
+      { id: "a", track: "spa", cls: "gt3", lap: "" },
+      { id: "b", track: "spa", cls: "gt3" },
+      { id: "c", track: "spa", cls: "gt3", lap: "hızlı!" },
+    ];
+    expect(fastestSetupIds(rows).size).toBe(0);
+    expect(fastestSetupIds([]).size).toBe(0);
+    expect(fastestSetupIds(null).size).toBe(0);
   });
 });
 

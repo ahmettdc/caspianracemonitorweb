@@ -7,8 +7,8 @@ import {
   APP_VERSION, REPO_URL,
 } from "./constants";
 import { CHANGELOG } from "./changelog";
-import { msToLocalInput } from "./engine";
-import { SETUP_LIMITS, poolEmptyReason } from "./setupPool";
+import { msToLocalInput, parseLap, fmtLap } from "./engine";
+import { SETUP_LIMITS, poolEmptyReason, fastestSetupIds } from "./setupPool";
 import { trackOptions, classOptions, carOptions } from "./pickerOptions";
 import { parseSvm, b64ToText, setupSummary } from "./setupParse";
 import { renameTeam, syncMyTeamName, createSeason, deleteRace,
@@ -503,6 +503,14 @@ export function SetupForm({
             style={{ textTransform: "none" }}
             onChange={(e) => setSuMeta({ ...suMeta, ver: e.target.value })} />
         </div>
+        <div>
+          {/* opsiyonel best-lap — havuzda hangi setup hızlı bir bakışta görünsün */}
+          <label>{t("Tur Zamanı")}</label>
+          <input type="text" value={suMeta.lap} placeholder="1:58.234"
+            maxLength={SETUP_LIMITS.lap} inputMode="decimal"
+            style={{ textTransform: "none" }}
+            onChange={(e) => setSuMeta({ ...suMeta, lap: e.target.value })} />
+        </div>
         <div style={{ gridColumn: "span 2" }}>
           <label>{t("Not")}</label>
           <input type="text" value={suMeta.note} maxLength={SETUP_LIMITS.note}
@@ -526,13 +534,14 @@ export function SetupForm({
 /* Ortak setup tablosu — pit wall Setup sekmesi + lobi penceresi ortak.
    onDownload/onDelete App'ten prop gelir (indirme + silme onayı orada). */
 export function SetupTable({ rows, t, st, lang, isAdmin, onDownload, onDelete, onView }) {
+  const fastest = fastestSetupIds(rows);   // pist+sınıf başına en hızlı setup id'leri
   return (
     <div style={{ overflowX: "auto" }}>
       <table style={{ fontSize: 12 }}>
         <thead><tr>
           <th>{t("Tarih")}</th><th>{t("Pist")}</th><th>{t("Koşul")}</th>
           <th>{t("Seans")}</th><th>{t("Sınıf")}</th><th>{t("Araç")}</th>
-          <th>{t("Şampiyona")}</th><th>{t("Sürüm")}</th>
+          <th>{t("Şampiyona")}</th><th>{t("Sürüm")}</th><th>{t("Tur")}</th>
           <th>{t("Dosya")}</th><th>{t("Takım")}</th><th>{t("Yükleyen")}</th><th></th>
         </tr></thead>
         <tbody>
@@ -585,6 +594,15 @@ export function SetupTable({ rows, t, st, lang, isAdmin, onDownload, onDelete, o
                 : "—"}</td>
               <td>{su.champ || "—"}</td>
               <td className="mono">{su.ver || "—"}</td>
+              {/* tur zamanı — parse edilebiliyorsa normalize göster; pist+sınıf en hızlısı ⚡ */}
+              <td className="mono">{(() => {
+                if (!su.lap) return "—";
+                const sec = parseLap(su.lap);
+                const txt = sec > 0 ? fmtLap(sec) : su.lap;
+                return fastest.has(su.id)
+                  ? <span className="fastlap" title={t("En hızlı")}>⚡ {txt}</span>
+                  : txt;
+              })()}</td>
               <td title={su.note || ""}>
                 <span className="mono" style={{ fontSize: 11 }}>{su.name}</span>
                 {su.note && <span className="hint" style={{ display: "block",
@@ -822,7 +840,7 @@ export function SetupContentModal({ open, su, onClose, t }) {
         </div>
         <div className="wxmlist" style={{ maxHeight: "72vh" }}>
           <div className="hint" style={{ margin: "0 0 8px" }}>
-            {su.name}{title ? ` · ${title}` : ""}</div>
+            {su.name}{title ? ` · ${title}` : ""}{su.lap ? ` · ⏱ ${su.lap}` : ""}</div>
           {!parsed.ok ? (
             <div className="hint warn">⚠ {t("İçerik okunamadı — bu bir LMU setup dosyası değil ya da bozuk.")}</div>
           ) : (

@@ -367,6 +367,10 @@ export const EN = {
   "Başlangıç (yerel saat)": "Start (local time)",
   "Sınıf": "Class",
   "Tümü": "All",
+  /* --- setup tur zamanı (v1.4.89) --- */
+  "Tur Zamanı": "Lap Time",
+  "En hızlı": "Fastest",
+
   /* --- setup içeriği (v1.4.88) --- */
   "İçerik": "Contents",
   "Setup İçeriği": "Setup Contents",
