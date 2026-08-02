@@ -320,6 +320,10 @@ export const css = `
 .rc .setuprow-k{color:var(--muted)}
 .rc .setuprow-v{font-family:'IBM Plex Mono';color:var(--txt);text-align:right}
 .rc .fastlap{color:var(--green);font-weight:700}
+/* setup sürükle-bırak bölgesi — .svm dosyası buraya bırakılınca form kendiliğinden dolar */
+.rc .sudrop{border:1.5px dashed var(--line);border-radius:8px;padding:8px 10px;
+  display:flex;flex-direction:column;gap:5px;transition:border-color .15s,background .15s}
+.rc .sudrop.on{border-color:var(--teal);background:rgba(210,67,87,.08)}
 .rc .wxrow{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px}
 .rc .wxrow:nth-child(odd){background:rgba(255,255,255,.03)}
 .rc .wxrow .wxdot{width:11px;height:11px;border-radius:3px;flex:0 0 auto}

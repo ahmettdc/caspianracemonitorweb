@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   SETUP_MAX_BYTES, SETUP_LIMITS, fileTooBig, filterSetups,
   poolEmptyReason, trimSetupMeta, staleTrackFilter, fastestSetupIds,
+  searchSetups, sortSetups,
 } from "./setupPool";
 
 const pool = [
@@ -147,5 +148,48 @@ describe("staleTrackFilter", () => {
   });
   it("bozuk girdi patlamaz", () => {
     expect(staleTrackFilter(null, "spa")).toBe(true);
+  });
+});
+
+describe("searchSetups", () => {
+  const rows = [
+    { id: "a", name: "spa_low_wing.svm", note: "düşük kanat", champ: "ELMS", uname: "Ahmet", team: "Caspian" },
+    { id: "b", name: "monza.svm", note: "", champ: "Official", uname: "Savaş", team: "Caspian" },
+  ];
+  it("boş sorgu hepsi", () => {
+    expect(searchSetups(rows, "")).toHaveLength(2);
+    expect(searchSetups(rows, null)).toHaveLength(2);
+  });
+  it("dosya adı / not / şampiyona / yükleyen / takım üzerinde arar (küçük-harf)", () => {
+    expect(searchSetups(rows, "WING").map((r) => r.id)).toEqual(["a"]);
+    expect(searchSetups(rows, "kanat").map((r) => r.id)).toEqual(["a"]);
+    expect(searchSetups(rows, "official").map((r) => r.id)).toEqual(["b"]);
+    expect(searchSetups(rows, "savaş").map((r) => r.id)).toEqual(["b"]);
+    expect(searchSetups(rows, "caspian")).toHaveLength(2);
+    expect(searchSetups(rows, "yok-böyle")).toHaveLength(0);
+  });
+  it("bozuk girdi patlamaz", () => {
+    expect(searchSetups(null, "x")).toEqual([]);
+  });
+});
+
+describe("sortSetups", () => {
+  const rows = [
+    { id: "eski", at: 100, lap: "2:20.0" },
+    { id: "yeni", at: 300, lap: "" },
+    { id: "orta", at: 200, lap: "2:18.5" },
+  ];
+  it("date desc (varsayılan) — en yeni üstte", () => {
+    expect(sortSetups(rows).map((r) => r.id)).toEqual(["yeni", "orta", "eski"]);
+    expect(sortSetups(rows, "date", "asc").map((r) => r.id)).toEqual(["eski", "orta", "yeni"]);
+  });
+  it("lap asc — en hızlı üstte, boş/geçersiz lap HER YÖNDE sonda", () => {
+    expect(sortSetups(rows, "lap", "asc").map((r) => r.id)).toEqual(["orta", "eski", "yeni"]);
+    expect(sortSetups(rows, "lap", "desc").map((r) => r.id)).toEqual(["eski", "orta", "yeni"]);
+  });
+  it("girdi dizisi mutate edilmez", () => {
+    const before = rows.map((r) => r.id);
+    sortSetups(rows, "lap", "asc");
+    expect(rows.map((r) => r.id)).toEqual(before);
   });
 });

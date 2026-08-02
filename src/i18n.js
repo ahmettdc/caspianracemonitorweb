@@ -367,6 +367,11 @@ export const EN = {
   "Başlangıç (yerel saat)": "Start (local time)",
   "Sınıf": "Class",
   "Tümü": "All",
+  /* --- setup başlangıç paketi (v1.4.90) --- */
+  "ya da .svm dosyasını buraya sürükle": "or drag the .svm file here",
+  "Araç dosyadan algılandı": "Car detected from file",
+  "ara": "search",
+
   /* --- setup tur zamanı (v1.4.89) --- */
   "Tur Zamanı": "Lap Time",
   "En hızlı": "Fastest",

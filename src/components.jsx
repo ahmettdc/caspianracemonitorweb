@@ -427,14 +427,26 @@ export function ImgSelect({ value, options, onChange, placeholder, disabled, t }
 }
 
 export function SetupForm({
-  t, onSetupFile, suFile, suMeta, setSuMeta, seasons, suErr, suMsg, suBusy, saveSetup,
+  t, onSetupFile, onSetupDrop, suFile, suMeta, setSuMeta, seasons, suErr, suMsg, suBusy,
+  saveSetup,
 }) {
+  const [dragOn, setDragOn] = useState(false);   // sürükleme vurgusu
   return (
     <>
       <div className="row2" style={{ maxWidth: 720 }}>
         <div>
           <label>{t("Dosya")}</label>
-          <input type="file" onChange={onSetupFile} />
+          {/* sürükle-bırak bölgesi — dosya seçici de içinde; .svm bırakılınca
+              sınıf/araç dosyadan kendiliğinden algılanır (setupAutofill) */}
+          <div className={`sudrop${dragOn ? " on" : ""}`}
+            onDragOver={(e) => e.preventDefault()}
+            onDragEnter={() => setDragOn(true)}
+            onDragLeave={() => setDragOn(false)}
+            onDrop={(e) => { setDragOn(false); onSetupDrop?.(e); }}>
+            <input type="file" onChange={onSetupFile} />
+            <div className="hint" style={{ margin: 0 }}>
+              {t("ya da .svm dosyasını buraya sürükle")}</div>
+          </div>
           {suFile && <div className="hint">
             📄 {suFile.name} · {(suFile.size / 1024).toFixed(1)} KB</div>}
         </div>
@@ -533,15 +545,22 @@ export function SetupForm({
 
 /* Ortak setup tablosu — pit wall Setup sekmesi + lobi penceresi ortak.
    onDownload/onDelete App'ten prop gelir (indirme + silme onayı orada). */
-export function SetupTable({ rows, t, st, lang, isAdmin, onDownload, onDelete, onView }) {
+export function SetupTable({ rows, t, st, lang, isAdmin, onDownload, onDelete, onView,
+  sort, onSort }) {
   const fastest = fastestSetupIds(rows);   // pist+sınıf başına en hızlı setup id'leri
+  /* Tarih/Tur başlıkları tıklanabilir sıralama — ok yönü aktif sıralamayı gösterir */
+  const arrow = (k) => (sort?.key === k ? (sort.dir === "asc" ? " ▲" : " ▼") : "");
+  const sortTh = (k, lbl) => onSort
+    ? <th style={{ cursor: "pointer", whiteSpace: "nowrap" }}
+        onClick={() => onSort(k)}>{lbl}{arrow(k)}</th>
+    : <th>{lbl}</th>;
   return (
     <div style={{ overflowX: "auto" }}>
       <table style={{ fontSize: 12 }}>
         <thead><tr>
-          <th>{t("Tarih")}</th><th>{t("Pist")}</th><th>{t("Koşul")}</th>
+          {sortTh("date", t("Tarih"))}<th>{t("Pist")}</th><th>{t("Koşul")}</th>
           <th>{t("Seans")}</th><th>{t("Sınıf")}</th><th>{t("Araç")}</th>
-          <th>{t("Şampiyona")}</th><th>{t("Sürüm")}</th><th>{t("Tur")}</th>
+          <th>{t("Şampiyona")}</th><th>{t("Sürüm")}</th>{sortTh("lap", t("Tur"))}
           <th>{t("Dosya")}</th><th>{t("Takım")}</th><th>{t("Yükleyen")}</th><th></th>
         </tr></thead>
         <tbody>
@@ -880,7 +899,8 @@ export function SetupContentModal({ open, su, onClose, t }) {
    ve tablo (setupTable) App'te kalıp render-prop ile gelir (Setup sekmesinde de
    kullanılıyor). open=false → null döner. */
 export function SetupModal({ open, onClose, t, suUpOpen, setSuUpOpen, suList, setups,
-  suFTrack, setSuFTrack, suFCond, setSuFCond, suFSess, setSuFSess, setupForm, setupTable }) {
+  suFTrack, setSuFTrack, suFCond, setSuFCond, suFSess, setSuFSess,
+  suQuery, setSuQuery, setupForm, setupTable }) {
   if (!open) return null;
   return (
     <div className="wxmodal" onClick={onClose}>
@@ -916,6 +936,11 @@ export function SetupModal({ open, onClose, t, suUpOpen, setSuUpOpen, suList, se
               <option value="R">{t("Yarış")}</option>
               <option value="Q">{t("Sıralama")}</option>
             </select>
+            {setSuQuery && (
+              <input type="text" value={suQuery || ""} placeholder={`🔎 ${t("ara")}…`}
+                style={{ textTransform: "none", minWidth: 160 }}
+                onChange={(e) => setSuQuery(e.target.value)} />
+            )}
           </div>
           {!suList.length
             ? <div className="hint">
