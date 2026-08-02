@@ -63,4 +63,37 @@ describe("TrackMap", () => {
     expect(html).toContain("transition:transform .5s linear");
     expect(html).toMatch(/transform:translate\([-\d.]+px, ?[-\d.]+px\)/);
   });
+
+  /* v1.4.95 — pist durumu katmanı (session prop). session yoksa hiçbir katman yok. */
+  it("session yoksa durum rozeti/katmanı çizilmez (geriye uyum)", () => {
+    const html = renderToStaticMarkup(
+      <TrackMap t={t} field={mkField(6)} trackLength={LEN} />);
+    expect(html).not.toContain("mapcond");
+  });
+
+  it("FCY bayrağında yol amber renklenir + durum rozeti FCY yazar", () => {
+    const html = renderToStaticMarkup(
+      <TrackMap t={t} field={mkField(6)} trackLength={LEN}
+        session={{ flag: "FCY", trackTemp: 31, ambientTemp: 24 }} />);
+    expect(html).toContain("mapcond");
+    expect(html).toContain("FCY");
+    expect(html).toContain("#5a4a1e");       // ROAD_FCY
+    expect(html).toContain("31°");            // sıcaklık köşesi
+  });
+
+  it("ıslak zeminde yol mavi tint + WetIcon rozeti", () => {
+    const html = renderToStaticMarkup(
+      <TrackMap t={t} field={mkField(6)} trackLength={LEN}
+        session={{ flag: "Green", wetness: 80, rain: 50 }} />);
+    expect(html).toContain("#2b4a66");       // ROAD_WET
+    expect(html).toContain("mapcond-wx");
+    expect(html).toContain("Wet");            // WEATHER label
+  });
+
+  it("bozuk/eksik session ile çökmez", () => {
+    for (const s of [{}, { flag: "Green" }, { yellowSectors: [2] }, { wetness: null }]) {
+      expect(() => renderToStaticMarkup(
+        <TrackMap t={t} field={mkField(4)} trackLength={LEN} session={s} />)).not.toThrow();
+    }
+  });
 });

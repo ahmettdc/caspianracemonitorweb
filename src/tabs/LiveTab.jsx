@@ -754,7 +754,7 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
         {s.trackLength > 0 && fieldAll.some((c) => c.posX != null) && (
           <div style={{ flex: "1 1 360px", minWidth: 300 }}>
-            <TrackMap t={t} field={fieldAll} trackLength={s.trackLength}
+            <TrackMap t={t} field={fieldAll} session={s} trackLength={s.trackLength}
               tid={tid} trackKey={binKey(s.trackName, s.trackLength)} canSave={canEdit}
               topSlot={!big ? <StrategyBar t={t} field={fieldAll} embedded /> : null} />
           </div>

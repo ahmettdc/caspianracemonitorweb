@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.95",
+    date: "2026-08-02",
+    tr: [
+      "🗺 Pist Haritası artık YARIŞ DURUMUNU da gösteriyor: sarı bayrakta ilgili sektör harita halkasında sarıya boyanır, FCY'de (tam pist sarısı) yol amber olur, yağmurda/ıslak zeminde yol mavi tona döner. Haritaya bakınca nerede tehlike/ıslaklık olduğu bir bakışta belli.",
+      "🌦 Harita köşesinde küçük durum rozeti: bayrak (⚑ FCY / Yellow S2…), zemin ıslaklığı ikonu + kademesi (Damp/Wet…), pist ve ortam sıcaklığı. Hepsi canlı veriden — köprü değişmez, ek kurulum yok.",
+    ],
+    en: [
+      "🗺 The Track Map now shows RACE STATE too: under a local yellow the affected sector turns yellow on the map ring, under FCY (full-course yellow) the road goes amber, and in the wet the road shifts to a blue tint. One glance tells you where the danger or the wet is.",
+      "🌦 A small status badge in the map corner: flag (⚑ FCY / Yellow S2…), track-wetness icon + level (Damp/Wet…), and track/ambient temperature. All from live data — no bridge change, no extra setup.",
+    ],
+  },
+  {
     v: "v1.4.94",
     date: "2026-08-02",
     tr: [

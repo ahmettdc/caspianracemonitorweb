@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { classId, classAccent } from "../constants";
+import { wetnessLevel, rainLevel, WEATHER } from "../engine";
+import { WetIcon } from "../WetIcon";
 import { packBins, unpackBins } from "../trackShape";
-import { observeSector, sectorFractions, packSectors, unpackSectors, emptySectors }
-  from "../trackSectors";
+import { observeSector, sectorFractions, sectorRanges,
+  packSectors, unpackSectors, emptySectors } from "../trackSectors";
 import { liveTrackSave, liveTrackSubscribe,
   liveTrackSecSave, liveTrackSecSubscribe } from "../storage";
 
@@ -22,11 +24,15 @@ const BRAND = "#960018";        // ana tema
 const SECTOR_COL = "#5aa9e6";   // sektör ayırıcı (S/F kırmızısından ayrışan soğuk mavi)
 const ROAD_W = 20;              // yol bandı kalınlığı ≈ araç dairesi çapı (araç içine oturur)
 const ROAD_COL = "var(--line2)"; // yol rengi (siyah zeminde okunur; renkli noktalar üstte)
+const ROAD_WET = "#2b4a66";     // ıslak zemin — soluk koyu mavi (yol bandı)
+const ROAD_FCY = "#5a4a1e";     // full-course yellow — koyu amber
+const YELLOW = "#F2C037";       // lokal sarı sektör yayı
 const cx = 260, cy = 262;       // merkez
 const R = 236;                  // dış halka yarıçapı
 const PAD = 148;                // iç şekil yarım-uzanımı (px)
 
-export default function TrackMap({ t, field, trackLength, tid, trackKey, canSave, topSlot }) {
+export default function TrackMap({ t, field, session, trackLength, tid, trackKey,
+  canSave, topSlot }) {
   const [zoom, setZoom] = useState(false);   // ⛶ büyük pencere
   const [, bump] = useState(0);              // paylaşımlı şekil gelince yeniden çiz
   useEffect(() => {
@@ -267,12 +273,67 @@ export default function TrackMap({ t, field, trackLength, tid, trackKey, canSave
     ? [sectorMark(secFr.f12, "S1"), sectorMark(secFr.f20, "S2")]
     : null;
 
+  /* ---- PİST DURUMU KATMANI (session → görsel): bayrak / sarı sektör / ıslak zemin ----
+     session prop yoksa (demo/eski) hiçbir katman çizilmez → geriye uyum. */
+  const flag = session?.flag;
+  const isFCY = flag === "FCY";
+  const wetId = wetnessLevel(session?.wetness);   // null = veri yok
+  const rainId = rainLevel(session?.rain);
+  const isWet = wetId && wetId !== "dry";
+  // yol bandı rengi: FCY amber > ıslak mavi > normal (öncelik sırası)
+  const roadStroke = isFCY ? ROAD_FCY : (isWet ? ROAD_WET : ROAD_COL);
+
+  // sarı sektör yayı — yellowSectors [2] gibi S-no'lar; sektör lapDist aralığı secFr'den
+  const ranges = sectorRanges(secFr);
+  const ringArc = (fromFrac, toFrac) => {
+    const a0 = fromFrac * 2 * Math.PI, a1 = toFrac * 2 * Math.PI;
+    const p0 = [cx + R * Math.sin(a0), cy - R * Math.cos(a0)];
+    const p1 = [cx + R * Math.sin(a1), cy - R * Math.cos(a1)];
+    const large = toFrac - fromFrac > 0.5 ? 1 : 0;   // sweep=1: tepeden saat yönü
+    return `M${p0[0].toFixed(1)} ${p0[1].toFixed(1)} A ${R} ${R} 0 ${large} 1 `
+      + `${p1[0].toFixed(1)} ${p1[1].toFixed(1)}`;
+  };
+  const yellowArcs = (!isFCY && Array.isArray(session?.yellowSectors) && ranges)
+    ? session.yellowSectors.map((sn) => {
+        const rg = ranges.find((r) => r.sec === Number(sn));
+        if (!rg || rg.to <= rg.from) return null;
+        return <path key={`ys${sn}`} d={ringArc(rg.from, rg.to)} fill="none"
+          stroke={YELLOW} strokeWidth={ROAD_W} opacity={0.5} />;
+      })
+    : null;
+
+  // durum rozeti (harita üstü HTML katmanı) — bayrak + hava + sıcaklık
+  const hasCond = isFCY || flag === "Yellow" || isWet
+    || (rainId && rainId.id !== "none") || session?.trackTemp != null;
+  const conditionBadge = hasCond ? (
+    <div className="mapcond">
+      {(isFCY || flag === "Yellow") && (
+        <span className="mapcond-flag">⚑ {isFCY ? "FCY" : t("Yellow")}
+          {flag === "Yellow" && session?.yellowSectors?.length
+            ? " " + session.yellowSectors.map((s) => "S" + s).join("·") : ""}</span>
+      )}
+      {isWet && (
+        <span className="mapcond-wx"><WetIcon id={wetId} size={15}
+          title={WEATHER[wetId]?.lbl} /> {WEATHER[wetId]?.lbl}</span>
+      )}
+      {!isWet && rainId && rainId.id !== "none" && (
+        <span className="mapcond-wx">{rainId.ico} {rainId.lbl}</span>
+      )}
+      {session?.trackTemp != null && (
+        <span className="mapcond-temp">🛣 {Math.round(session.trackTemp)}°
+          {session?.ambientTemp != null ? ` · ${Math.round(session.ambientTemp)}°` : ""}</span>
+      )}
+    </div>
+  ) : null;
+
   /* SVG içeriği tek yerde — küçük kart ve büyük pencere aynı çocukları kullanır.
      Ölçek tamamen CSS'ten (viewBox sabit) → noktalar ve pozisyon numaraları
      büyük pencerede orantılı olarak büyür. */
   const svgKids = (<>
-    {/* dış halka — araç çapı kalınlığında yol bandı + ince merkez çizgisi */}
-    <circle cx={cx} cy={cy} r={R} fill="none" stroke={ROAD_COL} strokeWidth={ROAD_W} />
+    {/* dış halka — araç çapı kalınlığında yol bandı (ıslak/FCY renklenir) + merkez çizgisi */}
+    <circle cx={cx} cy={cy} r={R} fill="none" stroke={roadStroke} strokeWidth={ROAD_W} />
+    {/* lokal sarı sektör yay(lar)ı — yol bandının üstünde */}
+    {yellowArcs}
     <circle cx={cx} cy={cy} r={R} fill="none" stroke="var(--muted)"
       strokeWidth={1.5} opacity={0.35} />
     {/* S/F işareti (tepe) — kalın bandı kessin */}
@@ -283,7 +344,7 @@ export default function TrackMap({ t, field, trackLength, tid, trackKey, canSave
     {/* sektör ayırıcıları (S1, S2) — gözlendiyse */}
     {sectorMarks}
     {/* iç pist şekli — kalın yol bandı + ince merkez çizgisi (araç bandın içine oturur) */}
-    {outline && <path d={outline} fill="none" stroke={ROAD_COL}
+    {outline && <path d={outline} fill="none" stroke={roadStroke}
       strokeWidth={ROAD_W} strokeLinejoin="round" strokeLinecap="round" />}
     {outline && <path d={outline} fill="none" stroke="var(--muted)"
       strokeWidth={1.5} strokeLinejoin="round" opacity={0.35} />}
@@ -307,7 +368,8 @@ export default function TrackMap({ t, field, trackLength, tid, trackKey, canSave
           title={t("Haritayı büyük pencerede aç")}
           onClick={() => setZoom(true)}>⛶ {t("Büyüt")}</button>
       </h2>
-      <div style={{ display: "flex", justifyContent: "center" }}>
+      <div style={{ display: "flex", justifyContent: "center", position: "relative" }}>
+        {conditionBadge}
         <svg viewBox="0 0 520 520" width="100%" style={{ maxWidth: 460 }}
           role="img" aria-label={t("Canlı pist haritası")}>{svgKids}</svg>
       </div>
