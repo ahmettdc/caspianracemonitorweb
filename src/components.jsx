@@ -2,13 +2,14 @@
    App.jsx içe aktarır. */
 import { useState, useEffect, useRef, Fragment } from "react";
 import {
-  ASSET, quantile, TRACKS, trackFlag, TRACK_ASSET,
-  CAR_CLASSES, CARS, trackName, carImg, carName,
+  ASSET, quantile, TRACKS, TRACK_ASSET,
+  CAR_CLASSES, CARS, trackName, carImg, carName, brandLogo,
   APP_VERSION, REPO_URL,
 } from "./constants";
 import { CHANGELOG } from "./changelog";
 import { msToLocalInput } from "./engine";
 import { SETUP_LIMITS, poolEmptyReason } from "./setupPool";
+import { trackOptions, classOptions, carOptions } from "./pickerOptions";
 import { renameTeam, syncMyTeamName, createSeason, deleteRace,
   leaveTeam, createTeam, joinTeam } from "./storage";
 
@@ -349,6 +350,81 @@ export function Bolt({ size = 16, color = "var(--green)" }) {
 
 /* Setup yükleme formu — pit wall Setup sekmesi + lobi setup penceresi ortak.
    Tüm state ve saveSetup/onSetupFile App'ten prop gelir. */
+/* Logolu açılır liste — native <select> görsel taşıyamadığı için (Setup formu Track/
+   Class/Car). Kapalıyken seçili ikon+ad; açılınca fixed-konumlu popup, her satırda logo.
+   Kapatma: dış tık (backdrop) · Esc · resize · popup DIŞINDA kaydırma (fixed konum kaymasın;
+   popup İÇİ kaydırma korunur). Modal (z1000) üstünde: backdrop z1290 / popup z1300.
+   options: [{ value, label, icon }]. icon URL'i yüklenemezse gizlenir, ad kalır. */
+export function ImgSelect({ value, options, onChange, placeholder, disabled, t }) {
+  const [open, setOpen] = useState(false);
+  const [rect, setRect] = useState(null);
+  const [up, setUp] = useState(false);      // alta sığmazsa üstte aç
+  const btnRef = useRef(null);
+  const popRef = useRef(null);
+  const cur = options.find((o) => o.value === value) || null;
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const b = btnRef.current?.getBoundingClientRect();
+    if (b) {
+      setRect(b);
+      setUp(b.bottom + 300 > window.innerHeight && b.top > window.innerHeight - b.bottom);
+    }
+    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    const onScroll = (e) => { if (!popRef.current?.contains(e.target)) setOpen(false); };
+    const onResize = () => setOpen(false);
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [open]);
+
+  const hideImg = (e) => { e.currentTarget.style.display = "none"; };
+  const pick = (v) => { onChange(v); setOpen(false); };
+
+  return (
+    <>
+      <button type="button" className={`imgsel-btn${disabled ? " off" : ""}`}
+        aria-haspopup="listbox" aria-expanded={open} disabled={disabled}
+        ref={btnRef} onClick={() => !disabled && setOpen((o) => !o)}>
+        {cur
+          ? <span className="imgsel-cur">
+              {cur.icon && <img src={cur.icon} alt="" onError={hideImg} />}
+              <span>{cur.label}</span>
+            </span>
+          : <span className="imgsel-ph">{placeholder || (t ? t("Seç") : "—")}</span>}
+        <span className="imgsel-car" aria-hidden="true">▾</span>
+      </button>
+      {open && (
+        <>
+          <div className="imgsel-back" onClick={() => setOpen(false)} />
+          <div className="imgsel-pop" role="listbox" ref={popRef}
+            style={{
+              left: rect ? rect.left : 0, width: rect ? rect.width : "auto",
+              ...(up
+                ? { bottom: rect ? window.innerHeight - rect.top + 4 : 0 }
+                : { top: rect ? rect.bottom + 4 : 0 }),
+            }}>
+            {options.map((o) => (
+              <button type="button" key={o.value} role="option"
+                aria-selected={o.value === value}
+                className={`imgsel-opt${o.value === value ? " on" : ""}`}
+                onClick={() => pick(o.value)}>
+                {o.icon && <img src={o.icon} alt="" onError={hideImg} />}
+                <span>{o.label}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
 export function SetupForm({
   t, onSetupFile, suFile, suMeta, setSuMeta, seasons, suErr, suMsg, suBusy, saveSetup,
 }) {
@@ -363,14 +439,17 @@ export function SetupForm({
         </div>
         <div>
           <label>{t("Pist")} *</label>
-          <select value={suMeta.track}
-            onChange={(e) => setSuMeta({ ...suMeta, track: e.target.value })}>
-            <option value="">—</option>
-            {TRACKS.map((tr) =>
-              <option key={tr.id} value={tr.id}>{trackFlag(tr.id)} {tr.name}</option>)}
-          </select>
+          <ImgSelect t={t} value={suMeta.track} options={trackOptions()}
+            placeholder="—" onChange={(v) => setSuMeta({ ...suMeta, track: v })} />
         </div>
       </div>
+      {/* Pist seçilince pist görseli (kullanıcı: "pistte görüntü yok") — pick-ekranı deseni */}
+      {suMeta.track && (
+        <img key={suMeta.track} src={`${ASSET}tracks/${TRACK_ASSET(suMeta.track)}.png`} alt=""
+          style={{ display: "block", margin: "8px 0 4px", maxWidth: "100%", maxHeight: 130,
+            borderRadius: 8, filter: "drop-shadow(0 3px 10px rgba(0,0,0,.45))" }}
+          onError={(e) => { e.currentTarget.style.display = "none"; }} />
+      )}
       <div className="row4" style={{ maxWidth: 720 }}>
         <div>
           <label>{t("Koşul")}</label>
@@ -390,20 +469,14 @@ export function SetupForm({
         </div>
         <div>
           <label>{t("Sınıf")}</label>
-          <select value={suMeta.cls}
-            onChange={(e) => setSuMeta({ ...suMeta, cls: e.target.value, car: "" })}>
-            <option value="">—</option>
-            {CAR_CLASSES.map(([id, lbl]) => <option key={id} value={id}>{lbl}</option>)}
-          </select>
+          <ImgSelect t={t} value={suMeta.cls} options={classOptions()}
+            placeholder="—" onChange={(v) => setSuMeta({ ...suMeta, cls: v, car: "" })} />
         </div>
         <div>
           <label>{t("Araç")}</label>
-          <select value={suMeta.car} disabled={!suMeta.cls}
-            onChange={(e) => setSuMeta({ ...suMeta, car: e.target.value })}>
-            <option value="">—</option>
-            {(CARS[suMeta.cls] || []).map((c) =>
-              <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+          <ImgSelect t={t} value={suMeta.car} options={carOptions(suMeta.cls)}
+            placeholder="—" disabled={!suMeta.cls}
+            onChange={(v) => setSuMeta({ ...suMeta, car: v })} />
         </div>
       </div>
       <div className="row4" style={{ maxWidth: 720 }}>
@@ -497,6 +570,12 @@ export function SetupTable({ rows, t, st, lang, isAdmin, onDownload, onDelete })
                 : "—"}</td>
               <td>{su.car
                 ? <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    {/* marka logosu (kullanıcı: "brand logo dahil") + araç görseli */}
+                    {brandLogo(carName(su.cls, su.car)) && (
+                      <img src={brandLogo(carName(su.cls, su.car))} alt=""
+                        style={{ height: 16, width: "auto" }}
+                        onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                    )}
                     <img src={carImg(su.cls, su.car)} alt=""
                       style={{ height: 22, width: "auto" }}
                       onError={(e) => { e.currentTarget.style.display = "none"; }} />

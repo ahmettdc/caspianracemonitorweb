@@ -5,6 +5,20 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.87",
+    date: "2026-08-02",
+    tr: [
+      "🖼 Setup formundaki Pist / Sınıf / Araç seçimleri artık logolu açılır listeler. Eskiden bunlar normal açılır listelerdi ve HTML gereği içlerine görsel konulamıyordu (logo yoktu). Artık listeyi açınca her satırda ilgili logo görünür: pist bayrağı, sınıf rozeti ve araç için MARKA logosu.",
+      "🗺 Pist seçilince formda o pistin görseli de gösteriliyor (önceden görsel yoktu).",
+      "🏷 Setup havuzu tablosunda araç adının yanına marka logosu eklendi.",
+    ],
+    en: [
+      "🖼 The Track / Class / Car pickers in the setup form are now logo dropdowns. These used to be plain dropdowns, and HTML doesn't allow images inside them (so there were no logos). Now each row in the open list shows its logo: track flag, class badge, and the brand logo for cars.",
+      "🗺 Selecting a track now also shows that track's image in the form (there was no image before).",
+      "🏷 The brand logo was added next to the car name in the setup pool table.",
+    ],
+  },
+  {
     v: "v1.4.86",
     date: "2026-08-02",
     tr: [
