@@ -46,7 +46,7 @@ import { poolEmptyReason } from "./setupPool";
 import {
   TourOverlay, Wheel, Num, Bolt, Tyre, Ring,
   BADGES, teamBadgesOf, hasBadge, ChatPanel, SetupForm, SetupTable, VersionModal, RaceEditModal,
-  ChatModal, SetupModal, TeamModal, DenyToast,
+  ChatModal, SetupModal, TeamModal, DenyToast, SetupContentModal,
 } from "./components";
 import { WetIcon } from "./WetIcon";
 
@@ -659,6 +659,7 @@ ${bottomBar}
      Eskiden girişte herkes tüm havuzu (base64 dosyalar dahil) indiriyordu. */
   const [suOpen, setSuOpen] = useState(false);   // lobi setup penceresi (abonelik kapısı)
   const [suDelErr, setSuDelErr] = useState("");  // silme hatası (yükleme hatasından ayrı)
+  const [viewSu, setViewSu] = useState(null);    // "🔍 İçerik" ile açılan setup
   const { setups, suFile, suMeta, setSuMeta, suErr, suMsg, suBusy,
     suUpOpen, setSuUpOpen, suFTrack, setSuFTrack,
     suFCond, setSuFCond, suFSess, setSuFSess,
@@ -744,7 +745,7 @@ ${bottomBar}
 
   const setupTable = (rows) => (
     <SetupTable rows={rows} t={t} st={st} lang={lang} isAdmin={isAdmin}
-      onDownload={downloadSetup}
+      onDownload={downloadSetup} onView={setViewSu}
       /* Silme hatası eskiden yutuluyordu (.catch(()=>{})) → kural reddi/ağ hatasında
          satır ekranda kalıyor, kullanıcı sebebini göremiyordu. */
       onDelete={(su) => { if (window.confirm(t("Bu setup silinsin mi?") + "\n" + (su.name || "")))
@@ -758,6 +759,10 @@ ${bottomBar}
       suUpOpen={suUpOpen} setSuUpOpen={setSuUpOpen} suList={suList} setups={setups}
       suFTrack={suFTrack} setSuFTrack={setSuFTrack} suFCond={suFCond} setSuFCond={setSuFCond}
       suFSess={suFSess} setSuFSess={setSuFSess} setupForm={setupForm} setupTable={setupTable} />
+  );
+
+  const setupContentModal = (
+    <SetupContentModal open={!!viewSu} su={viewSu} onClose={() => setViewSu(null)} t={t} />
   );
 
   const chatModal = (
@@ -1353,7 +1358,7 @@ ${bottomBar}
       <div className="rc">
         <style>{css}</style>
         <UpdateBanner t={t} />
-        {teamModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{setupModal}
+        {teamModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{setupModal}{setupContentModal}
         <div className="lobby">
           <div className="box" style={{ maxWidth: 560 }}>
             <div className="langsw" style={{ display: "flex", justifyContent: "flex-end",
@@ -1588,7 +1593,7 @@ ${bottomBar}
     <div className="rc">
       <style>{css}</style>
       <UpdateBanner t={t} />
-      {teamModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{streamPlayer}{setupModal}
+      {teamModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{streamPlayer}{setupModal}{setupContentModal}
       {denyToast}
       {profOpen && user && (
         <div className="wxmodal" onClick={() => setProfOpen(false)}>

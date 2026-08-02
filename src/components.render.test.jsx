@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
   VersionModal, RaceEditModal, ChatModal, SetupModal, TeamModal, TourOverlay, ImgSelect,
+  SetupContentModal,
 } from "./components.jsx";
 import { buildTourSteps } from "./tourSteps";
 
@@ -136,5 +137,28 @@ describe("ImgSelect", () => {
     const html = render(
       <ImgSelect value="" options={[]} onChange={noop} t={t} disabled placeholder="—" />);
     expect(html).toContain("imgsel-btn off");
+  });
+});
+
+/* SetupContentModal — su.data (base64 .svm) çözülüp özet + değerler basmalı. */
+describe("SetupContentModal", () => {
+  globalThis.window ??= {};
+  const svm = "[REARWING]\nRWSetting=2//8.3 deg\n[GENERAL]\nVirtualEnergySetting=100//100%";
+  const b64 = Buffer.from(svm, "utf-8").toString("base64");
+  const su = { name: "s.svm", cls: "gt3", car: "bmw", track: "spa", data: b64 };
+
+  it("açık halde arka kanat değerini basar", () => {
+    const html = render(<SetupContentModal open su={su} onClose={noop} t={t} />);
+    expect(html).toContain("wxmodal");
+    expect(html).toContain("Arka Kanat");
+    expect(html).toContain("8.3 deg");
+  });
+  it("open=false → null", () => {
+    expect(render(<SetupContentModal open={false} su={su} onClose={noop} t={t} />)).toBe("");
+  });
+  it("bozuk/olmayan içerik → uyarı, çökme yok", () => {
+    const bad = { name: "x", data: Buffer.from("selam", "utf-8").toString("base64") };
+    const html = render(<SetupContentModal open su={bad} onClose={noop} t={t} />);
+    expect(html).toContain("okunamadı");
   });
 });

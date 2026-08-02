@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.88",
+    date: "2026-08-02",
+    tr: [
+      "🔍 Artık setup dosyalarının İÇİNİ görebiliyoruz. Setup havuzundaki her satırda '🔍 İçerik' düğmesi var — açınca dosyadaki gerçek ayarlar listeleniyor: arka kanat (ör. 8.3 deg), ön/arka yükseklik, lastik basıncı, denge çubukları, fren dengesi, TC/ABS, kamber, yay, diff, VE ve daha fazlası. Üstte hızlı bir özet şeridi, altında bölüm bölüm tüm değerler. İndirmeye gerek yok, dosyayı açmadan içini görürsün.",
+      "ℹ Değerler dosyanın kendi etiketlerinden okunuyor (LMU .svm metin formatı); LMU setup'ı olmayan/bozuk bir dosyada net uyarı verir.",
+    ],
+    en: [
+      "🔍 You can now see INSIDE setup files. Every row in the setup pool has a '🔍 Contents' button — it lists the real settings from the file: rear wing (e.g. 8.3 deg), front/rear ride height, tyre pressures, anti-roll bars, brake bias, TC/ABS, camber, springs, diff, VE and more. A quick summary strip on top, all values grouped by section below. No download needed — you see the contents without opening the file.",
+      "ℹ Values are read from the file's own labels (LMU .svm text format); a non-LMU or corrupted file shows a clear warning.",
+    ],
+  },
+  {
     v: "v1.4.87",
     date: "2026-08-02",
     tr: [

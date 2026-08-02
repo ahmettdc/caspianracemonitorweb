@@ -10,6 +10,7 @@ import { CHANGELOG } from "./changelog";
 import { msToLocalInput } from "./engine";
 import { SETUP_LIMITS, poolEmptyReason } from "./setupPool";
 import { trackOptions, classOptions, carOptions } from "./pickerOptions";
+import { parseSvm, b64ToText, setupSummary } from "./setupParse";
 import { renameTeam, syncMyTeamName, createSeason, deleteRace,
   leaveTeam, createTeam, joinTeam } from "./storage";
 
@@ -524,7 +525,7 @@ export function SetupForm({
 
 /* Ortak setup tablosu — pit wall Setup sekmesi + lobi penceresi ortak.
    onDownload/onDelete App'ten prop gelir (indirme + silme onayı orada). */
-export function SetupTable({ rows, t, st, lang, isAdmin, onDownload, onDelete }) {
+export function SetupTable({ rows, t, st, lang, isAdmin, onDownload, onDelete, onView }) {
   return (
     <div style={{ overflowX: "auto" }}>
       <table style={{ fontSize: 12 }}>
@@ -591,6 +592,11 @@ export function SetupTable({ rows, t, st, lang, isAdmin, onDownload, onDelete })
               <td>{su.team || "—"}</td>
               <td>{su.uname || "—"}</td>
               <td style={{ whiteSpace: "nowrap" }}>
+                {/* setup dosyasının içindeki değerleri (arka kanat vb.) göster */}
+                {onView && su.data && (
+                  <button className="act" style={{ fontSize: 11, marginRight: 4 }}
+                    onClick={() => onView(su)}>🔍 {t("İçerik")}</button>
+                )}
                 <button className="act" style={{ fontSize: 11 }}
                   onClick={() => onDownload(su)}>⬇ {t("İndir")}</button>
                 {/* silme yalnız admin — yükleyen dahil kimse başkasınınkini/kendininkini silemez */}
@@ -763,6 +769,90 @@ export function ChatModal({ open, onClose, t, chatSound, toggleChatSound, chatCh
           })}
         </div>
         {chatBody(curChan)}
+      </div>
+    </div>
+  );
+}
+
+/* .svm alan anahtarları → kısa TR ad (yoksa ham anahtar gösterilir). Bölüm başlıkları
+   da TR'ye çevrilir. Liste uzun olduğu için yalnız sık bakılanlar; gerisi ham key. */
+const SVM_SECTIONS = {
+  GENERAL: "Genel", FRONTWING: "Ön Kanat", REARWING: "Arka Kanat", BODYAERO: "Gövde/Aero",
+  SUSPENSION: "Süspansiyon", CONTROLS: "Kontroller", ENGINE: "Motor", DRIVELINE: "Aktarma",
+  FRONTLEFT: "Ön Sol", FRONTRIGHT: "Ön Sağ", REARLEFT: "Arka Sol", REARRIGHT: "Arka Sağ",
+  BASIC: "Temel", LEFTFENDER: "Sol Çamurluk", RIGHTFENDER: "Sağ Çamurluk",
+};
+const SVM_FIELDS = {
+  FuelSetting: "Yakıt", VirtualEnergySetting: "Sanal Enerji (VE)", FWSetting: "Ön Kanat",
+  RWSetting: "Arka Kanat", WaterRadiatorSetting: "Su Radyatörü", OilRadiatorSetting: "Yağ Radyatörü",
+  BrakeDuctSetting: "Fren Kanalı (Ön)", BrakeDuctRearSetting: "Fren Kanalı (Arka)",
+  FrontAntiSwaySetting: "Ön Denge Çubuğu", RearAntiSwaySetting: "Arka Denge Çubuğu",
+  FrontToeInSetting: "Ön Toe", RearToeInSetting: "Arka Toe", SteerLockSetting: "Direksiyon Kilidi",
+  RearBrakeSetting: "Fren Dengesi", BrakeMigrationSetting: "Fren Göçü", BrakePressureSetting: "Fren Basıncı",
+  TractionControlMapSetting: "TC Haritası", TCPowerCutMapSetting: "TC Güç Kesme",
+  TCSlipAngleMapSetting: "TC Kayma Açısı", AntilockBrakeSystemMapSetting: "ABS Haritası",
+  RevLimitSetting: "Devir Limiti", EngineMixtureSetting: "Motor Karışımı",
+  DiffPreloadSetting: "Diff Preload", CamberSetting: "Kamber", PressureSetting: "Lastik Basıncı",
+  SpringSetting: "Yay", RideHeightSetting: "Yükseklik", SlowBumpSetting: "Yavaş Sıkışma",
+  FastBumpSetting: "Hızlı Sıkışma", SlowReboundSetting: "Yavaş Yaylanma",
+  FastReboundSetting: "Hızlı Yaylanma", CompoundSetting: "Lastik Hamuru",
+};
+
+/* Setup içeriği penceresi — havuzdaki base64 (su.data) çözülüp .svm parse edilir; üstte
+   özet çipleri (Arka Kanat vb.), altında bölüm bölüm anlamlı değerler. open=false → null. */
+export function SetupContentModal({ open, su, onClose, t }) {
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+  if (!open || !su) return null;
+  const parsed = parseSvm(b64ToText(su.data));
+  const summary = setupSummary(parsed);
+  const title = [carName(su.cls, su.car) || su.car, trackName(su.track) || su.track]
+    .filter(Boolean).join(" · ");
+  return (
+    <div className="wxmodal" onClick={onClose}>
+      <div className="wxmbox" style={{ width: "min(560px,95vw)" }}
+        onClick={(e) => e.stopPropagation()}>
+        <div className="wxmhead">
+          <span>🔍 {t("Setup İçeriği")}</span>
+          <button className="lbclose" onClick={onClose}>✕</button>
+        </div>
+        <div className="wxmlist" style={{ maxHeight: "72vh" }}>
+          <div className="hint" style={{ margin: "0 0 8px" }}>
+            {su.name}{title ? ` · ${title}` : ""}</div>
+          {!parsed.ok ? (
+            <div className="hint warn">⚠ {t("İçerik okunamadı — bu bir LMU setup dosyası değil ya da bozuk.")}</div>
+          ) : (
+            <>
+              {summary.length > 0 && (
+                <div className="setupsum">
+                  {summary.map((s) => (
+                    <span className="setupchip" key={s.label}>
+                      <b>{t(s.label)}</b> {s.value}</span>
+                  ))}
+                </div>
+              )}
+              {Object.entries(parsed.bySection).map(([sec, list]) => {
+                const rows = list.filter((r) => r.meaningful);
+                if (!rows.length) return null;
+                return (
+                  <div className="setupsec" key={sec}>
+                    <div className="setupsec-h">{t(SVM_SECTIONS[sec] || sec)}</div>
+                    {rows.map((r) => (
+                      <div className="setuprow" key={r.key}>
+                        <span className="setuprow-k">{t(SVM_FIELDS[r.key] || r.key)}</span>
+                        <span className="setuprow-v">{r.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
