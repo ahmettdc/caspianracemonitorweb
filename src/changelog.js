@@ -5,6 +5,20 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.99",
+    date: "2026-08-02",
+    tr: [
+      "🅿 SÜRÜŞ MODU (oyunda takılmanın 3. adımı): masaüstü uygulaması artık sürüş sırasında görünmez olduğunda (tepsiye küçültülünce ya da tam ekran oyunun arkasına düştüğünde) ağır Canlı ekranı — 55 satırlık tablo, animasyonlu pist haritası, grafikler — çizmeyi DURDURUR. Böylece sürücünün göremediği bir arayüz oyunla GPU/CPU için boşuna yarışmaz.",
+      "📡 Veri KESİLMEZ: köprü render'dan bağımsız çalıştığı için render dursa da veri tam hızda (~2 Hz) Firebase'e akmaya devam eder — mühendis başka bir PC'den canlıyı akıcı görmeye devam eder. Sürücü pencereyi öne getirince arayüz anında geri gelir.",
+      "Yanlış-durdurma koruması: ikinci monitörde canlıyı izleyen mühendisin penceresi köprü canlı veri yazmadıkça karartılmaz. İzleyici (web) hiç etkilenmez. Kabuk (Rust) + arayüz değiştiği için sürüş PC'lerinin yeni masaüstü sürümünü kurması gerekir. (Dürüst kısıt: tam ekran EXCLUSIVE oyunda WebView2 görünürlük olayları gecikebilir.)",
+    ],
+    en: [
+      "🅿 DRIVING MODE (in-game stutter, step 3): while driving, when the desktop app is not visible (minimized to tray, or behind the full-screen game) it now STOPS drawing the heavy Live screen — the 55-row table, animated track map, charts. An interface the driver can't see no longer competes with the game for GPU/CPU.",
+      "📡 Data keeps flowing: the bridge runs independently of rendering, so even with the render paused, data streams to Firebase at full rate (~2 Hz) — the engineer on another PC keeps seeing the live view smoothly. The interface returns instantly when the driver brings the window to front.",
+      "False-pause guard: an engineer watching live on a second monitor is not blanked unless the bridge is actively writing live game data. Viewers (web) are never affected. The shell (Rust) + UI changed, so driving PCs need the new desktop build. (Honest limit: with a full-screen EXCLUSIVE game, WebView2 visibility events may lag.)",
+    ],
+  },
+  {
     v: "v1.4.98",
     date: "2026-08-02",
     tr: [

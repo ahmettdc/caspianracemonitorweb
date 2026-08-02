@@ -543,6 +543,16 @@ export const css = `
 @keyframes dtin{from{opacity:0;transform:translate(-50%,14px) scale(.96)}
   to{opacity:1;transform:translate(-50%,0) scale(1)}}
 @media (prefers-reduced-motion:reduce){.rc .denytoast{animation:none}}
+/* Sürüş Modu (v1.4.99) — pencere görünmezken ağır sekmelerin yerine ucuz yer tutucu */
+.rc .drivepause{display:flex;align-items:center;justify-content:center;
+  min-height:min(60vh,420px);padding:24px}
+.rc .drivepause-box{text-align:center;max-width:420px;padding:26px 30px;
+  border-radius:16px;background:var(--panel);border:1px solid var(--line);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.02)}
+.rc .drivepause-ico{font-size:40px;line-height:1;margin-bottom:10px;opacity:.85}
+.rc .drivepause-title{font-size:18px;font-weight:700;letter-spacing:.04em;
+  color:var(--txt);margin-bottom:6px}
+.rc .drivepause-sub{font-size:13px;line-height:1.45;color:var(--muted)}
 .rc textarea:focus{outline:2px solid var(--teal)}
 .rc select{background:var(--panel2);border:1px solid var(--line);border-radius:6px;
   color:var(--txt);padding:5px 6px;font-family:'IBM Plex Mono';font-size:12px}

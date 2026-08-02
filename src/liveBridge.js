@@ -73,6 +73,7 @@ export async function startBridge(opts, onStatus) {
   let lastWrite = 0;
   let pending = null;      // en son çözülen kare (throttle penceresinde)
   let writeTimer = null;
+  let inFlight = false;    // bir yazım sürüyor mu (olay-güdümlü flush'ta üst üste binmeyi önler)
   let cars = 0;
   const lastLap = {};      // lapKey → yazılmış en yüksek tur no (append idempotent)
   const lastPit = {};      // lapKey → son görülen pit durak sayısı (pit turu işareti)
@@ -196,7 +197,9 @@ export async function startBridge(opts, onStatus) {
 
   const flush = async () => {
     writeTimer = null;
-    if (!pending || stopping) return;
+    // inFlight: olay-güdümlü flush'ta (gizliyken doğrudan çağrılır) önceki yazım henüz
+    // bitmemişse üst üste binme → pending korunur, yazım bitince finally yeniden tetikler.
+    if (!pending || stopping || inFlight) return;
     const frame = pending; pending = null;
     // oyun kapalı / seans yok (0 araç) → Firebase'e boşuna yazma (kota + eski veri).
     // Mesaj artık NEDENE göre seçilir (eklenti yok / menü / araç yok); diag da
@@ -206,22 +209,23 @@ export async function startBridge(opts, onStatus) {
       say({ running: true, phase: w.warn ? "error" : "running", msg: WAIT_MSG[w.key], diag });
       return;
     }
+    inFlight = true;
     lastWrite = Date.now();
-    // tek-yazıcı seçimi: yalnız kira sahibi / aktif sürücü yazar (iki köprü çakışmasın).
-    // Karar mantığı saf fonksiyonda (liveWriter.shouldClaim) → birim testlerle kilitli.
-    if (electing) {
-      const driving = !!(frame.own && frame.own.driving);
-      if (!shouldClaim(lease, uid, driving, serverNow())) {
-        say({ running: true, phase: "standby", msg: "Beklemede", writerBy: lease?.by || "", cars, diag });
-        return;
-      }
-      const hold = await liveWriterClaim(tid, rid, { uid, by, driving });
-      if (!hold) {
-        say({ running: true, phase: "standby", msg: "Beklemede", writerBy: lease?.by || "", cars, diag });
-        return;
-      }
-    }
     try {
+      // tek-yazıcı seçimi: yalnız kira sahibi / aktif sürücü yazar (iki köprü çakışmasın).
+      // Karar mantığı saf fonksiyonda (liveWriter.shouldClaim) → birim testlerle kilitli.
+      if (electing) {
+        const driving = !!(frame.own && frame.own.driving);
+        if (!shouldClaim(lease, uid, driving, serverNow())) {
+          say({ running: true, phase: "standby", msg: "Beklemede", writerBy: lease?.by || "", cars, diag });
+          return;
+        }
+        const hold = await liveWriterClaim(tid, rid, { uid, by, driving });
+        if (!hold) {
+          say({ running: true, phase: "standby", msg: "Beklemede", writerBy: lease?.by || "", cars, diag });
+          return;
+        }
+      }
       await harvestLaps(frame);   // laps'i livelaps'e taşı + kareden çıkar
       /* ts SERVER-hizalı olmalı: izleyen taraf tazeliği kendi saatiyle ölçüyor;
          yazan PC'nin saati kayıksa veri akarken bile "bağlantı koptu" görünüyordu. */
@@ -229,6 +233,10 @@ export async function startBridge(opts, onStatus) {
       say({ running: true, phase: "running", msg: "Gönderiliyor", lastTs: lastWrite, cars, writerBy: by, diag });
     } catch (e) {
       say({ running: true, phase: "error", msg: "Firebase yazma hatası: " + (e?.message || e) });
+    } finally {
+      inFlight = false;
+      // yazım sürerken yeni kare geldiyse onu da gönder (son kareyi geç bırakma)
+      if (pending && !stopping && !writeTimer) writeTimer = setTimeout(flush, 0);
     }
   };
 
@@ -254,9 +262,17 @@ export async function startBridge(opts, onStatus) {
     }
     cars = Array.isArray(frame?.field) ? frame.field.length : 0;
     pending = frame;
-    // en fazla ~2.5 Hz yaz (kota dostu); gelen kare hızından bağımsız throttle
+    // en fazla ~2.5 Hz yaz (kota dostu); gelen kare hızından bağımsız throttle.
+    // wait===0 iken flush DOĞRUDAN (setTimeout değil) çağrılır → pencere gizli/arka
+    // planda iken Chromium'un timer kısması yazımı ~1 Hz'e düşürmez; sidecar hızında
+    // (~2 Hz) akmaya devam eder. Sürücü bakmasa da mühendis başka PC'de akıcı görür.
     const wait = Math.max(0, 400 - (Date.now() - lastWrite));
-    if (!writeTimer) writeTimer = setTimeout(flush, wait);
+    if (wait === 0) {
+      if (writeTimer) { clearTimeout(writeTimer); writeTimer = null; }
+      flush();
+    } else if (!writeTimer) {
+      writeTimer = setTimeout(flush, wait);
+    }
   };
 
   cmd.stdout.on("data", (line) => {
