@@ -7,7 +7,7 @@ tur kaymasına (tur 4'ün süresi tur 3 diye) ve kalıcı veri bozulmasına yol 
 """
 import sys
 
-from rf2_source import Aggregator, RF2Source, _flag_of
+from rf2_source import Aggregator, RF2Source, _flag_of, _wait_reason
 
 
 class _Wheel:
@@ -180,6 +180,31 @@ def test_bayrak_invalid_255_yesil_kalir():
     """c_ubyte alanlarda Invalid(-1) = 255. Eskiden `yellow > 0` bunu sarı sayardı."""
     assert _flag_of(5, 255) == ("Green", [])
     assert _flag_of(5, 0) == ("Green", [])
+
+
+def test_bekleme_nedeni_eklenti_yok():
+    """Windows mmap eksik adlandırılmış mapping'i SIFIRLARLA kendisi oluşturur —
+    eklenti DLL'i kurulu/etkin değilken köprü 'çalışıyor' görünür ve tek mesaj
+    'Oyun/seans bekleniyor' hiçbir şey söylemezdi (kullanıcı bug'ı: üyenin PC'si
+    'okumuyor'). mVersion boş = DLL hiç yazmıyor → noplugin."""
+    assert _wait_reason(False, None, 0) == "noplugin"
+    assert _wait_reason(False, False, 0) == "noplugin"   # eklenti yokken menü bilgisi anlamsız
+
+
+def test_bekleme_nedeni_menu_ve_seans():
+    assert _wait_reason(True, False, 0) == "menu"        # eklenti var, ana menüde
+    assert _wait_reason(True, True, 0) == "novehicles"   # seansta ama araç yok (nadir)
+
+
+def test_bekleme_nedeni_arac_varsa_yok():
+    assert _wait_reason(True, True, 14) is None
+    assert _wait_reason(False, None, 14) is None         # araç geldiyse bekleme bitti
+
+
+def test_bekleme_nedeni_bilinmiyorsa_genel():
+    """track_loaded None = mSessionStarted okunamadı (eski struct) → uydurma teşhis
+    yerine None (UI genel mesaja düşer)."""
+    assert _wait_reason(True, None, 0) is None
 
 
 tc = Aggregator.tyre_change

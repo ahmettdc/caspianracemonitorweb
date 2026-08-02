@@ -86,6 +86,26 @@ def _session_type(n):
     return ""
 
 
+def _wait_reason(plugin_ok, track_loaded, num):
+    """field boşken NEDEN boş? Tek "Oyun/seans bekleniyor" mesajı üç ayrı durumu
+    gizliyordu — en sinsisi: Windows'ta mmap eksik adlandırılmış mapping'i SIFIRLARLA
+    kendisi OLUŞTURUR (exception yok) → eklenti DLL'i kurulu/etkin değilken köprü
+    "çalışıyor" görünür ve sonsuza dek bekler. Ayrım:
+      noplugin   → eklenti sürüm string'i (Rf2Ext.mVersion) boş = DLL hiç yazmıyor
+      menu       → eklenti var ama seans başlamamış (mSessionStarted=0, ana menü)
+      novehicles → seansta ama araç listesi boş (nadir/geçici)
+      None       → araç var (bekleme yok) ya da track_loaded bilinmiyor (eski struct)."""
+    if num > 0:
+        return None
+    if not plugin_ok:
+        return "noplugin"
+    if track_loaded is False:
+        return "menu"
+    if track_loaded:
+        return "novehicles"
+    return None
+
+
 def _s(b):
     """rF2 byte dizisi → temiz string."""
     try:
@@ -465,6 +485,15 @@ class RF2Source:
         info = scor.mScoringInfo
         num = int(getattr(info, "mNumVehicles", 0))
 
+        # Eklenti GERÇEKTEN yazıyor mu? mVersion boş = mapping'i mmap kendisi
+        # oluşturdu (DLL kurulu/etkin değil — bkz. _wait_reason). mSessionStarted
+        # menü/seans ayrımını verir. İkisi de Rf2Ext'te; yoksa "bilinmiyor".
+        shm_ver = _s(getattr(ext, "mVersion", b"")) if ext is not None else ""
+        try:
+            track_loaded = bool(int(ext.mSessionStarted)) if ext is not None else None
+        except Exception:
+            track_loaded = None
+
         # seans
         cur, end = float(info.mCurrentET), float(info.mEndET)
         phase = int(getattr(info, "mGamePhase", 0))
@@ -655,7 +684,11 @@ class RF2Source:
         # shm=paylaşımlı bellek okundu, cars=araç sayısı, lmu=LMU REST yanıtı,
         # ve=VE gelen araç sayısı. "VE gelmiyor / veri yok" teşhisini kolaylaştırır.
         diag = {
-            "shm": True,   # read() buraya ulaştıysa paylaşımlı bellek eşlendi
+            # Eskiden sabit True'ydu — eklenti yokken de ✓ görünüyordu (hayalet
+            # mapping). Artık gerçek kanıt: eklenti sürüm string'i dolu mu?
+            "shm": bool(shm_ver),
+            "shmVersion": shm_ver or None,
+            "trackLoaded": track_loaded,
             "cars": len(field),
             "lmu": lmu_ok,
             "ve": sum(1 for r in field if r.get("virtualEnergy") is not None),
@@ -665,6 +698,9 @@ class RF2Source:
             "flagRaw": {"phase": phase, "yellow": yellow, "rest": rest_flag,
                         "sectors": [int(x) for x in list(getattr(info, "mSectorFlag", []) or [])[:3]]},
         }
+        # Saha boşken bekleme NEDENİ — UI mesaj seçimi (noplugin/menu/novehicles).
+        if not field:
+            diag["wait"] = _wait_reason(bool(shm_ver), track_loaded, num)
         return {"session": session, "own": own, "field": field, "_diag": diag}
 
 

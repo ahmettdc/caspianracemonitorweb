@@ -27,3 +27,17 @@ export function shouldClaim(lease, uid, driving, now, staleMs = LIVE_WRITER_STAL
   const preempt = !!driving && !!lease && !lease.driving && lease.uid !== uid;
   return mine || stale || preempt;
 }
+
+/* Saha (field) boşken köprü kartında NE söylenmeli? Sidecar'ın _diag.wait'i üç
+   durumu ayırır — en kritiği "noplugin": Windows mmap eksik mapping'i sıfırlarla
+   kendisi oluşturduğundan eklenti DLL'i kurulu/etkin değilken köprü "çalışıyor"
+   görünür; eski tek mesaj ("Oyun/seans bekleniyor…") bunu menü beklemesinden ayırt
+   edemiyordu. Eski sidecar (wait alanı yok) → generic (geriye uyum).
+   Dönen: { key: "noplugin"|"menu"|"novehicles"|"generic", warn: bool }. */
+export function bridgeWaitInfo(diag) {
+  const w = diag?.wait;
+  if (w === "noplugin") return { key: "noplugin", warn: true };
+  if (w === "menu") return { key: "menu", warn: false };
+  if (w === "novehicles") return { key: "novehicles", warn: false };
+  return { key: "generic", warn: false };
+}

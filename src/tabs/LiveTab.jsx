@@ -423,7 +423,7 @@ function BridgeControl({ t, bridge, canEdit }) {
   // gösterilmez). "VE gelmiyor / veri yok" gibi durumları sessizce açıklar.
   const d = bridge?.diag;
   const diagTitle = d
-    ? `paylaşımlı-bellek ${d.shm ? "✓" : "✗"} · araç ${d.cars ?? 0} · LMU-REST ${d.lmu ? "✓" : "✗"} · VE ${d.ve ?? 0}`
+    ? `eklenti ${d.shm ? `✓${d.shmVersion ? ` v${d.shmVersion}` : ""}` : "✗"} · araç ${d.cars ?? 0} · LMU-REST ${d.lmu ? "✓" : "✗"} · VE ${d.ve ?? 0}`
     : undefined;
   return (
     <div className="card" style={{ marginBottom: 12 }}>
@@ -446,7 +446,14 @@ function BridgeControl({ t, bridge, canEdit }) {
       {canEdit && bridge?.msg && phase !== "standby" && (
         <div className="hint" style={{ marginTop: 6,
           color: phase === "error" ? "var(--red)" : "var(--dim)" }}>
-          • {bridge.msg}
+          • {t(bridge.msg)}
+        </div>
+      )}
+      {/* Viewer'da köprü HİÇ başlamaz — eskiden kart sessiz kalıyordu ve üye
+          "neden bende çalışmıyor" diye kalıyordu. Sebep artık açık yazılır. */}
+      {!canEdit && (
+        <div className="hint" style={{ marginTop: 6, color: "var(--yellow)" }}>
+          🔒 {t("Rolün izleyici — köprü bu rolde yayın yapamaz. Yayınlayacak üyenin takımda 🎧 Mühendis (editor) ya da Sahip olması gerekir.")}
         </div>
       )}
     </div>
