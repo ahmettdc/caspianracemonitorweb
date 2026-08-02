@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   SETUP_MAX_BYTES, SETUP_LIMITS, fileTooBig, filterSetups,
   poolEmptyReason, trimSetupMeta, staleTrackFilter, fastestSetupIds,
-  searchSetups, sortSetups, lapDeltas,
+  searchSetups, sortSetups, lapDeltas, b64Sha256Hex,
 } from "./setupPool";
 
 const pool = [
@@ -242,5 +242,21 @@ describe("sortSetups", () => {
     const before = rows.map((r) => r.id);
     sortSetups(rows, "lap", "asc");
     expect(rows.map((r) => r.id)).toEqual(before);
+  });
+});
+
+describe("b64Sha256Hex", () => {
+  const b64 = (s) => Buffer.from(s, "utf-8").toString("base64");
+  it("aynı içerik aynı hash, farklı içerik farklı hash", async () => {
+    const h1 = await b64Sha256Hex(b64("[REARWING]\nRWSetting=2//8.3 deg"));
+    const h2 = await b64Sha256Hex(b64("[REARWING]\nRWSetting=2//8.3 deg"));
+    const h3 = await b64Sha256Hex(b64("[REARWING]\nRWSetting=1//6.9 deg"));
+    expect(h1).toBe(h2);
+    expect(h1).not.toBe(h3);
+    expect(h1).toMatch(/^[0-9a-f]{64}$/);   // SHA-256 hex
+  });
+  it("boş/bozuk girdi → boş dize (dedupe sessiz düşer)", async () => {
+    expect(await b64Sha256Hex("")).toBe("");
+    expect(await b64Sha256Hex(null)).toBe("");
   });
 });

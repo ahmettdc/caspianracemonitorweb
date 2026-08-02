@@ -200,19 +200,38 @@ export async function syncMyTeamName(uid, tid, name) {
    Ham dosya sınırı ~180KB → base64 ~240KB. */
 /* Ortak (global) setup havuzu — tüm onaylı kullanıcılar okur/yükler.
    Kim yükledi bilgisi için team adı da meta içinde saklanır. */
+/* Şema bölme (v1.4.93): meta `globalSetups/{id}`, dosya gövdesi (base64)
+   `globalSetupData/{id}` = { uid, data }. Liste aboneliği artık blob taşımaz →
+   havuz büyüse de ilk yükleme hafif kalır. ESKİ kayıtlar `data`yı meta içinde
+   taşımaya devam eder (legacy) — okuyucular önce su.data'ya bakar, yoksa
+   getSetupBlob(id) çağırır. Zorunlu migrasyon YOK. */
 export async function addSetup(user, meta, b64) {
   if (!db || !user || !b64) return;
-  await push(ref(db, "globalSetups"), {
+  /* id önce üretilir, iki yola aynı id yazılır. Önce blob, sonra meta —
+     meta listede göründüğünde gövdesi hazır olsun (ters sıra kısa süreli
+     "içerik yok" penceresi açardı). */
+  const id = push(ref(db, "globalSetups")).key;
+  await set(ref(db, `globalSetupData/${id}`), { uid: user.uid, data: b64 });
+  await set(ref(db, `globalSetups/${id}`), {
     ...meta,
-    data: b64,
     uid: user.uid,
     at: Date.now(),
+    hasBlob: true,
   });
 }
 
-export function watchSetups(cb) {
+/* Blob'u talep üzerine çek (İçerik/İndir/Karşılaştır) — tek seferlik get. */
+export async function getSetupBlob(id) {
+  if (!db || !id) return "";
+  const snap = await get(ref(db, `globalSetupData/${id}/data`));
+  return snap.val() || "";
+}
+
+/* limit: son N kayıt (push anahtarı kronolojik → en yeni N). "Daha fazla yükle"
+   limiti artırıp yeniden abone olur; sıralama zaten istemcide (at desc). */
+export function watchSetups(cb, limit = 150) {
   if (!db) { cb([]); return () => {}; }
-  return onValue(ref(db, "globalSetups"), (snap) => {
+  return onValue(query(ref(db, "globalSetups"), limitToLast(limit)), (snap) => {
     const v = snap.val() || {};
     cb(Object.entries(v)
       .map(([id, x]) => ({ id, ...x }))
@@ -223,6 +242,9 @@ export function watchSetups(cb) {
 export async function deleteSetup(id) {
   if (!db || !id) return;
   await remove(ref(db, `globalSetups/${id}`));
+  /* Blob ayrı silinir; hata yutulur — meta gittiği için satır zaten kaybolur,
+     olası öksüz blob görünmezdir ve zarar vermez (admin tek yetkili). */
+  await remove(ref(db, `globalSetupData/${id}`)).catch(() => {});
 }
 
 /* ---------- sohbet: kanal yolu ile çalışır ----------

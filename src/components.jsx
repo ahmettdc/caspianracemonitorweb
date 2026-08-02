@@ -12,7 +12,7 @@ import { SETUP_LIMITS, poolEmptyReason, lapDeltas } from "./setupPool";
 import { trackOptions, classOptions, carOptions } from "./pickerOptions";
 import { parseSvm, b64ToText, setupSummary, diffSetups } from "./setupParse";
 import { renameTeam, syncMyTeamName, createSeason, deleteRace,
-  leaveTeam, createTeam, joinTeam } from "./storage";
+  leaveTeam, createTeam, joinTeam, getSetupBlob } from "./storage";
 
 /* Sohbet paneli — mesaj listesi + giriş çubuğu. Genel/takım/yarış kanalları
    için ortak (App.jsx'te iki yerde kullanılıyordu). Tüm veri prop ile gelir. */
@@ -545,6 +545,10 @@ export function SetupForm({
 
 /* Ortak setup tablosu — pit wall Setup sekmesi + lobi penceresi ortak.
    onDownload/onDelete App'ten prop gelir (indirme + silme onayı orada). */
+/* Kaydın gövdesi (dosyası) var mı? Legacy kayıt data'yı meta içinde taşır; yeni
+   kayıtlar (v1.4.93 şema bölme) hasBlob işaretiyle gelir, gövde talep üzerine iner. */
+const hasFile = (su) => !!(su?.data || su?.hasBlob);
+
 /* Tur zamanı hücresi/rozeti — tablo ve kart görünümü ortak. En hızlı ⚡ yeşil;
    diğerlerinde grubun en hızlısına fark "+0.6s" soluk ek. */
 function LapCell({ su, d, t }) {
@@ -593,10 +597,10 @@ export function SetupTable({ rows, t, st, lang, isAdmin, onDownload, onDelete, o
           {rows.map((su) => (
             /* satıra tıkla → içerik penceresi (eylem hücresi stopPropagation ile hariç) */
             <tr key={su.id}
-              onClick={() => su.data && onView?.(su)}
+              onClick={() => hasFile(su) && onView?.(su)}
               style={{
                 ...(su.track === st.track ? { background: "rgba(150,0,24,.08)" } : {}),
-                ...(su.data && onView ? { cursor: "pointer" } : {}),
+                ...(hasFile(su) && onView ? { cursor: "pointer" } : {}),
               }}>
               <td className="mono">{new Date(su.at || 0)
                 .toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR",
@@ -648,14 +652,14 @@ export function SetupTable({ rows, t, st, lang, isAdmin, onDownload, onDelete, o
                 {su.team && <span className="hint" style={{ display: "block",
                   margin: 0 }}>{su.team}</span>}</td>
               <td style={{ whiteSpace: "nowrap" }} onClick={(e) => e.stopPropagation()}>
-                {onCmpToggle && su.data && (
+                {onCmpToggle && hasFile(su) && (
                   <button className="act" style={{ fontSize: 11, marginRight: 4,
                       ...(cmpSel?.includes(su.id)
                         ? { borderColor: "var(--teal)", color: "var(--teal)" } : {}) }}
                     title={t("Karşılaştırmak için seç (en çok 2)")}
                     onClick={() => onCmpToggle(su)}>⚖</button>
                 )}
-                {onView && su.data && (
+                {onView && hasFile(su) && (
                   <button className="act" style={{ fontSize: 11, marginRight: 4 }}
                     onClick={() => onView(su)}>🔍 {t("İçerik")}</button>
                 )}
@@ -685,8 +689,8 @@ export function SetupCards({ rows, t, st, lang, isAdmin, onDownload, onDelete, o
       {rows.map((su) => (
         <div key={su.id}
           className={`sucard${su.track === st.track ? " here" : ""}`}
-          onClick={() => su.data && onView?.(su)}
-          style={su.data && onView ? { cursor: "pointer" } : undefined}>
+          onClick={() => hasFile(su) && onView?.(su)}
+          style={hasFile(su) && onView ? { cursor: "pointer" } : undefined}>
           <div className="sucard-img">
             <img src={`${ASSET}tracks/${TRACK_ASSET(su.track)}.png`} alt=""
               onError={(e) => { e.currentTarget.style.display = "none"; }} />
@@ -718,13 +722,13 @@ export function SetupCards({ rows, t, st, lang, isAdmin, onDownload, onDelete, o
                 .toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR",
                   { day: "2-digit", month: "2-digit", year: "2-digit" })}</span>
             <span style={{ marginLeft: "auto", display: "flex", gap: 4 }}>
-              {onCmpToggle && su.data && (
+              {onCmpToggle && hasFile(su) && (
                 <button className="act" style={{ fontSize: 11,
                     ...(cmpSel?.includes(su.id)
                       ? { borderColor: "var(--teal)", color: "var(--teal)" } : {}) }}
                   title={t("Karşılaştırmak için seç (en çok 2)")}
                   onClick={() => onCmpToggle(su)}>⚖</button>)}
-              {onView && su.data && (
+              {onView && hasFile(su) && (
                 <button className="act" style={{ fontSize: 11 }}
                   onClick={() => onView(su)}>🔍</button>)}
               <button className="act" style={{ fontSize: 11 }}
@@ -925,9 +929,31 @@ const SVM_FIELDS = {
   FastReboundSetting: "Hızlı Yaylanma", CompoundSetting: "Lastik Hamuru",
 };
 
+/* Setup gövdesini (base64) hazırla — legacy kayıt su.data'yı meta içinde taşır
+   (senkron yol, eskisi gibi); yeni kayıtlarda (şema bölme) globalSetupData/{id}
+   talep üzerine çekilir. Dönen: { b64, loading }. Hook kuralı: erken return'lerden
+   ÖNCE çağrılmalı (İçerik + Karşılaştırma pencereleri kullanır). */
+function useSetupBlob(su, open) {
+  const [st, setSt] = useState({ id: null, b64: "", done: false });
+  useEffect(() => {
+    if (!open || !su || su.data) return undefined;
+    let alive = true;
+    setSt({ id: su.id, b64: "", done: false });
+    getSetupBlob(su.id)
+      .then((b64) => { if (alive) setSt({ id: su.id, b64, done: true }); })
+      .catch(() => { if (alive) setSt({ id: su.id, b64: "", done: true }); });
+    return () => { alive = false; };
+  }, [open, su]);
+  if (!su) return { b64: "", loading: false };
+  if (su.data) return { b64: su.data, loading: false };
+  const hit = st.id === su.id;
+  return { b64: hit ? st.b64 : "", loading: !hit || !st.done };
+}
+
 /* Setup içeriği penceresi — havuzdaki base64 (su.data) çözülüp .svm parse edilir; üstte
    özet çipleri (Arka Kanat vb.), altında bölüm bölüm anlamlı değerler. open=false → null. */
 export function SetupContentModal({ open, su, onClose, t }) {
+  const blob = useSetupBlob(su, open);
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
@@ -935,7 +961,7 @@ export function SetupContentModal({ open, su, onClose, t }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
   if (!open || !su) return null;
-  const parsed = parseSvm(b64ToText(su.data));
+  const parsed = parseSvm(b64ToText(blob.b64));
   const summary = setupSummary(parsed);
   const title = [carName(su.cls, su.car) || su.car, trackName(su.track) || su.track]
     .filter(Boolean).join(" · ");
@@ -950,7 +976,9 @@ export function SetupContentModal({ open, su, onClose, t }) {
         <div className="wxmlist" style={{ maxHeight: "72vh" }}>
           <div className="hint" style={{ margin: "0 0 8px" }}>
             {su.name}{title ? ` · ${title}` : ""}{su.lap ? ` · ⏱ ${su.lap}` : ""}</div>
-          {!parsed.ok ? (
+          {blob.loading ? (
+            <div className="hint">⏳ {t("Dosya yükleniyor…")}</div>
+          ) : !parsed.ok ? (
             <div className="hint warn">⚠ {t("İçerik okunamadı — bu bir LMU setup dosyası değil ya da bozuk.")}</div>
           ) : (
             <>
@@ -991,6 +1019,8 @@ export function SetupContentModal({ open, su, onClose, t }) {
    uyarı çipi çıkar (kıyas kullanıcının bilinçli kararı). open=false → null. */
 export function SetupCompareModal({ open, a, b, onClose, t }) {
   const [onlyDiff, setOnlyDiff] = useState(true);
+  const blobA = useSetupBlob(a, open);     // legacy: su.data · yeni: talep üzerine
+  const blobB = useSetupBlob(b, open);
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
@@ -999,8 +1029,9 @@ export function SetupCompareModal({ open, a, b, onClose, t }) {
   }, [open, onClose]);
   if (!open || !a || !b) return null;
 
-  const pa = parseSvm(b64ToText(a.data));
-  const pb = parseSvm(b64ToText(b.data));
+  const loading = blobA.loading || blobB.loading;
+  const pa = parseSvm(b64ToText(blobA.b64));
+  const pb = parseSvm(b64ToText(blobB.b64));
   const both = pa.ok && pb.ok;
   const rows = both ? diffSetups(pa, pb) : [];
   const diffCount = rows.filter((r) => r.differ).length;
@@ -1041,7 +1072,9 @@ export function SetupCompareModal({ open, a, b, onClose, t }) {
             <div className="hint warn" style={{ margin: "6px 0" }}>
               ⚠ {t("Farklı pist ya da sınıf — kıyası dikkatli oku.")}</div>
           )}
-          {!both ? (
+          {loading ? (
+            <div className="hint">⏳ {t("Dosya yükleniyor…")}</div>
+          ) : !both ? (
             <div className="hint warn">⚠ {t("İçerik okunamadı — bu bir LMU setup dosyası değil ya da bozuk.")}</div>
           ) : (
             <>
@@ -1098,7 +1131,7 @@ export function SetupCompareModal({ open, a, b, onClose, t }) {
 export function SetupModal({ open, onClose, t, suUpOpen, setSuUpOpen, suList, setups,
   suFTrack, setSuFTrack, suFCond, setSuFCond, suFSess, setSuFSess,
   suQuery, setSuQuery, suMine, setSuMine, suView, toggleSuView,
-  setupForm, setupTable }) {
+  suHasMore, loadMoreSetups, setupForm, setupTable }) {
   if (!open) return null;
   return (
     <div className="wxmodal" onClick={onClose}>
@@ -1164,6 +1197,12 @@ export function SetupModal({ open, onClose, t, suUpOpen, setSuUpOpen, suList, se
                   : t("Henüz setup yok — ilk dosyayı yukarıdan yükle.")}
               </div>
             : setupTable(suList)}
+          {suHasMore && loadMoreSetups && (
+            <div style={{ textAlign: "center", marginTop: 10 }}>
+              <button className="act" onClick={loadMoreSetups}>
+                ⬇ {t("Daha fazla yükle")}</button>
+            </div>
+          )}
         </div>
       </div>
     </div>
