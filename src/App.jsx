@@ -42,6 +42,7 @@ import {
   applyMarkPit, applyUnmarkPit, applyResetPits,
 } from "./state";
 import { buildTourSteps } from "./tourSteps";
+import { poolEmptyReason } from "./setupPool";
 import {
   TourOverlay, Wheel, Num, Bolt, Tyre, Ring,
   BADGES, teamBadgesOf, hasBadge, ChatPanel, SetupForm, SetupTable, VersionModal, RaceEditModal,
@@ -654,10 +655,15 @@ ${bottomBar}
   const markTour = (k) => { try { localStorage.setItem(k, "1"); } catch { /* yoksay */ } };
 
   /* ---- setup deposu → useSetups hook'u (liste/yükle/indir/süzgeç) ---- */
-  const { setups, suFile, suMeta, setSuMeta, suErr, suBusy, suOpen, setSuOpen,
-    suUpOpen, setSuUpOpen, suFTrack, setSuFTrack, suFCond, setSuFCond,
-    suFSess, setSuFSess, onSetupFile, saveSetup, downloadSetup, suList } = useSetups({
-    user, udoc, userName, teamData, t });
+  /* active: havuz yalnız görünürken abone olunur (Setup sekmesi ya da lobi penceresi).
+     Eskiden girişte herkes tüm havuzu (base64 dosyalar dahil) indiriyordu. */
+  const [suOpen, setSuOpen] = useState(false);   // lobi setup penceresi (abonelik kapısı)
+  const [suDelErr, setSuDelErr] = useState("");  // silme hatası (yükleme hatasından ayrı)
+  const { setups, suFile, suMeta, setSuMeta, suErr, suMsg, suBusy,
+    suUpOpen, setSuUpOpen, suFTrack, setSuFTrack,
+    suFCond, setSuFCond, suFSess, setSuFSess,
+    onSetupFile, saveSetup, downloadSetup, suList } = useSetups({
+    user, udoc, userName, teamData, t, active: tab === "setup" || suOpen });
 
   /* ---- yüzen mini oynatıcı → useMiniPlayer hook'u (konum/boyut/sürükle) ---- */
   const { streamCorner, streamMin, setStreamMin, streamW, streamDrag,
@@ -732,15 +738,19 @@ ${bottomBar}
      ince sarmalayicilar dogru prop'lari iletir; lobi ve Setup sekmesi ayni. */
   const setupForm = () => (
     <SetupForm t={t} onSetupFile={onSetupFile} suFile={suFile} suMeta={suMeta}
-      setSuMeta={setSuMeta} seasons={seasons} suErr={suErr} suBusy={suBusy}
+      setSuMeta={setSuMeta} seasons={seasons} suErr={suErr} suMsg={suMsg} suBusy={suBusy}
       saveSetup={saveSetup} />
   );
 
   const setupTable = (rows) => (
     <SetupTable rows={rows} t={t} st={st} lang={lang} isAdmin={isAdmin}
       onDownload={downloadSetup}
+      /* Silme hatası eskiden yutuluyordu (.catch(()=>{})) → kural reddi/ağ hatasında
+         satır ekranda kalıyor, kullanıcı sebebini göremiyordu. */
       onDelete={(su) => { if (window.confirm(t("Bu setup silinsin mi?") + "\n" + (su.name || "")))
-        deleteSetup(su.id).catch(() => {}); }} />
+        deleteSetup(su.id)
+          .then(() => setSuDelErr(""))
+          .catch((e) => setSuDelErr(t("Silinemedi:") + " " + (e?.message || ""))); }} />
   );
 
   const setupModal = (
@@ -2169,8 +2179,18 @@ ${bottomBar}
                     📍 {trackName(st.track)}</button>
                 )}
               </div>
+              {suDelErr && <div className="hint warn">⚠ {suDelErr}</div>}
+              {/* Havuz doluyken süzgeç hiçbir şeyi tutmuyorsa "Henüz setup yok" demek
+                  yanıltıcıydı (başlıktaki 0/N ile çelişiyordu) → sebebe göre mesaj. */}
               {!suList.length && (
-                <div className="hint">{t("Henüz setup yok — ilk dosyayı yukarıdan yükle.")}</div>
+                <div className="hint">
+                  {poolEmptyReason(setups.length, suList.length) === "filtered"
+                    ? <>{t("Bu süzgeçle setup yok.")}{" "}
+                      <button className="act" style={{ fontSize: 11 }}
+                        onClick={() => { setSuFTrack(""); setSuFCond(""); setSuFSess(""); }}>
+                        ✕ {t("Süzgeçleri temizle")}</button></>
+                    : t("Henüz setup yok — ilk dosyayı yukarıdan yükle.")}
+                </div>
               )}
               {suList.length > 0 && setupTable(suList)}
             </div>

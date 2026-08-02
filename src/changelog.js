@@ -5,6 +5,24 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.86",
+    date: "2026-08-02",
+    tr: [
+      "🐞 Setup bölümü hata taraması — 9 düzeltme. En önemlisi: geçerli bir dosya seçip ardından 180 KB'tan büyük bir dosya seçtiğinizde 'çok büyük' uyarısı çıkıyor ama sahnede ESKİ dosya kalıyordu; Yükle'ye basınca yanlış (eski) dosya yükleniyordu. Artık reddedilen dosyada seçim temizleniyor.",
+      "⚡ Setup havuzu artık yalnız Setup sekmesi ya da lobi penceresi açıkken indiriliyor. Önceden herkes, Setup'a hiç girmese bile, girişte tüm havuzu (setup dosyalarının tamamı dahil) indiriyordu.",
+      "💬 Sessiz hatalar giderildi: dosya okunamazsa uyarı çıkıyor, yükleme başarılıysa '✓ Setup yüklendi' yazıyor, silme başarısız olursa sebebi görünüyor.",
+      "🔎 Süzgeç hiçbir setup'ı tutmadığında artık 'Henüz setup yok' yerine 'Bu süzgeçle setup yok' + '✕ Süzgeçleri temizle' çıkıyor. Seçili pistin son setup'ı silinince süzgeç kendini sıfırlıyor (eskiden liste sebepsiz boş kalıyordu).",
+      "🛡 Şampiyona (40) ve LMU sürümü (16) alanlarına karakter sınırı eklendi — eskiden uzun yazılan metin kaydederken sessizce kısalıyordu. Ayrıca sınıf ikonu yüklenemediğinde sekmenin çökmesine yol açabilen bir DOM hatası giderildi.",
+    ],
+    en: [
+      "🐞 Setup section bug sweep — 9 fixes. The most important: if you picked a valid file and then picked one larger than 180 KB, the 'too big' warning appeared but the OLD file stayed staged; pressing Upload uploaded the wrong (old) file. The selection is now cleared when a file is rejected.",
+      "⚡ The setup pool is now downloaded only while the Setup tab or the lobby window is open. Previously everyone downloaded the whole pool (including every setup file) at sign-in, even without ever opening Setup.",
+      "💬 Silent failures fixed: a warning now appears if the file can't be read, a '✓ Setup uploaded' message confirms a successful upload, and a failed delete shows the reason.",
+      "🔎 When the filters match nothing you now get 'No setups match this filter' + '✕ Clear filters' instead of 'No setups yet'. If the last setup for the selected track is deleted, the filter resets itself (the list used to go blank with no explanation).",
+      "🛡 Character limits added to Championship (40) and LMU version (16) — long text used to be silently truncated on save. Also fixed a DOM error that could crash the tab when a class icon failed to load.",
+    ],
+  },
+  {
     v: "v1.4.85",
     date: "2026-08-02",
     tr: [

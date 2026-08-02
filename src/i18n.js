@@ -367,6 +367,12 @@ export const EN = {
   "Başlangıç (yerel saat)": "Start (local time)",
   "Sınıf": "Class",
   "Tümü": "All",
+  /* --- setup havuzu (v1.4.86) --- */
+  "Dosya okunamadı — tekrar deneyin.": "Could not read the file — please try again.",
+  "Setup yüklendi": "Setup uploaded",
+  "Süzgeçleri temizle": "Clear filters",
+  "Silinemedi:": "Could not delete:",
+
   /* --- rehber turu (v1.4.85): yeni + güncellenen adımlar --- */
   "🏠 Ana Menü": "🏠 Main Menu",
   "Yarıştan takvime dönmek için — takım şeridi katlı olsa bile bu düğme hep görünür. Planın kaydedilir, istediğin an geri girersin.":

@@ -8,6 +8,7 @@ import {
 } from "./constants";
 import { CHANGELOG } from "./changelog";
 import { msToLocalInput } from "./engine";
+import { SETUP_LIMITS, poolEmptyReason } from "./setupPool";
 import { renameTeam, syncMyTeamName, createSeason, deleteRace,
   leaveTeam, createTeam, joinTeam } from "./storage";
 
@@ -349,7 +350,7 @@ export function Bolt({ size = 16, color = "var(--green)" }) {
 /* Setup yükleme formu — pit wall Setup sekmesi + lobi setup penceresi ortak.
    Tüm state ve saveSetup/onSetupFile App'ten prop gelir. */
 export function SetupForm({
-  t, onSetupFile, suFile, suMeta, setSuMeta, seasons, suErr, suBusy, saveSetup,
+  t, onSetupFile, suFile, suMeta, setSuMeta, seasons, suErr, suMsg, suBusy, saveSetup,
 }) {
   return (
     <>
@@ -408,7 +409,10 @@ export function SetupForm({
       <div className="row4" style={{ maxWidth: 720 }}>
         <div>
           <label>{t("Şampiyona")}</label>
+          {/* maxLength kaydetmedeki kırpma sözleşmesiyle eşit (setupPool.SETUP_LIMITS)
+              — eskiden sınır yoktu, uzun metin kayıtta sessizce kısalıyordu. */}
           <input type="text" list="su-champs" value={suMeta.champ}
+            maxLength={SETUP_LIMITS.champ}
             placeholder={t("örn. ELMS / Official / Online")}
             style={{ textTransform: "none" }}
             onChange={(e) => setSuMeta({ ...suMeta, champ: e.target.value })} />
@@ -421,18 +425,20 @@ export function SetupForm({
         <div>
           <label>{t("LMU Sürümü")}</label>
           <input type="text" value={suMeta.ver} placeholder="V1.2"
+            maxLength={SETUP_LIMITS.ver}
             style={{ textTransform: "none" }}
             onChange={(e) => setSuMeta({ ...suMeta, ver: e.target.value })} />
         </div>
         <div style={{ gridColumn: "span 2" }}>
           <label>{t("Not")}</label>
-          <input type="text" value={suMeta.note} maxLength={140}
+          <input type="text" value={suMeta.note} maxLength={SETUP_LIMITS.note}
             placeholder={t("örn. düşük kanat, uzun stint dengesi")}
             style={{ textTransform: "none" }}
             onChange={(e) => setSuMeta({ ...suMeta, note: e.target.value })} />
         </div>
       </div>
       {suErr && <div className="hint warn">⚠ {suErr}</div>}
+      {suMsg && <div className="hint" style={{ color: "var(--green)" }}>{suMsg}</div>}
       <button className="gbtn ubtn" disabled={!suFile || !suMeta.track || suBusy}
         style={{ opacity: suFile && suMeta.track && !suBusy ? 1 : .45, marginTop: 6 }}
         onClick={saveSetup}>
@@ -476,12 +482,18 @@ export function SetupTable({ rows, t, st, lang, isAdmin, onDownload, onDelete })
                     color: "var(--green)" }}>{t("Sıralama")}</span>
                 : <span className="chip" style={{ borderColor: "var(--orange, #F2A33C)",
                     color: "var(--orange, #F2A33C)" }}>{t("Yarış")}</span>}</td>
+              {/* İkon yüklenemezse SADECE gizlenir; yanındaki metin yedeği zaten durur.
+                  Eskiden replaceWith() ile React'in sahip olduğu <img> düğümü DOM'dan
+                  çıkarılıyordu → sonraki render/unmount'ta removeChild NotFoundError
+                  ile sekme çökebiliyordu. Dosyadaki diğer onError'lar bu güvenli
+                  deseni zaten kullanıyor. */}
               <td>{su.cls
-                ? <img src={`${ASSET}class/${su.cls}.png`} alt=""
-                    title={CAR_CLASSES.find(([id]) => id === su.cls)?.[1] || su.cls}
-                    style={{ height: 16, verticalAlign: "-3px" }}
-                    onError={(e) => { e.currentTarget.replaceWith(
-                      CAR_CLASSES.find(([id]) => id === su.cls)?.[1] || su.cls); }} />
+                ? <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                    <img src={`${ASSET}class/${su.cls}.png`} alt=""
+                      style={{ height: 16, verticalAlign: "-3px" }}
+                      onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                    {CAR_CLASSES.find(([id]) => id === su.cls)?.[1] || su.cls}
+                  </span>
                 : "—"}</td>
               <td>{su.car
                 ? <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
@@ -719,7 +731,14 @@ export function SetupModal({ open, onClose, t, suUpOpen, setSuUpOpen, suList, se
             </select>
           </div>
           {!suList.length
-            ? <div className="hint">{t("Bu süzgeçle setup yok.")}</div>
+            ? <div className="hint">
+                {poolEmptyReason(setups.length, suList.length) === "filtered"
+                  ? <>{t("Bu süzgeçle setup yok.")}{" "}
+                    <button className="act" style={{ fontSize: 11 }}
+                      onClick={() => { setSuFTrack(""); setSuFCond(""); setSuFSess(""); }}>
+                      ✕ {t("Süzgeçleri temizle")}</button></>
+                  : t("Henüz setup yok — ilk dosyayı yukarıdan yükle.")}
+              </div>
             : setupTable(suList)}
         </div>
       </div>
