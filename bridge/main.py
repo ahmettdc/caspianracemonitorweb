@@ -237,6 +237,17 @@ def cmd_emit(mock, hz):
     olarak bas — Firebase'e DOKUNMA. Uygulama (JS) satırları okuyup ts/by ekleyerek
     kullanıcının oturumuyla yazar. team_id/race_id burada gerekmez."""
     period = 1.0 / max(0.2, min(hz, 10))
+    # Oyunla CPU çekişmesini azalt: sidecar'ı BELOW_NORMAL önceliğe al. Masaüstü kabuğu
+    # (Tauri, v1.4.98) zaten BELOW_NORMAL olduğundan bu süreç onu miras alır; bu satır
+    # kemer+askı — sidecar standalone çalıştırılırsa ya da miras alınmazsa garanti eder.
+    # hasattr guard'ı yalnız Windows: Linux/mac psutil.nice() farklı ölçek kullanır (mock
+    # akışı etkilenmesin).
+    try:
+        import psutil
+        if hasattr(psutil, "BELOW_NORMAL_PRIORITY_CLASS"):
+            psutil.Process().nice(psutil.BELOW_NORMAL_PRIORITY_CLASS)
+    except Exception:
+        pass
     try:
         src = make_source(mock)
     except Exception as e:  # noqa: BLE001  (okuyucu/lib yok → hata karesi bas, çıkma)

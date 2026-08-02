@@ -75,6 +75,20 @@ async fn exchange_google_code(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+  // Sürüş PC'sinde oyunla CPU çekişmesini azalt: uygulamayı BELOW_NORMAL önceliğe al.
+  // Builder'dan ÖNCE → sonradan spawn edilen çocuklar (WebView2 render/GPU süreçleri +
+  // Command.sidecar ile başlayan köprü) bu önceliği miras alır. BELOW_NORMAL yalnız
+  // ÇEKİŞMEDE etkilidir: oyun (NORMAL) önceliklenir, boş çekirdek yine bize kalır →
+  // izleyici PC'de (oyun yok) hiçbir yavaşlama olmaz. Kullanıcı raporu: köprü açıkken
+  // oyunda takılma; kapatınca gidiyor.
+  #[cfg(windows)]
+  unsafe {
+    use windows_sys::Win32::System::Threading::{
+      GetCurrentProcess, SetPriorityClass, BELOW_NORMAL_PRIORITY_CLASS,
+    };
+    SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
+  }
+
   tauri::Builder::default()
     .plugin(tauri_plugin_opener::init())
     .plugin(tauri_plugin_shell::init())
