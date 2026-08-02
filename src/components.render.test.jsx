@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
-  VersionModal, RaceEditModal, ChatModal, SetupModal, TeamModal, TourOverlay,
+  VersionModal, RaceEditModal, ChatModal, SetupModal, TeamModal, TourOverlay, ImgSelect,
 } from "./components.jsx";
 import { buildTourSteps } from "./tourSteps";
 
@@ -108,5 +108,33 @@ describe("TourOverlay", () => {
 
   it("adım kalmayınca (boş liste) render etmez", () => {
     expect(render(<TourOverlay steps={[]} onClose={noop} lang="tr" />)).toBe("");
+  });
+});
+
+/* ImgSelect — logolu açılır liste (Setup formu Track/Class/Car). Kapalı halde
+   render (effect'siz) çökmeden çalışmalı; seçili değerin label+icon'u görünmeli. */
+describe("ImgSelect", () => {
+  const opts = [
+    { value: "spa", label: "Spa", icon: "/assets/flags/spa.png" },
+    { value: "monza", label: "Monza", icon: "/assets/flags/monza.png" },
+  ];
+  it("seçili değerin label + icon'unu basar (kapalı)", () => {
+    const html = render(
+      <ImgSelect value="spa" options={opts} onChange={noop} t={t} placeholder="—" />);
+    expect(html).toContain("imgsel-btn");
+    expect(html).toContain("Spa");
+    expect(html).toContain("/assets/flags/spa.png");
+    expect(html).not.toContain("imgsel-pop");   // varsayılan kapalı
+  });
+  it("değer yokken placeholder basar", () => {
+    const html = render(
+      <ImgSelect value="" options={opts} onChange={noop} t={t} placeholder="Seç" />);
+    expect(html).toContain("imgsel-ph");
+    expect(html).toContain("Seç");
+  });
+  it("disabled halde çökmeden render olur", () => {
+    const html = render(
+      <ImgSelect value="" options={[]} onChange={noop} t={t} disabled placeholder="—" />);
+    expect(html).toContain("imgsel-btn off");
   });
 });

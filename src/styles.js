@@ -477,6 +477,28 @@ export const css = `
 .rc textarea:focus{outline:2px solid var(--teal)}
 .rc select{background:var(--panel2);border:1px solid var(--line);border-radius:6px;
   color:var(--txt);padding:5px 6px;font-family:'IBM Plex Mono';font-size:12px}
+/* Logolu açılır liste (ImgSelect) — native select görünümüyle uyumlu tetik + fixed popup */
+.rc .imgsel-btn{display:flex;align-items:center;gap:6px;width:100%;
+  background:var(--panel2);border:1px solid var(--line);border-radius:6px;
+  color:var(--txt);padding:5px 6px;font-family:'IBM Plex Mono';font-size:12px;
+  cursor:pointer;text-align:left}
+.rc .imgsel-btn.off{opacity:.5;cursor:not-allowed}
+.rc .imgsel-btn:hover:not(.off){border-color:var(--muted)}
+.rc .imgsel-cur{display:flex;align-items:center;gap:7px;min-width:0;flex:1}
+.rc .imgsel-cur img{height:18px;width:auto;flex:0 0 auto}
+.rc .imgsel-cur span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rc .imgsel-ph{flex:1;color:var(--muted)}
+.rc .imgsel-car{color:var(--dim);flex:0 0 auto;font-size:10px}
+.rc .imgsel-back{position:fixed;inset:0;z-index:1290}
+.rc .imgsel-pop{position:fixed;z-index:1300;max-height:280px;overflow-y:auto;
+  background:var(--panel);border:1px solid var(--line);border-radius:8px;
+  box-shadow:0 12px 30px rgba(0,0,0,.5);padding:4px;min-width:150px}
+.rc .imgsel-opt{display:flex;align-items:center;gap:8px;width:100%;
+  background:transparent;border:0;border-radius:6px;color:var(--txt);
+  padding:6px 8px;font-family:'IBM Plex Mono';font-size:12px;cursor:pointer;text-align:left}
+.rc .imgsel-opt img{height:20px;width:auto;flex:0 0 auto}
+.rc .imgsel-opt:hover{background:rgba(255,255,255,.06)}
+.rc .imgsel-opt.on{background:rgba(150,0,24,.16);color:var(--txt)}
 .rc .tin{width:56px!important;text-align:center}
 .rc .drvsel{min-width:96px;max-width:120px;padding:4px 6px}
 .rc .tsel{width:76px;text-align:center;background:transparent!important}
