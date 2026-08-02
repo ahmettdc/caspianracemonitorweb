@@ -86,6 +86,35 @@ const SUMMARY_MAP = [
   ["GENERAL/FuelSetting", "Yakıt"],
 ];
 
+/* İki çözümlenmiş setup'ın farkı — bölüm/anahtar birleşimi üzerinde
+   [{ section, key, a, b, differ }]. Yalnız meaningful satırlar; yalnız birinde olan
+   alan differ=true, diğer taraf "—". Değer karşılaştırması İNSAN etiketi (label)
+   üzerinden: aynı ham indeks farklı araçlarda farklı gerçek değere denk gelebilir,
+   pit duvarının kıyasladığı şey etikettir (ör. "8.3 deg" ↔ "7.1 deg"). */
+export function diffSetups(parsedA, parsedB) {
+  const rowsA = parsedA?.ok ? parsedA.rows.filter((r) => r.meaningful) : [];
+  const rowsB = parsedB?.ok ? parsedB.rows.filter((r) => r.meaningful) : [];
+  const idxB = new Map();
+  for (const r of rowsB) idxB.set(`${r.section}/${r.key}`, r);
+  const out = [];
+  const seen = new Set();
+  for (const r of rowsA) {                       // A'nın dosya sırası esas
+    const k = `${r.section}/${r.key}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    const rb = idxB.get(k);
+    out.push({ section: r.section, key: r.key, a: r.label,
+      b: rb ? rb.label : "—", differ: !rb || rb.label !== r.label });
+  }
+  for (const r of rowsB) {                       // yalnız B'de olanlar sona
+    const k = `${r.section}/${r.key}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push({ section: r.section, key: r.key, a: "—", b: r.label, differ: true });
+  }
+  return out;
+}
+
 /* parseSvm çıktısından küratörlü özet → [{ label, value }] (bulunmayan alan atlanır). */
 export function setupSummary(parsed) {
   if (!parsed?.ok) return [];

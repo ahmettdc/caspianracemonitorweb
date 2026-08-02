@@ -319,6 +319,22 @@ export const css = `
 .rc .setuprow:nth-child(even){background:rgba(255,255,255,.03)}
 .rc .setuprow-k{color:var(--muted)}
 .rc .setuprow-v{font-family:'IBM Plex Mono';color:var(--txt);text-align:right}
+/* ⚖ setup karşılaştırma penceresi + alt-sabit seçim çubuğu */
+.rc .cmphead{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;
+  margin:0 0 6px}
+.rc .cmpside{display:flex;flex-direction:column;gap:2px;min-width:0}
+.rc .cmpvs{color:var(--teal);font-weight:600;white-space:nowrap}
+.rc .cmprow{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:8px;padding:3px 4px;
+  font-size:12px;align-items:baseline}
+.rc .cmprow:nth-child(even){background:rgba(255,255,255,.03)}
+.rc .cmprow .cmpv{text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rc .cmprow.diffhl{background:rgba(210,67,87,.10)}
+.rc .cmprow.diffhl .cmpv{color:var(--teal);font-weight:600}
+.rc .cmpbar{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:1150;
+  display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:10px;
+  background:var(--panel);border:1px solid var(--teal);box-shadow:0 8px 30px rgba(0,0,0,.45);
+  animation:lbzoom .18s ease}
+.rc .cmpbar .act[disabled]{opacity:.45;cursor:default}
 .rc .fastlap{color:var(--green);font-weight:700}
 .rc .lapdelta{color:var(--muted);font-size:11px;font-weight:400}
 /* setup kart görünümü — tabloyla aynı satırlar/handler'lar, göz gezdirme için */

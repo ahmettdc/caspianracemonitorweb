@@ -378,6 +378,17 @@ export const EN = {
   "Kartlar": "Cards",
   "Tablo": "Table",
 
+  /* --- setup karşılaştırma (v1.4.92) --- */
+  "Setup Karşılaştır": "Compare Setups",
+  "Karşılaştır": "Compare",
+  "Karşılaştırmak için seç (en çok 2)": "Select to compare (max 2)",
+  "Farklı pist ya da sınıf — kıyası dikkatli oku.":
+    "Different track or class — read the comparison with care.",
+  "Yalnız farkları göster": "Show differences only",
+  "İki setup'ın tüm anlamlı değerleri aynı.":
+    "All meaningful values of the two setups are identical.",
+  "Gösterilecek satır yok.": "Nothing to show.",
+
   /* --- setup tur zamanı (v1.4.89) --- */
   "Tur Zamanı": "Lap Time",
   "En hızlı": "Fastest",
