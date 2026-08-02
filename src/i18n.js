@@ -372,6 +372,12 @@ export const EN = {
   "Araç dosyadan algılandı": "Car detected from file",
   "ara": "search",
 
+  /* --- setup görünüm (v1.4.91) --- */
+  "Benim setuplarım": "My setups",
+  "Yalnız senin yüklediklerin": "Only setups you uploaded",
+  "Kartlar": "Cards",
+  "Tablo": "Table",
+
   /* --- setup tur zamanı (v1.4.89) --- */
   "Tur Zamanı": "Lap Time",
   "En hızlı": "Fastest",

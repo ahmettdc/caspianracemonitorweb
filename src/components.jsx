@@ -8,7 +8,7 @@ import {
 } from "./constants";
 import { CHANGELOG } from "./changelog";
 import { msToLocalInput, parseLap, fmtLap } from "./engine";
-import { SETUP_LIMITS, poolEmptyReason, fastestSetupIds } from "./setupPool";
+import { SETUP_LIMITS, poolEmptyReason, lapDeltas } from "./setupPool";
 import { trackOptions, classOptions, carOptions } from "./pickerOptions";
 import { parseSvm, b64ToText, setupSummary } from "./setupParse";
 import { renameTeam, syncMyTeamName, createSeason, deleteRace,
@@ -545,9 +545,36 @@ export function SetupForm({
 
 /* Ortak setup tablosu — pit wall Setup sekmesi + lobi penceresi ortak.
    onDownload/onDelete App'ten prop gelir (indirme + silme onayı orada). */
+/* Tur zamanı hücresi/rozeti — tablo ve kart görünümü ortak. En hızlı ⚡ yeşil;
+   diğerlerinde grubun en hızlısına fark "+0.6s" soluk ek. */
+function LapCell({ su, d, t }) {
+  if (!su.lap) return "—";
+  const sec = parseLap(su.lap);
+  const txt = sec > 0 ? fmtLap(sec) : su.lap;
+  if (d?.fastest) return <span className="fastlap" title={t("En hızlı")}>⚡ {txt}</span>;
+  return (<>
+    {txt}
+    {d && d.delta > 0 && <span className="lapdelta"> +{d.delta.toFixed(1)}s</span>}
+  </>);
+}
+
+/* Koşul + seans tek hücrede (sadeleştirme: 13 → 9 sütun) — kısa çipler, tam ad title'da */
+function CondSess({ su, t }) {
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
+      <span title={su.cond === "wet" ? "Wet" : t("Kuru")}>{su.cond === "wet" ? "🌧" : "☀️"}</span>
+      {su.sess === "Q"
+        ? <span className="chip" title={t("Sıralama")} style={{ borderColor: "var(--green)",
+            color: "var(--green)" }}>Q</span>
+        : <span className="chip" title={t("Yarış")} style={{ borderColor: "var(--orange, #F2A33C)",
+            color: "var(--orange, #F2A33C)" }}>R</span>}
+    </span>
+  );
+}
+
 export function SetupTable({ rows, t, st, lang, isAdmin, onDownload, onDelete, onView,
   sort, onSort }) {
-  const fastest = fastestSetupIds(rows);   // pist+sınıf başına en hızlı setup id'leri
+  const deltas = lapDeltas(rows);   // pist+sınıf başına ⚡ en hızlı + farklar
   /* Tarih/Tur başlıkları tıklanabilir sıralama — ok yönü aktif sıralamayı gösterir */
   const arrow = (k) => (sort?.key === k ? (sort.dir === "asc" ? " ▲" : " ▼") : "");
   const sortTh = (k, lbl) => onSort
@@ -559,14 +586,18 @@ export function SetupTable({ rows, t, st, lang, isAdmin, onDownload, onDelete, o
       <table style={{ fontSize: 12 }}>
         <thead><tr>
           {sortTh("date", t("Tarih"))}<th>{t("Pist")}</th><th>{t("Koşul")}</th>
-          <th>{t("Seans")}</th><th>{t("Sınıf")}</th><th>{t("Araç")}</th>
-          <th>{t("Şampiyona")}</th><th>{t("Sürüm")}</th>{sortTh("lap", t("Tur"))}
-          <th>{t("Dosya")}</th><th>{t("Takım")}</th><th>{t("Yükleyen")}</th><th></th>
+          <th>{t("Sınıf")}</th><th>{t("Araç")}</th>{sortTh("lap", t("Tur"))}
+          <th>{t("Dosya")}</th><th>{t("Yükleyen")}</th><th></th>
         </tr></thead>
         <tbody>
           {rows.map((su) => (
+            /* satıra tıkla → içerik penceresi (eylem hücresi stopPropagation ile hariç) */
             <tr key={su.id}
-              style={su.track === st.track ? { background: "rgba(150,0,24,.08)" } : undefined}>
+              onClick={() => su.data && onView?.(su)}
+              style={{
+                ...(su.track === st.track ? { background: "rgba(150,0,24,.08)" } : {}),
+                ...(su.data && onView ? { cursor: "pointer" } : {}),
+              }}>
               <td className="mono">{new Date(su.at || 0)
                 .toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR",
                   { day: "2-digit", month: "2-digit", year: "2-digit" })}</td>
@@ -578,17 +609,8 @@ export function SetupTable({ rows, t, st, lang, isAdmin, onDownload, onDelete, o
                   {trackName(su.track) || su.track || "—"}
                 </span>
               </td>
-              <td>{su.cond === "wet" ? "🌧 Wet" : `☀️ ${t("Kuru")}`}</td>
-              <td>{su.sess === "Q"
-                ? <span className="chip" style={{ borderColor: "var(--green)",
-                    color: "var(--green)" }}>{t("Sıralama")}</span>
-                : <span className="chip" style={{ borderColor: "var(--orange, #F2A33C)",
-                    color: "var(--orange, #F2A33C)" }}>{t("Yarış")}</span>}</td>
-              {/* İkon yüklenemezse SADECE gizlenir; yanındaki metin yedeği zaten durur.
-                  Eskiden replaceWith() ile React'in sahip olduğu <img> düğümü DOM'dan
-                  çıkarılıyordu → sonraki render/unmount'ta removeChild NotFoundError
-                  ile sekme çökebiliyordu. Dosyadaki diğer onError'lar bu güvenli
-                  deseni zaten kullanıyor. */}
+              <td><CondSess su={su} t={t} /></td>
+              {/* İkon yüklenemezse SADECE gizlenir; yanındaki metin yedeği zaten durur. */}
               <td>{su.cls
                 ? <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
                     <img src={`${ASSET}class/${su.cls}.png`} alt=""
@@ -599,7 +621,7 @@ export function SetupTable({ rows, t, st, lang, isAdmin, onDownload, onDelete, o
                 : "—"}</td>
               <td>{su.car
                 ? <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                    {/* marka logosu (kullanıcı: "brand logo dahil") + araç görseli */}
+                    {/* marka logosu + araç görseli */}
                     {brandLogo(carName(su.cls, su.car)) && (
                       <img src={brandLogo(carName(su.cls, su.car))} alt=""
                         style={{ height: 16, width: "auto" }}
@@ -611,32 +633,28 @@ export function SetupTable({ rows, t, st, lang, isAdmin, onDownload, onDelete, o
                     {carName(su.cls, su.car)}
                   </span>
                 : "—"}</td>
-              <td>{su.champ || "—"}</td>
-              <td className="mono">{su.ver || "—"}</td>
-              {/* tur zamanı — parse edilebiliyorsa normalize göster; pist+sınıf en hızlısı ⚡ */}
-              <td className="mono">{(() => {
-                if (!su.lap) return "—";
-                const sec = parseLap(su.lap);
-                const txt = sec > 0 ? fmtLap(sec) : su.lap;
-                return fastest.has(su.id)
-                  ? <span className="fastlap" title={t("En hızlı")}>⚡ {txt}</span>
-                  : txt;
-              })()}</td>
+              <td className="mono" style={{ whiteSpace: "nowrap" }}>
+                <LapCell su={su} d={deltas.get(su.id)} t={t} /></td>
+              {/* Dosya hücresi: ad + (şampiyona · sürüm) + not — sütun birleştirme */}
               <td title={su.note || ""}>
                 <span className="mono" style={{ fontSize: 11 }}>{su.name}</span>
+                {(su.champ || su.ver) && <span className="hint" style={{ display: "block",
+                  margin: 0 }}>{[su.champ, su.ver].filter(Boolean).join(" · ")}</span>}
                 {su.note && <span className="hint" style={{ display: "block",
                   margin: 0 }}>{su.note}</span>}</td>
-              <td>{su.team || "—"}</td>
-              <td>{su.uname || "—"}</td>
-              <td style={{ whiteSpace: "nowrap" }}>
-                {/* setup dosyasının içindeki değerleri (arka kanat vb.) göster */}
+              {/* Yükleyen + takım tek hücrede */}
+              <td>
+                {su.uname || "—"}
+                {su.team && <span className="hint" style={{ display: "block",
+                  margin: 0 }}>{su.team}</span>}</td>
+              <td style={{ whiteSpace: "nowrap" }} onClick={(e) => e.stopPropagation()}>
                 {onView && su.data && (
                   <button className="act" style={{ fontSize: 11, marginRight: 4 }}
                     onClick={() => onView(su)}>🔍 {t("İçerik")}</button>
                 )}
                 <button className="act" style={{ fontSize: 11 }}
                   onClick={() => onDownload(su)}>⬇ {t("İndir")}</button>
-                {/* silme yalnız admin — yükleyen dahil kimse başkasınınkini/kendininkini silemez */}
+                {/* silme yalnız admin */}
                 {isAdmin && (
                   <button className="act danger" style={{ fontSize: 11, marginLeft: 4 }}
                     onClick={() => onDelete(su)}>✕</button>
@@ -646,6 +664,64 @@ export function SetupTable({ rows, t, st, lang, isAdmin, onDownload, onDelete, o
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/* Kart görünümü — tabloyla aynı veri/handler'lar, mobil ve göz gezdirme için.
+   ⊞/☰ toggle App'te (localStorage rm_setup_view). Karta tıkla → içerik. */
+export function SetupCards({ rows, t, st, lang, isAdmin, onDownload, onDelete, onView }) {
+  const deltas = lapDeltas(rows);
+  return (
+    <div className="sucards">
+      {rows.map((su) => (
+        <div key={su.id}
+          className={`sucard${su.track === st.track ? " here" : ""}`}
+          onClick={() => su.data && onView?.(su)}
+          style={su.data && onView ? { cursor: "pointer" } : undefined}>
+          <div className="sucard-img">
+            <img src={`${ASSET}tracks/${TRACK_ASSET(su.track)}.png`} alt=""
+              onError={(e) => { e.currentTarget.style.display = "none"; }} />
+          </div>
+          <div className="sucard-row">
+            {su.track && <img className="fl" src={`${ASSET}flags/${TRACK_ASSET(su.track)}.png`}
+              alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} />}
+            <b>{trackName(su.track) || su.track || "—"}</b>
+            <span style={{ marginLeft: "auto" }}><CondSess su={su} t={t} /></span>
+          </div>
+          <div className="sucard-row">
+            {su.cls && <img className="cb" src={`${ASSET}class/${su.cls}.png`} alt=""
+              onError={(e) => { e.currentTarget.style.display = "none"; }} />}
+            {su.car && brandLogo(carName(su.cls, su.car)) && (
+              <img className="br" src={brandLogo(carName(su.cls, su.car))} alt=""
+                onError={(e) => { e.currentTarget.style.display = "none"; }} />)}
+            <span className="nm">{carName(su.cls, su.car) || "—"}</span>
+          </div>
+          <div className="sucard-lap mono">
+            <LapCell su={su} d={deltas.get(su.id)} t={t} /></div>
+          <div className="sucard-file mono">{su.name}</div>
+          {(su.champ || su.ver || su.note) && (
+            <div className="hint" style={{ margin: 0 }}>
+              {[su.champ, su.ver, su.note].filter(Boolean).join(" · ")}</div>
+          )}
+          <div className="sucard-foot" onClick={(e) => e.stopPropagation()}>
+            <span className="hint" style={{ margin: 0 }}>
+              {su.uname || "—"} · {new Date(su.at || 0)
+                .toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR",
+                  { day: "2-digit", month: "2-digit", year: "2-digit" })}</span>
+            <span style={{ marginLeft: "auto", display: "flex", gap: 4 }}>
+              {onView && su.data && (
+                <button className="act" style={{ fontSize: 11 }}
+                  onClick={() => onView(su)}>🔍</button>)}
+              <button className="act" style={{ fontSize: 11 }}
+                onClick={() => onDownload(su)}>⬇</button>
+              {isAdmin && (
+                <button className="act danger" style={{ fontSize: 11 }}
+                  onClick={() => onDelete(su)}>✕</button>)}
+            </span>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -900,7 +976,8 @@ export function SetupContentModal({ open, su, onClose, t }) {
    kullanılıyor). open=false → null döner. */
 export function SetupModal({ open, onClose, t, suUpOpen, setSuUpOpen, suList, setups,
   suFTrack, setSuFTrack, suFCond, setSuFCond, suFSess, setSuFSess,
-  suQuery, setSuQuery, setupForm, setupTable }) {
+  suQuery, setSuQuery, suMine, setSuMine, suView, toggleSuView,
+  setupForm, setupTable }) {
   if (!open) return null;
   return (
     <div className="wxmodal" onClick={onClose}>
@@ -941,13 +1018,27 @@ export function SetupModal({ open, onClose, t, suUpOpen, setSuUpOpen, suList, se
                 style={{ textTransform: "none", minWidth: 160 }}
                 onChange={(e) => setSuQuery(e.target.value)} />
             )}
+            {setSuMine && (
+              <button className="act" style={{ fontSize: 11,
+                  ...(suMine ? { borderColor: "var(--green)", color: "var(--green)" } : {}) }}
+                title={t("Yalnız senin yüklediklerin")}
+                onClick={() => setSuMine((v) => !v)}>
+                👤 {t("Benim setuplarım")}</button>
+            )}
+            {toggleSuView && (
+              <button className="act" style={{ fontSize: 11, marginLeft: "auto" }}
+                title={suView === "cards" ? t("Tablo") : t("Kartlar")}
+                onClick={toggleSuView}>
+                {suView === "cards" ? <>☰ {t("Tablo")}</> : <>⊞ {t("Kartlar")}</>}</button>
+            )}
           </div>
           {!suList.length
             ? <div className="hint">
                 {poolEmptyReason(setups.length, suList.length) === "filtered"
                   ? <>{t("Bu süzgeçle setup yok.")}{" "}
                     <button className="act" style={{ fontSize: 11 }}
-                      onClick={() => { setSuFTrack(""); setSuFCond(""); setSuFSess(""); }}>
+                      onClick={() => { setSuFTrack(""); setSuFCond(""); setSuFSess("");
+                        setSuQuery?.(""); setSuMine?.(false); }}>
                       ✕ {t("Süzgeçleri temizle")}</button></>
                   : t("Henüz setup yok — ilk dosyayı yukarıdan yükle.")}
               </div>

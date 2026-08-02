@@ -62,22 +62,32 @@ export function sortSetups(rows, key = "date", dir = "desc") {
   return list;
 }
 
-/* Gösterilen satırlar arasında EN HIZLI setup id'leri — pist+sınıf grubunda en düşük
-   tur zamanı (parseLap>0). Farklı pist/sınıf kıyaslanmaz (anlamsız). Beraberlikte hepsi.
-   "hangi setup hızlı" tek bakışta anlaşılsın diye SetupTable bunları vurgular. */
-export function fastestSetupIds(rows) {
+/* Pist+sınıf grubunda tur zamanı olan HER satır için { fastest, delta } — delta:
+   grubun en hızlısına fark (sn; en hızlıda 0). Geçersiz/boş lap → map'te yok.
+   Tabloda/kartlarda ⚡ vurgusu ve "+0.6s" ekleri buradan beslenir. */
+export function lapDeltas(rows) {
   const list = Array.isArray(rows) ? rows : [];
-  const best = {};   // "track|cls" → { sec, ids:[] }
+  const groups = {};   // "track|cls" → [{id, sec}]
   for (const r of list) {
     const sec = parseLap(r?.lap);
     if (!(sec > 0)) continue;
-    const key = `${r.track || ""}|${r.cls || ""}`;
-    const b = best[key];
-    if (!b || sec < b.sec - 1e-6) best[key] = { sec, ids: [r.id] };
-    else if (Math.abs(sec - b.sec) <= 1e-6) b.ids.push(r.id);
+    (groups[`${r.track || ""}|${r.cls || ""}`] ||= []).push({ id: r.id, sec });
   }
+  const out = new Map();
+  for (const k of Object.keys(groups)) {
+    const min = Math.min(...groups[k].map((x) => x.sec));
+    for (const x of groups[k]) {
+      out.set(x.id, { fastest: x.sec - min <= 1e-6, delta: x.sec - min });
+    }
+  }
+  return out;
+}
+
+/* Gösterilen satırlar arasında EN HIZLI setup id'leri — pist+sınıf grubunda en düşük
+   tur zamanı. Beraberlikte hepsi. lapDeltas üstüne kurulu (tek kaynak). */
+export function fastestSetupIds(rows) {
   const out = new Set();
-  for (const k of Object.keys(best)) for (const id of best[k].ids) out.add(id);
+  for (const [id, v] of lapDeltas(rows)) if (v.fastest) out.add(id);
   return out;
 }
 

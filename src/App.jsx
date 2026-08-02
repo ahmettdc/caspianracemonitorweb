@@ -45,7 +45,8 @@ import { buildTourSteps } from "./tourSteps";
 import { poolEmptyReason } from "./setupPool";
 import {
   TourOverlay, Wheel, Num, Bolt, Tyre, Ring,
-  BADGES, teamBadgesOf, hasBadge, ChatPanel, SetupForm, SetupTable, VersionModal, RaceEditModal,
+  BADGES, teamBadgesOf, hasBadge, ChatPanel, SetupForm, SetupTable, SetupCards,
+  VersionModal, RaceEditModal,
   ChatModal, SetupModal, TeamModal, DenyToast, SetupContentModal,
 } from "./components";
 import { WetIcon } from "./WetIcon";
@@ -660,10 +661,20 @@ ${bottomBar}
   const [suOpen, setSuOpen] = useState(false);   // lobi setup penceresi (abonelik kapısı)
   const [suDelErr, setSuDelErr] = useState("");  // silme hatası (yükleme hatasından ayrı)
   const [viewSu, setViewSu] = useState(null);    // "🔍 İçerik" ile açılan setup
+  /* Havuz görünümü (tablo/kart) — cihaz tercihi, odaya senkron edilmez. */
+  const [suView, setSuView] = useState(() => {
+    try { return localStorage.getItem("rm_setup_view") || "table"; }
+    catch { return "table"; }
+  });
+  const toggleSuView = () => setSuView((v) => {
+    const next = v === "cards" ? "table" : "cards";
+    try { localStorage.setItem("rm_setup_view", next); } catch { /* özel mod */ }
+    return next;
+  });
   const { setups, suFile, suMeta, setSuMeta, suErr, suMsg, suBusy,
     suUpOpen, setSuUpOpen, suFTrack, setSuFTrack,
     suFCond, setSuFCond, suFSess, setSuFSess,
-    suQuery, setSuQuery, suSort, toggleSort,
+    suQuery, setSuQuery, suSort, toggleSort, suMine, setSuMine,
     onSetupFile, onSetupDrop, saveSetup, downloadSetup, suList } = useSetups({
     user, udoc, userName, teamData, t, active: tab === "setup" || suOpen,
     /* aktif yarıştan ön-doldurma: form açıldığında boş alanlar buradan dolar */
@@ -747,23 +758,29 @@ ${bottomBar}
       saveSetup={saveSetup} />
   );
 
-  const setupTable = (rows) => (
-    <SetupTable rows={rows} t={t} st={st} lang={lang} isAdmin={isAdmin}
-      sort={suSort} onSort={toggleSort}
-      onDownload={downloadSetup} onView={setViewSu}
-      /* Silme hatası eskiden yutuluyordu (.catch(()=>{})) → kural reddi/ağ hatasında
-         satır ekranda kalıyor, kullanıcı sebebini göremiyordu. */
-      onDelete={(su) => { if (window.confirm(t("Bu setup silinsin mi?") + "\n" + (su.name || "")))
-        deleteSetup(su.id)
-          .then(() => setSuDelErr(""))
-          .catch((e) => setSuDelErr(t("Silinemedi:") + " " + (e?.message || ""))); }} />
-  );
+  /* Silme hatası eskiden yutuluyordu (.catch(()=>{})) → kural reddi/ağ hatasında
+     satır ekranda kalıyor, kullanıcı sebebini göremiyordu. Tablo + kart ortak. */
+  const onDeleteSetup = (su) => {
+    if (!window.confirm(t("Bu setup silinsin mi?") + "\n" + (su.name || ""))) return;
+    deleteSetup(su.id)
+      .then(() => setSuDelErr(""))
+      .catch((e) => setSuDelErr(t("Silinemedi:") + " " + (e?.message || "")));
+  };
+
+  /* ⊞ kart / ☰ tablo — aynı satırlar ve handler'lar, yalnız sunum değişir. */
+  const setupTable = (rows) => suView === "cards"
+    ? <SetupCards rows={rows} t={t} st={st} lang={lang} isAdmin={isAdmin}
+        onDownload={downloadSetup} onView={setViewSu} onDelete={onDeleteSetup} />
+    : <SetupTable rows={rows} t={t} st={st} lang={lang} isAdmin={isAdmin}
+        sort={suSort} onSort={toggleSort}
+        onDownload={downloadSetup} onView={setViewSu} onDelete={onDeleteSetup} />;
 
   const setupModal = (
     <SetupModal open={suOpen} onClose={() => setSuOpen(false)} t={t}
       suUpOpen={suUpOpen} setSuUpOpen={setSuUpOpen} suList={suList} setups={setups}
       suFTrack={suFTrack} setSuFTrack={setSuFTrack} suFCond={suFCond} setSuFCond={setSuFCond}
       suFSess={suFSess} setSuFSess={setSuFSess} suQuery={suQuery} setSuQuery={setSuQuery}
+      suMine={suMine} setSuMine={setSuMine} suView={suView} toggleSuView={toggleSuView}
       setupForm={setupForm} setupTable={setupTable} />
   );
 
@@ -2192,6 +2209,15 @@ ${bottomBar}
                     onClick={() => setSuFTrack(st.track)}>
                     📍 {trackName(st.track)}</button>
                 )}
+                <button className="act" style={{ fontSize: 11,
+                    ...(suMine ? { borderColor: "var(--green)", color: "var(--green)" } : {}) }}
+                  title={t("Yalnız senin yüklediklerin")}
+                  onClick={() => setSuMine((v) => !v)}>
+                  👤 {t("Benim setuplarım")}</button>
+                <button className="act" style={{ fontSize: 11, marginLeft: "auto" }}
+                  title={suView === "cards" ? t("Tablo") : t("Kartlar")}
+                  onClick={toggleSuView}>
+                  {suView === "cards" ? <>☰ {t("Tablo")}</> : <>⊞ {t("Kartlar")}</>}</button>
               </div>
               {suDelErr && <div className="hint warn">⚠ {suDelErr}</div>}
               {/* Havuz doluyken süzgeç hiçbir şeyi tutmuyorsa "Henüz setup yok" demek
@@ -2201,7 +2227,8 @@ ${bottomBar}
                   {poolEmptyReason(setups.length, suList.length) === "filtered"
                     ? <>{t("Bu süzgeçle setup yok.")}{" "}
                       <button className="act" style={{ fontSize: 11 }}
-                        onClick={() => { setSuFTrack(""); setSuFCond(""); setSuFSess(""); }}>
+                        onClick={() => { setSuFTrack(""); setSuFCond(""); setSuFSess("");
+                          setSuQuery(""); setSuMine(false); }}>
                         ✕ {t("Süzgeçleri temizle")}</button></>
                     : t("Henüz setup yok — ilk dosyayı yukarıdan yükle.")}
                 </div>
