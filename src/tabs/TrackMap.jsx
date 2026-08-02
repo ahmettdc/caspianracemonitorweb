@@ -297,7 +297,7 @@ export default function TrackMap({ t, field, trackLength, tid, trackKey, canSave
   </>);
 
   return (<>
-    <div className="card" style={{ marginBottom: 12 }}>
+    <div className="card" data-tour="livemap" style={{ marginBottom: 12 }}>
       {/* en üstte gömülü içerik (strateji şeridi) — ayrı kart yerine harita kutusunda */}
       {topSlot}
       <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>

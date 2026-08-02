@@ -78,7 +78,7 @@ export default function PosChart({ t, tid, rid, field }) {
   };
 
   return (
-    <div className="card" style={{ marginBottom: 12 }}>
+    <div className="card" data-tour="livepos" style={{ marginBottom: 12 }}>
       <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
         📈 {t("Pozisyon Grafiği")}
         <span className="hint" style={{ margin: 0, fontWeight: 400 }}>

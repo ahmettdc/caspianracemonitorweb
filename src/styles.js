@@ -398,6 +398,12 @@ export const css = `
   font-family:'Rajdhani',sans-serif;letter-spacing:.04em}
 .rc .tourcard p{margin:0 0 12px;font-size:12.5px;line-height:1.55;color:var(--txt)}
 .rc .tourstep{font-size:10px;color:var(--dim);letter-spacing:.14em;margin-bottom:4px}
+/* ilerleme çubuğu — uzun turda nerede olduğun tek bakışta belli olsun */
+.rc .tourbar{height:3px;border-radius:2px;background:rgba(255,255,255,.10);
+  overflow:hidden;margin:0 0 8px}
+.rc .tourbar i{display:block;height:100%;background:var(--red);
+  transition:width .25s ease}
+@media (prefers-reduced-motion:reduce){.rc .tourbar i{transition:none}}
 .rc .tourbtns{display:flex;gap:8px;align-items:center}
 .rc .chattabs{display:flex;gap:4px;padding:8px 12px 0;border-bottom:1px solid var(--line);
   overflow-x:auto}
