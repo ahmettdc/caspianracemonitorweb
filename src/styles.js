@@ -304,8 +304,17 @@ export const css = `
 .rc .wxmbox.laps{width:min(520px,94vw)}
 /* pist haritası penceresi: kare harita için geniş varyant (⛶ Büyüt) */
 .rc .wxmbox.map{width:auto;max-width:96vw;max-height:94vh}
-.rc .wxmbox.map .mapwrap{display:flex;justify-content:center;padding:10px}
+.rc .wxmbox.map .mapwrap{display:flex;justify-content:center;padding:10px;position:relative}
 .rc .wxmbox.map .mapwrap svg{width:min(88vw,78vh);height:auto}
+/* harita durum rozeti — bayrak/hava/sıcaklık, harita köşesinde (v1.4.95) */
+.rc .mapcond{position:absolute;top:6px;left:6px;z-index:2;display:flex;flex-direction:column;
+  gap:3px;align-items:flex-start;pointer-events:none}
+.rc .mapcond span{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;
+  border-radius:6px;font-size:11px;font-weight:600;background:rgba(11,7,8,.72);
+  border:1px solid var(--line);line-height:1.3}
+.rc .mapcond .mapcond-flag{color:#F2C037;border-color:rgba(242,192,55,.5)}
+.rc .mapcond .mapcond-wx{color:#7cc3f0}
+.rc .mapcond .mapcond-temp{color:var(--dim)}
 .rc .wxmlist{overflow:auto;padding:8px}
 /* Setup içeriği penceresi — özet çipleri + bölüm/alan listesi */
 .rc .setupsum{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}

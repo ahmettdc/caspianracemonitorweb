@@ -34,6 +34,19 @@ export function sectorFractions(state) {
   return { f12, f20 };
 }
 
+/* Sektör lapDist aralıkları → sarı sektör vurgusu için (v1.4.95). yellowSectors [2]
+   gibi S-numaraları verir; hangi lapDist yayının sarı olacağını bilmek için sınır
+   kesirleri gerekir. S1=[0,f12) · S2=[f12,f20) · S3=[f20,1). İki sınır da gözlenmemişse
+   null (yay çizilemez — mevcut ayırıcı davranışıyla aynı). */
+export function sectorRanges(fr) {
+  if (!fr || fr.f12 == null || fr.f20 == null) return null;
+  return [
+    { sec: 1, from: 0, to: fr.f12 },
+    { sec: 2, from: fr.f12, to: fr.f20 },
+    { sec: 3, from: fr.f20, to: 1 },
+  ];
+}
+
 /* Paylaşım (livetracksec): { f12, f20 } → "f12,f20" (4 ondalık). Eksik alan boş bırakılır
    ("0.33," ya da ",0.72"). Round-trip için unpackSectors. */
 export function packSectors(fr) {

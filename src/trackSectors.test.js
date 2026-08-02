@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { observeSector, sectorFractions, packSectors, unpackSectors, emptySectors }
+import { observeSector, sectorFractions, sectorRanges,
+  packSectors, unpackSectors, emptySectors }
   from "./trackSectors.js";
 
 describe("observeSector — sınır gözlemi", () => {
@@ -39,6 +40,21 @@ describe("sectorFractions", () => {
     expect(sectorFractions(null)).toBeNull();
     let st = observeSector(emptySectors(), 1, 2, 0.4);
     expect(sectorFractions(st)).toEqual({ f12: 0.4, f20: null });
+  });
+});
+
+describe("sectorRanges — sarı sektör yayı için lapDist aralıkları (v1.4.95)", () => {
+  it("üç sektörü sınır kesirlerinden türetir (S1=[0,f12), S2=[f12,f20), S3=[f20,1))", () => {
+    expect(sectorRanges({ f12: 0.33, f20: 0.72 })).toEqual([
+      { sec: 1, from: 0, to: 0.33 },
+      { sec: 2, from: 0.33, to: 0.72 },
+      { sec: 3, from: 0.72, to: 1 },
+    ]);
+  });
+  it("iki sınır da gözlenmemişse null (yay çizilemez)", () => {
+    expect(sectorRanges(null)).toBeNull();
+    expect(sectorRanges({ f12: 0.4, f20: null })).toBeNull();
+    expect(sectorRanges({ f12: null, f20: 0.7 })).toBeNull();
   });
 });
 
