@@ -5,6 +5,20 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.94",
+    date: "2026-08-02",
+    tr: [
+      "🩺 Canlı Köprü artık NEDEN veri gelmediğini söylüyor. Eskiden tek bir 'Oyun/seans bekleniyor' mesajı üç farklı durumu gizliyordu — en sinsisi: paylaşımlı bellek eklentisi (rFactor2SharedMemoryMapPlugin64.dll) kurulu/etkin değilken bile köprü 'çalışıyor' görünüp sonsuza dek bekliyordu. Şimdi kart açıkça ayırıyor: '⛔ Eklenti verisi yok — DLL kurulu ya da etkin değil (CustomPluginVariables.JSON'da Enabled: 1 olmalı)' · 'Oyun açık, seans bekleniyor — pist/garaja girince veri başlar' · 'Seansta araç görünmüyor'.",
+      "🔒 İzleyici (viewer) rolüyle açılan masaüstünde köprü kartı artık sessiz kalmıyor — 'köprü bu rolde yayın yapamaz; Mühendis (editor) rolü gerekir' diye açıklıyor.",
+      "🛰 Durum noktasının üzerine gelince eklenti sürümü de görünür (eklenti ✓ v3.x…); takılı bekleme durumunda kaybolan teşhis tooltip'i düzeltildi. Köprü değiştiği için sürüş PC'lerinin yeni masaüstü sürümünü kurması gerekir.",
+    ],
+    en: [
+      "🩺 The Live Bridge now tells you WHY no data is coming. A single 'Waiting for game/session' message used to hide three different states — the sneakiest: with the shared-memory plugin (rFactor2SharedMemoryMapPlugin64.dll) missing or disabled, the bridge still looked 'running' and waited forever. The card now distinguishes: '⛔ No plugin data — DLL not installed/enabled (CustomPluginVariables.JSON needs Enabled: 1)' · 'Game open, waiting for a session — data starts on track/garage' · 'No cars in session'.",
+      "🔒 On a desktop opened with a viewer role the bridge card is no longer silent — it explains 'the bridge cannot broadcast with this role; Engineer (editor) role required'.",
+      "🛰 Hovering the status dot now also shows the plugin version (plugin ✓ v3.x…); the diagnostic tooltip that vanished exactly in the stuck-waiting state is fixed. The bridge changed, so driving PCs need the new desktop build.",
+    ],
+  },
+  {
     v: "v1.4.93",
     date: "2026-08-02",
     tr: [

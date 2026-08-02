@@ -19,7 +19,19 @@ import { liveTimingSet, liveLapsAppend, liveLapsClear,
   liveDrvAppend, liveDrvClear, liveTyreAppend, liveTyreClear,
   liveCondAppend, liveCondClear,
   liveWriterClaim, liveWriterRelease, liveWriterSubscribe, serverNow } from "./storage";
-import { shouldClaim } from "./liveWriter";
+import { shouldClaim, bridgeWaitInfo } from "./liveWriter";
+
+/* Saha boşken kartta gösterilecek mesaj — anahtar sidecar'ın _diag.wait alanından
+   (bkz. liveWriter.bridgeWaitInfo). "noplugin" en kritik durum: Windows mmap eksik
+   mapping'i sıfırlarla kendisi oluşturduğu için eklenti DLL'i kurulu/etkin değilken
+   köprü "çalışıyor" görünüyordu ve eski tek mesaj sebebi söyleyemiyordu. */
+const WAIT_MSG = {
+  noplugin: "Eklenti verisi yok — rFactor2SharedMemoryMapPlugin64.dll kurulu ya da "
+    + "etkin değil. CustomPluginVariables.JSON içinde ' Enabled': 1 olmalı.",
+  menu: "Oyun açık, seans bekleniyor — pist/garaja girince veri başlar.",
+  novehicles: "Seansta araç görünmüyor…",
+  generic: "Oyun/seans bekleniyor…",
+};
 import { lapNumbersOf } from "./liveLaps";
 import { rubberPct } from "./engine";
 
@@ -186,9 +198,12 @@ export async function startBridge(opts, onStatus) {
     writeTimer = null;
     if (!pending || stopping) return;
     const frame = pending; pending = null;
-    // oyun kapalı / seans yok (0 araç) → Firebase'e boşuna yazma (kota + eski veri)
+    // oyun kapalı / seans yok (0 araç) → Firebase'e boşuna yazma (kota + eski veri).
+    // Mesaj artık NEDENE göre seçilir (eklenti yok / menü / araç yok); diag da
+    // geçilir — eskiden tam takılı kalınan bu durumda tooltip teşhisi kayboluyordu.
     if (!Array.isArray(frame.field) || frame.field.length === 0) {
-      say({ running: true, phase: "running", msg: "Oyun/seans bekleniyor…" });
+      const w = bridgeWaitInfo(diag);
+      say({ running: true, phase: w.warn ? "error" : "running", msg: WAIT_MSG[w.key], diag });
       return;
     }
     lastWrite = Date.now();

@@ -13,13 +13,38 @@ tüm takım için salt-okunur gösterir.
 > **Önemli:** Köprü yalnız verinin **kaynağı** olan tek PC'de (yarışı süren oyuncu)
 > çalışır. Takımın geri kalanı hiçbir şey kurmaz — web'den izler.
 
+> **Masaüstü uygulaması kullanıyorsan (v1.4.4+):** köprü uygulamanın İÇİNDE —
+> aşağıdaki bot hesabı / config.ini adımları GEREKMEZ. Yalnız **1a**'daki eklenti
+> kurulumu her sürüş PC'sinde şarttır. Uygulama: Canlı sekmesi → köprü OTOMATİK.
+> Yayınlayacak üyenin takımda **🎧 Mühendis (editor)** ya da **Sahip** rolü olmalı
+> (izleyici rolünde köprü yayına geçmez; kart bunu söyler).
+
 ---
 
 ## 1) Tek seferlik kurulum
 
-### a. rF2 paylaşımlı bellek eklentisi
-`rFactor2SharedMemoryMapPlugin64.dll` LMU'nun `Plugins/` klasöründe olmalı ve
-oyunda etkin olmalı (sende zaten var).
+### a. rF2 paylaşımlı bellek eklentisi — HER SÜRÜŞ PC'SİNE ayrı kurulur
+Köprünün okuduğu paylaşımlı belleği oyuna **rFactor2SharedMemoryMapPlugin64.dll**
+yazar. İki adımın İKİSİ de şart:
+
+1. **DLL dosyası:** `rFactor2SharedMemoryMapPlugin64.dll` →
+   `…\Steam\steamapps\common\Le Mans Ultimate\Plugins\` klasörüne kopyala.
+   (Kaynak: TheIronWolf'un rF2 Shared Memory Map Plugin'i — Crew Chief kuruluysa
+   o da kurar/güncel tutar; en az v3.6.0.0.)
+2. **Etkinleştirme:** `…\Le Mans Ultimate\UserData\player\CustomPluginVariables.JSON`
+   dosyasında şu blok olmalı (oyun DLL'i ilk görüşte ekler ama `" Enabled": 0`
+   bırakabilir — **1 yap**, sonra oyunu yeniden başlat):
+   ```json
+   "rFactor2SharedMemoryMapPlugin64.dll": { " Enabled": 1 }
+   ```
+
+> ⚠️ **En sık hata:** DLL kopyalanır ama etkinleştirilmez (ya da yanlış klasöre
+> konur). Windows bu durumda paylaşımlı belleği **sıfırlarla dolu** oluşturur —
+> köprü "çalışıyor" görünür ama sonsuza dek bekler. v1.4.94'ten itibaren kart bu
+> durumu açıkça söyler: **"Eklenti verisi yok — … ' Enabled': 1 olmalı."**
+> Bu mesajı görüyorsan sorun oyunda/kurulumda, uygulamada değil.
+> Ayrıca veri ancak bir **seansa girince** (garaj/pist) akar; ana menüde
+> "Oyun açık, seans bekleniyor" görünür — bu normaldir.
 
 ### b. Firebase "bot" hesabı (köprünün yazması için)
 1. Firebase Console → Authentication → **Sign-in method** → **Email/Password**'ü etkinleştir.
@@ -84,6 +109,14 @@ CaspianLiveBridge.exe --dump
 ```
 Bu, paylaşımlı bellekten çözülen JSON'u konsola basar (Firebase'e yazmaz). Alanlar
 boşsa eşleme/sürüm sorunudur → `rf2_source.py`. `--once` ile tek gönderim de yapılır.
+`_diag` alanına bak: `"shm": false` → eklenti yazmıyor (1a'daki kurulum/etkinleştirme);
+`"shm": true, "trackLoaded": false` → oyun menüde, seansa gir.
+
+> **Masaüstü kurulumunda** aynı teşhis, uygulamayla gelen sidecar'dan alınır:
+> ```
+> "C:\…\Caspian Race Monitor\binaries\caspian-bridge-x86_64-pc-windows-msvc.exe" --dump
+> ```
+> (config gerekmez; Firebase'e yazmaz.)
 
 **Hava doğrulama (`--dump-wx`):** uygulama ıslaklık/yağış yüzdesini kelimeye çeviriyor
 (Damp, Slightly Wet…) ama bu eşikler tahmin — oyun ıslaklığı ne paylaşımlı bellekte ne

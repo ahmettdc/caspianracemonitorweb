@@ -708,4 +708,17 @@ export const EN = {
   "Beklemede": "Standby", "yayınlıyor": "is broadcasting",
   "aktif sürücü canlıyı yazıyor": "the active driver is writing live data",
   "Canlı kaynak": "Live source",
+
+  /* köprü durum/teşhis mesajları (v1.4.94) */
+  "Oyun/seans bekleniyor…": "Waiting for game/session…",
+  "Eklenti verisi yok — rFactor2SharedMemoryMapPlugin64.dll kurulu ya da etkin değil. CustomPluginVariables.JSON içinde ' Enabled': 1 olmalı.":
+    "No plugin data — rFactor2SharedMemoryMapPlugin64.dll is not installed or not enabled. CustomPluginVariables.JSON must contain ' Enabled': 1.",
+  "Oyun açık, seans bekleniyor — pist/garaja girince veri başlar.":
+    "Game is open, waiting for a session — data starts once you enter track/garage.",
+  "Seansta araç görünmüyor…": "No cars visible in the session…",
+  "Köprü başlatılıyor…": "Starting bridge…",
+  "Köprü çalışıyor": "Bridge running",
+  "Gönderiliyor": "Sending",
+  "Rolün izleyici — köprü bu rolde yayın yapamaz. Yayınlayacak üyenin takımda 🎧 Mühendis (editor) ya da Sahip olması gerekir.":
+    "Your role is viewer — the bridge cannot broadcast with this role. The member who broadcasts needs the 🎧 Engineer (editor) or Owner role in the team.",
 };

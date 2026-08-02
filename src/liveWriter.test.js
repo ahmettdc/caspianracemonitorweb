@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { shouldClaim, LIVE_WRITER_STALE_MS } from "./liveWriter.js";
+import { shouldClaim, LIVE_WRITER_STALE_MS, bridgeWaitInfo } from "./liveWriter.js";
 
 /* Tek-yazıcı seçimi (livewriter lease) saf kararı. now = server-hizalı ms.
    Kira: { uid, by, driving, ts }. STALE = LIVE_WRITER_STALE_MS. */
@@ -49,5 +49,25 @@ describe("shouldClaim — tek-yazıcı seçimi", () => {
     const noTs = { uid: "B", by: "B", driving: false, ts: null };
     expect(shouldClaim(noTs, "A", false, NOW)).toBe(false);
     expect(shouldClaim(noTs, "A", true, NOW)).toBe(true);   // preempt yine geçerli
+  });
+});
+
+/* Saha boşken köprü kartı mesaj seçimi — sidecar _diag.wait'inden. En kritik durum
+   "noplugin": eklenti DLL'i yokken mmap hayalet mapping oluşturduğu için köprü
+   "çalışıyor" görünüyordu ve eski tek mesaj sebebi söyleyemiyordu (üyenin PC'si
+   "okumuyor" şikâyeti). */
+describe("bridgeWaitInfo — bekleme nedeni mesaj seçimi", () => {
+  it("noplugin → warn (kırmızı): kurulum hatası, bekleyerek düzelmez", () => {
+    expect(bridgeWaitInfo({ wait: "noplugin" })).toEqual({ key: "noplugin", warn: true });
+  });
+  it("menu / novehicles → normal bekleme", () => {
+    expect(bridgeWaitInfo({ wait: "menu" })).toEqual({ key: "menu", warn: false });
+    expect(bridgeWaitInfo({ wait: "novehicles" })).toEqual({ key: "novehicles", warn: false });
+  });
+  it("eski sidecar (wait alanı yok) → generic (geriye uyum)", () => {
+    expect(bridgeWaitInfo({ shm: true, cars: 0 }).key).toBe("generic");
+    expect(bridgeWaitInfo(null).key).toBe("generic");
+    expect(bridgeWaitInfo(undefined).key).toBe("generic");
+    expect(bridgeWaitInfo({ wait: null }).key).toBe("generic");
   });
 });
