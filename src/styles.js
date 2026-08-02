@@ -315,6 +315,12 @@ export const css = `
 .rc .mapcond .mapcond-flag{color:#F2C037;border-color:rgba(242,192,55,.5)}
 .rc .mapcond .mapcond-wx{color:#7cc3f0}
 .rc .mapcond .mapcond-temp{color:var(--dim)}
+/* Büyük Pano zenginleştirme (v1.4.96): lejant + strateji şeridi */
+.rc .maplegend{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;
+  padding:6px 10px 2px;font-size:12px;color:var(--dim)}
+.rc .maplegend span{display:inline-flex;align-items:center;gap:5px}
+.rc .maplegend i{width:11px;height:11px;border-radius:3px;display:inline-block;flex:0 0 auto}
+.rc .wxmbox.map .mapbig-strat{padding:2px 10px 0}
 .rc .wxmlist{overflow:auto;padding:8px}
 /* Setup içeriği penceresi — özet çipleri + bölüm/alan listesi */
 .rc .setupsum{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}

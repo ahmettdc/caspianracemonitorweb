@@ -709,6 +709,10 @@ export const EN = {
   "aktif sürücü canlıyı yazıyor": "the active driver is writing live data",
   "Canlı kaynak": "Live source",
 
+  /* pist haritası pit/pano (v1.4.96) */
+  "Sen": "You",
+  "Pit giriş/çıkış": "Pit in/out",
+
   /* köprü durum/teşhis mesajları (v1.4.94) */
   "Oyun/seans bekleniyor…": "Waiting for game/session…",
   "Eklenti verisi yok — rFactor2SharedMemoryMapPlugin64.dll kurulu ya da etkin değil. CustomPluginVariables.JSON içinde ' Enabled': 1 olmalı.":

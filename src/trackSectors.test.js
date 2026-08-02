@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { observeSector, sectorFractions, sectorRanges,
+  observePit, pitFractions, packPit, unpackPit, emptyPit,
   packSectors, unpackSectors, emptySectors }
   from "./trackSectors.js";
 
@@ -55,6 +56,37 @@ describe("sectorRanges — sarı sektör yayı için lapDist aralıkları (v1.4.
     expect(sectorRanges(null)).toBeNull();
     expect(sectorRanges({ f12: 0.4, f20: null })).toBeNull();
     expect(sectorRanges({ f12: null, f20: 0.7 })).toBeNull();
+  });
+});
+
+describe("observePit / pitFractions — pit giriş/çıkış gözlemi (v1.4.96)", () => {
+  it("TRACK→PIT = giriş, PIT→TRACK = çıkış; ortalama", () => {
+    let st = emptyPit();
+    st = observePit(st, "TRACK", "PIT", 0.92);
+    st = observePit(st, "TRACK", "PIT", 0.94);   // giriş ortalaması 0.93
+    st = observePit(st, "PIT", "TRACK", 0.05);   // çıkış
+    const fr = pitFractions(st);
+    expect(fr.entry).toBeCloseTo(0.93, 5);
+    expect(fr.exit).toBeCloseTo(0.05, 5);
+  });
+  it("aynı konum tekrarı / geçersiz frac sayılmaz", () => {
+    let st = observePit(emptyPit(), "TRACK", "TRACK", 0.5);   // geçiş yok
+    st = observePit(st, "TRACK", "PIT", 1.5);                 // frac aralık dışı
+    expect(pitFractions(st)).toBeNull();
+  });
+  it("gözlem yoksa null; kısmi gözlemde diğer alan null", () => {
+    expect(pitFractions(emptyPit())).toBeNull();
+    expect(pitFractions(null)).toBeNull();
+    const st = observePit(emptyPit(), "TRACK", "PIT", 0.9);
+    expect(pitFractions(st)).toEqual({ entry: 0.9, exit: null });
+  });
+  it("packPit / unpackPit round-trip + kısmi + bozuk", () => {
+    expect(unpackPit(packPit({ entry: 0.921, exit: 0.045 })))
+      .toEqual({ entry: 0.921, exit: 0.045 });
+    expect(packPit({ entry: 0.9, exit: null })).toBe("0.9000,");
+    expect(unpackPit("0.9000,")).toEqual({ entry: 0.9, exit: null });
+    expect(unpackPit("")).toBeNull();
+    expect(unpackPit(null)).toBeNull();
   });
 });
 

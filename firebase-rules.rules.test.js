@@ -239,6 +239,21 @@ describe("teams/livetracksec (paylaşımlı sektör sınırları)", () => {
   });
 });
 
+describe("teams/livetrackpit (paylaşımlı pit giriş/çıkış — v1.4.96)", () => {
+  it("editor pit sınırlarını (string) yazar; takım üyesi okur", async () => {
+    await assertSucceeds(set(ref(db("bob"), "teams/team1/livetrackpit/Spa"), "0.9210,0.0450"));
+    await assertSucceeds(get(ref(db("carol"), "teams/team1/livetrackpit/Spa")));
+  });
+  it("string olmayan / 40+ karakter reddedilir", async () => {
+    await assertFails(set(ref(db("bob"), "teams/team1/livetrackpit/Spa"), 0.92));
+    await assertFails(set(ref(db("bob"), "teams/team1/livetrackpit/Spa"), "x".repeat(40)));
+  });
+  it("viewer/yabancı yazamaz", async () => {
+    await assertFails(set(ref(db("carol"), "teams/team1/livetrackpit/Spa"), "0.9,0.04"));
+    await assertFails(set(ref(db("dave"), "teams/team1/livetrackpit/Spa"), "0.9,0.04"));
+  });
+});
+
 describe("teams/chat + raceState + badges", () => {
   it("üye kendi uid'iyle mesaj yazar; başkasının uid'iyle yazamaz", async () => {
     await assertSucceeds(set(ref(db("carol"), "teams/team1/chat/m1"), { uid: "carol", text: "selam" }));

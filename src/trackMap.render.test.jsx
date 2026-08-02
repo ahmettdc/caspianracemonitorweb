@@ -96,4 +96,20 @@ describe("TrackMap", () => {
         <TrackMap t={t} field={mkField(4)} trackLength={LEN} session={s} />)).not.toThrow();
     }
   });
+
+  /* v1.4.96 — hareket yönü oku (geometriden, her zaman) + pit'li araçlarla çökmez.
+     Pit giriş/çıkış İŞARETLERİ gözlem (çok kare) ister → birim testte (trackSectors)
+     kapsanır; statik render'da prevLoc boş olduğu için işaret çizilmez (dürüst). */
+  it("hareket yönü oku (polygon) çizilir", () => {
+    const html = renderToStaticMarkup(
+      <TrackMap t={t} field={mkField(8)} trackLength={LEN} />);
+    expect(html).toContain("<polygon");
+  });
+
+  it("PIT konumlu araçlarla çökmeden render olur", () => {
+    const field = mkField(6).map((c, i) => (i === 2 ? { ...c, location: "PIT" } : c));
+    expect(() => renderToStaticMarkup(
+      <TrackMap t={t} field={field} trackLength={LEN} tid="team1" trackKey="Spa" canSave />))
+      .not.toThrow();
+  });
 });

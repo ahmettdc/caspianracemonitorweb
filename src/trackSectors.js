@@ -34,6 +34,52 @@ export function sectorFractions(state) {
   return { f12, f20 };
 }
 
+/* ---- PİT GİRİŞ/ÇIKIŞ gözlemi (v1.4.96) — sektör deseninin aynısı ----
+   Pit giriş/çıkış noktası paylaşımlı bellekte doğrudan yok; ama araç `location`
+   TRACK↔PIT döndüğü andaki lapDist oranı = pit girişi (TRACK→PIT) / çıkışı (PIT→TRACK).
+   Gözleyip ortalarız (gürültüye dayanıklı). Dış halkada iki küçük işaret çizilir. */
+export const emptyPit = () => ({ entry: { sum: 0, n: 0 }, exit: { sum: 0, n: 0 } });
+
+export function observePit(state, prevLoc, loc, frac) {
+  const st = state || emptyPit();
+  const f = Number(frac);
+  if (!Number.isFinite(f) || f < 0 || f > 1) return st;
+  if (prevLoc === "TRACK" && loc === "PIT") { st.entry.sum += f; st.entry.n += 1; }
+  else if (prevLoc === "PIT" && loc === "TRACK") { st.exit.sum += f; st.exit.n += 1; }
+  return st;
+}
+
+/* Ortalama { entry, exit } — gözlem yoksa alan null; ikisi de yoksa null. */
+export function pitFractions(state) {
+  if (!state) return null;
+  const avg = (a) => (a && a.n > 0 ? a.sum / a.n : null);
+  const entry = avg(state.entry), exit = avg(state.exit);
+  if (entry == null && exit == null) return null;
+  return { entry, exit };
+}
+
+/* Paylaşım (livetrackpit): { entry, exit } → "entry,exit" (4 ondalık). packSectors deseni. */
+export function packPit(fr) {
+  if (!fr) return "";
+  const p = (v) => (Number.isFinite(v) && v >= 0 && v <= 1 ? v.toFixed(4) : "");
+  const s = `${p(fr.entry)},${p(fr.exit)}`;
+  return s === "," ? "" : s;
+}
+
+export function unpackPit(str) {
+  if (typeof str !== "string" || !str) return null;
+  const parts = str.split(",");
+  const g = (v) => {
+    const s = String(v ?? "").trim();
+    if (!s) return null;
+    const x = Number(s);
+    return Number.isFinite(x) && x >= 0 && x <= 1 ? x : null;
+  };
+  const entry = g(parts[0]), exit = g(parts[1]);
+  if (entry == null && exit == null) return null;
+  return { entry, exit };
+}
+
 /* Sektör lapDist aralıkları → sarı sektör vurgusu için (v1.4.95). yellowSectors [2]
    gibi S-numaraları verir; hangi lapDist yayının sarı olacağını bilmek için sınır
    kesirleri gerekir. S1=[0,f12) · S2=[f12,f20) · S3=[f20,1). İki sınır da gözlenmemişse
