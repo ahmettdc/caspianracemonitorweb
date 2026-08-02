@@ -449,11 +449,25 @@ export const css = `
 .rc .hdsel{display:inline-flex;align-items:center;gap:7px;color:var(--dim);font-size:12px;align-self:center}
 .rc .hdsel img.flag{width:18px;height:auto;border-radius:2px}
 .rc .hdsel img.car{height:22px;width:auto}
-.rc .viewonly input,.rc .viewonly .strat button,.rc .viewonly .tyrebox button,
-.rc .viewonly .pitopt button,.rc .viewonly select,.rc .viewonly .card .act
-{pointer-events:none;opacity:.55}
+/* viewer (yarışta): girişler pasif kalır — her tuş/seçimde toast spam'ı olmasın. */
+.rc .viewonly input,.rc .viewonly select,.rc .viewonly textarea,
+.rc .viewonly input[type=file],.rc .viewonly input[type=checkbox]{pointer-events:none;opacity:.55}
+/* viewer: düzenleme DÜĞMELERİ soluk ama TIKLANABİLİR kalır → tık edit() muhafızına ulaşır
+   ve "yetkiniz yok" kutucuğunu tetikler; salt-okunur .card .act eylemleri (+, ⛶) de erişilir. */
+.rc .viewonly .strat button,.rc .viewonly .tyrebox button,
+.rc .viewonly .pitopt button,.rc .viewonly .card .act{pointer-events:auto;opacity:.55}
 .rc .viewonly .tabs button{pointer-events:auto;opacity:1}
-.rc .viewonly textarea,.rc .viewonly input[type=file],.rc .viewonly input[type=checkbox]{pointer-events:none;opacity:.55}
+/* Yetki reddi kutucuğu (DenyToast) — alt-orta, kırmızı kenar, kayarak belirir. */
+.rc .denytoast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:1200;
+  display:flex;align-items:center;gap:10px;max-width:min(520px,92vw);
+  padding:12px 18px;border-radius:12px;background:var(--panel);border:1px solid var(--red);
+  box-shadow:0 12px 34px rgba(150,0,24,.34),inset 0 0 0 1px rgba(255,77,94,.16);
+  color:var(--txt);font-size:14px;font-weight:600;line-height:1.35;
+  animation:dtin .28s cubic-bezier(.2,.85,.3,1.12)}
+.rc .denytoast .dticon{font-size:18px;flex:0 0 auto}
+@keyframes dtin{from{opacity:0;transform:translate(-50%,14px) scale(.96)}
+  to{opacity:1;transform:translate(-50%,0) scale(1)}}
+@media (prefers-reduced-motion:reduce){.rc .denytoast{animation:none}}
 .rc textarea:focus{outline:2px solid var(--teal)}
 .rc select{background:var(--panel2);border:1px solid var(--line);border-radius:6px;
   color:var(--txt);padding:5px 6px;font-family:'IBM Plex Mono';font-size:12px}

@@ -941,3 +941,21 @@ export function TeamModal({ open, onClose, user, t, lang, myTeams, curTeam, setC
         </div>
   );
 }
+
+/* Yetki reddi kutucuğu — viewer bir yarışta düzenleme deneyince (App.jsx edit() muhafızı)
+   ekranın alt-ortasında belirir. Fixed konumlu (.denytoast) → DOM'daki yeri önemsiz;
+   App'te key={deny} ile remount edilir (her tıkta yeniden animasyon). Boş bağımlılıkla
+   yalnız mount'ta ~2.6 sn'lik zamanlayıcı kurulur (parent re-render zamanlayıcıyı sıfırlamaz),
+   sonra onDone() ile kendini kapatır. */
+export function DenyToast({ text, onDone }) {
+  useEffect(() => {
+    const id = setTimeout(() => onDone?.(), 2600);
+    return () => clearTimeout(id);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <div className="denytoast" role="alert" aria-live="assertive">
+      <span className="dticon" aria-hidden="true">🔒</span>
+      <span>{text}</span>
+    </div>
+  );
+}

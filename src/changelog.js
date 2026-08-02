@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.84",
+    date: "2026-08-02",
+    tr: [
+      "🔒 Yetkisi olmayan (yalnız izleyici) bir üye yarışta düzenleme yapmaya çalışınca artık ekranın altında 'Bu işlem için yetkiniz yok' kutucuğu beliriyor. Önceden düzenle düğmeleri sessizce tepki vermiyordu; şimdi net bir uyarı çıkıyor. (Düzenleme yalnız Yarış Mühendisi/Takım Sahibine açık.) Ek fayda: izleyiciler artık salt-okunur eylemleri de (tur geçmişi '+', harita '⛶ Büyüt') kullanabiliyor.",
+    ],
+    en: [
+      "🔒 When a member without edit rights (viewer only) tries to change something in a race, a 'You don't have permission for this action' box now appears at the bottom of the screen. Previously the edit buttons silently did nothing; now there's a clear notice. (Editing is limited to the Race Engineer/Team Owner.) Bonus: viewers can now also use read-only actions (lap-history '+', map '⛶ Expand').",
+    ],
+  },
+  {
     v: "v1.4.83",
     date: "2026-08-01",
     tr: [
