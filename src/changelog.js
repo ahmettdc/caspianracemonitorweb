@@ -5,6 +5,24 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.91",
+    date: "2026-08-02",
+    tr: [
+      "🃏 Setup havuzuna KART GÖRÜNÜMÜ geldi: ⊞ düğmesiyle tablo ↔ kart arasında geçiş yap (tercih cihazında hatırlanır). Kartlarda pist görseli, bayrak, sınıf + marka logosu, büyük tur zamanı ve tüm eylemler var.",
+      "📊 Tablo sadeleşti (13 → 9 sütun): Koşul+Seans tek hücrede, şampiyona/sürüm/not dosya adının altında, takım yükleyenin altında — daha az yatay kaydırma, aynı bilgi.",
+      "🖱 Satıra ya da karta tıklamak artık doğrudan İÇERİK penceresini açıyor (indirme/silme düğmeleri ayrı çalışmaya devam ediyor).",
+      "⚡ En hızlı setup vurgusuna ek olarak diğer setuplarda en hızlıya fark görünüyor (ör. '+0.6s') — aynı pist+sınıf içinde kıyas bir bakışta.",
+      "👤 'Benim setuplarım' süzgeci: tek tıkla yalnız kendi yüklediklerini gör.",
+    ],
+    en: [
+      "🃏 The setup pool got a CARD VIEW: toggle table ↔ cards with the ⊞ button (preference remembered on your device). Cards show the track image, flag, class + brand logo, a big lap time and all actions.",
+      "📊 The table got simpler (13 → 9 columns): condition+session in one cell, championship/version/note under the file name, team under the uploader — less horizontal scrolling, same info.",
+      "🖱 Clicking a row or card now opens the CONTENT window directly (download/delete buttons still work separately).",
+      "⚡ Besides the fastest-setup highlight, other setups now show their gap to the fastest (e.g. '+0.6s') — instant comparison within the same track+class.",
+      "👤 'My setups' filter: one click to see only what you uploaded.",
+    ],
+  },
+  {
     v: "v1.4.90",
     date: "2026-08-02",
     tr: [

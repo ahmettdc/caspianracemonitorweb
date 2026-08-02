@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   SETUP_MAX_BYTES, SETUP_LIMITS, fileTooBig, filterSetups,
   poolEmptyReason, trimSetupMeta, staleTrackFilter, fastestSetupIds,
-  searchSetups, sortSetups,
+  searchSetups, sortSetups, lapDeltas,
 } from "./setupPool";
 
 const pool = [
@@ -131,6 +131,57 @@ describe("fastestSetupIds", () => {
     expect(fastestSetupIds(rows).size).toBe(0);
     expect(fastestSetupIds([]).size).toBe(0);
     expect(fastestSetupIds(null).size).toBe(0);
+  });
+});
+
+describe("lapDeltas", () => {
+  it("grubun en hızlısı fastest, diğerlerinde en hızlıya fark (delta)", () => {
+    const rows = [
+      { id: "a", track: "spa", cls: "gt3", lap: "2:20.000" },
+      { id: "b", track: "spa", cls: "gt3", lap: "2:18.500" },  // en hızlı
+      { id: "c", track: "spa", cls: "gt3", lap: "2:19.100" },
+    ];
+    const d = lapDeltas(rows);
+    expect(d.get("b").fastest).toBe(true);
+    expect(d.get("b").delta).toBe(0);
+    expect(d.get("a").fastest).toBe(false);
+    expect(d.get("a").delta).toBeCloseTo(1.5, 3);
+    expect(d.get("c").delta).toBeCloseTo(0.6, 3);
+  });
+  it("tek kayıtlı grupta fastest=true, delta=0", () => {
+    const d = lapDeltas([{ id: "x", track: "spa", cls: "gt3", lap: "2:18.0" }]);
+    expect(d.get("x")).toEqual({ fastest: true, delta: 0 });
+  });
+  it("farklı pist/sınıf ayrı gruplanır (delta kendi grubuna göre)", () => {
+    const rows = [
+      { id: "s1", track: "spa", cls: "gt3", lap: "2:18.0" },
+      { id: "s2", track: "spa", cls: "gt3", lap: "2:19.0" },
+      { id: "m1", track: "monza", cls: "gt3", lap: "1:48.0" },
+    ];
+    const d = lapDeltas(rows);
+    expect(d.get("s2").delta).toBeCloseTo(1.0, 3);
+    expect(d.get("m1").fastest).toBe(true);   // kendi grubunun tek aracı
+  });
+  it("geçersiz/boş lap map'e girmez; bozuk girdi patlamaz", () => {
+    const d = lapDeltas([
+      { id: "a", track: "spa", cls: "gt3", lap: "2:18.0" },
+      { id: "b", track: "spa", cls: "gt3", lap: "" },
+      { id: "c", track: "spa", cls: "gt3", lap: "hızlı!" },
+    ]);
+    expect(d.has("a")).toBe(true);
+    expect(d.has("b")).toBe(false);
+    expect(d.has("c")).toBe(false);
+    expect(lapDeltas(null).size).toBe(0);
+    expect(lapDeltas([]).size).toBe(0);
+  });
+  it("fastestSetupIds lapDeltas ile tutarlı (tek kaynak)", () => {
+    const rows = [
+      { id: "a", track: "spa", cls: "gt3", lap: "2:20.0" },
+      { id: "b", track: "spa", cls: "gt3", lap: "2:18.5" },
+    ];
+    const d = lapDeltas(rows);
+    const f = fastestSetupIds(rows);
+    for (const [id, v] of d) expect(f.has(id)).toBe(v.fastest);
   });
 });
 

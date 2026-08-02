@@ -320,6 +320,27 @@ export const css = `
 .rc .setuprow-k{color:var(--muted)}
 .rc .setuprow-v{font-family:'IBM Plex Mono';color:var(--txt);text-align:right}
 .rc .fastlap{color:var(--green);font-weight:700}
+.rc .lapdelta{color:var(--muted);font-size:11px;font-weight:400}
+/* setup kart görünümü — tabloyla aynı satırlar/handler'lar, göz gezdirme için */
+.rc .sucards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.rc .sucard{background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+  padding:9px 10px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.rc .sucard.here{border-color:rgba(150,0,24,.55);background:rgba(150,0,24,.08)}
+.rc .sucard-img{margin:-9px -10px 0;border-radius:10px 10px 0 0;overflow:hidden;
+  max-height:84px;background:rgba(255,255,255,.03)}
+.rc .sucard-img img{width:100%;height:84px;object-fit:cover;display:block;opacity:.9}
+.rc .sucard-row{display:flex;align-items:center;gap:6px;min-width:0}
+.rc .sucard-row b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rc .sucard-row img.fl{width:18px;border-radius:2px;flex:0 0 auto}
+.rc .sucard-row img.cb{height:15px;flex:0 0 auto}
+.rc .sucard-row img.br{height:15px;width:auto;flex:0 0 auto}
+.rc .sucard-row .nm{font-size:12px;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+.rc .sucard-lap{font-size:15px}
+.rc .sucard-file{font-size:11px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+.rc .sucard-foot{display:flex;align-items:center;gap:6px;margin-top:auto;
+  padding-top:6px;border-top:1px solid var(--line)}
 /* setup sürükle-bırak bölgesi — .svm dosyası buraya bırakılınca form kendiliğinden dolar */
 .rc .sudrop{border:1.5px dashed var(--line);border-radius:8px;padding:8px 10px;
   display:flex;flex-direction:column;gap:5px;transition:border-color .15s,background .15s}

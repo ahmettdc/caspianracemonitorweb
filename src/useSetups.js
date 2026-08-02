@@ -39,6 +39,7 @@ export function useSetups({ user, udoc, userName, teamData, t, active = true,
   const [suFSess, setSuFSess] = useState("");
   const [suQuery, setSuQuery] = useState("");       // serbest metin arama
   const [suSort, setSuSort] = useState({ key: "date", dir: "desc" }); // sıralama
+  const [suMine, setSuMine] = useState(false);      // yalnız benim yüklediklerim
 
   /* Abonelik yalnız havuz görünürken (active) — bkz. başlıktaki not. */
   useEffect(() => {
@@ -172,16 +173,17 @@ export function useSetups({ user, udoc, userName, teamData, t, active = true,
       ? { key, dir: s.dir === "asc" ? "desc" : "asc" }
       : { key, dir: key === "lap" ? "asc" : "desc" });
 
-  /* boru hattı: süzgeç → arama → sıralama */
+  /* boru hattı: benimkiler → süzgeç → arama → sıralama */
+  const base = suMine && user?.uid ? setups.filter((x) => x.uid === user.uid) : setups;
   const suList = sortSetups(
     searchSetups(
-      filterSetups(setups, { track: suFTrack, cond: suFCond, sess: suFSess }),
+      filterSetups(base, { track: suFTrack, cond: suFCond, sess: suFSess }),
       suQuery),
     suSort.key, suSort.dir);
 
   return { setups, suFile, suMeta, setSuMeta, suErr, suMsg, suBusy,
     suUpOpen, setSuUpOpen, suFTrack, setSuFTrack,
     suFCond, setSuFCond, suFSess, setSuFSess,
-    suQuery, setSuQuery, suSort, toggleSort,
+    suQuery, setSuQuery, suSort, toggleSort, suMine, setSuMine,
     onSetupFile, onSetupDrop, saveSetup, downloadSetup, suList };
 }

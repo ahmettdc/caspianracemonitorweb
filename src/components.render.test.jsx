@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
   VersionModal, RaceEditModal, ChatModal, SetupModal, TeamModal, TourOverlay, ImgSelect,
-  SetupContentModal,
+  SetupContentModal, SetupTable, SetupCards,
 } from "./components.jsx";
 import { buildTourSteps } from "./tourSteps";
 
@@ -137,6 +137,51 @@ describe("ImgSelect", () => {
     const html = render(
       <ImgSelect value="" options={[]} onChange={noop} t={t} disabled placeholder="—" />);
     expect(html).toContain("imgsel-btn off");
+  });
+});
+
+/* SetupTable + SetupCards — v1.4.91 görünüm: aynı satırlar iki sunumda da çökmeden
+   basılmalı (⚡/delta, birleşik hücreler, eylemler). */
+describe("SetupTable / SetupCards", () => {
+  const rows = [
+    { id: "a", at: 1700000000000, track: "spa", cls: "gt3", car: "bmw", cond: "dry",
+      sess: "R", lap: "2:18.500", name: "spa_low.svm", champ: "ELMS", ver: "1.2",
+      note: "düşük kanat", uname: "Ahmet", team: "Caspian", uid: "u1", data: "eA==" },
+    { id: "b", at: 1700100000000, track: "spa", cls: "gt3", car: "porsche", cond: "wet",
+      sess: "Q", lap: "2:19.100", name: "spa_wet.svm", uname: "Savaş", uid: "u2" },
+    { id: "c", at: 1700200000000, track: "monza", cls: "hypercar", car: "toyota",
+      cond: "dry", sess: "R", lap: "", name: "monza.svm", uname: "Can", uid: "u3" },
+  ];
+  const st = { track: "spa" };
+
+  it("tablo: 9 sütun, ⚡ en hızlı + delta, birleşik hücreler", () => {
+    const html = render(
+      <SetupTable rows={rows} t={t} st={st} lang="tr" isAdmin
+        onDownload={noop} onDelete={noop} onView={noop}
+        sort={{ key: "date", dir: "desc" }} onSort={noop} />);
+    expect(html).toContain("fastlap");          // ⚡ en hızlı (a)
+    expect(html).toContain("lapdelta");         // +0.6s (b)
+    expect(html).toContain("ELMS · 1.2");       // şampiyona·sürüm dosya altında
+    expect(html).toContain("Caspian");          // takım yükleyen altında
+    expect(html).toContain("▼");                // aktif sıralama oku
+  });
+
+  it("kartlar: sucards grid + aynı içerik + eylemler", () => {
+    const html = render(
+      <SetupCards rows={rows} t={t} st={st} lang="tr" isAdmin
+        onDownload={noop} onDelete={noop} onView={noop} />);
+    expect(html).toContain("sucards");
+    expect(html).toContain("sucard here");      // aktif pist vurgusu (spa)
+    expect(html).toContain("fastlap");
+    expect(html).toContain("spa_low.svm");
+    expect(html).toContain("✕");                // admin silme
+  });
+
+  it("boş satır listesi çökmeden render olur", () => {
+    expect(render(<SetupCards rows={[]} t={t} st={st} lang="tr" isAdmin={false}
+      onDownload={noop} onDelete={noop} />)).toContain("sucards");
+    expect(render(<SetupTable rows={[]} t={t} st={st} lang="tr" isAdmin={false}
+      onDownload={noop} onDelete={noop} />)).toContain("table");
   });
 });
 
