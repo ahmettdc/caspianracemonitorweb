@@ -493,6 +493,8 @@ export const EN = {
   "Ortam": "Ambient", "Zemin ıslaklığı": "Track wetness",
   // Tutuş (rubber) tahmini — TinyPedal modeli (v1.4.74)
   "Tutuş": "Grip (est.)",
+  // tur geçmişi pist koşulları (v1.4.83)
+  "Asfalt sıcaklığı": "Track temp", "Yol tutuş": "Grip",
   "Turlardan modellenmiş tahmin (gerçek okuma değil)":
     "Modeled estimate from laps (not a real reading)",
   // lastik hamuru sütunu (v1.4.66) + ön/arka crossover (v1.4.67)

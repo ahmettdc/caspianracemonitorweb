@@ -440,6 +440,25 @@ export function liveSecSubscribe(tid, rid, lapKey, cb) {
     (err) => { console.warn("livesec read failed:", err?.message); cb(null); });
 }
 
+/* ---- kalıcı PİST KOŞULLARI geçmişi (livecond) — tur listesi popup'ı için ----
+   teams/{tid}/livecond/{rid}/{lapKey}/{n} = "temp,wet,grip" (asfalt °C, zemin ıslaklığı %,
+   yol tutuş %). livesec deseniyle birebir; tur tamamlandığı karede o anki seans koşulları
+   yazılır. Popup, her tur satırında koşulları gösterir. */
+export async function liveCondAppend(tid, rid, entries) {
+  if (!db || !tid || !rid || !entries) return;
+  await update(ref(db, `teams/${tid}/livecond/${rid}`), entries);
+}
+export async function liveCondClear(tid, rid, lapKey) {
+  if (!db || !tid || !rid || !lapKey) return;
+  await set(ref(db, `teams/${tid}/livecond/${rid}/${lapKey}`), null);
+}
+export function liveCondSubscribe(tid, rid, lapKey, cb) {
+  if (!db || !tid || !rid || !lapKey) { cb(null); return () => {}; }
+  return onValue(ref(db, `teams/${tid}/livecond/${rid}/${lapKey}`),
+    (s) => cb(s.exists() ? s.val() : null),
+    (err) => { console.warn("livecond read failed:", err?.message); cb(null); });
+}
+
 /* ---- tur → pilot eşlemesi (livedrv) — endurance driver swap ----
    teams/{tid}/livedrv/{rid}/{lapKey}/{n} = "Pilot Adı". SEYREK: yalnız pilotun
    DEĞİŞTİĞİ tur yazılır (stint boyunca sabit); okuma tarafı ileri doldurur

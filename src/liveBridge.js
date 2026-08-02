@@ -17,9 +17,11 @@
 import { liveTimingSet, liveLapsAppend, liveLapsClear,
   livePosAppend, livePosClear, liveSecAppend, liveSecClear,
   liveDrvAppend, liveDrvClear, liveTyreAppend, liveTyreClear,
+  liveCondAppend, liveCondClear,
   liveWriterClaim, liveWriterRelease, liveWriterSubscribe, serverNow } from "./storage";
 import { shouldClaim } from "./liveWriter";
 import { lapNumbersOf } from "./liveLaps";
+import { rubberPct } from "./engine";
 
 let child = null;          // çalışan sidecar süreci (Child)
 let stopping = false;
@@ -85,7 +87,17 @@ export async function startBridge(opts, onStatus) {
     const secEntries = {};   // livesec: lapKey/n → "s1,s2,s3" (yalnız en yeni tur)
     const drvEntries = {};   // livedrv: lapKey/n → pilot adı (yalnız DEĞİŞİM turunda)
     const tyreEntries = {};  // livetyre: lapKey/n → "{adet}|{hamur}" (yalnız pit turunda)
+    const condEntries = {};  // livecond: lapKey/n → "temp,wet,grip" (yalnız en yeni tur)
     let clears = [];
+    /* Pist koşulları KARE BAŞINA aynı (seans geneli): asfalt sıcaklığı + zemin ıslaklığı
+       seans karesinden, yol tutuş (grip) sahadaki tüm araçların tur toplamından türer
+       (Tutuş KPI'sıyla aynı model). Tur tamamlandığı anda maxN'e yazılır → o turun koşulu. */
+    const sess = frame?.session || {};
+    const totalLaps = rows.reduce((a, r) => a + (r.lapsDone || 0), 0);
+    const cGrip = rubberPct(sess.sessionType, totalLaps);
+    const cTemp = Number.isFinite(sess.trackTemp) ? Math.round(sess.trackTemp) : "";
+    const cWet = Number.isFinite(sess.wetness) ? Math.round(sess.wetness) : "";
+    const condStr = (cTemp !== "" || cWet !== "") ? `${cTemp},${cWet},${cGrip}` : null;
     for (const r of rows) {
       const key = r.lapKey;
       const laps = Array.isArray(r.laps) ? r.laps : null;
@@ -138,6 +150,8 @@ export async function startBridge(opts, onStatus) {
         if (maxN > prev && Array.isArray(sc) && sc[0] > 0 && sc[1] > 0 && sc[2] > 0) {
           secEntries[`${key}/${maxN}`] = `${sc[0]},${sc[1]},${sc[2]}`;
         }
+        // pist koşulları: en yeni tur (maxN) için bu karenin asfalt/ıslaklık/tutuşu
+        if (maxN > prev && condStr) condEntries[`${key}/${maxN}`] = condStr;
         if (maxN > (lastLap[key] || 0)) lastLap[key] = maxN;
         lastPit[key] = pits;
       }
@@ -155,13 +169,14 @@ export async function startBridge(opts, onStatus) {
       for (const k of clears) {
         await liveLapsClear(tid, rid, k); await livePosClear(tid, rid, k);
         await liveSecClear(tid, rid, k); await liveDrvClear(tid, rid, k);
-        await liveTyreClear(tid, rid, k);
+        await liveTyreClear(tid, rid, k); await liveCondClear(tid, rid, k);
       }
       if (Object.keys(entries).length) await liveLapsAppend(tid, rid, entries);
       if (Object.keys(posEntries).length) await livePosAppend(tid, rid, posEntries);
       if (Object.keys(secEntries).length) await liveSecAppend(tid, rid, secEntries);
       if (Object.keys(drvEntries).length) await liveDrvAppend(tid, rid, drvEntries);
       if (Object.keys(tyreEntries).length) await liveTyreAppend(tid, rid, tyreEntries);
+      if (Object.keys(condEntries).length) await liveCondAppend(tid, rid, condEntries);
     } catch (e) {
       say({ running: true, phase: "running", msg: "Geçmiş yazılamadı: " + (e?.message || e) });
     }

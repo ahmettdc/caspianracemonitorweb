@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.83",
+    date: "2026-08-01",
+    tr: [
+      "🌡 Tur geçmişi penceresinde (satırdaki '+') artık her tur satırında o turdaki pist koşulları da yazıyor: asfalt sıcaklığı (🛣), yol tutuş (🛞 %) ve zemin ıslaklığı (damla ikonu + kademe). Koşullar, tur tamamlandığı anda kaydedilir (kalıcı) — köprü çalışırken biriken turlar için görünür. (Yazım için sürüş PC'sinde masaüstü uygulaması güncellenmeli; bu sürümden önceki turlarda koşul kaydı yoktur.)",
+    ],
+    en: [
+      "🌡 In the lap-history popup (the '+' on a row) each lap now also shows the track conditions at that lap: track temp (🛣), grip (🛞 %) and track wetness (droplet icon + stage). Conditions are captured when the lap completes (persistent) — visible for laps accumulated while the bridge runs. (Writing needs the desktop app updated on the driving PC; laps before this version have no condition record.)",
+    ],
+  },
+  {
     v: "v1.4.82",
     date: "2026-08-01",
     tr: [

@@ -5,8 +5,8 @@ import { Ring } from "../components";
 import { DESKTOP_RELEASE_URL, ASSET, classId, classAccent, brandKey, manufacturerKey } from "../constants";
 import { isTauri } from "../tauriEnv";
 import { liveLapsSubscribe, liveSecSubscribe, liveDrvSubscribe, liveTyreSubscribe,
-  serverNow } from "../storage";
-import { driverAtLap } from "../liveLaps";
+  liveCondSubscribe, serverNow } from "../storage";
+import { driverAtLap, parseLapCond } from "../liveLaps";
 import { binKey } from "../trackShape";
 import { demoLive } from "../liveDemo";
 import { CALIB_WORDS, addSample, thresholdsFrom, exportPayload } from "../wxCalib";
@@ -136,6 +136,7 @@ function LapsModal({ t, tid, rid, row, onClose }) {
   const [secMap, setSecMap] = useState(null);   // {n: "s1,s2,s3"} livesec'ten
   const [drvMap, setDrvMap] = useState(null);   // {n: "ad"} livedrv'den (SEYREK)
   const [tyreMap, setTyreMap] = useState(null); // {n: "adet|hamur"} livetyre'den (pit turu)
+  const [condMap, setCondMap] = useState(null); // {n: "temp,wet,grip"} livecond'dan (pist koşulu)
   useEffect(() => {
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", onKey);
@@ -144,13 +145,15 @@ function LapsModal({ t, tid, rid, row, onClose }) {
   // açıkken o aracın tur geçmişini + sektörlerini + pilotlarını dinle
   useEffect(() => {
     if (!row?.lapKey) {
-      setLapMap(null); setSecMap(null); setDrvMap(null); setTyreMap(null); return undefined;
+      setLapMap(null); setSecMap(null); setDrvMap(null); setTyreMap(null); setCondMap(null);
+      return undefined;
     }
     const off1 = liveLapsSubscribe(tid, rid, row.lapKey, setLapMap);
     const off2 = liveSecSubscribe(tid, rid, row.lapKey, setSecMap);
     const off3 = liveDrvSubscribe(tid, rid, row.lapKey, setDrvMap);
     const off4 = liveTyreSubscribe(tid, rid, row.lapKey, setTyreMap);
-    return () => { off1(); off2(); off3(); off4(); };
+    const off5 = liveCondSubscribe(tid, rid, row.lapKey, setCondMap);
+    return () => { off1(); off2(); off3(); off4(); off5(); };
   }, [tid, rid, row?.lapKey]);
   // {n: sec} → [{n, sec}] sayısal sıralı; en yeni üstte
   const entries = lapMap && typeof lapMap === "object"
@@ -186,6 +189,9 @@ function LapsModal({ t, tid, rid, row, onClose }) {
             const shortDrv = drv ? drv.split(/\s+/).pop() : "";
             /* PİT: bu turda lastik değişimi/durak varsa "N× hamur ikonu" (livetyre). */
             const pit = tyreMap && tyreMap[n] ? parseTyreLog(tyreMap[n]) : null;
+            /* PİST KOŞULU (livecond): o turdaki asfalt sıcaklığı · yol tutuş · zemin ıslaklığı */
+            const cond = condMap ? parseLapCond(condMap[n]) : null;
+            const condWx = cond && cond.wet != null ? wetnessLevel(cond.wet) : null;
             return (
               <div key={n} className="wxrow" style={{ flexWrap: "wrap",
                 ...(swap && { borderTop: "1px solid var(--teal)" }) }}>
@@ -219,6 +225,19 @@ function LapsModal({ t, tid, rid, row, onClose }) {
                   <span className="mono" style={{ flexBasis: "100%", paddingLeft: 56,
                     fontSize: 11, color: "var(--dim)" }}>
                     S1 {sc[0].toFixed(1)} · S2 {sc[1].toFixed(1)} · S3 {sc[2].toFixed(1)}</span>
+                )}
+                {cond && (
+                  <span style={{ flexBasis: "100%", paddingLeft: 56, fontSize: 11,
+                    color: "var(--dim)", display: "flex", alignItems: "center", gap: 10,
+                    flexWrap: "wrap" }}>
+                    {cond.temp != null && <span title={t("Asfalt sıcaklığı")}>🛣 {cond.temp}°</span>}
+                    {cond.grip != null && <span title={t("Yol tutuş")}>🛞 %{cond.grip}</span>}
+                    {cond.wet != null && (condWx
+                      ? <span title={t("Zemin ıslaklığı")} style={{ display: "inline-flex",
+                          alignItems: "center", gap: 3, color: WEATHER[condWx].col }}>
+                          <WetIcon id={condWx} size={14} /> {t(WEATHER[condWx].lbl)}</span>
+                      : <span title={t("Zemin ıslaklığı")}>💧 %{cond.wet}</span>)}
+                  </span>
                 )}
               </div>
             );

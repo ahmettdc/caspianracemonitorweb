@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { lapNumbersOf, driverAtLap } from "./liveLaps.js";
+import { lapNumbersOf, driverAtLap, parseLapCond } from "./liveLaps.js";
 
 /* Tur numarası eşlemesi — kalıcı livelaps/livepos/livesec düğümlerine YAZILAN
    anahtarları belirler; hata kalıcı veri bozulması demektir (append-only). */
@@ -71,5 +71,23 @@ describe("driverAtLap", () => {
     expect(driverAtLap("çöp", 5)).toBe("");
     expect(driverAtLap(map, 0)).toBe("");
     expect(driverAtLap({ 1: 42, 2: "" }, 5)).toBe("");   // string olmayan/boş atlanır
+  });
+});
+
+/* ---- parseLapCond: "temp,wet,grip" → {temp, wet, grip} (pist koşulları) ---- */
+describe("parseLapCond", () => {
+  it("üç alanı sayıya çevirir", () => {
+    expect(parseLapCond("31,22,73")).toEqual({ temp: 31, wet: 22, grip: 73 });
+    expect(parseLapCond("28,0,50")).toEqual({ temp: 28, wet: 0, grip: 50 });
+  });
+  it("eksik/boş alan → o alan null", () => {
+    expect(parseLapCond("31,,73")).toEqual({ temp: 31, wet: null, grip: 73 });
+    expect(parseLapCond(",,60")).toEqual({ temp: null, wet: null, grip: 60 });
+  });
+  it("hepsi boş/geçersiz veya bozuk girdi → null", () => {
+    expect(parseLapCond(",,")).toBeNull();
+    expect(parseLapCond("")).toBeNull();
+    expect(parseLapCond(null)).toBeNull();
+    expect(parseLapCond("abc")).toBeNull();      // temp "abc" → null, diğerleri yok
   });
 });
