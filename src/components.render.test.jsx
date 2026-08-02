@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
   VersionModal, RaceEditModal, ChatModal, SetupModal, TeamModal, TourOverlay, ImgSelect,
-  SetupContentModal, SetupTable, SetupCards,
+  SetupContentModal, SetupCompareModal, SetupTable, SetupCards,
 } from "./components.jsx";
 import { buildTourSteps } from "./tourSteps";
 
@@ -204,6 +204,44 @@ describe("SetupContentModal", () => {
   it("bozuk/olmayan içerik → uyarı, çökme yok", () => {
     const bad = { name: "x", data: Buffer.from("selam", "utf-8").toString("base64") };
     const html = render(<SetupContentModal open su={bad} onClose={noop} t={t} />);
+    expect(html).toContain("okunamadı");
+  });
+});
+
+/* SetupCompareModal — iki gerçek .svm içeriği ile fark tablosu basmalı (v1.4.92). */
+describe("SetupCompareModal", () => {
+  globalThis.window ??= {};
+  /* SteerLock özet haritasında YOK → "yalnız farklar" gizleme assert'i özet
+     çiplerine takılmadan diff tablosunu sınar. */
+  const svmA = "[REARWING]\nRWSetting=2//8.3 deg\n[CONTROLS]\nSteerLockSetting=5//540 deg";
+  const svmB = "[REARWING]\nRWSetting=1//6.9 deg\n[CONTROLS]\nSteerLockSetting=5//540 deg";
+  const mk = (name, svm, extra = {}) => ({
+    id: name, name, cls: "gt3", car: "porsche", track: "spa",
+    data: Buffer.from(svm, "utf-8").toString("base64"), ...extra });
+  const a = mk("a.svm", svmA, { lap: "1:58.2" });
+  const b = mk("b.svm", svmB, { lap: "1:59.0" });
+
+  it("farklı değer vurgulu (diffhl) + tur zamanları başlıkta", () => {
+    const html = render(<SetupCompareModal open a={a} b={b} onClose={noop} t={t} />);
+    expect(html).toContain("diffhl");
+    expect(html).toContain("8.3 deg");
+    expect(html).toContain("6.9 deg");
+    expect(html).toContain("1:58.2");
+    expect(html).toContain("↔");
+    /* aynı değerler varsayılan "yalnız farklar" görünümünde gizli */
+    expect(html).not.toContain("540 deg");
+  });
+
+  it("farklı pist → uyarı çipi; open=false → null", () => {
+    const c = mk("c.svm", svmB, { track: "monza" });
+    const html = render(<SetupCompareModal open a={a} b={c} onClose={noop} t={t} />);
+    expect(html).toContain("Farklı pist");
+    expect(render(<SetupCompareModal open={false} a={a} b={b} onClose={noop} t={t} />)).toBe("");
+  });
+
+  it("bozuk içerik → uyarı, çökme yok", () => {
+    const bad = mk("x.svm", "selam");
+    const html = render(<SetupCompareModal open a={a} b={bad} onClose={noop} t={t} />);
     expect(html).toContain("okunamadı");
   });
 });

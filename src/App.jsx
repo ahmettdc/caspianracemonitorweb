@@ -47,7 +47,7 @@ import {
   TourOverlay, Wheel, Num, Bolt, Tyre, Ring,
   BADGES, teamBadgesOf, hasBadge, ChatPanel, SetupForm, SetupTable, SetupCards,
   VersionModal, RaceEditModal,
-  ChatModal, SetupModal, TeamModal, DenyToast, SetupContentModal,
+  ChatModal, SetupModal, TeamModal, DenyToast, SetupContentModal, SetupCompareModal,
 } from "./components";
 import { WetIcon } from "./WetIcon";
 
@@ -661,6 +661,14 @@ ${bottomBar}
   const [suOpen, setSuOpen] = useState(false);   // lobi setup penceresi (abonelik kapısı)
   const [suDelErr, setSuDelErr] = useState("");  // silme hatası (yükleme hatasından ayrı)
   const [viewSu, setViewSu] = useState(null);    // "🔍 İçerik" ile açılan setup
+  /* ⚖ karşılaştırma seçimi — en çok 2 setup id'si; 2 seçilince alt çubuktan pencere. */
+  const [cmpSel, setCmpSel] = useState([]);
+  const [cmpOpen, setCmpOpen] = useState(false);
+  const cmpToggle = (su) => setCmpSel((sel) => {
+    if (sel.includes(su.id)) return sel.filter((x) => x !== su.id);
+    if (sel.length < 2) return [...sel, su.id];
+    return [sel[0], su.id];                      // 2 doluysa son seçim değişir
+  });
   /* Havuz görünümü (tablo/kart) — cihaz tercihi, odaya senkron edilmez. */
   const [suView, setSuView] = useState(() => {
     try { return localStorage.getItem("rm_setup_view") || "table"; }
@@ -770,10 +778,31 @@ ${bottomBar}
   /* ⊞ kart / ☰ tablo — aynı satırlar ve handler'lar, yalnız sunum değişir. */
   const setupTable = (rows) => suView === "cards"
     ? <SetupCards rows={rows} t={t} st={st} lang={lang} isAdmin={isAdmin}
+        cmpSel={cmpSel} onCmpToggle={cmpToggle}
         onDownload={downloadSetup} onView={setViewSu} onDelete={onDeleteSetup} />
     : <SetupTable rows={rows} t={t} st={st} lang={lang} isAdmin={isAdmin}
-        sort={suSort} onSort={toggleSort}
+        sort={suSort} onSort={toggleSort} cmpSel={cmpSel} onCmpToggle={cmpToggle}
         onDownload={downloadSetup} onView={setViewSu} onDelete={onDeleteSetup} />;
+
+  /* ⚖ alt-sabit karşılaştırma çubuğu — seçim varken görünür; 2 seçilince aç. */
+  const cmpA = setups.find((x) => x.id === cmpSel[0]) || null;
+  const cmpB = setups.find((x) => x.id === cmpSel[1]) || null;
+  const cmpBar = cmpSel.length > 0 && !cmpOpen && (
+    <div className="cmpbar">
+      <span>⚖ {cmpSel.length}/2</span>
+      {[cmpA, cmpB].filter(Boolean).map((s) => (
+        <span key={s.id} className="chip mono" style={{ fontSize: 11 }}>{s.name}</span>
+      ))}
+      <button className="act" disabled={!(cmpA && cmpB)}
+        onClick={() => setCmpOpen(true)}>{t("Karşılaştır")}</button>
+      <button className="act" onClick={() => setCmpSel([])}>✕ {t("Temizle")}</button>
+    </div>
+  );
+
+  const setupCompareModal = (
+    <SetupCompareModal open={cmpOpen && !!cmpA && !!cmpB} a={cmpA} b={cmpB}
+      onClose={() => setCmpOpen(false)} t={t} />
+  );
 
   const setupModal = (
     <SetupModal open={suOpen} onClose={() => setSuOpen(false)} t={t}
@@ -1381,7 +1410,7 @@ ${bottomBar}
       <div className="rc">
         <style>{css}</style>
         <UpdateBanner t={t} />
-        {teamModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{setupModal}{setupContentModal}
+        {teamModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}
         <div className="lobby">
           <div className="box" style={{ maxWidth: 560 }}>
             <div className="langsw" style={{ display: "flex", justifyContent: "flex-end",
@@ -1616,7 +1645,7 @@ ${bottomBar}
     <div className="rc">
       <style>{css}</style>
       <UpdateBanner t={t} />
-      {teamModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{streamPlayer}{setupModal}{setupContentModal}
+      {teamModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{streamPlayer}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}
       {denyToast}
       {profOpen && user && (
         <div className="wxmodal" onClick={() => setProfOpen(false)}>

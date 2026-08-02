@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.92",
+    date: "2026-08-02",
+    tr: [
+      "⚖ SETUP KARŞILAŞTIRMA geldi: havuzda iki setup'ı ⚖ düğmesiyle seç (tablo satırında ya da kartta) — alttaki çubuktan 'Karşılaştır' de, iki dosyanın TÜM değerleri yan yana açılır. Farklı değerler vurgulu; 'Yalnız farkları göster' anahtarı varsayılan açık (arka kanat 8.3° ↔ 6.9° gibi farklar bir bakışta).",
+      "⏱ Karşılaştırma başlığında iki setup'ın tur zamanları yan yana (1:58.2 ↔ 1:59.0) + iki özet çip şeridi; yalnız birinde olan alanlar da fark olarak listelenir. Farklı pist/sınıf seçersen engellenmez, başlıkta uyarı çıkar.",
+    ],
+    en: [
+      "⚖ SETUP COMPARISON is here: pick two setups in the pool with the ⚖ button (on a table row or a card) — hit 'Compare' in the bottom bar and ALL values of both files open side by side. Different values are highlighted; the 'differences only' switch is on by default (spot rear wing 8.3° ↔ 6.9° at a glance).",
+      "⏱ The comparison header shows both lap times side by side (1:58.2 ↔ 1:59.0) plus two summary chip strips; fields present in only one file are listed as differences too. Picking different track/class isn't blocked — you get a warning chip.",
+    ],
+  },
+  {
     v: "v1.4.91",
     date: "2026-08-02",
     tr: [

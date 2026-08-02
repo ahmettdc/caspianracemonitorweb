@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseSvm, setupSummary, b64ToText } from "./setupParse";
+import { parseSvm, setupSummary, b64ToText, diffSetups } from "./setupParse";
 
 /* Kullanıcının paylaştığı gerçek LMU_Porsche_LMGT3.svm'den kesitler. */
 const SAMPLE = `VehicleClassSetting="GT3 Porsche_911_GT3_R_LMGT3 WEC2024"
@@ -111,6 +111,55 @@ describe("setupSummary", () => {
   it("ok değilse boş", () => {
     expect(setupSummary({ ok: false })).toEqual([]);
     expect(setupSummary(null)).toEqual([]);
+  });
+});
+
+describe("diffSetups", () => {
+  /* SAMPLE'ın "düşük kanat" varyantı: RW 2→1, ön basınç 140→145; FrontAntiSway satırı
+     YOK (yalnız A'da); DRIVELINE'a yalnız B'de olan Gear2Setting eklendi. */
+  const SAMPLE_B = SAMPLE
+    .replace("RWSetting=2//8.3 deg", "RWSetting=1//6.9 deg")
+    .replace("PressureSetting=0//140 kPa\nRideHeightSetting=0//5.0 cm",
+      "PressureSetting=1//145 kPa\nRideHeightSetting=0//5.0 cm")
+    .replace("FrontAntiSwaySetting=7//P7 (hard)\n", "")
+    .replace("DiffPreloadSetting=200//250 Nm",
+      "DiffPreloadSetting=200//250 Nm\nGear2Setting=3//14/34 (bumped)");
+  const d = diffSetups(parseSvm(SAMPLE), parseSvm(SAMPLE_B));
+  const row = (sec, key) => d.find((r) => r.section === sec && r.key === key);
+
+  it("farklı değer differ=true, insan etiketleri a/b'de", () => {
+    expect(row("REARWING", "RWSetting")).toEqual({
+      section: "REARWING", key: "RWSetting", a: "8.3 deg", b: "6.9 deg", differ: true });
+    expect(row("FRONTLEFT", "PressureSetting").differ).toBe(true);
+    expect(row("FRONTLEFT", "PressureSetting").b).toBe("145 kPa");
+  });
+
+  it("aynı değer differ=false", () => {
+    expect(row("CONTROLS", "RearBrakeSetting")).toMatchObject({
+      a: "46.2:53.8", b: "46.2:53.8", differ: false });
+    expect(row("REARLEFT", "RideHeightSetting").differ).toBe(false);
+  });
+
+  it("yalnız birinde olan alan differ=true, diğer taraf —", () => {
+    expect(row("SUSPENSION", "FrontAntiSwaySetting")).toMatchObject({
+      a: "P7 (hard)", b: "—", differ: true });                    // yalnız A'da
+    expect(row("DRIVELINE", "Gear2Setting")).toMatchObject({
+      a: "—", b: "14/34 (bumped)", differ: true });               // yalnız B'de
+  });
+
+  it("gürültü (N/A / Non-adjustable / Fixed) diff'e girmez", () => {
+    expect(row("SUSPENSION", "ChassisAdj00Setting")).toBeUndefined();
+    expect(row("GENERAL", "CGRearSetting")).toBeUndefined();
+    expect(row("DRIVELINE", "Gear1Setting")).toBeUndefined();
+  });
+
+  it("özdeş dosyalar → hiç differ yok; bozuk girdi patlamaz", () => {
+    const same = diffSetups(parseSvm(SAMPLE), parseSvm(SAMPLE));
+    expect(same.length).toBeGreaterThan(0);
+    expect(same.every((r) => !r.differ)).toBe(true);
+    expect(diffSetups(null, null)).toEqual([]);
+    expect(diffSetups(parseSvm(SAMPLE), { ok: false })
+      .every((r) => r.b === "—" && r.differ)).toBe(true);
   });
 });
 

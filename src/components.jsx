@@ -10,7 +10,7 @@ import { CHANGELOG } from "./changelog";
 import { msToLocalInput, parseLap, fmtLap } from "./engine";
 import { SETUP_LIMITS, poolEmptyReason, lapDeltas } from "./setupPool";
 import { trackOptions, classOptions, carOptions } from "./pickerOptions";
-import { parseSvm, b64ToText, setupSummary } from "./setupParse";
+import { parseSvm, b64ToText, setupSummary, diffSetups } from "./setupParse";
 import { renameTeam, syncMyTeamName, createSeason, deleteRace,
   leaveTeam, createTeam, joinTeam } from "./storage";
 
@@ -573,7 +573,7 @@ function CondSess({ su, t }) {
 }
 
 export function SetupTable({ rows, t, st, lang, isAdmin, onDownload, onDelete, onView,
-  sort, onSort }) {
+  sort, onSort, cmpSel, onCmpToggle }) {
   const deltas = lapDeltas(rows);   // pist+sınıf başına ⚡ en hızlı + farklar
   /* Tarih/Tur başlıkları tıklanabilir sıralama — ok yönü aktif sıralamayı gösterir */
   const arrow = (k) => (sort?.key === k ? (sort.dir === "asc" ? " ▲" : " ▼") : "");
@@ -648,6 +648,13 @@ export function SetupTable({ rows, t, st, lang, isAdmin, onDownload, onDelete, o
                 {su.team && <span className="hint" style={{ display: "block",
                   margin: 0 }}>{su.team}</span>}</td>
               <td style={{ whiteSpace: "nowrap" }} onClick={(e) => e.stopPropagation()}>
+                {onCmpToggle && su.data && (
+                  <button className="act" style={{ fontSize: 11, marginRight: 4,
+                      ...(cmpSel?.includes(su.id)
+                        ? { borderColor: "var(--teal)", color: "var(--teal)" } : {}) }}
+                    title={t("Karşılaştırmak için seç (en çok 2)")}
+                    onClick={() => onCmpToggle(su)}>⚖</button>
+                )}
                 {onView && su.data && (
                   <button className="act" style={{ fontSize: 11, marginRight: 4 }}
                     onClick={() => onView(su)}>🔍 {t("İçerik")}</button>
@@ -670,7 +677,8 @@ export function SetupTable({ rows, t, st, lang, isAdmin, onDownload, onDelete, o
 
 /* Kart görünümü — tabloyla aynı veri/handler'lar, mobil ve göz gezdirme için.
    ⊞/☰ toggle App'te (localStorage rm_setup_view). Karta tıkla → içerik. */
-export function SetupCards({ rows, t, st, lang, isAdmin, onDownload, onDelete, onView }) {
+export function SetupCards({ rows, t, st, lang, isAdmin, onDownload, onDelete, onView,
+  cmpSel, onCmpToggle }) {
   const deltas = lapDeltas(rows);
   return (
     <div className="sucards">
@@ -710,6 +718,12 @@ export function SetupCards({ rows, t, st, lang, isAdmin, onDownload, onDelete, o
                 .toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR",
                   { day: "2-digit", month: "2-digit", year: "2-digit" })}</span>
             <span style={{ marginLeft: "auto", display: "flex", gap: 4 }}>
+              {onCmpToggle && su.data && (
+                <button className="act" style={{ fontSize: 11,
+                    ...(cmpSel?.includes(su.id)
+                      ? { borderColor: "var(--teal)", color: "var(--teal)" } : {}) }}
+                  title={t("Karşılaştırmak için seç (en çok 2)")}
+                  onClick={() => onCmpToggle(su)}>⚖</button>)}
               {onView && su.data && (
                 <button className="act" style={{ fontSize: 11 }}
                   onClick={() => onView(su)}>🔍</button>)}
@@ -963,6 +977,113 @@ export function SetupContentModal({ open, su, onClose, t }) {
                   </div>
                 );
               })}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* İki setup'ı yan yana karşılaştırma penceresi — ⚖ ile seçilen iki kayıt (a, b).
+   diffSetups bölüm/anahtar birleşimini verir; farklı satırlar vurgulanır (.diffhl),
+   "yalnız farklar" anahtarı varsayılan açık. Farklı pist/sınıf engellenmez — başlıkta
+   uyarı çipi çıkar (kıyas kullanıcının bilinçli kararı). open=false → null. */
+export function SetupCompareModal({ open, a, b, onClose, t }) {
+  const [onlyDiff, setOnlyDiff] = useState(true);
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+  if (!open || !a || !b) return null;
+
+  const pa = parseSvm(b64ToText(a.data));
+  const pb = parseSvm(b64ToText(b.data));
+  const both = pa.ok && pb.ok;
+  const rows = both ? diffSetups(pa, pb) : [];
+  const diffCount = rows.filter((r) => r.differ).length;
+  const shown = onlyDiff ? rows.filter((r) => r.differ) : rows;
+  /* bölüm sırasını koruyarak grupla */
+  const groups = [];
+  const gIdx = {};
+  for (const r of shown) {
+    if (!(r.section in gIdx)) { gIdx[r.section] = groups.length; groups.push({ sec: r.section, list: [] }); }
+    groups[gIdx[r.section]].list.push(r);
+  }
+  const mismatch = a.track !== b.track || a.cls !== b.cls;
+  const side = (su) => (
+    <>
+      <b className="mono" style={{ fontSize: 11, wordBreak: "break-all" }}>{su.name}</b>
+      <span className="hint" style={{ margin: 0 }}>
+        {[carName(su.cls, su.car) || su.car, trackName(su.track) || su.track,
+          su.uname].filter(Boolean).join(" · ")}</span>
+    </>
+  );
+  return (
+    <div className="wxmodal" onClick={onClose}>
+      <div className="wxmbox" style={{ width: "min(760px,96vw)" }}
+        onClick={(e) => e.stopPropagation()}>
+        <div className="wxmhead">
+          <span>⚖ {t("Setup Karşılaştır")}</span>
+          <button className="lbclose" onClick={onClose}>✕</button>
+        </div>
+        <div className="wxmlist" style={{ maxHeight: "76vh" }}>
+          {/* başlık: iki taraf + tur zamanları */}
+          <div className="cmphead">
+            <div className="cmpside">{side(a)}</div>
+            <div className="cmpvs mono">
+              {(a.lap || b.lap) ? <>{a.lap || "—"} ↔ {b.lap || "—"}</> : "↔"}</div>
+            <div className="cmpside" style={{ textAlign: "right" }}>{side(b)}</div>
+          </div>
+          {mismatch && (
+            <div className="hint warn" style={{ margin: "6px 0" }}>
+              ⚠ {t("Farklı pist ya da sınıf — kıyası dikkatli oku.")}</div>
+          )}
+          {!both ? (
+            <div className="hint warn">⚠ {t("İçerik okunamadı — bu bir LMU setup dosyası değil ya da bozuk.")}</div>
+          ) : (
+            <>
+              {/* iki özet çip şeridi */}
+              {[pa, pb].map((p, i) => {
+                const sum = setupSummary(p);
+                if (!sum.length) return null;
+                return (
+                  <div className="setupsum" key={i} style={{ marginBottom: i ? 8 : 4 }}>
+                    <span className="setupchip" style={{ opacity: .7 }}>{i ? "B" : "A"}</span>
+                    {sum.map((s) => (
+                      <span className="setupchip" key={s.label}>
+                        <b>{t(s.label)}</b> {s.value}</span>
+                    ))}
+                  </div>
+                );
+              })}
+              <label className="hint" style={{ display: "flex", alignItems: "center",
+                gap: 6, margin: "4px 0 8px", cursor: "pointer" }}>
+                <input type="checkbox" checked={onlyDiff}
+                  onChange={(e) => setOnlyDiff(e.target.checked)} />
+                {t("Yalnız farkları göster")} ({diffCount})
+              </label>
+              {!shown.length && (
+                <div className="hint">
+                  {diffCount === 0
+                    ? t("İki setup'ın tüm anlamlı değerleri aynı.")
+                    : t("Gösterilecek satır yok.")}</div>
+              )}
+              {groups.map(({ sec, list }) => (
+                <div className="setupsec" key={sec}>
+                  <div className="setupsec-h">{t(SVM_SECTIONS[sec] || sec)}</div>
+                  {list.map((r) => (
+                    <div className={`cmprow${r.differ ? " diffhl" : ""}`}
+                      key={`${r.section}/${r.key}`}>
+                      <span className="setuprow-k">{t(SVM_FIELDS[r.key] || r.key)}</span>
+                      <span className="cmpv mono">{r.a}</span>
+                      <span className="cmpv mono">{r.b}</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
             </>
           )}
         </div>
