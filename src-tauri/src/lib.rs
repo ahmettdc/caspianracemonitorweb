@@ -10,6 +10,8 @@ fn show_main(app: &AppHandle) {
     let _ = w.show();
     let _ = w.unminimize();
     let _ = w.set_focus();
+    // Sürüş Modu (v1.4.99): görünür oldu → ön yüz ağır render'ı geri açsın.
+    let _ = app.emit("win-visible", true);
   }
 }
 
@@ -107,11 +109,22 @@ pub fn run() {
     // Pencereyi (X) kapatınca uygulama kapanmasın — gizle, sistem tepsisinde
     // çalışmaya devam etsin (canlı köprü veri akışı kesilmesin). Gerçek çıkış
     // yalnız tepsi menüsündeki "Çıkış" iledir.
-    .on_window_event(|window, event| {
-      if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+    .on_window_event(|window, event| match event {
+      // (X) → kapatma yerine gizle; sistem tepsisinde çalışmaya devam et.
+      tauri::WindowEvent::CloseRequested { api, .. } => {
         let _ = window.hide();
         api.prevent_close();
+        // Sürüş Modu (v1.4.99): pencere gizlendi → ön yüz ağır render'ı durdursun
+        // (köprü modül-global state'ten yazmaya devam eder; mühendis başka PC'de görür).
+        let _ = window.emit("win-visible", false);
       }
+      // Odak değişimi: tam-ekran oyunun arkasına düşme / minimize / geri gelme.
+      // Ön yüz, köprü CANLI oyun verisi yazarken (sürüş PC'si yarışta) odak yokken
+      // ağır render'ı durdurur; ikinci monitörde izleyen mühendisi etkilemez.
+      tauri::WindowEvent::Focused(focused) => {
+        let _ = window.emit("win-focus", *focused);
+      }
+      _ => {}
     })
     .setup(|app| {
       if cfg!(debug_assertions) {

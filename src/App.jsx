@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef, lazy, Suspense } from "react";
 import UpdateBanner from "./UpdateBanner";
 import { isTauri } from "./tauriEnv";
 import { useLiveBridge } from "./useLiveBridge";
+import { useAppPaused } from "./appPaused";
 import { useLive } from "./useLive";
 import { useLiveSync } from "./useLiveSync";
 import { useMiniPlayer } from "./useMiniPlayer";
@@ -334,8 +335,12 @@ export default function App() {
   /* ---------- canlı yarış modu ---------- */
   const [now, setNow] = useState(Date.now());
   const [pitboard, setPitboard] = useState(false);
+  /* Sürüş Modu (v1.4.99): pencere gizli/örtülüyken saat setNow'u durdur — saniyelik
+     tam-ağaç render'ı boşuna (kimse bakmıyor). pausedRef, paused hesaplandıktan sonra
+     doldurulur (aşağıda); interval çalışır ama duraklıyken setNow atlanır. */
+  const pausedRef = useRef(false);
   useEffect(() => {
-    const iv = setInterval(() => setNow(Date.now()), 1000);
+    const iv = setInterval(() => { if (!pausedRef.current) setNow(Date.now()); }, 1000);
     return () => clearInterval(iv);
   }, []);
 
@@ -713,6 +718,11 @@ ${bottomBar}
   /* Canlı köprü (masaüstü) OTOMATİK yaşam döngüsü → useLiveBridge hook'una çıkarıldı
      (App.jsx Tanrı-bileşen borcunu azaltan ilk güvenli dilim). Davranış birebir aynı. */
   const bridge = useLiveBridge({ canEditTeam, curTeam, curRace, user });
+  /* Sürüş Modu: köprü şu an CANLI oyun verisi yazıyor mu (bu PC sürüş PC'si, yarışta).
+     phase==="running" yalnız field dolu (araç var) iken olur → gerçek canlı yazım. */
+  const bridgeLive = bridge?.phase === "running" && bridge?.writerBy === user?.email;
+  const paused = useAppPaused(bridgeLive);
+  pausedRef.current = paused;   // saat interval'i bunu okur (yukarıda)
   /* not: yetki rozetten türer — 🎧 mühendis editor, 🛞 sürücü/rozetsiz viewer */
   const myBadges = teamBadgesOf(teamData, user?.uid, udoc);
 
@@ -2192,6 +2202,21 @@ ${bottomBar}
             ))}
           </div>
 
+          {/* Sürüş Modu (v1.4.99): pencere görünmez/örtülüyken ağır sekme içeriği
+              render EDİLMEZ → sürüş PC'sinde oyunla GPU/CPU çekişmesi biter. Köprü
+              hook'ları (useLiveBridge/useLive/useLiveSync) yukarıda top-level monte
+              kalır → veri tam hızda akmaya devam eder; mühendis başka PC'de görür. */}
+          {paused ? (
+            <div className="drivepause">
+              <div className="drivepause-box">
+                <div className="drivepause-ico">🅿</div>
+                <div className="drivepause-title">{t("Sürüş Modu")}</div>
+                <div className="drivepause-sub">
+                  {t("Arayüz duraklatıldı — veri akıyor. Pencereyi öne getirince geri döner.")}
+                </div>
+              </div>
+            </div>
+          ) : (
           <Suspense fallback={<div className="hint" style={{ padding: 16 }}>{t("Yükleniyor…")}</div>}>
           {(tab === "stint" || tab === "code80") && (
             <StintTab tab={tab} mode={mode} t={t} st={st} plan={plan} totalVE={totalVE}
@@ -2326,6 +2351,7 @@ ${bottomBar}
               liveFuelObs={liveFuelObs} applyLiveFuel={applyLiveFuel} canEdit={canEdit} />
           )}
           </Suspense>
+          )}
         </div>
       </div>
     </div>

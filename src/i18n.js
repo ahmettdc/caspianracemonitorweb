@@ -1,6 +1,10 @@
 /* İngilizce çeviri sözlüğü — anahtar = Türkçe kaynak metin.
    App.jsx: t = (str) => lang === "en" ? (EN[str] ?? str) : str */
 export const EN = {
+  // Sürüş Modu (v1.4.99)
+  "Sürüş Modu": "Driving Mode",
+  "Arayüz duraklatıldı — veri akıyor. Pencereyi öne getirince geri döner.":
+    "Interface paused — data still flowing. Bring the window to front to resume.",
   // lobi
   "Adın": "Your Name", "örn. Ahmet": "e.g. John",
   "🏁 Yeni Oda Kur": "🏁 Create New Room",
