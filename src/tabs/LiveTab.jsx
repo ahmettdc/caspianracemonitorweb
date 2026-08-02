@@ -752,7 +752,7 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
                 <th>{t("Sınıf")}</th><th>{t("Tur")}</th>
                 <th>{t("Son")}</th><th>{t("En İyi")}</th><th>AVG5</th><th>AVG</th>
                 <th>VE</th>
-                <th>Δ</th><th>Gap</th><th>{t("Aralık")}</th><th>{t("Konum")}</th>
+                <th>Δ</th><th>Gap</th><th>{t("Aralık")}</th>
                 <th>Stint</th><th>{t("Lastik")}</th>
                 <th>{t("Hasar")}</th><th>Pit</th>
                 <th aria-label={t("Turlar")}></th>
@@ -798,9 +798,6 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
                       <td style={{ color: "var(--dim)" }}>
                         {lapsDownNext >= 1 ? `+${lapsDownNext} ${t("Tur")}`
                           : interval != null ? gap(interval) : "—"}</td>
-                      <td style={{ fontSize: 11, color: c.location === "PIT" ? "var(--yellow)"
-                        : c.location === "GARAGE" ? "var(--red)" : "var(--dim)" }}>
-                        {c.location ? t(c.location) : "—"}</td>
                       <td className="mono" style={{ color: "var(--dim)", fontSize: 12 }}>
                         {c.stintSec > 0 ? fmtHMS(c.stintSec) : "—"}</td>
                       {/* Lastik (birleşik): hamur ikonu + en kötü aşınma %. Renkli nokta

@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.82",
+    date: "2026-08-01",
+    tr: [
+      "🧹 Canlı Timing saha tablosundan 'Konum' sütunu kaldırıldı — pit durumu zaten 'Pit' sütununda (sarı PIT çipi + pit sayısı) görünüyordu, tekrar oluyordu.",
+    ],
+    en: [
+      "🧹 Removed the 'Location' column from the Live Timing field table — pit status was already shown in the 'Pit' column (yellow PIT chip + stop count), so it was redundant.",
+    ],
+  },
+  {
     v: "v1.4.81",
     date: "2026-08-01",
     tr: [
