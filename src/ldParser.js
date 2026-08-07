@@ -6,10 +6,16 @@
    → useTelemetry.saveMotec + TeleTab `parsed.motec` dalı sıfır değişiklikle işler.
 
    SEÇİCİ OKUMA (v1.4.103): dosyanın TAMAMI belleğe alınmaz. Önce başlık + kanal
-   meta listesi (birkaç yüz KB) okunur; sonra YALNIZ gereken ~11 kanalın bayt bloğu
+   meta listesi (birkaç yüz KB) okunur; sonra YALNIZ gereken kanalların bayt bloğu
    `File.slice(...).arrayBuffer()` ile diskten çekilir. Bellek dosya boyutundan
    BAĞIMSIZ → 100MB+ endurance log'ları donmadan/şişmeden açılır. Örnekler talep
    üzerine okunur (dev Float64Array yok).
+
+   İZLER (v1.4.111): başlık okuma `readHeader` yardımcısına ayrıldı ve
+   `readChannel`/`sampleAt`/`findChan`/`TRACE_CHANS` dışa verildi → `ldTrace.js`
+   aynı makineyle tur-tur ham iz (hız/gaz/fren/vites/RPM/direksiyon) çıkarır.
+   Her tur nesnesine `t0/tEnd` (saniye pencere) ve `meta.channels` (bulunan iz
+   kanalları) eklendi. parseLd davranışı geriye uyumlu (aynı motec şekli + ek alanlar).
 
    Format (gerçek dosyada doğrulandı):
    - Başlık: meta_ptr @0x08, data_ptr @0x0C (uint32 LE).
@@ -21,10 +27,22 @@
 const OFF = { DATE: 0x5e, TIME: 0x7e, DRIVER: 0x9e, VENUE: 0x15e, VEHICLE: 0x1f94 };
 const MAX_HEAD = 8 * 1024 * 1024;   // başlık+meta için üst sınır (asla tüm dosya değil)
 
+/* İz kanalı ad kataloğu — toleranslı eşleşme (LMU MoTeC export'una göre ad değişebilir).
+   parseLd envanteri + ldTrace okuması bunu paylaşır → tek yerden genişletilebilir. */
+export const TRACE_CHANS = {
+  speed: [/^ground speed$/i, /^speed$/i, /hız/i],
+  throttle: [/^throttle/i, /gaz/i, /accel(erator)?\s*pos/i, /^tps$/i],
+  brake: [/^brake/i, /fren/i],
+  gear: [/^gear$/i, /vites/i],
+  rpm: [/^engine\s*rpm$/i, /\brpm\b/i, /^engine speed$/i],
+  steer: [/^steer/i, /steering/i, /direksiyon/i],
+  dist: [/^lap distance$/i, /^distance$/i, /mesafe/i],
+};
+
 const bytesOf = (dtype) => (dtype === 4 ? 4 : dtype === 2 ? 2 : dtype === 1 ? 1 : 0);
 
 /* Blob/File'dan [start, start+len) dilimini ArrayBuffer olarak oku (FileReader'sız). */
-async function readSlice(file, start, len) {
+export async function readSlice(file, start, len) {
   const end = Math.min(file.size, start + Math.max(0, len));
   if (start < 0 || start >= file.size || end <= start) return null;
   return file.slice(start, end).arrayBuffer();
@@ -32,7 +50,7 @@ async function readSlice(file, start, len) {
 
 /* Bir kanalın ham bayt bloğunu diskten çek → hafif okuyucu {dv,c,bytes,ndata}.
    Float64Array MATERIALIZE ETMEZ; sampleAt/aralık döngüleri buradan talep üzerine okur. */
-async function readChannel(file, c) {
+export async function readChannel(file, c) {
   if (!c) return null;
   const bytes = bytesOf(c.dtype);
   if (!bytes) return null;                       // beklenmedik tip (ör. float) → atla
@@ -43,7 +61,7 @@ async function readChannel(file, c) {
 }
 
 /* Okuyucudan i. örneğin fiziksel değeri (dtype + ölçek). Sınır-korumalı. */
-function sampleAt(r, i) {
+export function sampleAt(r, i) {
   if (!r) return null;
   if (i < 0) i = 0;
   if (i >= r.ndata) i = r.ndata - 1;
@@ -54,14 +72,23 @@ function sampleAt(r, i) {
   return (raw / (r.c.scale || 1)) * 10 ** (-r.c.dec) * (r.c.mul || 1) + r.c.shift;
 }
 
-/* ArrayBuffer/Blob/File → { motec:true, laps, meta } ya da { error }. ASYNC. */
-export async function parseLd(input) {
-  const file = input instanceof ArrayBuffer ? new Blob([input]) : input;
+/* İlk eşleşen regex'e uyan kanalı döndür (toleranslı ad eşleşmesi). */
+export function findChan(chans, order, ...res) {
+  for (const re of res) {
+    const k = order.find((n) => re.test(n));
+    if (k) return chans[k.toLowerCase()];
+  }
+  return null;
+}
+
+/* Başlık + kanal meta listesini oku → { chans, order, meta } ya da { error }.
+   parseLd + ldTrace ORTAK kullanır (kanal metadatası File'dan bağımsız → bir kez
+   okunup önbelleğe alınabilir; readChannel gerçek örnekleri File.slice'tan çeker). */
+export async function readHeader(file) {
   if (!file || typeof file.slice !== "function" || !file.size || file.size < 64) {
     return { error: "MoTeC .ld tanınmadı — dosya çok küçük" };
   }
-
-  /* Başlık: önce 16 baytla data_ptr'yi öğren, sonra yalnız başlık+meta bölgesini oku. */
+  /* önce 16 baytla data_ptr'yi öğren, sonra yalnız başlık+meta bölgesini oku */
   const hb = await readSlice(file, 0, 16);
   if (!hb) return { error: "Dosya okunamadı" };
   const dataPtr = new DataView(hb).getUint32(12, true);
@@ -80,7 +107,6 @@ export async function parseLd(input) {
   const metaPtr = dv.getUint32(8, true);
   if (!metaPtr || metaPtr + 84 > dv.byteLength) return { error: "MoTeC .ld tanınmadı ya da bozuk" };
 
-  /* Kanal meta bağlı-listesini gez (isim → kanal). */
   const chans = {};
   const order = [];
   let off = metaPtr;
@@ -105,25 +131,42 @@ export async function parseLd(input) {
   }
   if (!order.length) return { error: "MoTeC .ld: kanal bulunamadı" };
 
-  const find = (...res) => {
-    for (const re of res) {
-      const k = order.find((n) => re.test(n));
-      if (k) return chans[k.toLowerCase()];
-    }
-    return null;
+  return {
+    chans, order,
+    meta: {
+      venue: str(OFF.VENUE, 64),
+      vehicle: str(OFF.VEHICLE, 64),
+      driver: str(OFF.DRIVER, 64),
+      date: str(OFF.DATE, 16),
+    },
   };
-  const cLap = find(/^lap number$/i, /lap\s*num/i, /^lap$/i);
-  const cElt = find(/^session elapsed time$/i, /elapsed/i, /^time$/i);
+}
+
+/* ArrayBuffer/Blob/File → { motec:true, laps, meta, _header } ya da { error }. ASYNC. */
+export async function parseLd(input) {
+  const file = input instanceof ArrayBuffer ? new Blob([input]) : input;
+  const hdr = await readHeader(file);
+  if (hdr.error) return { error: hdr.error };
+  const { chans, order } = hdr;
+
+  const cLap = findChan(chans, order, /^lap number$/i, /lap\s*num/i, /^lap$/i);
+  const cElt = findChan(chans, order, /^session elapsed time$/i, /elapsed/i, /^time$/i);
   if (!cLap || !cElt) return { error: "MoTeC .ld: tur/zaman kanalı bulunamadı" };
 
-  const cFuel = find(/^fuel level$/i, /fuel\s*level/i, /^fuel$/i);
-  const cSpd = find(/^ground speed$/i, /^speed$/i);
-  const cPit = find(/^in pits$/i, /^pit\s*status$/i);
-  const cTrk = find(/^track temp/i);
-  const cAmb = find(/^ambient temp/i);
-  const cLast = find(/^last laptime$/i, /last\s*lap\s*time/i);
+  const cFuel = findChan(chans, order, /^fuel level$/i, /fuel\s*level/i, /^fuel$/i);
+  const cSpd = findChan(chans, order, ...TRACE_CHANS.speed);
+  const cPit = findChan(chans, order, /^in pits$/i, /^pit\s*status$/i);
+  const cTrk = findChan(chans, order, /^track temp/i);
+  const cAmb = findChan(chans, order, /^ambient temp/i);
+  const cLast = findChan(chans, order, /^last laptime$/i, /last\s*lap\s*time/i);
   const cWear = ["fl", "fr", "rl", "rr"].map((x) =>
-    find(new RegExp(`^tyre wear ${x}$`, "i"), new RegExp(`wear\\s*${x}$`, "i")));
+    findChan(chans, order, new RegExp(`^tyre wear ${x}$`, "i"), new RegExp(`wear\\s*${x}$`, "i")));
+
+  /* İz kanalı envanteri (varlık) — UI hangi grafiği çizebileceğini böyle bilir. */
+  const channels = {};
+  for (const key of Object.keys(TRACE_CHANS)) {
+    channels[key] = !!findChan(chans, order, ...TRACE_CHANS[key]);
+  }
 
   /* YALNIZ gereken kanalların bayt bloklarını diskten çek (tam dosya değil). */
   const rLap = await readChannel(file, cLap);
@@ -137,10 +180,7 @@ export async function parseLd(input) {
   const rWear = [];
   for (const c of cWear) rWear.push(await readChannel(file, c));   // sıralı (bellek dostu)
 
-  /* Bir okuyucuyu seansa-göreli zamanda (saniye) örnekle — kanalın KENDİ freq'iyle. */
   const atT = (r, tSec) => (r ? sampleAt(r, Math.round(tSec * r.c.freq)) : null);
-  /* Bir zaman aralığındaki hız örnekleri → {avg, max}. `excl` ise üst sınırdaki örnek
-     (= sonraki turun ilk örneği) dahil edilmez → tur değeri komşu tura sızmaz. */
   const spdRange = (t0, t1, excl) => {
     if (!rSpd) return { avg: null, max: null };
     const a = Math.max(0, Math.round(t0 * rSpd.c.freq));
@@ -172,7 +212,6 @@ export async function parseLd(input) {
     const nx = segs[gi + 1];
     const tEnd = nx ? nx.t0 : s.t1;        // tur L, sonraki turun başına kadar sürer
     const span = tEnd - s.t0;
-    /* resmi süre: sonraki turun başındaki "Last Laptime" kanalı (parseMotecLog deseni) */
     let official = null;
     if (nx && rLast) {
       const v = atT(rLast, nx.t0 + Math.min(0.2, (nx.t1 - nx.t0) / 2));
@@ -183,6 +222,7 @@ export async function parseLd(input) {
     const { avg, max } = spdRange(s.t0, tEnd, !!nx);
     return {
       lap: s.ln, n: s.n,
+      t0: s.t0, tEnd,                       // iz çıkarımı için tur zaman penceresi
       sec: official != null ? official : span, official, span,
       fuelL: f0 != null && f1 != null && f0 > f1 ? f0 - f1 : null,
       w: rWear.map((r, wi) => {
@@ -204,12 +244,11 @@ export async function parseLd(input) {
   return {
     motec: true, laps,
     meta: {
-      venue: str(OFF.VENUE, 64),
-      vehicle: str(OFF.VEHICLE, 64),
-      driver: str(OFF.DRIVER, 64),
-      date: str(OFF.DATE, 16),
+      ...hdr.meta,
       trk: atT(rTrk, totalT / 2),
       amb: atT(rAmb, totalT / 2),
+      channels,                              // { speed, throttle, brake, gear, rpm, steer, dist }
     },
+    _header: { chans, order },               // ldTrace tekrar okumasın diye (kanal metadatası)
   };
 }

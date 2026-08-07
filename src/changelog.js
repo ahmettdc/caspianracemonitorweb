@@ -5,6 +5,22 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.111",
+    date: "2026-08-07",
+    tr: [
+      "📊 Telemetri: Tur Karşılaştırma — yüklediğin .ld dosyasında iki turu MESAFE ekseninde üst üste bindir. Hız, gaz, fren, vites, RPM ve direksiyon izleri yan yana; senkron imleçle aynı noktadaki tüm değerler görünür.",
+      "⏱ Zaman-Delta izi: iki tur arasında mesafe boyunca kümülatif kazanç/kayıp — 'nerede zaman kaybediyorum' sorusunun cevabı. Ayrıca sektör (tur-kesri üçlüsü) bazında fark tablosu.",
+      "Varsayılan en hızlı iki turu karşılaştırır; turları elle seçebilirsin. Yalnız .ld (ikili) dosyada çalışır; görünüm amaçlıdır, takım havuzuna kaydedilmez. Sonraki adım: iki farklı dosya/sürücü karşılaştırması.",
+      "Web-only: sayfa yenilemesi yeterli.",
+    ],
+    en: [
+      "📊 Telemetry: Lap Comparison — overlay two laps from your loaded .ld on a DISTANCE axis. Speed, throttle, brake, gear, RPM and steering traces stacked; a synced cursor shows every value at the same point.",
+      "⏱ Time-Delta trace: cumulative gain/loss between the two laps along distance — the answer to 'where am I losing time'. Plus a per-sector (lap-fraction thirds) difference table.",
+      "Defaults to the two fastest laps; pick laps manually too. Works on .ld (binary) files only; view-only, not saved to the team pool. Next: comparing two different files/drivers.",
+      "Web-only: a page refresh is enough.",
+    ],
+  },
+  {
     v: "v1.4.110",
     date: "2026-08-07",
     tr: [

@@ -330,7 +330,9 @@ export default function App() {
   /* ---------- Faz 4: telemetri → useTelemetry hook'u (MoTeC içe aktar + analiz) ---------- */
   const { slot, setSlot, chartMode, setChartMode, rawTele, setRawTele, parsed, mapping,
     setMapping, onTeleFile, doParse, apply105Slot, saveMotec, saveSlot, toggleLap,
-    removeSlot, slotStats, chartData, loadedSlots, baseSlot } = useTelemetry({ st, setSt });
+    removeSlot, slotStats, chartData, loadedSlots, baseSlot,
+    cmpA: telCmpA, setCmpA: setTelCmpA, cmpB: telCmpB, setCmpB: setTelCmpB,
+    cmpData: telCmpData, cmpBusy: telCmpBusy } = useTelemetry({ st, setSt });
 
   /* ---------- canlı yarış modu ---------- */
   const [now, setNow] = useState(Date.now());
@@ -2370,7 +2372,8 @@ ${bottomBar}
               loadedSlots={loadedSlots} slotStats={slotStats} up={up}
               apply105Slot={apply105Slot} removeSlot={removeSlot} chartMode={chartMode}
               setChartMode={setChartMode} chartData={chartData} baseSlot={baseSlot}
-              toggleLap={toggleLap} />
+              toggleLap={toggleLap} cmpA={telCmpA} setCmpA={setTelCmpA} cmpB={telCmpB}
+              setCmpB={setTelCmpB} cmpData={telCmpData} cmpBusy={telCmpBusy} />
           )}
 
           {tab === "fuel" && (

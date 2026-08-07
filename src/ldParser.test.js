@@ -94,6 +94,28 @@ describe("parseLd", () => {
     expect(r.laps[0].sec).toBeLessThan(120);
   });
 
+  it("iz kanallarını envantere alır + tur pencereleri (t0/tEnd) + _header döner", async () => {
+    const chans = [...twoLapChannels(),
+      { name: "Throttle Pos", dtype: 2, freq: FREQ, dec: 2, raw: Array.from({ length: N }, () => 50) },
+      { name: "Brake Pos", dtype: 2, freq: FREQ, dec: 2, raw: Array.from({ length: N }, () => 0) },
+      { name: "Gear", dtype: 2, freq: FREQ, raw: Array.from({ length: N }, () => 4) },
+      { name: "Engine RPM", dtype: 4, freq: FREQ, raw: Array.from({ length: N }, () => 8000) },
+      { name: "Lap Distance", dtype: 4, freq: FREQ, dec: 1, raw: Array.from({ length: N }, (_, i) => (i < L1 ? i : i - L1) * 50) },
+    ];
+    const r = await parseLd(buildLd(chans));
+    expect(r.error).toBeUndefined();
+    expect(r.meta.channels).toMatchObject({
+      speed: true, throttle: true, brake: true, gear: true, rpm: true, dist: true,
+    });
+    expect(r.meta.channels.steer).toBe(false);      // yok → false
+    // tur zaman pencereleri (iz çıkarımı için)
+    expect(r.laps[0].t0).toBeCloseTo(0, 3);
+    expect(r.laps[0].tEnd).toBeCloseTo(60, 0);
+    // _header (ldTrace tekrar okumasın diye)
+    expect(Array.isArray(r._header.order)).toBe(true);
+    expect(r._header.order).toContain("Throttle Pos");
+  });
+
   it("bozuk/küçük buffer → error (çökmez)", async () => {
     expect((await parseLd(new ArrayBuffer(8))).error).toBeTruthy();
     // geçerli başlık ama kanal yok
