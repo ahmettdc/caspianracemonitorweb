@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.100",
+    date: "2026-08-07",
+    tr: [
+      "🔧 TAKIMA KATILMA DÜZELTİLDİ: onaylı bir kullanıcı katılım koduyla bir takıma katılmaya çalışınca 'Katılınamadı' hatası alıyordu. Sebep: katılım sırasında takım adı, yalnız ÜYELERİN okuyabildiği bir alandan okunmaya çalışılıyordu — katılan henüz üye olmadığından okuma reddediliyor ve tüm katılım çöküyordu. Artık bu okuma kaldırıldı; katılım anında gerçekleşiyor ve takım adı üye olunca kendiliğinden yerine geliyor.",
+      "Not: Katılma yine de hesabının onaylı (allowed) olmasını gerektirir — onaysız bir hesap katılamaz; bu durumda önce yöneticinin hesabı onaylaması gerekir. Yalnız web tarafı düzeltildi, sayfa yenilemesi yeterli; masaüstü yeniden derleme gerekmez.",
+    ],
+    en: [
+      "🔧 TEAM JOIN FIXED: an approved user entering a join code got a 'Could not join' error. Cause: joining tried to read the team name from a field only MEMBERS can read — since a joiner isn't a member yet, the read was denied and the whole join failed. That read is now removed; joining happens immediately and the team name fills in on its own once you're a member.",
+      "Note: joining still requires your account to be approved (allowed) — an unapproved account can't join; an admin must approve it first. Web-only fix, a page refresh is enough; no desktop rebuild needed.",
+    ],
+  },
+  {
     v: "v1.4.99",
     date: "2026-08-02",
     tr: [

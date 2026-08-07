@@ -144,12 +144,16 @@ export async function joinTeam(user, joinCode, memberName = "") {
   const snap = await get(ref(db, `teamCodes/${code}`));
   if (!snap.exists()) throw new Error("NOT_FOUND");
   const tid = snap.val();
-  const meta = await get(ref(db, `teams/${tid}/meta`));
   const nm = String(memberName || user.displayName || user.email || "").slice(0, 60);
+  // NOT: takım adını buradan (teams/{tid}/meta) OKUMUYORUZ — meta .read kuralı
+  // ZATEN ÜYE olmayı şart koşuyor; katılan henüz üye değil → okuma reddedilir ve
+  // tüm katılım "Katılınamadı" ile çökerdi. Etiket geçici olarak tid yazılır;
+  // üye olunca watchTeam meta'yı okur ve App effect'i (syncMyTeamName) gerçek adla
+  // tazeler. members'ı 'viewer' yazma izni katılana kendi uid'i için zaten var.
   await update(ref(db), {
     [`teams/${tid}/names/${user.uid}`]: nm,
     [`teams/${tid}/members/${user.uid}`]: "viewer",
-    [`users/${user.uid}/teams/${tid}`]: meta.exists() ? meta.val().name : tid,
+    [`users/${user.uid}/teams/${tid}`]: tid,
   });
   return tid;
 }
