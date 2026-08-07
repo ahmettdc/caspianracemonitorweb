@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.106",
+    date: "2026-08-07",
+    tr: [
+      "🌦 Hava tur çarpanları güncellendi: Damp ×1.03 · Slightly Wet ×1.08 · Wet ×1.10 · Extremely Wet ×1.15 (önceki 1.07/1.09/1.13/1.20). Islak zeminde efektif tur ve stint planı bu yeni çarpanlarla hesaplanır. Yakıt çarpanları değişmedi.",
+      "Web-only: sayfa yenilemesi yeterli, masaüstü güncellemesi gerekmez.",
+    ],
+    en: [
+      "🌦 Weather lap multipliers updated: Damp ×1.03 · Slightly Wet ×1.08 · Wet ×1.10 · Extremely Wet ×1.15 (were 1.07/1.09/1.13/1.20). Effective lap and stint plan in wet conditions now use these new multipliers. Fuel multipliers are unchanged.",
+      "Web-only: a page refresh is enough, no desktop update needed.",
+    ],
+  },
+  {
     v: "v1.4.105",
     date: "2026-08-07",
     tr: [

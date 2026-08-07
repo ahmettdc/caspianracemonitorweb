@@ -118,13 +118,12 @@ export const MAX_STINTS = 64; // güvenlik tavanı (24h+ yarışlar için yeterl
 /* ---------- hava modeli ---------- */
 export const WEATHER = {
   dry:   { lbl: "Dry",           ico: "☀️", lap: 1.00, fuel: 1.00, col: "#F5C84C" },
-  damp:  { lbl: "Damp",          ico: "🌦", lap: 1.07, fuel: 1.00, col: "#8FD0E8" },
-  slwet: { lbl: "Slightly Wet",  ico: "🌧", lap: 1.09, fuel: 0.96, col: "#4D9FFF" },
-  wet:   { lbl: "Wet",           ico: "⛈", lap: 1.13, fuel: 0.92, col: "#7B8FF7" },
-  /* 5. kademe (v1.4.63): oyunun en ıslak zemin durumu. Çarpanlar mevcut kademelerin
-     ilerlemesinden ekstrapolasyon (lap 1.13→1.20, fuel 0.92→0.88) — gerçek ıslak
-     yarışta doğrulanmalı; tek yerde durduğu için ayarı kolaydır. */
-  xwet:  { lbl: "Extremely Wet", ico: "🌊", lap: 1.20, fuel: 0.88, col: "#5C6BC0" },
+  damp:  { lbl: "Damp",          ico: "🌦", lap: 1.03, fuel: 1.00, col: "#8FD0E8" },
+  slwet: { lbl: "Slightly Wet",  ico: "🌧", lap: 1.08, fuel: 0.96, col: "#4D9FFF" },
+  wet:   { lbl: "Wet",           ico: "⛈", lap: 1.10, fuel: 0.92, col: "#7B8FF7" },
+  /* Tur çarpanları kullanıcı tarafından ayarlandı (v1.4.106): damp 1.03 · slwet 1.08 ·
+     wet 1.10 · xwet 1.15. Yakıt çarpanları korunur. */
+  xwet:  { lbl: "Extremely Wet", ico: "🌊", lap: 1.15, fuel: 0.88, col: "#5C6BC0" },
 };
 
 /* ---------- oyunun KELİMELERİ: yüzde → kademe adı ----------
