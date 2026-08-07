@@ -5,6 +5,20 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.110",
+    date: "2026-08-07",
+    tr: [
+      "🖨 PDF çıktısı düzeltmesi: Masaüstü uygulamasında Stint/Pilot Programı PDF'i alınamıyordu (WebView2 açılır pencereyi engelliyordu). Artık yeni pencere yerine gizli çerçeveye yazdırılıyor → yazdır/PDF-kaydet penceresi doğrudan açılır. Web tarayıcıda da daha güvenilir (popup engeli sorunu biter).",
+      "🎮 CPU affinity (v1.4.109) bu sürümde ilk kez gerçekten geliyor: önceki masaüstü derlemesi eksik bir Windows kütüphane ayarı yüzünden başarısız olmuştu, düzeltildi. GPU-kapatma (v1.4.108) + CPU-affinity artık birlikte sürüş donmasını hedefler.",
+      "Masaüstü güncellemesi gerekir: sürüş PC'sinde en son sürümü kurun (PDF fix + GPU-off + CPU-affinity hepsi dahil).",
+    ],
+    en: [
+      "🖨 PDF export fix: on the Desktop app, the Stint/Driver Program PDF couldn't be produced (WebView2 blocked the popup window). It now prints into a hidden frame instead of a new window → the print / Save-as-PDF dialog opens directly. More reliable in the web browser too (no popup-blocker issue).",
+      "🎮 CPU affinity (v1.4.109) actually ships for the first time in this version: the previous desktop build failed due to a missing Windows library setting, now fixed. GPU-off (v1.4.108) + CPU-affinity now target in-race stutter together.",
+      "Requires a desktop update: install the latest version on the driving PC (PDF fix + GPU-off + CPU-affinity all included).",
+    ],
+  },
+  {
     v: "v1.4.109",
     date: "2026-08-07",
     tr: [

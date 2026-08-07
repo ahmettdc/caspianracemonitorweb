@@ -504,9 +504,18 @@ export default function App() {
  ${trackUrl ? `<div class="trackcard"><img src="${trackUrl}" alt="">
   <div class="tcap">${esc(trackName(st.track))}</div></div>` : ""}
 </div>`;
-    const w = window.open("", "_blank", "width=900,height=700");
-    if (!w) { alert(t("Açılır pencere engellendi — tarayıcıdan izin ver")); return; }
-    w.document.write(`<!doctype html><html><head><meta charset="utf-8">
+    /* Yeni pencere yerine GİZLİ iframe: WebView2 (masaüstü) popup'ları engelliyor →
+       window.open null dönüyordu → PDF alınamıyordu. iframe'e yazınca içindeki
+       window.onload→print() iframe'i yazdırır (tarayıcı + WebView2 print diyaloğu). */
+    document.getElementById("pdfframe")?.remove();
+    const ifr = document.createElement("iframe");
+    ifr.id = "pdfframe";
+    ifr.setAttribute("aria-hidden", "true");
+    ifr.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
+    document.body.appendChild(ifr);
+    const doc = ifr.contentWindow.document;
+    doc.open();
+    doc.write(`<!doctype html><html><head><meta charset="utf-8">
 <title>${esc(docTitle || title)}</title>
 <style>
  *{box-sizing:border-box}
@@ -592,7 +601,7 @@ export default function App() {
 ${html}
 ${bottomBar}
 <script>window.onload=function(){window.print()}<\/script></body></html>`);
-    w.document.close();
+    doc.close();
   };
   /* Son stintte pit YOK: phaseEnd = yarış bitişi olduğu için nextPitIn aslında
      bayrağa kalan süredir. "Sıradaki Pit" etiketi + son 5 dk'daki sarı pit alarmı

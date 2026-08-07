@@ -1,6 +1,6 @@
 [package]
 name = "caspian-race-monitor"
-version = "1.4.109"
+version = "1.4.110"
 description = "Caspian Race Monitor — LMU pit-wall stratejı arayüzü (masaüstü kabuğu)"
 authors = ["Caspian Motorsport"]
 license = ""
@@ -36,6 +36,7 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = [
   "Win32_Foundation",
+  "Win32_Security",          # CreateJobObjectW imzasındaki SECURITY_ATTRIBUTES için
   "Win32_System_Threading",
   "Win32_System_JobObjects",
   "Win32_System_SystemInformation",
