@@ -44,7 +44,7 @@ let unsubLease = null;     // livewriter aboneliğini kaldıran fonksiyon
 /* Köprüyü başlat. opts: { tid, rid, hz, mock, by }. onStatus(state) çağrılır:
    { running, phase: "starting|running|error|stopped", msg, lastTs, cars } */
 export async function startBridge(opts, onStatus) {
-  const { tid, rid, hz = 2, mock = false, by = "", uid = "" } = opts || {};
+  const { tid, rid, hz = 2, mock = false, by = "", uid = "", noRest = false } = opts || {};
   const say = (s) => { try { if (onStatus) onStatus(s); } catch { /* yoksay */ } };
 
   if (!tid || !rid) { say({ running: false, phase: "error", msg: "Takım/yarış seçili değil" }); return; }
@@ -65,6 +65,8 @@ export async function startBridge(opts, onStatus) {
 
   const args = ["--emit", "--hz", String(hz)];
   if (mock) args.push("--mock");
+  // Takılma teşhisi: REST'i kapat → sidecar oyunun localhost sunucusuna istek atmaz.
+  if (noRest) args.push("--no-rest");
 
   const cmd = Command.sidecar("binaries/caspian-bridge", args);
 

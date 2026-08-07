@@ -97,7 +97,7 @@ def read_config_or_die(path):
     return cp
 
 
-def make_source(mock):
+def make_source(mock, no_rest=False):
     # Bilgi satırları stderr'e — stdout `--emit` modunda saf JSON kalmalı.
     # Aggregator sarar: kare kare tur geçmişi → avg5Sec/avgSec/stintSec.
     from rf2_source import Aggregator
@@ -106,8 +106,9 @@ def make_source(mock):
         print("[kaynak] MOCK — sahte veri (oyun okunmuyor)", file=sys.stderr)
         return Aggregator(MockSource())
     from rf2_source import RF2Source
-    print("[kaynak] rFactor2/LMU paylaşımlı bellek", file=sys.stderr)
-    return Aggregator(RF2Source())
+    print("[kaynak] rFactor2/LMU paylaşımlı bellek"
+          + (" · REST KAPALI (takılma testi)" if no_rest else ""), file=sys.stderr)
+    return Aggregator(RF2Source(no_rest=no_rest))
 
 
 def build_payload(src, by):
@@ -232,7 +233,7 @@ def cmd_dump_wx(mock):
             src.close()
 
 
-def cmd_emit(mock, hz):
+def cmd_emit(mock, hz, no_rest=False):
     """Masaüstü sidecar modu: kaynaktan oku, her kareyi stdout'a bir JSON satırı
     olarak bas — Firebase'e DOKUNMA. Uygulama (JS) satırları okuyup ts/by ekleyerek
     kullanıcının oturumuyla yazar. team_id/race_id burada gerekmez."""
@@ -249,7 +250,7 @@ def cmd_emit(mock, hz):
     except Exception:
         pass
     try:
-        src = make_source(mock)
+        src = make_source(mock, no_rest)
     except Exception as e:  # noqa: BLE001  (okuyucu/lib yok → hata karesi bas, çıkma)
         err = f"Okuyucu başlatılamadı: {e}"
         try:
@@ -384,11 +385,14 @@ def main():
     ap.add_argument("--hz", type=float, default=2.0, help="--emit gönderim hızı (varsayılan 2)")
     ap.add_argument("--once", action="store_true", help="Bir kez oku+gönder, çık")
     ap.add_argument("--nogui", action="store_true", help="Arayüzsüz, doğrudan config.ini ile çalış")
+    ap.add_argument("--no-rest", action="store_true", dest="no_rest",
+                    help="LMU REST'i kapat (takılma teşhisi): VE/takım/numara/yetkili bayrak "
+                         "gelmez, oyunun localhost sunucusuna istek atılmaz")
     args = ap.parse_args()
 
     try:
         if args.emit:                     # masaüstü sidecar — Firebase/config gerekmez
-            cmd_emit(args.mock, args.hz)
+            cmd_emit(args.mock, args.hz, args.no_rest)
             return
         if args.dump:                     # kaynağı göster — Firebase/config gerekmez
             cmd_dump(args.mock)

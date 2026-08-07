@@ -5,6 +5,20 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.101",
+    date: "2026-08-07",
+    tr: [
+      "🧪 TAKILMA TEŞHİSİ — 'REST'i kapat' anahtarı: v1.4.99 (tepside render durdurma) sonrası takılma azaldı ama tepsiye atınca dahi sürüyorsa, kalan sebep render değil, köprünün oyunun kendi yerel sunucusundan (localhost:6397) sürekli veri çekmesidir (saniyede ~3 istek/bağlantı). Canlı Köprü kartına eklenen anahtar bunu tamamen kapatır: sidecar oyunun sunucusuna hiç istek atmaz.",
+      "Nasıl test edilir: sürüş PC'sinde Canlı sekmesi → 🛰 Canlı Köprü → 'REST'i kapat' → birkaç tur sür. Tepside bile takılma BİTİYORSA sebep REST'tir (bir sonraki adımda REST'i keep-alive + seyrek yoklama ile optimize ederiz). Bitmiyorsa sebep başka (CPU/GPU) ve oraya bakarız — boşuna büyük değişiklik yapmadan.",
+      "REST kapalıyken kaybedilen: Virtual Energy %, gerçek takım adları/numaralar, yetkili sarı-bayrak sektörleri. Pozisyon/tur/sektör/lastik/yakıt paylaşımlı bellekten gelmeye devam eder. Anahtar cihaz tercihidir (yalnız o PC'de). Köprü değiştiği için sürüş PC'si yeni masaüstü sürümünü kurmalı.",
+    ],
+    en: [
+      "🧪 STUTTER DIAGNOSTIC — 'Turn off REST' switch: after v1.4.99 (pausing render in the tray) the stutter dropped, but if it persists even when minimized to tray, the remaining cause isn't rendering — it's the bridge continuously pulling data from the game's own local server (localhost:6397, ~3 requests/connections per second). A new switch on the Live Bridge card turns this off entirely: the sidecar makes no requests to the game's server.",
+      "How to test: on the driving PC, Live tab → 🛰 Live Bridge → 'Turn off REST' → drive a few laps. If the stutter STOPS even in the tray, REST is the cause (next step: optimize REST with keep-alive + sparser polling). If it doesn't, the cause is elsewhere (CPU/GPU) and we look there — without a needless big change.",
+      "With REST off you lose: Virtual Energy %, real team names/numbers, authoritative yellow-flag sectors. Position/lap/sector/tire/fuel keep coming from shared memory. The switch is a device preference (that PC only). The bridge changed, so the driving PC needs the new desktop build.",
+    ],
+  },
+  {
     v: "v1.4.100",
     date: "2026-08-07",
     tr: [

@@ -413,7 +413,7 @@ function OwnCar({ t, own, liveFuelObs }) {
 /* Canlı köprü durum kartı (yalnız gösterim). Köprü masaüstünde OTOMATİK çalışır
    (App.jsx yönetir): oyunun PC'sinde uygulama açık + owner/editor + yarış seçiliyse
    kendiliğinden bağlanır, koparsa ~4 sn'de bir yeniden dener. Elle başlatma yok. */
-function BridgeControl({ t, bridge, canEdit }) {
+function BridgeControl({ t, bridge, canEdit, noRest = false, onToggleNoRest }) {
   const phase = bridge?.phase || "idle";
   const dot = phase === "running" ? "var(--green)"
     : phase === "error" ? "var(--red)"
@@ -468,6 +468,25 @@ function BridgeControl({ t, bridge, canEdit }) {
           <div style={{ marginTop: 2 }}>
             {t("Oyunu kapatıp değiştir, sonra aç. Diğer araçların bu veriye ihtiyaç duyabilir — en güvenli değerle başla.")}
           </div>
+        </div>
+      )}
+      {/* TAKILMA TEŞHİSİ (v1.4.101): REST'i kapatan A/B anahtarı. Açıkken sidecar
+          --no-rest ile başlar → oyunun localhost sunucusuna hiç istek atmaz. Tepside
+          bile takılma REST kapalıyken BİTİYORSA sebep REST demektir → optimize ederiz.
+          Bitmiyorsa sebep başka (CPU/GPU) → oraya bakarız. Değişince köprü yeniden başlar. */}
+      {canEdit && onToggleNoRest && (
+        <div className="hint" style={{ marginTop: 8, display: "flex", alignItems: "center",
+          gap: 8, flexWrap: "wrap" }}>
+          <button className="act" style={{ fontSize: 11,
+            ...(noRest ? { borderColor: "var(--yellow)", color: "var(--yellow)" } : {}) }}
+            onClick={onToggleNoRest}>
+            🧪 {noRest ? t("REST kapalı (test) — aç") : t("REST'i kapat (takılma testi)")}
+          </button>
+          <span style={{ color: "var(--dim)" }}>
+            {noRest
+              ? t("REST kapalı: VE/gerçek takım adı/numara/yetkili bayrak gelmez; oyunun sunucusuna istek atılmaz.")
+              : t("Takılma REST'ten mi? Kapat, birkaç tur sür; tepside bile takılma biterse sebep REST'tir.")}
+          </span>
         </div>
       )}
     </div>
@@ -558,7 +577,7 @@ function WxCalib({ t, s }) {
 }
 
 export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelObs, tid, rid,
-  tourDemo, onGuide }) {
+  tourDemo, onGuide, bridgeNoRest = false, onToggleNoRest }) {
   const [myClassOnly, setMyClassOnly] = useState(false);
   const [big, setBig] = useState(false);
   const [lapsFor, setLapsFor] = useState(null);   // "+" ile açılan tur listesi satırı
@@ -627,7 +646,8 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
   }, []);
 
   const bridgeCard = isTauri ? (
-    <BridgeControl t={t} bridge={bridge} canEdit={canEdit} />
+    <BridgeControl t={t} bridge={bridge} canEdit={canEdit}
+      noRest={bridgeNoRest} onToggleNoRest={onToggleNoRest} />
   ) : null;
 
   /* Bağlantı durumunu erken-return'den ÖNCE hesapla: veri GELDİKTEN sonra köprü/oyun

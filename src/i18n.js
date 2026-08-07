@@ -1,6 +1,13 @@
 /* İngilizce çeviri sözlüğü — anahtar = Türkçe kaynak metin.
    App.jsx: t = (str) => lang === "en" ? (EN[str] ?? str) : str */
 export const EN = {
+  // REST takılma teşhisi (v1.4.101)
+  "REST'i kapat (takılma testi)": "Turn off REST (stutter test)",
+  "REST kapalı (test) — aç": "REST off (test) — turn on",
+  "Takılma REST'ten mi? Kapat, birkaç tur sür; tepside bile takılma biterse sebep REST'tir.":
+    "Is the stutter from REST? Turn it off, drive a few laps; if the stutter stops even in the tray, REST is the cause.",
+  "REST kapalı: VE/gerçek takım adı/numara/yetkili bayrak gelmez; oyunun sunucusuna istek atılmaz.":
+    "REST off: no Virtual Energy / real team name / number / authoritative flags; no requests to the game's server.",
   // Sürüş Modu (v1.4.99)
   "Sürüş Modu": "Driving Mode",
   "Arayüz duraklatıldı — veri akıyor. Pencereyi öne getirince geri döner.":

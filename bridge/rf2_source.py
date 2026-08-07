@@ -296,16 +296,25 @@ class RF2Source:
     atlamak için erişimler `getattr` ile korunur.
     """
 
-    def __init__(self):
+    def __init__(self, no_rest=False):
         # Bağımlılık yalnız burada; --mock modunda hiç import edilmez.
         from pyRfactor2SharedMemory.sharedMemoryAPI import SimInfoAPI  # noqa
         self.api = SimInfoAPI()
-        # Virtual Energy paylaşımlı bellekte yok → LMU yerel REST API'den (opsiyonel)
-        try:
-            from lmu_api import LmuApi
-            self.lmu = LmuApi()
-        except Exception:
+        # Virtual Energy paylaşımlı bellekte yok → LMU yerel REST API'den (opsiyonel).
+        # no_rest: takılma teşhisi için REST'i tamamen kapat. REST, oyunun kendi yerel
+        # sunucusuna (localhost:6397) saniyede ~3 istek/bağlantı açıyor; bu, oyunda
+        # mikro-takılmanın en güçlü şüphelisi. lmu=None → tüm session_flags/standings/
+        # lookup çağrıları atlanır (guard'lar zaten None'ı ele alıyor); bayrak shmem
+        # yedeğine düşer, VE/gerçek takım/numara/marka gelmez. Render'dan bağımsız →
+        # tepside bile fark ederse sebep REST demektir.
+        if no_rest:
             self.lmu = None
+        else:
+            try:
+                from lmu_api import LmuApi
+                self.lmu = LmuApi()
+            except Exception:
+                self.lmu = None
         # Eklenti buffer ayarı (performans teşhisi) — DOSYA okuması pahalıdır, bu yüzden
         # başlangıçta bir kez + PLUGIN_CFG_EVERY sn'de bir; asla kare başına değil.
         self.plugin = None
