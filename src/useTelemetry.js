@@ -13,6 +13,7 @@
        removeSlot, slotStats, chartData, loadedSlots, baseSlot }. */
 import { useState, useMemo } from "react";
 import { msFromCell, parseMotecLog, parseTelemetryText, guessMapping } from "./parsers";
+import { parseLd } from "./ldParser";
 import { computeSlotStats, computeChartData } from "./state";
 
 export function useTelemetry({ st, setSt }) {
@@ -33,6 +34,18 @@ export function useTelemetry({ st, setSt }) {
     const f = e.target.files?.[0];
     if (!f) return;
     const rd = new FileReader();
+    /* .ld = MoTeC ikili log → CSV'ye çevirmeden doğrudan oku (parseLd, aynı motec şekli).
+       Diğerleri (csv/tsv/txt) = metin yolu (parseMotecLog / parseTelemetryText). */
+    if (/\.ld$/i.test(f.name)) {
+      rd.onload = () => {
+        setRawTele("");
+        setMapping(null);
+        try { setParsed(parseLd(rd.result)); }
+        catch { setParsed({ error: "MoTeC .ld okunamadı" }); }
+      };
+      rd.readAsArrayBuffer(f);
+      return;
+    }
     rd.onload = () => { setRawTele(String(rd.result)); doParse(String(rd.result)); };
     rd.readAsText(f);
   };

@@ -5,6 +5,20 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.102",
+    date: "2026-08-07",
+    tr: [
+      "📈 MoTeC .ld DOSYASINI DOĞRUDAN YÜKLE: Artık Telemetri sekmesinde .ld dosyasını doğrudan seçebilirsin — MoTeC i2'de açıp CSV'ye export etme adımı gerekmiyor. Sistem .ld'nin içindeki kanalları (tur no, seans süresi, yakıt, lastik aşınma, hız) tarayıcıda çözüp her zamanki tur-başına özeti (süre, yakıt/tur, aşınma/tur, ort/max hız) çıkarır ve Stint A/B/C/D'ye kaydeder.",
+      "Dosya girişi artık .ld kabul ediyor; CSV/TSV yapıştırma ve dosya yükleme aynen çalışıyor. Tur süresi mümkünse dosyadaki resmi tur zamanından, yoksa seans süresinden hesaplanır. Yalnız gereken kanallar okunur → büyük .ld'ler (birkaç MB) hızlı açılır.",
+      "Web-only: sayfa yenilemesi yeterli, masaüstü güncellemesi gerekmez. Depoya yine sadece küçük tur özeti kaydedilir (ham yüksek-frekans örnekler değil).",
+    ],
+    en: [
+      "📈 UPLOAD MoTeC .ld DIRECTLY: In the Telemetry tab you can now pick a .ld file directly — no need to open it in MoTeC i2 and export to CSV first. The system decodes the .ld's channels (lap number, session time, fuel, tyre wear, speed) in the browser and produces the usual per-lap summary (lap time, fuel/lap, wear/lap, avg/max speed), saving it to Stint A/B/C/D.",
+      "The file picker now accepts .ld; pasting CSV/TSV and file upload still work as before. Lap time uses the file's official lap time when present, otherwise the session-elapsed span. Only the needed channels are read → large .ld files (a few MB) open quickly.",
+      "Web-only: a page refresh is enough, no desktop update needed. Only the small per-lap summary is stored (not the raw high-frequency samples).",
+    ],
+  },
+  {
     v: "v1.4.101",
     date: "2026-08-07",
     tr: [
