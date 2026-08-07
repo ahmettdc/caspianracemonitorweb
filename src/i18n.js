@@ -575,6 +575,8 @@ export const EN = {
     "File not recognised — expecting a MoTeC lap report or a raw channel log",
   "MoTeC tur istatistiklerini yapıştır veya dosya seç (CSV/TSV)":
     "Paste MoTeC lap stats or pick a file — raw channel logs work too (CSV/TSV)",
+  "MoTeC tur istatistiklerini yapıştır veya dosya seç (CSV/TSV) — .ld doğrudan çalışır":
+    "Paste MoTeC lap stats or pick a file (CSV/TSV) — .ld files work directly",
   "Neler değişti": "What's new",
   "ŞU AN": "CURRENT",
   "GitHub'da tüm değişiklikler ↗": "All changes on GitHub ↗",
