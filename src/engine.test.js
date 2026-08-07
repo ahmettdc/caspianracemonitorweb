@@ -116,7 +116,7 @@ describe("hava modeli", () => {
     const dry = { avgLap: "4:00.00", consumption: 10, weatherLog: [] };
     const wet = { avgLap: "4:00.00", consumption: 10, weatherLog: [{ t: 0, w: "wet" }] };
     expect(effLapSec(dry)).toBeCloseTo(240, 6);
-    expect(effLapSec(wet)).toBeCloseTo(240 * 1.13, 6);
+    expect(effLapSec(wet)).toBeCloseTo(240 * 1.10, 6);
     expect(effCons(dry)).toBeCloseTo(10, 6);
     expect(effCons(wet)).toBeCloseTo(10 * 0.92, 6);
   });
@@ -206,7 +206,7 @@ describe("computePlan — çekirdek strateji", () => {
 
   it("ıslak hava lapSec'i çarpanla uzatır", () => {
     const plan = computePlan(baseState({ weatherLog: [{ t: 0, w: "wet" }] }), "race");
-    expect(plan.lapSec).toBeCloseTo(240 * 1.13, 6);
+    expect(plan.lapSec).toBeCloseTo(240 * 1.10, 6);
   });
 
   it("multiclass lider bitiş modeli flagExtra üretir", () => {
