@@ -33,19 +33,19 @@ export function useTelemetry({ st, setSt }) {
   const onTeleFile = (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    const rd = new FileReader();
     /* .ld = MoTeC ikili log → CSV'ye çevirmeden doğrudan oku (parseLd, aynı motec şekli).
-       Diğerleri (csv/tsv/txt) = metin yolu (parseMotecLog / parseTelemetryText). */
+       parseLd SEÇİCİ okur: tüm dosyayı belleğe almaz, yalnız gereken kanalları File.slice
+       ile çeker → 100MB+ log'lar donmadan/şişmeden açılır. Diğerleri (csv/tsv/txt) = metin. */
     if (/\.ld$/i.test(f.name)) {
-      rd.onload = () => {
-        setRawTele("");
-        setMapping(null);
-        try { setParsed(parseLd(rd.result)); }
-        catch { setParsed({ error: "MoTeC .ld okunamadı" }); }
-      };
-      rd.readAsArrayBuffer(f);
+      setRawTele("");
+      setMapping(null);
+      setParsed({ loading: true });
+      parseLd(f)
+        .then(setParsed)
+        .catch(() => setParsed({ error: "MoTeC .ld okunamadı" }));
       return;
     }
+    const rd = new FileReader();
     rd.onload = () => { setRawTele(String(rd.result)); doParse(String(rd.result)); };
     rd.readAsText(f);
   };

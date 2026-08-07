@@ -565,6 +565,7 @@ export const EN = {
   "Kutu = turların ortadaki %50'si (Q1–Q3), kalın çizgi medyan. Bıyıklar uç turlara, halkalar aykırı turlara işaret eder.":
     "Box = middle 50% of laps (Q1–Q3), thick line is the median. Whiskers reach the extreme laps, rings mark outliers.",
   "tur çözümlendi": "laps parsed",
+  ".ld çözümleniyor…": "Parsing .ld…",
   "Tur": "Lap", "Yakıt": "Fuel", "kısmi": "partial",
   "Ort/Max km/h": "Avg/Max km/h",
   "Kısmi tur: log'da sonraki tur yok, süre örneklerden hesaplandı.":

@@ -62,9 +62,9 @@ function twoLapChannels() {
 }
 
 describe("parseLd", () => {
-  it("iki turu segmentler, süre/yakıt/aşınma/hız çıkarır", () => {
+  it("iki turu segmentler, süre/yakıt/aşınma/hız çıkarır (Blob girdisi)", async () => {
     const buf = buildLd(twoLapChannels(), { date: "01/01/2026", driver: "Test Sürücü", venue: "Test Pisti" });
-    const r = parseLd(buf);
+    const r = await parseLd(new Blob([buf]));   // File.slice yolu — tüm dosyayı okumadan
     expect(r.error).toBeUndefined();
     expect(r.motec).toBe(true);
     expect(r.laps.length).toBe(2);
@@ -86,26 +86,26 @@ describe("parseLd", () => {
     expect(r.meta.date).toBe("01/01/2026");
   });
 
-  it("int16 ve ölçek (mul/dec) doğru çözülür — ELT dec=3 saniyeye çevirir", () => {
+  it("int16 ve ölçek (mul/dec) doğru çözülür — ELT dec=3 saniyeye çevirir", async () => {
     const buf = buildLd(twoLapChannels());
-    const r = parseLd(buf);
+    const r = await parseLd(buf);   // ArrayBuffer da kabul (Blob'a sarılır)
     // ELT dec=3: ms→sn dönüşümü çalışıyorsa tur 1 ≈ 60 sn; ham ms okunsaydı 60000 olurdu
     expect(r.laps[0].sec).toBeGreaterThan(30);
     expect(r.laps[0].sec).toBeLessThan(120);
   });
 
-  it("bozuk/küçük buffer → error (çökmez)", () => {
-    expect(parseLd(new ArrayBuffer(8)).error).toBeTruthy();
+  it("bozuk/küçük buffer → error (çökmez)", async () => {
+    expect((await parseLd(new ArrayBuffer(8))).error).toBeTruthy();
     // geçerli başlık ama kanal yok
     const empty = new ArrayBuffer(0x300);
     new DataView(empty).setUint32(8, 0x200, true);
-    const r = parseLd(empty);
+    const r = await parseLd(empty);
     expect(r.error).toBeTruthy();
   });
 
-  it("Lap Number / zaman kanalı yoksa error", () => {
+  it("Lap Number / zaman kanalı yoksa error", async () => {
     const buf = buildLd([{ name: "Ground Speed", dtype: 4, freq: 10, dec: 2, raw: [20000, 20000, 20000, 20000, 20000] }]);
-    const r = parseLd(buf);
+    const r = await parseLd(buf);
     expect(r.error).toBeTruthy();
   });
 });
