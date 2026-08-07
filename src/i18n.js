@@ -566,6 +566,20 @@ export const EN = {
     "Box = middle 50% of laps (Q1–Q3), thick line is the median. Whiskers reach the extreme laps, rings mark outliers.",
   "tur çözümlendi": "laps parsed",
   ".ld çözümleniyor…": "Parsing .ld…",
+  "Tur Karşılaştırma": "Lap Comparison",
+  "İzler hazırlanıyor…": "Preparing traces…",
+  "İz verisi çıkarılamadı — bu dosyada hız/mesafe kanalı olmayabilir.":
+    "Couldn't extract trace data — this file may lack a speed/distance channel.",
+  "X ekseni": "X axis",
+  "tur kesri %": "lap fraction %",
+  "mesafe (m)": "distance (m)",
+  "kırmızı A, mavi B": "red A, blue B",
+  "delta > 0 = B daha yavaş": "delta > 0 = B slower",
+  "Zaman-Delta (B−A)": "Time-Delta (B−A)",
+  "Direksiyon": "Steering",
+  "Sektör": "Sector",
+  "Sektörler tur-kesri üçlüsüdür (mesafe/3); gerçek S/F beacon'ı değil.":
+    "Sectors are lap-fraction thirds (distance/3), not the real S/F beacon.",
   "Tur": "Lap", "Yakıt": "Fuel", "kısmi": "partial",
   "Ort/Max km/h": "Avg/Max km/h",
   "Kısmi tur: log'da sonraki tur yok, süre örneklerden hesaplandı.":

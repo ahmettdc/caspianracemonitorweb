@@ -11,9 +11,10 @@
      { slot, setSlot, chartMode, setChartMode, rawTele, setRawTele, parsed, mapping,
        setMapping, onTeleFile, doParse, apply105Slot, saveMotec, saveSlot, toggleLap,
        removeSlot, slotStats, chartData, loadedSlots, baseSlot }. */
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { msFromCell, parseMotecLog, parseTelemetryText, guessMapping } from "./parsers";
 import { parseLd } from "./ldParser";
+import { buildReaders, buildTrace, buildCompare } from "./ldTrace";
 import { computeSlotStats, computeChartData, apply105Rule } from "./state";
 
 export function useTelemetry({ st, setSt }) {
@@ -22,6 +23,16 @@ export function useTelemetry({ st, setSt }) {
   const [rawTele, setRawTele] = useState("");
   const [parsed, setParsed] = useState(null);   // {headers, lapRows, ncols} | {error}
   const [mapping, setMapping] = useState(null); // {labelCol,timeCol,fuelCol,wear:[4]}
+  /* İz karşılaştırma (v1.4.111): yalnız .ld — yüklü dosya üzerinde oturum-içi, Firebase'e
+     yazılmaz. teleFile/teleHeader = seçici okuma için handle; cmpA/cmpB = parsed.laps
+     içindeki tur indeksleri; cmpData = buildCompare sonucu (izler + delta + sektör). */
+  const [teleFile, setTeleFile] = useState(null);
+  const [teleHeader, setTeleHeader] = useState(null);
+  const [cmpA, setCmpA] = useState(null);
+  const [cmpB, setCmpB] = useState(null);
+  const [cmpData, setCmpData] = useState(null);
+  const [cmpBusy, setCmpBusy] = useState(false);
+  const readersRef = useRef(null);   // kanal okuyucuları dosya başına bir kez (önbellek)
 
   const doParse = (text) => {
     const m = parseMotecLog(text);          // önce ham kanal log'u dene
@@ -40,15 +51,52 @@ export function useTelemetry({ st, setSt }) {
       setRawTele("");
       setMapping(null);
       setParsed({ loading: true });
+      readersRef.current = null;
+      setCmpData(null);
       parseLd(f)
-        .then(setParsed)
+        .then((res) => {
+          setParsed(res);
+          if (res && res.motec) {
+            setTeleFile(f);
+            setTeleHeader(res._header || null);
+            /* varsayılan: en hızlı iki TAM tur (kısmi hariç) */
+            const idx = res.laps.map((_, i) => i).sort((i, j) => res.laps[i].sec - res.laps[j].sec);
+            const fulls = idx.filter((i) => !res.laps[i].partial);
+            const pick = fulls.length >= 2 ? fulls : idx;
+            setCmpA(pick[0] ?? 0);
+            setCmpB(pick[1] ?? pick[0] ?? 0);
+          } else {
+            setTeleFile(null); setTeleHeader(null);
+          }
+        })
         .catch(() => setParsed({ error: "MoTeC .ld okunamadı" }));
       return;
     }
+    setTeleFile(null); setTeleHeader(null); setCmpData(null); readersRef.current = null;
     const rd = new FileReader();
     rd.onload = () => { setRawTele(String(rd.result)); doParse(String(rd.result)); };
     rd.readAsText(f);
   };
+
+  /* İz karşılaştırma: teleFile + seçili turlar değişince okuyucuları (bir kez) kur,
+     iki turun izini + delta'yı üret. Ağır iş async; yükleniyor durumu gösterilir. */
+  useEffect(() => {
+    let alive = true;
+    const laps = parsed?.motec ? parsed.laps : null;
+    if (!teleFile || !teleHeader || !laps || cmpA == null || cmpB == null
+      || !laps[cmpA] || !laps[cmpB]) { setCmpData(null); return undefined; }
+    setCmpBusy(true);
+    (async () => {
+      try {
+        if (!readersRef.current) readersRef.current = await buildReaders(teleFile, teleHeader);
+        const rd = readersRef.current;
+        const cmp = buildCompare(buildTrace(rd, laps[cmpA]), buildTrace(rd, laps[cmpB]));
+        if (alive) setCmpData(cmp);
+      } catch { if (alive) setCmpData(null); }
+      finally { if (alive) setCmpBusy(false); }
+    })();
+    return () => { alive = false; };
+  }, [teleFile, teleHeader, parsed, cmpA, cmpB]);
 
   /* %105 kuralı saf `apply105Rule` (state.js) — kısmi/freak turları "en iyi" adayı
      saymaz (yarım tur tüm gerçek turların tikini kaldırmasın). */
@@ -76,6 +124,7 @@ export function useTelemetry({ st, setSt }) {
     setSt((s) => ({ ...s, telemetry: { ...s.telemetry,
       [slot]: { laps: apply105Rule(laps), name: `Stint ${slot}`, src: parsed.meta } } }));
     setRawTele(""); setParsed(null); setMapping(null);
+    setTeleFile(null); setTeleHeader(null); readersRef.current = null;   // izler yüklü dosyaya bağlı
   };
 
   const saveSlot = () => {
@@ -119,5 +168,6 @@ export function useTelemetry({ st, setSt }) {
 
   return { slot, setSlot, chartMode, setChartMode, rawTele, setRawTele, parsed, mapping,
     setMapping, onTeleFile, doParse, apply105Slot, saveMotec, saveSlot, toggleLap,
-    removeSlot, slotStats, chartData, loadedSlots, baseSlot };
+    removeSlot, slotStats, chartData, loadedSlots, baseSlot,
+    cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy };
 }

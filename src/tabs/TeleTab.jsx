@@ -1,7 +1,135 @@
-import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ReferenceLine, ResponsiveContainer } from "recharts";
 import { fmtLap } from "../engine";
 import { SLOT_COLORS } from "../constants";
 import { Tyre, BoxPlot } from "../components";
+
+/* İz karşılaştırma renkleri (A/B tur) */
+const CA = "#ff5470", CB = "#4d9fff";
+
+/* Tek kanal iz satırı — recharts syncId ile hepsi ortak imleç + ortak mesafe ekseni. */
+function TraceRow({ data, title, unit, keys, colors, fmt, height = 132, zero, dashB }) {
+  return (
+    <div style={{ marginTop: 8 }}>
+      <div className="hint" style={{ margin: "0 0 2px", fontWeight: 600 }}>{title}</div>
+      <div style={{ height }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={data} syncId="tele" margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+            <CartesianGrid stroke="#2B3542" strokeDasharray="3 3" />
+            <XAxis dataKey="d" type="number" domain={["dataMin", "dataMax"]}
+              stroke="#8C97A5" fontSize={10} tickFormatter={(v) => Math.round(v)}
+              minTickGap={40} />
+            <YAxis stroke="#8C97A5" fontSize={10} width={44}
+              domain={["auto", "auto"]} tickFormatter={fmt} />
+            <Tooltip contentStyle={{ background: "#1F2731", border: "1px solid #2B3542", fontSize: 12 }}
+              labelFormatter={(v) => `${Math.round(v)} ${unit}`}
+              formatter={(val, n) => [fmt ? fmt(val) : val, n]} />
+            {zero && <ReferenceLine y={0} stroke="#8C97A5" strokeDasharray="4 4" />}
+            {keys.map((k, i) => (
+              <Line key={k} dataKey={k} name={k.endsWith("B") ? "B" : k.endsWith("A") ? "A" : k}
+                stroke={colors[i]} dot={false} strokeWidth={1.6} connectNulls
+                isAnimationActive={false}
+                strokeDasharray={dashB && k.endsWith("B") ? "5 3" : undefined} />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+/* Tur karşılaştırma kartı — yüklü .ld üzerinde iki turu mesafe ekseninde üst üste
+   bindirir; hız/gaz/fren/vites/RPM/direksiyon izleri + zaman-delta + sektör farkı.
+   Yalnız gösterim (Firebase'e yazılmaz). cmpData buildCompare çıktısı. */
+function TraceCompareCard({ t, parsed, cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy }) {
+  const laps = parsed?.laps || [];
+  const ch = cmpData?.chans || {};
+  const unit = cmpData?.distUnit === "frac" ? "%" : "m";
+  const sp1 = (v) => (v == null ? "—" : v.toFixed(1));
+  const pct = (v) => (v == null ? "—" : `${Math.round(v)}%`);
+  const dlt = (v) => (v == null ? "—" : `${v >= 0 ? "+" : ""}${v.toFixed(3)}s`);
+  const lapOpt = (l, i) => (
+    <option key={i} value={i}>Lap {l.lap} · {fmtLap(l.sec)}{l.partial ? " (kısmi)" : ""}</option>
+  );
+  return (
+    <div className="card" style={{ marginTop: 12 }}>
+      <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        🔬 {t("Tur Karşılaştırma")}
+        {cmpData && Number.isFinite(cmpData.totalDelta) && (
+          <span className="chip" style={{ fontSize: 12,
+            borderColor: cmpData.totalDelta > 0 ? CA : CB,
+            color: cmpData.totalDelta > 0 ? CA : CB }}>
+            Δ {dlt(cmpData.totalDelta)}</span>
+        )}
+      </h2>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", fontSize: 12 }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 5, margin: 0 }}>
+          <span style={{ width: 10, height: 10, borderRadius: 2, background: CA, display: "inline-block" }} />
+          A <select value={cmpA ?? 0} onChange={(e) => setCmpA(+e.target.value)}>{laps.map(lapOpt)}</select>
+        </label>
+        <label style={{ display: "flex", alignItems: "center", gap: 5, margin: 0 }}>
+          <span style={{ width: 10, height: 10, borderRadius: 2, background: CB, display: "inline-block" }} />
+          B <select value={cmpB ?? 0} onChange={(e) => setCmpB(+e.target.value)}>{laps.map(lapOpt)}</select>
+        </label>
+      </div>
+
+      {cmpBusy && <div className="hint" style={{ marginTop: 6 }}>⏳ {t("İzler hazırlanıyor…")}</div>}
+      {!cmpBusy && !cmpData && <div className="hint" style={{ marginTop: 6 }}>{t("İz verisi çıkarılamadı — bu dosyada hız/mesafe kanalı olmayabilir.")}</div>}
+
+      {cmpData && (<>
+        <div className="hint" style={{ marginTop: 6, opacity: .8 }}>
+          {t("X ekseni")}: {unit === "%" ? t("tur kesri %") : t("mesafe (m)")} · {t("kırmızı A, mavi B")} ·
+          {" "}{t("delta > 0 = B daha yavaş")}
+        </div>
+        <TraceRow data={cmpData.data} title={`⏱ ${t("Zaman-Delta (B−A)")}`} unit={unit}
+          keys={["dt"]} colors={["#F5C84C"]} fmt={dlt} height={140} zero />
+        {ch.speed && (
+          <TraceRow data={cmpData.data} title={`🏁 ${t("Hız")} (km/h)`} unit={unit}
+            keys={["spA", "spB"]} colors={[CA, CB]} fmt={sp1} />
+        )}
+        {ch.throttle && (
+          <TraceRow data={cmpData.data} title={`🟢 ${t("Gaz")} %`} unit={unit}
+            keys={["thA", "thB"]} colors={[CA, CB]} fmt={pct} height={110} dashB />
+        )}
+        {ch.brake && (
+          <TraceRow data={cmpData.data} title={`🔴 ${t("Fren")} %`} unit={unit}
+            keys={["brA", "brB"]} colors={[CA, CB]} fmt={pct} height={110} dashB />
+        )}
+        {ch.gear && (
+          <TraceRow data={cmpData.data} title={`⚙ ${t("Vites")}`} unit={unit}
+            keys={["gA", "gB"]} colors={[CA, CB]} fmt={(v) => (v == null ? "—" : String(Math.round(v)))} height={100} dashB />
+        )}
+        {ch.rpm && (
+          <TraceRow data={cmpData.data} title={`🔧 ${t("RPM")}`} unit={unit}
+            keys={["rpmA", "rpmB"]} colors={[CA, CB]} fmt={(v) => (v == null ? "—" : String(Math.round(v)))} height={100} />
+        )}
+        {ch.steer && (
+          <TraceRow data={cmpData.data} title={`🕹 ${t("Direksiyon")}`} unit={unit}
+            keys={["stA", "stB"]} colors={[CA, CB]} fmt={sp1} height={100} />
+        )}
+
+        <table style={{ maxWidth: 420, marginTop: 10, fontSize: 12 }}>
+          <thead><tr>
+            <th>{t("Sektör")}</th><th style={{ color: CA }}>A</th>
+            <th style={{ color: CB }}>B</th><th>Δ</th>
+          </tr></thead>
+          <tbody>
+            {cmpData.sectors.map((s) => (
+              <tr key={s.sec}>
+                <td>S{s.sec}</td>
+                <td className="mono">{s.dA.toFixed(3)}</td>
+                <td className="mono">{s.dB.toFixed(3)}</td>
+                <td className="mono" style={{ color: s.diff > 0 ? CA : CB, fontWeight: 600 }}>{dlt(s.diff)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="hint" style={{ marginTop: 4, opacity: .6 }}>
+          {t("Sektörler tur-kesri üçlüsüdür (mesafe/3); gerçek S/F beacon'ı değil.")}
+        </div>
+      </>)}
+    </div>
+  );
+}
 
 /* Telemetri sekmesi — MoTeC içe aktarma, sütun eşleme, stint analizi + grafikler.
    Tüm state/derived (parsed/slotStats/chartData/loadedSlots/baseSlot) ve handler'lar
@@ -10,6 +138,7 @@ export default function TeleTab({
   t, lang, st, slot, setSlot, rawTele, setRawTele, doParse, onTeleFile,
   parsed, mapping, setMapping, saveMotec, saveSlot, loadedSlots, slotStats,
   up, apply105Slot, removeSlot, chartMode, setChartMode, chartData, baseSlot, toggleLap,
+  cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy,
 }) {
   const fmtMs = (ms) => fmtLap(ms / 1000);
   return (
@@ -138,6 +267,11 @@ export default function TeleTab({
             <span className="hint warn" style={{ marginLeft: 8 }}>{t("Tur süresi sütunu seçilmeli")}</span>}
         </>)}
       </div>
+
+      {parsed?.motec && (
+        <TraceCompareCard t={t} parsed={parsed} cmpA={cmpA} setCmpA={setCmpA}
+          cmpB={cmpB} setCmpB={setCmpB} cmpData={cmpData} cmpBusy={cmpBusy} />
+      )}
 
       {loadedSlots.length > 0 && (
         <div className="card" style={{ marginTop: 12 }}>
