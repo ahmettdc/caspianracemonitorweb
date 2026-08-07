@@ -37,6 +37,7 @@ export default function TeleTab({
         <div style={{ margin: "6px 0" }}>
           <input type="file" accept=".csv,.tsv,.txt,.ld" onChange={onTeleFile} />
         </div>
+        {parsed?.loading && <div className="hint">⏳ {t(".ld çözümleniyor…")}</div>}
         {parsed?.error && <div className="hint warn">⚠ {t(parsed.error)}</div>}
         {parsed?.motec && (<>
           <div className="hint" style={{ marginTop: 4 }}>

@@ -6,7 +6,7 @@ import {
   applyUpStintLap, applyUpTyreCell, applyAssignDriver, applyUpPit,
   applyClearTyres, pitTyreFlag,
   computeTyreInfo, computeDriverPlan, computeSlotStats, computeChartData,
-  computeLiveInfo, buildTimeline,
+  computeLiveInfo, buildTimeline, apply105Rule,
   applyMarkPit, applyUnmarkPit, applyResetPits,
 } from "./state.js";
 
@@ -349,6 +349,64 @@ describe("computeSlotStats / computeChartData", () => {
     expect(cd[0]).toEqual({ lap: 1, A: 120 });
     expect(cd[1]).toEqual({ lap: 2, A: 122 });
     expect(cd[2]).toEqual({ lap: 3 }); // 3. tur use:false → A yok
+  });
+});
+
+describe("apply105Rule — kısmi/freak tur 'en iyi' sayılmaz", () => {
+  it("kısmi 00:17 tur en hızlı sayılmaz; gerçek turlar tikli kalır", () => {
+    // gerçek bug senaryosu: 2:21 turlar + yarım kalmış 17 sn'lik kısmi tur
+    const laps = [
+      { ms: 141100, use: true },
+      { ms: 141900, use: true },
+      { ms: 142500, use: true },
+      { ms: 17000, use: true, partial: true },
+    ];
+    const out = apply105Rule(laps);
+    expect(out[0].use).toBe(true);   // 2:21.1 (en hızlı) kalır
+    expect(out[1].use).toBe(true);   // %105 içinde
+    expect(out[2].use).toBe(true);
+    // kısmi tur "en iyi" olmadığı için gerçek turlar elenmedi
+  });
+  it("freak-kısa (medyanın <%50) non-partial tur da en-iyi olamaz", () => {
+    const laps = [
+      { ms: 141000, use: true },
+      { ms: 142000, use: true },
+      { ms: 143000, use: true },
+      { ms: 30000, use: true },   // glitch: medyanın <%50, kısmi değil
+    ];
+    const out = apply105Rule(laps);
+    expect(out[0].use).toBe(true);
+    expect(out[1].use).toBe(true);
+    expect(out[2].use).toBe(true);
+  });
+  it("gerçek yavaş tur (trafik) %105'i aşınca elenir", () => {
+    const laps = [
+      { ms: 120000, use: true },
+      { ms: 121000, use: true },
+      { ms: 140000, use: true },   // en iyinin %105'i (126000) üstünde
+    ];
+    const out = apply105Rule(laps);
+    expect(out[0].use).toBe(true);
+    expect(out[1].use).toBe(true);
+    expect(out[2].use).toBe(false);
+  });
+  it("2'den az aday → değişmez; CSV turları (partial yok) eski davranış", () => {
+    expect(apply105Rule([{ ms: 120000, use: true }])).toEqual([{ ms: 120000, use: true }]);
+    const csv = [{ ms: 120000, use: true }, { ms: 200000, use: true }];
+    expect(apply105Rule(csv)[1].use).toBe(false);   // partial alanı yok → normal eleme
+  });
+});
+
+describe("computeSlotStats — bestMs kısmi turu yok sayar", () => {
+  it("kısmi tur elle tiklenmiş olsa da en iyi/lim105 gerçek turdan hesaplanır", () => {
+    const st = base({ telemetry: { A: { laps: [
+      { ms: 141100, use: true, w: [1, 1, 1, 1] },
+      { ms: 142000, use: true, w: [1, 1, 1, 1] },
+      { ms: 17000, use: true, partial: true, w: [1, 1, 1, 1] },   // elle açık kısmi
+    ] }, B: null, C: null, D: null } });
+    const s = computeSlotStats(st).A;
+    expect(s.bestMs).toBe(141100);          // 17000 (kısmi) değil
+    expect(s.lim105).toBeCloseTo(141100 * 1.05, 3);
   });
 });
 

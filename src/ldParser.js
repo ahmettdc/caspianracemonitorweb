@@ -5,49 +5,71 @@
    Çıktı, parsers.js'teki `parseMotecLog` ile BİREBİR aynı şekli döndürür
    → useTelemetry.saveMotec + TeleTab `parsed.motec` dalı sıfır değişiklikle işler.
 
+   SEÇİCİ OKUMA (v1.4.103): dosyanın TAMAMI belleğe alınmaz. Önce başlık + kanal
+   meta listesi (birkaç yüz KB) okunur; sonra YALNIZ gereken ~11 kanalın bayt bloğu
+   `File.slice(...).arrayBuffer()` ile diskten çekilir. Bellek dosya boyutundan
+   BAĞIMSIZ → 100MB+ endurance log'ları donmadan/şişmeden açılır. Örnekler talep
+   üzerine okunur (dev Float64Array yok).
+
    Format (gerçek dosyada doğrulandı):
    - Başlık: meta_ptr @0x08, data_ptr @0x0C (uint32 LE).
    - Kanal meta bloğu 84 bayt, bağlı-liste (next @off+4): data_addr@8, n_data@12,
      dtype@20, freq@22, shift/mul/scale/dec (4×int16 @24), name@32(32s), unit@72(12s).
    - dtype 4=int32, 2=int16, 1=int8 (FLOAT DEĞİL); fiziksel = ham/scale·10^(−dec)·mul+shift.
-   - Örnekler kanal başına ayrı blokta (data_addr); her kanal kendi freq'iyle zamanlanır.
-   Yalnız gereken ~10 kanal decode edilir (245'in tamamı değil) → hızlı/hafif.
    ============================================================ */
 
 const OFF = { DATE: 0x5e, TIME: 0x7e, DRIVER: 0x9e, VENUE: 0x15e, VEHICLE: 0x1f94 };
+const MAX_HEAD = 8 * 1024 * 1024;   // başlık+meta için üst sınır (asla tüm dosya değil)
 
-/* Bir kanalın ham örneklerini fiziksel Float64Array'e çevir (dtype + ölçek). */
-function decodeChannel(dv, c) {
-  if (!c) return null;
-  const { dptr, ndata, dtype } = c;
-  const sc = c.scale || 1;
-  const mul = c.mul || 1;
-  const p = 10 ** (-c.dec);
-  const sh = c.shift;
-  const out = new Float64Array(ndata);
-  let o = dptr;
-  if (dtype === 4) {
-    if (o + ndata * 4 > dv.byteLength) return null;
-    for (let i = 0; i < ndata; i++) { out[i] = (dv.getInt32(o, true) / sc) * p * mul + sh; o += 4; }
-  } else if (dtype === 2) {
-    if (o + ndata * 2 > dv.byteLength) return null;
-    for (let i = 0; i < ndata; i++) { out[i] = (dv.getInt16(o, true) / sc) * p * mul + sh; o += 2; }
-  } else if (dtype === 1) {
-    if (o + ndata > dv.byteLength) return null;
-    for (let i = 0; i < ndata; i++) { out[i] = (dv.getInt8(o) / sc) * p * mul + sh; o += 1; }
-  } else {
-    return null;   // beklenmedik tip (ör. float variantı) — CSV yoluyla doğrulanınca eklenir
-  }
-  return out;
+const bytesOf = (dtype) => (dtype === 4 ? 4 : dtype === 2 ? 2 : dtype === 1 ? 1 : 0);
+
+/* Blob/File'dan [start, start+len) dilimini ArrayBuffer olarak oku (FileReader'sız). */
+async function readSlice(file, start, len) {
+  const end = Math.min(file.size, start + Math.max(0, len));
+  if (start < 0 || start >= file.size || end <= start) return null;
+  return file.slice(start, end).arrayBuffer();
 }
 
-/* ArrayBuffer → { motec:true, laps, meta } (parseMotecLog ile aynı) ya da { error }. */
-export function parseLd(buffer) {
-  let dv;
-  try { dv = new DataView(buffer); } catch { return { error: "Dosya okunamadı" }; }
-  if (dv.byteLength < 64) return { error: "MoTeC .ld tanınmadı — dosya çok küçük" };
+/* Bir kanalın ham bayt bloğunu diskten çek → hafif okuyucu {dv,c,bytes,ndata}.
+   Float64Array MATERIALIZE ETMEZ; sampleAt/aralık döngüleri buradan talep üzerine okur. */
+async function readChannel(file, c) {
+  if (!c) return null;
+  const bytes = bytesOf(c.dtype);
+  if (!bytes) return null;                       // beklenmedik tip (ör. float) → atla
+  const len = c.ndata * bytes;
+  const buf = await readSlice(file, c.dptr, len);
+  if (!buf || buf.byteLength < len) return null;
+  return { dv: new DataView(buf), c, bytes, ndata: c.ndata };
+}
 
-  const u8 = new Uint8Array(buffer);
+/* Okuyucudan i. örneğin fiziksel değeri (dtype + ölçek). Sınır-korumalı. */
+function sampleAt(r, i) {
+  if (!r) return null;
+  if (i < 0) i = 0;
+  if (i >= r.ndata) i = r.ndata - 1;
+  const o = i * r.bytes;
+  const dt = r.c.dtype;
+  const raw = dt === 4 ? r.dv.getInt32(o, true)
+    : dt === 2 ? r.dv.getInt16(o, true) : r.dv.getInt8(o);
+  return (raw / (r.c.scale || 1)) * 10 ** (-r.c.dec) * (r.c.mul || 1) + r.c.shift;
+}
+
+/* ArrayBuffer/Blob/File → { motec:true, laps, meta } ya da { error }. ASYNC. */
+export async function parseLd(input) {
+  const file = input instanceof ArrayBuffer ? new Blob([input]) : input;
+  if (!file || typeof file.slice !== "function" || !file.size || file.size < 64) {
+    return { error: "MoTeC .ld tanınmadı — dosya çok küçük" };
+  }
+
+  /* Başlık: önce 16 baytla data_ptr'yi öğren, sonra yalnız başlık+meta bölgesini oku. */
+  const hb = await readSlice(file, 0, 16);
+  if (!hb) return { error: "Dosya okunamadı" };
+  const dataPtr = new DataView(hb).getUint32(12, true);
+  const headLen = Math.min(file.size, MAX_HEAD, Math.max(dataPtr || 0, 0x2000));
+  const headBuf = await readSlice(file, 0, headLen);
+  if (!headBuf) return { error: "Dosya okunamadı" };
+  const dv = new DataView(headBuf);
+  const u8 = new Uint8Array(headBuf);
   const str = (off, len) => {
     if (off < 0 || off + len > u8.length) return "";
     let s = "";
@@ -56,9 +78,7 @@ export function parseLd(buffer) {
   };
 
   const metaPtr = dv.getUint32(8, true);
-  if (!metaPtr || metaPtr + 84 > dv.byteLength) {
-    return { error: "MoTeC .ld tanınmadı ya da bozuk" };
-  }
+  if (!metaPtr || metaPtr + 84 > dv.byteLength) return { error: "MoTeC .ld tanınmadı ya da bozuk" };
 
   /* Kanal meta bağlı-listesini gez (isim → kanal). */
   const chans = {};
@@ -66,7 +86,7 @@ export function parseLd(buffer) {
   let off = metaPtr;
   const seen = new Set();
   let guard = 0;
-  while (off && off + 84 <= dv.byteLength && !seen.has(off) && guard++ < 4000) {
+  while (off && off + 84 <= dv.byteLength && !seen.has(off) && guard++ < 5000) {
     seen.add(off);
     const next = dv.getUint32(off + 4, true);
     const c = {
@@ -105,49 +125,44 @@ export function parseLd(buffer) {
   const cWear = ["fl", "fr", "rl", "rr"].map((x) =>
     find(new RegExp(`^tyre wear ${x}$`, "i"), new RegExp(`wear\\s*${x}$`, "i")));
 
-  const lap = decodeChannel(dv, cLap);
-  const elt = decodeChannel(dv, cElt);
-  if (!lap || !elt || !lap.length) return { error: "MoTeC .ld: veri çözümlenemedi" };
-  const fuel = decodeChannel(dv, cFuel);
-  const spd = decodeChannel(dv, cSpd);
-  const pit = decodeChannel(dv, cPit);
-  const trk = decodeChannel(dv, cTrk);
-  const amb = decodeChannel(dv, cAmb);
-  const last = decodeChannel(dv, cLast);
-  const wear = cWear.map((c) => decodeChannel(dv, c));
+  /* YALNIZ gereken kanalların bayt bloklarını diskten çek (tam dosya değil). */
+  const rLap = await readChannel(file, cLap);
+  if (!rLap || !rLap.ndata) return { error: "MoTeC .ld: veri çözümlenemedi" };
+  const rFuel = await readChannel(file, cFuel);
+  const rSpd = await readChannel(file, cSpd);
+  const rPit = await readChannel(file, cPit);
+  const rTrk = await readChannel(file, cTrk);
+  const rAmb = await readChannel(file, cAmb);
+  const rLast = await readChannel(file, cLast);
+  const rWear = [];
+  for (const c of cWear) rWear.push(await readChannel(file, c));   // sıralı (bellek dostu)
 
-  /* Bir kanalı seansa-göreli zamanda (saniye) örnekle — kanalın KENDİ freq'iyle. */
-  const at = (arr, c, tSec) => {
-    if (!arr || !c) return null;
-    let i = Math.round(tSec * c.freq);
-    if (i < 0) i = 0;
-    if (i >= arr.length) i = arr.length - 1;
-    return arr[i];
-  };
+  /* Bir okuyucuyu seansa-göreli zamanda (saniye) örnekle — kanalın KENDİ freq'iyle. */
+  const atT = (r, tSec) => (r ? sampleAt(r, Math.round(tSec * r.c.freq)) : null);
   /* Bir zaman aralığındaki hız örnekleri → {avg, max}. `excl` ise üst sınırdaki örnek
      (= sonraki turun ilk örneği) dahil edilmez → tur değeri komşu tura sızmaz. */
   const spdRange = (t0, t1, excl) => {
-    if (!spd || !cSpd) return { avg: null, max: null };
-    const a = Math.max(0, Math.round(t0 * cSpd.freq));
-    const b = Math.min(spd.length - 1, Math.round(t1 * cSpd.freq) - (excl ? 1 : 0));
+    if (!rSpd) return { avg: null, max: null };
+    const a = Math.max(0, Math.round(t0 * rSpd.c.freq));
+    const b = Math.min(rSpd.ndata - 1, Math.round(t1 * rSpd.c.freq) - (excl ? 1 : 0));
     let sum = 0, mx = -Infinity, n = 0;
-    for (let i = a; i <= b; i++) { const v = spd[i]; if (Number.isFinite(v)) { sum += v; if (v > mx) mx = v; n++; } }
+    for (let i = a; i <= b; i++) { const v = sampleAt(rSpd, i); if (Number.isFinite(v)) { sum += v; if (v > mx) mx = v; n++; } }
     return n ? { avg: sum / n, max: mx } : { avg: null, max: null };
   };
   const pitInRange = (t0, t1, excl) => {
-    if (!pit || !cPit) return false;
-    const a = Math.max(0, Math.round(t0 * cPit.freq));
-    const b = Math.min(pit.length - 1, Math.round(t1 * cPit.freq) - (excl ? 1 : 0));
-    for (let i = a; i <= b; i++) if ((pit[i] || 0) > 0) return true;
+    if (!rPit) return false;
+    const a = Math.max(0, Math.round(t0 * rPit.c.freq));
+    const b = Math.min(rPit.ndata - 1, Math.round(t1 * rPit.c.freq) - (excl ? 1 : 0));
+    for (let i = a; i <= b; i++) if ((sampleAt(rPit, i) || 0) > 0) return true;
     return false;
   };
 
-  /* Turları Lap Number kanalıyla ZAMAN aralıklarına böl (kendi freq'i = kanıtlanan yöntem). */
+  /* Turları Lap Number kanalıyla ZAMAN aralıklarına böl (kendi freq'i; slice'ı akıtarak). */
   const segs = [];
   let cur = null;
-  for (let i = 0; i < lap.length; i++) {
-    const ln = Math.round(lap[i]);
-    const tSec = i / cLap.freq;
+  for (let i = 0; i < rLap.ndata; i++) {
+    const ln = Math.round(sampleAt(rLap, i));
+    const tSec = i / rLap.c.freq;
     if (!cur || cur.ln !== ln) { cur = { ln, t0: tSec, t1: tSec, n: 0 }; segs.push(cur); }
     cur.t1 = tSec;
     cur.n++;
@@ -159,21 +174,21 @@ export function parseLd(buffer) {
     const span = tEnd - s.t0;
     /* resmi süre: sonraki turun başındaki "Last Laptime" kanalı (parseMotecLog deseni) */
     let official = null;
-    if (nx && cLast && last) {
-      const v = at(last, cLast, nx.t0 + Math.min(0.2, (nx.t1 - nx.t0) / 2));
+    if (nx && rLast) {
+      const v = atT(rLast, nx.t0 + Math.min(0.2, (nx.t1 - nx.t0) / 2));
       if (v && v > 20 && v < 1200) official = v;
     }
-    const f0 = at(fuel, cFuel, s.t0);
-    const f1 = at(fuel, cFuel, tEnd);
+    const f0 = atT(rFuel, s.t0);
+    const f1 = atT(rFuel, tEnd);
     const { avg, max } = spdRange(s.t0, tEnd, !!nx);
     return {
       lap: s.ln, n: s.n,
       sec: official != null ? official : span, official, span,
       fuelL: f0 != null && f1 != null && f0 > f1 ? f0 - f1 : null,
-      w: wear.map((arr, wi) => {
-        const c = cWear[wi];
-        if (!arr || !c) return null;
-        const x = at(arr, c, s.t0), y = at(arr, c, tEnd);
+      w: rWear.map((r, wi) => {
+        if (!r) return null;
+        void wi;
+        const x = atT(r, s.t0), y = atT(r, tEnd);
         return x != null && y != null ? Math.abs(y - x) : null;
       }),
       pit: pitInRange(s.t0, tEnd, !!nx),
@@ -185,7 +200,7 @@ export function parseLd(buffer) {
 
   if (!laps.length) return { error: "MoTeC .ld: geçerli tur bulunamadı" };
 
-  const totalT = elt.length / cElt.freq;
+  const totalT = cElt.ndata / cElt.freq;
   return {
     motec: true, laps,
     meta: {
@@ -193,8 +208,8 @@ export function parseLd(buffer) {
       vehicle: str(OFF.VEHICLE, 64),
       driver: str(OFF.DRIVER, 64),
       date: str(OFF.DATE, 16),
-      trk: at(trk, cTrk, totalT / 2),
-      amb: at(amb, cAmb, totalT / 2),
+      trk: atT(rTrk, totalT / 2),
+      amb: atT(rAmb, totalT / 2),
     },
   };
 }
