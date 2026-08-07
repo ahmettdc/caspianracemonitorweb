@@ -5,6 +5,20 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.108",
+    date: "2026-08-07",
+    tr: [
+      "🎮 Oyun donması: Masaüstü uygulaması artık GPU'yu KULLANMIYOR (arayüz yazılımla çizilir). Teşhis sonuçları REST'i ve arayüz çizimini eledi (tepsiye gizliyken ve REST kapalıyken de donuyordu); geriye kalan tek sebep WebView2'nin GPU'yu oyunla paylaşmasıydı. Artık GPU tamamen oyuna kalır → sürüş sırasındaki mikro-donmanın bitmesi/belirgin azalması beklenir.",
+      "Sürücü ekranında canlı timing görünmediği (yalnız mühendisler başka PC'den izlediği) için bu değişikliğin sürüş deneyimine maliyeti yok. Mühendis PC'lerinde arayüz yine akıcı çalışır.",
+      "Masaüstü güncellemesi gerekir: sürüş PC'sinde yeni sürümü kurun. Web/tarayıcı kullanıcıları etkilenmez.",
+    ],
+    en: [
+      "🎮 Game stutter: the Desktop app no longer uses the GPU (the UI renders in software). Diagnostics ruled out REST and UI rendering (it froze even minimized to the tray and with REST off); the only remaining cause was WebView2 sharing the GPU with the game. The GPU is now left entirely to the game → in-race micro-stutter should stop or drop significantly.",
+      "Since the driver doesn't watch live timing on their own screen (only engineers watch from other PCs), this has no cost to the driving experience. On engineer PCs the UI stays smooth.",
+      "Requires a desktop update: install the new version on the driving PC. Web/browser users are unaffected.",
+    ],
+  },
+  {
     v: "v1.4.107",
     date: "2026-08-07",
     tr: [
