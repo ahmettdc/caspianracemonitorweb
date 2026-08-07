@@ -577,7 +577,7 @@ function WxCalib({ t, s }) {
 }
 
 export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelObs, tid, rid,
-  tourDemo, onGuide, bridgeNoRest = false, onToggleNoRest }) {
+  tourDemo, onGuide, bridgeNoRest = false, onToggleNoRest, isAdmin = false }) {
   const [myClassOnly, setMyClassOnly] = useState(false);
   const [big, setBig] = useState(false);
   const [lapsFor, setLapsFor] = useState(null);   // "+" ile açılan tur listesi satırı
@@ -598,13 +598,15 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
     return () => clearInterval(id);
   }, [demoOn]);
   const live = demoOn ? demoData : liveProp;
-  const demoBtn = (
+  /* 🎬 Demo düğmesi yalnız adminlerde: normal kullanıcılar için gizlenir (rehber turu
+     tourDemo ile herkes için çalışmaya devam eder — o ayrı bir yol). */
+  const demoBtn = isAdmin ? (
     <button className={`act${demo ? " on" : ""}`} data-tour="livedemo"
       onClick={() => setDemo((v) => !v)}
       style={{ fontSize: 11, padding: "3px 10px",
         ...(demo && { borderColor: "var(--yellow)", color: "var(--yellow)" }) }}>
       🎬 {demo ? t("Demo kapat") : t("Demo")}</button>
-  );
+  ) : null;
   /* yalnız Canlı bölümünü anlatan kısa rehber (9 adım) — App setTour("live") yapar */
   const guideBtn = onGuide && (
     <button className="act" style={{ fontSize: 11, padding: "3px 10px" }}

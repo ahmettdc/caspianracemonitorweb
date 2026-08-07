@@ -108,6 +108,17 @@ describe("pit lastik bayrağı — tablodan türetme (v1.4.59/60)", () => {
     expect(pitTyreFlag(s, 1, 0, "2")).toBe(4);    // başka köşenin Qual'ı = eski
     expect(pitTyreFlag(s, 1, 0, "9")).toBe(1);    // hiç görülmemiş = yeni
   });
+  it("pitTyreFlag: önceki köşe wet iken tekrar wet = 3 (sınırsız, regresyon)", () => {
+    const ts = Array.from({ length: 14 }, () => ["", "", "", ""]);
+    ts[0] = ["W", "W", "W", "W"];  // önceki stint pit'i wet takmış
+    const s = base({ tyreStints: ts });
+    // Eskiden k === prevRaw ("W"==="W") önce çalışıp 0 (taşı) dönüyordu → wet seçilemiyordu
+    expect(pitTyreFlag(s, 1, 0, "W")).toBe(3);    // wet HER ZAMAN gerçek işlem
+    // Kuru davranış korunur: aynı kuru numara hâlâ taşı
+    ts[1] = ["5", "5", "5", "5"];
+    const s2 = base({ tyreStints: ts });
+    expect(pitTyreFlag(s2, 2, 0, "5")).toBe(0);   // aynı kuru numara = taşı
+  });
 });
 
 describe("applyQuickTyre", () => {

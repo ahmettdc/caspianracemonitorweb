@@ -5,6 +5,20 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.107",
+    date: "2026-08-07",
+    tr: [
+      "🛞 Wet (ıslak) hamur düzeltmesi: bir stintte wet takıldıktan sonra bir sonraki pitte köşe döngüsüyle wet TEKRAR seçilemiyordu. Artık wet sınırsız hakkımıza uygun şekilde ard arda pitlerde de seçilebilir; pit lastik değişimi doğru sayılır.",
+      "🎬 Canlı Timing 'Demo' düğmesi artık yalnız adminlere görünür (normal kullanıcılardan kaldırıldı).",
+      "Web-only: sayfa yenilemesi yeterli, masaüstü güncellemesi gerekmez.",
+    ],
+    en: [
+      "🛞 Wet tyre fix: after fitting wet in one stint, the corner-cycle would not let you select wet AGAIN at the next pit. Wet (which is unlimited) can now be selected across consecutive pits; the pit tyre change is counted correctly.",
+      "🎬 Live Timing 'Demo' button is now visible to admins only (removed for regular users).",
+      "Web-only: a page refresh is enough, no desktop update needed.",
+    ],
+  },
+  {
     v: "v1.4.106",
     date: "2026-08-07",
     tr: [

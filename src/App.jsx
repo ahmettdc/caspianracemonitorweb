@@ -2319,7 +2319,7 @@ ${bottomBar}
 
           {tab === "live" && <LiveTab t={t} live={live} liveFuelObs={liveFuelObs}
             bridge={bridge} canEdit={canEditTeam} tid={curTeam} rid={curRace}
-            tourDemo={tourDemo} onGuide={() => setTour("live")}
+            tourDemo={tourDemo} onGuide={() => setTour("live")} isAdmin={isAdmin}
             bridgeNoRest={bridgeNoRest} onToggleNoRest={toggleBridgeNoRest} />}
 
           {tab === "tyre" && (
