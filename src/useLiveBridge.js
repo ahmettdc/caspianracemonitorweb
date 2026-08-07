@@ -14,7 +14,7 @@ import { useState, useEffect } from "react";
 import { isTauri } from "./tauriEnv";
 import { startBridge, stopBridge, bridgeRunning } from "./liveBridge";
 
-export function useLiveBridge({ canEditTeam, curTeam, curRace, user }) {
+export function useLiveBridge({ canEditTeam, curTeam, curRace, user, noRest = false }) {
   const [bridge, setBridge] = useState({ supported: isTauri, running: false, phase: "idle", msg: "" });
   useEffect(() => {
     if (!isTauri) return undefined;
@@ -23,11 +23,13 @@ export function useLiveBridge({ canEditTeam, curTeam, curRace, user }) {
     const by = user?.email || "masaüstü";
     const tick = () => {
       if (stopped) return;
-      if (!bridgeRunning()) startBridge({ tid: curTeam, rid: curRace, hz: 2, by, uid: user.uid }, setBridge);
+      // noRest değişince deps yeniden çalışır → cleanup stopBridge, burada yeni bayrakla
+      // yeniden başlar (yarış değişimindeki restart deseninin aynısı → güvenli).
+      if (!bridgeRunning()) startBridge({ tid: curTeam, rid: curRace, hz: 2, by, uid: user.uid, noRest }, setBridge);
       timer = setTimeout(tick, 4000);
     };
     tick();
     return () => { stopped = true; if (timer) clearTimeout(timer); stopBridge(setBridge); };
-  }, [canEditTeam, curTeam, curRace, user]);
+  }, [canEditTeam, curTeam, curRace, user, noRest]);
   return bridge;
 }

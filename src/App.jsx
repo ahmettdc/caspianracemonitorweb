@@ -715,9 +715,21 @@ ${bottomBar}
   /* rozet/rol yönetimi: takım sahibi veya site admini */
   const canManageTeam = myRole === "owner" || isAdmin;
 
+  /* Köprü REST teşhis anahtarı (cihaz tercihi): açıkken sidecar --no-rest ile başlar →
+     oyunun localhost sunucusuna hiç istek atmaz. Sürüş PC'sinde takılma REST'ten mi diye
+     A/B testi için. Değişince useLiveBridge köprüyü yeni bayrakla yeniden başlatır. */
+  const [bridgeNoRest, setBridgeNoRest] = useState(() => {
+    try { return localStorage.getItem("rm_bridge_norest") === "1"; } catch { return false; }
+  });
+  const toggleBridgeNoRest = () => setBridgeNoRest((v) => {
+    const nv = !v;
+    try { localStorage.setItem("rm_bridge_norest", nv ? "1" : "0"); } catch { /* yoksay */ }
+    return nv;
+  });
+
   /* Canlı köprü (masaüstü) OTOMATİK yaşam döngüsü → useLiveBridge hook'una çıkarıldı
      (App.jsx Tanrı-bileşen borcunu azaltan ilk güvenli dilim). Davranış birebir aynı. */
-  const bridge = useLiveBridge({ canEditTeam, curTeam, curRace, user });
+  const bridge = useLiveBridge({ canEditTeam, curTeam, curRace, user, noRest: bridgeNoRest });
   /* Sürüş Modu: köprü şu an CANLI oyun verisi yazıyor mu (bu PC sürüş PC'si, yarışta).
      phase==="running" yalnız field dolu (araç var) iken olur → gerçek canlı yazım. */
   const bridgeLive = bridge?.phase === "running" && bridge?.writerBy === user?.email;
@@ -2301,7 +2313,8 @@ ${bottomBar}
 
           {tab === "live" && <LiveTab t={t} live={live} liveFuelObs={liveFuelObs}
             bridge={bridge} canEdit={canEditTeam} tid={curTeam} rid={curRace}
-            tourDemo={tourDemo} onGuide={() => setTour("live")} />}
+            tourDemo={tourDemo} onGuide={() => setTour("live")}
+            bridgeNoRest={bridgeNoRest} onToggleNoRest={toggleBridgeNoRest} />}
 
           {tab === "tyre" && (
             <TyreTab t={t} st={st} up={up} tyreInfo={tyreInfo} racePlan={racePlan}
