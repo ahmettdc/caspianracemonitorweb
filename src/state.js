@@ -212,9 +212,9 @@ export function carriedTyre(st, rowIndex, col) {
 export function pitTyreFlag(st, row, col, val) {
   const k = String(val ?? "").trim();
   if (!k) return 0;                                   // boş = taşı
+  if (k === "W") return 3;          // WET: sınırsız + pitte taze set = HER ZAMAN gerçek işlem
   const prevRaw = String(((st.tyreStints[row - 1] || []))[col] ?? "").trim();
-  if (k === prevRaw) return 0;      // önceki hücreyle aynı açık değer = işlem yok
-  if (k === "W") return 3;
+  if (k === prevRaw) return 0;      // aynı KURU numara = değişim yok (taşı)
   if (k === String((st.tyreQual || [])[col] || "").trim()) return 2;
   if ((st.tyreQual || []).some((x) => String(x).trim() === k)) return 4;
   for (let j = 0; j < row; j++)
