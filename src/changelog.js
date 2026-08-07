@@ -5,6 +5,20 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.104",
+    date: "2026-08-07",
+    tr: [
+      "🐞 %105 KURALI DÜZELTİLDİ: Telemetri yüklerken yarım kalmış bir tur (ör. 00:17 — seansın son kesik turu) yanlışlıkla \"en hızlı tur\" sayılıp %105 kuralı tüm gerçek turların tikini kaldırıyordu. Artık kısmi turlar varsayılan olarak tiksiz gelir ve hiçbir yerde \"en hızlı\" tur olarak seçilmez; %105 gerçek en hızlı tura göre uygulanır.",
+      "Ek güvenlik: anormal derecede kısa bir tur (medyanın yarısından kısa) da \"en iyi\" tur adayı sayılmaz. Kısmi turu istersen tur listesinden elle tikleyebilirsin (\"kısmi\" etiketiyle görünür).",
+      "Web-only: sayfa yenilemesi yeterli, masaüstü güncellemesi gerekmez.",
+    ],
+    en: [
+      "🐞 105% RULE FIX: When importing telemetry, a half-finished lap (e.g. 00:17 — the session's cut final lap) was wrongly treated as the \"fastest lap\", so the 105% rule unchecked every real lap. Partial laps now default to unchecked and are never picked as the \"fastest\" lap anywhere; the 105% cut is applied against the real fastest lap.",
+      "Extra safety: an abnormally short lap (under half the median) is also never chosen as the \"best\" lap. You can still tick a partial lap by hand from the lap list (it shows a \"partial\" tag).",
+      "Web-only: a page refresh is enough, no desktop update needed.",
+    ],
+  },
+  {
     v: "v1.4.103",
     date: "2026-08-07",
     tr: [

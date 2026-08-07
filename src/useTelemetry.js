@@ -14,7 +14,7 @@
 import { useState, useMemo } from "react";
 import { msFromCell, parseMotecLog, parseTelemetryText, guessMapping } from "./parsers";
 import { parseLd } from "./ldParser";
-import { computeSlotStats, computeChartData } from "./state";
+import { computeSlotStats, computeChartData, apply105Rule } from "./state";
 
 export function useTelemetry({ st, setSt }) {
   const [slot, setSlot] = useState("A");
@@ -50,20 +50,12 @@ export function useTelemetry({ st, setSt }) {
     rd.readAsText(f);
   };
 
-  /* %105 kuralı: dahil turlar içinde en iyisini bul, %105'ini aşanların tikini kaldır.
-     Trafik, sarı bayrak, hata yapılan turlar ortalamayı ve medyanı bozmasın diye. */
-  const P105 = 1.05;
-  const apply105 = (laps) => {
-    const cand = laps.filter((l) => l.use && l.ms > 0);
-    if (cand.length < 2) return laps;
-    const best = Math.min(...cand.map((l) => l.ms));
-    const lim = best * P105;
-    return laps.map((l) => (l.use && l.ms > lim ? { ...l, use: false } : l));
-  };
+  /* %105 kuralı saf `apply105Rule` (state.js) — kısmi/freak turları "en iyi" adayı
+     saymaz (yarım tur tüm gerçek turların tikini kaldırmasın). */
   const apply105Slot = (sl) => setSt((s) => {
     const t0 = s.telemetry[sl];
     if (!t0) return s;
-    return { ...s, telemetry: { ...s.telemetry, [sl]: { ...t0, laps: apply105(t0.laps) } } };
+    return { ...s, telemetry: { ...s.telemetry, [sl]: { ...t0, laps: apply105Rule(t0.laps) } } };
   });
 
   /* ham log → mevcut tur modeline çevir (yakıt litre → VE %) */
@@ -79,10 +71,10 @@ export function useTelemetry({ st, setSt }) {
       avgSpd: l.avgSpd != null ? Math.round(l.avgSpd) : null,
       maxSpd: l.maxSpd != null ? Math.round(l.maxSpd) : null,
       partial: !!l.partial, pit: !!l.pit,
-      use: !l.pit,
+      use: !l.pit && !l.partial,   // kısmi/pit turları varsayılan tiksiz (elle açılabilir)
     }));
     setSt((s) => ({ ...s, telemetry: { ...s.telemetry,
-      [slot]: { laps: apply105(laps), name: `Stint ${slot}`, src: parsed.meta } } }));
+      [slot]: { laps: apply105Rule(laps), name: `Stint ${slot}`, src: parsed.meta } } }));
     setRawTele(""); setParsed(null); setMapping(null);
   };
 
@@ -108,7 +100,7 @@ export function useTelemetry({ st, setSt }) {
     }).filter((l) => l.ms != null);
     if (!laps.length) return;
     setSt((s) => ({ ...s, telemetry: { ...s.telemetry,
-      [slot]: { laps: apply105(laps), name: `Stint ${slot}` } } }));
+      [slot]: { laps: apply105Rule(laps), name: `Stint ${slot}` } } }));
     setRawTele(""); setParsed(null); setMapping(null);
   };
 

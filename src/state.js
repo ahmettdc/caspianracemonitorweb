@@ -325,7 +325,10 @@ export function computeSlotStats(st) {
     const medMs = med(used.map((l) => l.ms));
     const medFuel = med(used.filter((l) => l.fuel != null).map((l) => l.fuel));
     const medW = [0, 1, 2, 3].map((c) => med(used.filter((l) => l.w[c] != null).map((l) => l.w[c])));
-    const bestMs = Math.min(...used.map((l) => l.ms));
+    /* "En iyi" turu kısmi turlar tanımlamamalı — yarım tur (00:17) en hızlı sayılıp
+       %105 eşiğini patlatmasın. Hepsi kısmiyse used'a düş (yine bir değer üret). */
+    const realUsed = used.filter((l) => !l.partial);
+    const bestMs = Math.min(...(realUsed.length ? realUsed : used).map((l) => l.ms));
     out[sl] = {
       laps: used.length, totalMs: used.reduce((a, l) => a + l.ms, 0),
       avgMs, avgFuel, avgW,
@@ -336,6 +339,25 @@ export function computeSlotStats(st) {
     };
   }
   return out;
+}
+
+/* %105 kuralı (saf): dahil turlar içinde en iyisini bul, %105'ini aşanların tikini
+   kaldır (trafik/sarı bayrak/hata turları ortalamayı ve medyanı bozmasın).
+   İki koruma:
+   - Kısmi turlar (partial) ASLA "en iyi" adayı olamaz — yarım tur (00:17) en hızlı
+     sayılıp tüm gerçek turların tikini kaldırmasın (bug).
+   - Freak-kısa turlar da (medyanın <%50'si) "en iyi" olamaz — aynı pistte gerçek en
+     hızlı tur medyanın yarısından kısa olamayacağından bu gerçek turu asla elemez,
+     yalnız kısmi/glitch turlarına karşı ek güvence. Kısmisiz CSV turları etkilenmez. */
+export function apply105Rule(laps, factor = 1.05) {
+  const cand = laps.filter((l) => l.use && l.ms > 0 && !l.partial);
+  if (cand.length < 2) return laps;
+  const sorted = cand.map((l) => l.ms).sort((a, b) => a - b);
+  const med = sorted[Math.floor(sorted.length / 2)];
+  const floor = cand.filter((l) => l.ms >= med * 0.5);
+  const best = Math.min(...(floor.length ? floor : cand).map((l) => l.ms));
+  const lim = best * factor;
+  return laps.map((l) => (l.use && l.ms > lim ? { ...l, use: false } : l));
 }
 
 export function computeChartData(st) {
