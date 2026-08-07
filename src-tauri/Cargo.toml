@@ -1,6 +1,6 @@
 [package]
 name = "caspian-race-monitor"
-version = "1.4.108"
+version = "1.4.109"
 description = "Caspian Race Monitor — LMU pit-wall stratejı arayüzü (masaüstü kabuğu)"
 authors = ["Caspian Motorsport"]
 license = ""
@@ -31,6 +31,12 @@ tauri-plugin-oauth = "2"
 tauri-plugin-shell = "2"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 
-# Yalnız Windows: uygulamayı BELOW_NORMAL önceliğe almak için SetPriorityClass (bkz. lib.rs).
+# Yalnız Windows: BELOW_NORMAL öncelik (SetPriorityClass) + CPU affinity Job Object'i
+# (CreateJobObject/SetInformationJobObject + GetSystemInfo) — bkz. lib.rs run().
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_System_Threading"] }
+windows-sys = { version = "0.59", features = [
+  "Win32_Foundation",
+  "Win32_System_Threading",
+  "Win32_System_JobObjects",
+  "Win32_System_SystemInformation",
+] }

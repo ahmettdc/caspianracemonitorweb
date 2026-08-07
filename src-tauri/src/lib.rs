@@ -91,6 +91,59 @@ pub fn run() {
     SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS);
   }
 
+  // CPU affinity (v1.4.109): uygulama süreç AĞACINI oyunun çekirdeklerinden ayır.
+  // Öncelik (yukarıda) çekişmede yol verir ama uygulama yine TÜM çekirdeklere yayılır;
+  // affinity ile bizi EN YÜKSEK numaralı birkaç çekirdeğe hapsedersek oyun alttaki
+  // çoğunluğu ÇEKİŞMESİZ kullanır. Affinity çocuklara OTOMATİK miras KALMAZ (öncelik
+  // kalır) → doğru araç Job Object + JOB_OBJECT_LIMIT_AFFINITY: job'a atanan sürecin
+  // çocukları (WebView2 render/utility + Command.sidecar köprü) job'a otomatik dahil
+  // olur ve limit onlara da uygulanır. Builder'dan ÖNCE → çocuklar henüz spawn olmadan.
+  // Dürüst kısıt: WebView2 çocukları job'dan breakaway yapabilir → o zaman yalnız ana
+  // süreç + sidecar ayrılır (GPU zaten kapalı v1.4.108 + çocuklar BELOW_NORMAL → yine
+  // yol verir). Yedek: job kurulamazsa en azından ana sürece SetProcessAffinityMask.
+  #[cfg(windows)]
+  unsafe {
+    use windows_sys::Win32::System::JobObjects::{
+      AssignProcessToJobObject, CreateJobObjectW, JobObjectBasicLimitInformation,
+      SetInformationJobObject, JOBOBJECT_BASIC_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_AFFINITY,
+    };
+    use windows_sys::Win32::System::SystemInformation::{GetSystemInfo, SYSTEM_INFO};
+    use windows_sys::Win32::System::Threading::{GetCurrentProcess, SetProcessAffinityMask};
+
+    let mut si: SYSTEM_INFO = std::mem::zeroed();
+    GetSystemInfo(&mut si);
+    let n = si.dwNumberOfProcessors as usize;
+    // Yalnız 4..=64 çekirdekte: azsa (≤2-3) ayırmak anlamsız; >64 işlemci grubu tek
+    // maskeye sığmaz → hiç dokunma (tüm çekirdekler açık kalır).
+    if (4..=64).contains(&n) {
+      // Uygulamaya EN YÜKSEK numaralı reserve çekirdek (n/4, en az 1); oyun altını alır.
+      let reserve = std::cmp::max(1, n / 4);
+      let mask: usize = ((((1u128 << reserve) - 1) << (n - reserve)) as u64) as usize;
+      let job = CreateJobObjectW(std::ptr::null(), std::ptr::null());
+      let mut assigned = false;
+      if !job.is_null() {
+        let mut info: JOBOBJECT_BASIC_LIMIT_INFORMATION = std::mem::zeroed();
+        info.LimitFlags = JOB_OBJECT_LIMIT_AFFINITY;
+        info.Affinity = mask;
+        let ok = SetInformationJobObject(
+          job,
+          JobObjectBasicLimitInformation,
+          &info as *const _ as *const core::ffi::c_void,
+          std::mem::size_of::<JOBOBJECT_BASIC_LIMIT_INFORMATION>() as u32,
+        );
+        if ok != 0 && AssignProcessToJobObject(job, GetCurrentProcess()) != 0 {
+          assigned = true;
+        }
+        // job handle bilerek kapatılmıyor → kısıt süreç ömrü boyunca kalsın
+        // (kill-on-close ayarlı DEĞİL → kapansa bile süreç ölmez).
+      }
+      // Yedek: job yolu başarısızsa en azından ANA süreci ayır.
+      if !assigned {
+        SetProcessAffinityMask(GetCurrentProcess(), mask);
+      }
+    }
+  }
+
   tauri::Builder::default()
     .plugin(tauri_plugin_opener::init())
     .plugin(tauri_plugin_shell::init())

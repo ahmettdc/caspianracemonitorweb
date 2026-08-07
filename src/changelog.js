@@ -5,6 +5,20 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.109",
+    date: "2026-08-07",
+    tr: [
+      "🎮 Oyun donması (CPU): Masaüstü uygulaması artık CPU çekirdeklerini oyunla PAYLAŞMIYOR — uygulama süreç ağacı (arayüz + köprü) en yüksek numaralı birkaç çekirdeğe hapsedilir (Windows Job Object affinity), böylece oyun alttaki çoğunluk çekirdeği çekişmesiz kullanır. v1.4.108'deki GPU-kapatma ile birlikte, sürüş sırasındaki takılmayı kökten hedefler.",
+      "Zaten düşük öncelikte çalışıyorduk (v1.4.98); bu ek olarak fiziksel çekirdek ayrımı getirir. İzleyici/mühendis PC'lerinde (oyun yok) hiçbir etkisi yoktur.",
+      "Masaüstü güncellemesi gerekir: sürüş PC'sinde en son sürümü kurun (GPU-kapatma da bu sürümde dahildir). Web/tarayıcı kullanıcıları etkilenmez.",
+    ],
+    en: [
+      "🎮 Game stutter (CPU): the Desktop app no longer SHARES CPU cores with the game — the app's process tree (UI + bridge) is pinned to the few highest-numbered cores (Windows Job Object affinity), so the game gets the bottom majority of cores uncontended. Together with the GPU-off change in v1.4.108, this directly targets in-race stutter.",
+      "We already ran at lower priority (v1.4.98); this adds physical core separation on top. No effect on viewer/engineer PCs (no game running).",
+      "Requires a desktop update: install the latest version on the driving PC (it also includes the GPU-off change). Web/browser users are unaffected.",
+    ],
+  },
+  {
     v: "v1.4.108",
     date: "2026-08-07",
     tr: [
