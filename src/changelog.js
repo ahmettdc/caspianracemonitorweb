@@ -5,6 +5,20 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.105",
+    date: "2026-08-07",
+    tr: [
+      "🌦 \"Efektif tur (şu an)\" DÜZELTİLDİ: Hava kartında seçili kademe (ör. Damp ×1.07) ile \"Efektif tur (şu an)\" satırının çarpanı bazen uyuşmuyordu — ileriye planlanmış bir ıslak geçiş (ör. Wet ×1.13) varken satır gelecekteki çarpanı gösteriyordu. Artık \"şu an\" satırı, vurgulu (seçili) hava kademesinin çarpanını kullanır; ikisi her zaman tutarlı.",
+      "Not: strateji planı ve son-stint yakıt hesabı zaten tur-tur gerçek/bitiş havasını kullanıyordu; onlar değişmedi — bu yalnızca gösterim düzeltmesi.",
+      "Web-only: sayfa yenilemesi yeterli, masaüstü güncellemesi gerekmez.",
+    ],
+    en: [
+      "🌦 \"Effective lap (now)\" FIX: On the weather card, the selected condition (e.g. Damp ×1.07) sometimes didn't match the multiplier in the \"Effective lap (now)\" line — when a wet transition was planned ahead (e.g. Wet ×1.13), the line showed the future multiplier. The \"now\" line now uses the highlighted (selected) weather's multiplier; the two are always consistent.",
+      "Note: the strategy plan and last-stint fuel calc already used the real/ending weather per lap; those are unchanged — this is a display-only fix.",
+      "Web-only: a page refresh is enough, no desktop update needed.",
+    ],
+  },
+  {
     v: "v1.4.104",
     date: "2026-08-07",
     tr: [

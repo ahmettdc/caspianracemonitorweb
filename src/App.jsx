@@ -21,9 +21,9 @@ import { firebaseReady,
   raceStateGet } from "./storage";
 import { signInGoogle, signOut, authReady } from "./auth";
 import {
-  parseHMS, fmtHMS, fmtLap, msToLocalInput,
+  parseHMS, fmtHMS, fmtLap, parseLap, msToLocalInput,
   DEFAULT_STATE, EMPTY_PIT, TYRE_2_SEC, TYRE_4_SEC,
-  WEATHER, wxLog, wxAtRel, WX, effLapSec, effCons, tyState,
+  WEATHER, wxLog, wxAtRel, WX, effCons, tyState,
   computePlan, migrate, lastStintFuel,
 } from "./engine";
 import { css } from "./styles";
@@ -118,7 +118,7 @@ const LiveTab = lazyRetry(() => import("./tabs/LiveTab"));
 /* Rozet listesi: sahiplik ve admin otomatik, diğerleri takım sahibince atanır.
    badges[uid] eski sürümde metin, yenisinde { driver:true, ... } olabilir. */
 
-/* Hava modeli (WEATHER, wxLog, wxAtRel, WX, effLapSec, effCons), tyState,
+/* Hava modeli (WEATHER, wxLog, wxAtRel, WX, effCons), tyState,
    MAX_STINTS ve strateji motoru (computePlan, migrate, lastStintFuel)
    → ./engine.js (yukarıda import edildi) — saf ve test edilebilir. */
 
@@ -1224,13 +1224,19 @@ ${bottomBar}
           </button>
         ))}
       </div>
-      {WX(st).lap > 1 && (
-        <div className="hint">
-          {t("Efektif tur")} ({t("şu an")}): <b className="mono">{st.avgLap}</b> ×{WX(st).lap.toFixed(2)} ={" "}
-          <b className="mono" style={{ color: WX(st).col }}>{fmtLap(effLapSec(st))}</b>
-          {WX(st).fuel < 1 && <> · ⚡ {t("yakıt")} −{((1 - WX(st).fuel) * 100).toFixed(0)}%</>}
-        </div>
-      )}
+      {(() => {
+        /* "Efektif tur (şu an)": vurgulu hava düğmesiyle AYNI kaynağı kullan (şimdiki
+           hava = st.weather). WX(st) log'un EN İLERİ kaydını verir → ileride planlı bir
+           ıslak geçiş varsa gelecekteki çarpanı gösterirdi (etiket "şu an" ile çelişir). */
+        const wxNow = WEATHER[st.weather] || WEATHER.dry;
+        return wxNow.lap > 1 && (
+          <div className="hint">
+            {t("Efektif tur")} ({t("şu an")}): <b className="mono">{st.avgLap}</b> ×{wxNow.lap.toFixed(2)} ={" "}
+            <b className="mono" style={{ color: wxNow.col }}>{fmtLap(parseLap(st.avgLap) * wxNow.lap)}</b>
+            {wxNow.fuel < 1 && <> · ⚡ {t("yakıt")} −{((1 - wxNow.fuel) * 100).toFixed(0)}%</>}
+          </div>
+        );
+      })()}
       <div className="hint" style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
         <button className="histbtn" onClick={() => setWxHist(true)}>
           🕒 {t("Geçmiş / Planlı geçişler")}
