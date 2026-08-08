@@ -46,8 +46,10 @@ class BridgeGUI:
         root.geometry("470x560")
         root.configure(bg=BG)
 
-        self.vars = {k: tk.StringVar() for k in ("email", "password", "team_id", "race_id", "hz")}
+        self.vars = {k: tk.StringVar() for k in
+                     ("email", "password", "team_id", "race_id", "hz", "rest_interval")}
         self.vars["hz"].set("2")
+        self.vars["rest_interval"].set("3")
         self.mock = tk.BooleanVar(value=False)
         # REST varsayılan KAPALI — oyun donmasının en güçlü şüphelisi (LMU localhost REST).
         # Açınca VE% + takım adı gelir ama oyun donabilir.
@@ -82,9 +84,18 @@ class BridgeGUI:
         self.race_menu = self._menu("Yarış", self.race_label, self.on_race_pick)
 
         self._field("Gönderim (Hz)", "hz")
-        tk.Checkbutton(root, text="⚡ REST aç — VE% + takım adı (oyun DONUYORSA kapalı bırak)",
+        tk.Checkbutton(root, text="⚡ REST aç — VE% + takım adı (arka planda; oyun DONMAZ)",
                        variable=self.rest_on, bg=BG, fg=WARN, selectcolor=BG2, activebackground=BG,
                        activeforeground=INK, font=("Segoe UI", 9)).pack(anchor="w", padx=12, pady=(6, 0))
+        rrow = tk.Frame(root, bg=BG)
+        rrow.pack(anchor="w", padx=26, pady=(0, 0))
+        tk.Label(rrow, text="REST yenileme (sn):", bg=BG, fg=DIM,
+                 font=("Segoe UI", 8)).pack(side="left")
+        tk.Entry(rrow, textvariable=self.vars["rest_interval"], width=4, bg=BG2, fg=INK,
+                 insertbackground=INK, relief="flat", font=("Segoe UI", 9)).pack(
+            side="left", padx=4, ipady=1)
+        tk.Label(rrow, text="(hâlâ takılırsa 5-10 yap)", bg=BG, fg=DIM,
+                 font=("Segoe UI", 8)).pack(side="left")
         tk.Checkbutton(root, text="Mock veri (oyunsuz test)", variable=self.mock,
                        bg=BG, fg=DIM, selectcolor=BG2, activebackground=BG,
                        activeforeground=INK, font=("Segoe UI", 9)).pack(anchor="w", padx=12, pady=(2, 2))
@@ -313,6 +324,7 @@ class BridgeGUI:
                 self.vars["hz"].set(cp["rate"].get("hz", "2"))
                 self.rest_on.set(cp["rate"].get("rest_on", "").strip().lower()
                                  in ("1", "true", "yes", "on"))
+                self.vars["rest_interval"].set(cp["rate"].get("rest_interval", "3"))
             self.log("Kayıtlı ayarlar yüklendi.")
             # Google oturumu kayıtlıysa: giriş göster + takım/yarış listelerini tazele
             if self.refresh_token:
@@ -331,7 +343,8 @@ class BridgeGUI:
         cp["race"] = {"team_id": self.vars["team_id"].get().strip(),
                       "race_id": self.vars["race_id"].get().strip()}
         cp["rate"] = {"hz": self.vars["hz"].get().strip() or "2",
-                      "rest_on": "true" if self.rest_on.get() else "false"}
+                      "rest_on": "true" if self.rest_on.get() else "false",
+                      "rest_interval": self.vars["rest_interval"].get().strip() or "3"}
         with open(self.cfg, "w", encoding="utf-8") as f:
             cp.write(f)
 
@@ -419,11 +432,15 @@ class BridgeGUI:
             hz = 2.0
         period = 1.0 / max(0.2, min(hz, 10))
         no_rest = not self.rest_on.get()
+        try:
+            rest_iv = max(0.5, min(float(self.vars["rest_interval"].get().strip() or "3"), 60.0))
+        except ValueError:
+            rest_iv = 3.0
         low = lower_priority()  # oyunla çekişmede oyun kazansın
-        self.lg.info("=== Köprü başladı === hedef teams/%s/live/%s · %g Hz · %s · REST:%s · öncelik:%s",
+        self.lg.info("=== Köprü başladı === hedef teams/%s/live/%s · %g Hz · %s · REST:%s (aralık %gs) · öncelik:%s",
                      tid, rid, hz, "MOCK" if self.mock.get() else "oyun",
-                     "kapalı" if no_rest else "AÇIK", "düşük" if low else "normal")
-        self.log(f"REST: {'kapalı (donma önlemi)' if no_rest else 'AÇIK — donma yaparsa kapat'}"
+                     "kapalı" if no_rest else "AÇIK", rest_iv, "düşük" if low else "normal")
+        self.log(f"REST: {'kapalı (donma önlemi)' if no_rest else f'AÇIK — arka plan {rest_iv:g}s'}"
                  f" · öncelik: {'düşük' if low else 'normal'}")
         try:
             fb = self._client()
@@ -431,7 +448,7 @@ class BridgeGUI:
             fb.sign_in()
             self.log(f"Giriş yapıldı — UID: {fb.uid}")
             self.lg.info("giriş OK — UID %s", fb.uid)
-            src = make_source(self.mock.get(), no_rest)
+            src = make_source(self.mock.get(), no_rest, rest_iv)
             self.log("Mock veri" if self.mock.get() else "Oyun (paylaşımlı bellek) okunuyor")
         except Exception as e:  # noqa: BLE001
             self.log(f"başlatılamadı: {e}")

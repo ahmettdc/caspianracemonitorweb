@@ -1,4 +1,4 @@
-"""LMU yerel REST API istemcisi — Virtual Energy (VE).
+"""LMU yerel REST API istemcisi — Virtual Energy (VE) + YETKİLİ bayrak.
 
 Le Mans Ultimate, paylaşımlı bellekte OLMAYAN virtual energy'yi kendi yerel HTTP
 API'sinde sunar: http://localhost:6397 (oyunda varsayılan açık). Bu modül, tüm
@@ -8,9 +8,19 @@ bir {sürücü→VE} haritası + kendi araç VE'si döndürür.
 
 Dayanıklı: REST kapalı / oyun yok / endpoint farklı → sessizce boş döner (çökme yok).
 İlk başarılı yoklamada bir teşhis satırı üretir (hangi endpoint, VE alanı bulundu mu).
+
+DONMA ÖNLEMİ (v1.4.131) — ARKA PLAN POLLER: tüm HTTP istekleri artık `RF2Source.read()`
+hot-path'inde DEĞİL, ayrı bir arka plan thread'inde (`start()`) yapılır. `_get`,
+oyunun kendi localhost REST sunucusuna (127.0.0.1:6397) bloklayan istek atıyor; bunu
+2 Hz okuma döngüsünün İÇİNDE yapmak oyunu dondurdu (kullanıcı doğruladı: REST açıkken
+donma). TinyPedal aynı REST'i okuyup donmuyor çünkü istekleri arka planda/seyrek yapıyor.
+Şimdi: poller `interval` sn'de bir (varsayılan 3) flags+standings çeker, katalog/sky
+~600 sn'de bir; public metodlar (`standings/session_flags/sky_labels/lookup`) YALNIZ
+önbelleği okur — asla HTTP yapmaz, asla bloklamaz. read() bu yüzden donmaz.
 """
 import json
 import re
+import threading
 import time
 import urllib.request
 
@@ -61,12 +71,20 @@ def _energy_of(car):
 
 
 class LmuApi:
-    """VE'yi ~1 sn'de bir çeker (localhost ucuz ama throttle güvenli). read()'te
-    RF2Source tarafından çağrılır; {sürücü_ad_küçük: ve} + own_ve döndürür."""
+    """LMU REST istemcisi — ARKA PLAN POLLER (v1.4.131).
 
-    def __init__(self):
+    HTTP artık `RF2Source.read()`'in İÇİNDE değil; `start()` ile açılan bir daemon
+    thread `interval` sn'de bir flags+standings, ~600 sn'de bir katalog+sky çeker ve
+    sonuçları önbelleğe (`cache`/`flags`/`catalog`/`sky`) yazar. Public metodlar
+    (`standings/session_flags/sky_labels/lookup`) YALNIZ önbelleği okur → asla bloklamaz
+    → oyun donmaz. `interval` büyütülerek (5-10 sn) istek yükü daha da azaltılabilir.
+    """
+
+    def __init__(self, interval=3.0):
+        self.interval = max(0.5, float(interval or 3.0))
+        self._stop = threading.Event()
+        self._thread = None
         self.path = None            # çalışan standings endpoint (bulununca sabitlenir)
-        self.last = 0.0
         self.cache = ({}, None)     # (by_driver, own_ve)
         self.diag_done = False
         self.catalog = None         # (by_key, by_driver) — statik araç kataloğu
@@ -75,14 +93,81 @@ class LmuApi:
         self.sky = None             # {indeks: oyunun gökyüzü metni} — hava sözlüğü
         self.sky_at = 0.0
         self.flags = None           # YETKİLİ bayrak {flag, yellowSectors} — REST'ten
-        self.flags_at = 0.0
+
+    # ---- arka plan poller -------------------------------------------------
+    def start(self):
+        """Poller thread'i başlat (bir kez). Zaten çalışıyorsa no-op."""
+        if self._thread is not None:
+            return
+        self._stop.clear()
+        self._thread = threading.Thread(target=self._poll_loop, name="lmu-poller",
+                                        daemon=True)
+        self._thread.start()
+
+    def close(self):
+        """Poller'ı durdur (event set → thread bir sonraki uyanışta çıkar)."""
+        self._stop.set()
+
+    stop = close
+
+    def _poll_loop(self):
+        while not self._stop.is_set():
+            try:
+                self._poll_once()
+            except Exception:
+                pass
+            self._stop.wait(self.interval)
+
+    def _poll_once(self):
+        """Bir tam istek turu — SIRALI + ARALIKLI (oyuna ani yük binmesin). Her istek
+        kendi try/except'iyle sessiz; biri düşse diğerleri sürer."""
+        # 1) bayrak (küçük yanıt, en canlı olması gereken)
+        try:
+            self.flags = self.parse_session_flags(
+                _get("/rest/watch/sessionInfo", timeout=0.5))
+        except Exception:
+            pass
+        time.sleep(0.05)                      # istekler arası küçük boşluk
+        # 2) standings (VE + takım + numara — tüm araçların JSON'u)
+        try:
+            self._poll_standings()
+        except Exception:
+            pass
+        # 3) katalog (dev JSON) — seansta ~bir kez (600 sn); nadir tek hitch
+        try:
+            self._load_catalog()
+        except Exception:
+            pass
+        # 4) sky (yağış sözlüğü) — statik; seansta ~bir kez (600 sn)
+        try:
+            self._load_sky()
+        except Exception:
+            pass
+
+    def _poll_standings(self):
+        """standings endpoint'ini çek + parse → self.cache. (Poller'dan çağrılır.)"""
+        data = None
+        if self.path:
+            data = _get(self.path)
+        if data is None:
+            for p in STANDINGS_PATHS:
+                data = _get(p)
+                if data is not None:
+                    self.path = p
+                    break
+        cars = self._pick_list(data)
+        self.cache = self.parse_standings(cars)
+        if not self.diag_done:
+            self.diag_done = True
+            self._diag(cars)
 
     def _load_catalog(self):
         """/rest/sessions/getAllVehicles = statik araç kataloğu (tüm liveryler): temiz
-        team + manufacturer + number. Bir kez çekip önbelleğe alır (~60 sn). Lookup
-        haritaları: normalize(desc/vehicle/id) ve her sürücü adı → {team,manufacturer,number}."""
+        team + manufacturer + number. Seansta ~bir kez çekilir (600 sn throttle) ve
+        önbelleğe alınır. Lookup haritaları: normalize(desc/vehicle/id) ve her sürücü
+        adı → {team,manufacturer,number}. (Poller'dan çağrılır; lookup() HTTP yapmaz.)"""
         now = time.time()
-        if self.catalog is not None and now - self.catalog_at < 60:
+        if self.catalog is not None and now - self.catalog_at < 600:
             return
         self.catalog_at = now
         data = _get("/rest/sessions/getAllVehicles", timeout=3.0)
@@ -115,11 +200,9 @@ class LmuApi:
                   f"sürücü={len(by_drv)}", file=sys.stderr)
 
     def lookup(self, vehicle_name, driver):
-        """Canlı aracı katalogla eşle → {team, manufacturer, number} (yoksa {})."""
-        try:
-            self._load_catalog()
-        except Exception:
-            return {}
+        """Canlı aracı katalogla eşle → {team, manufacturer, number} (yoksa {}). YALNIZ
+        önbelleği okur — HTTP YAPMAZ (katalogu poller yükler). Katalog henüz gelmediyse
+        {} döner (çökmez); read() bloklanmaz."""
         if not self.catalog:
             return {}
         by_key, by_drv = self.catalog
@@ -165,19 +248,21 @@ class LmuApi:
                     out[idx] = lbl
         return out
 
-    def sky_labels(self):
-        """Oyunun gökyüzü/yağış sözlüğü — {indeks: metin}. Bir kez çekilip önbelleğe
-        alınır (katalog deseni); REST kapalıysa boş döner. Yalnız teşhis/doğrulama
-        için — canlı akışa girmez."""
+    def _load_sky(self):
+        """Gökyüzü/yağış sözlüğünü seansta ~bir kez çek (600 sn) → self.sky. (Poller.)"""
         now = time.time()
-        if self.sky is not None and now - self.sky_at < 60:
-            return self.sky
+        if self.sky is not None and now - self.sky_at < 600:
+            return
         self.sky_at = now
         try:
             self.sky = self.parse_sky_labels(_get("/rest/sessions/weather", timeout=3.0))
         except Exception:
             self.sky = {}
-        return self.sky
+
+    def sky_labels(self):
+        """Oyunun gökyüzü/yağış sözlüğü — {indeks: metin}. YALNIZ önbelleği okur (HTTP
+        YOK; poller yükler). Henüz gelmediyse boş döner."""
+        return self.sky or {}
 
     def _pick_list(self, data):
         """Yanıttan araç listesini çıkar (doğrudan liste ya da içindeki bir liste alanı)."""
@@ -229,28 +314,9 @@ class LmuApi:
         return by_driver, own_ve
 
     def standings(self):
-        """/rest/watch/standings → canlı saha: her araç için virtual energy (veFraction),
-        gerçek takım adı (fullTeamName) ve numara (carNumber). Sürücü adıyla eşlenir.
-        Döner: ({sürücü_küçük: {ve, team, number}}, own_ve). veFraction 0..1 → %.
-        Kesin şekle göre parse; alan adı değişmişse toleranslı yedek (energy/name)."""
-        now = time.time()
-        if now - self.last < 1.0:
-            return self.cache
-        self.last = now
-        data = None
-        if self.path:
-            data = _get(self.path)
-        if data is None:
-            for p in STANDINGS_PATHS:
-                data = _get(p)
-                if data is not None:
-                    self.path = p
-                    break
-        cars = self._pick_list(data)
-        self.cache = self.parse_standings(cars)
-        if not self.diag_done:
-            self.diag_done = True
-            self._diag(cars)
+        """Canlı saha VE + takım + numara — YALNIZ önbelleği okur (HTTP YOK; poller
+        yükler). Döner: ({sürücü_küçük: {ve, team, number}}, own_ve). Poller henüz
+        veri getirmediyse başlangıç ({}, None) döner → read() bloklanmaz, çökmez."""
         return self.cache
 
     def _diag(self, cars):
@@ -308,16 +374,7 @@ class LmuApi:
         return {"flag": "Yellow" if ysec else "Green", "yellowSectors": ysec}
 
     def session_flags(self):
-        """YETKİLİ bayrak — /rest/watch/sessionInfo. Döner: {flag, yellowSectors} ya da
-        REST kapalı/parse edilemezse None (çağıran shmem yedeğine düşer). ~0.5 sn
-        throttle (bayrak canlı gelmeli ama her kareyi vurmaya gerek yok)."""
-        now = time.time()
-        if now - self.flags_at < 0.5:
-            return self.flags
-        self.flags_at = now
-        try:
-            self.flags = self.parse_session_flags(
-                _get("/rest/watch/sessionInfo", timeout=0.5))
-        except Exception:
-            self.flags = None
+        """YETKİLİ bayrak — YALNIZ önbelleği okur (HTTP YOK; poller yükler). Döner:
+        {flag, yellowSectors} ya da None (poller henüz getirmedi / REST kapalı /
+        parse edilemedi → çağıran shmem yedeğine düşer). read() bloklanmaz."""
         return self.flags

@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.131",
+    date: "2026-08-08",
+    tr: [
+      "🧊 Oyun donması — ASIL ÇÖZÜM. 'REST açınca donuyor, kapalıyken donmuyor' kesin bulgusuna göre, LMU REST istekleri artık oyunu okuma döngüsünün İÇİNDE değil, AYRI BİR ARKA PLAN İŞ PARÇACIĞINDA yapılıyor (TinyPedal gibi). Böylece VE% + gerçek takım adı/numara + yetkili bayrak DONMADAN geri geldi: okuma döngüsü yalnız önbelleği okur, hiç beklemez.",
+      "⚡ Köprüye 'REST yenileme (sn)' alanı eklendi (varsayılan 3). İstekler arka planda 3 sn'de bir yapıldığından oyuna binen yük çok azaldı. Çok nadir bir takılma kalırsa bu değeri 5-10 yapabilirsin (VE yavaş değişir, seyrek tazeleme yeter). REST'i 'aç' kutusuyla açıp VE/takım adını dondurmadan görebilirsin.",
+    ],
+    en: [
+      "🧊 Game stutter — THE REAL FIX. Per the definitive finding 'stutters when REST is on, not when off', LMU REST requests now run in a SEPARATE BACKGROUND THREAD instead of inside the game-reading loop (like TinyPedal). This brings back VE% + real team names/numbers + authoritative flags WITHOUT freezing: the read loop only reads a cache and never waits.",
+      "⚡ Added a 'REST refresh (s)' field to the bridge (default 3). Because requests now happen in the background every 3s, the load on the game dropped dramatically. If a very rare hitch remains, raise it to 5-10 (VE changes slowly, infrequent refresh is enough). Turn REST on with the checkbox to see VE/team names without freezing.",
+    ],
+  },
+  {
     v: "v1.4.130",
     date: "2026-08-08",
     tr: [
