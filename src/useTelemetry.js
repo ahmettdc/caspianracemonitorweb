@@ -31,6 +31,7 @@ export function useTelemetry({ st, setSt }) {
   /* cmpLaps = yüklü .ld'nin laps dizisi (t0/tEnd). parsed'tan AYRI tutulur → kaydedince
      parsed temizlenip içe-aktar özeti kapansa da karşılaştırma + harita yaşamaya devam eder. */
   const [cmpLaps, setCmpLaps] = useState(null);
+  const [cmpMeta, setCmpMeta] = useState(null);   // yüklü .ld meta (venue/vehicle/driver/trk/amb)
   const [cmpA, setCmpA] = useState(null);
   const [cmpB, setCmpB] = useState(null);
   const [cmpData, setCmpData] = useState(null);
@@ -57,7 +58,7 @@ export function useTelemetry({ st, setSt }) {
       setMapping(null);
       setParsed({ loading: true });
       readersRef.current = null;
-      setCmpData(null); setCmpLaps(null); setTeleFile(null); setTeleHeader(null);
+      setCmpData(null); setCmpLaps(null); setCmpMeta(null); setTeleFile(null); setTeleHeader(null);
       parseLd(f)
         .then((res) => {
           setParsed(res);
@@ -65,6 +66,7 @@ export function useTelemetry({ st, setSt }) {
             setTeleFile(f);
             setTeleHeader(res._header || null);
             setCmpLaps(res.laps);
+            setCmpMeta(res.meta || null);
             /* varsayılan: en hızlı iki TAM tur (kısmi hariç) */
             const idx = res.laps.map((_, i) => i).sort((i, j) => res.laps[i].sec - res.laps[j].sec);
             const fulls = idx.filter((i) => !res.laps[i].partial);
@@ -72,13 +74,13 @@ export function useTelemetry({ st, setSt }) {
             setCmpA(pick[0] ?? 0);
             setCmpB(pick[1] ?? pick[0] ?? 0);
           } else {
-            setTeleFile(null); setTeleHeader(null); setCmpLaps(null);
+            setTeleFile(null); setTeleHeader(null); setCmpLaps(null); setCmpMeta(null);
           }
         })
         .catch(() => setParsed({ error: "MoTeC .ld okunamadı" }));
       return;
     }
-    setTeleFile(null); setTeleHeader(null); setCmpData(null); setCmpLaps(null); readersRef.current = null;
+    setTeleFile(null); setTeleHeader(null); setCmpData(null); setCmpLaps(null); setCmpMeta(null); readersRef.current = null;
     const rd = new FileReader();
     rd.onload = () => { setRawTele(String(rd.result)); doParse(String(rd.result)); };
     rd.readAsText(f);
@@ -178,5 +180,5 @@ export function useTelemetry({ st, setSt }) {
   return { slot, setSlot, chartMode, setChartMode, rawTele, setRawTele, parsed, mapping,
     setMapping, onTeleFile, doParse, apply105Slot, saveMotec, saveSlot, toggleLap,
     removeSlot, slotStats, chartData, loadedSlots, baseSlot,
-    cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy, savedMsg };
+    cmpLaps, cmpMeta, cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy, savedMsg };
 }
