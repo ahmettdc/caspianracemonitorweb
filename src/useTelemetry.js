@@ -37,7 +37,12 @@ export function useTelemetry({ st, setSt }) {
   const [cmpData, setCmpData] = useState(null);
   const [cmpBusy, setCmpBusy] = useState(false);
   const [savedMsg, setSavedMsg] = useState("");   // "✓ Stint X kaydedildi" onayı (slot harfi)
-  const readersRef = useRef(null);   // kanal okuyucuları dosya başına bir kez (önbellek)
+  /* Çapraz-stint (v1.4.118): bir .ld'yi slota kaydedince o dosyanın handle+header+laps+meta'sı
+     bellekte TUTULUR → A ve B ayrı stint'ten seçilip karşılaştırılabilir. Oturum-içi (DB'ye yazılmaz). */
+  const [stintTele, setStintTele] = useState({});   // { A:{file,header,laps,meta}, ... }
+  const [cmpASrc, setCmpASrc] = useState("cur");    // "cur" = yüklü dosya · "A"/"B"/… = kayıtlı stint
+  const [cmpBSrc, setCmpBSrc] = useState("cur");
+  const readersRef = useRef(new Map());   // File → readers (kimlikle önbellek; bayatlamaz)
 
   const doParse = (text) => {
     const m = parseMotecLog(text);          // önce ham kanal log'u dene
@@ -57,7 +62,7 @@ export function useTelemetry({ st, setSt }) {
       setRawTele("");
       setMapping(null);
       setParsed({ loading: true });
-      readersRef.current = null;
+      setCmpASrc("cur"); setCmpBSrc("cur");   // yeni yüklemede kaynak = güncel dosya
       setCmpData(null); setCmpLaps(null); setCmpMeta(null); setTeleFile(null); setTeleHeader(null);
       parseLd(f)
         .then((res) => {
@@ -80,31 +85,43 @@ export function useTelemetry({ st, setSt }) {
         .catch(() => setParsed({ error: "MoTeC .ld okunamadı" }));
       return;
     }
-    setTeleFile(null); setTeleHeader(null); setCmpData(null); setCmpLaps(null); setCmpMeta(null); readersRef.current = null;
+    setTeleFile(null); setTeleHeader(null); setCmpData(null); setCmpLaps(null); setCmpMeta(null);
+    setCmpASrc("cur"); setCmpBSrc("cur");
     const rd = new FileReader();
     rd.onload = () => { setRawTele(String(rd.result)); doParse(String(rd.result)); };
     rd.readAsText(f);
   };
 
-  /* İz karşılaştırma: teleFile + seçili turlar değişince okuyucuları (bir kez) kur,
-     iki turun izini + delta'yı üret. Ağır iş async; yükleniyor durumu gösterilir. */
+  /* Bir kaynak anahtarı → {file, header, laps, meta}. "cur" = yüklü dosya; slot = kayıtlı stint. */
+  const resolveSrc = (key) => (key === "cur"
+    ? { file: teleFile, header: teleHeader, laps: cmpLaps, meta: cmpMeta }
+    : stintTele[key]);
+  /* Okuyucuları File kimliğiyle önbellekle (kaynak değişse de bayatlamaz; eşzamanlı çağrı promise paylaşır). */
+  const getReaders = (file, header) => {
+    const m = readersRef.current;
+    if (!m.has(file)) m.set(file, buildReaders(file, header));
+    return m.get(file);
+  };
+
+  /* İz karşılaştırma: her iki taraf kendi kaynağından (yüklü dosya ya da kayıtlı stint) okunur,
+     iki turun izini + delta'yı üretir. Ağır iş async; yükleniyor durumu gösterilir. */
   useEffect(() => {
     let alive = true;
-    const laps = cmpLaps;   // parsed'tan bağımsız → kaydedince (parsed=null) yaşar
-    if (!teleFile || !teleHeader || !laps || cmpA == null || cmpB == null
-      || !laps[cmpA] || !laps[cmpB]) { setCmpData(null); return undefined; }
+    const sA = resolveSrc(cmpASrc), sB = resolveSrc(cmpBSrc);
+    if (!sA?.file || !sA?.header || !sB?.file || !sB?.header || cmpA == null || cmpB == null
+      || !sA.laps?.[cmpA] || !sB.laps?.[cmpB]) { setCmpData(null); return undefined; }
     setCmpBusy(true);
     (async () => {
       try {
-        if (!readersRef.current) readersRef.current = await buildReaders(teleFile, teleHeader);
-        const rd = readersRef.current;
-        const cmp = buildCompare(buildTrace(rd, laps[cmpA]), buildTrace(rd, laps[cmpB]));
+        const rA = await getReaders(sA.file, sA.header);
+        const rB = (sA.file === sB.file) ? rA : await getReaders(sB.file, sB.header);
+        const cmp = buildCompare(buildTrace(rA, sA.laps[cmpA]), buildTrace(rB, sB.laps[cmpB]));
         if (alive) setCmpData(cmp);
       } catch { if (alive) setCmpData(null); }
       finally { if (alive) setCmpBusy(false); }
     })();
     return () => { alive = false; };
-  }, [teleFile, teleHeader, cmpLaps, cmpA, cmpB]);
+  }, [cmpASrc, cmpBSrc, cmpA, cmpB, teleFile, teleHeader, cmpLaps, stintTele]);
 
   /* %105 kuralı saf `apply105Rule` (state.js) — kısmi/freak turları "en iyi" adayı
      saymaz (yarım tur tüm gerçek turların tikini kaldırmasın). */
@@ -134,6 +151,12 @@ export function useTelemetry({ st, setSt }) {
     /* İçe-aktar özeti (Dosya Seç + tur tablosu + Kaydet) KAPANIR → parsed/rawTele/mapping
        temizlenir. AMA teleFile/teleHeader/cmpLaps/cmpA/cmpB/cmpData/readersRef KORUNUR →
        Tur Karşılaştırma kartı + pist haritası yaşamaya devam eder (kullanıcı isteği). */
+    /* Çapraz-stint: bu .ld'nin handle+header+laps+meta'sı slota kaydedilir → başka bir
+       stint'e karşı karşılaştırılabilir (oturum-içi; DB'ye ham iz yazılmaz). */
+    if (teleFile && teleHeader && cmpLaps) {
+      setStintTele((prev) => ({ ...prev,
+        [slot]: { file: teleFile, header: teleHeader, laps: cmpLaps, meta: cmpMeta } }));
+    }
     setParsed(null); setRawTele(""); setMapping(null);
     setSavedMsg(slot);
   };
@@ -169,16 +192,31 @@ export function useTelemetry({ st, setSt }) {
     const laps = t.laps.map((l, i) => (i === li ? { ...l, use: !l.use } : l));
     return { ...s, telemetry: { ...s.telemetry, [sl]: { ...t, laps } } };
   });
-  const removeSlot = (sl) => setSt((s) => ({
-    ...s, telemetry: { ...s.telemetry, [sl]: null } }));
+  const removeSlot = (sl) => {
+    setSt((s) => ({ ...s, telemetry: { ...s.telemetry, [sl]: null } }));
+    setStintTele((prev) => { if (!prev[sl]) return prev; const n = { ...prev }; delete n[sl]; return n; });
+    setCmpASrc((k) => (k === sl ? "cur" : k));
+    setCmpBSrc((k) => (k === sl ? "cur" : k));
+  };
 
   const slotStats = useMemo(() => computeSlotStats(st), [st.telemetry]);
   const chartData = useMemo(() => computeChartData(st), [st.telemetry]);
   const loadedSlots = ["A", "B", "C", "D"].filter((sl) => st.telemetry[sl]);
   const baseSlot = loadedSlots[0];
 
+  /* Karşılaştırma kaynakları: yüklü dosya ("cur") + iz verisi tutulan kayıtlı stint'ler. */
+  const cmpSources = useMemo(() => {
+    const out = [];
+    if (teleFile && cmpLaps?.length) out.push({ key: "cur", laps: cmpLaps, meta: cmpMeta });
+    for (const sl of ["A", "B", "C", "D"]) {
+      if (stintTele[sl]?.laps?.length) out.push({ key: sl, laps: stintTele[sl].laps, meta: stintTele[sl].meta });
+    }
+    return out;
+  }, [teleFile, cmpLaps, cmpMeta, stintTele]);
+
   return { slot, setSlot, chartMode, setChartMode, rawTele, setRawTele, parsed, mapping,
     setMapping, onTeleFile, doParse, apply105Slot, saveMotec, saveSlot, toggleLap,
     removeSlot, slotStats, chartData, loadedSlots, baseSlot,
-    cmpLaps, cmpMeta, cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy, savedMsg };
+    cmpLaps, cmpMeta, cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy, savedMsg,
+    cmpSources, cmpASrc, setCmpASrc, cmpBSrc, setCmpBSrc };
 }

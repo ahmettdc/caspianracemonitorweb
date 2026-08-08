@@ -165,7 +165,8 @@ function TrackMini({ t, data, cursor, src, big, marks }) {
 /* Tur karşılaştırma kartı — yüklü .ld üzerinde iki turu mesafe ekseninde üst üste
    bindirir; pist haritası + hız/gaz/fren/vites/RPM/direksiyon izleri + zaman-delta +
    sektör farkı. Yalnız gösterim (Firebase'e yazılmaz). cmpData buildCompare çıktısı. */
-function TraceCompareCard({ t, laps: lapsProp, meta, cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy }) {
+function TraceCompareCard({ t, sources, fallbackMeta, cmpASrc, setCmpASrc, cmpBSrc, setCmpBSrc,
+  cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy }) {
   const [cursor, setCursor] = useState(null);   // ize gelince pist haritasında işaretlenen nokta
   const [big, setBig] = useState(false);        // harita tam pencere
   const [xWin, setXWin] = useState(null);       // kanal mesafe penceresi (null = tam genişlik)
@@ -174,7 +175,23 @@ function TraceCompareCard({ t, laps: lapsProp, meta, cmpA, setCmpA, cmpB, setCmp
   const playPosRef = useRef(0);                  // kesirli oynatma index'i
   const lastDRef = useRef(null);                // tekerlek anchor'ı (imleçten bağımsız son mesafe)
   const tracesRef = useRef(null);
-  const laps = lapsProp || [];
+  const srcOf = (k) => (sources || []).find((s) => s.key === k) || (sources || [])[0];
+  const srcA = srcOf(cmpASrc), srcB = srcOf(cmpBSrc);
+  const lapsA = srcA?.laps || [];
+  const lapsB = srcB?.laps || [];
+  const meta = srcA?.meta || fallbackMeta;
+  const multiSrc = (sources || []).length > 1;
+  const srcLabel = (k) => (k === "cur"
+    ? (srcOf(k)?.meta?.venue || t("Yüklü dosya")) : `Stint ${k}`);
+  /* kaynak değişince o tarafın turunu en hızlı TAM tura al (index taşmasın) */
+  const pickFast = (laps) => {
+    if (!laps?.length) return 0;
+    const idx = laps.map((_, i) => i).sort((i, j) => laps[i].sec - laps[j].sec);
+    const full = idx.filter((i) => !laps[i].partial);
+    return (full[0] ?? idx[0]) ?? 0;
+  };
+  const venDiff = srcA?.meta?.venue && srcB?.meta?.venue
+    && srcA.meta.venue !== srcB.meta.venue;
   const ch = cmpData?.chans || {};
   const data = cmpData?.data;
   const N = data?.length || 0;
@@ -185,7 +202,7 @@ function TraceCompareCard({ t, laps: lapsProp, meta, cmpA, setCmpA, cmpB, setCmp
   const curSec = cursor != null && data?.[cursor]
     ? sectorOf((data[cursor].frac ?? 0) / 100) : null;   // data.frac 0..100
   const cursorD = cursor != null && data?.[cursor] ? data[cursor].d : null;
-  const lapSecA = laps[cmpA]?.sec;
+  const lapSecA = lapsA[cmpA]?.sec;
 
   /* Oynatma: setInterval (~40ms) imleci tur A süresi boyunca ilerletir; harita noktası +
      tüm kanallarda playhead (ReferenceLine) kayar. Veri/tur değişince durur. */
@@ -244,12 +261,30 @@ function TraceCompareCard({ t, laps: lapsProp, meta, cmpA, setCmpA, cmpB, setCmp
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", fontSize: 12 }}>
         <label style={{ display: "flex", alignItems: "center", gap: 5, margin: 0 }}>
           <span style={{ width: 10, height: 10, borderRadius: 2, background: CA, display: "inline-block" }} />
-          A <select value={cmpA ?? 0} onChange={(e) => setCmpA(+e.target.value)}>{laps.map(lapOpt)}</select>
+          A
+          {multiSrc && (
+            <select value={cmpASrc} onChange={(e) => { setCmpASrc(e.target.value);
+              setCmpA(pickFast(srcOf(e.target.value)?.laps)); }}>
+              {sources.map((s) => <option key={s.key} value={s.key}>{srcLabel(s.key)}</option>)}
+            </select>
+          )}
+          <select value={cmpA ?? 0} onChange={(e) => setCmpA(+e.target.value)}>{lapsA.map(lapOpt)}</select>
         </label>
         <label style={{ display: "flex", alignItems: "center", gap: 5, margin: 0 }}>
           <span style={{ width: 10, height: 10, borderRadius: 2, background: CB, display: "inline-block" }} />
-          B <select value={cmpB ?? 0} onChange={(e) => setCmpB(+e.target.value)}>{laps.map(lapOpt)}</select>
+          B
+          {multiSrc && (
+            <select value={cmpBSrc} onChange={(e) => { setCmpBSrc(e.target.value);
+              setCmpB(pickFast(srcOf(e.target.value)?.laps)); }}>
+              {sources.map((s) => <option key={s.key} value={s.key}>{srcLabel(s.key)}</option>)}
+            </select>
+          )}
+          <select value={cmpB ?? 0} onChange={(e) => setCmpB(+e.target.value)}>{lapsB.map(lapOpt)}</select>
         </label>
+        {venDiff && (
+          <span className="chip" style={{ fontSize: 11, borderColor: "var(--yellow)",
+            color: "var(--yellow)" }}>⚠ {t("farklı pist — kıyas dikkatli")}</span>
+        )}
       </div>
       {meta && (meta.venue || meta.trk != null || meta.amb != null) && (
         <div className="hint" style={{ marginTop: 4, opacity: .85, display: "flex",
@@ -389,7 +424,8 @@ export default function TeleTab({
   t, lang, st, slot, setSlot, rawTele, setRawTele, doParse, onTeleFile,
   parsed, mapping, setMapping, saveMotec, saveSlot, loadedSlots, slotStats,
   up, apply105Slot, removeSlot, chartMode, setChartMode, chartData, baseSlot, toggleLap,
-  cmpLaps, cmpMeta, cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy, savedMsg,
+  cmpMeta, cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy, savedMsg,
+  cmpSources, cmpASrc, setCmpASrc, cmpBSrc, setCmpBSrc,
 }) {
   const fmtMs = (ms) => fmtLap(ms / 1000);
   return (
@@ -654,9 +690,11 @@ export default function TeleTab({
         </div>
       )}
 
-      {cmpLaps?.length > 0 && (
-        <TraceCompareCard t={t} laps={cmpLaps} meta={cmpMeta} cmpA={cmpA} setCmpA={setCmpA}
-          cmpB={cmpB} setCmpB={setCmpB} cmpData={cmpData} cmpBusy={cmpBusy} />
+      {cmpSources?.length > 0 && (
+        <TraceCompareCard t={t} sources={cmpSources} fallbackMeta={cmpMeta}
+          cmpASrc={cmpASrc} setCmpASrc={setCmpASrc} cmpBSrc={cmpBSrc} setCmpBSrc={setCmpBSrc}
+          cmpA={cmpA} setCmpA={setCmpA} cmpB={cmpB} setCmpB={setCmpB}
+          cmpData={cmpData} cmpBusy={cmpBusy} />
       )}
     </div>
   );
