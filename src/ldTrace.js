@@ -228,3 +228,20 @@ export function buildCompare(a, b) {
   return { data, chans, sectors, distUnit: a.distUnit, hasMap, mapSrc: a.mapSrc || null,
     totalDelta: data.length ? data[N - 1].dt : 0 };
 }
+
+/* Sektör = tur-kesri üçlüsü (gerçek beacon .ld'de güvenilir değil; sektör tablosuyla tutarlı).
+   Bir kesir/pozisyon hangi sektörde: 1..3. */
+export function sectorOf(frac) {
+  const f = Number.isFinite(frac) ? frac : 0;
+  return Math.min(3, Math.max(1, Math.floor(f * 3) + 1));   // frac 0..1
+}
+
+/* Kanal/harita için sektör sınır işaretleri: k≈N/3 ve 2N/3 noktalarının {idx, d, label}. */
+export function sectorMarks(data) {
+  if (!Array.isArray(data) || data.length < 3) return [];
+  const N = data.length;
+  return [1, 2].map((i) => {
+    const idx = Math.min(N - 1, Math.round((i * N) / 3));
+    return { idx, d: data[idx].d, label: `S${i}|S${i + 1}` };
+  });
+}

@@ -5,6 +5,20 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.116",
+    date: "2026-08-08",
+    tr: [
+      "🐞 Düzeltme: Tur Karşılaştırma kartı (izler + pist haritası + yakınlaştırma) bir önceki sürümde yanlışlıkla görünmüyordu; artık .ld yükleyince yeniden görünür.",
+      "📍 Sektör göstergesi: kanallarda (dikey S2/S3 ayırıcıları) ve pist krokisinde (sektör tik'leri) hangi sektörde olduğun görünür; ize gelince/oynatınca başlıkta '📍 Sektör S2' çipi güncellenir. (Sektörler tur-kesri üçlüsüdür — .ld gerçek beacon vermez.)",
+      "🌡 Koşul şeridi: yüklenen .ld dosyasının kendi pist adı + pist °C / hava °C bilgisi karşılaştırma kartında görünür (kaydettikten sonra da kalır).",
+    ],
+    en: [
+      "🐞 Fix: the Lap Comparison card (traces + track map + zoom) was accidentally hidden in the previous release; it now reappears when you load a .ld.",
+      "📍 Sector indicator: channels show vertical S2/S3 dividers and the track sketch shows sector ticks so you can tell which sector you're in; hovering/playing updates a '📍 Sector S2' chip in the header. (Sectors are lap-fraction thirds — .ld has no reliable beacon.)",
+      "🌡 Conditions strip: the loaded .ld's own venue + track °C / air °C now shows in the comparison card (stays after saving).",
+    ],
+  },
+  {
     v: "v1.4.115",
     date: "2026-08-08",
     tr: [

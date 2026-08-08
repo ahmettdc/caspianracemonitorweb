@@ -1,6 +1,32 @@
 import { describe, it, expect } from "vitest";
 import { parseLd } from "./ldParser";
-import { buildReaders, buildTrace, buildCompare } from "./ldTrace";
+import { buildReaders, buildTrace, buildCompare, sectorOf, sectorMarks } from "./ldTrace";
+
+describe("sectorOf / sectorMarks", () => {
+  it("sectorOf: kesir → 1..3", () => {
+    expect(sectorOf(0)).toBe(1);
+    expect(sectorOf(0.33)).toBe(1);
+    expect(sectorOf(0.34)).toBe(2);
+    expect(sectorOf(0.66)).toBe(2);
+    expect(sectorOf(0.67)).toBe(3);
+    expect(sectorOf(1)).toBe(3);          // tam son → S3 (klamp)
+    expect(sectorOf(NaN)).toBe(1);
+  });
+  it("sectorMarks: iki sınır (N/3, 2N/3)", () => {
+    const data = Array.from({ length: 600 }, (_, i) => ({ d: i }));
+    const m = sectorMarks(data);
+    expect(m).toHaveLength(2);
+    expect(m[0].idx).toBe(200);
+    expect(m[1].idx).toBe(400);
+    expect(m[0].label).toBe("S1|S2");
+    expect(m[1].label).toBe("S2|S3");
+    expect(m[0].d).toBe(200);
+  });
+  it("sectorMarks: kısa/boş veri → boş", () => {
+    expect(sectorMarks([])).toEqual([]);
+    expect(sectorMarks([{ d: 0 }, { d: 1 }])).toEqual([]);
+  });
+});
 
 /* Sentetik .ld kurucusu (ldParser.test.js ile aynı düzen) — gerçek dosyasız test. */
 function buildLd(channels) {

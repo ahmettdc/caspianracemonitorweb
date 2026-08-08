@@ -4,12 +4,13 @@ import { fmtLap } from "../engine";
 import { SLOT_COLORS } from "../constants";
 import { Tyre, BoxPlot } from "../components";
 import { zoomViewAt, panView, zoomDomain } from "../zoomView";
+import { sectorOf, sectorMarks } from "../ldTrace";
 
 /* İz karşılaştırma renkleri (A/B tur) */
 const CA = "#ff5470", CB = "#4d9fff";
 
 /* Tek kanal iz satırı — recharts syncId ile hepsi ortak imleç + ortak mesafe ekseni. */
-function TraceRow({ data, title, unit, keys, colors, fmt, height = 132, zero, dashB, onCursor, onAnchor, xDomain }) {
+function TraceRow({ data, title, unit, keys, colors, fmt, height = 132, zero, dashB, onCursor, onAnchor, xDomain, bounds }) {
   const onMove = (onCursor || onAnchor) ? (s) => {
     if (onCursor) onCursor(s && s.activeTooltipIndex != null ? s.activeTooltipIndex : null);
     if (onAnchor && s && s.activeLabel != null) onAnchor(s.activeLabel);
@@ -32,6 +33,11 @@ function TraceRow({ data, title, unit, keys, colors, fmt, height = 132, zero, da
               labelFormatter={(v) => `${Math.round(v)} ${unit}`}
               formatter={(val, n) => [fmt ? fmt(val) : val, n]} />
             {zero && <ReferenceLine y={0} stroke="#8C97A5" strokeDasharray="4 4" />}
+            {(bounds || []).map((b) => (
+              <ReferenceLine key={b.label} x={b.d} stroke="#6B7683" strokeDasharray="2 3"
+                label={{ value: `S${b.label.slice(-1)}`, position: "insideTopLeft",
+                  fill: "#8C97A5", fontSize: 9 }} />
+            ))}
             {keys.map((k, i) => (
               <Line key={k} dataKey={k} name={k.endsWith("B") ? "B" : k.endsWith("A") ? "A" : k}
                 stroke={colors[i]} dot={false} strokeWidth={1.6} connectNulls
@@ -50,7 +56,7 @@ function TraceRow({ data, title, unit, keys, colors, fmt, height = 132, zero, da
    yaptık". İz üzerinde gezerken (cursor) haritada o nokta işaretlenir.
    Fare tekerleğiyle yakınlaştır (viewBox state), sürükleyerek gez, çift-tık sıfırla —
    nokta matematiği (scr/segment) DEĞİŞMEZ; yalnız viewBox pencere kayar/daralır. */
-function TrackMini({ t, data, cursor, src, big }) {
+function TrackMini({ t, data, cursor, src, big, marks }) {
   const S = 240, PAD = 16;
   const [view, setView] = useState({ vx: 0, vy: 0, vw: S, vh: S });
   const svgRef = useRef(null);
@@ -75,6 +81,11 @@ function TrackMini({ t, data, cursor, src, big }) {
   const [sfx, sfy] = scr(data[0].mapX, data[0].mapY);
   const cur = cursor != null && data[cursor] ? scr(data[cursor].mapX, data[cursor].mapY) : null;
   const zf = view.vw / S;   // daire yarıçapı ekranda sabit kalsın diye ölçek
+  /* sektör sınır tik'leri (S1|S2, S2|S3) — delta rengi korunur, üstüne nötr işaret */
+  const secTicks = (marks || []).map((m) => {
+    const p = data[m.idx] ? scr(data[m.idx].mapX, data[m.idx].mapY) : null;
+    return p ? { ...m, x: p[0], y: p[1] } : null;
+  }).filter(Boolean);
   const zoomed = view.vw < S - 0.5;
 
   /* SVG-koordinatına çevir (px → viewBox birimi) */
@@ -119,6 +130,14 @@ function TrackMini({ t, data, cursor, src, big }) {
           aria-label="track map" onDoubleClick={reset}
           onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={onUp}>
           {segs}
+          {secTicks.map((m) => (
+            <g key={m.label}>
+              <circle cx={m.x} cy={m.y} r={4 * zf} fill="#0B0708" stroke="#cbb" strokeWidth={2}
+                vectorEffect="non-scaling-stroke" />
+              <text x={m.x + 6 * zf} y={m.y + 3 * zf} fill="#cbb" fontSize={8 * zf}>
+                S{m.label.slice(-1)}</text>
+            </g>
+          ))}
           <circle cx={sfx} cy={sfy} r={5 * zf} fill="none" stroke="#fff" strokeWidth={2}
             vectorEffect="non-scaling-stroke" />
           <text x={sfx + 7 * zf} y={sfy + 3 * zf} fill="#fff" fontSize={9 * zf}>S/F</text>
@@ -145,7 +164,7 @@ function TrackMini({ t, data, cursor, src, big }) {
 /* Tur karşılaştırma kartı — yüklü .ld üzerinde iki turu mesafe ekseninde üst üste
    bindirir; pist haritası + hız/gaz/fren/vites/RPM/direksiyon izleri + zaman-delta +
    sektör farkı. Yalnız gösterim (Firebase'e yazılmaz). cmpData buildCompare çıktısı. */
-function TraceCompareCard({ t, laps: lapsProp, cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy }) {
+function TraceCompareCard({ t, laps: lapsProp, meta, cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy }) {
   const [cursor, setCursor] = useState(null);   // ize gelince pist haritasında işaretlenen nokta
   const [big, setBig] = useState(false);        // harita tam pencere
   const [xWin, setXWin] = useState(null);       // kanal mesafe penceresi (null = tam genişlik)
@@ -157,6 +176,9 @@ function TraceCompareCard({ t, laps: lapsProp, cmpA, setCmpA, cmpB, setCmpB, cmp
   const dLo = data?.length ? data[0].d : 0;
   const dHi = data?.length ? data[data.length - 1].d : 0;
   const unit = cmpData?.distUnit === "frac" ? "%" : "m";
+  const marks = data ? sectorMarks(data) : [];   // sektör sınırları (mesafe üçlüsü)
+  const curSec = cursor != null && data?.[cursor]
+    ? sectorOf((data[cursor].frac ?? 0) / 100) : null;   // data.frac 0..100
 
   /* Esc → harita tam pencereyi kapat (TrackMap deseni) */
   useEffect(() => {
@@ -195,6 +217,9 @@ function TraceCompareCard({ t, laps: lapsProp, cmpA, setCmpA, cmpB, setCmpB, cmp
             color: cmpData.totalDelta > 0 ? CA : CB }}>
             Δ {dlt(cmpData.totalDelta)}</span>
         )}
+        {curSec != null && (
+          <span className="chip" style={{ fontSize: 12 }}>📍 {t("Sektör")} S{curSec}</span>
+        )}
       </h2>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", fontSize: 12 }}>
         <label style={{ display: "flex", alignItems: "center", gap: 5, margin: 0 }}>
@@ -206,6 +231,16 @@ function TraceCompareCard({ t, laps: lapsProp, cmpA, setCmpA, cmpB, setCmpB, cmp
           B <select value={cmpB ?? 0} onChange={(e) => setCmpB(+e.target.value)}>{laps.map(lapOpt)}</select>
         </label>
       </div>
+      {meta && (meta.venue || meta.trk != null || meta.amb != null) && (
+        <div className="hint" style={{ marginTop: 4, opacity: .85, display: "flex",
+          gap: 8, flexWrap: "wrap" }}>
+          {meta.venue && <span>🏁 {meta.venue}</span>}
+          {meta.vehicle && <span>· 🚗 {meta.vehicle}</span>}
+          {meta.driver && <span>· 👤 {meta.driver}</span>}
+          {meta.trk != null && <span>· 🛣 {t("Pist")} {meta.trk.toFixed(0)}°</span>}
+          {meta.amb != null && <span>· 🌡 {t("Hava")} {meta.amb.toFixed(0)}°</span>}
+        </div>
+      )}
 
       {cmpBusy && <div className="hint" style={{ marginTop: 6 }}>⏳ {t("İzler hazırlanıyor…")}</div>}
       {!cmpBusy && !cmpData && <div className="hint" style={{ marginTop: 6 }}>{t("İz verisi çıkarılamadı — bu dosyada hız/mesafe kanalı olmayabilir.")}</div>}
@@ -216,7 +251,7 @@ function TraceCompareCard({ t, laps: lapsProp, cmpA, setCmpA, cmpB, setCmpB, cmp
             title={t("Haritayı büyük pencerede aç")} onClick={() => setBig(true)}>
             ⛶ {t("Büyüt")}</button>
         </div>
-        <TrackMini t={t} data={cmpData.data} cursor={cursor} src={cmpData.mapSrc} />
+        <TrackMini t={t} data={cmpData.data} cursor={cursor} src={cmpData.mapSrc} marks={marks} />
       </>)}
       {cmpData && !cmpData.hasMap && (
         <div className="hint" style={{ marginTop: 6, opacity: .7 }}>
@@ -237,36 +272,36 @@ function TraceCompareCard({ t, laps: lapsProp, cmpA, setCmpA, cmpB, setCmpB, cmp
         <div ref={tracesRef}>
         <TraceRow data={cmpData.data} title={`⏱ ${t("Zaman-Delta (B−A)")}`} unit={unit}
           keys={["dt"]} colors={["#F5C84C"]} fmt={dlt} height={140} zero
-          onCursor={setCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} />
+          onCursor={setCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} bounds={marks} />
         {ch.speed && (
           <TraceRow data={cmpData.data} title={`🏁 ${t("Hız")} (km/h)`} unit={unit}
             keys={["spA", "spB"]} colors={[CA, CB]} fmt={sp1}
-            onCursor={setCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} />
+            onCursor={setCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} bounds={marks} />
         )}
         {ch.throttle && (
           <TraceRow data={cmpData.data} title={`🟢 ${t("Gaz")} %`} unit={unit}
             keys={["thA", "thB"]} colors={[CA, CB]} fmt={pct} height={110} dashB
-            onCursor={setCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} />
+            onCursor={setCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} bounds={marks} />
         )}
         {ch.brake && (
           <TraceRow data={cmpData.data} title={`🔴 ${t("Fren")} %`} unit={unit}
             keys={["brA", "brB"]} colors={[CA, CB]} fmt={pct} height={110} dashB
-            onCursor={setCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} />
+            onCursor={setCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} bounds={marks} />
         )}
         {ch.gear && (
           <TraceRow data={cmpData.data} title={`⚙ ${t("Vites")}`} unit={unit}
             keys={["gA", "gB"]} colors={[CA, CB]} fmt={(v) => (v == null ? "—" : String(Math.round(v)))} height={100} dashB
-            onCursor={setCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} />
+            onCursor={setCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} bounds={marks} />
         )}
         {ch.rpm && (
           <TraceRow data={cmpData.data} title={`🔧 ${t("RPM")}`} unit={unit}
             keys={["rpmA", "rpmB"]} colors={[CA, CB]} fmt={(v) => (v == null ? "—" : String(Math.round(v)))} height={100}
-            onCursor={setCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} />
+            onCursor={setCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} bounds={marks} />
         )}
         {ch.steer && (
           <TraceRow data={cmpData.data} title={`🕹 ${t("Direksiyon")}`} unit={unit}
             keys={["stA", "stB"]} colors={[CA, CB]} fmt={sp1} height={100}
-            onCursor={setCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} />
+            onCursor={setCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} bounds={marks} />
         )}
         </div>
 
@@ -300,7 +335,7 @@ function TraceCompareCard({ t, laps: lapsProp, cmpA, setCmpA, cmpB, setCmpB, cmp
                 title={t("Kapat")} onClick={() => setBig(false)}>✕</button>
             </div>
             <div className="mapwrap">
-              <TrackMini t={t} data={cmpData.data} cursor={cursor} src={cmpData.mapSrc} big />
+              <TrackMini t={t} data={cmpData.data} cursor={cursor} src={cmpData.mapSrc} marks={marks} big />
             </div>
           </div>
         </div>
@@ -316,7 +351,7 @@ export default function TeleTab({
   t, lang, st, slot, setSlot, rawTele, setRawTele, doParse, onTeleFile,
   parsed, mapping, setMapping, saveMotec, saveSlot, loadedSlots, slotStats,
   up, apply105Slot, removeSlot, chartMode, setChartMode, chartData, baseSlot, toggleLap,
-  cmpLaps, cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy, savedMsg,
+  cmpLaps, cmpMeta, cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy, savedMsg,
 }) {
   const fmtMs = (ms) => fmtLap(ms / 1000);
   return (
@@ -582,7 +617,7 @@ export default function TeleTab({
       )}
 
       {cmpLaps?.length > 0 && (
-        <TraceCompareCard t={t} laps={cmpLaps} cmpA={cmpA} setCmpA={setCmpA}
+        <TraceCompareCard t={t} laps={cmpLaps} meta={cmpMeta} cmpA={cmpA} setCmpA={setCmpA}
           cmpB={cmpB} setCmpB={setCmpB} cmpData={cmpData} cmpBusy={cmpBusy} />
       )}
     </div>
