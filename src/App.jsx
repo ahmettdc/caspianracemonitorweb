@@ -331,7 +331,7 @@ export default function App() {
   const { slot, setSlot, chartMode, setChartMode, rawTele, setRawTele, parsed, mapping,
     setMapping, onTeleFile, doParse, apply105Slot, saveMotec, saveSlot, toggleLap,
     removeSlot, slotStats, chartData, loadedSlots, baseSlot,
-    cmpA: telCmpA, setCmpA: setTelCmpA, cmpB: telCmpB, setCmpB: setTelCmpB,
+    cmpLaps: telCmpLaps, cmpA: telCmpA, setCmpA: setTelCmpA, cmpB: telCmpB, setCmpB: setTelCmpB,
     cmpData: telCmpData, cmpBusy: telCmpBusy, savedMsg: telSavedMsg } = useTelemetry({ st, setSt });
 
   /* ---------- canlı yarış modu ---------- */
@@ -2372,8 +2372,8 @@ ${bottomBar}
               loadedSlots={loadedSlots} slotStats={slotStats} up={up}
               apply105Slot={apply105Slot} removeSlot={removeSlot} chartMode={chartMode}
               setChartMode={setChartMode} chartData={chartData} baseSlot={baseSlot}
-              toggleLap={toggleLap} cmpA={telCmpA} setCmpA={setTelCmpA} cmpB={telCmpB}
-              setCmpB={setTelCmpB} cmpData={telCmpData} cmpBusy={telCmpBusy}
+              toggleLap={toggleLap} cmpLaps={telCmpLaps} cmpA={telCmpA} setCmpA={setTelCmpA}
+              cmpB={telCmpB} setCmpB={setTelCmpB} cmpData={telCmpData} cmpBusy={telCmpBusy}
               savedMsg={telSavedMsg} />
           )}
 
