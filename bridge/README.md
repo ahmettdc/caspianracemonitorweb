@@ -26,6 +26,10 @@ tüm takım için salt-okunur gösterir.
 > aynı paylaşımlı belleği okur. Sürücü bunu çalıştırır, mühendisler canlıyı **web'den**
 > izler.
 
+> 📦 **Kurulumla birlikte (v1.4.128+):** masaüstü **setup.exe**'yi kurunca hafif köprü
+> (`CaspianLiveBridge.exe`) de kurulur ve **Başlat menüsüne "Caspian Hafif Kopru"** kısayolu
+> eklenir. Ayrıca lobiden tek başına da indirilebilir (kurulumsuz, çift tıkla).
+
 > ✅ **Bot GEREKMEZ (v1.4.127+):** köprüyü aç → **"🔐 Google ile Giriş"** → uygulamadaki
 > gibi kendi Google hesabınla giriş yap → **Takım/Yarış'ı açılır listeden seç** → Başlat.
 > Kendi hesabın `live`'a yazar (takımda **owner/editor** olman yeterli). Aşağıdaki **1b**

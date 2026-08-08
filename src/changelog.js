@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.128",
+    date: "2026-08-08",
+    tr: [
+      "📦 Masaüstü kurulumu (setup.exe) artık tarayıcısız hafif köprüyü de kurar: kurulunca Başlat menüsüne 'Caspian Hafif Kopru' kısayolu eklenir. Sürüş PC'sinde ayrıca indirmeye gerek yok — kurup kısayoldan aç, Google ile giriş yap, sür. (Lobiden tek başına indirme de duruyor.)",
+      "🗂 Hafif köprü ayar dosyası (config.ini) artık yazılabilir bir klasöre kaydediliyor (%LOCALAPPDATA%\\CaspianLiveBridge) — köprü Program Files gibi salt-okunur bir yerden çalışsa da ayarlar kaydedilebilir.",
+    ],
+    en: [
+      "📦 The desktop installer (setup.exe) now also installs the browser-less lightweight bridge and adds a 'Caspian Hafif Kopru' Start-menu shortcut. On the driving PC you no longer need a separate download — install, open from the shortcut, sign in with Google, and drive. (The standalone lobby download still exists.)",
+      "🗂 The lightweight bridge's config.ini is now saved to a writable folder (%LOCALAPPDATA%\\CaspianLiveBridge) — settings persist even when the bridge runs from a read-only location like Program Files.",
+    ],
+  },
+  {
     v: "v1.4.127",
     date: "2026-08-08",
     tr: [

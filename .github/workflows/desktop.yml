@@ -69,6 +69,30 @@ jobs:
           Copy-Item bridge/dist/caspian-bridge.exe `
             src-tauri/binaries/caspian-bridge-x86_64-pc-windows-msvc.exe
 
+      # TARAYICISIZ hafif köprüyü (GUI, CaspianLiveBridge.exe) da derle ve kuruluma
+      # göm (bundle.resources) → setup.exe masaüstü uygulamasıyla birlikte bunu da kurar
+      # (Başlat menüsü kısayolu: installer-hooks.nsh). Google girişi için OAuth istemcisini
+      # (masaüstüyle aynı "Desktop app") derleme zamanı göm; secret yoksa Google girişi pasif.
+      - name: Hafif köprü OAuth istemcisini göm
+        env:
+          CID: ${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_ID }}
+          CSEC: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+        run: |
+          Set-Content -Path bridge/oauth_build.py -Value "CLIENT_ID = '$env:CID'"
+          Add-Content -Path bridge/oauth_build.py -Value "CLIENT_SECRET = '$env:CSEC'"
+
+      - name: Hafif köprü .exe derle (kuruluma gömülür)
+        shell: pwsh
+        run: |
+          pyinstaller --onefile --name CaspianLiveBridge `
+            --paths bridge `
+            --collect-submodules pyRfactor2SharedMemory `
+            --hidden-import psutil --hidden-import lmu_api `
+            --hidden-import gui --hidden-import google_auth `
+            --hidden-import oauth_config --hidden-import oauth_build `
+            --distpath bridge/dist2 bridge/main.py
+          Copy-Item bridge/dist2/CaspianLiveBridge.exe src-tauri/CaspianLiveBridge.exe
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

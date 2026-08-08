@@ -470,8 +470,11 @@ class BridgeGUI:
         self.root.after(200, self.root.destroy)
 
 
-def launch(config_path="config.ini"):
+def launch(config_path=None):
     _hide_console()
+    if not config_path:
+        from logfile import default_config_path
+        config_path = default_config_path()
     root = tk.Tk()
     BridgeGUI(root, config_path)
     root.mainloop()

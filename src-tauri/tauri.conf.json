@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Caspian Race Monitor",
-  "version": "1.4.127",
+  "version": "1.4.128",
   "identifier": "com.caspianmotorsport.racemonitor",
   "build": {
     "frontendDist": "../dist",
@@ -30,6 +30,10 @@
     "active": true,
     "targets": ["nsis", "msi"],
     "externalBin": ["binaries/caspian-bridge"],
+    "resources": { "CaspianLiveBridge.exe": "CaspianLiveBridge.exe" },
+    "windows": {
+      "nsis": { "installerHooks": "installer-hooks.nsh" }
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
