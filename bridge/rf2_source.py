@@ -9,7 +9,7 @@
 
 Şema (web LiveTab ile birebir):
   session: {phase, flag, timeLeftSec, totalLaps, trackTemp, ambientTemp, raining,
-            rain, wetness, trackName, trackLength, sessionType}
+            rain, wetness, trackName, trackLength, sessionType, sessionId}
   own:     {fuel, fuelCapacity, virtualEnergy, position, lastLapSec, bestLapSec,
             curLapSec, s1, s2, lapsDone, inPits, pitStops, location, damage, avg5Sec,
             avgSec, stintSec, tyreCompound:{front,rear},
@@ -256,6 +256,7 @@ class MockSource:
                 "trackName": "Mock Circuit",
                 "trackLength": self.TRACK_LEN,
                 "sessionType": "Antrenman",
+                "sessionId": "mock",   # sabit → demo canlı-geçmişi tekrar tekrar silmez
             },
             "own": {
                 "fuel": round(max(2, 78 - (stint / 1500) * 70), 1), "fuelCapacity": 78.0,
@@ -557,6 +558,20 @@ class RF2Source:
         except Exception:
             track_loaded = None
 
+        # KARARLI seans belirteci — seans değişince (antrenman→yarış, yeni seans)
+        # değişir, aynı seansta (köprü yeniden başlasa da) SABİT kalır. Web tarafı
+        # bu değişince o yarışın canlı-geçmişini bir kez temizler (eski seansın
+        # turları yeni seansa sızmasın). mSession (seans indeksi) + mTicksSessionStarted
+        # (seans başladığında tick sayısı); ext yok/0 ise yalnız mSession'a düşer.
+        m_sess = int(getattr(info, "mSession", -1))
+        session_id = str(m_sess)
+        try:
+            ticks = int(getattr(ext, "mTicksSessionStarted", 0)) if ext is not None else 0
+            if ticks:
+                session_id = "%d:%d" % (m_sess, ticks)
+        except Exception:
+            pass
+
         # seans
         cur, end = float(info.mCurrentET), float(info.mEndET)
         phase = int(getattr(info, "mGamePhase", 0))
@@ -590,6 +605,7 @@ class RF2Source:
             # pist uzunluğu (m) — trackmap dış boşluk halkası için (lapDist/trackLength)
             "trackLength": round(float(getattr(info, "mLapDist", 0.0)), 1) or None,
             "sessionType": _session_type(int(getattr(info, "mSession", -1))),
+            "sessionId": session_id,   # kararlı seans belirteci (web canlı-geçmiş temizler)
         }
 
         # telemetriyi mID ile eşle (saha başına lastik aşınması + hasar için)

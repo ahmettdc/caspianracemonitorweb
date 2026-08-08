@@ -524,6 +524,36 @@ export function liveTyreSubscribe(tid, rid, lapKey, cb) {
     (err) => { console.warn("livetyre read failed:", err?.message); cb(null); });
 }
 
+/* ---- seans belirteci → canlı-geçmiş temizleme (v1.4.135) ----
+   Köprü, canlı karede session.sessionId (kararlı seans belirteci) yayar. Yeni bir
+   seans başlayınca (antrenman→yarış, yeni seans) bu belirteç değişir → o yarışın (rid)
+   TÜM canlı-geçmiş düğümleri bir kez temizlenir; böylece eski seansın turları "+" tur
+   listesi popup'ına sızmaz. Köprü yarış ORTASINDA yeniden başlarsa belirteç aynı kalır
+   → geçmiş KORUNUR (yanlış temizleme yok). */
+export async function liveSessionIdGet(tid, rid) {
+  if (!db || !tid || !rid) return null;
+  try {
+    const s = await get(ref(db, `teams/${tid}/live/${rid}/session/sessionId`));
+    return s.exists() ? s.val() : null;
+  } catch (e) {
+    console.warn("liveSessionId read failed:", e?.message);
+    return null;
+  }
+}
+/* O yarışın (rid) tüm canlı-geçmiş düğümlerini tek yazımda temizle. .write zaten $rid
+   seviyesinde (owner/editor) → kural değişmez. */
+export async function liveHistoryClearAll(tid, rid) {
+  if (!db || !tid || !rid) return;
+  await update(ref(db, `teams/${tid}`), {
+    [`livelaps/${rid}`]: null,
+    [`livepos/${rid}`]: null,
+    [`livesec/${rid}`]: null,
+    [`livedrv/${rid}`]: null,
+    [`livetyre/${rid}`]: null,
+    [`livecond/${rid}`]: null,
+  });
+}
+
 /* ---- paylaşımlı iç-harita şekli (livetrack) ----
    teams/{tid}/livetrack/{trackKey} = packBins(...) metni (bkz. trackShape.js).
    PİST başına saklanır (rid değil) → bir kez oluşan devre şekli o pistin tüm

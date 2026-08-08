@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.135",
+    date: "2026-08-08",
+    tr: [
+      "🧹 Canlı Timing '+' tur geçmişi düzeltmesi: bir araç satırında '+' ile açılan tur listesi bazen O SEANSLA ALAKASIZ (önceki antrenman/deneme seansının, hatta başka pilotun) turlarını gösteriyordu. Köprü artık oyundan kararlı bir seans belirteci alıyor; yeni bir seans başlayınca (antrenman → yarış) o yarışın tüm canlı-geçmişi bir kez otomatik temizleniyor, eski turlar yeni seansa sızmıyor.",
+      "🔒 Köprü yarış ORTASINDA yeniden başlatılırsa seans belirteci aynı kaldığı için geçmiş KORUNUR (yanlış temizleme yok). Not: bu yarışın mevcut eski verisi bir sonraki seans başında otomatik temizlenir. (Yayın yapan sürüş PC'sinin yeni masaüstü sürümünü kurması gerekir.)",
+    ],
+    en: [
+      "🧹 Live Timing '+' lap-history fix: the lap list opened from a car's '+' sometimes showed laps UNRELATED to the current session (from an earlier practice/test session, even a different driver). The bridge now reads a stable session token from the game; when a new session begins (practice → race) that race's entire live-history is cleared once, so old laps no longer bleed into the new session.",
+      "🔒 If the bridge is restarted mid-race the session token stays the same, so history is PRESERVED (no wrong clear). Note: this race's existing old data clears automatically at the start of the next session. (The broadcasting PC needs the new desktop build.)",
+    ],
+  },
+  {
     v: "v1.4.134",
     date: "2026-08-08",
     tr: [
