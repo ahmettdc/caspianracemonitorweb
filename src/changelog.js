@@ -5,6 +5,20 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.112",
+    date: "2026-08-07",
+    tr: [
+      "🗺 Telemetri Tur Karşılaştırma'ya PİST HARİTASI eklendi: yüklediğin .ld'den devrenin şekli çıkarılır (varsa konum kanalından, yoksa hız + yanal-G ile tahmin) ve karşılaştırmanın en üstünde çizilir.",
+      "İz grafiklerinden birine gelince (hız/gaz/fren/delta…) haritada o nokta işaretlenir → hangi virajda olduğun net görünür. Harita, kırmızı (A hızlı) / mavi (B hızlı) renkli → hangi virajda kim kazandı bir bakışta belli.",
+      "Konum ya da yanal-G kanalı olmayan dosyalarda harita çizilmez (net not gösterilir). G'den üretilen şekil yaklaşıktır. Web-only.",
+    ],
+    en: [
+      "🗺 Added a TRACK MAP to the Telemetry Lap Comparison: the circuit shape is derived from your .ld (from a position channel if present, otherwise estimated from speed + lateral-G) and drawn at the top of the comparison.",
+      "Hovering any trace (speed/throttle/brake/delta…) marks that spot on the map → you can see exactly which corner it is. The map is colored red (A faster) / blue (B faster) so you see at a glance who won each corner.",
+      "Files without a position or lateral-G channel don't get a map (a clear note is shown). The G-derived shape is approximate. Web-only.",
+    ],
+  },
+  {
     v: "v1.4.111",
     date: "2026-08-07",
     tr: [

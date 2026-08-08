@@ -16,7 +16,8 @@
    ============================================================ */
 import { readChannel, findChan, sampleAt, TRACE_CHANS } from "./ldParser";
 
-export const TRACE_KEYS = ["speed", "throttle", "brake", "gear", "rpm", "steer", "dist"];
+export const TRACE_KEYS = ["speed", "throttle", "brake", "gear", "rpm", "steer", "dist",
+  "latg", "posx", "posz"];
 
 /* Kanal okuyucularını dosya başına BİR kez kur (çağıran önbelleğe alır). header =
    parseLd'nin döndürdüğü { chans, order }. Her okuyucu o kanalın bayt bloğu (birkaç MB)
@@ -41,6 +42,49 @@ function pctScale(r, t0, tEnd) {
   const steps = 40, dt = (tEnd - t0) / steps;
   for (let i = 0; i <= steps; i++) { const v = at(r, t0 + i * dt); if (Number.isFinite(v)) mx = Math.max(mx, Math.abs(v)); }
   return mx > 0 && mx <= 1.5 ? 100 : 1;
+}
+
+/* Uniform (t0, dt) ham diziden mutlak zaman tg'de doğrusal örnek. */
+function sampleArrAtTime(rawArr, t0, dt, tg) {
+  const p = (tg - t0) / dt;
+  const i = Math.max(0, Math.min(rawArr.length - 2, Math.floor(p)));
+  const f = p - i;
+  const a = rawArr[i], b = rawArr[i + 1] ?? a;
+  return a + f * (b - a);
+}
+
+/* Pist XY şeklini turdan türet — öncelik: konum kanalı → yoksa hız+yanal-G ile yeniden
+   kur (yaw = latG/v; θ+=yaw·dt; x+=v·dt·cosθ, y+=v·dt·sinθ). Dönen ham {x,y,src} ya da
+   null (UI fit-to-box normalize eder). rawV = m/s ham hız dizisi. */
+function trackXY(readers, rawT, rawV, dt) {
+  const M = rawT.length;
+  const xs = Array.from({ length: M });
+  const ys = Array.from({ length: M });
+  const span = (arr) => Math.max(...arr) - Math.min(...arr);
+  if (readers.posx && readers.posz) {
+    let ok = true;
+    for (let j = 0; j < M; j++) {
+      xs[j] = at(readers.posx, rawT[j]); ys[j] = at(readers.posz, rawT[j]);
+      if (!Number.isFinite(xs[j]) || !Number.isFinite(ys[j])) ok = false;
+    }
+    if (ok && (span(xs) > 0 || span(ys) > 0)) return { x: xs, y: ys, src: "pos" };
+  }
+  if (readers.latg) {
+    let mx = 0;
+    for (let j = 0; j < M; j++) { const v = at(readers.latg, rawT[j]); if (Number.isFinite(v)) mx = Math.max(mx, Math.abs(v)); }
+    const gUnit = mx > 0 && mx <= 5 ? 9.81 : 1;   // ≤5 → g cinsinden → m/s²'ye çevir
+    let th = 0, x = 0, y = 0;
+    for (let j = 0; j < M; j++) {
+      const v = rawV[j] || 0;
+      const laRaw = at(readers.latg, rawT[j]);
+      const la = (Number.isFinite(laRaw) ? laRaw : 0) * gUnit;
+      if (v > 0.5) th += (la / v) * dt;           // yaw hızı = latG / v
+      x += v * dt * Math.cos(th); y += v * dt * Math.sin(th);
+      xs[j] = x; ys[j] = y;
+    }
+    if (span(xs) > 0 || span(ys) > 0) return { x: xs, y: ys, src: "g" };
+  }
+  return null;
 }
 
 /* Monoton artan rawDist üzerinden dGrid mesafelerine karşılık gelen zamanı interpole et. */
@@ -71,9 +115,10 @@ export function buildTrace(readers, lap, N = 600) {
   const t0 = lap.t0, tEnd = lap.tEnd;
   const M = Math.max(2, Math.min(8000, Math.round((tEnd - t0) * freq)));
 
-  // ham örnek zamanları (mutlak) + mesafe
+  // ham örnek zamanları (mutlak) + mesafe + hız (m/s, geometri için)
   const rawT = Array.from({ length: M });
   const rawDist = Array.from({ length: M });
+  const rawV = Array.from({ length: M });
   const dt = (tEnd - t0) / (M - 1);
   const hasDist = !!readers.dist;
   let d0dist = hasDist ? at(readers.dist, t0) : null;
@@ -82,6 +127,9 @@ export function buildTrace(readers, lap, N = 600) {
   for (let j = 0; j < M; j++) {
     const tAbs = t0 + j * dt;
     rawT[j] = tAbs;
+    const sp = readers.speed ? at(readers.speed, tAbs) : null;    // km/h
+    const ms = Number.isFinite(sp) ? Math.max(0, sp) / 3.6 : prevMs;
+    rawV[j] = ms;
     if (distOk) {
       const dv = at(readers.dist, tAbs);
       rawDist[j] = Number.isFinite(dv) ? dv - d0dist : (rawDist[j - 1] ?? 0);
@@ -89,12 +137,10 @@ export function buildTrace(readers, lap, N = 600) {
       if (j > 0 && rawDist[j] < rawDist[j - 1] - 1) { distOk = false; }
     }
     if (!distOk) {
-      const sp = readers.speed ? at(readers.speed, tAbs) : null;   // km/h
-      const ms = Number.isFinite(sp) ? Math.max(0, sp) / 3.6 : prevMs;
-      if (j > 0) cum += ((prevMs + ms) / 2) * dt;                  // trapez
+      if (j > 0) cum += ((prevMs + ms) / 2) * dt;                 // trapez
       rawDist[j] = cum;
-      prevMs = ms;
     }
+    prevMs = ms;
   }
   // mesafe kanalı yarıda bozulduysa baştan hız entegrasyonuyla yeniden kur
   if (hasDist && !distOk) {
@@ -134,6 +180,14 @@ export function buildTrace(readers, lap, N = 600) {
   if (readers.gear) out.gear = readers.gear ? tGrid.map((t) => { const v = at(readers.gear, t); return Number.isFinite(v) ? Math.round(v) : null; }) : null;
   if (readers.rpm) out.rpm = chOf(readers.rpm);
   if (readers.steer) out.steer = chOf(readers.steer);
+
+  // pist şekli (konum kanalı ya da hız+yanal-G) → grid'e hizalı x/y (UI fit-to-box)
+  const geo = trackXY(readers, rawT, rawV, dt);
+  if (geo) {
+    out.x = dGrid.map((_, k) => sampleArrAtTime(geo.x, t0, dt, tGrid[k]));
+    out.y = dGrid.map((_, k) => sampleArrAtTime(geo.y, t0, dt, tGrid[k]));
+    out.mapSrc = geo.src;   // "pos" | "g"
+  }
   return out;
 }
 
@@ -148,6 +202,7 @@ export function buildCompare(a, b) {
   const has = (k) => !!(a[k] && b[k]);
   const chans = { speed: has("speed"), throttle: has("throttle"), brake: has("brake"),
     gear: has("gear"), rpm: has("rpm"), steer: has("steer") };
+  const hasMap = !!(a.x && a.y && a.x.length);   // pist şekli lap A'dan (aynı devre)
   const data = Array.from({ length: N });
   for (let k = 0; k < N; k++) {
     const dt = (b.time[k] ?? 0) - (a.time[k] ?? 0);
@@ -159,6 +214,7 @@ export function buildCompare(a, b) {
       gA: a.gear?.[k] ?? null, gB: b.gear?.[k] ?? null,
       rpmA: a.rpm?.[k] ?? null, rpmB: b.rpm?.[k] ?? null,
       stA: a.steer?.[k] ?? null, stB: b.steer?.[k] ?? null,
+      mapX: hasMap ? a.x[k] : null, mapY: hasMap ? a.y[k] : null,
     };
   }
   // sektör farkları: tur-kesri üçlüsü (S1/S2/S3 kanalı .ld'de güvenilir değil)
@@ -169,5 +225,6 @@ export function buildCompare(a, b) {
     const dB = at3(b.time, f1) - at3(b.time, f0);
     return { sec: i + 1, dA, dB, diff: dB - dA };
   });
-  return { data, chans, sectors, distUnit: a.distUnit, totalDelta: data.length ? data[N - 1].dt : 0 };
+  return { data, chans, sectors, distUnit: a.distUnit, hasMap, mapSrc: a.mapSrc || null,
+    totalDelta: data.length ? data[N - 1].dt : 0 };
 }
