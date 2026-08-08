@@ -2,8 +2,8 @@
    useLiveBridge — canlı köprü yaşam döngüsü (masaüstü, OTOMATİK)
    ------------------------------------------------------------
    App.jsx'ten çıkarıldı (Tanrı-bileşen borcunu azaltan ilk güvenli dilim).
-   Davranış birebir korunur: oyunun PC'sinde uygulama açık (Tauri) + kullanıcı
-   takımda owner/editor + bir yarış seçiliyse köprüyü kendiliğinden başlatır;
+   Oyunun PC'sinde uygulama açık (Tauri) + kullanıcı takımın HERHANGİ bir üyesi
+   (owner/editor/viewer) + bir yarış seçiliyse köprüyü kendiliğinden başlatır;
    çalışmıyorsa ~4 sn'de bir yeniden dener (oyun sonradan açılırsa da bağlanır);
    koşul kalkınca / çıkışta durdurur. Elle Başlat/Durdur yok — sidecar oyunu
    okuyup veriyi kullanıcının oturumuyla teams/{tid}/live/{rid}'e yazar.
@@ -14,11 +14,11 @@ import { useState, useEffect } from "react";
 import { isTauri } from "./tauriEnv";
 import { startBridge, stopBridge, bridgeRunning } from "./liveBridge";
 
-export function useLiveBridge({ canEditTeam, curTeam, curRace, user, noRest = false }) {
+export function useLiveBridge({ isMember, curTeam, curRace, user, noRest = false }) {
   const [bridge, setBridge] = useState({ supported: isTauri, running: false, phase: "idle", msg: "" });
   useEffect(() => {
     if (!isTauri) return undefined;
-    if (!canEditTeam || !curTeam || !curRace || !user) { stopBridge(setBridge); return undefined; }
+    if (!isMember || !curTeam || !curRace || !user) { stopBridge(setBridge); return undefined; }
     let stopped = false, timer = null;
     const by = user?.email || "masaüstü";
     const tick = () => {

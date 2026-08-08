@@ -417,7 +417,7 @@ function OwnCar({ t, own, liveFuelObs }) {
 /* Canlı köprü durum kartı (yalnız gösterim). Köprü masaüstünde OTOMATİK çalışır
    (App.jsx yönetir): oyunun PC'sinde uygulama açık + owner/editor + yarış seçiliyse
    kendiliğinden bağlanır, koparsa ~4 sn'de bir yeniden dener. Elle başlatma yok. */
-function BridgeControl({ t, bridge, canEdit, noRest = false, onToggleNoRest }) {
+function BridgeControl({ t, bridge, canBridge, noRest = false, onToggleNoRest }) {
   const phase = bridge?.phase || "idle";
   const dot = phase === "running" ? "var(--green)"
     : phase === "error" ? "var(--red)"
@@ -437,33 +437,26 @@ function BridgeControl({ t, bridge, canEdit, noRest = false, onToggleNoRest }) {
           boxShadow: `0 0 8px ${dot}`, cursor: diagTitle ? "help" : "default" }} />
         <span style={{ fontSize: 11, color: "var(--dim)", fontWeight: 400 }}>{t("otomatik")}</span>
       </h2>
-      {canEdit && phase === "standby" && (
+      {canBridge && phase === "standby" && (
         <div className="hint" style={{ marginTop: 6, color: "var(--yellow)" }}>
           ⏸ {t("Beklemede")}{writerBy ? ` — ${writerBy} ${t("yayınlıyor")}` : ""} · {t("aktif sürücü canlıyı yazıyor")}
         </div>
       )}
-      {canEdit && phase === "running" && writerBy && (
+      {canBridge && phase === "running" && writerBy && (
         <div className="hint" style={{ marginTop: 6, color: "var(--dim)" }}>
           🛰 {t("Canlı kaynak")}: {writerBy}
         </div>
       )}
-      {canEdit && bridge?.msg && phase !== "standby" && (
+      {canBridge && bridge?.msg && phase !== "standby" && (
         <div className="hint" style={{ marginTop: 6,
           color: phase === "error" ? "var(--red)" : "var(--dim)" }}>
           • {t(bridge.msg)}
         </div>
       )}
-      {/* Viewer'da köprü HİÇ başlamaz — eskiden kart sessiz kalıyordu ve üye
-          "neden bende çalışmıyor" diye kalıyordu. Sebep artık açık yazılır. */}
-      {!canEdit && (
-        <div className="hint" style={{ marginTop: 6, color: "var(--yellow)" }}>
-          🔒 {t("Rolün izleyici — köprü bu rolde yayın yapamaz. Yayınlayacak üyenin takımda 🎧 Mühendis (editor) ya da Sahip olması gerekir.")}
-        </div>
-      )}
       {/* PERFORMANS (v1.4.97): oyun eklentisi bizim OKUMADIĞIMIZ buffer'ları da yazıyorsa
           (FFB+Graphics saniyede 400'er kez) oyunda takılma yapar. Ayarı biz YAZMAYIZ —
           başka araçların (CrewChief/SimHub/TinyPedal) ihtiyacını bilemeyiz; öneririz. */}
-      {canEdit && d?.plugin?.wastedFps > 0 && d.plugin.suggest != null && (
+      {canBridge && d?.plugin?.wastedFps > 0 && d.plugin.suggest != null && (
         <div className="hint warn" style={{ marginTop: 6 }}>
           ⚡ {t("Oyun eklentisi saniyede")} ~{d.plugin.wastedFps} {t("kez bu uygulamanın okumadığı veriyi yazıyor")}
           {" "}({d.plugin.wasted.join(", ")}) — {t("bu, oyunda takılmaya yol açar.")}
@@ -478,7 +471,7 @@ function BridgeControl({ t, bridge, canEdit, noRest = false, onToggleNoRest }) {
           --no-rest ile başlar → oyunun localhost sunucusuna hiç istek atmaz. Tepside
           bile takılma REST kapalıyken BİTİYORSA sebep REST demektir → optimize ederiz.
           Bitmiyorsa sebep başka (CPU/GPU) → oraya bakarız. Değişince köprü yeniden başlar. */}
-      {canEdit && onToggleNoRest && (
+      {canBridge && onToggleNoRest && (
         <div className="hint" style={{ marginTop: 8, display: "flex", alignItems: "center",
           gap: 8, flexWrap: "wrap" }}>
           <button className="act" style={{ fontSize: 11,
@@ -580,7 +573,8 @@ function WxCalib({ t, s }) {
   );
 }
 
-export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelObs, tid, rid,
+export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge = false,
+  liveFuelObs, tid, rid,
   tourDemo, onGuide, bridgeNoRest = false, onToggleNoRest, isAdmin = false }) {
   const [myClassOnly, setMyClassOnly] = useState(false);
   const [big, setBig] = useState(false);
@@ -674,7 +668,7 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
   }, []);
 
   const bridgeCard = isTauri ? (
-    <BridgeControl t={t} bridge={bridge} canEdit={canEdit}
+    <BridgeControl t={t} bridge={bridge} canBridge={canBridge}
       noRest={bridgeNoRest} onToggleNoRest={onToggleNoRest} />
   ) : null;
 

@@ -725,6 +725,11 @@ ${bottomBar}
 
   const myRole = teamData?.members?.[user?.uid] || "";
   const canEditTeam = myRole === "owner" || myRole === "editor";
+  /* Canlı köprüyü ÇALIŞTIRMA yetkisi: takımın HERHANGİ bir üyesi (owner/editor/viewer).
+     Strateji düzenlemeden (canEditTeam) AYRI: endurance'ta koltuğa geçecek co-sürücü
+     "viewer" rolünde olsa da kendi PC'sinden canlıyı yayınlayabilmeli. Tek-yazıcı kirası
+     çakışmayı zaten yönetir; strateji yazımı yine yalnız editor'de. */
+  const isMember = !!myRole;
   /* rozet/rol yönetimi: takım sahibi veya site admini */
   const canManageTeam = myRole === "owner" || isAdmin;
 
@@ -742,7 +747,7 @@ ${bottomBar}
 
   /* Canlı köprü (masaüstü) OTOMATİK yaşam döngüsü → useLiveBridge hook'una çıkarıldı
      (App.jsx Tanrı-bileşen borcunu azaltan ilk güvenli dilim). Davranış birebir aynı. */
-  const bridge = useLiveBridge({ canEditTeam, curTeam, curRace, user, noRest: bridgeNoRest });
+  const bridge = useLiveBridge({ isMember, curTeam, curRace, user, noRest: bridgeNoRest });
   /* Sürüş Modu: köprü şu an CANLI oyun verisi yazıyor mu (bu PC sürüş PC'si, yarışta).
      phase==="running" yalnız field dolu (araç var) iken olur → gerçek canlı yazım. */
   const bridgeLive = bridge?.phase === "running" && bridge?.writerBy === user?.email;
@@ -2356,7 +2361,7 @@ ${bottomBar}
           </>)}
 
           {tab === "live" && <LiveTab t={t} live={live} liveFuelObs={liveFuelObs}
-            bridge={bridge} canEdit={canEditTeam} tid={curTeam} rid={curRace}
+            bridge={bridge} canEdit={canEditTeam} canBridge={isMember} tid={curTeam} rid={curRace}
             tourDemo={tourDemo} onGuide={() => setTour("live")} isAdmin={isAdmin}
             bridgeNoRest={bridgeNoRest} onToggleNoRest={toggleBridgeNoRest} />}
 
