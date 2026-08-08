@@ -8,7 +8,7 @@ import tkinter as tk
 from tkinter import messagebox
 
 from fb import FirebaseClient
-from main import make_source, build_payload
+from main import make_source, build_payload, lower_priority
 from logfile import get_logger, heartbeat_line, log_path
 
 API_KEY = "AIzaSyB9hEH26etwvn9adAGNOpPAlpUym1qzpns"
@@ -49,6 +49,9 @@ class BridgeGUI:
         self.vars = {k: tk.StringVar() for k in ("email", "password", "team_id", "race_id", "hz")}
         self.vars["hz"].set("2")
         self.mock = tk.BooleanVar(value=False)
+        # REST varsayılan KAPALI — oyun donmasının en güçlü şüphelisi (LMU localhost REST).
+        # Açınca VE% + takım adı gelir ama oyun donabilir.
+        self.rest_on = tk.BooleanVar(value=False)
         # Google oturumu (bot yerine kendi hesabın) + takım/yarış listeleri
         self.refresh_token = ""
         self.google_email = ""
@@ -79,9 +82,12 @@ class BridgeGUI:
         self.race_menu = self._menu("Yarış", self.race_label, self.on_race_pick)
 
         self._field("Gönderim (Hz)", "hz")
+        tk.Checkbutton(root, text="⚡ REST aç — VE% + takım adı (oyun DONUYORSA kapalı bırak)",
+                       variable=self.rest_on, bg=BG, fg=WARN, selectcolor=BG2, activebackground=BG,
+                       activeforeground=INK, font=("Segoe UI", 9)).pack(anchor="w", padx=12, pady=(6, 0))
         tk.Checkbutton(root, text="Mock veri (oyunsuz test)", variable=self.mock,
                        bg=BG, fg=DIM, selectcolor=BG2, activebackground=BG,
-                       activeforeground=INK, font=("Segoe UI", 9)).pack(anchor="w", padx=12, pady=(4, 2))
+                       activeforeground=INK, font=("Segoe UI", 9)).pack(anchor="w", padx=12, pady=(2, 2))
 
         # --- Gelişmiş (bot hesabı) — katlanır; Google giriş yaptıysan gerekmez ---
         self.adv_open = False
@@ -305,6 +311,8 @@ class BridgeGUI:
                 self.vars["race_id"].set(cp["race"].get("race_id", ""))
             if cp.has_section("rate"):
                 self.vars["hz"].set(cp["rate"].get("hz", "2"))
+                self.rest_on.set(cp["rate"].get("rest_on", "").strip().lower()
+                                 in ("1", "true", "yes", "on"))
             self.log("Kayıtlı ayarlar yüklendi.")
             # Google oturumu kayıtlıysa: giriş göster + takım/yarış listelerini tazele
             if self.refresh_token:
@@ -322,7 +330,8 @@ class BridgeGUI:
                           "google_email": self.google_email or ""}
         cp["race"] = {"team_id": self.vars["team_id"].get().strip(),
                       "race_id": self.vars["race_id"].get().strip()}
-        cp["rate"] = {"hz": self.vars["hz"].get().strip() or "2"}
+        cp["rate"] = {"hz": self.vars["hz"].get().strip() or "2",
+                      "rest_on": "true" if self.rest_on.get() else "false"}
         with open(self.cfg, "w", encoding="utf-8") as f:
             cp.write(f)
 
@@ -409,15 +418,20 @@ class BridgeGUI:
         except ValueError:
             hz = 2.0
         period = 1.0 / max(0.2, min(hz, 10))
-        self.lg.info("=== Köprü başladı === hedef teams/%s/live/%s · %g Hz · %s",
-                     tid, rid, hz, "MOCK" if self.mock.get() else "oyun (paylaşımlı bellek)")
+        no_rest = not self.rest_on.get()
+        low = lower_priority()  # oyunla çekişmede oyun kazansın
+        self.lg.info("=== Köprü başladı === hedef teams/%s/live/%s · %g Hz · %s · REST:%s · öncelik:%s",
+                     tid, rid, hz, "MOCK" if self.mock.get() else "oyun",
+                     "kapalı" if no_rest else "AÇIK", "düşük" if low else "normal")
+        self.log(f"REST: {'kapalı (donma önlemi)' if no_rest else 'AÇIK — donma yaparsa kapat'}"
+                 f" · öncelik: {'düşük' if low else 'normal'}")
         try:
             fb = self._client()
             self.log("[firebase] giriş…")
             fb.sign_in()
             self.log(f"Giriş yapıldı — UID: {fb.uid}")
             self.lg.info("giriş OK — UID %s", fb.uid)
-            src = make_source(self.mock.get())
+            src = make_source(self.mock.get(), no_rest)
             self.log("Mock veri" if self.mock.get() else "Oyun (paylaşımlı bellek) okunuyor")
         except Exception as e:  # noqa: BLE001
             self.log(f"başlatılamadı: {e}")
