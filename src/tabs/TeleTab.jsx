@@ -1,16 +1,17 @@
-import { useState, useRef, useEffect } from "react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ReferenceLine, ResponsiveContainer } from "recharts";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ReferenceLine, ReferenceDot, ResponsiveContainer } from "recharts";
 import { fmtLap } from "../engine";
 import { SLOT_COLORS } from "../constants";
 import { Tyre, BoxPlot } from "../components";
 import { zoomViewAt, panView, zoomDomain, advanceCursor } from "../zoomView";
 import { sectorOf, sectorMarks } from "../ldTrace";
+import { detectApexes, cornerStats } from "../corners";
 
 /* İz karşılaştırma renkleri (A/B tur) */
 const CA = "#ff5470", CB = "#4d9fff";
 
 /* Tek kanal iz satırı — recharts syncId ile hepsi ortak imleç + ortak mesafe ekseni. */
-function TraceRow({ data, title, unit, keys, colors, fmt, height = 132, zero, dashB, onCursor, onAnchor, xDomain, bounds, cursorD }) {
+function TraceRow({ data, title, unit, keys, colors, fmt, height = 132, zero, dashB, onCursor, onAnchor, xDomain, bounds, cursorD, dots }) {
   const onMove = (onCursor || onAnchor) ? (s) => {
     if (onCursor) onCursor(s && s.activeTooltipIndex != null ? s.activeTooltipIndex : null);
     if (onAnchor && s && s.activeLabel != null) onAnchor(s.activeLabel);
@@ -33,7 +34,11 @@ function TraceRow({ data, title, unit, keys, colors, fmt, height = 132, zero, da
               labelFormatter={(v) => `${Math.round(v)} ${unit}`}
               formatter={(val, n) => [fmt ? fmt(val) : val, n]} />
             {zero && <ReferenceLine y={0} stroke="#8C97A5" strokeDasharray="4 4" />}
-            {cursorD != null && <ReferenceLine x={cursorD} stroke="#F5C84C" strokeWidth={1.4} />}
+            {cursorD != null && <ReferenceLine x={cursorD} stroke="#3ad07a" strokeWidth={1.4} />}
+            {(dots || []).map((p, i) => (
+              <ReferenceDot key={`d${i}`} x={p.x} y={p.y} r={3} fill={p.c} stroke="#000"
+                strokeWidth={0.6} isFront />
+            ))}
             {(bounds || []).map((b) => (
               <ReferenceLine key={b.label} x={b.d} stroke="#6B7683" strokeDasharray="2 3"
                 label={{ value: `S${b.label.slice(-1)}`, position: "insideTopLeft",
@@ -57,7 +62,7 @@ function TraceRow({ data, title, unit, keys, colors, fmt, height = 132, zero, da
    yaptık". İz üzerinde gezerken (cursor) haritada o nokta işaretlenir.
    Fare tekerleğiyle yakınlaştır (viewBox state), sürükleyerek gez, çift-tık sıfırla —
    nokta matematiği (scr/segment) DEĞİŞMEZ; yalnız viewBox pencere kayar/daralır. */
-function TrackMini({ t, data, cursor, src, big, marks, onScrub }) {
+function TrackMini({ t, data, cursor, src, big, marks, apex, onScrub }) {
   const S = 240, PAD = 16;
   const [view, setView] = useState({ vx: 0, vy: 0, vw: S, vh: S });
   const svgRef = useRef(null);
@@ -86,6 +91,11 @@ function TrackMini({ t, data, cursor, src, big, marks, onScrub }) {
   const secTicks = (marks || []).map((m) => {
     const p = data[m.idx] ? scr(data[m.idx].mapX, data[m.idx].mapY) : null;
     return p ? { ...m, x: p[0], y: p[1] } : null;
+  }).filter(Boolean);
+  /* viraj (apex) işaretleri — numaralı küçük daireler */
+  const apexPts = (apex || []).map((idx, i) => {
+    const p = data[idx] ? scr(data[idx].mapX, data[idx].mapY) : null;
+    return p ? { no: i + 1, x: p[0], y: p[1] } : null;
   }).filter(Boolean);
   const zoomed = view.vw < S - 0.5;
 
@@ -167,10 +177,18 @@ function TrackMini({ t, data, cursor, src, big, marks, onScrub }) {
                 S{m.label.slice(-1)}</text>
             </g>
           ))}
+          {apexPts.map((a) => (
+            <g key={`ap${a.no}`}>
+              <circle cx={a.x} cy={a.y} r={3.4 * zf} fill="#F5C84C" stroke="#000" strokeWidth={1}
+                vectorEffect="non-scaling-stroke" />
+              <text x={a.x + 5 * zf} y={a.y - 4 * zf} fill="#F5C84C" fontSize={8 * zf}
+                fontWeight="700">{a.no}</text>
+            </g>
+          ))}
           <circle cx={sfx} cy={sfy} r={5 * zf} fill="none" stroke="#fff" strokeWidth={2}
             vectorEffect="non-scaling-stroke" />
           <text x={sfx + 7 * zf} y={sfy + 3 * zf} fill="#fff" fontSize={9 * zf}>S/F</text>
-          {cur && <circle cx={cur[0]} cy={cur[1]} r={6 * zf} fill="#F5C84C" stroke="#000"
+          {cur && <circle cx={cur[0]} cy={cur[1]} r={6 * zf} fill="#3ad07a" stroke="#000"
             strokeWidth={1.4} vectorEffect="non-scaling-stroke" />}
         </svg>
         {zoomed && (
@@ -228,6 +246,10 @@ function TraceCompareCard({ t, sources, fallbackMeta, cmpASrc, setCmpASrc, cmpBS
   const dHi = data?.length ? data[data.length - 1].d : 0;
   const unit = cmpData?.distUnit === "frac" ? "%" : "m";
   const marks = data ? sectorMarks(data) : [];   // sektör sınırları (mesafe üçlüsü)
+  /* viraj tespiti: A'nın hız minimumları (apex) → apex hızları + fren mesafeleri (A/B) */
+  const apexes = useMemo(() => (data?.length
+    ? detectApexes(data.map((p) => p.spA), data.map((p) => p.d)) : []), [data]);
+  const corners = useMemo(() => cornerStats(data, apexes), [data, apexes]);
   const curSec = cursor != null && data?.[cursor]
     ? sectorOf((data[cursor].frac ?? 0) / 100) : null;   // data.frac 0..100
   const cursorD = cursor != null && data?.[cursor] ? data[cursor].d : null;
@@ -447,7 +469,7 @@ ${svgs}
       )}
 
       {cmpData && cmpData.hasMap && (
-        <TrackMini t={t} data={cmpData.data} cursor={cursor} src={cmpData.mapSrc} marks={marks} onScrub={onScrub} />
+        <TrackMini t={t} data={cmpData.data} cursor={cursor} src={cmpData.mapSrc} marks={marks} apex={apexes} onScrub={onScrub} />
       )}
       {cmpData && !cmpData.hasMap && (
         <div className="hint" style={{ marginTop: 6, opacity: .7 }}>
@@ -472,7 +494,10 @@ ${svgs}
         {ch.speed && (
           <TraceRow data={cmpData.data} title={`🏁 ${t("Hız")} (km/h)`} unit={unit}
             keys={["spA", "spB"]} colors={[CA, CB]} fmt={sp1}
-            onCursor={setCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} bounds={marks} cursorD={cursorD} />
+            onCursor={setCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} bounds={marks} cursorD={cursorD}
+            dots={corners.flatMap((c) => [
+              c.aMin != null ? { x: c.apexD, y: c.aMin, c: CA } : null,
+              c.bMin != null ? { x: c.apexD, y: c.bMin, c: CB } : null].filter(Boolean))} />
         )}
         {ch.throttle && (
           <TraceRow data={cmpData.data} title={`🟢 ${t("Gaz")} %`} unit={unit}
@@ -520,6 +545,45 @@ ${svgs}
         <div className="hint" style={{ marginTop: 4, opacity: .6 }}>
           {t("Sektörler tur-kesri üçlüsüdür (mesafe/3); gerçek S/F beacon'ı değil.")}
         </div>
+
+        {/* Viraj analizi: apex (viraj ortası) hızları + fren mesafeleri (A/B) */}
+        {corners.length > 0 ? (<>
+          <h3 style={{ fontSize: 13, margin: "14px 0 4px" }}>🏁 {t("Viraj Analizi")}</h3>
+          <div style={{ overflowX: "auto" }}>
+          <table style={{ fontSize: 12 }}>
+            <thead><tr>
+              <th>{t("Viraj")}</th><th>{t("Mesafe")}</th>
+              <th style={{ color: CA }}>A {t("apex")}</th><th style={{ color: CB }}>B {t("apex")}</th><th>Δ</th>
+              <th style={{ color: CA }}>A {t("fren")}</th><th style={{ color: CB }}>B {t("fren")}</th>
+            </tr></thead>
+            <tbody>
+              {corners.map((c) => {
+                const spD = (c.aMin != null && c.bMin != null) ? c.aMin - c.bMin : null;
+                const bd = (v) => (v == null ? "—" : `${Math.round(v)} ${unit}`);
+                return (
+                  <tr key={c.no}>
+                    <td style={{ fontWeight: 700, color: "#F5C84C" }}>{c.no}</td>
+                    <td className="mono">{Math.round(c.apexD)} {unit}</td>
+                    <td className="mono">{c.aMin != null ? Math.round(c.aMin) : "—"}</td>
+                    <td className="mono">{c.bMin != null ? Math.round(c.bMin) : "—"}</td>
+                    <td className="mono" style={{ color: spD == null ? "inherit" : spD >= 0 ? CA : CB, fontWeight: 600 }}>
+                      {spD == null ? "—" : `${spD >= 0 ? "+" : ""}${Math.round(spD)}`}</td>
+                    <td className="mono">{bd(c.aBrakeDist)}</td>
+                    <td className="mono">{bd(c.bBrakeDist)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          </div>
+          <div className="hint" style={{ marginTop: 4, opacity: .6 }}>
+            {t("apex = viraj ortası (en düşük hız); fren = fren-başından apex'e mesafe. Sezgisel tespit (gerçek beacon değil).")}
+          </div>
+        </>) : (
+          <div className="hint" style={{ marginTop: 10, opacity: .6 }}>
+            {t("Viraj tespit edilemedi — hız/fren kanalı gerekli.")}
+          </div>
+        )}
       </>)}
 
       {big && cmpData?.hasMap && (
@@ -531,7 +595,7 @@ ${svgs}
                 title={t("Kapat")} onClick={() => setBig(false)}>✕</button>
             </div>
             <div className="mapwrap">
-              <TrackMini t={t} data={cmpData.data} cursor={cursor} src={cmpData.mapSrc} marks={marks} onScrub={onScrub} big />
+              <TrackMini t={t} data={cmpData.data} cursor={cursor} src={cmpData.mapSrc} marks={marks} apex={apexes} onScrub={onScrub} big />
             </div>
           </div>
         </div>
