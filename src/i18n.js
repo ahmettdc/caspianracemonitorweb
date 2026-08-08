@@ -593,6 +593,8 @@ export const EN = {
   "Oynatma hızı": "Playback speed",
   "Yüklü dosya": "Loaded file",
   "farklı pist — kıyas dikkatli": "different track — compare with care",
+  "Telemetri Raporu": "Telemetry Report",
+  "Grafikleri PDF rapor olarak çıkart (tam tur için önce ⟳ sıfırla)": "Export charts as a PDF report (reset ⟳ first for the full lap)",
   "Pist haritası çizilemedi — bu dosyada konum ya da yanal-G kanalı yok.":
     "Couldn't draw the track map — this file has no position or lateral-G channel.",
   "kaydedildi": "saved",
