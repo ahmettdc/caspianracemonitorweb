@@ -588,6 +588,8 @@ export const EN = {
   "tekerlek: yakınlaştır · sürükle: gez · çift-tık: sıfırla": "wheel: zoom · drag: pan · double-click: reset",
   "tekerlek: yakınlaştır": "wheel: zoom",
   "Yakınlaştırmayı sıfırla": "Reset zoom",
+  "Telemetriyi oynat": "Play telemetry",
+  "Oynatma hızı": "Playback speed",
   "Pist haritası çizilemedi — bu dosyada konum ya da yanal-G kanalı yok.":
     "Couldn't draw the track map — this file has no position or lateral-G channel.",
   "kaydedildi": "saved",
