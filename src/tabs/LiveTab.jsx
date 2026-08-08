@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { fmtLap, fmtHMS, fmtGap, WEATHER, wetnessLevel, rainLevel, rubberPct } from "../engine";
 import { WetIcon } from "../WetIcon";
 import { Ring } from "../components";
-import { DESKTOP_RELEASE_URL, ASSET, classId, classAccent, brandKey, manufacturerKey } from "../constants";
+import { DESKTOP_RELEASE_URL, BRIDGE_EXE_URL, ASSET, classId, classAccent, brandKey, manufacturerKey } from "../constants";
 import { isTauri } from "../tauriEnv";
 import { liveLapsSubscribe, liveSecSubscribe, liveDrvSubscribe, liveTyreSubscribe,
   liveCondSubscribe, serverNow } from "../storage";
@@ -684,11 +684,16 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
               </>}
           </div>
           {!isTauri && !staleOff && (
-            <div style={{ marginTop: 12 }}>
+            <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
               <a className="bigbtn" href={DESKTOP_RELEASE_URL} target="_blank" rel="noopener noreferrer"
                 style={{ display: "inline-flex", alignItems: "center", gap: 8, width: "auto",
                   padding: "10px 18px", textDecoration: "none" }}>
                 🖥 {t("Masaüstü Uygulamasını İndir")}</a>
+              <a className="bigbtn ghost" href={BRIDGE_EXE_URL} target="_blank" rel="noopener noreferrer"
+                style={{ display: "inline-flex", alignItems: "center", gap: 8, width: "auto",
+                  padding: "10px 18px", textDecoration: "none" }}
+                title={t("Oyunun çalıştığı PC için: tarayıcı motoru yok → oyunu yormaz.")}>
+                🪶 {t("Hafif Köprüyü İndir (.exe)")}</a>
             </div>
           )}
         </div>

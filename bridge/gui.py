@@ -9,6 +9,7 @@ from tkinter import messagebox
 
 from fb import FirebaseClient
 from main import make_source, build_payload
+from logfile import get_logger, heartbeat_line, log_path
 
 API_KEY = "AIzaSyB9hEH26etwvn9adAGNOpPAlpUym1qzpns"
 DB_URL = "https://caspian-race-control-default-rtdb.europe-west1.firebasedatabase.app"
@@ -73,6 +74,9 @@ class BridgeGUI:
         tk.Button(btns, text="Self-Test", command=self.selftest, bg=BG2, fg=INK,
                   relief="flat", padx=12, pady=7, font=("Segoe UI", 10),
                   cursor="hand2").pack(side="left", padx=8)
+        tk.Button(btns, text="📄 Logu aç", command=self.open_log, bg=BG2, fg=INK,
+                  relief="flat", padx=12, pady=7, font=("Segoe UI", 10),
+                  cursor="hand2").pack(side="left")
 
         self.status = tk.Label(root, text="Hazır", bg=BG, fg=DIM,
                                font=("Segoe UI", 10, "bold"), anchor="w")
@@ -81,8 +85,22 @@ class BridgeGUI:
                               relief="flat", wrap="word", font=("Consolas", 9))
         self.logbox.pack(fill="both", expand=True, padx=14, pady=(4, 12))
 
+        self.lg = get_logger()
         self.load()
+        self.log(f"📄 Log dosyası: {log_path()}")
         root.protocol("WM_DELETE_WINDOW", self.on_close)
+
+    def open_log(self):
+        """Log dosyasını sistemin varsayılan uygulamasında aç (Windows: Not Defteri)."""
+        p = log_path()
+        try:
+            if os.name == "nt":
+                os.startfile(p)  # noqa: E1101  (yalnız Windows)
+            else:
+                import subprocess
+                subprocess.Popen(["xdg-open", p])
+        except Exception as e:  # noqa: BLE001
+            self.log(f"log açılamadı: {p} ({e})")
 
     # ---------- ui helpers ----------
     def _field(self, label, key, show=None):
@@ -164,6 +182,7 @@ class BridgeGUI:
     def _selftest_worker(self):
         tid, rid = self.vars["team_id"].get().strip(), self.vars["race_id"].get().strip()
         fb = self._client()
+        self.lg.info("[self-test] başladı — teams/%s/live/%s", tid, rid)
         try:
             self.log("[self-test] giriş…")
             fb.sign_in()
@@ -176,12 +195,15 @@ class BridgeGUI:
             back = fb.get_live(tid, rid)
             if back and back.get("ts") == marker:
                 self.log("✅ PASS — Firebase yazma + okuma çalışıyor.")
+                self.lg.info("[self-test] PASS — UID %s", fb.uid)
                 self.set_status("Self-test: PASS ✓", GOOD)
             else:
                 self.log(f"❌ FAIL — geri okuma uyuşmadı: {back}")
+                self.lg.warning("[self-test] FAIL — geri okuma uyuşmadı: %s", back)
                 self.set_status("Self-test: FAIL", BAD)
         except Exception as e:  # noqa: BLE001
             self.log(f"❌ FAIL — {e}")
+            self.lg.error("[self-test] FAIL — %s", e)
             if fb.uid:
                 self.log(f"İpucu: kökte bridgeBots/{fb.uid} = true var mı? team_id/race_id doğru mu?")
             else:
@@ -208,15 +230,19 @@ class BridgeGUI:
         except ValueError:
             hz = 2.0
         period = 1.0 / max(0.2, min(hz, 10))
+        self.lg.info("=== Köprü başladı === hedef teams/%s/live/%s · %g Hz · %s",
+                     tid, rid, hz, "MOCK" if self.mock.get() else "oyun (paylaşımlı bellek)")
         try:
             fb = self._client()
             self.log("[firebase] giriş…")
             fb.sign_in()
             self.log(f"Giriş yapıldı — UID: {fb.uid}")
+            self.lg.info("giriş OK — UID %s", fb.uid)
             src = make_source(self.mock.get())
             self.log("Mock veri" if self.mock.get() else "Oyun (paylaşımlı bellek) okunuyor")
         except Exception as e:  # noqa: BLE001
             self.log(f"başlatılamadı: {e}")
+            self.lg.error("başlatılamadı: %s", e)
             if not self.mock.get():
                 self.log("Oyun okunamadıysa 'Mock veri' ile hattı test edebilirsin.")
             self.set_status("Hata", BAD)
@@ -224,18 +250,28 @@ class BridgeGUI:
             return
         self.set_status("● Canlı gönderiliyor", GOOD)
         fails = 0
+        sent = 0
+        last_hb = 0.0
         while not self.stop_evt.is_set():
             t0 = time.time()
             try:
                 payload = build_payload(src, self.vars["email"].get().strip())
+                t1 = time.time()
                 fb.put_live(tid, rid, payload)
+                t2 = time.time()
                 fails = 0
+                sent += 1
                 fuel = (payload["own"] or {}).get("fuel")
                 self.set_status(f"● {len(payload['field'])} araç · yakıt "
                                 f"{fuel if fuel is not None else '—'}", GOOD)
+                if t2 - last_hb >= 10:  # dosyaya ~10 sn'de bir (şişmesin)
+                    last_hb = t2
+                    self.lg.info(heartbeat_line(sent, len(payload["field"]), fuel,
+                                                (t1 - t0) * 1000, (t2 - t1) * 1000))
             except Exception as e:  # noqa: BLE001
                 fails += 1
                 self.log(f"[hata {fails}] {e}")
+                self.lg.warning("[hata %d] %s", fails, e)
                 time.sleep(min(2 ** min(fails, 4), 16))
             dt = time.time() - t0
             if dt < period:
@@ -246,6 +282,7 @@ class BridgeGUI:
         except Exception:  # noqa: BLE001
             pass
         self.log("durduruldu.")
+        self.lg.info("=== Köprü durdu === toplam %d gönderim", sent)
         self.set_status("Durdu", DIM)
         self._set_btn("Kaydet & Başlat")
 

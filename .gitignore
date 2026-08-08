@@ -3,3 +3,5 @@ dist/
 # Firebase emülatör (test:rules) günlükleri
 *-debug.log
 firebase-export-*/
+# Köprü çalışma-zamanı log dosyası (bridge/logfile.py)
+bridge/caspian-bridge.log*
