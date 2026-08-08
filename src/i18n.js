@@ -585,6 +585,9 @@ export const EN = {
   "G-kuvveti tahmini (şekil yaklaşık)": "estimated from G-force (approx. shape)",
   "konum kanalından": "from position channel",
   "ize gel → nokta": "hover a trace → point",
+  "tekerlek: yakınlaştır · sürükle: gez · çift-tık: sıfırla": "wheel: zoom · drag: pan · double-click: reset",
+  "tekerlek: yakınlaştır": "wheel: zoom",
+  "Yakınlaştırmayı sıfırla": "Reset zoom",
   "Pist haritası çizilemedi — bu dosyada konum ya da yanal-G kanalı yok.":
     "Couldn't draw the track map — this file has no position or lateral-G channel.",
   "kaydedildi": "saved",
