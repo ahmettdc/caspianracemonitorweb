@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.126",
+    date: "2026-08-08",
+    tr: [
+      "🪶 Sürüş PC'si için TARAYICISIZ hafif köprü. Oyun donması yaşayan sürüş bilgisayarı, ağır masaüstü uygulaması (içinde tarayıcı motoru var) yerine bu küçük köprü .exe'sini çalıştırabilir — TinyPedal gibi hafif, oyunu yormaz. Aynı canlı timing'i yayınlar; mühendisler web'den izler. İndirme linki lobide ve Canlı sekmesinde geri geldi. (Bir defalık config.ini kurulumu; Self-Test eklenecek UID'yi gösterir.)",
+      "📄 Köprüye kalıcı log dosyası eklendi (%LOCALAPPDATA%\\CaspianLiveBridge\\caspian-bridge.log): giriş/UID, kare gönderim sayısı, okuma/yazma gecikmesi ve hatalar yazılır. Köprü penceresindeki '📄 Logu aç' ile açılır — bir sorunda paylaşmak için.",
+    ],
+    en: [
+      "🪶 Browser-less lightweight bridge for the driving PC. A driving computer that suffers game stutter can run this small bridge .exe instead of the heavy desktop app (which embeds a browser engine) — light like TinyPedal, no game stutter. It publishes the same live timing; engineers watch from the web. The download link is back in the lobby and the Live tab. (One-time config.ini setup; Self-Test shows the UID to add.)",
+      "📄 Added a persistent log file to the bridge (%LOCALAPPDATA%\\CaspianLiveBridge\\caspian-bridge.log): sign-in/UID, frames sent, read/write latency and errors. Open it via '📄 Open log' in the bridge window — handy to share when something goes wrong.",
+    ],
+  },
+  {
     v: "v1.4.125",
     date: "2026-08-08",
     tr: [

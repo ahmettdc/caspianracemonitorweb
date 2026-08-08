@@ -319,6 +319,8 @@ def cmd_selftest(cp):
 
 def run_loop(cp, mock, once):
     from fb import FirebaseClient
+    from logfile import get_logger, heartbeat_line, log_path
+    lg = get_logger()
     fb = FirebaseClient(cp["firebase"]["api_key"], cp["firebase"]["database_url"],
                         cp["firebase"]["email"], cp["firebase"]["password"])
     tid, rid = cp["race"]["team_id"].strip(), cp["race"]["race_id"].strip()
@@ -326,30 +328,50 @@ def run_loop(cp, mock, once):
     hz = float(cp["rate"].get("hz", "2")) if cp.has_section("rate") else 2.0
     period = 1.0 / max(0.2, min(hz, 10))
 
+    lg.info("=== Köprü başladı === hedef teams/%s/live/%s · %g Hz · %s",
+            tid, rid, hz, "MOCK" if mock else "oyun (paylaşımlı bellek)")
+    print(f"[log] {log_path()}")
     print(f"[firebase] giriş: {by}")
-    fb.sign_in()
+    try:
+        fb.sign_in()
+    except Exception as e:  # noqa: BLE001
+        lg.error("giriş başarısız: %s", e)
+        raise
     print(f"[firebase] giriş yapıldı — UID: {fb.uid}")
+    lg.info("giriş OK — UID %s", fb.uid)
     print(f"[hedef] teams/{tid}/live/{rid}  ·  {hz:g} Hz  (durdurmak için Ctrl+C)")
     src = make_source(mock)
     fails = 0
+    sent = 0
+    last_hb = 0.0
     while True:
         t0 = time.time()
         try:
             payload = build_payload(src, by)
+            t1 = time.time()
             fb.put_live(tid, rid, payload)
+            t2 = time.time()
             fails = 0
+            sent += 1
             fuel = (payload["own"] or {}).get("fuel")
             sys.stdout.write(f"\r[gönderildi] {time.strftime('%H:%M:%S')} · "
                              f"{len(payload['field'])} araç · yakıt {fuel if fuel is not None else '—'}   ")
             sys.stdout.flush()
+            # Sağlık satırını dosyaya ~10 sn'de bir (dosya şişmesin) yaz.
+            if t2 - last_hb >= 10:
+                last_hb = t2
+                lg.info(heartbeat_line(sent, len(payload["field"]), fuel,
+                                       (t1 - t0) * 1000, (t2 - t1) * 1000))
             if once:
                 print("\n[once] bir gönderim yapıldı, çıkılıyor.")
+                lg.info("once: bir gönderim yapıldı, çıkılıyor.")
                 break
         except KeyboardInterrupt:
             break
         except Exception as e:  # noqa: BLE001
             fails += 1
             print(f"\n[hata {fails}] {e}")
+            lg.warning("[hata %d] %s", fails, e)
             if once:
                 break
             time.sleep(min(2 ** min(fails, 4), 16))
@@ -357,6 +379,7 @@ def run_loop(cp, mock, once):
         if dt < period:
             time.sleep(period - dt)
     print("\n[kapandı]")
+    lg.info("=== Köprü durdu === toplam %d gönderim", sent)
     if hasattr(src, "close"):
         src.close()
 

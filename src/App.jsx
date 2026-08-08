@@ -32,7 +32,7 @@ import {
   SLOT_COLORS, APP_VERSION, SEEN_VER_KEY, ASSET, AV,
   TRACKS, PIT_LANE_TIMES, TRACK_ASSET, trackFlag,
   CARS, CAR_CLASSES, trackName, carName, carImg,
-  PIE_COLORS, DESKTOP_RELEASE_URL,
+  PIE_COLORS, DESKTOP_RELEASE_URL, BRIDGE_EXE_URL,
 } from "./constants";
 import {
   safeParseState, carriedTyre,
@@ -1563,6 +1563,15 @@ ${bottomBar}
                 🖥 {t("Masaüstü Uygulamasını İndir")}</a>
               <div className="hint" style={{ textAlign: "center", marginTop: 6 }}>
                 {t("Tarayıcısız, kendi penceresinde açılır — canlı timing köprüsü dahil (oyunun PC'sinde 'Canlı Köprü Başlat'). Sonraki sürümler uygulama içinden otomatik gelir.")}</div>
+
+              <div className="divider">{t("sürüş PC'si için hafif köprü")}</div>
+              <a className="bigbtn ghost" href={BRIDGE_EXE_URL}
+                target="_blank" rel="noopener noreferrer"
+                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  gap: 8, textDecoration: "none" }}>
+                🪶 {t("Hafif Köprüyü İndir (.exe)")}</a>
+              <div className="hint" style={{ textAlign: "center", marginTop: 6 }}>
+                {t("Oyunun çalıştığı PC için: tarayıcı motoru yok → oyunu yormaz. Paylaşımlı belleği okuyup canlı timing'i yayınlar; mühendisler web'den izler. (Bir defalık config.ini kurulumu.)")}</div>
             </>)}
           </div>
         </div>

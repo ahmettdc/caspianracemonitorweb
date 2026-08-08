@@ -3,7 +3,7 @@
 export const SLOT_COLORS = { A: "#40D68C", B: "#F0604D", C: "#F2A33C", D: "#6694FF" };
 
 /* ---------- pist & araç seçimi ---------- */
-export const APP_VERSION = "v1.4.125";   // tek kaynak — sürüm yazısı buradan
+export const APP_VERSION = "v1.4.126";   // tek kaynak — sürüm yazısı buradan
 export const REPO_URL = "https://github.com/ahmettdc/caspianracemonitorweb";
 export const SEEN_VER_KEY = "rm_seen_version";
 export const ASSET = import.meta.env.BASE_URL + "assets/";
@@ -178,3 +178,9 @@ export const quantile = (sorted, q) => {
    sürümler uygulama içi updater ile gelir (UpdateBanner). */
 export const DESKTOP_RELEASE_URL =
   "https://github.com/ahmettdc/caspianracemonitorweb/releases/latest";
+
+/* Sürüş PC'si için TARAYICISIZ hafif köprü .exe'si (bridge.yml derler). Chromium/
+   WebView2 yok → oyunu yormaz (TinyPedal gibi). Paylaşımlı belleği okuyup doğrudan
+   Firebase'e yazar; mühendisler canlıyı web'den izler. bridge-latest release'i. */
+export const BRIDGE_EXE_URL =
+  "https://github.com/ahmettdc/caspianracemonitorweb/releases/download/bridge-latest/CaspianLiveBridge.exe";

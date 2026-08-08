@@ -19,6 +19,14 @@ tüm takım için salt-okunur gösterir.
 > Yayınlayacak üyenin takımda **🎧 Mühendis (editor)** ya da **Sahip** rolü olmalı
 > (izleyici rolünde köprü yayına geçmez; kart bunu söyler).
 
+> 🪶 **Oyun donuyorsa — sürüş PC'sinde bu HAFİF köprüyü tercih et.** Masaüstü
+> uygulaması içine **WebView2 (Chromium tarayıcı motoru)** gömer; sürüş PC'sinde bu
+> motor oyunun GPU/çekirdekleriyle yarışıp **takılma** yaratabilir. Bu `.exe` ise
+> tarayıcısızdır (yalnız küçük bir yerel pencere) — **TinyPedal gibi** hafiftir ve
+> aynı paylaşımlı belleği okur. Sürücü bunu çalıştırır, mühendisler canlıyı **web'den**
+> izler. Tek maliyet: bir defalık `config.ini` (aşağıdaki **1b**'deki bot hesabı) —
+> Self-Test ekleyeceğin UID'yi ekrana yazar.
+
 ---
 
 ## 1) Tek seferlik kurulum
@@ -123,6 +131,11 @@ Web uygulamasında yarışı aç → **Canlı** sekmesi bağlantı bilgisinde
 **En kolay yol:** `.exe`'ye **çift tıkla** → bir form açılır. Bot e-posta/parola,
 team_id, race_id gir → **Kaydet & Başlat**. **Self-Test** butonu Firebase bağlantını
 kontrol eder. (config.ini otomatik yazılır; Not Defteri gerekmez.)
+
+> 📄 **Kalıcı log:** köprü her koşuşunu bir dosyaya yazar
+> (`%LOCALAPPDATA%\CaspianLiveBridge\caspian-bridge.log` — exe salt-okunur bir klasörde
+> olsa da buraya yazar). Formda **"📄 Logu aç"** ile açılır; giriş/UID, kare gönderim
+> sayısı, okuma/yazma gecikmesi (ms) ve hatalar burada. Bir sorunda bu dosyayı paylaş.
 
 Aşağıdaki komutlar ileri/teşhis içindir. Çalışabilirliği katman katman doğrula:
 
