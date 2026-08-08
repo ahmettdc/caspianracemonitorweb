@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.123",
+    date: "2026-08-08",
+    tr: [
+      "🏁 Pist krokisinde viraj işaretleri sadeleşti: apex noktalarındaki sarı daireler kaldırıldı, yalnız viraj numarası kaldı (siyah dış hatla okunur).",
+    ],
+    en: [
+      "🏁 Cleaner corner markers on the track sketch: removed the yellow dots at the apexes, leaving just the corner number (with a black outline for legibility).",
+    ],
+  },
+  {
     v: "v1.4.122",
     date: "2026-08-08",
     tr: [

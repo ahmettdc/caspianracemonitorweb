@@ -178,12 +178,10 @@ function TrackMini({ t, data, cursor, src, big, marks, apex, onScrub }) {
             </g>
           ))}
           {apexPts.map((a) => (
-            <g key={`ap${a.no}`}>
-              <circle cx={a.x} cy={a.y} r={3.4 * zf} fill="#F5C84C" stroke="#000" strokeWidth={1}
-                vectorEffect="non-scaling-stroke" />
-              <text x={a.x + 5 * zf} y={a.y - 4 * zf} fill="#F5C84C" fontSize={8 * zf}
-                fontWeight="700">{a.no}</text>
-            </g>
+            <text key={`ap${a.no}`} x={a.x} y={a.y} fill="#F5C84C" fontSize={9 * zf}
+              fontWeight="700" textAnchor="middle" dominantBaseline="central"
+              stroke="#000" strokeWidth={0.5} paintOrder="stroke"
+              vectorEffect="non-scaling-stroke">{a.no}</text>
           ))}
           <circle cx={sfx} cy={sfy} r={5 * zf} fill="none" stroke="#fff" strokeWidth={2}
             vectorEffect="non-scaling-stroke" />
