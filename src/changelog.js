@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.133",
+    date: "2026-08-08",
+    tr: [
+      "🏎 Masaüstü ana menüsündeki buton artık 'Driver Moduna Geç' yazıyor (eski 'Köprü moduna geç').",
+      "🔧 Ana menüye (takım takvimi) 'Setup Havuzu' butonu her zaman görünür oldu. Önceden yalnız havuz zaten yüklüyken çıkıyordu; havuz ise ancak açınca yüklendiği için buton hiç görünmüyordu. Artık butona basınca havuz açılıp yüklenir (dolu değilse de görünür).",
+    ],
+    en: [
+      "🏎 The desktop main-menu button now reads 'Switch to Driver Mode' (was 'Switch to bridge mode').",
+      "🔧 The 'Setup Pool' button is now always visible in the main menu (team calendar). It used to appear only when the pool was already loaded — but the pool only loads once opened, so the button never showed. Now pressing it opens and loads the pool (visible even when empty).",
+    ],
+  },
+  {
     v: "v1.4.132",
     date: "2026-08-08",
     tr: [

@@ -634,7 +634,7 @@ export const EN = {
   "Hafif Köprüyü İndir (.exe)": "Download Lightweight Bridge (.exe)",
   "Oyunun çalıştığı PC için: tarayıcı motoru yok → oyunu yormaz. Paylaşımlı belleği okuyup canlı timing'i yayınlar; mühendisler web'den izler. (Kendi Google hesabınla giriş — bot gerekmez.)":
     "For the PC running the game: no browser engine → no game stutter. Reads shared memory and publishes live timing; engineers watch from the web. (Sign in with your own Google account — no bot needed.)",
-  "Köprü moduna geç (Race Monitor'ı kapat)": "Switch to bridge mode (close Race Monitor)",
+  "Driver Moduna Geç": "Switch to Driver Mode",
   "Race Monitor kapanacak ve tarayıcısız Hafif Köprü açılacak (oyunun donmasını önler). Devam edilsin mi?":
     "Race Monitor will close and the browserless Lightweight Bridge will open (prevents game stutter). Continue?",
   "Hafif köprü açılamadı: ": "Could not open lightweight bridge: ",
