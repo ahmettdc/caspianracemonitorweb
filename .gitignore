@@ -5,3 +5,5 @@ dist/
 firebase-export-*/
 # Köprü çalışma-zamanı log dosyası (bridge/logfile.py)
 bridge/caspian-bridge.log*
+# Köprü OAuth istemcisi — derlemede secret'lardan üretilir (repoya girmez)
+bridge/oauth_build.py

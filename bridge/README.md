@@ -24,8 +24,13 @@ tüm takım için salt-okunur gösterir.
 > motor oyunun GPU/çekirdekleriyle yarışıp **takılma** yaratabilir. Bu `.exe` ise
 > tarayıcısızdır (yalnız küçük bir yerel pencere) — **TinyPedal gibi** hafiftir ve
 > aynı paylaşımlı belleği okur. Sürücü bunu çalıştırır, mühendisler canlıyı **web'den**
-> izler. Tek maliyet: bir defalık `config.ini` (aşağıdaki **1b**'deki bot hesabı) —
-> Self-Test ekleyeceğin UID'yi ekrana yazar.
+> izler.
+
+> ✅ **Bot GEREKMEZ (v1.4.127+):** köprüyü aç → **"🔐 Google ile Giriş"** → uygulamadaki
+> gibi kendi Google hesabınla giriş yap → **Takım/Yarış'ı açılır listeden seç** → Başlat.
+> Kendi hesabın `live`'a yazar (takımda **owner/editor** olman yeterli). Aşağıdaki **1b**
+> (bot hesabı) + team_id/race_id kopyalama adımları artık **isteğe bağlı** (yalnız
+> arayüzsüz/CLI kullanımı için).
 
 ---
 
@@ -97,7 +102,14 @@ Kademeler (bitleri topla) — **en güvenliden başla, sorun çıkmazsa yükselt
 > **Not:** Paylaşımlı belleği OKUMAK ucuzdur — ölçtük: kare başına ~0.3 MB, 2 Hz'de
 > ~1.5 MB/s. Donmanın kaynağı okuma değil, oyunun içinde boşuna yazılan buffer'lardır.
 
-### b. Firebase "bot" hesabı (köprünün yazması için)
+### b. Giriş: **Google (önerilen)** ya da bot hesabı
+**Önerilen — bot yok:** köprü penceresinde **"🔐 Google ile Giriş"** → tarayıcıda kendi
+hesabınla onayla. Köprü senin Firebase hesabınla yazar; takımda **owner/editor** olman
+yeterli (`bridgeBots`/bot GEREKMEZ). Oturum `config.ini`'ye kaydedilir → sonraki açılışlarda
+tekrar giriş istemez. Sürüş PC'sindeki `.exe` bunu masaüstü uygulamasıyla **aynı** OAuth
+istemcisiyle yapar.
+
+**İsteğe bağlı — bot hesabı** (yalnız arayüzsüz/CLI istersen):
 1. Firebase Console → Authentication → **Sign-in method** → **Email/Password**'ü etkinleştir.
 2. **Authentication → Users** → **Add user** → bot hesabı ekle
    (ör. `bridge-bot@caspian.local` + güçlü parola). ⚠️ Gerçek/kişisel bir Gmail
@@ -115,22 +127,25 @@ Kademeler (bitleri topla) — **en güvenliden başla, sorun çıkmazsa yükselt
      okuma/yazma izni verir — takım üyeliği veya "editor" rolü gerekmez.
 
 ### c. team_id ve race_id
-Web uygulamasında yarışı aç → **Canlı** sekmesi bağlantı bilgisinde
-`team_id` ve `race_id` gösterilir. Bunları `config.ini`'ye kopyala.
+**Google ile Giriş yaptıysan:** köprüde **Takım** ve **Yarış** açılır listeden seçilir →
+`team_id`/`race_id` otomatik dolar (elle kopyalama YOK). **Bot/CLI ile:** web'de yarışı aç →
+**Canlı** sekmesindeki `team_id`/`race_id`'yi `config.ini`'ye kopyala.
 
 ---
 
 ## 2) Yapılandırma
-`config.example.ini`'yi `config.ini` olarak kopyala (exe ile aynı klasör) ve doldur:
-`email`, `password`, `team_id`, `race_id`. `api_key`/`database_url` hazır gelir.
+**GUI (önerilen):** `.exe`'yi aç → "Google ile Giriş" → Takım/Yarış seç → Başlat. `config.ini`
+kendiliğinden yazılır (elle dokunmana gerek yok). **Elle/CLI:** `config.example.ini`'yi
+`config.ini` olarak kopyala; bot yolu için `email`/`password` + `team_id`/`race_id` doldur
+(`api_key`/`database_url` hazır gelir).
 
 ---
 
 ## 3) Çalıştırma ve 3 katmanlı doğrulama
 
-**En kolay yol:** `.exe`'ye **çift tıkla** → bir form açılır. Bot e-posta/parola,
-team_id, race_id gir → **Kaydet & Başlat**. **Self-Test** butonu Firebase bağlantını
-kontrol eder. (config.ini otomatik yazılır; Not Defteri gerekmez.)
+**En kolay yol:** `.exe`'ye **çift tıkla** → form açılır → **"🔐 Google ile Giriş"** →
+tarayıcıda kendi hesabınla onayla → **Takım/Yarış** seç → **Kaydet & Başlat**. **Self-Test**
+butonu Firebase bağlantını kontrol eder. (config.ini otomatik yazılır; bot GEREKMEZ.)
 
 > 📄 **Kalıcı log:** köprü her koşuşunu bir dosyaya yazar
 > (`%LOCALAPPDATA%\CaspianLiveBridge\caspian-bridge.log` — exe salt-okunur bir klasörde
