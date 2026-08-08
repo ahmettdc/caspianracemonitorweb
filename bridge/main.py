@@ -102,7 +102,7 @@ def read_config_or_die(path):
     return cp
 
 
-def make_source(mock, no_rest=False):
+def make_source(mock, no_rest=False, rest_interval=3.0):
     # Bilgi satırları stderr'e — stdout `--emit` modunda saf JSON kalmalı.
     # Aggregator sarar: kare kare tur geçmişi → avg5Sec/avgSec/stintSec.
     from rf2_source import Aggregator
@@ -112,8 +112,18 @@ def make_source(mock, no_rest=False):
         return Aggregator(MockSource())
     from rf2_source import RF2Source
     print("[kaynak] rFactor2/LMU paylaşımlı bellek"
-          + (" · REST KAPALI (takılma testi)" if no_rest else ""), file=sys.stderr)
-    return Aggregator(RF2Source(no_rest=no_rest))
+          + (" · REST KAPALI (takılma testi)" if no_rest
+             else f" · REST arka plan poller {rest_interval:g} sn"), file=sys.stderr)
+    return Aggregator(RF2Source(no_rest=no_rest, rest_interval=rest_interval))
+
+
+def _rest_interval_of(cp):
+    """config [rate] rest_interval (sn) — varsayılan 3.0; 0.5..60 arasına klamplanır."""
+    try:
+        v = float(cp["rate"].get("rest_interval", "3")) if cp.has_section("rate") else 3.0
+    except (ValueError, TypeError):
+        v = 3.0
+    return max(0.5, min(v, 60.0))
 
 
 def build_payload(src, by):
@@ -213,7 +223,11 @@ def cmd_dump_wx(mock):
     ölçümle düzeltilebilir."""
     try:
         from lmu_api import LmuApi
-        sky = LmuApi().sky_labels() if not mock else {}
+        sky = {}
+        if not mock:
+            api = LmuApi()
+            api._load_sky()          # tek seferlik senkron çekim (poller yerine)
+            sky = api.sky_labels()
     except Exception as e:  # noqa: BLE001  (REST kapalı → sözlük yok, canlı satır yine aksın)
         sky, e_sky = {}, e
         print(f"[hava sözlüğü] okunamadı: {e_sky}", file=sys.stderr)
@@ -349,11 +363,12 @@ def run_loop(cp, mock, once, no_rest=None):
     if no_rest is None:
         rest_on = cp.has_section("rate") and cp["rate"].get("rest_on", "").strip().lower() in ("1", "true", "yes", "on")
         no_rest = not rest_on
+    rest_iv = _rest_interval_of(cp)
     low = lower_priority()  # oyunla çekişmede oyun kazansın
 
-    lg.info("=== Köprü başladı === hedef teams/%s/live/%s · %g Hz · %s · REST:%s · öncelik:%s",
+    lg.info("=== Köprü başladı === hedef teams/%s/live/%s · %g Hz · %s · REST:%s (aralık %gs) · öncelik:%s",
             tid, rid, hz, "MOCK" if mock else "oyun",
-            "kapalı" if no_rest else "AÇIK", "düşük" if low else "normal")
+            "kapalı" if no_rest else "AÇIK", rest_iv, "düşük" if low else "normal")
     print(f"[log] {log_path()}")
     print(f"[firebase] giriş: {by}")
     try:
@@ -363,9 +378,10 @@ def run_loop(cp, mock, once, no_rest=None):
         raise
     print(f"[firebase] giriş yapıldı — UID: {fb.uid}")
     lg.info("giriş OK — UID %s", fb.uid)
-    print(f"[hedef] teams/{tid}/live/{rid}  ·  {hz:g} Hz  ·  REST {'kapalı' if no_rest else 'açık'}"
+    print(f"[hedef] teams/{tid}/live/{rid}  ·  {hz:g} Hz  ·  REST "
+          f"{'kapalı' if no_rest else f'açık (arka plan {rest_iv:g}s)'}"
           f"  (durdurmak için Ctrl+C)")
-    src = make_source(mock, no_rest)
+    src = make_source(mock, no_rest, rest_iv)
     fails = 0
     sent = 0
     last_hb = 0.0

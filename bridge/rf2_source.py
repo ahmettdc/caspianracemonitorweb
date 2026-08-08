@@ -296,23 +296,28 @@ class RF2Source:
     atlamak için erişimler `getattr` ile korunur.
     """
 
-    def __init__(self, no_rest=False):
+    def __init__(self, no_rest=False, rest_interval=3.0):
         # Bağımlılık yalnız burada; --mock modunda hiç import edilmez.
         from pyRfactor2SharedMemory.sharedMemoryAPI import SimInfoAPI  # noqa
         self.api = SimInfoAPI()
         # Virtual Energy paylaşımlı bellekte yok → LMU yerel REST API'den (opsiyonel).
         # no_rest: takılma teşhisi için REST'i tamamen kapat. REST, oyunun kendi yerel
-        # sunucusuna (localhost:6397) saniyede ~3 istek/bağlantı açıyor; bu, oyunda
-        # mikro-takılmanın en güçlü şüphelisi. lmu=None → tüm session_flags/standings/
-        # lookup çağrıları atlanır (guard'lar zaten None'ı ele alıyor); bayrak shmem
-        # yedeğine düşer, VE/gerçek takım/numara/marka gelmez. Render'dan bağımsız →
-        # tepside bile fark ederse sebep REST demektir.
+        # sunucusuna (localhost:6397) istek atıyor; bu, oyunda mikro-takılmanın en güçlü
+        # şüphelisi. lmu=None → tüm session_flags/standings/lookup çağrıları atlanır
+        # (guard'lar zaten None'ı ele alıyor); bayrak shmem yedeğine düşer, VE/gerçek
+        # takım/numara/marka gelmez.
+        #
+        # DONMA ÖNLEMİ (v1.4.131): REST artık read() İÇİNDE değil — LmuApi bir ARKA PLAN
+        # POLLER thread'i (start()) çalıştırır; read()'in çağırdığı session_flags/
+        # standings/lookup YALNIZ önbelleği okur (asla bloklamaz). rest_interval poller'ın
+        # istek aralığıdır (varsayılan 3 sn; hâlâ takılırsa 5-10 yapılabilir).
         if no_rest:
             self.lmu = None
         else:
             try:
                 from lmu_api import LmuApi
-                self.lmu = LmuApi()
+                self.lmu = LmuApi(interval=rest_interval)
+                self.lmu.start()
             except Exception:
                 self.lmu = None
         # Eklenti buffer ayarı (performans teşhisi) — DOSYA okuması pahalıdır, bu yüzden
@@ -361,6 +366,11 @@ class RF2Source:
         return self.plugin
 
     def close(self):
+        if getattr(self, "lmu", None) is not None:
+            try:
+                self.lmu.close()      # arka plan poller thread'ini durdur
+            except Exception:
+                pass
         try:
             self.api.close()
         except Exception:
