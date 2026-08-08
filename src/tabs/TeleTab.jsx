@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ReferenceLine, ResponsiveContainer } from "recharts";
 import { fmtLap } from "../engine";
 import { SLOT_COLORS } from "../constants";
@@ -7,13 +8,15 @@ import { Tyre, BoxPlot } from "../components";
 const CA = "#ff5470", CB = "#4d9fff";
 
 /* Tek kanal iz satırı — recharts syncId ile hepsi ortak imleç + ortak mesafe ekseni. */
-function TraceRow({ data, title, unit, keys, colors, fmt, height = 132, zero, dashB }) {
+function TraceRow({ data, title, unit, keys, colors, fmt, height = 132, zero, dashB, onCursor }) {
   return (
     <div style={{ marginTop: 8 }}>
       <div className="hint" style={{ margin: "0 0 2px", fontWeight: 600 }}>{title}</div>
       <div style={{ height }}>
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} syncId="tele" margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+          <LineChart data={data} syncId="tele" margin={{ top: 4, right: 8, bottom: 0, left: 0 }}
+            onMouseMove={onCursor ? (s) => onCursor(s && s.activeTooltipIndex != null ? s.activeTooltipIndex : null) : undefined}
+            onMouseLeave={onCursor ? () => onCursor(null) : undefined}>
             <CartesianGrid stroke="#2B3542" strokeDasharray="3 3" />
             <XAxis dataKey="d" type="number" domain={["dataMin", "dataMax"]}
               stroke="#8C97A5" fontSize={10} tickFormatter={(v) => Math.round(v)}
@@ -37,10 +40,54 @@ function TraceRow({ data, title, unit, keys, colors, fmt, height = 132, zero, da
   );
 }
 
+/* Mini pist haritası — turun XY şekli (konum kanalı ya da hız+G tahmini). Segmentler
+   delta işaretine göre renkli (kırmızı A hızlı / mavi B hızlı) → "hangi virajda ne
+   yaptık". İz üzerinde gezerken (cursor) haritada o nokta işaretlenir. */
+function TrackMini({ t, data, cursor, src }) {
+  const S = 240, PAD = 16;
+  const xs = data.map((d) => d.mapX), ys = data.map((d) => d.mapY);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  const spanX = (maxX - minX) || 1, spanY = (maxY - minY) || 1;
+  const sc = Math.min((S - 2 * PAD) / spanX, (S - 2 * PAD) / spanY);
+  const ox = (S - spanX * sc) / 2, oy = (S - spanY * sc) / 2;
+  const scr = (x, y) => [ox + (x - minX) * sc, S - (oy + (y - minY) * sc)];   // y yukarı → ekranda ters
+  const step = Math.max(1, Math.floor(data.length / 220));
+  const segs = [];
+  for (let k = 0; k + step < data.length; k += step) {
+    const [x1, y1] = scr(data[k].mapX, data[k].mapY);
+    const [x2, y2] = scr(data[k + step].mapX, data[k + step].mapY);
+    const dd = (data[k + step].dt ?? 0) - (data[k].dt ?? 0);   // +: B daha çok süre → A hızlı
+    const col = dd > 0.003 ? CA : dd < -0.003 ? CB : "#7a8797";
+    segs.push(<line key={k} x1={x1} y1={y1} x2={x2} y2={y2} stroke={col} strokeWidth={3.2} strokeLinecap="round" />);
+  }
+  const [sfx, sfy] = scr(data[0].mapX, data[0].mapY);
+  const cur = cursor != null && data[cursor] ? scr(data[cursor].mapX, data[cursor].mapY) : null;
+  return (
+    <div style={{ marginTop: 6 }}>
+      <div style={{ display: "flex", justifyContent: "center" }}>
+        <svg viewBox={`0 0 ${S} ${S}`} style={{ width: "100%", maxWidth: 300, height: "auto" }}
+          aria-label="track map">
+          {segs}
+          <circle cx={sfx} cy={sfy} r={5} fill="none" stroke="#fff" strokeWidth={2} />
+          <text x={sfx + 7} y={sfy + 3} fill="#fff" fontSize={9}>S/F</text>
+          {cur && <circle cx={cur[0]} cy={cur[1]} r={6} fill="#F5C84C" stroke="#000" strokeWidth={1.4} />}
+        </svg>
+      </div>
+      <div className="hint" style={{ textAlign: "center", opacity: .8, marginTop: 2 }}>
+        <span style={{ color: CA }}>■</span> {t("A hızlı")} · <span style={{ color: CB }}>■</span> {t("B hızlı")}
+        {" · "}{src === "g" ? t("G-kuvveti tahmini (şekil yaklaşık)") : t("konum kanalından")}
+        {" · "}{t("ize gel → nokta")}
+      </div>
+    </div>
+  );
+}
+
 /* Tur karşılaştırma kartı — yüklü .ld üzerinde iki turu mesafe ekseninde üst üste
-   bindirir; hız/gaz/fren/vites/RPM/direksiyon izleri + zaman-delta + sektör farkı.
-   Yalnız gösterim (Firebase'e yazılmaz). cmpData buildCompare çıktısı. */
+   bindirir; pist haritası + hız/gaz/fren/vites/RPM/direksiyon izleri + zaman-delta +
+   sektör farkı. Yalnız gösterim (Firebase'e yazılmaz). cmpData buildCompare çıktısı. */
 function TraceCompareCard({ t, parsed, cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy }) {
+  const [cursor, setCursor] = useState(null);   // ize gelince pist haritasında işaretlenen nokta
   const laps = parsed?.laps || [];
   const ch = cmpData?.chans || {};
   const unit = cmpData?.distUnit === "frac" ? "%" : "m";
@@ -75,36 +122,45 @@ function TraceCompareCard({ t, parsed, cmpA, setCmpA, cmpB, setCmpB, cmpData, cm
       {cmpBusy && <div className="hint" style={{ marginTop: 6 }}>⏳ {t("İzler hazırlanıyor…")}</div>}
       {!cmpBusy && !cmpData && <div className="hint" style={{ marginTop: 6 }}>{t("İz verisi çıkarılamadı — bu dosyada hız/mesafe kanalı olmayabilir.")}</div>}
 
+      {cmpData && cmpData.hasMap && (
+        <TrackMini t={t} data={cmpData.data} cursor={cursor} src={cmpData.mapSrc} />
+      )}
+      {cmpData && !cmpData.hasMap && (
+        <div className="hint" style={{ marginTop: 6, opacity: .7 }}>
+          🗺 {t("Pist haritası çizilemedi — bu dosyada konum ya da yanal-G kanalı yok.")}
+        </div>
+      )}
+
       {cmpData && (<>
         <div className="hint" style={{ marginTop: 6, opacity: .8 }}>
           {t("X ekseni")}: {unit === "%" ? t("tur kesri %") : t("mesafe (m)")} · {t("kırmızı A, mavi B")} ·
           {" "}{t("delta > 0 = B daha yavaş")}
         </div>
         <TraceRow data={cmpData.data} title={`⏱ ${t("Zaman-Delta (B−A)")}`} unit={unit}
-          keys={["dt"]} colors={["#F5C84C"]} fmt={dlt} height={140} zero />
+          keys={["dt"]} colors={["#F5C84C"]} fmt={dlt} height={140} zero onCursor={setCursor} />
         {ch.speed && (
           <TraceRow data={cmpData.data} title={`🏁 ${t("Hız")} (km/h)`} unit={unit}
-            keys={["spA", "spB"]} colors={[CA, CB]} fmt={sp1} />
+            keys={["spA", "spB"]} colors={[CA, CB]} fmt={sp1} onCursor={setCursor} />
         )}
         {ch.throttle && (
           <TraceRow data={cmpData.data} title={`🟢 ${t("Gaz")} %`} unit={unit}
-            keys={["thA", "thB"]} colors={[CA, CB]} fmt={pct} height={110} dashB />
+            keys={["thA", "thB"]} colors={[CA, CB]} fmt={pct} height={110} dashB onCursor={setCursor} />
         )}
         {ch.brake && (
           <TraceRow data={cmpData.data} title={`🔴 ${t("Fren")} %`} unit={unit}
-            keys={["brA", "brB"]} colors={[CA, CB]} fmt={pct} height={110} dashB />
+            keys={["brA", "brB"]} colors={[CA, CB]} fmt={pct} height={110} dashB onCursor={setCursor} />
         )}
         {ch.gear && (
           <TraceRow data={cmpData.data} title={`⚙ ${t("Vites")}`} unit={unit}
-            keys={["gA", "gB"]} colors={[CA, CB]} fmt={(v) => (v == null ? "—" : String(Math.round(v)))} height={100} dashB />
+            keys={["gA", "gB"]} colors={[CA, CB]} fmt={(v) => (v == null ? "—" : String(Math.round(v)))} height={100} dashB onCursor={setCursor} />
         )}
         {ch.rpm && (
           <TraceRow data={cmpData.data} title={`🔧 ${t("RPM")}`} unit={unit}
-            keys={["rpmA", "rpmB"]} colors={[CA, CB]} fmt={(v) => (v == null ? "—" : String(Math.round(v)))} height={100} />
+            keys={["rpmA", "rpmB"]} colors={[CA, CB]} fmt={(v) => (v == null ? "—" : String(Math.round(v)))} height={100} onCursor={setCursor} />
         )}
         {ch.steer && (
           <TraceRow data={cmpData.data} title={`🕹 ${t("Direksiyon")}`} unit={unit}
-            keys={["stA", "stB"]} colors={[CA, CB]} fmt={sp1} height={100} />
+            keys={["stA", "stB"]} colors={[CA, CB]} fmt={sp1} height={100} onCursor={setCursor} />
         )}
 
         <table style={{ maxWidth: 420, marginTop: 10, fontSize: 12 }}>

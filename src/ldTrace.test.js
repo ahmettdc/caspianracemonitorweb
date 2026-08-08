@@ -111,4 +111,40 @@ describe("ldTrace", () => {
     expect(buildTrace(null, { t0: 0, tEnd: 10 })).toBe(null);
     expect(buildTrace({ speed: null }, { t0: 0, tEnd: 10 })).toBe(null);
   });
+
+  it("pist şekli: yanal-G'den türetir (mapSrc g) + buildCompare hasMap", async () => {
+    const c = [...chans(),
+      { name: "G Force Lat", dtype: 2, freq: FREQ, dec: 2, raw: Array.from({ length: N }, () => 100) }]; // 1.0 g sabit dönüş
+    const buf = buildLd(c);
+    const r = await parseLd(buf);
+    const readers = await buildReaders(new Blob([buf]), r._header);
+    const tr = buildTrace(readers, r.laps[0], 200);
+    expect(tr.mapSrc).toBe("g");
+    expect(tr.x.length).toBe(200);
+    expect(Math.max(...tr.x) - Math.min(...tr.x)).toBeGreaterThan(0);   // dönüş → şekil oluştu
+    const cmp = buildCompare(tr, buildTrace(readers, r.laps[1], 200));
+    expect(cmp.hasMap).toBe(true);
+    expect(cmp.mapSrc).toBe("g");
+    expect(cmp.data[100].mapX).not.toBeNull();
+  });
+
+  it("pist şekli: konum kanalı varsa onu kullanır (mapSrc pos)", async () => {
+    const c = [...chans(),
+      { name: "Car Coord X", dtype: 4, freq: FREQ, raw: Array.from({ length: N }, (_, i) => Math.round(Math.cos(i / 50) * 100)) },
+      { name: "Car Coord Z", dtype: 4, freq: FREQ, raw: Array.from({ length: N }, (_, i) => Math.round(Math.sin(i / 50) * 100)) }];
+    const buf = buildLd(c);
+    const r = await parseLd(buf);
+    const readers = await buildReaders(new Blob([buf]), r._header);
+    const tr = buildTrace(readers, r.laps[0], 150);
+    expect(tr.mapSrc).toBe("pos");
+    expect(tr.y.length).toBe(150);
+  });
+
+  it("pist şekli: konum/G yoksa harita yok (hasMap false)", async () => {
+    const buf = buildLd(chans());   // yalnız hız/gaz/fren/vites, konum/G yok
+    const r = await parseLd(buf);
+    const readers = await buildReaders(new Blob([buf]), r._header);
+    const cmp = buildCompare(buildTrace(readers, r.laps[0], 120), buildTrace(readers, r.laps[1], 120));
+    expect(cmp.hasMap).toBe(false);
+  });
 });

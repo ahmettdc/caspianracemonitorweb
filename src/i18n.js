@@ -580,6 +580,13 @@ export const EN = {
   "Sektör": "Sector",
   "Sektörler tur-kesri üçlüsüdür (mesafe/3); gerçek S/F beacon'ı değil.":
     "Sectors are lap-fraction thirds (distance/3), not the real S/F beacon.",
+  "A hızlı": "A faster",
+  "B hızlı": "B faster",
+  "G-kuvveti tahmini (şekil yaklaşık)": "estimated from G-force (approx. shape)",
+  "konum kanalından": "from position channel",
+  "ize gel → nokta": "hover a trace → point",
+  "Pist haritası çizilemedi — bu dosyada konum ya da yanal-G kanalı yok.":
+    "Couldn't draw the track map — this file has no position or lateral-G channel.",
   "Tur": "Lap", "Yakıt": "Fuel", "kısmi": "partial",
   "Ort/Max km/h": "Avg/Max km/h",
   "Kısmi tur: log'da sonraki tur yok, süre örneklerden hesaplandı.":

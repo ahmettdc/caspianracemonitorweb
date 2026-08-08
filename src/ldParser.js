@@ -37,6 +37,9 @@ export const TRACE_CHANS = {
   rpm: [/^engine\s*rpm$/i, /\brpm\b/i, /^engine speed$/i],
   steer: [/^steer/i, /steering/i, /direksiyon/i],
   dist: [/^lap distance$/i, /^distance$/i, /mesafe/i],
+  latg: [/lat.*acc/i, /g.*force.*lat/i, /^g lat/i, /lateral/i, /accel.*lat/i],
+  posx: [/car\s*coord.*x/i, /^pos.*x$/i, /world.*pos.*x/i, /^x pos/i, /^gps.*lon/i],
+  posz: [/car\s*coord.*z/i, /^pos.*z$/i, /^pos.*y$/i, /world.*pos.*z/i, /^z pos/i, /^gps.*lat/i],
 };
 
 const bytesOf = (dtype) => (dtype === 4 ? 4 : dtype === 2 ? 2 : dtype === 1 ? 1 : 0);
