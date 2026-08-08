@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.129",
+    date: "2026-08-08",
+    tr: [
+      "🔧 Hafif köprü Google girişi düzeltildi: tarayıcıda giriş tamamlandığı halde köprü 'onay bekleniyor' diye takılı kalıyordu. Sebep, tarayıcının favicon isteği yakalanan giriş kodunu eziyordu; artık yalnız gerçek giriş yanıtı yakalanıyor. Giriş anında tamamlanır.",
+    ],
+    en: [
+      "🔧 Fixed the lightweight bridge's Google sign-in getting stuck on 'waiting for approval' even after you finished in the browser. The browser's favicon request was overwriting the captured auth code; now only the real sign-in response is captured, so login completes immediately.",
+    ],
+  },
+  {
     v: "v1.4.128",
     date: "2026-08-08",
     tr: [

@@ -72,9 +72,12 @@ class _Catcher(http.server.BaseHTTPRequestHandler):
     result = {}
 
     def do_GET(self):  # noqa: N802
-        q = urllib.parse.urlparse(self.path).query
-        params = urllib.parse.parse_qs(q)
-        _Catcher.result = {k: v[0] for k, v in params.items()}
+        params = {k: v[0] for k, v in
+                  urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query).items()}
+        # YALNIZ code/error taşıyan gerçek redirect'i yakala. Tarayıcı ayrıca
+        # /favicon.ico ister → o istek sonucu EZMESİN (aksi halde döngü kodu kaçırır).
+        if ("code" in params or "error" in params) and not _Catcher.result:
+            _Catcher.result = params
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.end_headers()
