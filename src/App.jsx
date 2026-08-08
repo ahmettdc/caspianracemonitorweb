@@ -1532,11 +1532,9 @@ ${bottomBar}
                     style={{ marginTop: 10, width: "100%" }}
                     onClick={() => setTeamOpen(true)}>
                     ⚙ {canEditTeam ? t("Takvimi & Takımı Yönet") : t("Takımı Görüntüle")}</button>
-          {setups.length > 0 && (
-            <button className="histbtn" onClick={() => setSuOpen(true)}
-              style={{ marginTop: 8, width: "100%" }}>
-              🔧 {t("Setup Havuzu")} · {setups.length}</button>
-          )}
+          <button className="histbtn" onClick={() => setSuOpen(true)}
+            style={{ marginTop: 8, width: "100%" }}>
+            🔧 {t("Setup Havuzu")}{setups.length > 0 && <> · {setups.length}</>}</button>
           <button className="histbtn" data-tour="chat" onClick={() => setChatOpen(true)}
             style={{ marginTop: 8, width: "100%" }}>
             💬 {t("Sohbet")}{chatUnread > 0 && <> · {chatUnread}</>}</button>
@@ -1587,7 +1585,7 @@ ${bottomBar}
                     window.alert(t("Hafif köprü açılamadı: ") + e);
                   }
                 }}>
-                🪶 {t("Köprü moduna geç (Race Monitor'ı kapat)")}</button>
+                🏎 {t("Driver Moduna Geç")}</button>
               <div className="hint" style={{ textAlign: "center", marginTop: 6 }}>
                 {t("Oyunun PC'sinde: ağır arayüzü kapatıp yalnız tarayıcısız köprüyü çalıştırır → oyun donmaz. Köprü tepside çalışır; mühendisler canlıyı web'den izler.")}</div>
             </>)}
