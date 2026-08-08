@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.113",
+    date: "2026-08-07",
+    tr: [
+      "🔧 Telemetri düzeltmesi: 'Stint A olarak kaydet'e basınca Tur Karşılaştırma kutusu (izler + pist haritası) kayboluyordu; artık yerinde kalıyor. Stint aşağıdaki analize eklenir, üstte '✓ Stint A kaydedildi' onayı çıkar ve karşılaştırmaya devam edebilirsin (aynı dosyayı farklı slota da kaydedebilirsin).",
+    ],
+    en: [
+      "🔧 Telemetry fix: clicking 'Save as Stint A' used to close the Lap Comparison box (traces + track map); it now stays in place. The stint is added to the analysis below, a '✓ Stint A saved' confirmation appears, and you can keep comparing (you can also save the same file to another slot).",
+    ],
+  },
+  {
     v: "v1.4.112",
     date: "2026-08-07",
     tr: [

@@ -332,7 +332,7 @@ export default function App() {
     setMapping, onTeleFile, doParse, apply105Slot, saveMotec, saveSlot, toggleLap,
     removeSlot, slotStats, chartData, loadedSlots, baseSlot,
     cmpA: telCmpA, setCmpA: setTelCmpA, cmpB: telCmpB, setCmpB: setTelCmpB,
-    cmpData: telCmpData, cmpBusy: telCmpBusy } = useTelemetry({ st, setSt });
+    cmpData: telCmpData, cmpBusy: telCmpBusy, savedMsg: telSavedMsg } = useTelemetry({ st, setSt });
 
   /* ---------- canlı yarış modu ---------- */
   const [now, setNow] = useState(Date.now());
@@ -2373,7 +2373,8 @@ ${bottomBar}
               apply105Slot={apply105Slot} removeSlot={removeSlot} chartMode={chartMode}
               setChartMode={setChartMode} chartData={chartData} baseSlot={baseSlot}
               toggleLap={toggleLap} cmpA={telCmpA} setCmpA={setTelCmpA} cmpB={telCmpB}
-              setCmpB={setTelCmpB} cmpData={telCmpData} cmpBusy={telCmpBusy} />
+              setCmpB={setTelCmpB} cmpData={telCmpData} cmpBusy={telCmpBusy}
+              savedMsg={telSavedMsg} />
           )}
 
           {tab === "fuel" && (
