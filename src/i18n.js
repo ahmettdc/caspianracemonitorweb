@@ -586,6 +586,7 @@ export const EN = {
   "konum kanalından": "from position channel",
   "ize gel → nokta": "hover a trace → point",
   "tekerlek: yakınlaştır · sürükle: gez · çift-tık: sıfırla": "wheel: zoom · drag: pan · double-click: reset",
+  "tekerlek: yakınlaştır · daireyi sürükle: konum · boş alanı sürükle: gez · çift-tık: sıfırla": "wheel: zoom · drag the dot: position · drag empty space: pan · double-click: reset",
   "tekerlek: yakınlaştır": "wheel: zoom",
   "Yakınlaştırmayı sıfırla": "Reset zoom",
   "Telemetriyi oynat": "Play telemetry",
