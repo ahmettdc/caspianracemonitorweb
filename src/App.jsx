@@ -1573,6 +1573,24 @@ ${bottomBar}
               <div className="hint" style={{ textAlign: "center", marginTop: 6 }}>
                 {t("Oyunun çalıştığı PC için: tarayıcı motoru yok → oyunu yormaz. Paylaşımlı belleği okuyup canlı timing'i yayınlar; mühendisler web'den izler. (Kendi Google hesabınla giriş — bot gerekmez.)")}</div>
             </>)}
+
+            {isTauri && (<>
+              <div className="divider">{t("sürüş PC'si için hafif köprü")}</div>
+              <button className="bigbtn ghost"
+                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+                onClick={async () => {
+                  if (!window.confirm(t("Race Monitor kapanacak ve tarayıcısız Hafif Köprü açılacak (oyunun donmasını önler). Devam edilsin mi?"))) return;
+                  try {
+                    const { invoke } = await import("@tauri-apps/api/core");
+                    await invoke("launch_bridge_and_quit");
+                  } catch (e) {
+                    window.alert(t("Hafif köprü açılamadı: ") + e);
+                  }
+                }}>
+                🪶 {t("Köprü moduna geç (Race Monitor'ı kapat)")}</button>
+              <div className="hint" style={{ textAlign: "center", marginTop: 6 }}>
+                {t("Oyunun PC'sinde: ağır arayüzü kapatıp yalnız tarayıcısız köprüyü çalıştırır → oyun donmaz. Köprü tepside çalışır; mühendisler canlıyı web'den izler.")}</div>
+            </>)}
           </div>
         </div>
       </div>

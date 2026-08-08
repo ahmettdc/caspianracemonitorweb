@@ -25,7 +25,8 @@ jobs:
           python-version: "3.11"
 
       - name: Çekirdek bağımlılıklar (mock her zaman çalışır)
-        run: pip install requests pyinstaller
+        # pystray + Pillow: GUI köprünün sistem tepsisi ikonu (X → tepsiye gizle).
+        run: pip install requests pyinstaller pystray Pillow
 
       - name: rF2 okuyucu (gerçek mod — best-effort)
         continue-on-error: true
@@ -43,7 +44,10 @@ jobs:
           Add-Content -Path oauth_build.py -Value "CLIENT_SECRET = '$env:CSEC'"
 
       - name: .exe derle
-        run: pyinstaller --onefile --name CaspianLiveBridge --hidden-import gui --hidden-import google_auth --hidden-import oauth_config --hidden-import oauth_build --hidden-import pyRfactor2SharedMemory.sharedMemoryAPI main.py
+        # --noconsole: cmd penceresi HİÇ açılmaz (GUI köprü). --hidden-import pystray._win32:
+        # tepsi ikonunun Windows arka ucu. main.py stdout None-guard'ı windowed'da prints'i
+        # devnull'a yönlendirir (tanı yine dosya-log'a gider).
+        run: pyinstaller --onefile --noconsole --name CaspianLiveBridge --hidden-import gui --hidden-import google_auth --hidden-import oauth_config --hidden-import oauth_build --hidden-import pystray._win32 --hidden-import pyRfactor2SharedMemory.sharedMemoryAPI main.py
 
       - name: Örnek config'i ekle
         run: copy config.example.ini dist\config.example.ini

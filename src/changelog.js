@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.132",
+    date: "2026-08-08",
+    tr: [
+      "🪟 Hafif köprü artık siyah komut (cmd) penceresi AÇMADAN çalışır ve sistem TEPSİSİNDE kalır: pencereyi (X) kapatınca uygulama kapanmaz, tepsiye küçülür ve yayına devam eder. Tepsi ikonuna çift tıkla → pencere geri gelir; tepsi menüsünden 'Çıkış' ile tamamen kapanır.",
+      "🪶 Masaüstü uygulamasının ana menüsüne '🪶 Köprü moduna geç' butonu eklendi: basınca Race Monitor kapanır ve tarayıcısız Hafif Köprü açılır. Sürüş PC'sinde ağır arayüzü otomatik kapattığı için oyunun donmasını kökten önler; mühendisler canlıyı web'den izlemeye devam eder.",
+    ],
+    en: [
+      "🪟 The lightweight bridge now runs WITHOUT opening a black command (cmd) window and stays in the system TRAY: closing the window (X) no longer quits it — it minimizes to the tray and keeps streaming. Double-click the tray icon to bring it back; use 'Quit' in the tray menu to close it fully.",
+      "🪶 Added a '🪶 Switch to bridge mode' button to the desktop app's main menu: pressing it closes Race Monitor and opens the browserless Lightweight Bridge. On the driving PC it auto-closes the heavy UI, preventing game stutter at the source; engineers keep watching live from the web.",
+    ],
+  },
+  {
     v: "v1.4.131",
     date: "2026-08-08",
     tr: [

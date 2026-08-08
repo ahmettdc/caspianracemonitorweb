@@ -75,6 +75,32 @@ async fn exchange_google_code(
     .ok_or_else(|| "yanıtta id_token yok".to_string())
 }
 
+/* Kuruluma gömülü hafif köprüyü (CaspianLiveBridge.exe) başlat ve Race Monitor'ı KAPAT.
+   Sürüş PC'sinde ağır WebView2 arayüzü oyunla GPU/CPU çekişir (donma). Tek tıkla lightweight
+   köprüye geçilir: köprü bağımsız (ShellExecute → çocuk değil, Job Object'e girmez, Race
+   Monitor kapansa da yaşar) başlatılır, sonra kendimizi kapatırız → donma kaynağı gider.
+   CaspianLiveBridge.exe bundle.resources ile kuruluma gömülü (desktop.yml). */
+#[tauri::command]
+fn launch_bridge_and_quit(app: AppHandle) -> Result<(), String> {
+  use tauri::path::BaseDirectory;
+  let path = app
+    .path()
+    .resolve("CaspianLiveBridge.exe", BaseDirectory::Resource)
+    .map_err(|e| e.to_string())?;
+  if !path.exists() {
+    return Err("CaspianLiveBridge.exe kurulum kaynağında bulunamadı".to_string());
+  }
+  // ShellExecute (opener) → köprü bağımsız süreç olarak açılır (Race Monitor'ın
+  // Job Object/affinity kısıtını miras almaz, biz kapansak da yaşar).
+  app
+    .opener()
+    .open_path(path.to_string_lossy().to_string(), None::<&str>)
+    .map_err(|e| e.to_string())?;
+  // Köprü başladı → Race Monitor'ı tamamen kapat (X→tepsiye gizleme DEĞİL, gerçek çıkış).
+  app.exit(0);
+  Ok(())
+}
+
 /* CPU affinity maskesi (Windows): uygulamaya EN YÜKSEK numaralı `reserve` çekirdek
    (n/4, en az 1); oyun alttaki çoğunluğu çekişmesiz kullansın. Yalnız 4..=64 çekirdekte
    anlamlı (azsa ayırmak anlamsız; >64 tek maskeye sığmaz) → aksi None (dokunma). Job
@@ -249,7 +275,8 @@ pub fn run() {
       start_oauth_server,
       stop_oauth_server,
       open_external_url,
-      exchange_google_code
+      exchange_google_code,
+      launch_bridge_and_quit
     ])
     // Pencereyi (X) kapatınca uygulama kapanmasın — gizle, sistem tepsisinde
     // çalışmaya devam etsin (canlı köprü veri akışı kesilmesin). Gerçek çıkış
