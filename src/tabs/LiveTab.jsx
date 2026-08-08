@@ -116,11 +116,14 @@ function TyreCell({ c, t }) {
 function Brand({ manufacturer, vehicleName }) {
   const [i, setI] = useState(0);
   const cands = [];
-  const mk = manufacturerKey(manufacturer);
-  if (mk) cands.push(`${ASSET}brands/${mk}.png`);
-  const vk = brandKey(vehicleName);
-  const vUrl = vk ? `${ASSET}brands/${vk}.png` : "";
-  if (vUrl && !cands.includes(vUrl)) cands.push(vUrl);
+  const push = (k) => { if (k) { const u = `${ASSET}brands/${k}.png`; if (!cands.includes(u)) cands.push(u); } };
+  // 1) katalog manufacturer'ının ham normalizasyonu ("Porsche"→porsche, "Mercedes-AMG"→mercedesamg)
+  push(manufacturerKey(manufacturer));
+  // 2) manufacturer'ı da ALT-DİZE eşle: çok kelimeli adlar ("Chevrolet Corvette Z06"→corvette,
+  //    "Ford Mustang"→ford) ham normalizasyonda dosya bulamıyordu → logo hiç çıkmıyordu.
+  push(brandKey(manufacturer));
+  // 3) son çare: araç modeli adından ("BMW M4 GT3"→bmw)
+  push(brandKey(vehicleName));
   const url = cands[i];
   if (!url) return null;
   return <img src={url} alt="" title={manufacturer || vehicleName || ""}
@@ -724,6 +727,7 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
     );
   }
   const s = live.session || {};
+  const isRace = s.sessionType === "Yarış";   // pozisyon grafiği yalnız YARIŞ seansında anlamlı
   const own = live.own || null;
   const fieldAll = Array.isArray(live.field) ? live.field : [];
   const ageSec = Math.max(0, Math.round((serverNow() - live.ts) / 1000));
@@ -951,7 +955,7 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
           </div>
         )}
       </div>
-      {!big && <PosChart t={t} tid={tid} rid={rid} field={fieldAll} />}
+      {!big && isRace && <PosChart t={t} tid={tid} rid={rid} field={fieldAll} />}
 
       {lapsFor && <LapsModal t={t} tid={tid} rid={rid} row={lapsFor}
         onClose={() => setLapsFor(null)} />}

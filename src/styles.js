@@ -314,7 +314,9 @@ export const css = `
 /* pist haritası penceresi: kare harita için geniş varyant (⛶ Büyüt) */
 .rc .wxmbox.map{width:auto;max-width:96vw;max-height:94vh}
 .rc .wxmbox.map .mapwrap{display:flex;justify-content:center;padding:10px;position:relative}
-.rc .wxmbox.map .mapwrap svg{width:min(88vw,78vh);height:auto}
+/* Yalnız DOĞRUDAN çocuk harita svg'sini büyüt — üstteki durum rozetindeki (.mapcond)
+   WetIcon svg'sini de kapsamasın (yoksa ıslaklık ikonu kocaman görünürdü). */
+.rc .wxmbox.map .mapwrap > svg{width:min(88vw,78vh);height:auto}
 /* harita durum rozeti — bayrak/hava/sıcaklık, harita köşesinde (v1.4.95) */
 .rc .mapcond{position:absolute;top:6px;left:6px;z-index:2;display:flex;flex-direction:column;
   gap:3px;align-items:flex-start;pointer-events:none}
