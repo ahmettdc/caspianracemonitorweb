@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.120",
+    date: "2026-08-08",
+    tr: [
+      "📄 Telemetri PDF raporu: karşılaştırma kartındaki '📄 PDF' düğmesi pist haritası + tüm iz grafiklerini (hız/gaz/fren/vites/RPM/direksiyon + zaman-delta) + koşul başlığı + sektör tablosunu yazdırılabilir bir rapora döker (yazdır → PDF olarak kaydet). Not: rapor o an ekranda görünen grafikleri basar — tam tur için önce '⟳' ile yakınlaştırmayı sıfırla.",
+    ],
+    en: [
+      "📄 Telemetry PDF report: the '📄 PDF' button in the comparison card exports the track map + all trace charts (speed/throttle/brake/gear/RPM/steering + time-delta) + conditions header + sector table into a printable report (print → save as PDF). Note: it captures the charts as currently shown — reset zoom with '⟳' first for the full lap.",
+    ],
+  },
+  {
     v: "v1.4.119",
     date: "2026-08-08",
     tr: [

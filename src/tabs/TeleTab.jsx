@@ -203,6 +203,7 @@ function TraceCompareCard({ t, sources, fallbackMeta, cmpASrc, setCmpASrc, cmpBS
   const playPosRef = useRef(0);                  // kesirli oynatma index'i
   const lastDRef = useRef(null);                // tekerlek anchor'ı (imleçten bağımsız son mesafe)
   const tracesRef = useRef(null);
+  const cardRef = useRef(null);                 // PDF için karttaki SVG'leri toplamak
   const srcOf = (k) => (sources || []).find((s) => s.key === k) || (sources || [])[0];
   const srcA = srcOf(cmpASrc), srcB = srcOf(cmpBSrc);
   const lapsA = srcA?.laps || [];
@@ -274,8 +275,67 @@ function TraceCompareCard({ t, sources, fallbackMeta, cmpASrc, setCmpASrc, cmpBS
   const lapOpt = (l, i) => (
     <option key={i} value={i}>Lap {l.lap} · {fmtLap(l.sec)}{l.partial ? " (kısmi)" : ""}</option>
   );
+
+  /* PDF raporu: karttaki mevcut SVG'leri (harita + grafikler) serialize edip gizli iframe'e
+     yaz → window.print (App.exportPdf deseni, WebView2 popup'suz). Vektör → PDF'te net. */
+  const exportTelePdf = () => {
+    const host = cardRef.current;
+    if (!host || !cmpData) return;
+    const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const svgs = [...host.querySelectorAll("svg")].map((sv) => {
+      const c = sv.cloneNode(true);
+      const w = c.getAttribute("width"), h = c.getAttribute("height");
+      if (!c.getAttribute("viewBox") && w && h) c.setAttribute("viewBox", `0 0 ${parseFloat(w)} ${parseFloat(h)}`);
+      c.removeAttribute("width"); c.removeAttribute("height");
+      c.setAttribute("style", "width:100%;height:auto;display:block");
+      return `<div class="panel">${new XMLSerializer().serializeToString(c)}</div>`;
+    }).join("");
+    const lapTxt = (laps, i) => (laps[i] ? `Lap ${laps[i].lap} · ${fmtLap(laps[i].sec)}` : "—");
+    const secRows = (cmpData.sectors || []).map((s) =>
+      `<tr><td>S${s.sec}</td><td>${s.dA.toFixed(3)}</td><td>${s.dB.toFixed(3)}</td>
+        <td style="color:${s.diff > 0 ? CA : CB};font-weight:600">${dlt(s.diff)}</td></tr>`).join("");
+    const cond = [meta?.venue, meta?.vehicle, meta?.driver,
+      meta?.trk != null ? `${t("Pist")} ${meta.trk.toFixed(0)}°` : null,
+      meta?.amb != null ? `${t("Hava")} ${meta.amb.toFixed(0)}°` : null]
+      .filter(Boolean).map(esc).join(" · ");
+    document.getElementById("pdfframe")?.remove();
+    const ifr = document.createElement("iframe");
+    ifr.id = "pdfframe"; ifr.setAttribute("aria-hidden", "true");
+    ifr.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
+    document.body.appendChild(ifr);
+    const doc = ifr.contentWindow.document;
+    doc.open();
+    doc.write(`<!doctype html><html><head><meta charset="utf-8">
+<title>${esc(t("Telemetri Raporu"))}</title>
+<style>
+ *{box-sizing:border-box}
+ body{font-family:Arial,Helvetica,sans-serif;color:#1a1113;margin:24px;font-size:12px}
+ h1{font-size:18px;margin:0 0 2px;letter-spacing:.04em;text-transform:uppercase}
+ h1 b{color:#960018}
+ .sub{color:#555;margin:0 0 6px;font-size:11px}
+ .meta{color:#333;font-size:11px;border-bottom:2px solid #960018;padding-bottom:8px;margin-bottom:10px}
+ .panel{background:#131a22;border-radius:8px;padding:8px;margin:8px 0;
+   -webkit-print-color-adjust:exact;print-color-adjust:exact;break-inside:avoid}
+ table{border-collapse:collapse;width:auto;margin-top:10px;font-variant-numeric:tabular-nums}
+ th,td{border:1px solid #d9c9cd;padding:5px 12px;text-align:left}
+ th{background:#960018;color:#fff;font-size:10.5px;text-transform:uppercase}
+ .foot{color:#999;font-size:10px;margin-top:16px}
+</style></head><body>
+<h1><b>Caspian</b> ${esc(t("Telemetri Raporu"))}</h1>
+<div class="sub">${esc(t("Tur Karşılaştırma"))} — <b style="color:${CA}">A</b> ${esc(lapTxt(lapsA, cmpA))}
+  · <b style="color:${CB}">B</b> ${esc(lapTxt(lapsB, cmpB))}
+  · Δ ${esc(dlt(cmpData.totalDelta))}</div>
+${cond ? `<div class="meta">${cond}</div>` : ""}
+${svgs}
+<table><thead><tr><th>${esc(t("Sektör"))}</th><th>A</th><th>B</th><th>Δ</th></tr></thead>
+<tbody>${secRows}</tbody></table>
+<div class="foot">Caspian Race Monitor · ${new Date().toLocaleString()}</div>
+<scr${""}ipt>window.onload=function(){window.print()}</scr${""}ipt></body></html>`);
+    doc.close();
+  };
   return (
-    <div className="card" style={{ marginTop: 12 }}>
+    <div className="card" style={{ marginTop: 12 }} ref={cardRef}>
       <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
         🔬 {t("Tur Karşılaştırma")}
         {cmpData && Number.isFinite(cmpData.totalDelta) && (
@@ -350,6 +410,9 @@ function TraceCompareCard({ t, sources, fallbackMeta, cmpASrc, setCmpASrc, cmpBS
               title={t("Haritayı büyük pencerede aç")} onClick={() => setBig(true)}>
               ⛶ {t("Büyüt")}</button>
           )}
+          <button className="act" style={{ fontSize: 11, padding: "3px 10px" }}
+            title={t("Grafikleri PDF rapor olarak çıkart (tam tur için önce ⟳ sıfırla)")}
+            onClick={exportTelePdf}>📄 PDF</button>
         </div>
       )}
 
