@@ -331,8 +331,10 @@ export default function App() {
   const { slot, setSlot, chartMode, setChartMode, rawTele, setRawTele, parsed, mapping,
     setMapping, onTeleFile, doParse, apply105Slot, saveMotec, saveSlot, toggleLap,
     removeSlot, slotStats, chartData, loadedSlots, baseSlot,
-    cmpLaps: telCmpLaps, cmpMeta: telCmpMeta, cmpA: telCmpA, setCmpA: setTelCmpA, cmpB: telCmpB, setCmpB: setTelCmpB,
-    cmpData: telCmpData, cmpBusy: telCmpBusy, savedMsg: telSavedMsg } = useTelemetry({ st, setSt });
+    cmpMeta: telCmpMeta, cmpA: telCmpA, setCmpA: setTelCmpA, cmpB: telCmpB, setCmpB: setTelCmpB,
+    cmpData: telCmpData, cmpBusy: telCmpBusy, savedMsg: telSavedMsg,
+    cmpSources: telCmpSources, cmpASrc: telCmpASrc, setCmpASrc: setTelCmpASrc,
+    cmpBSrc: telCmpBSrc, setCmpBSrc: setTelCmpBSrc } = useTelemetry({ st, setSt });
 
   /* ---------- canlı yarış modu ---------- */
   const [now, setNow] = useState(Date.now());
@@ -2372,9 +2374,10 @@ ${bottomBar}
               loadedSlots={loadedSlots} slotStats={slotStats} up={up}
               apply105Slot={apply105Slot} removeSlot={removeSlot} chartMode={chartMode}
               setChartMode={setChartMode} chartData={chartData} baseSlot={baseSlot}
-              toggleLap={toggleLap} cmpLaps={telCmpLaps} cmpMeta={telCmpMeta} cmpA={telCmpA} setCmpA={setTelCmpA}
+              toggleLap={toggleLap} cmpMeta={telCmpMeta} cmpA={telCmpA} setCmpA={setTelCmpA}
               cmpB={telCmpB} setCmpB={setTelCmpB} cmpData={telCmpData} cmpBusy={telCmpBusy}
-              savedMsg={telSavedMsg} />
+              savedMsg={telSavedMsg} cmpSources={telCmpSources} cmpASrc={telCmpASrc} setCmpASrc={setTelCmpASrc}
+              cmpBSrc={telCmpBSrc} setCmpBSrc={setTelCmpBSrc} />
           )}
 
           {tab === "fuel" && (

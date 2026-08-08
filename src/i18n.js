@@ -590,6 +590,8 @@ export const EN = {
   "Yakınlaştırmayı sıfırla": "Reset zoom",
   "Telemetriyi oynat": "Play telemetry",
   "Oynatma hızı": "Playback speed",
+  "Yüklü dosya": "Loaded file",
+  "farklı pist — kıyas dikkatli": "different track — compare with care",
   "Pist haritası çizilemedi — bu dosyada konum ya da yanal-G kanalı yok.":
     "Couldn't draw the track map — this file has no position or lateral-G channel.",
   "kaydedildi": "saved",

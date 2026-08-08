@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.118",
+    date: "2026-08-08",
+    tr: [
+      "🔀 Çapraz-stint karşılaştırma: iki .ld dosyasını ayrı Stint slotlarına kaydedince (A/B/C/D), Tur Karşılaştırma'da A tarafını bir stint'ten, B tarafını başka bir stint'ten seçip karşılaştırabilirsin (ör. A stintinden 1 tur ↔ B stintinden 1 tur). Kaynak seçici birden çok stint olunca çıkar. Farklı pistte '⚠ farklı pist' uyarısı gösterilir.",
+      "Not: ham iz verisi yalnız oturum-içidir (sayfayı yenileyince gider); her iki stint de bu oturumda .ld'den yüklenmiş olmalıdır. Pist haritası ve mesafe ekseni A tarafındandır.",
+    ],
+    en: [
+      "🔀 Cross-stint comparison: save two .ld files into separate Stint slots (A/B/C/D), then in Lap Comparison pick the A side from one stint and the B side from another (e.g. 1 lap from stint A ↔ 1 lap from stint B). The source picker appears once you have more than one stint. A '⚠ different track' warning shows if the tracks differ.",
+      "Note: raw trace data is session-only (lost on page refresh); both stints must have been loaded from a .ld this session. The track map and distance axis come from side A.",
+    ],
+  },
+  {
     v: "v1.4.117",
     date: "2026-08-08",
     tr: [
