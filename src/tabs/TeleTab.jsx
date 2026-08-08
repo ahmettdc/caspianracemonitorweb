@@ -86,9 +86,9 @@ function TrackMini({ t, data, cursor, src }) {
 /* Tur karşılaştırma kartı — yüklü .ld üzerinde iki turu mesafe ekseninde üst üste
    bindirir; pist haritası + hız/gaz/fren/vites/RPM/direksiyon izleri + zaman-delta +
    sektör farkı. Yalnız gösterim (Firebase'e yazılmaz). cmpData buildCompare çıktısı. */
-function TraceCompareCard({ t, parsed, cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy }) {
+function TraceCompareCard({ t, laps: lapsProp, cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy }) {
   const [cursor, setCursor] = useState(null);   // ize gelince pist haritasında işaretlenen nokta
-  const laps = parsed?.laps || [];
+  const laps = lapsProp || [];
   const ch = cmpData?.chans || {};
   const unit = cmpData?.distUnit === "frac" ? "%" : "m";
   const sp1 = (v) => (v == null ? "—" : v.toFixed(1));
@@ -194,7 +194,7 @@ export default function TeleTab({
   t, lang, st, slot, setSlot, rawTele, setRawTele, doParse, onTeleFile,
   parsed, mapping, setMapping, saveMotec, saveSlot, loadedSlots, slotStats,
   up, apply105Slot, removeSlot, chartMode, setChartMode, chartData, baseSlot, toggleLap,
-  cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy, savedMsg,
+  cmpLaps, cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy, savedMsg,
 }) {
   const fmtMs = (ms) => fmtLap(ms / 1000);
   return (
@@ -221,6 +221,10 @@ export default function TeleTab({
             fontFamily: "IBM Plex Mono", fontSize: 11, padding: 8 }} />
         <div style={{ margin: "6px 0" }}>
           <input type="file" accept=".csv,.tsv,.txt,.ld" onChange={onTeleFile} />
+          {savedMsg && (
+            <span className="hint" style={{ color: "var(--green)", marginLeft: 10, fontWeight: 600 }}>
+              ✓ Stint {savedMsg} {t("kaydedildi")}</span>
+          )}
         </div>
         {parsed?.loading && <div className="hint">⏳ {t(".ld çözümleniyor…")}</div>}
         {parsed?.error && <div className="hint warn">⚠ {t(parsed.error)}</div>}
@@ -265,10 +269,6 @@ export default function TeleTab({
             color: SLOT_COLORS[slot], marginTop: 4 }} onClick={saveMotec}>
             {lang === "en" ? <>Save as Stint {slot}</> : <>Stint {slot} olarak kaydet</>}
           </button>
-          {savedMsg && (
-            <span className="hint" style={{ color: "var(--green)", marginLeft: 10, fontWeight: 600 }}>
-              ✓ Stint {savedMsg} {t("kaydedildi")}</span>
-          )}
         </>)}
         {parsed && !parsed.error && !parsed.motec && mapping && (<>
           <div className="hint">
@@ -327,11 +327,6 @@ export default function TeleTab({
             <span className="hint warn" style={{ marginLeft: 8 }}>{t("Tur süresi sütunu seçilmeli")}</span>}
         </>)}
       </div>
-
-      {parsed?.motec && (
-        <TraceCompareCard t={t} parsed={parsed} cmpA={cmpA} setCmpA={setCmpA}
-          cmpB={cmpB} setCmpB={setCmpB} cmpData={cmpData} cmpBusy={cmpBusy} />
-      )}
 
       {loadedSlots.length > 0 && (
         <div className="card" style={{ marginTop: 12 }}>
@@ -462,6 +457,11 @@ export default function TeleTab({
             </details>
           ))}
         </div>
+      )}
+
+      {cmpLaps?.length > 0 && (
+        <TraceCompareCard t={t} laps={cmpLaps} cmpA={cmpA} setCmpA={setCmpA}
+          cmpB={cmpB} setCmpB={setCmpB} cmpData={cmpData} cmpBusy={cmpBusy} />
       )}
     </div>
   );

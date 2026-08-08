@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.114",
+    date: "2026-08-08",
+    tr: [
+      "🔧 Telemetri düzeni: 'Stint olarak kaydet'e basınca üstteki içe-aktar özeti (dosya seç + tur tablosu) artık kapanıyor; '✓ Stint kaydedildi' onayı dosya seçimin altında kalıcı görünüyor. Tur Karşılaştırma kartı (izler + pist haritası) artık Stint Analizi kartının ALTINDA duruyor ve kaydettikten sonra da çalışmaya devam ediyor.",
+    ],
+    en: [
+      "🔧 Telemetry layout: clicking 'Save as Stint' now closes the import summary above (file picker + lap table); a '✓ Stint saved' confirmation stays under the file picker. The Lap Comparison card (traces + track map) now sits BELOW the Stint Analysis card and keeps working after saving.",
+    ],
+  },
+  {
     v: "v1.4.113",
     date: "2026-08-07",
     tr: [
