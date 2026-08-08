@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.130",
+    date: "2026-08-08",
+    tr: [
+      "🧊 Oyun donması — TEŞHİS DÜZELTİLDİ. 'Sadece köprü açıkken (uygulama yokken) 2 PC'de de donuyor' bulgusu, sorunun tarayıcıda (WebView2) değil KÖPRÜNÜN kendisinde olduğunu gösterdi. İki gerçek sebep düzeltildi: (1) köprü artık DÜŞÜK ÖNCELİKTE çalışır (çekişmede oyun kazanır); (2) oyunun localhost REST sunucusuna istek atan LMU REST varsayılan olarak KAPATILDI — bu, donmanın en güçlü sebebiydi.",
+      "⚡ Köprüye 'REST aç' onay kutusu eklendi (varsayılan kapalı). Kapalıyken pozisyon/tur/gap/lastik yine gelir; yalnız VE% ve gerçek takım adı gelmez. Donma yoksa açıp VE/takımı görebilirsin; donma geri gelirse REST sebep demektir, kapalı bırak. Köprü log dosyasına da 'REST: kapalı/açık · öncelik: düşük' yazılır.",
+    ],
+    en: [
+      "🧊 Game stutter — DIAGNOSIS CORRECTED. The finding 'freezes on 2 PCs with only the bridge open (no app)' showed the cause is the BRIDGE itself, not the browser (WebView2). Two real causes fixed: (1) the bridge now runs at BELOW-NORMAL priority (the game wins contention); (2) the LMU REST calls into the game's own localhost server are now OFF by default — that was the strongest stutter cause.",
+      "⚡ Added a 'REST on' checkbox to the bridge (off by default). With it off, positions/laps/gaps/tyres still work; only VE% and real team names are missing. If you don't stutter you can turn it on for VE/teams; if stutter returns, REST is the cause — leave it off. The bridge log also records 'REST: on/off · priority: low'.",
+    ],
+  },
+  {
     v: "v1.4.129",
     date: "2026-08-08",
     tr: [

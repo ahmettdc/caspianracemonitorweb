@@ -26,6 +26,13 @@ tüm takım için salt-okunur gösterir.
 > aynı paylaşımlı belleği okur. Sürücü bunu çalıştırır, mühendisler canlıyı **web'den**
 > izler.
 
+> 🧊 **Oyun DONUYORSA (v1.4.130+):** köprüdeki **"⚡ REST aç"** kutusunu **KAPALI bırak**
+> (varsayılan kapalı). LMU REST, oyunun kendi localhost sunucusuna saniyede birkaç istek
+> attığı için donmanın en güçlü sebebidir. Kapalıyken pozisyon/tur/gap/lastik yine çalışır;
+> yalnız **VE%** ve **gerçek takım adı** gelmez. Köprü ayrıca artık **düşük öncelikte**
+> çalışır (oyun çekişmede kazanır). Donma bittiyse ve VE/takım istiyorsan kutuyu aç; donma
+> geri gelirse REST sebep demektir, kapalı bırak.
+
 > 📦 **Kurulumla birlikte (v1.4.128+):** masaüstü **setup.exe**'yi kurunca hafif köprü
 > (`CaspianLiveBridge.exe`) de kurulur ve **Başlat menüsüne "Caspian Hafif Kopru"** kısayolu
 > eklenir. Ayrıca lobiden tek başına da indirilebilir (kurulumsuz, çift tıkla).

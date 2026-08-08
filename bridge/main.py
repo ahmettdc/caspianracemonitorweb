@@ -252,22 +252,26 @@ def cmd_dump_wx(mock):
             src.close()
 
 
+def lower_priority():
+    """Oyunla CPU çekişmesini azalt: köprü sürecini BELOW_NORMAL önceliğe al → çekişmede
+    oyun (NORMAL) kazanır. hasattr guard'ı yalnız Windows (Linux/mac psutil.nice() farklı
+    ölçek → mock akışı etkilenmesin). Hata sessiz."""
+    try:
+        import psutil
+        if hasattr(psutil, "BELOW_NORMAL_PRIORITY_CLASS"):
+            psutil.Process().nice(psutil.BELOW_NORMAL_PRIORITY_CLASS)
+            return True
+    except Exception:  # noqa: BLE001
+        pass
+    return False
+
+
 def cmd_emit(mock, hz, no_rest=False):
     """Masaüstü sidecar modu: kaynaktan oku, her kareyi stdout'a bir JSON satırı
     olarak bas — Firebase'e DOKUNMA. Uygulama (JS) satırları okuyup ts/by ekleyerek
     kullanıcının oturumuyla yazar. team_id/race_id burada gerekmez."""
     period = 1.0 / max(0.2, min(hz, 10))
-    # Oyunla CPU çekişmesini azalt: sidecar'ı BELOW_NORMAL önceliğe al. Masaüstü kabuğu
-    # (Tauri, v1.4.98) zaten BELOW_NORMAL olduğundan bu süreç onu miras alır; bu satır
-    # kemer+askı — sidecar standalone çalıştırılırsa ya da miras alınmazsa garanti eder.
-    # hasattr guard'ı yalnız Windows: Linux/mac psutil.nice() farklı ölçek kullanır (mock
-    # akışı etkilenmesin).
-    try:
-        import psutil
-        if hasattr(psutil, "BELOW_NORMAL_PRIORITY_CLASS"):
-            psutil.Process().nice(psutil.BELOW_NORMAL_PRIORITY_CLASS)
-    except Exception:
-        pass
+    lower_priority()  # sidecar standalone çalıştırılırsa/miras alınmazsa garanti
     try:
         src = make_source(mock, no_rest)
     except Exception as e:  # noqa: BLE001  (okuyucu/lib yok → hata karesi bas, çıkma)
@@ -333,16 +337,23 @@ def cmd_selftest(cp):
         return 1
 
 
-def run_loop(cp, mock, once):
+def run_loop(cp, mock, once, no_rest=None):
     from logfile import get_logger, heartbeat_line, log_path
     lg = get_logger()
     fb, by = fb_from_cfg(cp)
     tid, rid = cp["race"]["team_id"].strip(), cp["race"]["race_id"].strip()
     hz = float(cp["rate"].get("hz", "2")) if cp.has_section("rate") else 2.0
     period = 1.0 / max(0.2, min(hz, 10))
+    # REST varsayılan KAPALI (oyun donmasının en güçlü şüphelisi). config [rate] rest_on
+    # ile ya da --no-rest bayrağıyla belirlenir. no_rest=None → config'e bak.
+    if no_rest is None:
+        rest_on = cp.has_section("rate") and cp["rate"].get("rest_on", "").strip().lower() in ("1", "true", "yes", "on")
+        no_rest = not rest_on
+    low = lower_priority()  # oyunla çekişmede oyun kazansın
 
-    lg.info("=== Köprü başladı === hedef teams/%s/live/%s · %g Hz · %s",
-            tid, rid, hz, "MOCK" if mock else "oyun (paylaşımlı bellek)")
+    lg.info("=== Köprü başladı === hedef teams/%s/live/%s · %g Hz · %s · REST:%s · öncelik:%s",
+            tid, rid, hz, "MOCK" if mock else "oyun",
+            "kapalı" if no_rest else "AÇIK", "düşük" if low else "normal")
     print(f"[log] {log_path()}")
     print(f"[firebase] giriş: {by}")
     try:
@@ -352,8 +363,9 @@ def run_loop(cp, mock, once):
         raise
     print(f"[firebase] giriş yapıldı — UID: {fb.uid}")
     lg.info("giriş OK — UID %s", fb.uid)
-    print(f"[hedef] teams/{tid}/live/{rid}  ·  {hz:g} Hz  (durdurmak için Ctrl+C)")
-    src = make_source(mock)
+    print(f"[hedef] teams/{tid}/live/{rid}  ·  {hz:g} Hz  ·  REST {'kapalı' if no_rest else 'açık'}"
+          f"  (durdurmak için Ctrl+C)")
+    src = make_source(mock, no_rest)
     fails = 0
     sent = 0
     last_hb = 0.0
@@ -443,15 +455,18 @@ def main():
             return
         if args.selftest:
             sys.exit(cmd_selftest(read_config_or_die(args.config)))
+        # --no-rest verildiyse REST'i zorla kapat; verilmediyse None → config'e bak
+        # (standalone köprüde REST varsayılan KAPALI, oyun donması).
+        nr = True if args.no_rest else None
         if args.nogui or args.once or args.mock:
-            run_loop(read_config_or_die(args.config), args.mock, args.once)
+            run_loop(read_config_or_die(args.config), args.mock, args.once, no_rest=nr)
             return
         # varsayılan (çift tıklama, flag yok) → arayüz
         try:
             from gui import launch
         except Exception as e:  # noqa: BLE001  (tkinter yoksa CLI'ya düş)
             print(f"[arayüz açılamadı: {e}] — config.ini ile çalışılıyor.")
-            run_loop(read_config_or_die(args.config), False, False)
+            run_loop(read_config_or_die(args.config), False, False, no_rest=nr)
             return
         launch(args.config)
     except SystemExit:
