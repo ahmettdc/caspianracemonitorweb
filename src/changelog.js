@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.122",
+    date: "2026-08-08",
+    tr: [
+      "🏁 Viraj Analizi: telemetriden her virajın A/B için viraj-ortası (apex) hızı + viraja gelirken fren mesafesi çıkarılır. Yeni tablo (viraj no · mesafe · A/B apex km/h · Δ · A/B fren mesafesi), pist krokisinde numaralı apex işaretleri ve hız izinde apex noktaları. 'Hangi virajda daha yavaş döndüm / daha geç frenledim' bir bakışta. (Sezgisel tespit: apex = hız minimumu, fren = frenin başladığı nokta; gerçek beacon değil, hız+fren kanalı gerekir.)",
+    ],
+    en: [
+      "🏁 Corner Analysis: telemetry now derives each corner's mid-corner (apex) speed + braking distance into the corner for A/B. New table (corner no · distance · A/B apex km/h · Δ · A/B braking distance), numbered apex markers on the track sketch, and apex dots on the speed trace. See at a glance where you cornered slower / braked later. (Heuristic: apex = speed minimum, brake = brake-on point; not a real beacon, needs speed+brake channels.)",
+    ],
+  },
+  {
     v: "v1.4.121",
     date: "2026-08-08",
     tr: [
