@@ -51,7 +51,8 @@ jobs:
           python-version: "3.11"
 
       - name: Köprü sidecar bağımlılıkları
-        run: pip install pyinstaller -r bridge/requirements.txt
+        # pystray + Pillow: hafif GUI köprünün sistem tepsisi ikonu için.
+        run: pip install pyinstaller pystray Pillow -r bridge/requirements.txt
 
       - name: Köprü sidecar .exe derle
         shell: pwsh
@@ -84,12 +85,13 @@ jobs:
       - name: Hafif köprü .exe derle (kuruluma gömülür)
         shell: pwsh
         run: |
-          pyinstaller --onefile --name CaspianLiveBridge `
+          pyinstaller --onefile --noconsole --name CaspianLiveBridge `
             --paths bridge `
             --collect-submodules pyRfactor2SharedMemory `
             --hidden-import psutil --hidden-import lmu_api `
             --hidden-import gui --hidden-import google_auth `
             --hidden-import oauth_config --hidden-import oauth_build `
+            --hidden-import pystray._win32 `
             --distpath bridge/dist2 bridge/main.py
           Copy-Item bridge/dist2/CaspianLiveBridge.exe src-tauri/CaspianLiveBridge.exe
 

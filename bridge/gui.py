@@ -25,7 +25,8 @@ BAD = "#FF4D5E"
 
 
 def _hide_console():
-    """Windows'ta GUI modunda konsol penceresini gizle (varsa)."""
+    """Windows'ta GUI modunda konsol penceresini gizle (varsa). --noconsole derlemede
+    zaten konsol yok (GetConsoleWindow → 0) → no-op; console derlemede yedek."""
     try:
         import ctypes
         h = ctypes.windll.kernel32.GetConsoleWindow()
@@ -35,12 +36,24 @@ def _hide_console():
         pass
 
 
+def _tray_image():
+    """Tepsi ikonu için küçük marka görseli (Pillow). Asset gerekmez — çizilir."""
+    from PIL import Image, ImageDraw
+    img = Image.new("RGB", (64, 64), BG)
+    d = ImageDraw.Draw(img)
+    d.ellipse((10, 10, 54, 54), fill=BRAND)      # bürgündi daire
+    d.ellipse((24, 24, 40, 40), fill=INK)         # iç nokta
+    return img
+
+
 class BridgeGUI:
     def __init__(self, root, config_path):
         self.root = root
         self.cfg = config_path
         self.stop_evt = threading.Event()
         self.worker = None
+        self.tray = None          # sistem tepsisi ikonu (pystray) — lazy
+        self.tray_hinted = False  # "tepside çalışıyor" bildirimi bir kez
 
         root.title("Caspian Live Bridge")
         root.geometry("470x560")
@@ -136,6 +149,7 @@ class BridgeGUI:
         self.load()
         self.log(f"📄 Log dosyası: {log_path()}")
         root.protocol("WM_DELETE_WINDOW", self.on_close)
+        self._init_tray()
 
     def open_log(self):
         """Log dosyasını sistemin varsayılan uygulamasında aç (Windows: Not Defteri)."""
@@ -496,9 +510,59 @@ class BridgeGUI:
         self.set_status("Durdu", DIM)
         self._set_btn("Kaydet & Başlat")
 
-    def on_close(self):
+    # ---------- sistem tepsisi (tepside çalışmaya devam) ----------
+    def _init_tray(self):
+        """pystray ile bildirim-alanı ikonu kur (arka plan thread). pystray/Pillow yoksa
+        (ör. bu ortam) sessizce atlanır → o zaman X normal kapatır (yedek)."""
+        try:
+            import pystray
+            menu = pystray.Menu(
+                pystray.MenuItem("Göster", self._tray_show, default=True),
+                pystray.MenuItem("Çıkış", self._tray_quit),
+            )
+            self.tray = pystray.Icon("caspian_bridge", _tray_image(),
+                                     "Caspian Live Bridge", menu)
+            self.tray.run_detached()   # kendi thread'inde çalışır (Windows destekli)
+        except Exception as e:  # noqa: BLE001
+            self.tray = None
+            self.lg.info("tepsi ikonu yok (%s) — X kapatır", e)
+
+    def _tray_show(self, *_):
+        # pystray callback'i kendi thread'inde → tkinter'a marshal et.
+        self.root.after(0, lambda: (self.root.deiconify(), self.root.lift(),
+                                    self.root.focus_force()))
+
+    def _tray_quit(self, *_):
+        self.root.after(0, self._real_quit)
+
+    def _hide_to_tray(self):
+        """Pencereyi gizle ama DÖNGÜYÜ DURDURMA — köprü tepside yayına devam eder."""
+        self.root.withdraw()
+        if not self.tray_hinted:
+            self.tray_hinted = True
+            try:
+                self.tray.notify("Köprü tepside çalışıyor — yayın sürüyor. "
+                                 "Göstermek için ikona çift tıkla.",
+                                 "Caspian Live Bridge")
+            except Exception:  # noqa: BLE001
+                pass
+
+    def _real_quit(self):
         self.stop_evt.set()
+        if self.tray is not None:
+            try:
+                self.tray.stop()
+            except Exception:  # noqa: BLE001
+                pass
         self.root.after(200, self.root.destroy)
+
+    def on_close(self):
+        # (X) → uygulamayı KAPATMA; tepsiye gizle, köprü çalışmaya devam etsin.
+        # Tepsi yoksa (pystray yüklenemedi) gerçekten kapat (yedek davranış).
+        if self.tray is not None:
+            self._hide_to_tray()
+        else:
+            self._real_quit()
 
 
 def launch(config_path=None):

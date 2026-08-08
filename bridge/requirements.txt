@@ -5,3 +5,8 @@ requests>=2.31
 #   bridge/pyRfactor2SharedMemory/  (TonyWhitley, MIT — License.txt dahil)
 # Üstakım pip ile kurulamıyor (setup.py yok) → gömdük; psutil onun bağımlılığı.
 psutil>=5.9
+
+# GUI köprünün sistem tepsisi ikonu (X → tepsiye gizle, yayın sürsün). Yalnız GUI
+# derlemesinde gerekir; yoksa köprü çalışır ama X gerçekten kapatır (yedek davranış).
+pystray>=0.19
+Pillow>=10.0

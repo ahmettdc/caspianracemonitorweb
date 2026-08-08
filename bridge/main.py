@@ -426,6 +426,16 @@ def run_loop(cp, mock, once, no_rest=None):
 
 
 def main():
+    # --noconsole (windowed) derlemede konsol HİÇ oluşturulmaz → sys.stdout/stderr None
+    # olur; koddaki print(..., file=sys.stderr) çağrıları AttributeError atardı. Bunları
+    # devnull'a yönlendir (tanı zaten dosya-log'a — logfile.py — ve GUI kutusuna gider).
+    # Console/sidecar (--emit) derlemede stdout GERÇEK → bu dal çalışmaz, JSON bozulmaz.
+    for _n in ("stdout", "stderr"):
+        if getattr(sys, _n, None) is None:
+            try:
+                setattr(sys, _n, open(os.devnull, "w", encoding="utf-8"))
+            except Exception:  # noqa: BLE001
+                pass
     # Windows'ta Python stdout/stderr varsayılan olarak sistem locale'i (Türkçe
     # cp1254) olabilir → Türkçe karakterler (ör. "Yeşil"deki ş) tek bayt yazılır
     # ve Tauri sidecar çıktıyı UTF-8 çözerken hata verir. Çıktıyı UTF-8'e zorla.
