@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.134",
+    date: "2026-08-08",
+    tr: [
+      "🟣 Canlı Timing: bir araç kendi SINIFININ en hızlı turunu atınca satırı kısa bir MOR animasyonla yanıp söner (yeni sınıf rekoru).",
+      "🟢 Canlı Timing: bir araç kendi turunu geliştirince (kişisel rekor, ama sınıf en hızlısı değil) satırı YEŞİL animasyonla yanıp söner. Klasik timing-tower renk konvansiyonu; sahadaki tüm araçlar için çalışır.",
+    ],
+    en: [
+      "🟣 Live Timing: when a car sets the fastest lap of its CLASS, its row briefly flashes PURPLE (new class record).",
+      "🟢 Live Timing: when a car improves its own lap (personal best, but not the class fastest) its row flashes GREEN. Classic timing-tower color convention; works for every car in the field.",
+    ],
+  },
+  {
     v: "v1.4.133",
     date: "2026-08-08",
     tr: [

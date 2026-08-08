@@ -7,6 +7,7 @@ import { isTauri } from "../tauriEnv";
 import { liveLapsSubscribe, liveSecSubscribe, liveDrvSubscribe, liveTyreSubscribe,
   liveCondSubscribe, serverNow } from "../storage";
 import { driverAtLap, parseLapCond } from "../liveLaps";
+import { detectFlashes, carKey } from "../liveFlash";
 import { binKey } from "../trackShape";
 import { demoLive } from "../liveDemo";
 import { CALIB_WORDS, addSample, thresholdsFrom, exportPayload } from "../wxCalib";
@@ -632,6 +633,28 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
       if (c.pos > 0) posRef.current[k] = c.pos;
     }
   }, [live?.ts]);
+  // Satır flash: bestSec iyileşince MOR (sınıf rekoru) / YEŞİL (kişisel rekor) yak.
+  const bestRef = useRef({});          // aracKey → son bestSec (kare kare karşılaştır)
+  const flashTimers = useRef({});      // aracKey → temizleme timer'ı
+  const [flash, setFlash] = useState({});   // aracKey → "purple" | "green"
+  useEffect(() => {
+    const { flashes, nextBest } = detectFlashes(
+      Array.isArray(live?.field) ? live.field : [], bestRef.current);
+    bestRef.current = nextBest;
+    const keys = Object.keys(flashes);
+    if (!keys.length) return;
+    setFlash((f) => ({ ...f, ...flashes }));
+    for (const k of keys) {
+      if (flashTimers.current[k]) clearTimeout(flashTimers.current[k]);
+      flashTimers.current[k] = setTimeout(() => {
+        setFlash((f) => { const n = { ...f }; delete n[k]; return n; });
+        delete flashTimers.current[k];
+      }, 1600);   // CSS animasyonu (~1.5 sn) + küçük tampon
+    }
+  }, [live?.ts]);
+  useEffect(() => () => {   // unmount: bekleyen timer'ları temizle
+    for (const k of Object.keys(flashTimers.current)) clearTimeout(flashTimers.current[k]);
+  }, []);
   // büyük pano (tam ekran)
   const toggleBig = () => {
     const el = rootRef.current;
@@ -856,9 +879,12 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, liveFuelOb
                 {shown.map(({ c, i, id, classPos, interval, lapsDown, lapsDownNext,
                   delta, isFastest }) => {
                   const acc = classAccent(c.carClass);
+                  const fl = flash[carKey(c)];   // "purple" | "green" | undefined
                   return (
                     <tr key={c.pos ?? i}
-                      className={c.isPlayer ? "live" : ""}
+                      className={[c.isPlayer ? "live" : "",
+                        fl === "purple" ? "flashpurple" : fl === "green" ? "flashgreen" : ""]
+                        .filter(Boolean).join(" ")}
                       style={!c.isPlayer && acc ? { borderLeft: `3px solid ${acc}` } : undefined}>
                       <td className="disp" style={{ fontSize: 15, whiteSpace: "nowrap" }}>
                         {c.pos ?? i + 1}

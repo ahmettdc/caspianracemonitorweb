@@ -291,6 +291,15 @@ export const css = `
 .rc .lapclr{width:16px;height:16px;padding:0;border:none;border-radius:4px;
   background:transparent;color:var(--dim);cursor:pointer;font-size:11px}
 .rc .lapclr:hover{color:var(--car)}
+/* Canlı timing satır flash: MOR = sınıf rekoru, YEŞİL = kişisel rekor (timing-tower
+   konvansiyonu). Renkli zeminden şeffafa 1.5 sn'de söner; td'lere uygulanır (tr bg
+   animasyonu bazı tarayıcılarda güvenilmez). */
+@keyframes rowflashpurple{0%{background:rgba(181,139,255,.60)}100%{background:transparent}}
+@keyframes rowflashgreen{0%{background:rgba(55,214,122,.55)}100%{background:transparent}}
+.rc tr.flashpurple>td{animation:rowflashpurple 1.5s ease-out}
+.rc tr.flashgreen>td{animation:rowflashgreen 1.5s ease-out}
+@media (prefers-reduced-motion:reduce){
+  .rc tr.flashpurple>td,.rc tr.flashgreen>td{animation-duration:.01ms}}
 .rc .wxmodal{position:fixed;inset:0;z-index:1000;background:rgba(10,6,10,.72);
   backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;
   padding:20px;animation:lbfade .18s ease}
