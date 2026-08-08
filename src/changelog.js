@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.117",
+    date: "2026-08-08",
+    tr: [
+      "▶ Telemetri oynatma: karşılaştırma kartında ▶/⏸ ile turu oynat; harita noktası + tüm kanallarda dikey imleç (playhead) birlikte kayar → virajı adım adım izle. Hız 0.5× / 1× / 2×; kaydırıcı ile elle gez. (Oynatma tur A'nın süresine göre gerçek-zamana yakın akar.)",
+    ],
+    en: [
+      "▶ Telemetry playback: in the comparison card use ▶/⏸ to play the lap; the track-map dot and a vertical playhead on all channels move together — step through a corner. Speed 0.5× / 1× / 2×; scrub manually with the slider. (Playback runs near real-time based on lap A's duration.)",
+    ],
+  },
+  {
     v: "v1.4.116",
     date: "2026-08-08",
     tr: [

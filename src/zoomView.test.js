@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { clampView, zoomViewAt, panView, zoomDomain } from "./zoomView";
+import { clampView, zoomViewAt, panView, zoomDomain, advanceCursor } from "./zoomView";
 
 const S = 240;
 
@@ -47,6 +47,24 @@ describe("panView", () => {
   it("sağ sınırı aşmaz", () => {
     const v = panView({ vx: 100, vy: 0, vw: 120, vh: 120 }, 999, 0, S);
     expect(v.vx).toBe(120);   // S - vw
+  });
+});
+
+describe("advanceCursor", () => {
+  it("hız ve süreye göre ilerler (1x: N-1 nokta lapSec'te)", () => {
+    // N=601, lapSec=60 → perMs=600/60000=0.01 → 1000ms tick → +10
+    expect(advanceCursor(0, 601, 60, 1, 1000)).toBeCloseTo(10);
+    expect(advanceCursor(0, 601, 60, 2, 1000)).toBeCloseTo(20);   // 2x iki katı
+  });
+  it("sona gelince başa sarar", () => {
+    expect(advanceCursor(599, 601, 60, 1, 1000)).toBe(0);   // 599+10 >= 600 → 0
+  });
+  it("bozuk N → 0", () => {
+    expect(advanceCursor(5, 1, 60, 1, 40)).toBe(0);
+    expect(advanceCursor(5, 0, 60, 1, 40)).toBe(0);
+  });
+  it("lapSec yoksa yedek süre (8s) kullanır, çökmez", () => {
+    expect(advanceCursor(0, 601, 0, 1, 1000)).toBeGreaterThan(0);
   });
 });
 
