@@ -407,8 +407,10 @@ def main():
         except Exception:  # noqa: BLE001  (bazı ortamlarda stdout None/ayarlanamaz)
             pass
 
+    from logfile import default_config_path
     ap = argparse.ArgumentParser(description="Caspian Live Bridge")
-    ap.add_argument("--config", default="config.ini")
+    ap.add_argument("--config", default=default_config_path(),
+                    help="config.ini yolu (varsayılan: exe yanı ya da %LOCALAPPDATA%)")
     ap.add_argument("--mock", action="store_true", help="Oyunsuz sahte veri")
     ap.add_argument("--selftest", action="store_true", help="Firebase yaz+oku turu (PASS/FAIL)")
     ap.add_argument("--dump", action="store_true", help="Bir örnek oku, JSON bas (yazmaz)")

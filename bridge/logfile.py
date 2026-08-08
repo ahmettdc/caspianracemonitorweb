@@ -56,6 +56,29 @@ def log_path():
     return os.path.join(log_dir(), _LOG_NAME)
 
 
+def _exe_dir():
+    try:
+        return os.path.dirname(
+            sys.executable if getattr(sys, "frozen", False) else os.path.abspath(__file__)
+        )
+    except Exception:  # noqa: BLE001
+        return os.getcwd()
+
+
+def default_config_path():
+    """config.ini yolu. Öncelik: exe'nin YANINDA config.ini varsa onu kullan (taşınabilir
+    indirme, geriye uyum). Yoksa garanti-yazılabilir app-data dizini
+    (%LOCALAPPDATA%\\CaspianLiveBridge) → kurulum Program Files gibi salt-okunur bir yere
+    yapılsa da config yazılabilir kalır."""
+    portable = os.path.join(_exe_dir(), "config.ini")
+    if os.path.exists(portable):
+        return portable
+    try:
+        return os.path.join(log_dir(), "config.ini")
+    except Exception:  # noqa: BLE001
+        return portable
+
+
 def get_logger():
     """Tek (singleton) döngüsel dosya-logger. Handler kurulamazsa (izin yok) yine
     çalışan ama sessiz bir logger döner — köprü asla log yüzünden çökmez."""

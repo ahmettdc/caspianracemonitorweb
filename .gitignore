@@ -7,3 +7,5 @@ firebase-export-*/
 bridge/caspian-bridge.log*
 # Köprü OAuth istemcisi — derlemede secret'lardan üretilir (repoya girmez)
 bridge/oauth_build.py
+# Masaüstü kuruluma gömülen hafif köprü exe — derlemede üretilir (CI, repoya girmez)
+src-tauri/CaspianLiveBridge.exe
