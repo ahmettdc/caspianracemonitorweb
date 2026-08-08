@@ -75,6 +75,104 @@ async fn exchange_google_code(
     .ok_or_else(|| "yanıtta id_token yok".to_string())
 }
 
+/* CPU affinity maskesi (Windows): uygulamaya EN YÜKSEK numaralı `reserve` çekirdek
+   (n/4, en az 1); oyun alttaki çoğunluğu çekişmesiz kullansın. Yalnız 4..=64 çekirdekte
+   anlamlı (azsa ayırmak anlamsız; >64 tek maskeye sığmaz) → aksi None (dokunma). Job
+   Object bloğu ve watchdog aynı maskeyi paylaşır. */
+#[cfg(windows)]
+unsafe fn affinity_mask() -> Option<usize> {
+  use windows_sys::Win32::System::SystemInformation::{GetSystemInfo, SYSTEM_INFO};
+  let mut si: SYSTEM_INFO = std::mem::zeroed();
+  GetSystemInfo(&mut si);
+  let n = si.dwNumberOfProcessors as usize;
+  if !(4..=64).contains(&n) {
+    return None;
+  }
+  let reserve = std::cmp::max(1, n / 4);
+  // u128 ara tip → n=64'te taşma yok.
+  Some(((((1u128 << reserve) - 1) << (n - reserve)) as u64) as usize)
+}
+
+/* WebView2 çocuk süreçlerinin affinity'sini ZORLA sabitle (v1.4.125 — Job Object
+   breakaway'e karşı). Chromium/WebView2 render/GPU/utility çocukları bazen
+   CREATE_BREAKAWAY_FROM_JOB ile job'dan KOPAR → JOB_OBJECT_LIMIT_AFFINITY onlara
+   UYGULANMAZ → oyunun çekirdeklerine yayılıp çekişme (donma) yaratır. Bu watchdog
+   ~5 sn'de bir KENDİ süreç ağacımızdaki tüm `msedgewebview2.exe` süreçlerini bulup
+   her birine TEK TEK SetProcessAffinityMask(mask) + SetPriorityClass(BELOW_NORMAL)
+   uygular → job'dan kopan çocuklar da yakalanır. Yalnız kendi ağacımız (başka
+   uygulamaların WebView2'sine dokunulmaz); tüm hatalar sessiz (panik yok). */
+#[cfg(windows)]
+fn spawn_affinity_watchdog(mask: usize) {
+  use std::collections::HashSet;
+  use windows_sys::Win32::Foundation::{CloseHandle, INVALID_HANDLE_VALUE};
+  use windows_sys::Win32::System::Diagnostics::ToolHelp::{
+    CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W,
+    TH32CS_SNAPPROCESS,
+  };
+  use windows_sys::Win32::System::Threading::{
+    GetCurrentProcessId, OpenProcess, SetPriorityClass, SetProcessAffinityMask,
+    BELOW_NORMAL_PRIORITY_CLASS, PROCESS_SET_INFORMATION,
+  };
+
+  std::thread::spawn(move || unsafe {
+    let our_pid = GetCurrentProcessId();
+    loop {
+      let snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+      if snap != INVALID_HANDLE_VALUE && !snap.is_null() {
+        // Tüm süreçler: (pid, ppid, msedgewebview2.exe mi?)
+        let mut procs: Vec<(u32, u32, bool)> = Vec::new();
+        let mut pe: PROCESSENTRY32W = std::mem::zeroed();
+        pe.dwSize = std::mem::size_of::<PROCESSENTRY32W>() as u32;
+        if Process32FirstW(snap, &mut pe) != 0 {
+          loop {
+            // szExeFile (UTF-16, null-sonlu). Exe adı ASCII → ucuz kıyas yeterli.
+            let mut name = String::new();
+            for &c in pe.szExeFile.iter() {
+              if c == 0 {
+                break;
+              }
+              name.push(c as u8 as char);
+            }
+            let is_wv2 = name.eq_ignore_ascii_case("msedgewebview2.exe");
+            procs.push((pe.th32ProcessID, pe.th32ParentProcessID, is_wv2));
+            if Process32NextW(snap, &mut pe) == 0 {
+              break;
+            }
+          }
+        }
+        CloseHandle(snap);
+
+        // Kendi PID'imizden başlayarak soyağacı kümesi (BFS; WebView2 ağacı sığ).
+        let mut tree: HashSet<u32> = HashSet::new();
+        tree.insert(our_pid);
+        let mut changed = true;
+        while changed {
+          changed = false;
+          for &(pid, ppid, _) in procs.iter() {
+            if tree.contains(&ppid) && !tree.contains(&pid) {
+              tree.insert(pid);
+              changed = true;
+            }
+          }
+        }
+
+        // Ağaçtaki her WebView2 sürecine affinity + BELOW_NORMAL uygula.
+        for &(pid, _, is_wv2) in procs.iter() {
+          if is_wv2 && tree.contains(&pid) {
+            let h = OpenProcess(PROCESS_SET_INFORMATION, 0, pid);
+            if !h.is_null() {
+              SetProcessAffinityMask(h, mask);
+              SetPriorityClass(h, BELOW_NORMAL_PRIORITY_CLASS);
+              CloseHandle(h);
+            }
+          }
+        }
+      }
+      std::thread::sleep(std::time::Duration::from_secs(5));
+    }
+  });
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   // Sürüş PC'sinde oyunla CPU çekişmesini azalt: uygulamayı BELOW_NORMAL önceliğe al.
@@ -107,18 +205,9 @@ pub fn run() {
       AssignProcessToJobObject, CreateJobObjectW, JobObjectBasicLimitInformation,
       SetInformationJobObject, JOBOBJECT_BASIC_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_AFFINITY,
     };
-    use windows_sys::Win32::System::SystemInformation::{GetSystemInfo, SYSTEM_INFO};
     use windows_sys::Win32::System::Threading::{GetCurrentProcess, SetProcessAffinityMask};
 
-    let mut si: SYSTEM_INFO = std::mem::zeroed();
-    GetSystemInfo(&mut si);
-    let n = si.dwNumberOfProcessors as usize;
-    // Yalnız 4..=64 çekirdekte: azsa (≤2-3) ayırmak anlamsız; >64 işlemci grubu tek
-    // maskeye sığmaz → hiç dokunma (tüm çekirdekler açık kalır).
-    if (4..=64).contains(&n) {
-      // Uygulamaya EN YÜKSEK numaralı reserve çekirdek (n/4, en az 1); oyun altını alır.
-      let reserve = std::cmp::max(1, n / 4);
-      let mask: usize = ((((1u128 << reserve) - 1) << (n - reserve)) as u64) as usize;
+    if let Some(mask) = affinity_mask() {
       let job = CreateJobObjectW(std::ptr::null(), std::ptr::null());
       let mut assigned = false;
       if !job.is_null() {
@@ -141,6 +230,9 @@ pub fn run() {
       if !assigned {
         SetProcessAffinityMask(GetCurrentProcess(), mask);
       }
+      // v1.4.125: WebView2 çocukları job'dan breakaway yapsa da affinity'yi ZORLA
+      // sabitleyen watchdog thread'i başlat (aynı maskeyle).
+      spawn_affinity_watchdog(mask);
     }
   }
 

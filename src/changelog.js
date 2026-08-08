@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.125",
+    date: "2026-08-08",
+    tr: [
+      "🧊 Oyun donması (sürüş PC'si): DLL/veri çekerken oluşan takılmaya karşı yeni bir önlem. Uygulamanın WebView2 alt süreçleri artık bir 'gözcü' iş parçacığıyla sürekli belirli çekirdeklere sabitleniyor (Job Object'ten kopanlar dahil) ve düşük önceliğe alınıyor → oyunun çekirdek çekişmesi azalır. (Yalnız masaüstü; sürüş PC'sinin yeni sürümü kurması gerekir. Web/tarayıcı etkilenmez.)",
+    ],
+    en: [
+      "🧊 Game stutter (driving PC): another mitigation for the freezes while the DLL/data bridge runs. The app's WebView2 child processes are now continuously pinned to specific cores by a watchdog thread (including any that break away from the Job Object) and set to below-normal priority → less core contention with the game. (Desktop only; the driving PC must install the new version. Web/browser unaffected.)",
+    ],
+  },
+  {
     v: "v1.4.124",
     date: "2026-08-08",
     tr: [
