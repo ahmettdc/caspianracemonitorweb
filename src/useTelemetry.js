@@ -32,6 +32,7 @@ export function useTelemetry({ st, setSt }) {
   const [cmpB, setCmpB] = useState(null);
   const [cmpData, setCmpData] = useState(null);
   const [cmpBusy, setCmpBusy] = useState(false);
+  const [savedMsg, setSavedMsg] = useState("");   // "✓ Stint X kaydedildi" onayı (slot harfi)
   const readersRef = useRef(null);   // kanal okuyucuları dosya başına bir kez (önbellek)
 
   const doParse = (text) => {
@@ -44,6 +45,7 @@ export function useTelemetry({ st, setSt }) {
   const onTeleFile = (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
+    setSavedMsg("");   // yeni dosya → eski kayıt onayını temizle
     /* .ld = MoTeC ikili log → CSV'ye çevirmeden doğrudan oku (parseLd, aynı motec şekli).
        parseLd SEÇİCİ okur: tüm dosyayı belleğe almaz, yalnız gereken kanalları File.slice
        ile çeker → 100MB+ log'lar donmadan/şişmeden açılır. Diğerleri (csv/tsv/txt) = metin. */
@@ -123,8 +125,9 @@ export function useTelemetry({ st, setSt }) {
     }));
     setSt((s) => ({ ...s, telemetry: { ...s.telemetry,
       [slot]: { laps: apply105Rule(laps), name: `Stint ${slot}`, src: parsed.meta } } }));
-    setRawTele(""); setParsed(null); setMapping(null);
-    setTeleFile(null); setTeleHeader(null); readersRef.current = null;   // izler yüklü dosyaya bağlı
+    /* parsed/teleFile KORUNUR → karşılaştırma kartı + pist haritası kaybolmasın (kullanıcı
+       isteği). Stint aşağıdaki analize eklenir; kart aynı veriyle görünür kalır. */
+    setSavedMsg(slot);
   };
 
   const saveSlot = () => {
@@ -169,5 +172,5 @@ export function useTelemetry({ st, setSt }) {
   return { slot, setSlot, chartMode, setChartMode, rawTele, setRawTele, parsed, mapping,
     setMapping, onTeleFile, doParse, apply105Slot, saveMotec, saveSlot, toggleLap,
     removeSlot, slotStats, chartData, loadedSlots, baseSlot,
-    cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy };
+    cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy, savedMsg };
 }

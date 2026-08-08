@@ -194,7 +194,7 @@ export default function TeleTab({
   t, lang, st, slot, setSlot, rawTele, setRawTele, doParse, onTeleFile,
   parsed, mapping, setMapping, saveMotec, saveSlot, loadedSlots, slotStats,
   up, apply105Slot, removeSlot, chartMode, setChartMode, chartData, baseSlot, toggleLap,
-  cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy,
+  cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy, savedMsg,
 }) {
   const fmtMs = (ms) => fmtLap(ms / 1000);
   return (
@@ -265,6 +265,10 @@ export default function TeleTab({
             color: SLOT_COLORS[slot], marginTop: 4 }} onClick={saveMotec}>
             {lang === "en" ? <>Save as Stint {slot}</> : <>Stint {slot} olarak kaydet</>}
           </button>
+          {savedMsg && (
+            <span className="hint" style={{ color: "var(--green)", marginLeft: 10, fontWeight: 600 }}>
+              ✓ Stint {savedMsg} {t("kaydedildi")}</span>
+          )}
         </>)}
         {parsed && !parsed.error && !parsed.motec && mapping && (<>
           <div className="hint">

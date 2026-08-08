@@ -587,6 +587,7 @@ export const EN = {
   "ize gel → nokta": "hover a trace → point",
   "Pist haritası çizilemedi — bu dosyada konum ya da yanal-G kanalı yok.":
     "Couldn't draw the track map — this file has no position or lateral-G channel.",
+  "kaydedildi": "saved",
   "Tur": "Lap", "Yakıt": "Fuel", "kısmi": "partial",
   "Ort/Max km/h": "Avg/Max km/h",
   "Kısmi tur: log'da sonraki tur yok, süre örneklerden hesaplandı.":
