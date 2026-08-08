@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.119",
+    date: "2026-08-08",
+    tr: [
+      "🎯 Pist haritasında imleç dairesini fareyle tutup sürükle: daire pist boyunca kayar ve kanallardaki dikey imleç + sektör çipi + delta o konuma gider (oynatmanın elle sürülen hâli). Pist çizgisi üstünde sürükle = konum; boş alanda sürükle = harita gezinme (yakınlaştırınca). ⛶ Büyüt penceresinde de çalışır.",
+    ],
+    en: [
+      "🎯 Grab the cursor dot on the track map and drag it: the dot slides along the track and the channel playhead + sector chip + delta follow (a manual-scrub version of playback). Drag on the track line = position; drag empty space = pan the map (when zoomed). Works in the ⛶ Expand window too.",
+    ],
+  },
+  {
     v: "v1.4.118",
     date: "2026-08-08",
     tr: [

@@ -57,7 +57,7 @@ function TraceRow({ data, title, unit, keys, colors, fmt, height = 132, zero, da
    yaptık". İz üzerinde gezerken (cursor) haritada o nokta işaretlenir.
    Fare tekerleğiyle yakınlaştır (viewBox state), sürükleyerek gez, çift-tık sıfırla —
    nokta matematiği (scr/segment) DEĞİŞMEZ; yalnız viewBox pencere kayar/daralır. */
-function TrackMini({ t, data, cursor, src, big, marks }) {
+function TrackMini({ t, data, cursor, src, big, marks, onScrub }) {
   const S = 240, PAD = 16;
   const [view, setView] = useState({ vx: 0, vy: 0, vw: S, vh: S });
   const svgRef = useRef(null);
@@ -109,15 +109,43 @@ function TrackMini({ t, data, cursor, src, big, marks }) {
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
   });
-  const onDown = (e) => { drag.current = { x0: e.clientX, y0: e.clientY, v0: view };
-    e.currentTarget.setPointerCapture?.(e.pointerId); };
+  /* pist çizgisine en yakın tur noktası (ekran-px) → { idx, dist } */
+  const GRAB_PX = 18;
+  const nearest = (clientX, clientY) => {
+    const r = svgRef.current?.getBoundingClientRect();
+    if (!r || !r.width || !data.length) return null;
+    let bi = -1, bd = Infinity;
+    for (let k = 0; k < data.length; k++) {
+      const [sx, sy] = scr(data[k].mapX, data[k].mapY);
+      const px = r.left + ((sx - view.vx) / view.vw) * r.width;
+      const py = r.top + ((sy - view.vy) / view.vh) * r.height;
+      const d = (clientX - px) ** 2 + (clientY - py) ** 2;
+      if (d < bd) { bd = d; bi = k; }
+    }
+    return { idx: bi, dist: Math.sqrt(bd) };
+  };
+  const onDown = (e) => {
+    const n = onScrub ? nearest(e.clientX, e.clientY) : null;
+    if (n && n.dist <= GRAB_PX) {           // pist çizgisi/daire üstünde → scrub
+      drag.current = { mode: "scrub" }; onScrub(n.idx);
+    } else {                                 // boş alan → pan (v1.4.115)
+      drag.current = { mode: "pan", x0: e.clientX, y0: e.clientY, v0: view };
+    }
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+  };
   const onMove = (e) => {
-    if (!drag.current) return;
+    const d0 = drag.current;
+    if (!d0) return;
+    if (d0.mode === "scrub") {
+      const n = nearest(e.clientX, e.clientY);
+      if (n && onScrub) onScrub(n.idx);
+      return;
+    }
     const r = svgRef.current?.getBoundingClientRect();
     if (!r || !r.width) return;
-    const dx = -((e.clientX - drag.current.x0) / r.width) * drag.current.v0.vw;
-    const dy = -((e.clientY - drag.current.y0) / r.height) * drag.current.v0.vh;
-    setView(panView(drag.current.v0, dx, dy, S));
+    const dx = -((e.clientX - d0.x0) / r.width) * d0.v0.vw;
+    const dy = -((e.clientY - d0.y0) / r.height) * d0.v0.vh;
+    setView(panView(d0.v0, dx, dy, S));
   };
   const onUp = () => { drag.current = null; };
   const reset = () => setView({ vx: 0, vy: 0, vw: S, vh: S });
@@ -156,7 +184,7 @@ function TrackMini({ t, data, cursor, src, big, marks }) {
         {" · "}{src === "g" ? t("G-kuvveti tahmini (şekil yaklaşık)") : t("konum kanalından")}
       </div>
       <div className="hint" style={{ textAlign: "center", opacity: .6, marginTop: 1 }}>
-        🖱 {t("tekerlek: yakınlaştır · sürükle: gez · çift-tık: sıfırla")}
+        🖱 {t("tekerlek: yakınlaştır · daireyi sürükle: konum · boş alanı sürükle: gez · çift-tık: sıfırla")}
       </div>
     </div>
   );
@@ -203,6 +231,8 @@ function TraceCompareCard({ t, sources, fallbackMeta, cmpASrc, setCmpASrc, cmpBS
     ? sectorOf((data[cursor].frac ?? 0) / 100) : null;   // data.frac 0..100
   const cursorD = cursor != null && data?.[cursor] ? data[cursor].d : null;
   const lapSecA = lapsA[cmpA]?.sec;
+  /* haritada daireyi sürükleyince (scrub): oynatmayı durdur + imleci o noktaya taşı */
+  const onScrub = (i) => { setPlaying(false); playPosRef.current = i; setCursor(i); };
 
   /* Oynatma: setInterval (~40ms) imleci tur A süresi boyunca ilerletir; harita noktası +
      tüm kanallarda playhead (ReferenceLine) kayar. Veri/tur değişince durur. */
@@ -324,7 +354,7 @@ function TraceCompareCard({ t, sources, fallbackMeta, cmpASrc, setCmpASrc, cmpBS
       )}
 
       {cmpData && cmpData.hasMap && (
-        <TrackMini t={t} data={cmpData.data} cursor={cursor} src={cmpData.mapSrc} marks={marks} />
+        <TrackMini t={t} data={cmpData.data} cursor={cursor} src={cmpData.mapSrc} marks={marks} onScrub={onScrub} />
       )}
       {cmpData && !cmpData.hasMap && (
         <div className="hint" style={{ marginTop: 6, opacity: .7 }}>
@@ -408,7 +438,7 @@ function TraceCompareCard({ t, sources, fallbackMeta, cmpASrc, setCmpASrc, cmpBS
                 title={t("Kapat")} onClick={() => setBig(false)}>✕</button>
             </div>
             <div className="mapwrap">
-              <TrackMini t={t} data={cmpData.data} cursor={cursor} src={cmpData.mapSrc} marks={marks} big />
+              <TrackMini t={t} data={cmpData.data} cursor={cursor} src={cmpData.mapSrc} marks={marks} onScrub={onScrub} big />
             </div>
           </div>
         </div>
