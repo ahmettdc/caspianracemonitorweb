@@ -40,6 +40,10 @@ export function useLiveSync({ live, st, liveInfo, up, markPit, canEdit, user }) 
   const prevOwnRef = useRef(null);
   const lastAlignRef = useRef(0);
 
+  // Senkron YALNIZ YARIŞ seansında: antrenman/sıralamada oto-PIT, saat hizalama ve
+  // hava/avgLap önerileri anlamsız (pit stratejisi ve geri sayım yarışa özgü).
+  const isRace = live?.session?.sessionType === "Yarış";
+
   /* Kare başına tetikleme — yalnız canlı kareyi YAZAN istemci durum yazar. */
   useEffect(() => {
     const own = live?.own;
@@ -51,7 +55,7 @@ export function useLiveSync({ live, st, liveInfo, up, markPit, canEdit, user }) 
     const d = clockDriftSec(st, live?.session, now);
     setDrift(d);
 
-    if (!canEdit || !amWriter) return;
+    if (!canEdit || !amWriter || !isRace) return;
 
     // Oto-PIT: pit yoluna giriş karesi → markPit (applyMarkPit pit fazında/çiftte null)
     if (sync.autoPit && detectPitEntry(prevOwn, own)
@@ -69,20 +73,20 @@ export function useLiveSync({ live, st, liveInfo, up, markPit, canEdit, user }) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [live?.ts]);
 
-  const wxSug = useMemo(() => weatherSuggestion(live?.session, st),
+  const wxSug = useMemo(() => (isRace ? weatherSuggestion(live?.session, st) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [live?.session?.rain, live?.session?.wetness, st.weatherLog, st.weather]);
-  const avgSug = useMemo(() => avgLapSuggestion(live?.own, st),
+    [isRace, live?.session?.rain, live?.session?.wetness, st.weatherLog, st.weather]);
+  const avgSug = useMemo(() => (isRace ? avgLapSuggestion(live?.own, st) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [live?.own?.avg5Sec, st.avgLap]);
+    [isRace, live?.own?.avg5Sec, st.avgLap]);
 
-  /* Oyun pit sayısı ↔ planda işaretli pit sayısı tutarsızlığı (salt gösterge) */
+  /* Oyun pit sayısı ↔ planda işaretli pit sayısı tutarsızlığı (salt gösterge; yalnız yarış) */
   const pitMismatch = useMemo(() => {
     const gamePits = live?.own?.pitStops;
-    if (!(gamePits > 0) || liveInfo.status !== "live") return null;
+    if (!isRace || !(gamePits > 0) || liveInfo.status !== "live") return null;
     const marked = liveInfo.pitsDone || 0;
     return gamePits !== marked ? { game: gamePits, marked } : null;
-  }, [live?.own?.pitStops, liveInfo]);
+  }, [isRace, live?.own?.pitStops, liveInfo]);
 
   return { sync, setSyncOpt, drift, lastAuto, wxSug, avgSug, pitMismatch };
 }

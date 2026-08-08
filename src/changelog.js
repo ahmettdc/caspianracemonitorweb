@@ -5,6 +5,22 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.136",
+    date: "2026-08-08",
+    tr: [
+      "🏷 Canlı Timing: bazı araçlarda marka logosu görünmüyordu. Artık takım/üretici adı çok kelimeli olsa da (ör. 'Chevrolet Corvette', 'Ford Mustang') logo doğru eşleniyor.",
+      "📈 Pozisyon Grafiği artık yalnızca YARIŞ seansında görünüyor (antrenman/sıralamada anlamsız olduğu için gizli).",
+      "🔗 Stint ↔ Canlı Timing senkronu (oto-PIT, saat hizalama, hava ve AVG5 önerileri, pit sayısı uyarısı) artık yalnızca YARIŞ seansında çalışıyor.",
+      "🌧 Pist Haritası 'Büyüt' penceresinde zemin ıslaklığı ikonu kocaman görünüyordu — düzeltildi (ikon artık normal boyutta).",
+    ],
+    en: [
+      "🏷 Live Timing: some cars were missing their brand logo. Multi-word team/manufacturer names (e.g. 'Chevrolet Corvette', 'Ford Mustang') now resolve to the correct logo.",
+      "📈 The Position Chart is now shown only during the RACE session (hidden in practice/qualifying where it isn't meaningful).",
+      "🔗 Stint ↔ Live Timing sync (auto-PIT, clock alignment, weather & AVG5 suggestions, pit-count warning) now runs only during the RACE session.",
+      "🌧 In the Track Map 'Expand' window the track-wetness icon appeared oversized — fixed (icon is now normal size).",
+    ],
+  },
+  {
     v: "v1.4.135",
     date: "2026-08-08",
     tr: [
