@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.121",
+    date: "2026-08-08",
+    tr: [
+      "🔢 İmleç değer paneli: karşılaştırma kartında ize gelince / oynatınca / daireyi sürükleyince o noktadaki tüm kanalların A ve B değerleri sayısal olarak görünür — hız (+ fark), gaz, fren, vites, RPM, direksiyon + o noktadaki zaman-delta. 'Şu virajda A 198, B 205 km/h' gibi.",
+    ],
+    en: [
+      "🔢 Cursor values panel: in the comparison card, hovering / playing / dragging the dot shows the numeric A and B value of every channel at that point — speed (+ diff), throttle, brake, gear, RPM, steering + the time-delta there. E.g. 'at this corner A 198, B 205 km/h'.",
+    ],
+  },
+  {
     v: "v1.4.120",
     date: "2026-08-08",
     tr: [

@@ -416,6 +416,36 @@ ${svgs}
         </div>
       )}
 
+      {/* İmleç değer paneli: cursor (hover/scrub/oynatma) konumundaki tüm kanalların A/B değeri + fark */}
+      {cmpData && cursor != null && data?.[cursor] && (() => {
+        const p = data[cursor];
+        const cell = (lbl, aV, bV, fmtV, diff) => (
+          <span key={lbl} className="chip" style={{ fontSize: 11 }}>
+            {lbl} <b style={{ color: CA }}>{fmtV(aV)}</b>/<b style={{ color: CB }}>{fmtV(bV)}</b>
+            {diff && aV != null && bV != null && (
+              <span style={{ opacity: .7 }}> ({aV - bV >= 0 ? "+" : ""}{Math.round(aV - bV)})</span>
+            )}
+          </span>
+        );
+        const iv = (v) => (v == null ? "—" : String(Math.round(v)));
+        return (
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginTop: 8 }}>
+            <span className="chip" style={{ fontSize: 11 }}>📍 {Math.round(p.d)} {unit} · Δ {dlt(p.dt)}</span>
+            {ch.speed && cell(t("Hız"), p.spA, p.spB, iv, true)}
+            {ch.throttle && cell(t("Gaz"), p.thA, p.thB, pct)}
+            {ch.brake && cell(t("Fren"), p.brA, p.brB, pct)}
+            {ch.gear && cell(t("Vites"), p.gA, p.gB, iv)}
+            {ch.rpm && cell(t("RPM"), p.rpmA, p.rpmB, iv)}
+            {ch.steer && cell(t("Direksiyon"), p.stA, p.stB, sp1)}
+          </div>
+        );
+      })()}
+      {cmpData && cursor == null && (
+        <div className="hint" style={{ marginTop: 8, opacity: .6 }}>
+          {t("ize gel / oynat / daireyi sürükle → o noktadaki A/B değerleri")}
+        </div>
+      )}
+
       {cmpData && cmpData.hasMap && (
         <TrackMini t={t} data={cmpData.data} cursor={cursor} src={cmpData.mapSrc} marks={marks} onScrub={onScrub} />
       )}
