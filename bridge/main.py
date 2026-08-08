@@ -25,11 +25,13 @@ import time
 # (masaüstü sidecar) `requests` yüklü olmadan da çalışır.
 
 CONFIG_TEMPLATE = """; Caspian Live Bridge — yapılandırma
-; [firebase] email/password ve [race] team_id/race_id'yi doldur.
+; EN KOLAY YOL: exe'yi çift tıkla → 'Google ile Giriş' → Takım/Yarış seç. Bu dosya
+; kendiliğinden dolar (bot GEREKMEZ). Aşağıdaki bot alanları yalnız arayüzsüz/CLI için.
 
 [firebase]
 api_key = AIzaSyB9hEH26etwvn9adAGNOpPAlpUym1qzpns
 database_url = https://caspian-race-control-default-rtdb.europe-west1.firebasedatabase.app
+; Google ile Giriş yaptıysan bu iki satır boş kalır (refresh_token otomatik yazılır):
 email = bridge-bot@caspian.local
 password = DEGISTIR
 
@@ -77,8 +79,11 @@ def read_config_or_die(path):
         pause()
         sys.exit(1)
 
-    required = (("firebase", ["api_key", "database_url", "email", "password"]),
-                ("race", ["team_id", "race_id"]))
+    # Google modu (refresh_token) → e-posta/parola gerekmez; yoksa bot modu ister.
+    has_google = (cp.has_section("firebase")
+                  and cp["firebase"].get("refresh_token", "").strip() != "")
+    fb_keys = ["api_key", "database_url"] + ([] if has_google else ["email", "password"])
+    required = (("firebase", fb_keys), ("race", ["team_id", "race_id"]))
     missing = []
     for sec, keys in required:
         if not cp.has_section(sec):
@@ -116,6 +121,20 @@ def build_payload(src, by):
     return {"ts": int(time.time() * 1000), "by": by,
             "session": data.get("session") or {},
             "own": data.get("own"), "field": data.get("field") or []}
+
+
+def fb_from_cfg(cp):
+    """(FirebaseClient, by) — config'te refresh_token varsa Google (kendi hesap) modu,
+    yoksa bot (e-posta/parola). GUI 'Google ile Giriş' refresh_token'ı yazar."""
+    from fb import FirebaseClient
+    f = cp["firebase"]
+    rt = f.get("refresh_token", "").strip()
+    if rt:
+        by = f.get("google_email", "").strip() or "bridge"
+        return FirebaseClient(f["api_key"], f["database_url"], refresh_token=rt), by
+    return (FirebaseClient(f["api_key"], f["database_url"],
+                           f.get("email", ""), f.get("password", "")),
+            f.get("email", ""))
 
 
 def cmd_dump(mock):
@@ -284,11 +303,8 @@ def cmd_emit(mock, hz, no_rest=False):
 
 def cmd_selftest(cp):
     """Firebase'e küçük bir işaret yaz, geri oku, eşleşiyorsa PASS."""
-    from fb import FirebaseClient
-    fb = FirebaseClient(cp["firebase"]["api_key"], cp["firebase"]["database_url"],
-                        cp["firebase"]["email"], cp["firebase"]["password"])
+    fb, by = fb_from_cfg(cp)
     tid, rid = cp["race"]["team_id"].strip(), cp["race"]["race_id"].strip()
-    by = cp["firebase"]["email"]
     try:
         print(f"[selftest] giriş: {by}")
         fb.sign_in()
@@ -318,13 +334,10 @@ def cmd_selftest(cp):
 
 
 def run_loop(cp, mock, once):
-    from fb import FirebaseClient
     from logfile import get_logger, heartbeat_line, log_path
     lg = get_logger()
-    fb = FirebaseClient(cp["firebase"]["api_key"], cp["firebase"]["database_url"],
-                        cp["firebase"]["email"], cp["firebase"]["password"])
+    fb, by = fb_from_cfg(cp)
     tid, rid = cp["race"]["team_id"].strip(), cp["race"]["race_id"].strip()
-    by = cp["firebase"]["email"]
     hz = float(cp["rate"].get("hz", "2")) if cp.has_section("rate") else 2.0
     period = 1.0 / max(0.2, min(hz, 10))
 

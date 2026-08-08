@@ -632,8 +632,8 @@ export const EN = {
   "Masaüstü Uygulamasını İndir": "Download Desktop App",
   "sürüş PC'si için hafif köprü": "lightweight bridge for the driving PC",
   "Hafif Köprüyü İndir (.exe)": "Download Lightweight Bridge (.exe)",
-  "Oyunun çalıştığı PC için: tarayıcı motoru yok → oyunu yormaz. Paylaşımlı belleği okuyup canlı timing'i yayınlar; mühendisler web'den izler. (Bir defalık config.ini kurulumu.)":
-    "For the PC running the game: no browser engine → no game stutter. Reads shared memory and publishes live timing; engineers watch from the web. (One-time config.ini setup.)",
+  "Oyunun çalıştığı PC için: tarayıcı motoru yok → oyunu yormaz. Paylaşımlı belleği okuyup canlı timing'i yayınlar; mühendisler web'den izler. (Kendi Google hesabınla giriş — bot gerekmez.)":
+    "For the PC running the game: no browser engine → no game stutter. Reads shared memory and publishes live timing; engineers watch from the web. (Sign in with your own Google account — no bot needed.)",
   "Oyunun çalıştığı PC için: tarayıcı motoru yok → oyunu yormaz.":
     "For the PC running the game: no browser engine → no game stutter.",
   "Kendi Araç": "Own Car",

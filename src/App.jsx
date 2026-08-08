@@ -1571,7 +1571,7 @@ ${bottomBar}
                   gap: 8, textDecoration: "none" }}>
                 🪶 {t("Hafif Köprüyü İndir (.exe)")}</a>
               <div className="hint" style={{ textAlign: "center", marginTop: 6 }}>
-                {t("Oyunun çalıştığı PC için: tarayıcı motoru yok → oyunu yormaz. Paylaşımlı belleği okuyup canlı timing'i yayınlar; mühendisler web'den izler. (Bir defalık config.ini kurulumu.)")}</div>
+                {t("Oyunun çalıştığı PC için: tarayıcı motoru yok → oyunu yormaz. Paylaşımlı belleği okuyup canlı timing'i yayınlar; mühendisler web'den izler. (Kendi Google hesabınla giriş — bot gerekmez.)")}</div>
             </>)}
           </div>
         </div>

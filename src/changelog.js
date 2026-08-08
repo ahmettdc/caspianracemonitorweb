@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.127",
+    date: "2026-08-08",
+    tr: [
+      "🔐 Hafif köprüde artık BOT GEREKMEZ — kendi Google hesabınla giriş yaparsın (uygulamadaki gibi). Köprü senin hesabınla yayınlar (takımda Mühendis/Sahip olman yeter); bir kez giriş, sonra tekrar sormaz.",
+      "🎯 team_id/race_id otomatik: Google girişinden sonra köprü takımlarını ve yarışlarını okur → Takım ve Yarış'ı açılır listeden seçersin, kriptik kod kopyalamak yok. (Bot e-posta/parola + elle ID girişi isteğe bağlı, 'Gelişmiş' altında kalır.)",
+    ],
+    en: [
+      "🔐 The lightweight bridge no longer needs a bot — you sign in with your own Google account (just like the app). It publishes as you (Engineer/Owner on the team is enough); log in once, no re-prompt after.",
+      "🎯 Automatic team_id/race_id: after Google login the bridge reads your teams and races → pick Team and Race from dropdowns, no cryptic ID copying. (Bot email/password + manual IDs remain optional, under 'Advanced'.)",
+    ],
+  },
+  {
     v: "v1.4.126",
     date: "2026-08-08",
     tr: [

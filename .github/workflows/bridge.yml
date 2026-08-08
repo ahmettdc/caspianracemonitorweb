@@ -31,8 +31,19 @@ jobs:
         continue-on-error: true
         run: pip install -r requirements.txt
 
+      # Google OAuth istemcisini (masaüstü uygulamasıyla AYNI "Desktop app" istemcisi)
+      # derleme zamanı göm → köprüde 'Google ile Giriş' çalışır, bot GEREKMEZ. Secret
+      # yoksa dosya boş yazılır → Google girişi pasif kalır, bot yolu çalışmaya devam eder.
+      - name: OAuth istemcisini göm
+        env:
+          CID: ${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_ID }}
+          CSEC: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+        run: |
+          Set-Content -Path oauth_build.py -Value "CLIENT_ID = '$env:CID'"
+          Add-Content -Path oauth_build.py -Value "CLIENT_SECRET = '$env:CSEC'"
+
       - name: .exe derle
-        run: pyinstaller --onefile --name CaspianLiveBridge --hidden-import gui --hidden-import pyRfactor2SharedMemory.sharedMemoryAPI main.py
+        run: pyinstaller --onefile --name CaspianLiveBridge --hidden-import gui --hidden-import google_auth --hidden-import oauth_config --hidden-import oauth_build --hidden-import pyRfactor2SharedMemory.sharedMemoryAPI main.py
 
       - name: Örnek config'i ekle
         run: copy config.example.ini dist\config.example.ini
