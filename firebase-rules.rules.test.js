@@ -116,10 +116,11 @@ describe("globalSetupData (v1.4.93 şema bölme — dosya gövdesi)", () => {
 });
 
 describe("teams/live", () => {
-  it("owner ve editor yazar; viewer yazamaz", async () => {
+  it("her takım üyesi (owner/editor/viewer) yazar; yabancı yazamaz", async () => {
     await assertSucceeds(set(ref(db("alice"), "teams/team1/live/race1"), frame()));
     await assertSucceeds(set(ref(db("bob"), "teams/team1/live/race1"), frame()));
-    await assertFails(set(ref(db("carol"), "teams/team1/live/race1"), frame()));
+    await assertSucceeds(set(ref(db("carol"), "teams/team1/live/race1"), frame())); // viewer artık yayınlayabilir
+    await assertFails(set(ref(db("dave"), "teams/team1/live/race1"), frame()));      // başka takım → yazamaz
   });
   it("ts olmadan yazılamaz (validate)", async () => {
     // not: boş dizi RTDB'de null'a çöker → gerçek (ts'siz) içerik gönder
@@ -144,8 +145,9 @@ describe("teams/livewriter (tek-yazıcı kirası)", () => {
   it("başkasının uid'iyle kira yazılamaz (kimlik taklidi engeli)", async () => {
     await assertFails(set(ref(db("alice"), "teams/team1/livewriter/race1"), lease("bob")));
   });
-  it("viewer kira yazamaz", async () => {
-    await assertFails(set(ref(db("carol"), "teams/team1/livewriter/race1"), lease("carol")));
+  it("viewer KENDİ uid'iyle kira alır (co-sürücü yayın yapabilsin); yabancı alamaz", async () => {
+    await assertSucceeds(set(ref(db("carol"), "teams/team1/livewriter/race1"), lease("carol")));
+    await assertFails(set(ref(db("dave"), "teams/team1/livewriter/race1"), lease("dave")));
   });
   it("uid veya ts eksik/yanlış tipte → validate reddeder", async () => {
     await assertFails(set(ref(db("alice"), "teams/team1/livewriter/race1"), { ts: 1000 }));
@@ -167,8 +169,9 @@ describe("teams/livelaps + livesec (tur geçmişi)", () => {
     await assertSucceeds(set(ref(db("bob"), "teams/team1/livesec/race1/driver_1/5"), "27.9,48.2,33.1"));
     await assertFails(set(ref(db("bob"), "teams/team1/livesec/race1/driver_1/6"), "x".repeat(50)));
   });
-  it("viewer tur geçmişi yazamaz", async () => {
-    await assertFails(set(ref(db("carol"), "teams/team1/livelaps/race1/driver_1/5"), 92.3));
+  it("viewer tur geçmişi yazar (yayın yapan co-sürücü); yabancı yazamaz", async () => {
+    await assertSucceeds(set(ref(db("carol"), "teams/team1/livelaps/race1/driver_1/5"), 92.3));
+    await assertFails(set(ref(db("dave"), "teams/team1/livelaps/race1/driver_1/5"), 92.3));
   });
 
   it("livedrv: editor pilot adı yazar, üye okur (endurance driver swap)", async () => {
@@ -179,8 +182,8 @@ describe("teams/livelaps + livesec (tur geçmişi)", () => {
     await assertFails(set(ref(db("bob"), "teams/team1/livedrv/race1/c7/32"), 5));
     await assertFails(set(ref(db("bob"), "teams/team1/livedrv/race1/c7/33"), "x".repeat(60)));
   });
-  it("livedrv: viewer/yabancı yazamaz", async () => {
-    await assertFails(set(ref(db("carol"), "teams/team1/livedrv/race1/c7/31"), "M. Yılmaz"));
+  it("livedrv: viewer yazar; yabancı yazamaz", async () => {
+    await assertSucceeds(set(ref(db("carol"), "teams/team1/livedrv/race1/c7/31"), "M. Yılmaz"));
     await assertFails(set(ref(db("dave"), "teams/team1/livedrv/race1/c7/31"), "M. Yılmaz"));
   });
 
@@ -192,8 +195,8 @@ describe("teams/livelaps + livesec (tur geçmişi)", () => {
     await assertFails(set(ref(db("bob"), "teams/team1/livetyre/race1/c7/26"), 4));
     await assertFails(set(ref(db("bob"), "teams/team1/livetyre/race1/c7/27"), "x".repeat(40)));
   });
-  it("livetyre: viewer/yabancı yazamaz", async () => {
-    await assertFails(set(ref(db("carol"), "teams/team1/livetyre/race1/c7/25"), "4|Medium"));
+  it("livetyre: viewer yazar; yabancı yazamaz", async () => {
+    await assertSucceeds(set(ref(db("carol"), "teams/team1/livetyre/race1/c7/25"), "4|Medium"));
     await assertFails(set(ref(db("dave"), "teams/team1/livetyre/race1/c7/25"), "4|Medium"));
   });
 
@@ -203,8 +206,8 @@ describe("teams/livelaps + livesec (tur geçmişi)", () => {
     await assertFails(set(ref(db("bob"), "teams/team1/livecond/race1/c7/26"), 31));
     await assertFails(set(ref(db("bob"), "teams/team1/livecond/race1/c7/27"), "x".repeat(40)));
   });
-  it("livecond: viewer/yabancı yazamaz", async () => {
-    await assertFails(set(ref(db("carol"), "teams/team1/livecond/race1/c7/25"), "31,22,73"));
+  it("livecond: viewer yazar; yabancı yazamaz", async () => {
+    await assertSucceeds(set(ref(db("carol"), "teams/team1/livecond/race1/c7/25"), "31,22,73"));
     await assertFails(set(ref(db("dave"), "teams/team1/livecond/race1/c7/25"), "31,22,73"));
   });
 });
@@ -218,8 +221,8 @@ describe("teams/livetrack (paylaşımlı iç-harita şekli)", () => {
     await assertFails(set(ref(db("bob"), "teams/team1/livetrack/Spa"), 123));
     await assertFails(set(ref(db("bob"), "teams/team1/livetrack/Spa"), "x".repeat(9001)));
   });
-  it("viewer/yabancı yazamaz", async () => {
-    await assertFails(set(ref(db("carol"), "teams/team1/livetrack/Spa"), "0:1.0,2.0"));
+  it("viewer yazar; yabancı yazamaz", async () => {
+    await assertSucceeds(set(ref(db("carol"), "teams/team1/livetrack/Spa"), "0:1.0,2.0"));
     await assertFails(set(ref(db("dave"), "teams/team1/livetrack/Spa"), "0:1.0,2.0"));
   });
 });
@@ -233,8 +236,8 @@ describe("teams/livetracksec (paylaşımlı sektör sınırları)", () => {
     await assertFails(set(ref(db("bob"), "teams/team1/livetracksec/Spa"), 0.33));
     await assertFails(set(ref(db("bob"), "teams/team1/livetracksec/Spa"), "x".repeat(40)));
   });
-  it("viewer/yabancı yazamaz", async () => {
-    await assertFails(set(ref(db("carol"), "teams/team1/livetracksec/Spa"), "0.33,0.72"));
+  it("viewer yazar; yabancı yazamaz", async () => {
+    await assertSucceeds(set(ref(db("carol"), "teams/team1/livetracksec/Spa"), "0.33,0.72"));
     await assertFails(set(ref(db("dave"), "teams/team1/livetracksec/Spa"), "0.33,0.72"));
   });
 });
@@ -248,8 +251,8 @@ describe("teams/livetrackpit (paylaşımlı pit giriş/çıkış — v1.4.96)", 
     await assertFails(set(ref(db("bob"), "teams/team1/livetrackpit/Spa"), 0.92));
     await assertFails(set(ref(db("bob"), "teams/team1/livetrackpit/Spa"), "x".repeat(40)));
   });
-  it("viewer/yabancı yazamaz", async () => {
-    await assertFails(set(ref(db("carol"), "teams/team1/livetrackpit/Spa"), "0.9,0.04"));
+  it("viewer yazar; yabancı yazamaz", async () => {
+    await assertSucceeds(set(ref(db("carol"), "teams/team1/livetrackpit/Spa"), "0.9,0.04"));
     await assertFails(set(ref(db("dave"), "teams/team1/livetrackpit/Spa"), "0.9,0.04"));
   });
 });

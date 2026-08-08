@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.137",
+    date: "2026-08-08",
+    tr: [
+      "🛰 Canlı Köprü artık takımın HERHANGİ bir üyesinde çalışır (yalnız Sahip/Mühendis değil). Endurance'ta koltuğa geçecek co-sürücü 'izleyici' rolünde olsa da kendi PC'sinden canlı timing'i yayınlayabilir.",
+      "🔒 Güvenlik: strateji/plan düzenleme yine yalnız Sahip/Mühendis'e açık — değişen tek şey canlı yayın (live timing) yetkisi. Tek-yazıcı kirası aynı anda birden çok köprüyü zaten yönetir; iki köprü aynı anda açık olsa da veri çakışmaz.",
+    ],
+    en: [
+      "🛰 The Live Bridge now runs for ANY team member (not just Owner/Engineer). In endurance, an incoming co-driver in the 'viewer' role can broadcast live timing from their own PC.",
+      "🔒 Security: editing the strategy/plan is still limited to Owner/Engineer — only live-timing broadcast permission changed. The single-writer lease already coordinates multiple bridges, so two bridges open at once do not clash.",
+    ],
+  },
+  {
     v: "v1.4.136",
     date: "2026-08-08",
     tr: [
