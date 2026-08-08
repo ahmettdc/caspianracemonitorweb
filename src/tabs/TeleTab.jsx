@@ -84,14 +84,23 @@ function TrackMini({ t, data, cursor, src, big, marks, apex, onScrub }) {
     segs.push(<line key={k} x1={x1} y1={y1} x2={x2} y2={y2} stroke={col} strokeWidth={3.2}
       strokeLinecap="round" vectorEffect="non-scaling-stroke" />);
   }
-  const [sfx, sfy] = scr(data[0].mapX, data[0].mapY);
   const cur = cursor != null && data[cursor] ? scr(data[cursor].mapX, data[cursor].mapY) : null;
   const zf = view.vw / S;   // daire yarıçapı ekranda sabit kalsın diye ölçek
-  /* sektör sınır tik'leri (S1|S2, S2|S3) — delta rengi korunur, üstüne nötr işaret */
-  const secTicks = (marks || []).map((m) => {
-    const p = data[m.idx] ? scr(data[m.idx].mapX, data[m.idx].mapY) : null;
-    return p ? { ...m, x: p[0], y: p[1] } : null;
-  }).filter(Boolean);
+  /* S/F + sektör sınırları: yolu KESEN kısa çizgi (teğete dik) + etiket — daire yok. */
+  const TICK = 7;   // yarı-uzunluk (SVG birimi) → yol bandını keser, zoom'la ölçeklenir
+  const perpTick = (idx) => {
+    const i0 = Math.max(0, idx - step), i1 = Math.min(data.length - 1, idx + step);
+    const [ax, ay] = scr(data[i0].mapX, data[i0].mapY);
+    const [bx, by] = scr(data[i1].mapX, data[i1].mapY);
+    const dx = bx - ax, dy = by - ay, L = Math.hypot(dx, dy) || 1;
+    const px = -dy / L, py = dx / L;                     // teğete dik birim
+    const [cx, cy] = scr(data[idx].mapX, data[idx].mapY);
+    return { x1: cx - px * TICK, y1: cy - py * TICK, x2: cx + px * TICK, y2: cy + py * TICK, cx, cy };
+  };
+  const secDivs = [
+    { idx: 0, label: "S/F", col: "#fff" },
+    ...(marks || []).map((m) => ({ idx: m.idx, label: `S${m.label.slice(-1)}`, col: "#cbb" })),
+  ].filter((m) => data[m.idx]).map((m) => ({ ...m, ...perpTick(m.idx) }));
   /* viraj (apex) işaretleri — numaralı küçük daireler */
   const apexPts = (apex || []).map((idx, i) => {
     const p = data[idx] ? scr(data[idx].mapX, data[idx].mapY) : null;
@@ -169,12 +178,12 @@ function TrackMini({ t, data, cursor, src, big, marks, apex, onScrub }) {
           aria-label="track map" onDoubleClick={reset}
           onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={onUp}>
           {segs}
-          {secTicks.map((m) => (
+          {secDivs.map((m) => (
             <g key={m.label}>
-              <circle cx={m.x} cy={m.y} r={4 * zf} fill="#0B0708" stroke="#cbb" strokeWidth={2}
-                vectorEffect="non-scaling-stroke" />
-              <text x={m.x + 6 * zf} y={m.y + 3 * zf} fill="#cbb" fontSize={8 * zf}>
-                S{m.label.slice(-1)}</text>
+              <line x1={m.x1} y1={m.y1} x2={m.x2} y2={m.y2} stroke={m.col} strokeWidth={2}
+                strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+              <text x={m.cx + 6 * zf} y={m.cy + 3 * zf} fill={m.col}
+                fontSize={(m.label === "S/F" ? 9 : 8) * zf}>{m.label}</text>
             </g>
           ))}
           {apexPts.map((a) => (
@@ -183,9 +192,6 @@ function TrackMini({ t, data, cursor, src, big, marks, apex, onScrub }) {
               stroke="#000" strokeWidth={0.5} paintOrder="stroke"
               vectorEffect="non-scaling-stroke">{a.no}</text>
           ))}
-          <circle cx={sfx} cy={sfy} r={5 * zf} fill="none" stroke="#fff" strokeWidth={2}
-            vectorEffect="non-scaling-stroke" />
-          <text x={sfx + 7 * zf} y={sfy + 3 * zf} fill="#fff" fontSize={9 * zf}>S/F</text>
           {cur && <circle cx={cur[0]} cy={cur[1]} r={6 * zf} fill="#3ad07a" stroke="#000"
             strokeWidth={1.4} vectorEffect="non-scaling-stroke" />}
         </svg>

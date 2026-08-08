@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.124",
+    date: "2026-08-08",
+    tr: [
+      "🗺 Pist krokisinde S/F ve S2/S3 sektör işaretleri artık daire değil, yolu kesen kısa bir ayırıcı çizgi (etiket yanında). Sektör sınırları bir bakışta belli.",
+    ],
+    en: [
+      "🗺 On the track sketch, the S/F and S2/S3 sector markers are now a short divider line crossing the track (with the label) instead of a circle — sector boundaries read at a glance.",
+    ],
+  },
+  {
     v: "v1.4.123",
     date: "2026-08-08",
     tr: [
