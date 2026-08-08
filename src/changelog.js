@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.115",
+    date: "2026-08-08",
+    tr: [
+      "🔍 Telemetri karşılaştırması artık yakınlaştırılabilir: pist krokisinde fare tekerleğiyle yaklaştır/uzaklaştır, sürükleyerek gez, çift-tıkla sıfırla — bir virajı detaylı incele. Haritaya '⛶ Büyüt' düğmesi eklendi (tam pencerede açılır, orada da tekerlekle yakınlaştırılır).",
+      "🔍 Kanal grafikleri (hız/gaz/fren/vites/RPM/direksiyon/delta) de fare tekerleğiyle birlikte yakınlaşır — imlecin olduğu mesafe penceresi tüm grafiklerde eşzamanlı daralır; '⟳ Yakınlaştırmayı sıfırla' ile tam tura döner.",
+    ],
+    en: [
+      "🔍 Telemetry comparison is now zoomable: use the mouse wheel to zoom the track sketch in/out, drag to pan, double-click to reset — inspect a corner in detail. Added an '⛶ Expand' button (opens the map full-window, also wheel-zoomable there).",
+      "🔍 Channel charts (speed/throttle/brake/gear/RPM/steering/delta) zoom together with the mouse wheel — the distance window under the cursor narrows across all charts in sync; '⟳ Reset zoom' returns to the full lap.",
+    ],
+  },
+  {
     v: "v1.4.114",
     date: "2026-08-08",
     tr: [

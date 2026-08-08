@@ -1,25 +1,30 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ReferenceLine, ResponsiveContainer } from "recharts";
 import { fmtLap } from "../engine";
 import { SLOT_COLORS } from "../constants";
 import { Tyre, BoxPlot } from "../components";
+import { zoomViewAt, panView, zoomDomain } from "../zoomView";
 
 /* İz karşılaştırma renkleri (A/B tur) */
 const CA = "#ff5470", CB = "#4d9fff";
 
 /* Tek kanal iz satırı — recharts syncId ile hepsi ortak imleç + ortak mesafe ekseni. */
-function TraceRow({ data, title, unit, keys, colors, fmt, height = 132, zero, dashB, onCursor }) {
+function TraceRow({ data, title, unit, keys, colors, fmt, height = 132, zero, dashB, onCursor, onAnchor, xDomain }) {
+  const onMove = (onCursor || onAnchor) ? (s) => {
+    if (onCursor) onCursor(s && s.activeTooltipIndex != null ? s.activeTooltipIndex : null);
+    if (onAnchor && s && s.activeLabel != null) onAnchor(s.activeLabel);
+  } : undefined;
   return (
     <div style={{ marginTop: 8 }}>
       <div className="hint" style={{ margin: "0 0 2px", fontWeight: 600 }}>{title}</div>
       <div style={{ height }}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} syncId="tele" margin={{ top: 4, right: 8, bottom: 0, left: 0 }}
-            onMouseMove={onCursor ? (s) => onCursor(s && s.activeTooltipIndex != null ? s.activeTooltipIndex : null) : undefined}
+            onMouseMove={onMove}
             onMouseLeave={onCursor ? () => onCursor(null) : undefined}>
             <CartesianGrid stroke="#2B3542" strokeDasharray="3 3" />
-            <XAxis dataKey="d" type="number" domain={["dataMin", "dataMax"]}
-              stroke="#8C97A5" fontSize={10} tickFormatter={(v) => Math.round(v)}
+            <XAxis dataKey="d" type="number" domain={xDomain || ["dataMin", "dataMax"]}
+              allowDataOverflow stroke="#8C97A5" fontSize={10} tickFormatter={(v) => Math.round(v)}
               minTickGap={40} />
             <YAxis stroke="#8C97A5" fontSize={10} width={44}
               domain={["auto", "auto"]} tickFormatter={fmt} />
@@ -42,9 +47,14 @@ function TraceRow({ data, title, unit, keys, colors, fmt, height = 132, zero, da
 
 /* Mini pist haritası — turun XY şekli (konum kanalı ya da hız+G tahmini). Segmentler
    delta işaretine göre renkli (kırmızı A hızlı / mavi B hızlı) → "hangi virajda ne
-   yaptık". İz üzerinde gezerken (cursor) haritada o nokta işaretlenir. */
-function TrackMini({ t, data, cursor, src }) {
+   yaptık". İz üzerinde gezerken (cursor) haritada o nokta işaretlenir.
+   Fare tekerleğiyle yakınlaştır (viewBox state), sürükleyerek gez, çift-tık sıfırla —
+   nokta matematiği (scr/segment) DEĞİŞMEZ; yalnız viewBox pencere kayar/daralır. */
+function TrackMini({ t, data, cursor, src, big }) {
   const S = 240, PAD = 16;
+  const [view, setView] = useState({ vx: 0, vy: 0, vw: S, vh: S });
+  const svgRef = useRef(null);
+  const drag = useRef(null);   // { x0, y0, view0 }
   const xs = data.map((d) => d.mapX), ys = data.map((d) => d.mapY);
   const minX = Math.min(...xs), maxX = Math.max(...xs);
   const minY = Math.min(...ys), maxY = Math.max(...ys);
@@ -59,25 +69,74 @@ function TrackMini({ t, data, cursor, src }) {
     const [x2, y2] = scr(data[k + step].mapX, data[k + step].mapY);
     const dd = (data[k + step].dt ?? 0) - (data[k].dt ?? 0);   // +: B daha çok süre → A hızlı
     const col = dd > 0.003 ? CA : dd < -0.003 ? CB : "#7a8797";
-    segs.push(<line key={k} x1={x1} y1={y1} x2={x2} y2={y2} stroke={col} strokeWidth={3.2} strokeLinecap="round" />);
+    segs.push(<line key={k} x1={x1} y1={y1} x2={x2} y2={y2} stroke={col} strokeWidth={3.2}
+      strokeLinecap="round" vectorEffect="non-scaling-stroke" />);
   }
   const [sfx, sfy] = scr(data[0].mapX, data[0].mapY);
   const cur = cursor != null && data[cursor] ? scr(data[cursor].mapX, data[cursor].mapY) : null;
+  const zf = view.vw / S;   // daire yarıçapı ekranda sabit kalsın diye ölçek
+  const zoomed = view.vw < S - 0.5;
+
+  /* SVG-koordinatına çevir (px → viewBox birimi) */
+  const toSvg = (clientX, clientY) => {
+    const r = svgRef.current?.getBoundingClientRect();
+    if (!r || !r.width) return null;
+    return [view.vx + ((clientX - r.left) / r.width) * view.vw,
+      view.vy + ((clientY - r.top) / r.height) * view.vh];
+  };
+  /* Tekerlek: React onWheel passive → native non-passive dinleyici (sayfa kaymasın) */
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return undefined;
+    const onWheel = (e) => {
+      e.preventDefault();
+      const p = toSvg(e.clientX, e.clientY);
+      if (!p) return;
+      setView((v) => zoomViewAt(v, p[0], p[1], e.deltaY < 0 ? 0.85 : 1.18, S));
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  });
+  const onDown = (e) => { drag.current = { x0: e.clientX, y0: e.clientY, v0: view };
+    e.currentTarget.setPointerCapture?.(e.pointerId); };
+  const onMove = (e) => {
+    if (!drag.current) return;
+    const r = svgRef.current?.getBoundingClientRect();
+    if (!r || !r.width) return;
+    const dx = -((e.clientX - drag.current.x0) / r.width) * drag.current.v0.vw;
+    const dy = -((e.clientY - drag.current.y0) / r.height) * drag.current.v0.vh;
+    setView(panView(drag.current.v0, dx, dy, S));
+  };
+  const onUp = () => { drag.current = null; };
+  const reset = () => setView({ vx: 0, vy: 0, vw: S, vh: S });
+
   return (
     <div style={{ marginTop: 6 }}>
-      <div style={{ display: "flex", justifyContent: "center" }}>
-        <svg viewBox={`0 0 ${S} ${S}`} style={{ width: "100%", maxWidth: 300, height: "auto" }}
-          aria-label="track map">
+      <div style={{ display: "flex", justifyContent: "center", position: "relative" }}>
+        <svg ref={svgRef} viewBox={`${view.vx} ${view.vy} ${view.vw} ${view.vh}`}
+          style={{ width: big ? undefined : "100%", maxWidth: big ? "none" : 360, height: "auto",
+            cursor: drag.current ? "grabbing" : "grab", touchAction: "none" }}
+          aria-label="track map" onDoubleClick={reset}
+          onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={onUp}>
           {segs}
-          <circle cx={sfx} cy={sfy} r={5} fill="none" stroke="#fff" strokeWidth={2} />
-          <text x={sfx + 7} y={sfy + 3} fill="#fff" fontSize={9}>S/F</text>
-          {cur && <circle cx={cur[0]} cy={cur[1]} r={6} fill="#F5C84C" stroke="#000" strokeWidth={1.4} />}
+          <circle cx={sfx} cy={sfy} r={5 * zf} fill="none" stroke="#fff" strokeWidth={2}
+            vectorEffect="non-scaling-stroke" />
+          <text x={sfx + 7 * zf} y={sfy + 3 * zf} fill="#fff" fontSize={9 * zf}>S/F</text>
+          {cur && <circle cx={cur[0]} cy={cur[1]} r={6 * zf} fill="#F5C84C" stroke="#000"
+            strokeWidth={1.4} vectorEffect="non-scaling-stroke" />}
         </svg>
+        {zoomed && (
+          <button className="act" style={{ position: "absolute", top: 4, right: 4,
+            fontSize: 11, padding: "2px 8px" }} onClick={reset}
+            title={t("Yakınlaştırmayı sıfırla")}>⟳</button>
+        )}
       </div>
       <div className="hint" style={{ textAlign: "center", opacity: .8, marginTop: 2 }}>
         <span style={{ color: CA }}>■</span> {t("A hızlı")} · <span style={{ color: CB }}>■</span> {t("B hızlı")}
         {" · "}{src === "g" ? t("G-kuvveti tahmini (şekil yaklaşık)") : t("konum kanalından")}
-        {" · "}{t("ize gel → nokta")}
+      </div>
+      <div className="hint" style={{ textAlign: "center", opacity: .6, marginTop: 1 }}>
+        🖱 {t("tekerlek: yakınlaştır · sürükle: gez · çift-tık: sıfırla")}
       </div>
     </div>
   );
@@ -88,9 +147,38 @@ function TrackMini({ t, data, cursor, src }) {
    sektör farkı. Yalnız gösterim (Firebase'e yazılmaz). cmpData buildCompare çıktısı. */
 function TraceCompareCard({ t, laps: lapsProp, cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy }) {
   const [cursor, setCursor] = useState(null);   // ize gelince pist haritasında işaretlenen nokta
+  const [big, setBig] = useState(false);        // harita tam pencere
+  const [xWin, setXWin] = useState(null);       // kanal mesafe penceresi (null = tam genişlik)
+  const lastDRef = useRef(null);                // tekerlek anchor'ı (imleçten bağımsız son mesafe)
+  const tracesRef = useRef(null);
   const laps = lapsProp || [];
   const ch = cmpData?.chans || {};
+  const data = cmpData?.data;
+  const dLo = data?.length ? data[0].d : 0;
+  const dHi = data?.length ? data[data.length - 1].d : 0;
   const unit = cmpData?.distUnit === "frac" ? "%" : "m";
+
+  /* Esc → harita tam pencereyi kapat (TrackMap deseni) */
+  useEffect(() => {
+    if (!big) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") setBig(false); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [big]);
+
+  /* Kanallar: tüm satırları saran kapsayıcıda native (passive:false) tekerlek → mesafe
+     penceresini imleç etrafında daralt/genişlet; tüm grafikler syncId ile birlikte yakınlaşır. */
+  useEffect(() => {
+    const el = tracesRef.current;
+    if (!el || !(dHi > dLo)) return undefined;
+    const onWheel = (e) => {
+      e.preventDefault();
+      const anchor = lastDRef.current ?? (dLo + dHi) / 2;
+      setXWin((w) => zoomDomain(w || [dLo, dHi], anchor, e.deltaY < 0 ? 0.8 : 1.25, [dLo, dHi]));
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [dLo, dHi]);
   const sp1 = (v) => (v == null ? "—" : v.toFixed(1));
   const pct = (v) => (v == null ? "—" : `${Math.round(v)}%`);
   const dlt = (v) => (v == null ? "—" : `${v >= 0 ? "+" : ""}${v.toFixed(3)}s`);
@@ -122,9 +210,14 @@ function TraceCompareCard({ t, laps: lapsProp, cmpA, setCmpA, cmpB, setCmpB, cmp
       {cmpBusy && <div className="hint" style={{ marginTop: 6 }}>⏳ {t("İzler hazırlanıyor…")}</div>}
       {!cmpBusy && !cmpData && <div className="hint" style={{ marginTop: 6 }}>{t("İz verisi çıkarılamadı — bu dosyada hız/mesafe kanalı olmayabilir.")}</div>}
 
-      {cmpData && cmpData.hasMap && (
+      {cmpData && cmpData.hasMap && (<>
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
+          <button className="act" style={{ fontSize: 11, padding: "3px 10px" }}
+            title={t("Haritayı büyük pencerede aç")} onClick={() => setBig(true)}>
+            ⛶ {t("Büyüt")}</button>
+        </div>
         <TrackMini t={t} data={cmpData.data} cursor={cursor} src={cmpData.mapSrc} />
-      )}
+      </>)}
       {cmpData && !cmpData.hasMap && (
         <div className="hint" style={{ marginTop: 6, opacity: .7 }}>
           🗺 {t("Pist haritası çizilemedi — bu dosyada konum ya da yanal-G kanalı yok.")}
@@ -132,36 +225,50 @@ function TraceCompareCard({ t, laps: lapsProp, cmpA, setCmpA, cmpB, setCmpB, cmp
       )}
 
       {cmpData && (<>
-        <div className="hint" style={{ marginTop: 6, opacity: .8 }}>
-          {t("X ekseni")}: {unit === "%" ? t("tur kesri %") : t("mesafe (m)")} · {t("kırmızı A, mavi B")} ·
-          {" "}{t("delta > 0 = B daha yavaş")}
+        <div className="hint" style={{ marginTop: 6, opacity: .8, display: "flex",
+          alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span>{t("X ekseni")}: {unit === "%" ? t("tur kesri %") : t("mesafe (m)")} · {t("kırmızı A, mavi B")} ·
+            {" "}{t("delta > 0 = B daha yavaş")} · 🖱 {t("tekerlek: yakınlaştır")}</span>
+          {xWin && (
+            <button className="act" style={{ fontSize: 11, padding: "2px 8px" }}
+              onClick={() => setXWin(null)}>⟳ {t("Yakınlaştırmayı sıfırla")}</button>
+          )}
         </div>
+        <div ref={tracesRef}>
         <TraceRow data={cmpData.data} title={`⏱ ${t("Zaman-Delta (B−A)")}`} unit={unit}
-          keys={["dt"]} colors={["#F5C84C"]} fmt={dlt} height={140} zero onCursor={setCursor} />
+          keys={["dt"]} colors={["#F5C84C"]} fmt={dlt} height={140} zero
+          onCursor={setCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} />
         {ch.speed && (
           <TraceRow data={cmpData.data} title={`🏁 ${t("Hız")} (km/h)`} unit={unit}
-            keys={["spA", "spB"]} colors={[CA, CB]} fmt={sp1} onCursor={setCursor} />
+            keys={["spA", "spB"]} colors={[CA, CB]} fmt={sp1}
+            onCursor={setCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} />
         )}
         {ch.throttle && (
           <TraceRow data={cmpData.data} title={`🟢 ${t("Gaz")} %`} unit={unit}
-            keys={["thA", "thB"]} colors={[CA, CB]} fmt={pct} height={110} dashB onCursor={setCursor} />
+            keys={["thA", "thB"]} colors={[CA, CB]} fmt={pct} height={110} dashB
+            onCursor={setCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} />
         )}
         {ch.brake && (
           <TraceRow data={cmpData.data} title={`🔴 ${t("Fren")} %`} unit={unit}
-            keys={["brA", "brB"]} colors={[CA, CB]} fmt={pct} height={110} dashB onCursor={setCursor} />
+            keys={["brA", "brB"]} colors={[CA, CB]} fmt={pct} height={110} dashB
+            onCursor={setCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} />
         )}
         {ch.gear && (
           <TraceRow data={cmpData.data} title={`⚙ ${t("Vites")}`} unit={unit}
-            keys={["gA", "gB"]} colors={[CA, CB]} fmt={(v) => (v == null ? "—" : String(Math.round(v)))} height={100} dashB onCursor={setCursor} />
+            keys={["gA", "gB"]} colors={[CA, CB]} fmt={(v) => (v == null ? "—" : String(Math.round(v)))} height={100} dashB
+            onCursor={setCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} />
         )}
         {ch.rpm && (
           <TraceRow data={cmpData.data} title={`🔧 ${t("RPM")}`} unit={unit}
-            keys={["rpmA", "rpmB"]} colors={[CA, CB]} fmt={(v) => (v == null ? "—" : String(Math.round(v)))} height={100} onCursor={setCursor} />
+            keys={["rpmA", "rpmB"]} colors={[CA, CB]} fmt={(v) => (v == null ? "—" : String(Math.round(v)))} height={100}
+            onCursor={setCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} />
         )}
         {ch.steer && (
           <TraceRow data={cmpData.data} title={`🕹 ${t("Direksiyon")}`} unit={unit}
-            keys={["stA", "stB"]} colors={[CA, CB]} fmt={sp1} height={100} onCursor={setCursor} />
+            keys={["stA", "stB"]} colors={[CA, CB]} fmt={sp1} height={100}
+            onCursor={setCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} />
         )}
+        </div>
 
         <table style={{ maxWidth: 420, marginTop: 10, fontSize: 12 }}>
           <thead><tr>
@@ -183,6 +290,21 @@ function TraceCompareCard({ t, laps: lapsProp, cmpA, setCmpA, cmpB, setCmpB, cmp
           {t("Sektörler tur-kesri üçlüsüdür (mesafe/3); gerçek S/F beacon'ı değil.")}
         </div>
       </>)}
+
+      {big && cmpData?.hasMap && (
+        <div className="wxmodal" onClick={() => setBig(false)} role="dialog" aria-modal="true">
+          <div className="wxmbox map" onClick={(e) => e.stopPropagation()}>
+            <div className="wxmhead">
+              <span>🗺 {t("Pist Haritası")}</span>
+              <button className="act" style={{ fontSize: 12, padding: "2px 10px" }}
+                title={t("Kapat")} onClick={() => setBig(false)}>✕</button>
+            </div>
+            <div className="mapwrap">
+              <TrackMini t={t} data={cmpData.data} cursor={cursor} src={cmpData.mapSrc} big />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
