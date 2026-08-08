@@ -17,7 +17,7 @@
 import { liveTimingSet, liveLapsAppend, liveLapsClear,
   livePosAppend, livePosClear, liveSecAppend, liveSecClear,
   liveDrvAppend, liveDrvClear, liveTyreAppend, liveTyreClear,
-  liveCondAppend, liveCondClear,
+  liveCondAppend, liveCondClear, liveSessionIdGet, liveHistoryClearAll,
   liveWriterClaim, liveWriterRelease, liveWriterSubscribe, serverNow } from "./storage";
 import { shouldClaim, bridgeWaitInfo } from "./liveWriter";
 
@@ -77,10 +77,14 @@ export async function startBridge(opts, onStatus) {
   let writeTimer = null;
   let inFlight = false;    // bir yazım sürüyor mu (olay-güdümlü flush'ta üst üste binmeyi önler)
   let cars = 0;
-  const lastLap = {};      // lapKey → yazılmış en yüksek tur no (append idempotent)
-  const lastPit = {};      // lapKey → son görülen pit durak sayısı (pit turu işareti)
-  const lastDrv = {};      // lapKey → son yazılan pilot adı (yalnız DEĞİŞİNCE yazılır)
-  const lastTyre = {};     // lapKey → son yazılan pit-lastik-değişimi turu (idempotent)
+  let lastLap = {};        // lapKey → yazılmış en yüksek tur no (append idempotent)
+  let lastPit = {};        // lapKey → son görülen pit durak sayısı (pit turu işareti)
+  let lastDrv = {};        // lapKey → son yazılan pilot adı (yalnız DEĞİŞİNCE yazılır)
+  let lastTyre = {};       // lapKey → son yazılan pit-lastik-değişimi turu (idempotent)
+  // KARARLI seans belirteci (bkz. rf2_source session.sessionId). Spawn'dan ÖNCE
+  // Firebase'den okunur → yarış-ortası köprü yeniden başlatmada yanlış temizleme YOK
+  // (frame'ler ancak spawn sonrası gelir; ilk frame'in sid'i saklanana eşitse temizlemez).
+  let knownSessionId = null;
   let diag = null;         // gizli teşhis (shm/lmu/cars/ve) — arayüzde gösterilmez
   let diagSig = "";        // teşhis özeti (yalnız durum değişince konsola yaz)
 
@@ -96,6 +100,19 @@ export async function startBridge(opts, onStatus) {
      ile yaz, satırdan laps/lapsFrom'u SİL (kare küçük kalsın; lapKey satırda kalır).
      Böylece 300+ turluk yarış tümüyle kapsanır ama canlı kare şişmez. */
   const harvestLaps = async (frame) => {
+    /* YENİ SEANS → o yarışın TÜM canlı-geçmişini bir kez temizle. Köprü yeniden
+       başlasa da (yarış ortasında) sessionId aynı kalır → geçmiş KORUNUR; yeni bir
+       seans başlayınca (antrenman→yarış) belirteç değişir → eski turlar temizlenir,
+       "+" tur listesi popup'ına önceki seansın verisi sızmaz. Belirteç yoksa (eski
+       köprü) mevcut per-araç gerileme-temizleme ikincil güvenlik olarak devreye girer. */
+    const sid = frame?.session?.sessionId;
+    if (sid && sid !== knownSessionId) {
+      if (knownSessionId != null) {   // ilk görüşte (spawn'da okunan değerle) temizleme yok
+        try { await liveHistoryClearAll(tid, rid); } catch { /* yoksay */ }
+        lastLap = {}; lastPit = {}; lastDrv = {}; lastTyre = {};
+      }
+      knownSessionId = sid;
+    }
     const rows = Array.isArray(frame?.field) ? frame.field : [];
     const entries = {};      // livelaps: lapKey/n → süre
     const posEntries = {};   // livepos: lapKey/n → pozisyon (pit turu → negatif)
@@ -304,6 +321,11 @@ export async function startBridge(opts, onStatus) {
     say({ running: false, phase: "stopped",
       msg: stopping ? "Durduruldu" : `Köprü kapandı (kod ${data?.code ?? "?"})` });
   });
+
+  // Saklanan seans belirtecini spawn'dan ÖNCE oku → ilk frame yarış-ortası yeniden
+  // başlatmada (sid saklanana eşit) geçmişi temizlemez; okunamazsa (null) yine
+  // temizlemeyiz (ancak GERÇEK bir seans değişikliğinde temizler → güvenli taraf).
+  try { knownSessionId = await liveSessionIdGet(tid, rid); } catch { knownSessionId = null; }
 
   try {
     child = await cmd.spawn();
