@@ -17,9 +17,9 @@
   (virtualEnergy = LMU REST API'den; paylaşımlı bellekte yok. REST kapalıysa gelmez.)
   field[]: {pos, carId, driver, vehicleName, team, manufacturer, number, carClass, lapsDone,
             lapDist, posX, posZ, lastSec, lastSectors:[s1,s2,s3], bestSec, gapSec,
-            intervalSec, lapsBehind, lapsBehindNext, inPits, location, pitStops, tyreWear,
-            damage, virtualEnergy, avg5Sec, avgSec, stintSec, laps, lapsFrom, lapNums,
-            lapKey, isPlayer}
+            intervalSec, lapsBehind, lapsBehindNext, inPits, location, pitStops, penalties,
+            tyreWear, tyres4:[fl,fr,rl,rr], tyreComp, damage, virtualEnergy, vePerLap,
+            avg5Sec, avgSec, stintSec, laps, lapsFrom, lapNums, lapKey, isPlayer}
   (lapsBehind/lapsBehindNext = oyunun mLapsBehindLeader/mLapsBehindNext alanları — web
    tur-altı ("+N Tur") göstergesi bunları kullanır; lider-tur eksi araç-tur çıkarması
    lider S/F'yi geçtiği pencerede YANLIŞ "+1 Tur" verirdi.)
@@ -219,6 +219,7 @@ class MockSource:
                 "_prog": laps * 1e6 + (el % lap_t),  # sıralama için ilerleme
                 "inPits": (int(el / 90) % 11) == i, "isPlayer": i == 4,
                 "pitStops": laps // 45,  # ~45 turda bir durak
+                "penalties": 1 if (i in (2, 6) and (int(el / 120) % 3) == 0) else 0,  # ara sıra ceza
                 **self._mock_tyres(el, i),
                 "damage": round(min(0.4, i * 0.01 + (el % 600) / 6000), 3),
                 "lapDist": round(frac * self.TRACK_LEN, 1), "posX": px, "posZ": pz,
@@ -558,19 +559,16 @@ class RF2Source:
         except Exception:
             track_loaded = None
 
-        # KARARLI seans belirteci — seans değişince (antrenman→yarış, yeni seans)
-        # değişir, aynı seansta (köprü yeniden başlasa da) SABİT kalır. Web tarafı
-        # bu değişince o yarışın canlı-geçmişini bir kez temizler (eski seansın
-        # turları yeni seansa sızmasın). mSession (seans indeksi) + mTicksSessionStarted
-        # (seans başladığında tick sayısı); ext yok/0 ise yalnız mSession'a düşer.
+        # KARARLI seans belirteci — seans değişince (antrenman→yarış) değişir; aynı
+        # seansta SABİT kalır. Web tarafı bu değişince o yarışın canlı-geçmişini bir kez
+        # temizler (eski seansın turları yeni seansa sızmasın).
+        # DİKKAT (v1.4.139): yalnız mSession (seans indeksi) kullanılır — bu değer TÜM
+        # bağlı PC'lerde AYNIdır. Eskiden mTicksSessionStarted de eklenmişti ama o PC-YEREL
+        # bir tick sayacı; çok-PC yayında (v1.4.137) her PC farklı belirteç üretip yazıcı
+        # kirası el değiştirdikçe canlı-geçmişi SİLİYORDU ("9 tur atıldı ama 0 görünüyor").
+        # mSession antrenman(1-4)/sıralama(5-8)/yarış(10-13) geçişlerini yine ayırır.
         m_sess = int(getattr(info, "mSession", -1))
         session_id = str(m_sess)
-        try:
-            ticks = int(getattr(ext, "mTicksSessionStarted", 0)) if ext is not None else 0
-            if ticks:
-                session_id = "%d:%d" % (m_sess, ticks)
-        except Exception:
-            pass
 
         # seans
         cur, end = float(info.mCurrentET), float(info.mEndET)
@@ -654,6 +652,8 @@ class RF2Source:
                 "inPits": bool(getattr(v, "mInPits", 0)),
                 "location": self._location(v),
                 "pitStops": int(getattr(v, "mNumPitstops", 0)),
+                # bekleyen ceza sayısı (drive-through/stop-go vb.) — standings'te ⚠N
+                "penalties": int(getattr(v, "mNumPenalties", 0) or 0),
                 "tyreWear": self._worst_wear(tv, laps) if tv is not None else None,
                 # köşe köşe aşınma + bileşim: pit'te kaç/hangi lastiğin değiştiği
                 # ancak bunlardan çıkar (Aggregator pit giriş/çıkışını karşılaştırır)
@@ -808,6 +808,8 @@ class Aggregator:
         self.regress = {}       # sürücü → ardışık gerileme sayacı (yırtık kare filtresi)
         self.pit_tyres = {}     # araç → pit GİRİŞİNDEKİ (tyres4, tyreComp) anlık görüntüsü
         self.last_change = {}   # araç → son pit'te değişen lastikler (bir sonraki pite kadar)
+        self.prev_ve = {}       # araç → önceki tur sonundaki VE% (tur-başı tüketim için)
+        self.ve_per_lap = {}    # araç → son turda tüketilen VE% (prev−cur)
 
     def close(self):
         if hasattr(self.inner, "close"):
@@ -883,6 +885,11 @@ class Aggregator:
                 self.regress[key] = 0
                 self.pit_tyres.pop(key, None)
                 self.last_change.pop(key, None)
+                # VE tur-başı tüketimi için başlangıç değerini (varsa) taban al
+                self.ve_per_lap.pop(key, None)
+                _cve = r.get("virtualEnergy")
+                self.prev_ve[key] = (_cve if isinstance(_cve, (int, float))
+                                     and not isinstance(_cve, bool) else None)
             elif regressed:
                 pass                                             # şüpheli kare — dokunma
             elif laps > self.prev_laps[key]:                     # tur tamamlandı
@@ -890,6 +897,14 @@ class Aggregator:
                     self.hist[key].append(round(last, 3))       # avg (filtreli)
                 if last and last > 0:                            # tam liste (her tur)
                     self.lap_log[key].append((laps, round(last, 3)))
+                # tur-başı VE tüketimi: tur sınırında prev−cur (yalnız LMU REST açıkken
+                # virtualEnergy dolu; dolum/anomali >50% ele). REST yoksa vePerLap None kalır.
+                cur_ve = r.get("virtualEnergy")
+                if isinstance(cur_ve, (int, float)) and not isinstance(cur_ve, bool):
+                    pv = self.prev_ve.get(key)
+                    if isinstance(pv, (int, float)) and 0 < pv - cur_ve < 50:
+                        self.ve_per_lap[key] = round(pv - cur_ve, 1)
+                    self.prev_ve[key] = cur_ve
                 self.prev_laps[key] = laps
 
             # stint + lastik değişimi: pit giriş/çıkış kenarları
@@ -915,6 +930,7 @@ class Aggregator:
             r["avg5Sec"] = round(sum(last5) / len(last5), 3) if last5 else None
             r["avgSec"] = round(sum(h) / len(h), 3) if h else None
             r["stintSec"] = int(now - self.stint_start.get(key, now))
+            r["vePerLap"] = self.ve_per_lap.get(key)   # tur-başı VE tüketimi (yoksa None)
 
             log = list(self.lap_log.get(key, ()))
             r["laps"] = [sec for _, sec in log]
@@ -929,7 +945,7 @@ class Aggregator:
         if own is not None:
             me = next((r for r in field if r.get("isPlayer")), None)
             if me is not None:
-                for k in ("avg5Sec", "avgSec", "stintSec", "laps", "lapsFrom",
+                for k in ("avg5Sec", "avgSec", "stintSec", "vePerLap", "laps", "lapsFrom",
                           "lapNums", "lapKey"):
                     own[k] = me.get(k)
         return data

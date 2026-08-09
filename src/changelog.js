@@ -5,6 +5,22 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.139",
+    date: "2026-08-09",
+    tr: [
+      "🐛 ÖNEMLİ düzeltme: '+' tur geçmişi bazen 0 tur gösteriyordu (araç 9 tur atmış olsa da). İki köprü aynı anda yayın yaparken (v1.4.137) seans belirteci PC'ye özel bir alan içerdiğinden, yazıcı el değiştirdikçe canlı-geçmiş yanlışlıkla siliniyordu. Belirteç artık tüm PC'lerde aynı olan seans indeksini kullanıyor — tur geçmişi silinmiyor.",
+      "🏁 Pist Haritası: pit ÇIKIŞI artık 'P' dairesi yerine yolu kesen BEYAZ çizgi + 'PIT OUT' yazısı ile gösteriliyor (pit girişi yeşil 'P' olarak kalır).",
+      "📊 Canlı Timing standings zenginleşti: Ceza sayısı (⚠), son turun S1·S2·S3 sektör süreleri, tur başına VE tüketimi (VE/tur) sütunları eklendi; Lastik hücresi artık 4 köşe aşınma yüzdesini (ÖnSol/ÖnSağ/ArkaSol/ArkaSağ, renk kodlu) gösteriyor. Not: oyun rakip araçlar için lastik HAMURUNU yalnız ön/arka verir (köşe-köşe hamur oyunda yok); güvenlik derecesi (safety rank) ne paylaşımlı bellekte ne REST'te olduğundan gösterilemiyor.",
+      "🧹 Canlı Köprü kartından 'Hava Kalibrasyonu' ve 'REST'i kapat (test)' butonları kaldırıldı (teşhis araçlarıydı).",
+    ],
+    en: [
+      "🐛 IMPORTANT fix: the '+' lap history sometimes showed 0 laps (even after a car ran 9 laps). With two bridges broadcasting at once (v1.4.137), the session token included a PC-specific field, so every writer handover accidentally wiped the live history. The token now uses the session index (identical on all PCs) — lap history is no longer erased.",
+      "🏁 Track Map: the pit EXIT is now shown as a WHITE line crossing the track + a 'PIT OUT' label (instead of a 'P' circle); pit entry stays a green 'P'.",
+      "📊 Live Timing standings enriched: added Penalty count (⚠), last-lap S1·S2·S3 sector times, and per-lap VE consumption (VE/lap) columns; the Tyre cell now shows all 4 corner wear percentages (FL/FR/RL/RR, color-coded). Note: the game only exposes front/rear tyre COMPOUND for rivals (no per-corner compound), and driver safety rank isn't available in shared memory or REST, so it can't be shown.",
+      "🧹 Removed the 'Weather Calibration' and 'Turn off REST (test)' buttons from the Live Bridge card (they were diagnostic tools).",
+    ],
+  },
+  {
     v: "v1.4.138",
     date: "2026-08-08",
     tr: [

@@ -373,7 +373,7 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
     const a = f * 2 * Math.PI;
     return [cx + R * Math.sin(a), cy - R * Math.cos(a)];
   };
-  // pit giriş/çıkış: halka üzerinde küçük "P" işareti (giriş yeşil, çıkış mavi)
+  // pit GİRİŞİ: halka üzerinde yeşil "P" dairesi
   const pitMark = (frac, col, key) => {
     if (frac == null) return null;
     const [x, y] = ringXYFrac(frac);
@@ -385,8 +385,23 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
       </g>
     );
   };
+  // pit ÇIKIŞI: yolu kesen BEYAZ dik çizgi + "PIT OUT" etiketi (sectorMark dış-halka deseni)
+  const pitExitLine = (frac) => {
+    if (frac == null) return null;
+    const a = frac * 2 * Math.PI;
+    const ux = Math.sin(a), uy = -Math.cos(a);   // dışa doğru radyal normal
+    return (
+      <g key="pit-out">
+        <line x1={cx + (R - 13) * ux} y1={cy + (R - 13) * uy}
+          x2={cx + (R + 13) * ux} y2={cy + (R + 13) * uy}
+          stroke="#fff" strokeWidth={2.5} strokeLinecap="round" />
+        <text x={cx + (R + 26) * ux} y={cy + (R + 26) * uy} fill="#fff"
+          fontSize="9" fontWeight="700" textAnchor="middle" dominantBaseline="central">PIT OUT</text>
+      </g>
+    );
+  };
   const pitMarks = pitFr
-    ? [pitMark(pitFr.entry, "#37D67A", "pit-in"), pitMark(pitFr.exit, "#5aa9e6", "pit-out")]
+    ? [pitMark(pitFr.entry, "#37D67A", "pit-in"), pitExitLine(pitFr.exit)]
     : null;
   // hareket yönü oku — S/F'nin hemen ötesinde, pist teğeti (saat yönü, jitter'sız)
   const dirArrow = (() => {
@@ -414,7 +429,8 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
           {CAR_CLASSES.find(([cid]) => cid === id)?.[1] || id}</span>
       ))}
       <span><i style={{ background: "#fff", boxShadow: `0 0 0 2px ${BRAND}` }} /> {t("Sen")}</span>
-      {pitMarks && <span><i style={{ background: "#37D67A" }} /> {t("Pit giriş/çıkış")}</span>}
+      {pitMarks && <><span><i style={{ background: "#37D67A" }} /> {t("Pit giriş")}</span>
+        <span><i style={{ background: "#fff" }} /> PIT OUT</span></>}
     </div>
   );
 

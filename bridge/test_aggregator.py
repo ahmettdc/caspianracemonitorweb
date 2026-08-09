@@ -277,6 +277,45 @@ def test_pit_turunda_iki_lastik_degisimi_yakalanir():
     assert seen[4] == seen[3]           # kalıcı (bir sonraki pite kadar)
 
 
+class _VeFake:
+    """Tek aracı (lapsDone, lastSec, virtualEnergy) dizisiyle besler — vePerLap testi."""
+
+    def __init__(self, seq, car_id=7):
+        self.seq = list(seq)
+        self.i = 0
+        self.car_id = car_id
+
+    def read(self):
+        laps, last, ve = self.seq[min(self.i, len(self.seq) - 1)]
+        self.i += 1
+        return {"session": {}, "own": None, "field": [{
+            "pos": 1, "carId": self.car_id, "driver": "A. Demircan", "lapsDone": laps,
+            "lastSec": last, "bestSec": 100.0, "inPits": False, "virtualEnergy": ve}]}
+
+
+def test_ve_per_lap_tur_sinirinda_delta():
+    # tur tamamlandıkça VE düşer: prev−cur tur-başı tüketim olarak yansır
+    agg = Aggregator(_VeFake([(1, 100.0, 90.0), (2, 100.0, 85.0), (3, 100.0, 81.5)]))
+    out = [agg.read()["field"][0].get("vePerLap") for _ in range(3)]
+    # ilk turda prev yok → None; sonra 90-85=5.0, 85-81.5=3.5
+    assert out == [None, 5.0, 3.5], out
+
+
+def test_ve_per_lap_veri_yoksa_none():
+    # REST kapalı → virtualEnergy None → vePerLap hiç hesaplanmaz
+    agg = Aggregator(_VeFake([(1, 100.0, None), (2, 100.0, None)]))
+    out = [agg.read()["field"][0].get("vePerLap") for _ in range(2)]
+    assert out == [None, None], out
+
+
+def test_ve_per_lap_dolum_anomali_elenir():
+    # VE artarsa (dolum) ya da >50% düşerse (anomali) yok sayılır
+    agg = Aggregator(_VeFake([(1, 100.0, 40.0), (2, 100.0, 95.0), (3, 100.0, 90.0)]))
+    out = [agg.read()["field"][0].get("vePerLap") for _ in range(3)]
+    # tur2: 40→95 artış → None kalır; tur3: 95-90=5.0
+    assert out == [None, None, 5.0], out
+
+
 if __name__ == "__main__":
     fails = 0
     for name, fn in sorted(globals().items()):
