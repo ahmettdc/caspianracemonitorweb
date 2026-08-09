@@ -68,6 +68,8 @@ export const EN = {
   // sekmeler
   "Son Stint Yakıtı": "Final Stint Fuel", "Lastik": "Tyres", "Pilotlar": "Drivers",
   "Telemetri": "Telemetry", "Ana sekmeler": "Main tabs",
+  "Yoğunluğu değiştir": "Toggle density", "Yoğunluk: Rahat": "Density: Comfortable",
+  "Yoğunluk: Kompakt": "Density: Compact",
   // stint kartı
   "Code 80 Kalan": "Code 80 Remaining", "Yarış Süresi": "Race Time",
   "Strateji": "Strategy", "Stint Sayısı": "Stint Count",

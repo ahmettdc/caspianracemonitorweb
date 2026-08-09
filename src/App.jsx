@@ -160,6 +160,19 @@ export default function App() {
   useEffect(() => {
     document.documentElement.lang = lang === "en" ? "en" : "tr";
   }, [lang]);
+  /* Yoğunluk modu — varsayılan "compact" (yoğun pit-duvarı); "comfort" biraz daha
+     nefes alan boşluk/tipografi. data-density html'de → tüm .rc köklerini kapsar. */
+  const [density, setDensity] = useState(() => {
+    try { return localStorage.getItem("crm-density") || "compact"; } catch { return "compact"; }
+  });
+  useEffect(() => {
+    try { document.documentElement.dataset.density = density; } catch { /* yoksay */ }
+  }, [density]);
+  const toggleDensity = () => setDensity((d) => {
+    const nx = d === "comfort" ? "compact" : "comfort";
+    try { localStorage.setItem("crm-density", nx); } catch { /* özel mod */ }
+    return nx;
+  });
   const [entered, setEntered] = useState(false); // lobi geçildi mi (solo/oda)
   const [pickDone, setPickDone] = useState(false); // pist/araç seçimi tamamlandı mı
   const [setupDone, setSetupDone] = useState(false); // data giriş adımı tamamlandı mı
@@ -1892,6 +1905,11 @@ ${bottomBar}
             {t("Ana Menü")}
           </Btn>
         )}
+        <button className="adminbtn" onClick={toggleDensity}
+          title={density === "comfort" ? t("Yoğunluk: Rahat") : t("Yoğunluk: Kompakt")}
+          aria-label={t("Yoğunluğu değiştir")} aria-pressed={density === "comfort"}>
+          <Icon name="rows" size={14} />
+        </button>
         <span className="langsw">
           {["tr", "en"].map((l) => (
             <button key={l} className={lang === l ? "on" : ""}

@@ -22,8 +22,9 @@ export const css = `
   font-family:'Inter',system-ui,sans-serif;font-size:13px;padding:0 0 40px}
 .rc .mono{font-family:'IBM Plex Mono',monospace}
 .rc .disp{font-family:'Rajdhani',sans-serif;letter-spacing:.04em}
-.rc header{display:flex;align-items:center;gap:12px;padding:14px 20px;
+.rc header{display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding:14px 20px;
   border-bottom:1px solid var(--line)}
+@media(max-width:720px){.rc header{gap:8px;padding:10px 14px}}
 .rc header h1{margin:0;font-size:26px;font-weight:700;text-transform:uppercase;line-height:1}
 .rc header h1 b{color:var(--accent)}
 .rc header .ver{color:var(--dim);font-size:12px;margin-left:-4px;align-self:flex-end;
@@ -796,6 +797,18 @@ export const css = `
   .rc .pitopt button{padding:7px 12px}
   .rc .lapclr{width:24px;height:24px}
 }
+/* --- Yoğunluk modu: "comfort" → biraz daha nefes alan boşluk/tipografi.
+   data-density html'de (:root); tüm .rc köklerini (lobi/seçici/ana) kapsar. --- */
+:root[data-density="comfort"] .rc{font-size:14px}
+:root[data-density="comfort"] .rc td{font-size:13.5px;padding:9px 10px}
+:root[data-density="comfort"] .rc th{padding:8px 10px}
+:root[data-density="comfort"] .rc .card{padding:18px}
+:root[data-density="comfort"] .rc .kpi{padding:13px}
+:root[data-density="comfort"] .rc .grid{gap:20px}
+:root[data-density="comfort"] .rc .tabs button{padding:10px 18px}
+:root[data-density="comfort"] .rc input[type=text],
+:root[data-density="comfort"] .rc input[type=number],
+:root[data-density="comfort"] .rc input[type=datetime-local]{padding:8px 10px}
 /* klavye odağı her interaktif öğede görünür */
 .rc button:focus-visible,.rc select:focus-visible,.rc a:focus-visible,
 .rc [role="button"]:focus-visible{outline:2px solid var(--accent);outline-offset:2px;
