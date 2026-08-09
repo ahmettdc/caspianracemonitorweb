@@ -845,7 +845,8 @@ export default function TeleTab({
                   return (
                     <tr key={sl}>
                       <td>Stint {baseSlot} vs Stint {sl}</td>
-                      <td className={d > 0 ? "neg" : "pos"}>{Math.abs(d).toFixed(3)}s/tur</td>
+                      {/* işaret abs() ile soyuluyor → renge ek olarak ok ile yön belirt (renk-only olmasın) */}
+                      <td className={d > 0 ? "neg" : "pos"}>{d > 0 ? "▲" : "▼"} {Math.abs(d).toFixed(3)}s/tur</td>
                       <td style={{ color: SLOT_COLORS[d > 0 ? sl : baseSlot] }}>
                         Stint {d > 0 ? sl : baseSlot}</td>
                     </tr>

@@ -180,6 +180,100 @@ export function Wheel({ size = 13 }) {
   );
 }
 
+/* Tek çizgi-ikon seti (Lucide tabanlı) — currentColor kullanır → tema/renk uyumlu.
+   Emoji yerine tutarlı SVG. Header + tab bar burayı kullanır. */
+const ICON_PATHS = {
+  home:     <><path d="M3 10.6 12 3l9 7.6" /><path d="M5.2 9.4V21h13.6V9.4" /></>,
+  building: <><rect x="4" y="3" width="16" height="18" rx="1.4" /><path d="M9 8h1M14 8h1M9 12h1M14 12h1M9 16h2v5" /></>,
+  users:    <><circle cx="9" cy="8" r="3.1" /><path d="M3.4 20a5.6 5.6 0 0 1 11.2 0" /><path d="M16.3 5.2a3.1 3.1 0 0 1 0 5.9M18.6 20a5.6 5.6 0 0 0-3.1-5" /></>,
+  power:    <><path d="M12 3v9" /><path d="M6.4 6.4a8 8 0 1 0 11.2 0" /></>,
+  cap:      <><path d="M12 4 2.5 8.5 12 13l9.5-4.5L12 4Z" /><path d="M6 10.6V15c0 1.5 2.7 2.7 6 2.7s6-1.2 6-2.7v-4.4" /><path d="M21.5 8.6V14" /></>,
+  chat:     <path d="M20 4H4a1.5 1.5 0 0 0-1.5 1.5V16A1.5 1.5 0 0 0 4 17.5h3V21l4-3.5h9A1.5 1.5 0 0 0 21.5 16V5.5A1.5 1.5 0 0 0 20 4Z" />,
+  chart:    <><path d="M4 4v16h16" /><path d="m7 14 3-3 3 2 4-5" /></>,
+  live:     <><path d="M4.6 8a10 10 0 0 1 14.8 0M7.6 11a6 6 0 0 1 8.8 0" /><circle cx="12" cy="15" r="1.7" fill="currentColor" stroke="none" /></>,
+  wrench:   <path d="M15.5 4a4.5 4.5 0 0 0-4 6.6L4 18.1 5.9 20l7.5-7.5A4.5 4.5 0 1 0 15.5 4Z" />,
+  zap:      <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" />,
+  rows:     <><path d="M4 6h16M4 12h16M4 18h16" /></>,
+  sun:      <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>,
+  moon:     <path d="M20 14.5A8 8 0 0 1 9.5 4a7 7 0 1 0 10.5 10.5Z" />,
+  search:   <><circle cx="11" cy="11" r="7" /><path d="m20 20-3.2-3.2" /></>,
+};
+export function Icon({ name, size = 16, style }) {
+  const p = ICON_PATHS[name];
+  if (!p) return null;
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      style={{ verticalAlign: -2, flex: "0 0 auto", ...style }} aria-hidden="true">
+      {p}
+    </svg>
+  );
+}
+
+/* Birleşik buton — variant: primary|ghost|danger|subtle, size: sm|md|lg.
+   Eski bespoke sınıfların (adminbtn/histbtn/bigbtn…) yerine kademeli geçiş için;
+   className ek sınıf ekler, kalan proplar (onClick/title/data-*) DOM'a geçer. */
+export function Btn({ variant = "subtle", size = "md", iconLeft, className = "", children, ...rest }) {
+  return (
+    <button className={`btn btn--${variant} btn--${size}${className ? " " + className : ""}`} {...rest}>
+      {iconLeft && <span className="btn-i" aria-hidden="true">{iconLeft}</span>}
+      {children}
+    </button>
+  );
+}
+
+/* Komut paleti (Ctrl+K) — filtrelenebilir aksiyon listesi; ↑/↓/Enter/Esc ile gezinme.
+   Harici bağımlılık yok; mevcut wxmodal desenini yeniden kullanır. */
+export function CommandPalette({ open, onClose, actions, t }) {
+  const [q, setQ] = useState("");
+  const [sel, setSel] = useState(0);
+  const inputRef = useRef(null);
+  const ql = q.trim().toLowerCase();
+  const filtered = !ql ? actions : actions.filter((a) =>
+    a.label.toLowerCase().includes(ql) || (a.keywords || "").toLowerCase().includes(ql));
+  useEffect(() => {
+    if (open) { setQ(""); setSel(0); const id = setTimeout(() => inputRef.current?.focus(), 20);
+      return () => clearTimeout(id); }
+  }, [open]);
+  useEffect(() => { setSel(0); }, [q]);
+  if (!open) return null;
+  const run = (a) => { if (!a) return; onClose(); a.run(); };
+  const onKey = (e) => {
+    if (e.key === "ArrowDown") { e.preventDefault(); setSel((s) => Math.min(s + 1, filtered.length - 1)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setSel((s) => Math.max(s - 1, 0)); }
+    else if (e.key === "Enter") { e.preventDefault(); run(filtered[sel]); }
+    else if (e.key === "Escape") { e.preventDefault(); onClose(); }
+  };
+  return (
+    <div className="wxmodal" onClick={onClose}>
+      <div className="wxmbox cmdk" onClick={(e) => e.stopPropagation()} onKeyDown={onKey}
+        role="dialog" aria-modal="true" aria-label={t("Komut paleti")}>
+        <div className="cmdk-in">
+          <Icon name="search" size={16} />
+          <input ref={inputRef} type="text" value={q} placeholder={`${t("Komut ara")}…`}
+            onChange={(e) => setQ(e.target.value)} aria-label={t("Komut ara")} />
+        </div>
+        <div className="cmdk-list" role="listbox">
+          {!filtered.length && (
+            <div className="hint" style={{ padding: "12px 14px" }}>{t("Sonuç yok")}</div>)}
+          {filtered.map((a, i) => (
+            <button key={a.id} role="option" aria-selected={i === sel}
+              className={`cmdk-opt ${i === sel ? "on" : ""}`}
+              onMouseEnter={() => setSel(i)} onClick={() => run(a)}>
+              {a.icon && <span className="cmdk-i" aria-hidden="true">{a.icon}</span>}
+              <span className="cmdk-l">{a.label}</span>
+              {a.hint && <span className="cmdk-h">{a.hint}</span>}
+            </button>
+          ))}
+        </div>
+        <div className="cmdk-foot">
+          <span>↑↓ {t("gezin")}</span><span>↵ {t("seç")}</span><span>esc {t("kapat")}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* Rozetler — driver ikonu <Wheel/> JSX içerdiği için bu modülde (App + App JSX ortak). */
 export const BADGES = {
   admin:    { lbl: "Admin",            ico: "🛡", col: "#E11D2E", bg: "rgba(225,29,46,.14)" },

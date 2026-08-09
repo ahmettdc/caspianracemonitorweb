@@ -6,19 +6,45 @@ export const css = `
      Zemin sıcak yakın-siyah, paneller bürgündi; marka #960018, etkileşim lift'i
      #C51E38→#D24357; anlamsal renkler (good/warn/crit/best) markadan ayrı. */
   --bg:#0B0708; --panel:#150E10; --panel2:#1E1418; --line:#34232A; --line2:#4A2F38;
-  --txt:#F3EAEC; --dim:#B199A0; --muted:#8A7176;
-  --teal:#D24357; --accent:#D24357; --brand2:#C51E38; --car:#960018; --green:#37D67A;
-  --yellow:#F5B23D; --red:#FF4D5E; --purple:#B58BFF;
+  /* metin tonları — WCAG AA için --dim/--muted açıldı (eski #B199A0/#8A7176). */
+  --txt:#F3EAEC; --dim:#C9B3B9; --muted:#A88C93;
+  /* --accent = kanonik etkileşim rengi (pembe-kırmızı). --teal eski adın geri-uyum
+     alias'ı — yeni kodda var(--accent) kullanın. */
+  --accent:#D24357; --teal:var(--accent); --brand2:#C51E38; --car:#960018;
+  --green:#37D67A; --yellow:#F5B23D; --red:#FF4D5E; --purple:#B58BFF;
+  --focus:var(--accent);
+  /* seçili/aktif durum dolgusu — tek kaynak (eski dağınık rgba(150,0,24,.14–.25)). */
+  --sel-bg:rgba(150,0,24,.22); --sel-bg-soft:rgba(150,0,24,.12);
+  --sel-border:var(--accent);
 }
+/* --- Light mode (opsiyonel) — koyu tema ana kimlik; bu blok tokenları rol-swap eder.
+   Marka #960018 / --car korunur. Anlamsal renkler açık zemine göre koyulaştırıldı. --- */
+:root[data-theme="light"]{
+  --bg:#F4EEF0; --panel:#FFFFFF; --panel2:#F6EEF0; --line:#E2D3D8; --line2:#CBB4BC;
+  --txt:#1B1215; --dim:#6C5A61; --muted:#87737B;
+  --accent:#BC2A44; --teal:var(--accent); --brand2:#A5182F; --car:#960018;
+  --green:#128A4D; --yellow:#B0790C; --red:#D22F3C; --purple:#7A4FD0;
+  --focus:var(--accent);
+  --sel-bg:rgba(150,0,24,.12); --sel-bg-soft:rgba(150,0,24,.06);
+  --sel-border:var(--accent);
+}
+/* light modda koyu-sabit dekoratif zeminleri açık tona çevir (aksi halde açık zeminde
+   koyu leke gibi durur). Tam-ekran pit board/big board bilinçli koyu kalır. */
+:root[data-theme="light"] .rc .livestrip{background:#FBE9EC}
+:root[data-theme="light"] .rc .hudstrip{
+  background:radial-gradient(130% 180% at 100% 0,rgba(150,0,24,.10),#FBE9EC 62%)}
+:root[data-theme="light"] .rc .lobby{
+  background:radial-gradient(ellipse at 50% 0%,#F6D9DE 0%,var(--bg) 60%)}
 .rc *{box-sizing:border-box}
 .rc{min-height:100vh;background:var(--bg);color:var(--txt);
   font-family:'Inter',system-ui,sans-serif;font-size:13px;padding:0 0 40px}
 .rc .mono{font-family:'IBM Plex Mono',monospace}
 .rc .disp{font-family:'Rajdhani',sans-serif;letter-spacing:.04em}
-.rc header{display:flex;align-items:center;gap:12px;padding:14px 20px;
+.rc header{display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding:14px 20px;
   border-bottom:1px solid var(--line)}
+@media(max-width:720px){.rc header{gap:8px;padding:10px 14px}}
 .rc header h1{margin:0;font-size:26px;font-weight:700;text-transform:uppercase;line-height:1}
-.rc header h1 b{color:var(--teal)}
+.rc header h1 b{color:var(--accent)}
 .rc header .ver{color:var(--dim);font-size:12px;margin-left:-4px;align-self:flex-end;
   padding-bottom:2px}
 .rc .grid{display:grid;grid-template-columns:300px 1fr;gap:16px;padding:16px 20px;
@@ -31,17 +57,36 @@ export const css = `
   width:20px;height:72px;padding:0;border:1px solid var(--line);border-left:none;
   border-radius:0 10px 10px 0;background:var(--panel2);color:var(--dim);
   cursor:pointer;font-size:11px;line-height:1;transition:color .15s,border-color .15s}
-.rc .sidetoggle:hover{color:var(--teal);border-color:var(--teal)}
+.rc .sidetoggle:hover{color:var(--accent);border-color:var(--accent)}
 @media(max-width:900px){.rc .grid{grid-template-columns:1fr}.rc .sidetoggle{display:none}}
+/* Birleşik buton ölçeği (<Btn/>) — eski bespoke sınıflar korunuyor, kademeli geçiş.
+   --subtle görünümü mevcut .adminbtn ile eşleşir. */
+.rc .btn{position:relative;display:inline-flex;align-items:center;gap:6px;cursor:pointer;
+  border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--txt);
+  font-family:'Inter',sans-serif;line-height:1.2;white-space:nowrap;
+  transition:border-color .15s,color .15s,background .15s}
+.rc .btn .btn-i{display:inline-flex;flex:0 0 auto}
+.rc .btn--sm{padding:5px 11px;font-size:12px}
+.rc .btn--md{padding:7px 13px;font-size:13px}
+.rc .btn--lg{padding:11px 18px;font-size:16px;font-family:'Rajdhani';font-weight:700;
+  letter-spacing:.05em;text-transform:uppercase}
+.rc .btn--subtle:hover{border-color:var(--accent);color:var(--accent)}
+.rc .btn--ghost{background:transparent;border-color:var(--accent);color:var(--accent)}
+.rc .btn--ghost:hover{background:var(--sel-bg-soft)}
+.rc .btn--primary{background:var(--car);color:#FFE9ED;border-color:var(--accent)}
+.rc .btn--primary:hover{filter:brightness(1.08)}
+.rc .btn--danger{background:transparent;border-color:var(--red);color:var(--red)}
+.rc .btn--danger:hover{background:rgba(255,77,94,.12)}
+.rc .btn:disabled{opacity:.5;cursor:not-allowed}
 .rc .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
 .rc .card h2{margin:0 0 10px;font-size:15px;text-transform:uppercase;
-  font-family:'Rajdhani';letter-spacing:.08em;color:var(--teal)}
+  font-family:'Rajdhani';letter-spacing:.08em;color:var(--accent)}
 .rc label{display:block;color:var(--dim);font-size:11px;margin:8px 0 3px;
   text-transform:uppercase;letter-spacing:.05em}
 .rc input[type=text],.rc input[type=number],.rc input[type=datetime-local]{width:100%;background:var(--panel2);
   border:1px solid var(--line);border-radius:6px;color:var(--txt);
   padding:6px 8px;font-family:'IBM Plex Mono',monospace;font-size:13px}
-.rc input:focus{outline:2px solid var(--teal);outline-offset:-1px}
+.rc input:focus{outline:2px solid var(--accent);outline-offset:-1px}
 /* sayı alanlarında yukarı/aşağı ok her zaman görünür (madde: elle girme yerine tıkla) */
 .rc input[type=number]{-moz-appearance:auto;appearance:auto}
 .rc input[type=number]::-webkit-inner-spin-button,
@@ -54,13 +99,13 @@ export const css = `
 .rc .strat button{flex:1;padding:7px 0;border-radius:6px;border:1px solid var(--line);
   background:var(--panel2);color:var(--dim);font-family:'Rajdhani';
   font-size:15px;font-weight:600;cursor:pointer}
-.rc .strat button.on{background:var(--car);color:#FFE9ED;border-color:var(--teal)}
+.rc .strat button.on{background:var(--car);color:#FFE9ED;border-color:var(--accent)}
 .rc .tabs{display:flex;gap:8px;margin-bottom:12px}
 .rc .tabs button{padding:8px 16px;border-radius:8px 8px 0 0;border:1px solid var(--line);
   border-bottom:none;background:transparent;color:var(--dim);cursor:pointer;
   font-family:'Rajdhani';font-size:16px;font-weight:600;letter-spacing:.05em;
   text-transform:uppercase}
-.rc .tabs button.on{background:var(--panel);color:var(--txt);border-color:var(--teal)}
+.rc .tabs button.on{background:var(--panel);color:var(--txt);border-color:var(--accent)}
 .rc table{width:100%;border-collapse:collapse}
 .rc th{color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.06em;
   text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
@@ -83,7 +128,7 @@ export const css = `
 .rc .pitopt button{padding:2px 8px;border-radius:4px;border:1px solid var(--line);
   background:var(--panel2);color:var(--dim);font-size:10px;cursor:pointer}
 .rc .pitopt button:disabled{opacity:.35;cursor:not-allowed}
-.rc .pitopt button.on{background:var(--car);color:#FFE9ED;border-color:var(--teal)}
+.rc .pitopt button.on{background:var(--car);color:#FFE9ED;border-color:var(--accent)}
 .rc .ovr{width:82px!important;padding:3px 6px!important;font-size:11px!important}
 .rc .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));
   gap:10px;margin-bottom:14px}
@@ -106,8 +151,8 @@ export const css = `
 .rc .drvlane .dcell:first-child{border-left:1px solid var(--line);border-radius:6px 0 0 6px}
 .rc .drvlane .dcell:last-of-type{border-radius:0 6px 6px 0}
 .rc .drvlane .dcell span{overflow:hidden;text-overflow:ellipsis;padding:0 6px;letter-spacing:.02em}
-.rc .drvlane .dcell.cur{color:var(--txt);border-color:var(--teal);
-  background:rgba(150,0,24,.22);font-weight:600}
+.rc .drvlane .dcell.cur{color:var(--txt);border-color:var(--accent);
+  background:var(--sel-bg);font-weight:600}
 .rc .drvlane .dgap{background:transparent;flex:0 0 auto}
 .rc .hint{color:var(--dim);font-size:11px;margin-top:6px;line-height:1.5}
 .rc .warn{color:var(--yellow)}
@@ -119,12 +164,12 @@ export const css = `
 .rc .bartoggle{background:var(--panel2);border:1px solid var(--line);border-radius:6px;
   color:var(--dim);cursor:pointer;padding:2px 12px;font-size:11px;line-height:1.4;
   font-family:'IBM Plex Mono'}
-.rc .bartoggle:hover{color:var(--txt);border-color:var(--teal)}
+.rc .bartoggle:hover{color:var(--txt);border-color:var(--accent)}
 .rc .teambar input{width:110px;background:var(--panel2);border:1px solid var(--line);
   border-radius:6px;color:var(--txt);padding:6px 8px;font-family:'IBM Plex Mono';
   font-size:12px;text-transform:uppercase}
-.rc .teambar button{padding:6px 12px;border-radius:6px;border:1px solid var(--teal);
-  background:transparent;color:var(--teal);cursor:pointer;font-family:'Rajdhani';
+.rc .teambar button{padding:6px 12px;border-radius:6px;border:1px solid var(--accent);
+  background:transparent;color:var(--accent);cursor:pointer;font-family:'Rajdhani';
   font-size:14px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
 .rc .teambar button.solid{background:var(--car);color:#FFE9ED}
 .rc .teambar button.leave{border-color:var(--red);color:var(--red)}
@@ -146,12 +191,12 @@ export const css = `
   border:1px solid var(--line);border-radius:14px;padding:30px 28px}
 .rc .lobby h1{margin:0;font-size:30px;font-weight:700;text-transform:uppercase;
   text-align:center;font-family:'Rajdhani';letter-spacing:.04em}
-.rc .lobby h1 b{color:var(--teal)}
+.rc .lobby h1 b{color:var(--accent)}
 .rc .lobby .sub{text-align:center;color:var(--dim);font-size:12px;margin:4px 0 22px}
-.rc .lobby .bigbtn{width:100%;padding:12px;border-radius:8px;border:1px solid var(--teal);
+.rc .lobby .bigbtn{width:100%;padding:12px;border-radius:8px;border:1px solid var(--accent);
   background:var(--car);color:#FFE9ED;cursor:pointer;font-family:'Rajdhani';
   font-size:18px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-top:8px}
-.rc .lobby .bigbtn.ghost{background:transparent;color:var(--teal);border-color:var(--teal)}
+.rc .lobby .bigbtn.ghost{background:transparent;color:var(--accent);border-color:var(--accent)}
 .rc .lobby .bigbtn:disabled{opacity:.5;cursor:wait}
 .rc .lobby .divider{display:flex;align-items:center;gap:10px;color:var(--dim);
   margin:20px 0 8px;font-size:10px;text-transform:uppercase;letter-spacing:.12em}
@@ -172,8 +217,8 @@ export const css = `
   border-radius:8px;border:1px solid var(--line);background:var(--panel2);
   color:var(--txt);cursor:pointer;font-size:12px;text-align:left}
 .rc .trackgrid button img{width:22px;height:auto;border-radius:2px;flex-shrink:0}
-.rc .trackgrid button.on{border-color:var(--teal);background:rgba(150,0,24,.25);
-  color:var(--teal);font-weight:600}
+.rc .trackgrid button.on{border-color:var(--accent);background:var(--sel-bg);
+  color:var(--accent);font-weight:600}
 .rc .classtoggle{display:flex;gap:8px}
 .rc .wxsel{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:4px 0 2px}
 .rc .wxsel button{padding:6px 2px;border:1px solid var(--line);border-radius:8px;
@@ -183,10 +228,10 @@ export const css = `
 .rc .wxsel button.on{background:rgba(255,255,255,.05)}
 .rc .minibtn{width:22px;height:22px;padding:0;border:1px solid var(--line);border-radius:6px;
   background:var(--panel2);color:var(--txt);cursor:pointer;font-size:13px;line-height:1}
-.rc .minibtn:hover{border-color:var(--teal);color:var(--teal)}
+.rc .minibtn:hover{border-color:var(--accent);color:var(--accent)}
 .rc .histbtn{border:1px solid var(--line);border-radius:8px;background:var(--panel2);
   color:var(--txt);cursor:pointer;font-size:12px;padding:5px 12px;transition:border-color .15s}
-.rc .histbtn:hover{border-color:var(--teal);color:var(--teal)}
+.rc .histbtn:hover{border-color:var(--accent);color:var(--accent)}
 .rc .gbtn{display:inline-flex;align-items:center;gap:10px;margin:0 auto;padding:11px 22px;
   border:1px solid var(--line);border-radius:10px;background:#fff;color:#1f1f1f;
   font-family:'Rajdhani';font-size:16px;letter-spacing:.04em;text-transform:uppercase;
@@ -196,28 +241,28 @@ export const css = `
 .rc .adminbtn{position:relative;align-self:center;display:inline-flex;align-items:center;gap:5px;
   background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--txt);
   cursor:pointer;font-size:12px;padding:5px 11px}
-.rc .adminbtn:hover{border-color:var(--teal);color:var(--teal)}
+.rc .adminbtn:hover{border-color:var(--accent);color:var(--accent)}
 .rc .adminbtn .badge{position:absolute;top:-6px;right:-6px;background:var(--car);color:#fff;
   border-radius:9px;font-size:10px;padding:1px 6px;line-height:1.4}
 .rc .lobbyteams{margin-bottom:14px;text-align:left}
 .rc .lrace{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;margin-bottom:6px;
   border:1px solid var(--line);border-radius:10px;background:var(--panel2);cursor:pointer;
   transition:border-color .15s,transform .12s;text-align:left}
-.rc .lrace:hover{border-color:var(--teal);transform:translateX(2px)}
-.rc .lrace.next{border-color:var(--car);background:rgba(150,0,24,.14)}
+.rc .lrace:hover{border-color:var(--accent);transform:translateX(2px)}
+.rc .lrace.next{border-color:var(--car);background:var(--sel-bg-soft)}
 .rc .lrace .lrtrack{width:54px;height:34px;object-fit:contain;opacity:.85;flex:0 0 auto}
 .rc .lrace .lrinfo{display:flex;flex-direction:column;flex:1;min-width:0;gap:1px}
 .rc .lrace .lrinfo b{font-size:13px;color:var(--txt);overflow:hidden;text-overflow:ellipsis;
   white-space:nowrap}
 .rc .lrace .lrmeta{font-size:11px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;
   white-space:nowrap}
-.rc .lrace .lrdate{font-size:10.5px;color:var(--teal);letter-spacing:.03em}
+.rc .lrace .lrdate{font-size:10.5px;color:var(--accent);letter-spacing:.03em}
 .rc .tmroom .rmeta{display:block;font-size:10.5px;color:var(--dim);font-weight:400}
 .rc .lroom{display:flex;align-items:center;gap:9px;width:100%;padding:10px 12px;margin-bottom:6px;
   border:1px solid var(--line);border-radius:10px;background:var(--panel2);cursor:pointer;
   transition:border-color .15s,transform .12s}
-.rc .lroom:hover{border-color:var(--teal);transform:translateX(2px)}
-.rc .lroom .rcode{font-weight:700;color:var(--teal);letter-spacing:.08em;font-size:13px}
+.rc .lroom:hover{border-color:var(--accent);transform:translateX(2px)}
+.rc .lroom .rcode{font-weight:700;color:var(--accent);letter-spacing:.08em;font-size:13px}
 .rc .lroom .rlabel{flex:1;font-size:12px;color:var(--txt);overflow:hidden;
   text-overflow:ellipsis;white-space:nowrap;text-align:left}
 .rc .lroom .rrole{font-size:9px;text-transform:uppercase;letter-spacing:.05em;padding:2px 7px;
@@ -227,12 +272,12 @@ export const css = `
 .rc .tmtabs{display:flex;gap:6px;padding:10px 14px 0;flex-wrap:wrap}
 .rc .tmtabs button{padding:5px 12px;border:1px solid var(--line);border-radius:8px;
   background:var(--panel2);color:var(--dim);cursor:pointer;font-size:12px}
-.rc .tmtabs button.on{border-color:var(--car);color:#FFD9E0;background:rgba(150,0,24,.22)}
+.rc .tmtabs button.on{border-color:var(--car);color:#FFD9E0;background:var(--sel-bg)}
 .rc .tmsec{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--car);
   font-weight:700;margin:6px 0 7px}
 .rc .tmroom{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:8px;
   background:rgba(255,255,255,.03);margin-bottom:5px}
-.rc .tmroom .rcode{font-weight:700;color:var(--teal);letter-spacing:.08em}
+.rc .tmroom .rcode{font-weight:700;color:var(--accent);letter-spacing:.08em}
 .rc .tmroom .rlabel{flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rc .tmroom .rpin{font-size:11px;color:var(--yellow)}
 .rc .tmroom .rpin.dim{color:var(--dim)}
@@ -275,7 +320,7 @@ export const css = `
 .rc .bsel{width:auto;min-width:130px;font-size:11px;padding:3px 6px;margin:0}
 .rc .userchip .unamebtn{background:none;border:none;color:var(--txt);font-size:12px;cursor:pointer;
   max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:2px 2px}
-.rc .userchip .unamebtn:hover{color:var(--teal);text-decoration:underline}
+.rc .userchip .unamebtn:hover{color:var(--accent);text-decoration:underline}
 .rc .userchip .uname{font-size:12px;color:var(--txt);max-width:150px;overflow:hidden;
   text-overflow:ellipsis;white-space:nowrap}
 .rc .userchip button{background:none;border:none;color:var(--dim);cursor:pointer;
@@ -283,10 +328,10 @@ export const css = `
 .rc .userchip button:hover{color:var(--car);background:rgba(150,0,24,.15)}
 .rc .lapcell{display:inline-flex;align-items:center;gap:4px}
 .rc .lapcell b{min-width:20px;text-align:center;font-variant-numeric:tabular-nums}
-.rc .lapcell b.lapman{color:var(--teal)}
+.rc .lapcell b.lapman{color:var(--accent)}
 .rc .lapstep{width:18px;height:18px;padding:0;border:1px solid var(--line);border-radius:5px;
   background:var(--panel2);color:var(--txt);cursor:pointer;font-size:12px;line-height:1}
-.rc .lapstep:hover:not(:disabled){border-color:var(--teal);color:var(--teal)}
+.rc .lapstep:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
 .rc .lapstep:disabled{opacity:.3;cursor:not-allowed}
 .rc .lapclr{width:16px;height:16px;padding:0;border:none;border-radius:4px;
   background:transparent;color:var(--dim);cursor:pointer;font-size:11px}
@@ -337,7 +382,7 @@ export const css = `
 .rc .setupsum{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
 .rc .setupchip{font-family:'IBM Plex Mono';font-size:11.5px;padding:4px 8px;border-radius:7px;
   background:rgba(150,0,24,.12);border:1px solid rgba(210,67,87,.35);color:var(--txt)}
-.rc .setupchip b{color:var(--teal);font-weight:600;margin-right:4px}
+.rc .setupchip b{color:var(--accent);font-weight:600;margin-right:4px}
 .rc .setupsec{margin:0 0 10px}
 .rc .setupsec-h{font-family:'Rajdhani';text-transform:uppercase;letter-spacing:.05em;
   font-size:12px;color:var(--dim);border-bottom:1px solid var(--line);padding:0 2px 3px;margin-bottom:4px}
@@ -349,16 +394,16 @@ export const css = `
 .rc .cmphead{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;
   margin:0 0 6px}
 .rc .cmpside{display:flex;flex-direction:column;gap:2px;min-width:0}
-.rc .cmpvs{color:var(--teal);font-weight:600;white-space:nowrap}
+.rc .cmpvs{color:var(--accent);font-weight:600;white-space:nowrap}
 .rc .cmprow{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:8px;padding:3px 4px;
   font-size:12px;align-items:baseline}
 .rc .cmprow:nth-child(even){background:rgba(255,255,255,.03)}
 .rc .cmprow .cmpv{text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rc .cmprow.diffhl{background:rgba(210,67,87,.10)}
-.rc .cmprow.diffhl .cmpv{color:var(--teal);font-weight:600}
+.rc .cmprow.diffhl .cmpv{color:var(--accent);font-weight:600}
 .rc .cmpbar{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:1150;
   display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:10px;
-  background:var(--panel);border:1px solid var(--teal);box-shadow:0 8px 30px rgba(0,0,0,.45);
+  background:var(--panel);border:1px solid var(--accent);box-shadow:0 8px 30px rgba(0,0,0,.45);
   animation:lbzoom .18s ease}
 .rc .cmpbar .act[disabled]{opacity:.45;cursor:default}
 .rc .fastlap{color:var(--green);font-weight:700}
@@ -386,7 +431,7 @@ export const css = `
 /* setup sürükle-bırak bölgesi — .svm dosyası buraya bırakılınca form kendiliğinden dolar */
 .rc .sudrop{border:1.5px dashed var(--line);border-radius:8px;padding:8px 10px;
   display:flex;flex-direction:column;gap:5px;transition:border-color .15s,background .15s}
-.rc .sudrop.on{border-color:var(--teal);background:rgba(210,67,87,.08)}
+.rc .sudrop.on{border-color:var(--accent);background:rgba(210,67,87,.08)}
 .rc .wxrow{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px}
 .rc .wxrow:nth-child(odd){background:rgba(255,255,255,.03)}
 .rc .wxrow .wxdot{width:11px;height:11px;border-radius:3px;flex:0 0 auto}
@@ -397,7 +442,7 @@ export const css = `
   justify-content:flex-end}
 .rc .wxsrc{font-size:9px;text-transform:uppercase;letter-spacing:.06em;padding:1px 6px;
   border-radius:5px;border:1px solid}
-.rc .wxsrc.live{color:var(--teal);border-color:rgba(210,67,87,.42);background:rgba(210,67,87,.12)}
+.rc .wxsrc.live{color:var(--accent);border-color:rgba(210,67,87,.42);background:rgba(210,67,87,.12)}
 .rc .wxsrc.plan{color:#c9a227;border-color:rgba(201,162,39,.4);background:rgba(201,162,39,.1)}
 .rc .wxrow .wxat{margin-left:auto}
 .rc .wxmplan{padding:10px 16px;border-top:1px solid var(--line)}
@@ -421,14 +466,14 @@ export const css = `
   background:var(--panel2);color:var(--dim);cursor:pointer;
   font-family:'Rajdhani';font-size:16px;font-weight:600;letter-spacing:.05em}
 .rc .classtoggle button img{width:26px;height:auto}
-.rc .classtoggle button.on{border-color:var(--teal);background:rgba(150,0,24,.25);
-  color:var(--teal)}
+.rc .classtoggle button.on{border-color:var(--accent);background:var(--sel-bg);
+  color:var(--accent)}
 .rc .cargrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
 .rc .cargrid button{padding:10px 10px 8px;border-radius:10px;border:1px solid var(--line);
   background:var(--panel2);cursor:pointer;color:var(--dim);font-size:11.5px}
 .rc .cargrid button img{width:100%;height:auto;margin-bottom:6px;
   filter:drop-shadow(0 4px 8px rgba(0,0,0,.45))}
-.rc .cargrid button.on{border-color:var(--teal);background:rgba(150,0,24,.20);
+.rc .cargrid button.on{border-color:var(--accent);background:var(--sel-bg);
   color:var(--txt);font-weight:600}
 .rc .lteam{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:700;
   color:var(--txt);padding:8px 10px;margin-bottom:10px;border-radius:8px;
@@ -447,7 +492,7 @@ export const css = `
   padding:5px 8px;background:var(--panel2);border-bottom:1px solid var(--line)}
 .rc .floatstream .fsgrip{cursor:nwse-resize;color:var(--dim);font-size:12px;
   padding:0 2px;user-select:none;touch-action:none}
-.rc .floatstream .fsgrip:hover{color:var(--teal)}
+.rc .floatstream .fsgrip:hover{color:var(--accent)}
 .rc .floatstream .fsshield{position:absolute;inset:0;z-index:2}
 .rc .floatstream .fstitle{font-size:10.5px;letter-spacing:.1em;color:var(--muted);
   font-family:'Rajdhani',sans-serif;margin-right:auto}
@@ -455,7 +500,7 @@ export const css = `
 .rc .floatstream .fsbtns button,.rc .floatstream .fsbtns a{background:none;border:0;
   color:var(--dim);cursor:pointer;font-size:11px;padding:1px 4px;line-height:1;
   text-decoration:none}
-.rc .floatstream .fsbtns button:hover,.rc .floatstream .fsbtns a:hover{color:var(--teal)}
+.rc .floatstream .fsbtns button:hover,.rc .floatstream .fsbtns a:hover{color:var(--accent)}
 .rc .floatstream .fsbtns button.on{color:var(--red)}
 .rc .floatstream .fsbody{aspect-ratio:16/9;background:#000;position:relative}
 .rc .floatstream .fsbody iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
@@ -465,7 +510,7 @@ export const css = `
   border-radius:6px;border:1px solid var(--line);background:var(--panel2);
   color:var(--muted);font-size:11.5px;cursor:pointer;transition:.15s;
   align-self:center;white-space:nowrap}
-.rc .tourbtn:hover{border-color:var(--teal);color:var(--teal)}
+.rc .tourbtn:hover{border-color:var(--accent);color:var(--accent)}
 .rc .tourwrap{position:fixed;inset:0;z-index:3000}
 .rc .tourdim{position:absolute;inset:0;background:rgba(8,4,8,.78)}
 .rc .tourhole{position:absolute;border-radius:12px;
@@ -531,7 +576,7 @@ export const css = `
 .rc .langsw{display:inline-flex;gap:4px;margin-left:auto;align-self:center}
 .rc .langsw button{padding:3px 9px;border-radius:5px;border:1px solid var(--line);
   background:var(--panel2);color:var(--dim);font-size:11px;cursor:pointer;font-weight:600}
-.rc .langsw button.on{border-color:var(--teal);color:var(--teal)}
+.rc .langsw button.on{border-color:var(--accent);color:var(--accent)}
 .rc .hdsel{display:inline-flex;align-items:center;gap:7px;color:var(--dim);font-size:12px;align-self:center}
 .rc .hdsel img.flag{width:18px;height:auto;border-radius:2px}
 .rc .hdsel img.car{height:22px;width:auto}
@@ -564,7 +609,7 @@ export const css = `
 .rc .drivepause-title{font-size:18px;font-weight:700;letter-spacing:.04em;
   color:var(--txt);margin-bottom:6px}
 .rc .drivepause-sub{font-size:13px;line-height:1.45;color:var(--muted)}
-.rc textarea:focus{outline:2px solid var(--teal)}
+.rc textarea:focus{outline:2px solid var(--accent)}
 .rc select{background:var(--panel2);border:1px solid var(--line);border-radius:6px;
   color:var(--txt);padding:5px 6px;font-family:'IBM Plex Mono';font-size:12px}
 /* Logolu açılır liste (ImgSelect) — native select görünümüyle uyumlu tetik + fixed popup */
@@ -588,7 +633,7 @@ export const css = `
   padding:6px 8px;font-family:'IBM Plex Mono';font-size:12px;cursor:pointer;text-align:left}
 .rc .imgsel-opt img{height:20px;width:auto;flex:0 0 auto}
 .rc .imgsel-opt:hover{background:rgba(255,255,255,.06)}
-.rc .imgsel-opt.on{background:rgba(150,0,24,.16);color:var(--txt)}
+.rc .imgsel-opt.on{background:var(--sel-bg-soft);color:var(--txt)}
 .rc .tin{width:56px!important;text-align:center}
 .rc .drvsel{min-width:96px;max-width:120px;padding:4px 6px}
 .rc .tsel{width:76px;text-align:center;background:transparent!important}
@@ -628,7 +673,7 @@ export const css = `
 .rc .timeline{position:relative}
 .rc .nowline{position:absolute;top:-4px;bottom:-4px;width:2px;background:#fff;
   box-shadow:0 0 8px #fff;z-index:2}
-.rc tr.live td{background:rgba(150,0,24,.16);border-left:3px solid var(--teal)}
+.rc tr.live td{background:rgba(150,0,24,.16);border-left:3px solid var(--accent)}
 .rc tr.pitsoon td{background:rgba(242,201,76,.12)}
 /* --- canlı timing rozeti --- */
 .rc .livebadge{display:inline-flex;align-items:center;gap:6px;font-size:11px;
@@ -667,10 +712,10 @@ export const css = `
 .rc .hudstrip .hbar{height:4px;border-radius:3px;background:var(--panel2);overflow:hidden;
   margin-top:5px;min-width:150px}
 .rc .hudstrip .hbar i{display:block;height:100%;border-radius:3px;
-  background:linear-gradient(90deg,var(--car),var(--teal))}
+  background:linear-gradient(90deg,var(--car),var(--accent))}
 .rc .hudstrip .hstint{font-family:'Rajdhani';font-weight:700;font-size:30px;line-height:1;
   letter-spacing:.02em}
-.rc .hudstrip .hdrv{color:var(--teal);font-weight:600;font-size:14px}
+.rc .hudstrip .hdrv{color:var(--accent);font-weight:600;font-size:14px}
 .rc .hudstrip .hgauge{align-items:center;gap:4px}
 .rc .hudstrip .hudpit{margin-left:auto;align-self:center}
 @media(max-width:720px){.rc .hudstrip{gap:12px}.rc .hudstrip .hudpit{margin-left:0}}
@@ -702,7 +747,7 @@ export const css = `
   border:1px solid}
 .rc .pitboard .chip2.fuel{color:var(--green);border-color:var(--green);
   background:rgba(46,204,113,.12)}
-.rc .pitboard .chip2.tyre{color:var(--teal);border-color:var(--teal);
+.rc .pitboard .chip2.tyre{color:var(--accent);border-color:var(--accent);
   background:rgba(210,67,87,.12)}
 .rc .pitboard .chip2.none{color:var(--dim);border-color:var(--line);
   background:rgba(255,255,255,.03)}
@@ -714,7 +759,7 @@ export const css = `
 /* tıklanabilir kart + büyütme (lightbox) animasyonları */
 .rc .infocard.clickable{cursor:zoom-in;transition:transform .18s ease,border-color .18s ease,
   box-shadow .18s ease}
-.rc .infocard.clickable:hover{transform:translateY(-3px) scale(1.02);border-color:var(--teal);
+.rc .infocard.clickable:hover{transform:translateY(-3px) scale(1.02);border-color:var(--accent);
   box-shadow:0 8px 24px rgba(0,0,0,.45)}
 .rc .infocard.clickable:active{transform:scale(.98)}
 .rc .lightbox{position:fixed;inset:0;z-index:1000;display:flex;flex-direction:column;
@@ -770,6 +815,45 @@ export const css = `
   .rc .pitopt button{padding:7px 12px}
   .rc .lapclr{width:24px;height:24px}
 }
+/* --- Yoğunluk modu: "comfort" → biraz daha nefes alan boşluk/tipografi.
+   data-density html'de (:root); tüm .rc köklerini (lobi/seçici/ana) kapsar. --- */
+:root[data-density="comfort"] .rc{font-size:14px}
+:root[data-density="comfort"] .rc td{font-size:13.5px;padding:9px 10px}
+:root[data-density="comfort"] .rc th{padding:8px 10px}
+:root[data-density="comfort"] .rc .card{padding:18px}
+:root[data-density="comfort"] .rc .kpi{padding:13px}
+:root[data-density="comfort"] .rc .grid{gap:20px}
+:root[data-density="comfort"] .rc .tabs button{padding:10px 18px}
+:root[data-density="comfort"] .rc input[type=text],
+:root[data-density="comfort"] .rc input[type=number],
+:root[data-density="comfort"] .rc input[type=datetime-local]{padding:8px 10px}
+/* --- Komut paleti (Ctrl+K) --- */
+.rc .wxmbox.cmdk{width:min(560px,94vw);align-self:flex-start;margin-top:12vh}
+.rc .cmdk-in{display:flex;align-items:center;gap:9px;padding:12px 16px;
+  border-bottom:1px solid var(--line);color:var(--dim)}
+.rc .cmdk-in input{flex:1;background:none;border:none;outline:none;color:var(--txt);
+  font-family:'Inter',sans-serif;font-size:16px;padding:0}
+.rc .cmdk-list{max-height:min(52vh,420px);overflow-y:auto;padding:6px}
+.rc .cmdk-opt{display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;
+  border-radius:8px;color:var(--txt);cursor:pointer;padding:9px 11px;text-align:left;font-size:13px}
+.rc .cmdk-opt.on{background:var(--sel-bg)}
+.rc .cmdk-i{display:inline-flex;color:var(--dim);flex:0 0 auto}
+.rc .cmdk-opt.on .cmdk-i{color:var(--accent)}
+.rc .cmdk-l{flex:1}
+.rc .cmdk-h{font-size:11px;color:var(--muted);font-family:'IBM Plex Mono'}
+.rc .cmdk-foot{display:flex;gap:16px;padding:8px 14px;border-top:1px solid var(--line);
+  font-size:10.5px;color:var(--muted);letter-spacing:.04em}
+/* --- İskelet yükleme (Suspense / veri beklerken düz metin yerine) --- */
+.rc .skelwrap{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;padding:4px 0}
+.rc .skel{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+  padding:14px;min-height:96px;position:relative;overflow:hidden}
+.rc .skel::after{content:"";position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.06),transparent);
+  transform:translateX(-100%);animation:skelsh 1.25s ease-in-out infinite}
+.rc .skel .sl{height:12px;border-radius:5px;background:var(--panel2);margin-bottom:9px}
+.rc .skel .sl.w40{width:40%}.rc .skel .sl.w70{width:70%}.rc .skel .sl.w55{width:55%}
+@keyframes skelsh{100%{transform:translateX(100%)}}
+@media (prefers-reduced-motion:reduce){.rc .skel::after{animation:none}}
 /* klavye odağı her interaktif öğede görünür */
 .rc button:focus-visible,.rc select:focus-visible,.rc a:focus-visible,
 .rc [role="button"]:focus-visible{outline:2px solid var(--accent);outline-offset:2px;
