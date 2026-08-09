@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.138",
+    date: "2026-08-08",
+    tr: [
+      "🛠 Açılış çökmesi düzeltmesi: v1.4.137'den sonra uygulama açılırken 'Bir şeyler ters gitti' hatası veriyordu (ReferenceError: canEditTeam is not defined). Canlı köprü hook'unda kalan eski bir değişken referansı düzeltildi; uygulama artık normal açılıyor.",
+    ],
+    en: [
+      "🛠 Startup crash fix: after v1.4.137 the app showed a 'Something went wrong' error on launch (ReferenceError: canEditTeam is not defined). A leftover stale variable reference in the live-bridge hook was fixed; the app now loads normally again.",
+    ],
+  },
+  {
     v: "v1.4.137",
     date: "2026-08-08",
     tr: [
