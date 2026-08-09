@@ -2229,7 +2229,21 @@ ${bottomBar}
 
         {/* ================= SAĞ: SEKMELER ================= */}
         <div>
-          <div className="tabs" data-tour="tabs">
+          {/* ARIA: role=tablist/tab + aria-selected; ok/Home/End ile gezinme (roving tabindex).
+              Erişilebilir ad = etiket metni (ikon span'i aria-hidden). */}
+          <div className="tabs" data-tour="tabs" role="tablist" aria-label={t("Ana sekmeler")}
+            onKeyDown={(e) => {
+              const keys = ["ArrowRight", "ArrowLeft", "Home", "End"];
+              if (!keys.includes(e.key)) return;
+              const btns = [...e.currentTarget.querySelectorAll('[role="tab"]')];
+              const i = btns.indexOf(document.activeElement);
+              if (i < 0) return;
+              e.preventDefault();
+              const n = e.key === "ArrowRight" ? (i + 1) % btns.length
+                : e.key === "ArrowLeft" ? (i - 1 + btns.length) % btns.length
+                : e.key === "Home" ? 0 : btns.length - 1;
+              btns[n].focus(); btns[n].click();
+            }}>
             {[["dash", "Dashboard", "\u{1F4CA}"], ["stint", "Stint", "\u{1F4CB}"],
               /* ["code80", "Code 80"], — şimdilik arayüzden gizli, kod korunuyor */
               ["fuel", t("Son Stint Yakıtı"), "\u26A1"],
@@ -2241,9 +2255,11 @@ ${bottomBar}
               ["setup", t("Setup"), "\u{1F527}"],
               ...(raceChan ? [["rchat", t("Yarış Sohbeti"), "\u{1F4AC}"]] : [])]
               .map(([k, l, ico]) => (
-              <button key={k} className={`${tab === k ? "on" : ""} ${k === "code80" && tab === k ? "c80t" : ""}`}
+              <button key={k} id={`tab-${k}`} role="tab" aria-selected={tab === k}
+                aria-controls="tabpanel-main" tabIndex={tab === k ? 0 : -1}
+                className={`${tab === k ? "on" : ""} ${k === "code80" && tab === k ? "c80t" : ""}`}
                 onClick={() => setTab(k)} style={{ position: "relative" }}>
-                <span style={{ marginRight: 6 }}>{ico}</span>{l}
+                <span style={{ marginRight: 6 }} aria-hidden="true">{ico}</span>{l}
                 {k === "rchat" && raceUnread > 0 && tab !== "rchat" &&
                   <b className="cdot" style={{ position: "absolute", top: 2, right: 3 }}>
                     {raceUnread > 9 ? "9+" : raceUnread}</b>}
@@ -2251,6 +2267,7 @@ ${bottomBar}
             ))}
           </div>
 
+          <div id="tabpanel-main" role="tabpanel" aria-labelledby={`tab-${tab}`} tabIndex={-1}>
           {/* Sürüş Modu (v1.4.99): pencere görünmez/örtülüyken ağır sekme içeriği
               render EDİLMEZ → sürüş PC'sinde oyunla GPU/CPU çekişmesi biter. Köprü
               hook'ları (useLiveBridge/useLive/useLiveSync) yukarıda top-level monte
@@ -2404,6 +2421,7 @@ ${bottomBar}
           )}
           </Suspense>
           )}
+          </div>{/* /tabpanel-main */}
         </div>
       </div>
     </div>

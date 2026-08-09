@@ -67,7 +67,7 @@ export const EN = {
     "Car is in the pit lane — this stint's pit is already marked. Use ↩ Undo to correct it.",
   // sekmeler
   "Son Stint Yakıtı": "Final Stint Fuel", "Lastik": "Tyres", "Pilotlar": "Drivers",
-  "Telemetri": "Telemetry",
+  "Telemetri": "Telemetry", "Ana sekmeler": "Main tabs",
   // stint kartı
   "Code 80 Kalan": "Code 80 Remaining", "Yarış Süresi": "Race Time",
   "Strateji": "Strategy", "Stint Sayısı": "Stint Count",
