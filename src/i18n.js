@@ -675,6 +675,13 @@ export const EN = {
   "Ortam": "Ambient", "Zemin ıslaklığı": "Track wetness",
   // Tutuş (rubber) tahmini — TinyPedal modeli (v1.4.74)
   "Tutuş": "Grip (est.)",
+  // standings zenginleştirme (v1.4.139)
+  "VE/tur": "VE/lap",
+  "Ceza": "Pen.",
+  "Pit giriş": "Pit in",
+  "Son turun S1·S2·S3 sektör süreleri": "Last lap S1·S2·S3 sector times",
+  "Tur başına VE tüketimi": "Virtual Energy used per lap",
+  "Bekleyen ceza": "Outstanding penalties",
   // tur geçmişi pist koşulları (v1.4.83)
   "Asfalt sıcaklığı": "Track temp", "Yol tutuş": "Grip",
   "Turlardan modellenmiş tahmin (gerçek okuma değil)":

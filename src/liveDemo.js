@@ -72,6 +72,7 @@ export function demoLive(el) {
         +(last * 0.31).toFixed(3)],
       inPits: (Math.floor(el / 90) % 13) === i,
       pitStops: Math.floor(laps / 45),
+      penalties: (i === 2 || i === 6) && (Math.floor(el / 120) % 3) === 0 ? 1 : 0,
       ...demoTyres(el, i),
       damage: +Math.min(0.4, i * 0.01 + (el % 600) / 6000).toFixed(3),
       virtualEnergy: +Math.max(3, 100 - ((el + i * 40) % 1500 / 1500) * 92).toFixed(1),
@@ -95,6 +96,7 @@ export function demoLive(el) {
     r.avg5Sec = +(r.bestSec + 0.4).toFixed(3);
     r.avgSec = +(r.bestSec + 0.7).toFixed(3);
     r.stintSec = Math.floor(el % 1500);
+    r.vePerLap = +(1.8 + (p % 4) * 0.25).toFixed(1);   // demo tur-başı VE tüketimi
     delete r._prog;
   });
   const me = rows.find((r) => r.isPlayer);

@@ -10,7 +10,6 @@ import { driverAtLap, parseLapCond } from "../liveLaps";
 import { detectFlashes, carKey } from "../liveFlash";
 import { binKey } from "../trackShape";
 import { demoLive } from "../liveDemo";
-import { CALIB_WORDS, addSample, thresholdsFrom, exportPayload } from "../wxCalib";
 import { tyreTitle, teleStale } from "../tyreInfo";
 import { compoundAxles, compoundInfo, parseTyreLog } from "../tyreCompound";
 import TrackMap from "./TrackMap";
@@ -30,6 +29,9 @@ const veColor = (v) => (v == null ? "var(--dim)"
   : v > 50 ? "var(--green)" : v > 20 ? "var(--yellow)" : "var(--red)");
 /* gap biçimi → engine.fmtGap (taşma düzeltmesi + birim testli) */
 const gap = fmtGap;
+/* son turun S1·S2·S3 sektör süreleri (kompakt). Geçersiz/eksik → "—". */
+const secStr = (sc) => (Array.isArray(sc) && sc[0] > 0 && sc[1] > 0 && sc[2] > 0
+  ? `${sc[0].toFixed(1)}·${sc[1].toFixed(1)}·${sc[2].toFixed(1)}` : "—");
 
 /* son güncelleme yaşından bağlantı durumu.
    ts SERVER-hizalı yazılır (liveBridge) → burada da serverNow() ile karşılaştırılır;
@@ -89,24 +91,34 @@ function CompoundIcons({ ax }) {
   </>);
 }
 
-/* Birleşik LASTİK hücresi: hamur ikonu/ikonları + en kötü aşınma %. Renkli nokta yok,
-   pit değişim rozeti yok (o artık "+" tur geçmişinde). Tooltip: hamur (ön/arka) +
-   köşe-köşe aşınma. Bayat telemetride soluk. Veri yoksa "—". */
+/* Birleşik LASTİK hücresi: hamur ikonu/ikonları (ön/arka) + DÖRT KÖŞE aşınma % (FL·FR /
+   RL·RR, renkli 2×2). Köşe-köşe HAMUR oyunda yok (yalnız ön/arka) — bu yüzden 4 köşe
+   yalnız AŞINMA için. tyres4 yoksa tek "en kötü" aşınmaya düşer. Bayat telemetride soluk. */
 function TyreCell({ c, t }) {
   const ax = compoundAxles(c.tyreComp);
   const stale = teleStale(c.teleLag);
+  const t4 = Array.isArray(c.tyres4) && c.tyres4.length >= 4 ? c.tyres4 : null;
   const wear = c.tyreWear != null ? `%${Math.round(c.tyreWear * 100)}` : null;
-  if (!ax && wear == null) return <span style={{ color: "var(--dim)" }}>—</span>;
+  if (!ax && !t4 && wear == null) return <span style={{ color: "var(--dim)" }}>—</span>;
   const lbl = (info) => (info.cls ? t(info.label) : info.raw);
   const compTitle = ax
     ? (ax.split ? `${t("Ön")}: ${lbl(ax.front)} · ${t("Arka")}: ${lbl(ax.rear)}` : lbl(ax.front))
     : "";
   const title = [compTitle, tyreTitle(c, t)].filter(Boolean).join("\n");
+  const pct = (f) => (f != null ? Math.round(f * 100) : "—");
   return (
     <span style={{ opacity: stale ? 0.4 : 1, whiteSpace: "nowrap",
-      display: "inline-flex", alignItems: "center", gap: 4 }} title={title}>
+      display: "inline-flex", alignItems: "center", gap: 5 }} title={title}>
       {ax && <CompoundIcons ax={ax} />}
-      {wear && <span style={{ color: "var(--dim)", fontSize: 12 }}>{wear}</span>}
+      {t4 ? (
+        <span style={{ display: "inline-grid", gridTemplateColumns: "auto auto", gap: "0 4px",
+          fontSize: 10, lineHeight: 1.15, fontVariantNumeric: "tabular-nums", fontWeight: 700 }}>
+          <span style={{ color: wearColor(t4[0]) }}>{pct(t4[0])}</span>
+          <span style={{ color: wearColor(t4[1]) }}>{pct(t4[1])}</span>
+          <span style={{ color: wearColor(t4[2]) }}>{pct(t4[2])}</span>
+          <span style={{ color: wearColor(t4[3]) }}>{pct(t4[3])}</span>
+        </span>
+      ) : (wear && <span style={{ color: "var(--dim)", fontSize: 12 }}>{wear}</span>)}
     </span>
   );
 }
@@ -417,7 +429,7 @@ function OwnCar({ t, own, liveFuelObs }) {
 /* Canlı köprü durum kartı (yalnız gösterim). Köprü masaüstünde OTOMATİK çalışır
    (App.jsx yönetir): oyunun PC'sinde uygulama açık + owner/editor + yarış seçiliyse
    kendiliğinden bağlanır, koparsa ~4 sn'de bir yeniden dener. Elle başlatma yok. */
-function BridgeControl({ t, bridge, canBridge, noRest = false, onToggleNoRest }) {
+function BridgeControl({ t, bridge, canBridge }) {
   const phase = bridge?.phase || "idle";
   const dot = phase === "running" ? "var(--green)"
     : phase === "error" ? "var(--red)"
@@ -467,25 +479,6 @@ function BridgeControl({ t, bridge, canBridge, noRest = false, onToggleNoRest })
           </div>
         </div>
       )}
-      {/* TAKILMA TEŞHİSİ (v1.4.101): REST'i kapatan A/B anahtarı. Açıkken sidecar
-          --no-rest ile başlar → oyunun localhost sunucusuna hiç istek atmaz. Tepside
-          bile takılma REST kapalıyken BİTİYORSA sebep REST demektir → optimize ederiz.
-          Bitmiyorsa sebep başka (CPU/GPU) → oraya bakarız. Değişince köprü yeniden başlar. */}
-      {canBridge && onToggleNoRest && (
-        <div className="hint" style={{ marginTop: 8, display: "flex", alignItems: "center",
-          gap: 8, flexWrap: "wrap" }}>
-          <button className="act" style={{ fontSize: 11,
-            ...(noRest ? { borderColor: "var(--yellow)", color: "var(--yellow)" } : {}) }}
-            onClick={onToggleNoRest}>
-            🧪 {noRest ? t("REST kapalı (test) — aç") : t("REST'i kapat (takılma testi)")}
-          </button>
-          <span style={{ color: "var(--dim)" }}>
-            {noRest
-              ? t("REST kapalı: VE/gerçek takım adı/numara/yetkili bayrak gelmez; oyunun sunucusuna istek atılmaz.")
-              : t("Takılma REST'ten mi? Kapat, birkaç tur sür; tepside bile takılma biterse sebep REST'tir.")}
-          </span>
-        </div>
-      )}
     </div>
   );
 }
@@ -505,77 +498,9 @@ function CopyBtn({ text, t }) {
   );
 }
 
-const CALIB_KEY = "caspian.wxCalib";
-
-/* 🌦 HAVA KALİBRASYONU — oyundaki KELİMEYİ o anki yüzdeyle damgala.
-   Kademe eşiklerimiz (Damp/Slightly Wet/…) TAHMİN: oyun ıslaklığı ne paylaşımlı
-   bellekte ne de REST'inde kelime olarak veriyor (yalnız 0..1 sayı) → tek doğrulama
-   yolu ölçüm. Kayıt YEREL (localStorage), Firebase'e gitmez; kapalı gelir. */
-function WxCalib({ t, s }) {
-  const [open, setOpen] = useState(false);
-  const [rows, setRows] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(CALIB_KEY)) || []; } catch { return []; }
-  });
-  const save = (list) => {
-    setRows(list);
-    try { localStorage.setItem(CALIB_KEY, JSON.stringify(list)); } catch { /* kota / gizli mod */ }
-  };
-  const dl = () => {
-    const body = exportPayload(rows,
-      { track: s?.trackName || "", session: s?.sessionType || "" });
-    const url = URL.createObjectURL(new Blob([body], { type: "application/json" }));
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `wx-calib-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-  const pct = (v) => (v == null || v === "" || !Number.isFinite(Number(v))
-    ? "—" : `%${Math.round(Number(v))}`);
-  const sum = thresholdsFrom(rows);
-
-  if (!open) {
-    return (
-      <button className="act" style={{ fontSize: 11, padding: "3px 10px", marginTop: 8 }}
-        onClick={() => setOpen(true)}>🌦 {t("Hava Kalibrasyonu")}</button>
-    );
-  }
-  return (
-    <div style={{ marginTop: 8, padding: 10, border: "1px solid var(--line)", borderRadius: 8 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        <b style={{ fontSize: 12 }}>🌦 {t("Hava Kalibrasyonu")}</b>
-        <span className="mono" style={{ fontSize: 15 }}>
-          💧 {pct(s?.wetness)} · 🌧 {pct(s?.rain)}</span>
-        <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
-          <button className="act" style={{ fontSize: 11, padding: "2px 8px" }}
-            onClick={dl} disabled={!rows.length}>⬇ {t("Dışa aktar")}</button>
-          <button className="act" style={{ fontSize: 11, padding: "2px 8px" }}
-            onClick={() => save([])} disabled={!rows.length}>{t("Temizle")}</button>
-          <button className="act" style={{ fontSize: 11, padding: "2px 8px" }}
-            onClick={() => setOpen(false)}>{t("Kapat")}</button>
-        </span>
-      </div>
-      <div className="hint" style={{ margin: "6px 0" }}>
-        {t("Oyundaki zemin durumu yazısı değiştiğinde aynı kelimeye bas — o anın yüzdesi kaydedilir. Birkaç damga sonra dışa aktarıp gönder, eşikleri ölçüme göre düzeltelim.")}
-      </div>
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-        {CALIB_WORDS.map((w) => (
-          <button key={w} className="act" style={{ fontSize: 11, padding: "3px 9px" }}
-            onClick={() => save(addSample(rows, w, s))}>{w}</button>
-        ))}
-      </div>
-      {sum.length > 0 && (
-        <div className="mono" style={{ fontSize: 11, marginTop: 8, color: "var(--dim)" }}>
-          {rows.length} {t("damga")} · {sum.map((x) => `${x.word}: %${x.min}–%${x.max} (${x.n})`).join("  |  ")}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge = false,
   liveFuelObs, tid, rid,
-  tourDemo, onGuide, bridgeNoRest = false, onToggleNoRest, isAdmin = false }) {
+  tourDemo, onGuide, isAdmin = false }) {
   const [myClassOnly, setMyClassOnly] = useState(false);
   const [big, setBig] = useState(false);
   const [lapsFor, setLapsFor] = useState(null);   // "+" ile açılan tur listesi satırı
@@ -668,8 +593,7 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
   }, []);
 
   const bridgeCard = isTauri ? (
-    <BridgeControl t={t} bridge={bridge} canBridge={canBridge}
-      noRest={bridgeNoRest} onToggleNoRest={onToggleNoRest} />
+    <BridgeControl t={t} bridge={bridge} canBridge={canBridge} />
   ) : null;
 
   /* Bağlantı durumunu erken-return'den ÖNCE hesapla: veri GELDİKTEN sonra köprü/oyun
@@ -818,7 +742,6 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
               : "—"}</div>
             <div className="l">{t("Tutuş")}</div></div>
         </div>
-        {canEdit && !big && <WxCalib t={t} s={s} />}
       </div>
 
       {/* Strateji artık Pist Haritası kutusunun İÇİNDE en üstte (aşağıda topSlot).
@@ -866,11 +789,12 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
                     cursor: "pointer", padding: 0, textDecoration: "underline dotted" }}>
                   {showTeam ? t("Takım") : t("Pilot")}</button></th>
                 <th>{t("Sınıf")}</th><th>{t("Tur")}</th>
-                <th>{t("Son")}</th><th>{t("En İyi")}</th><th>AVG5</th><th>AVG</th>
-                <th>VE</th>
+                <th>{t("Son")}</th><th>{t("En İyi")}</th><th>{t("Sektör")}</th>
+                <th>AVG5</th><th>AVG</th>
+                <th>VE</th><th>{t("VE/tur")}</th>
                 <th>Δ</th><th>Gap</th><th>{t("Aralık")}</th>
                 <th>Stint</th><th>{t("Lastik")}</th>
-                <th>{t("Hasar")}</th><th>Pit</th>
+                <th>{t("Hasar")}</th><th>Pit</th><th>{t("Ceza")}</th>
                 <th aria-label={t("Turlar")}></th>
               </tr></thead>
               <tbody>
@@ -906,10 +830,15 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
                       <td>{lap(c.lastSec)}</td>
                       <td style={{ color: isFastest ? "var(--purple)" : "var(--dim)",
                         fontWeight: isFastest ? 700 : 400 }}>{lap(c.bestSec)}</td>
+                      <td className="mono" style={{ color: "var(--dim)", fontSize: 11 }}
+                        title={t("Son turun S1·S2·S3 sektör süreleri")}>{secStr(c.lastSectors)}</td>
                       <td style={{ color: "var(--dim)" }}>{lap(c.avg5Sec)}</td>
                       <td style={{ color: "var(--dim)" }}>{lap(c.avgSec)}</td>
                       <td style={{ color: veColor(c.virtualEnergy), fontSize: 12 }}>
                         {c.virtualEnergy != null ? `${Math.round(c.virtualEnergy)}%` : "—"}</td>
+                      <td style={{ color: "var(--dim)", fontSize: 12 }}
+                        title={t("Tur başına VE tüketimi")}>
+                        {c.vePerLap != null ? `${c.vePerLap.toFixed(1)}%` : "—"}</td>
                       <td style={{ color: delta == null ? "var(--dim)"
                         : delta <= 0 ? "var(--green)" : "var(--red)", fontSize: 12 }}>
                         {delta == null ? "—" : `${delta > 0 ? "+" : ""}${delta.toFixed(2)}`}</td>
@@ -930,6 +859,12 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
                         {c.inPits && <span className="chip" style={{ marginRight: 4,
                           color: "var(--yellow)", borderColor: "var(--yellow)" }}>PIT</span>}
                         <span style={{ color: "var(--dim)" }}>{c.pitStops ?? "—"}</span>
+                      </td>
+                      <td style={{ textAlign: "center" }} title={t("Bekleyen ceza")}>
+                        {c.penalties > 0
+                          ? <span className="chip" style={{ color: "var(--red)",
+                              borderColor: "var(--red)", fontWeight: 700 }}>⚠ {c.penalties}</span>
+                          : <span style={{ color: "var(--dim)" }}>—</span>}
                       </td>
                       <td style={{ textAlign: "center" }}>
                         {c.lapsDone > 0 && c.lapKey && (

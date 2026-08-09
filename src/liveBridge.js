@@ -187,8 +187,9 @@ export async function startBridge(opts, onStatus) {
         if (maxN > (lastLap[key] || 0)) lastLap[key] = maxN;
         lastPit[key] = pits;
       }
-      // canlı kareyi küçük tut — geçmiş ayrı düğümde
-      delete r.laps; delete r.lapsFrom; delete r.lapNums; delete r.lastSectors;
+      // canlı kareyi küçük tut — geçmiş ayrı düğümde. lastSectors KALIR: standings'te
+      // "Sektör" sütunu (son turun S1/S2/S3'ü) canlı kareden okunur (v1.4.139).
+      delete r.laps; delete r.lapsFrom; delete r.lapNums;
       delete r.tyreChange;   // pit değişimi artık livetyre'de (tabloda gösterilmiyor)
     }
     /* own da aynı tur listesini taşır (Aggregator oyuncu satırından kopyalar) ama web
