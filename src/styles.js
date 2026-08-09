@@ -40,6 +40,25 @@ export const css = `
   cursor:pointer;font-size:11px;line-height:1;transition:color .15s,border-color .15s}
 .rc .sidetoggle:hover{color:var(--accent);border-color:var(--accent)}
 @media(max-width:900px){.rc .grid{grid-template-columns:1fr}.rc .sidetoggle{display:none}}
+/* Birleşik buton ölçeği (<Btn/>) — eski bespoke sınıflar korunuyor, kademeli geçiş.
+   --subtle görünümü mevcut .adminbtn ile eşleşir. */
+.rc .btn{position:relative;display:inline-flex;align-items:center;gap:6px;cursor:pointer;
+  border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--txt);
+  font-family:'Inter',sans-serif;line-height:1.2;white-space:nowrap;
+  transition:border-color .15s,color .15s,background .15s}
+.rc .btn .btn-i{display:inline-flex;flex:0 0 auto}
+.rc .btn--sm{padding:5px 11px;font-size:12px}
+.rc .btn--md{padding:7px 13px;font-size:13px}
+.rc .btn--lg{padding:11px 18px;font-size:16px;font-family:'Rajdhani';font-weight:700;
+  letter-spacing:.05em;text-transform:uppercase}
+.rc .btn--subtle:hover{border-color:var(--accent);color:var(--accent)}
+.rc .btn--ghost{background:transparent;border-color:var(--accent);color:var(--accent)}
+.rc .btn--ghost:hover{background:var(--sel-bg-soft)}
+.rc .btn--primary{background:var(--car);color:#FFE9ED;border-color:var(--accent)}
+.rc .btn--primary:hover{filter:brightness(1.08)}
+.rc .btn--danger{background:transparent;border-color:var(--red);color:var(--red)}
+.rc .btn--danger:hover{background:rgba(255,77,94,.12)}
+.rc .btn:disabled{opacity:.5;cursor:not-allowed}
 .rc .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
 .rc .card h2{margin:0 0 10px;font-size:15px;text-transform:uppercase;
   font-family:'Rajdhani';letter-spacing:.08em;color:var(--accent)}

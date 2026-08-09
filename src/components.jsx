@@ -180,6 +180,44 @@ export function Wheel({ size = 13 }) {
   );
 }
 
+/* Tek çizgi-ikon seti (Lucide tabanlı) — currentColor kullanır → tema/renk uyumlu.
+   Emoji yerine tutarlı SVG. Header + tab bar burayı kullanır. */
+const ICON_PATHS = {
+  home:     <><path d="M3 10.6 12 3l9 7.6" /><path d="M5.2 9.4V21h13.6V9.4" /></>,
+  building: <><rect x="4" y="3" width="16" height="18" rx="1.4" /><path d="M9 8h1M14 8h1M9 12h1M14 12h1M9 16h2v5" /></>,
+  users:    <><circle cx="9" cy="8" r="3.1" /><path d="M3.4 20a5.6 5.6 0 0 1 11.2 0" /><path d="M16.3 5.2a3.1 3.1 0 0 1 0 5.9M18.6 20a5.6 5.6 0 0 0-3.1-5" /></>,
+  power:    <><path d="M12 3v9" /><path d="M6.4 6.4a8 8 0 1 0 11.2 0" /></>,
+  cap:      <><path d="M12 4 2.5 8.5 12 13l9.5-4.5L12 4Z" /><path d="M6 10.6V15c0 1.5 2.7 2.7 6 2.7s6-1.2 6-2.7v-4.4" /><path d="M21.5 8.6V14" /></>,
+  chat:     <path d="M20 4H4a1.5 1.5 0 0 0-1.5 1.5V16A1.5 1.5 0 0 0 4 17.5h3V21l4-3.5h9A1.5 1.5 0 0 0 21.5 16V5.5A1.5 1.5 0 0 0 20 4Z" />,
+  chart:    <><path d="M4 4v16h16" /><path d="m7 14 3-3 3 2 4-5" /></>,
+  live:     <><path d="M4.6 8a10 10 0 0 1 14.8 0M7.6 11a6 6 0 0 1 8.8 0" /><circle cx="12" cy="15" r="1.7" fill="currentColor" stroke="none" /></>,
+  wrench:   <path d="M15.5 4a4.5 4.5 0 0 0-4 6.6L4 18.1 5.9 20l7.5-7.5A4.5 4.5 0 1 0 15.5 4Z" />,
+  zap:      <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" />,
+};
+export function Icon({ name, size = 16, style }) {
+  const p = ICON_PATHS[name];
+  if (!p) return null;
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      style={{ verticalAlign: -2, flex: "0 0 auto", ...style }} aria-hidden="true">
+      {p}
+    </svg>
+  );
+}
+
+/* Birleşik buton — variant: primary|ghost|danger|subtle, size: sm|md|lg.
+   Eski bespoke sınıfların (adminbtn/histbtn/bigbtn…) yerine kademeli geçiş için;
+   className ek sınıf ekler, kalan proplar (onClick/title/data-*) DOM'a geçer. */
+export function Btn({ variant = "subtle", size = "md", iconLeft, className = "", children, ...rest }) {
+  return (
+    <button className={`btn btn--${variant} btn--${size}${className ? " " + className : ""}`} {...rest}>
+      {iconLeft && <span className="btn-i" aria-hidden="true">{iconLeft}</span>}
+      {children}
+    </button>
+  );
+}
+
 /* Rozetler — driver ikonu <Wheel/> JSX içerdiği için bu modülde (App + App JSX ortak). */
 export const BADGES = {
   admin:    { lbl: "Admin",            ico: "🛡", col: "#E11D2E", bg: "rgba(225,29,46,.14)" },

@@ -45,7 +45,7 @@ import {
 import { buildTourSteps } from "./tourSteps";
 import { poolEmptyReason } from "./setupPool";
 import {
-  TourOverlay, Wheel, Num, Bolt, Tyre, Ring,
+  TourOverlay, Wheel, Num, Bolt, Tyre, Ring, Icon, Btn,
   BADGES, teamBadgesOf, hasBadge, ChatPanel, SetupForm, SetupTable, SetupCards,
   VersionModal, RaceEditModal,
   ChatModal, SetupModal, TeamModal, DenyToast, SetupContentModal, SetupCompareModal,
@@ -887,7 +887,7 @@ ${bottomBar}
   const chatBtn = user && (
     <button className="adminbtn" data-tour="hchat" onClick={() => setChatOpen(true)}
       title={t("Takım Sohbeti")}>
-      💬 {t("Sohbet")}
+      <Icon name="chat" size={14} /> {t("Sohbet")}
       {chatUnread > 0 && <b className="badge">{chatUnread > 99 ? "99+" : chatUnread}</b>}
     </button>
   );
@@ -1882,14 +1882,15 @@ ${bottomBar}
         <h1 className="disp" style={{ fontSize: 20 }}>RACE MONITOR</h1>
         <span className="ver">{APP_VERSION}</span>
         <button className="tourbtn" onClick={() => setTour("main")}
-          title={t("Rehberi başlat")}>🎓</button>
+          title={t("Rehberi başlat")} aria-label={t("Rehberi başlat")}>
+          <Icon name="cap" size={15} /></button>
         {infoBtn}
         {/* Ana Menü: yarıştayken her zaman görünür (teambar katlansa da) → takvim/lobiye dön */}
         {curRace && (
-          <button className="adminbtn" data-tour="home" onClick={leaveRace}
-            title={t("Ana menüye dön")}>
-            🏠 {t("Ana Menü")}
-          </button>
+          <Btn variant="subtle" size="sm" data-tour="home" onClick={leaveRace}
+            title={t("Ana menüye dön")} iconLeft={<Icon name="home" size={14} />}>
+            {t("Ana Menü")}
+          </Btn>
         )}
         <span className="langsw">
           {["tr", "en"].map((l) => (
@@ -1908,16 +1909,17 @@ ${bottomBar}
           </span>
         )}
         {access && (
-          <button className="adminbtn" data-tour="hteam"
-            onClick={() => setTeamOpen(true)} title={t("Takımlarım")}>
-            🏢 {teamData?.meta?.name || t("Takımlar")}
-          </button>
+          <Btn variant="subtle" size="sm" data-tour="hteam"
+            onClick={() => setTeamOpen(true)} title={t("Takımlarım")}
+            iconLeft={<Icon name="building" size={14} />}>
+            {teamData?.meta?.name || t("Takımlar")}
+          </Btn>
         )}
         {chatBtn}
         {isAdmin && (
           <button className="adminbtn" onClick={() => setAdminOpen(true)}
             title={t("Kullanıcı yönetimi")}>
-            👥 {t("Üyeler")}
+            <Icon name="users" size={14} /> {t("Üyeler")}
             {Object.values(allUsers).filter((u) => u?.requested && u?.allowed !== true).length > 0 &&
               <b className="badge">{Object.values(allUsers)
                 .filter((u) => u?.requested && u?.allowed !== true).length}</b>}
@@ -1934,7 +1936,8 @@ ${bottomBar}
             <button className="unamebtn" title={t("Profili düzenle")}
               onClick={() => { setProfName(userName || user.displayName || ""); setProfOpen(true); }}>
               {userName || user.displayName || user.email}</button>
-            <button onClick={signOut} title={t("Çıkış yap")}>⏻</button>
+            <button onClick={signOut} title={t("Çıkış yap")} aria-label={t("Çıkış yap")}>
+              <Icon name="power" size={15} /></button>
           </span>
         )}
       </header>
@@ -2244,16 +2247,16 @@ ${bottomBar}
                 : e.key === "Home" ? 0 : btns.length - 1;
               btns[n].focus(); btns[n].click();
             }}>
-            {[["dash", "Dashboard", "\u{1F4CA}"], ["stint", "Stint", "\u{1F4CB}"],
+            {[["dash", "Dashboard", <Icon name="chart" size={15} />], ["stint", "Stint", <Icon name="cap" size={15} />],
               /* ["code80", "Code 80"], — şimdilik arayüzden gizli, kod korunuyor */
-              ["fuel", t("Son Stint Yakıtı"), "\u26A1"],
+              ["fuel", t("Son Stint Yakıtı"), <Icon name="zap" size={15} />],
               /* Canlı timing tüm kullanıcılara açık (v1.4.79) — test aşaması bitti. */
-              ["live", t("Canlı"), "📡"],
+              ["live", t("Canlı"), <Icon name="live" size={15} />],
               ["tyre", t("Lastik"), <Tyre size={12} />],
               ["drivers", t("Pilotlar"), <Wheel size={12} />],
-              ["tele", t("Telemetri"), "\u{1F4C8}"],
-              ["setup", t("Setup"), "\u{1F527}"],
-              ...(raceChan ? [["rchat", t("Yarış Sohbeti"), "\u{1F4AC}"]] : [])]
+              ["tele", t("Telemetri"), <Icon name="chart" size={15} />],
+              ["setup", t("Setup"), <Icon name="wrench" size={15} />],
+              ...(raceChan ? [["rchat", t("Yarış Sohbeti"), <Icon name="chat" size={15} />]] : [])]
               .map(([k, l, ico]) => (
               <button key={k} id={`tab-${k}`} role="tab" aria-selected={tab === k}
                 aria-controls="tabpanel-main" tabIndex={tab === k ? 0 : -1}
