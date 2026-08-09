@@ -222,6 +222,58 @@ export function Btn({ variant = "subtle", size = "md", iconLeft, className = "",
   );
 }
 
+/* Komut paleti (Ctrl+K) — filtrelenebilir aksiyon listesi; ↑/↓/Enter/Esc ile gezinme.
+   Harici bağımlılık yok; mevcut wxmodal desenini yeniden kullanır. */
+export function CommandPalette({ open, onClose, actions, t }) {
+  const [q, setQ] = useState("");
+  const [sel, setSel] = useState(0);
+  const inputRef = useRef(null);
+  const ql = q.trim().toLowerCase();
+  const filtered = !ql ? actions : actions.filter((a) =>
+    a.label.toLowerCase().includes(ql) || (a.keywords || "").toLowerCase().includes(ql));
+  useEffect(() => {
+    if (open) { setQ(""); setSel(0); const id = setTimeout(() => inputRef.current?.focus(), 20);
+      return () => clearTimeout(id); }
+  }, [open]);
+  useEffect(() => { setSel(0); }, [q]);
+  if (!open) return null;
+  const run = (a) => { if (!a) return; onClose(); a.run(); };
+  const onKey = (e) => {
+    if (e.key === "ArrowDown") { e.preventDefault(); setSel((s) => Math.min(s + 1, filtered.length - 1)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setSel((s) => Math.max(s - 1, 0)); }
+    else if (e.key === "Enter") { e.preventDefault(); run(filtered[sel]); }
+    else if (e.key === "Escape") { e.preventDefault(); onClose(); }
+  };
+  return (
+    <div className="wxmodal" onClick={onClose}>
+      <div className="wxmbox cmdk" onClick={(e) => e.stopPropagation()} onKeyDown={onKey}
+        role="dialog" aria-modal="true" aria-label={t("Komut paleti")}>
+        <div className="cmdk-in">
+          <Icon name="search" size={16} />
+          <input ref={inputRef} type="text" value={q} placeholder={`${t("Komut ara")}…`}
+            onChange={(e) => setQ(e.target.value)} aria-label={t("Komut ara")} />
+        </div>
+        <div className="cmdk-list" role="listbox">
+          {!filtered.length && (
+            <div className="hint" style={{ padding: "12px 14px" }}>{t("Sonuç yok")}</div>)}
+          {filtered.map((a, i) => (
+            <button key={a.id} role="option" aria-selected={i === sel}
+              className={`cmdk-opt ${i === sel ? "on" : ""}`}
+              onMouseEnter={() => setSel(i)} onClick={() => run(a)}>
+              {a.icon && <span className="cmdk-i" aria-hidden="true">{a.icon}</span>}
+              <span className="cmdk-l">{a.label}</span>
+              {a.hint && <span className="cmdk-h">{a.hint}</span>}
+            </button>
+          ))}
+        </div>
+        <div className="cmdk-foot">
+          <span>↑↓ {t("gezin")}</span><span>↵ {t("seç")}</span><span>esc {t("kapat")}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* Rozetler — driver ikonu <Wheel/> JSX içerdiği için bu modülde (App + App JSX ortak). */
 export const BADGES = {
   admin:    { lbl: "Admin",            ico: "🛡", col: "#E11D2E", bg: "rgba(225,29,46,.14)" },

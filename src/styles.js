@@ -17,6 +17,24 @@ export const css = `
   --sel-bg:rgba(150,0,24,.22); --sel-bg-soft:rgba(150,0,24,.12);
   --sel-border:var(--accent);
 }
+/* --- Light mode (opsiyonel) — koyu tema ana kimlik; bu blok tokenları rol-swap eder.
+   Marka #960018 / --car korunur. Anlamsal renkler açık zemine göre koyulaştırıldı. --- */
+:root[data-theme="light"]{
+  --bg:#F4EEF0; --panel:#FFFFFF; --panel2:#F6EEF0; --line:#E2D3D8; --line2:#CBB4BC;
+  --txt:#1B1215; --dim:#6C5A61; --muted:#87737B;
+  --accent:#BC2A44; --teal:var(--accent); --brand2:#A5182F; --car:#960018;
+  --green:#128A4D; --yellow:#B0790C; --red:#D22F3C; --purple:#7A4FD0;
+  --focus:var(--accent);
+  --sel-bg:rgba(150,0,24,.12); --sel-bg-soft:rgba(150,0,24,.06);
+  --sel-border:var(--accent);
+}
+/* light modda koyu-sabit dekoratif zeminleri açık tona çevir (aksi halde açık zeminde
+   koyu leke gibi durur). Tam-ekran pit board/big board bilinçli koyu kalır. */
+:root[data-theme="light"] .rc .livestrip{background:#FBE9EC}
+:root[data-theme="light"] .rc .hudstrip{
+  background:radial-gradient(130% 180% at 100% 0,rgba(150,0,24,.10),#FBE9EC 62%)}
+:root[data-theme="light"] .rc .lobby{
+  background:radial-gradient(ellipse at 50% 0%,#F6D9DE 0%,var(--bg) 60%)}
 .rc *{box-sizing:border-box}
 .rc{min-height:100vh;background:var(--bg);color:var(--txt);
   font-family:'Inter',system-ui,sans-serif;font-size:13px;padding:0 0 40px}
@@ -809,6 +827,33 @@ export const css = `
 :root[data-density="comfort"] .rc input[type=text],
 :root[data-density="comfort"] .rc input[type=number],
 :root[data-density="comfort"] .rc input[type=datetime-local]{padding:8px 10px}
+/* --- Komut paleti (Ctrl+K) --- */
+.rc .wxmbox.cmdk{width:min(560px,94vw);align-self:flex-start;margin-top:12vh}
+.rc .cmdk-in{display:flex;align-items:center;gap:9px;padding:12px 16px;
+  border-bottom:1px solid var(--line);color:var(--dim)}
+.rc .cmdk-in input{flex:1;background:none;border:none;outline:none;color:var(--txt);
+  font-family:'Inter',sans-serif;font-size:16px;padding:0}
+.rc .cmdk-list{max-height:min(52vh,420px);overflow-y:auto;padding:6px}
+.rc .cmdk-opt{display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;
+  border-radius:8px;color:var(--txt);cursor:pointer;padding:9px 11px;text-align:left;font-size:13px}
+.rc .cmdk-opt.on{background:var(--sel-bg)}
+.rc .cmdk-i{display:inline-flex;color:var(--dim);flex:0 0 auto}
+.rc .cmdk-opt.on .cmdk-i{color:var(--accent)}
+.rc .cmdk-l{flex:1}
+.rc .cmdk-h{font-size:11px;color:var(--muted);font-family:'IBM Plex Mono'}
+.rc .cmdk-foot{display:flex;gap:16px;padding:8px 14px;border-top:1px solid var(--line);
+  font-size:10.5px;color:var(--muted);letter-spacing:.04em}
+/* --- İskelet yükleme (Suspense / veri beklerken düz metin yerine) --- */
+.rc .skelwrap{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;padding:4px 0}
+.rc .skel{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+  padding:14px;min-height:96px;position:relative;overflow:hidden}
+.rc .skel::after{content:"";position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.06),transparent);
+  transform:translateX(-100%);animation:skelsh 1.25s ease-in-out infinite}
+.rc .skel .sl{height:12px;border-radius:5px;background:var(--panel2);margin-bottom:9px}
+.rc .skel .sl.w40{width:40%}.rc .skel .sl.w70{width:70%}.rc .skel .sl.w55{width:55%}
+@keyframes skelsh{100%{transform:translateX(100%)}}
+@media (prefers-reduced-motion:reduce){.rc .skel::after{animation:none}}
 /* klavye odağı her interaktif öğede görünür */
 .rc button:focus-visible,.rc select:focus-visible,.rc a:focus-visible,
 .rc [role="button"]:focus-visible{outline:2px solid var(--accent);outline-offset:2px;

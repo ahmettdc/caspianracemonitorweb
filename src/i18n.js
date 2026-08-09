@@ -70,6 +70,10 @@ export const EN = {
   "Telemetri": "Telemetry", "Ana sekmeler": "Main tabs",
   "Yoğunluğu değiştir": "Toggle density", "Yoğunluk: Rahat": "Density: Comfortable",
   "Yoğunluk: Kompakt": "Density: Compact",
+  "Temayı değiştir": "Toggle theme", "Koyu temaya geç": "Switch to dark",
+  "Açık temaya geç": "Switch to light",
+  "Komut paleti": "Command palette", "Komut ara": "Search commands",
+  "Sonuç yok": "No results", "gezin": "navigate", "seç": "select", "kapat": "close",
   // stint kartı
   "Code 80 Kalan": "Code 80 Remaining", "Yarış Süresi": "Race Time",
   "Strateji": "Strategy", "Stint Sayısı": "Stint Count",

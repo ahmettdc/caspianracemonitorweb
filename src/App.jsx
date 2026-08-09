@@ -49,6 +49,7 @@ import {
   BADGES, teamBadgesOf, hasBadge, ChatPanel, SetupForm, SetupTable, SetupCards,
   VersionModal, RaceEditModal,
   ChatModal, SetupModal, TeamModal, DenyToast, SetupContentModal, SetupCompareModal,
+  CommandPalette,
 } from "./components";
 import { WetIcon } from "./WetIcon";
 
@@ -173,6 +174,37 @@ export default function App() {
     try { localStorage.setItem("crm-density", nx); } catch { /* özel mod */ }
     return nx;
   });
+  /* Tema — koyu "Pit Wall OS" ana kimlik (varsayılan); light opsiyonel. Tokenlar
+     :root'ta koyu tanımlı, :root[data-theme="light"] override eder. body bg + meta
+     theme-color de temaya göre güncellenir (index.html sabitini ezmek için). */
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem("crm-theme") || "dark"; } catch { return "dark"; }
+  });
+  useEffect(() => {
+    try {
+      document.documentElement.dataset.theme = theme;
+      const bg = theme === "light" ? "#F4EEF0" : "#120C0E";
+      document.body.style.background = bg;
+      const meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.setAttribute("content", theme === "light" ? "#F4EEF0" : "#960018");
+    } catch { /* yoksay */ }
+  }, [theme]);
+  const toggleTheme = () => setTheme((v) => {
+    const nx = v === "light" ? "dark" : "light";
+    try { localStorage.setItem("crm-theme", nx); } catch { /* özel mod */ }
+    return nx;
+  });
+  /* Komut paleti (Ctrl/Cmd+K) — hızlı sekme/aksiyon erişimi. */
+  const [cmdOpen, setCmdOpen] = useState(false);
+  useEffect(() => {
+    const h = (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")) {
+        e.preventDefault(); setCmdOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, []);
   const [entered, setEntered] = useState(false); // lobi geçildi mi (solo/oda)
   const [pickDone, setPickDone] = useState(false); // pist/araç seçimi tamamlandı mı
   const [setupDone, setSetupDone] = useState(false); // data giriş adımı tamamlandı mı
@@ -1039,6 +1071,26 @@ ${bottomBar}
       text={t("Bu işlem için yetkiniz yok — düzenleme Yarış Mühendisi/Takım Sahibine açık")}
       onDone={() => setDeny(0)} />
   );
+  /* Komut paleti aksiyonları — sekmeler + hızlı ayarlar. */
+  const cmdActions = [
+    { id: "dash", label: t("Dashboard"), keywords: "dash panel", icon: <Icon name="chart" size={15} />, run: () => setTab("dash") },
+    { id: "stint", label: t("Stint"), keywords: "stint", icon: <Icon name="cap" size={15} />, run: () => setTab("stint") },
+    { id: "fuel", label: t("Son Stint Yakıtı"), keywords: "fuel yakıt", icon: <Icon name="zap" size={15} />, run: () => setTab("fuel") },
+    { id: "live", label: t("Canlı"), keywords: "live canlı timing", icon: <Icon name="live" size={15} />, run: () => setTab("live") },
+    { id: "tyre", label: t("Lastik"), keywords: "tyre lastik", icon: <Tyre size={13} />, run: () => setTab("tyre") },
+    { id: "drivers", label: t("Pilotlar"), keywords: "drivers pilot", icon: <Wheel size={13} />, run: () => setTab("drivers") },
+    { id: "tele", label: t("Telemetri"), keywords: "telemetry telemetri", icon: <Icon name="chart" size={15} />, run: () => setTab("tele") },
+    { id: "setup", label: t("Setup"), keywords: "setup", icon: <Icon name="wrench" size={15} />, run: () => setTab("setup") },
+    ...(raceChan ? [{ id: "rchat", label: t("Yarış Sohbeti"), keywords: "chat sohbet", icon: <Icon name="chat" size={15} />, run: () => setTab("rchat") }] : []),
+    { id: "theme", label: theme === "light" ? t("Koyu temaya geç") : t("Açık temaya geç"), keywords: "theme tema dark light", icon: <Icon name={theme === "light" ? "moon" : "sun"} size={15} />, run: toggleTheme },
+    { id: "density", label: t("Yoğunluğu değiştir"), keywords: "density yoğunluk", icon: <Icon name="rows" size={15} />, run: toggleDensity },
+    { id: "lang", label: lang === "en" ? "Türkçe" : "English", keywords: "language dil", run: () => switchLang(lang === "en" ? "tr" : "en") },
+    ...(user ? [{ id: "chat", label: t("Sohbet"), keywords: "chat sohbet team", icon: <Icon name="chat" size={15} />, run: () => setChatOpen(true) }] : []),
+    ...(curRace ? [{ id: "home", label: t("Ana Menü"), keywords: "home ana menü lobby", icon: <Icon name="home" size={15} />, run: leaveRace }] : []),
+  ];
+  const cmdPalette = (
+    <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} actions={cmdActions} t={t} />
+  );
 
   const [wxHist, setWxHist] = useState(false); // hava geçmişi penceresi
   const [wxPlanW, setWxPlanW] = useState("wet"); // planlı geçiş: hava
@@ -1459,7 +1511,7 @@ ${bottomBar}
       <div className="rc">
         <style>{css}</style>
         <UpdateBanner t={t} />
-        {teamModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}
+        {teamModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}{cmdPalette}
         <div className="lobby">
           <div className="box" style={{ maxWidth: 560 }}>
             <div className="langsw" style={{ display: "flex", justifyContent: "flex-end",
@@ -1720,7 +1772,7 @@ ${bottomBar}
       <style>{css}</style>
       <UpdateBanner t={t} />
       {teamModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{streamPlayer}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}
-      {denyToast}
+      {denyToast}{cmdPalette}
       {profOpen && user && (
         <div className="wxmodal" onClick={() => setProfOpen(false)}>
           <div className="wxmbox" style={{ width: "min(420px,94vw)" }}
@@ -1905,6 +1957,11 @@ ${bottomBar}
             {t("Ana Menü")}
           </Btn>
         )}
+        <button className="adminbtn" onClick={toggleTheme}
+          title={theme === "light" ? t("Koyu temaya geç") : t("Açık temaya geç")}
+          aria-label={t("Temayı değiştir")} aria-pressed={theme === "light"}>
+          <Icon name={theme === "light" ? "moon" : "sun"} size={14} />
+        </button>
         <button className="adminbtn" onClick={toggleDensity}
           title={density === "comfort" ? t("Yoğunluk: Rahat") : t("Yoğunluk: Kompakt")}
           aria-label={t("Yoğunluğu değiştir")} aria-pressed={density === "comfort"}>
@@ -2304,7 +2361,14 @@ ${bottomBar}
               </div>
             </div>
           ) : (
-          <Suspense fallback={<div className="hint" style={{ padding: 16 }}>{t("Yükleniyor…")}</div>}>
+          <Suspense fallback={
+            <div className="skelwrap" aria-busy="true" aria-label={t("Yükleniyor…")}>
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="skel">
+                  <div className="sl w40" /><div className="sl w70" /><div className="sl w55" />
+                </div>
+              ))}
+            </div>}>
           {(tab === "stint" || tab === "code80") && (
             <StintTab tab={tab} mode={mode} t={t} st={st} plan={plan} totalVE={totalVE}
               totalFuelL={totalFuelL} timeline={timeline} liveInfo={liveInfo} pitSoon={pitSoon}
