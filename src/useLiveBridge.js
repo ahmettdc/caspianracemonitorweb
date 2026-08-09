@@ -30,6 +30,6 @@ export function useLiveBridge({ isMember, curTeam, curRace, user, noRest = false
     };
     tick();
     return () => { stopped = true; if (timer) clearTimeout(timer); stopBridge(setBridge); };
-  }, [canEditTeam, curTeam, curRace, user, noRest]);
+  }, [isMember, curTeam, curRace, user, noRest]);
   return bridge;
 }
