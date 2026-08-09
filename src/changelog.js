@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.140",
+    date: "2026-08-09",
+    tr: [
+      "❄️ Oyun donması kalıntısı düzeltmesi: köprü, VE/takım/bayrak için LMU REST'i açık kullanırken iki STATİK veriyi (486 araçlık araç kataloğu ve hava kelime sözlüğü) her 10 dakikada bir gereksizce yeniden çekiyordu. Bu ağır çağrılar seans ortasında oyunu mikro-dondurmaya yol açıyordu (25 dakikada ~2 donma). Artık bu iki statik kaynak seans başında YALNIZCA BİR KEZ çekiliyor — periyodik ağır tikler ortadan kalktı, donma bitmeli/çok azalmalı.",
+      "ℹ️ Not: canlı hava değişimi ETKİLENMEZ — gerçek yağmur/ıslaklık paylaşımlı bellekten her karede, bayrak ise ~3 sn'de bir okunmaya devam eder; yalnızca değişmeyen statik sözlük/katalog bir kez yüklenir. Ayrıca gizli bir hata da düzeldi: ilk çekim başarısız olursa (oyunun REST'i henüz hazır değilse) katalog artık 10 dakika boş kalmıyor, bir sonraki turda yeniden deneniyor. Sürüş PC'sinin yeni masaüstü sürümünü kurması gerekir.",
+    ],
+    en: [
+      "❄️ Residual game-freeze fix: while using LMU REST (for VE/team/flag), the bridge was needlessly re-fetching two STATIC datasets (the 486-car vehicle catalog and the weather-label dictionary) every 10 minutes. These heavy calls caused the game to micro-freeze mid-session (~2 freezes per 25 minutes). Those two static sources are now fetched ONLY ONCE at session start — the periodic heavy hitches are gone, so freezing should stop or drop sharply.",
+      "ℹ️ Note: live weather changes are UNAFFECTED — real rain/wetness is still read from shared memory every frame and the flag every ~3s; only the unchanging static dictionary/catalog is loaded once. Also fixes a latent bug: if the first fetch fails (game REST not ready yet), the catalog no longer stays empty for 10 minutes — it retries on the next cycle. The driving PC needs to install the new desktop build.",
+    ],
+  },
+  {
     v: "v1.4.139",
     date: "2026-08-09",
     tr: [

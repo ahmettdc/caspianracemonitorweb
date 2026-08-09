@@ -14,9 +14,11 @@ hot-path'inde DEĞİL, ayrı bir arka plan thread'inde (`start()`) yapılır. `_
 oyunun kendi localhost REST sunucusuna (127.0.0.1:6397) bloklayan istek atıyor; bunu
 2 Hz okuma döngüsünün İÇİNDE yapmak oyunu dondurdu (kullanıcı doğruladı: REST açıkken
 donma). TinyPedal aynı REST'i okuyup donmuyor çünkü istekleri arka planda/seyrek yapıyor.
-Şimdi: poller `interval` sn'de bir (varsayılan 3) flags+standings çeker, katalog/sky
-~600 sn'de bir; public metodlar (`standings/session_flags/sky_labels/lookup`) YALNIZ
-önbelleği okur — asla HTTP yapmaz, asla bloklamaz. read() bu yüzden donmaz.
+Şimdi: poller `interval` sn'de bir (varsayılan 3) flags+standings çeker; katalog/sky
+STATİK olduğundan YALNIZCA BİR KEZ başarıyla çekilir (timer yok — v1.4.140; 600 sn'de bir
+gereksiz yeniden çekim donma kalıntısına yol açıyordu). Public metodlar
+(`standings/session_flags/sky_labels/lookup`) YALNIZ önbelleği okur — asla HTTP yapmaz,
+asla bloklamaz. read() bu yüzden donmaz.
 """
 import json
 import re
@@ -74,8 +76,9 @@ class LmuApi:
     """LMU REST istemcisi — ARKA PLAN POLLER (v1.4.131).
 
     HTTP artık `RF2Source.read()`'in İÇİNDE değil; `start()` ile açılan bir daemon
-    thread `interval` sn'de bir flags+standings, ~600 sn'de bir katalog+sky çeker ve
-    sonuçları önbelleğe (`cache`/`flags`/`catalog`/`sky`) yazar. Public metodlar
+    thread `interval` sn'de bir flags+standings çeker; katalog+sky STATİK olduğundan
+    yalnızca BİR KEZ (başarıyla) çeker (timer yok — v1.4.140) ve sonuçları önbelleğe
+    (`cache`/`flags`/`catalog`/`sky`) yazar. Public metodlar
     (`standings/session_flags/sky_labels/lookup`) YALNIZ önbelleği okur → asla bloklamaz
     → oyun donmaz. `interval` büyütülerek (5-10 sn) istek yükü daha da azaltılabilir.
     """
@@ -87,11 +90,9 @@ class LmuApi:
         self.path = None            # çalışan standings endpoint (bulununca sabitlenir)
         self.cache = ({}, None)     # (by_driver, own_ve)
         self.diag_done = False
-        self.catalog = None         # (by_key, by_driver) — statik araç kataloğu
-        self.catalog_at = 0.0
+        self.catalog = None         # (by_key, by_driver) — statik araç kataloğu (bir kez)
         self.catalog_diag = False
-        self.sky = None             # {indeks: oyunun gökyüzü metni} — hava sözlüğü
-        self.sky_at = 0.0
+        self.sky = None             # {indeks: oyunun gökyüzü metni} — hava sözlüğü (bir kez)
         self.flags = None           # YETKİLİ bayrak {flag, yellowSectors} — REST'ten
 
     # ---- arka plan poller -------------------------------------------------
@@ -133,12 +134,12 @@ class LmuApi:
             self._poll_standings()
         except Exception:
             pass
-        # 3) katalog (dev JSON) — seansta ~bir kez (600 sn); nadir tek hitch
+        # 3) katalog (dev JSON) — statik; seansta YALNIZCA BİR KEZ (timer yok, v1.4.140)
         try:
             self._load_catalog()
         except Exception:
             pass
-        # 4) sky (yağış sözlüğü) — statik; seansta ~bir kez (600 sn)
+        # 4) sky (yağış sözlüğü) — statik; seansta YALNIZCA BİR KEZ (timer yok, v1.4.140)
         try:
             self._load_sky()
         except Exception:
@@ -163,13 +164,15 @@ class LmuApi:
 
     def _load_catalog(self):
         """/rest/sessions/getAllVehicles = statik araç kataloğu (tüm liveryler): temiz
-        team + manufacturer + number. Seansta ~bir kez çekilir (600 sn throttle) ve
-        önbelleğe alınır. Lookup haritaları: normalize(desc/vehicle/id) ve her sürücü
-        adı → {team,manufacturer,number}. (Poller'dan çağrılır; lookup() HTTP yapmaz.)"""
-        now = time.time()
-        if self.catalog is not None and now - self.catalog_at < 600:
-            return
-        self.catalog_at = now
+        team + manufacturer + number. Statik olduğundan seansta YALNIZCA BİR KEZ (başarıyla)
+        çekilir; dolu katalog geldikten sonra ASLA yeniden çekilmez (donma kalıntısını önler
+        — v1.4.140; eski 600 sn timer'ı dev JSON'u periyodik yeniden serileştirip oyunu
+        mikro-donduruyordu). İlk çekim başarısız/boşsa (oyunun REST'i henüz hazır değil)
+        katalog None kalır → poller bir sonraki turda yeniden dener. Lookup haritaları:
+        normalize(desc/vehicle/id) ve her sürücü adı → {team,manufacturer,number}.
+        (Poller'dan çağrılır; lookup() HTTP yapmaz.)"""
+        if self.catalog and (self.catalog[0] or self.catalog[1]):
+            return                              # dolu katalog var → BİR DAHA ÇEKME
         data = _get("/rest/sessions/getAllVehicles", timeout=3.0)
         by_key, by_drv = {}, {}
         if isinstance(data, list):
@@ -191,6 +194,8 @@ class LmuApi:
                     nm = d.get("name") if isinstance(d, dict) else None
                     if nm:
                         by_drv[str(nm).strip().lower()] = info
+        if not (by_key or by_drv):
+            return                              # başarısız/boş → None bırak, sonraki turda dene
         self.catalog = (by_key, by_drv)
         if not self.catalog_diag:
             self.catalog_diag = True
@@ -249,11 +254,14 @@ class LmuApi:
         return out
 
     def _load_sky(self):
-        """Gökyüzü/yağış sözlüğünü seansta ~bir kez çek (600 sn) → self.sky. (Poller.)"""
-        now = time.time()
-        if self.sky is not None and now - self.sky_at < 600:
-            return
-        self.sky_at = now
+        """Gökyüzü/yağış KELİME sözlüğü — STATİK (seans içinde değişmez). YALNIZCA BİR KEZ
+        başarıyla çekilir; dolu sözlük geldikten sonra ASLA yeniden çekilmez (timer yok —
+        v1.4.140). Boş/başarısız kalırsa poller bir sonraki turda yeniden dener. NOT: bu
+        yalnız oyunun hava KELİME sözlüğüdür (--dump-wx tanısı için); canlı yağmur/ıslaklık
+        DEĞERİ paylaşımlı bellekten her karede okunur → bu fetch onu ETKİLEMEZ. (Poller'dan
+        çağrılır; sky_labels() HTTP yapmaz.)"""
+        if self.sky:
+            return                              # dolu sözlük var → BİR DAHA ÇEKME
         try:
             self.sky = self.parse_sky_labels(_get("/rest/sessions/weather", timeout=3.0))
         except Exception:
