@@ -5,6 +5,20 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.5.0",
+    date: "2026-08-12",
+    tr: [
+      "🎉 1.5.0 — Ana Menü yeniden düzenlendi: dikey uzayan yığın yerine kompakt bir dashboard. Takımlar artık yatay kaydırılan kartlar (10+ takımda bozulmaz); üstte belirgin 📊 Telemetri hızlı erişim + Setup Havuzu · Sohbet · Yönet (okunmamış/adet rozetleriyle); sıradaki yarış vurgulu bir hero kart olarak; geçmiş yarışlar artık aranabilir + sezon-filtreli + 'Daha fazla' ile sayfalı (yalnız son 5 değil → 100+ yarışta aradığın bulunur).",
+      "📊 Telemetri'ye lobiden tek tıkla girilir (.ld yükle · analiz) — yarış açmaya gerek yok.",
+      "ℹ️ Renk/tipografi mevcut kimlik; tüm veriler (takımlar, takvim, sezonlar) aynı kaynaklardan gelir, işlev korunur.",
+    ],
+    en: [
+      "🎉 1.5.0 — Main Menu redesigned: a compact dashboard instead of a vertically sprawling stack. Teams are now horizontally scrolling cards (holds up at 10+ teams); a prominent 📊 Telemetry quick access up top + Setup Pool · Chat · Manage (with unread/count badges); the next race as a highlighted hero card; past races are now searchable + season-filtered + paginated with 'Show more' (not just the last 5 → find what you're looking for across 100+ races).",
+      "📊 Telemetry is one click from the lobby (load .ld · analyze) — no need to open a race.",
+      "ℹ️ Colors/typography follow the existing identity; all data (teams, calendar, seasons) comes from the same sources, functionality preserved.",
+    ],
+  },
+  {
     v: "v1.4.146",
     date: "2026-08-12",
     tr: [

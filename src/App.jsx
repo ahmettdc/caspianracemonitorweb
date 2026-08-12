@@ -766,6 +766,8 @@ ${bottomBar}
   });
 
   const [lobSeason, setLobSeason] = useState("all"); // lobide şampiyona süzgeci
+  const [lobQuery, setLobQuery] = useState("");      // geçmiş yarış araması (§1.3)
+  const [pastLimit, setPastLimit] = useState(12);    // geçmiş yarış sayfalama (§1.3)
   const [tnEdit, setTnEdit] = useState(null);        // takım adı düzenleme metni
 
   const myRole = teamData?.members?.[user?.uid] || "";
@@ -1476,12 +1478,15 @@ ${bottomBar}
     const sName = (sid) => (sid ? (seasons[sid]?.name || t("Sezon")) : t("Takvim dışı"));
     const seasonIds = Array.from(new Set(list.map(sidOf)));      // takvim sırasına göre
     const inFilter = (e) => lobSeason === "all" || sidOf(e) === lobSeason;
-    const upcoming = allUp.filter(inFilter);
-    const past = allPast.filter(inFilter);
-    const nextRid = allUp.length ? allUp[0][0] : null;
-    const upGroups = Array.from(new Set(upcoming.map(sidOf)))
-      .map((sid) => ({ sid, name: sName(sid),
-        items: upcoming.filter((e) => sidOf(e) === sid) }));
+    const upF = allUp.filter(inFilter);
+    const nextEntry = upF.length ? upF[0] : null;   // §1 sıradaki yarış (hero)
+    const restUp = upF.slice(1);                     // kalan yaklaşanlar
+    const q = lobQuery.trim().toLowerCase();
+    const matchQ = ([, r]) => !q
+      || (r.name || "").toLowerCase().includes(q)
+      || trackName(r.trackId).toLowerCase().includes(q);
+    const pastAll = allPast.filter(inFilter).filter(matchQ);   // §1.3 ara + süz
+    const pastShown = pastAll.slice(0, pastLimit);             // §1.3 sayfalama
     const RaceRow = ([rid, r], isNext) => (
       <button key={rid} className={`lrace ${isNext ? "next" : ""}`}
         onClick={() => openRace(rid)}>
@@ -1539,76 +1544,132 @@ ${bottomBar}
                   </button>
                 </div>
               ) : (<>
-                {Object.keys(myTeams).length > 1 && (
-                  <div className="tmtabs" style={{ padding: "0 0 10px" }}>
-                    {Object.entries(myTeams).map(([tid, nm]) => (
-                      <button key={tid} className={curTeam === tid ? "on" : ""}
-                        onClick={() => setCurTeam(tid)}>{nm}</button>
-                    ))}
+                {/* §1 — takım seçici: yatay kaydırılan kartlar (10+ ölçeklenir) */}
+                <div className="mmcap">{t("Takım")}</div>
+                <div className="mmteams">
+                  {Object.entries(myTeams).map(([tid, nm]) => (
+                    <button key={tid} className={`mmtm ${curTeam === tid ? "on" : ""}`}
+                      onClick={() => setCurTeam(tid)}>
+                      <span className="mmtlg">🏁</span>
+                      <span className="mmtnm">{nm}</span>
+                    </button>
+                  ))}
+                  <button className="mmtm add" onClick={() => setTeamOpen(true)}>
+                    <span className="mmtlg">＋</span>
+                    <span className="mmtnm">{t("Katıl")}</span>
+                  </button>
+                </div>
+
+                {/* §1.2 — hızlı eylemler: 📊 Telemetri belirgin */}
+                <div className="mmquick">
+                  <button className="mmqa tel"
+                    onClick={() => { setEntered(true); setTab("tele"); }}>
+                    <span className="mmqi">📊</span>
+                    <span className="mmql">{t("Telemetri")}</span>
+                    <span className="mmqs">{t(".ld yükle · analiz")}</span>
+                  </button>
+                  <button className="mmqa" onClick={() => setSuOpen(true)}>
+                    <span className="mmqi">🔧</span>
+                    <span className="mmql">{t("Setup Havuzu")}
+                      {setups.length > 0 && <span className="mmbadge">{setups.length}</span>}</span>
+                    <span className="mmqs">{t("paylaşımlı setuplar")}</span>
+                  </button>
+                  <button className="mmqa" data-tour="chat" onClick={() => setChatOpen(true)}>
+                    <span className="mmqi">💬</span>
+                    <span className="mmql">{t("Sohbet")}
+                      {chatUnread > 0 && <span className="mmbadge">{chatUnread}</span>}</span>
+                    <span className="mmqs">{t("takım kanalları")}</span>
+                  </button>
+                  <button className="mmqa" data-tour="manage" onClick={() => setTeamOpen(true)}>
+                    <span className="mmqi">⚙</span>
+                    <span className="mmql">{canEditTeam ? t("Yönet") : t("Görüntüle")}</span>
+                    <span className="mmqs">{t("takvim & takım")}</span>
+                  </button>
+                </div>
+
+                {/* sezon süzgeci (çok sezon) — yaklaşanı ve geçmişi süzer */}
+                {seasonIds.length > 1 && (
+                  <div className="mmchips">
+                    {[["all", t("Tümü")], ...seasonIds.map((sid) => [sid, sName(sid)])]
+                      .map(([v, l]) => (
+                        <button key={v} className={`mmchip ${lobSeason === v ? "on" : ""}`}
+                          onClick={() => setLobSeason(v)}>{l}</button>
+                      ))}
                   </div>
                 )}
 
-                <div className="lobbyteams" data-tour="races">
-                  <div className="lobbygrid">
-                    {/* SOL RAY — takım · sezon filtresi · yönetim */}
-                    <div className="lobbyrail">
-                      {/* hangi takımın takvimine baktığın belli olsun */}
-                      <div className="lteam">🏢 {teamData?.meta?.name
-                        || myTeams[curTeam] || t("Takım")}</div>
-                      {seasonIds.length > 1 && (<>
-                        <div className="rail-lbl">{t("Sezon")}</div>
-                        <div className="seasonfilter">
-                          {[["all", t("Tümü")], ...seasonIds.map((sid) => [sid, sName(sid)])]
-                            .map(([v, l]) => (
-                              <button key={v} className="act" style={{ fontSize: 11,
-                                ...(lobSeason === v
-                                  ? { borderColor: "var(--red)", color: "var(--red)" } : {}) }}
-                                onClick={() => setLobSeason(v)}>{l}</button>
-                            ))}
-                        </div>
-                      </>)}
-                      <div className="rail-lbl">{t("Yönetim")}</div>
-                      <div className="railmgmt">
-                        <button className="histbtn" data-tour="manage"
-                          onClick={() => setTeamOpen(true)}>
-                          ⚙ {canEditTeam ? t("Takvimi & Takımı Yönet") : t("Takımı Görüntüle")}</button>
-                        <button className="histbtn" onClick={() => setSuOpen(true)}>
-                          🔧 {t("Setup Havuzu")}{setups.length > 0 && <> · {setups.length}</>}</button>
-                        <button className="histbtn" data-tour="chat" onClick={() => setChatOpen(true)}>
-                          💬 {t("Sohbet")}{chatUnread > 0 && <> · {chatUnread}</>}</button>
-                      </div>
+                <div className="mmraces" data-tour="races">
+                  {/* sıradaki yarış — vurgulu hero */}
+                  {nextEntry ? (() => {
+                    const [rid, r] = nextEntry;
+                    return (<>
+                      <div className="mmsec">🏁 {t("Sıradaki Yarış")}</div>
+                      <button className="mmnext" onClick={() => openRace(rid)}>
+                        <span className="mmntrk">{trackFlag(r.trackId) || "🏁"}</span>
+                        <span className="mmninfo">
+                          <span className="mmnrnd">
+                            {sName(sidOf(nextEntry))}{r.round ? ` · R${r.round}` : ""}</span>
+                          <span className="mmnttl">{r.name || trackName(r.trackId) || "—"}</span>
+                          <span className="mmnmt">
+                            {r.trackId ? trackName(r.trackId) : ""}
+                            {r.raceTime ? ` · ${r.raceTime}` : ""}
+                            {r.carId ? ` · ${carName(r.carClass, r.carId)}` : ""}</span>
+                        </span>
+                        <span className="mmncd">
+                          {r.startsAt ? (
+                            <span className="mmncdd">{new Date(r.startsAt)
+                              .toLocaleString(lang === "en" ? "en-GB" : "tr-TR",
+                                { day: "2-digit", month: "short",
+                                  hour: "2-digit", minute: "2-digit" })}</span>
+                          ) : null}
+                          <span className="mmngo">{t("Aç")} →</span>
+                        </span>
+                      </button>
+                    </>);
+                  })() : (
+                    <div className="hint">{t("Takvimde yaklaşan yarış yok.")}</div>
+                  )}
+
+                  {/* kalan yaklaşanlar */}
+                  {restUp.length > 0 && (<>
+                    <div className="mmsec sub">{t("Yaklaşan")} ({restUp.length})</div>
+                    <div className="racegrid">
+                      {restUp.map((e) => (
+                        <Fragment key={e[0]}>
+                          {seasonIds.length > 1 && lobSeason === "all" && (
+                            <div className="lseason">{sName(sidOf(e))}</div>
+                          )}
+                          {RaceRow(e, false)}
+                        </Fragment>
+                      ))}
                     </div>
-                    {/* SAĞ ANA ALAN — yarış grid'i */}
-                    <div className="lobbymain">
-                      <div className="tmsec">🏁 {t("Yaklaşan Yarışlar")}</div>
-                      {upcoming.length === 0
-                        ? <div className="hint">{t("Takvimde yaklaşan yarış yok.")}</div>
-                        : <div className="racegrid">
-                          {upGroups.map((g) => (
-                            <Fragment key={g.sid || "none"}>
-                              {seasonIds.length > 1 && (
-                                <div className="lseason">{g.name}</div>
-                              )}
-                              {g.items.map((e) => RaceRow(e, e[0] === nextRid))}
-                            </Fragment>
-                          ))}
-                        </div>}
-                      {past.length > 0 && (<>
-                        <div className="tmsec" style={{ marginTop: 12 }}>
-                          {t("Geçmiş")}</div>
-                        <div className="racegrid">
-                          {past.slice(0, 5).map((e) => (
-                            <Fragment key={e[0]}>
-                              {seasonIds.length > 1 && lobSeason === "all" && (
-                                <div className="lseason">{sName(sidOf(e))}</div>
-                              )}
-                              {RaceRow(e, false)}
-                            </Fragment>
-                          ))}
-                        </div>
-                      </>)}
+                  </>)}
+
+                  {/* §1.3 — geçmiş: ara + sayfalama */}
+                  {allPast.length > 0 && (<>
+                    <div className="mmpasthd">
+                      <div className="mmsec">📅 {t("Geçmiş Yarışlar")}</div>
+                      <input className="mmsrch" value={lobQuery}
+                        placeholder={t("ara: pist, yarış adı…")}
+                        onChange={(e) => { setLobQuery(e.target.value); setPastLimit(12); }} />
                     </div>
-                  </div>
+                    {pastShown.length === 0
+                      ? <div className="hint">{t("Aramayla eşleşen geçmiş yarış yok.")}</div>
+                      : <div className="racegrid">
+                        {pastShown.map((e) => (
+                          <Fragment key={e[0]}>
+                            {seasonIds.length > 1 && lobSeason === "all" && (
+                              <div className="lseason">{sName(sidOf(e))}</div>
+                            )}
+                            {RaceRow(e, false)}
+                          </Fragment>
+                        ))}
+                      </div>}
+                    {pastAll.length > pastLimit && (
+                      <button className="mmmore" onClick={() => setPastLimit((n) => n + 12)}>
+                        ↓ {t("Daha fazla göster")} ({pastShown.length} / {pastAll.length})</button>
+                    )}
+                  </>)}
                 </div>
               </>)}
 

@@ -304,6 +304,66 @@ export const css = `
 .rc .tmtabs button.on{border-color:var(--car);color:#FFD9E0;background:var(--sel-bg)}
 .rc .tmsec{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--car);
   font-weight:700;margin:6px 0 7px}
+/* §1 — Ana Menü kompakt dashboard (v1.5.0) */
+.rc .mmcap{font-family:var(--font-disp);text-transform:uppercase;letter-spacing:.1em;
+  font-size:11px;color:var(--muted);margin:8px 0 8px;text-align:left}
+.rc .mmteams{display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px;scrollbar-width:thin;
+  text-align:left}
+.rc .mmtm{flex:none;display:flex;align-items:center;gap:8px;background:var(--panel2);
+  border:1px solid var(--line);border-radius:10px;padding:7px 14px 7px 8px;cursor:pointer;
+  min-width:140px;color:var(--txt)}
+.rc .mmtm.on{border-color:var(--accent);background:var(--sel-bg-soft)}
+.rc .mmtm .mmtlg{width:26px;height:26px;border-radius:7px;background:var(--panel);
+  border:1px solid var(--line2);display:grid;place-items:center;font-size:14px;flex:none}
+.rc .mmtm .mmtnm{font-family:var(--font-disp);font-weight:600;font-size:14px;white-space:nowrap}
+.rc .mmtm.add{min-width:0;color:var(--dim)}
+.rc .mmquick{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:6px 0 4px;
+  text-align:left}
+@media(max-width:560px){.rc .mmquick{grid-template-columns:repeat(2,1fr)}}
+.rc .mmqa{display:flex;flex-direction:column;gap:3px;align-items:flex-start;
+  background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:11px 13px;
+  cursor:pointer;color:var(--txt)}
+.rc .mmqa:hover{border-color:var(--line2)}
+.rc .mmqa.tel{background:var(--sel-bg);border-color:var(--brand2)}
+.rc .mmqa .mmqi{font-size:19px}
+.rc .mmqa .mmql{font-family:var(--font-disp);font-weight:600;font-size:14px;
+  display:inline-flex;align-items:center;gap:6px}
+.rc .mmqa .mmqs{font-size:10.5px;color:var(--muted)}
+.rc .mmbadge{background:var(--brand2);color:#fff;border-radius:9px;font-size:10px;padding:0 6px;
+  font-weight:600;font-family:var(--font-ui)}
+.rc .mmchips{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 4px}
+.rc .mmchip{background:var(--panel2);border:1px solid var(--line);color:var(--dim);
+  border-radius:20px;font-size:11.5px;padding:4px 11px;cursor:pointer}
+.rc .mmchip.on{border-color:var(--accent);color:var(--accent)}
+.rc .mmraces{text-align:left}
+.rc .mmsec{font-family:var(--font-disp);text-transform:uppercase;letter-spacing:.05em;
+  font-size:14px;color:var(--txt);margin:18px 0 9px;display:flex;align-items:center;gap:8px}
+.rc .mmsec.sub{font-size:12px;color:var(--muted);margin:14px 0 8px}
+.rc .mmnext{display:flex;align-items:center;gap:14px;width:100%;text-align:left;
+  border:1px solid var(--brand2);border-radius:13px;padding:14px;cursor:pointer;color:var(--txt);
+  background:radial-gradient(120% 160% at 100% 0,var(--sel-bg),var(--panel2) 60%)}
+.rc .mmnext:hover{border-color:var(--accent)}
+.rc .mmnext .mmntrk{width:72px;height:52px;border-radius:9px;background:var(--panel);
+  border:1px solid var(--line2);display:grid;place-items:center;font-size:28px;flex:none}
+.rc .mmnext .mmninfo{display:flex;flex-direction:column;min-width:0;flex:1;gap:2px}
+.rc .mmnext .mmnrnd{font-size:11px;color:var(--accent);font-weight:600;letter-spacing:.04em}
+.rc .mmnext .mmnttl{font-family:var(--font-disp);font-weight:700;font-size:20px;line-height:1.05;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rc .mmnext .mmnmt{font-size:12px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+.rc .mmnext .mmncd{margin-left:auto;text-align:right;flex:none;display:flex;
+  flex-direction:column;align-items:flex-end;gap:6px}
+.rc .mmnext .mmncdd{font-family:var(--font-mono);font-weight:600;font-size:13px}
+.rc .mmnext .mmngo{background:var(--car);color:#fff;border-radius:8px;padding:6px 14px;
+  font-family:var(--font-disp);font-weight:600;font-size:13px;white-space:nowrap}
+.rc .mmpasthd{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.rc .mmpasthd .mmsec{margin:18px 0 9px}
+.rc .mmsrch{margin-left:auto;background:var(--panel2);border:1px solid var(--line);
+  border-radius:8px;color:var(--txt);font-size:12.5px;padding:6px 10px;width:200px;max-width:44vw}
+.rc .mmsrch::placeholder{color:var(--muted)}
+.rc .mmmore{margin:12px auto 0;display:block;background:var(--panel2);border:1px solid var(--line);
+  color:var(--dim);border-radius:8px;padding:8px 18px;font-size:12.5px;cursor:pointer}
+.rc .mmmore:hover{border-color:var(--line2);color:var(--txt)}
 .rc .tmroom{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:8px;
   background:rgba(255,255,255,.03);margin-bottom:5px}
 .rc .tmroom .rcode{font-weight:700;color:var(--accent);letter-spacing:.08em}
