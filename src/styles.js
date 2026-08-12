@@ -445,6 +445,51 @@ export const css = `
 .rc .setuprow-v.axle span{min-width:56px;text-align:right}
 .rc .setuprow-v.axle b{display:block;color:var(--muted);font-weight:500;font-size:9.5px;
   letter-spacing:.08em;text-transform:uppercase;margin-bottom:-2px}
+/* §6 Pilotlar — baş-harf rozeti + pilot kartları + stint programı */
+.rc .drvav{display:inline-grid;place-items:center;border-radius:50%;flex:none;
+  font-family:var(--font-disp);font-weight:700;color:#0B0708;line-height:1;vertical-align:middle}
+.rc .drvcap{font-family:var(--font-disp);text-transform:uppercase;letter-spacing:.1em;
+  font-size:11px;color:var(--muted);margin:18px 0 8px}
+.rc .drivers{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.rc .drv{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);
+  border-left:3px solid var(--c);border-radius:12px;padding:13px 14px}
+.rc .drvtop{display:flex;align-items:center;gap:11px}
+.rc .drvwho{min-width:0}
+.rc .drvnm{font-family:var(--font-disp);font-weight:700;font-size:18px;line-height:1.05;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rc .drvteam{font-size:11px;color:var(--muted);margin-top:1px}
+.rc .drvbig{margin-left:auto;text-align:right;flex:none}
+.rc .drvbig .v{font-family:var(--font-disp);font-weight:700;font-size:20px;color:var(--c);
+  font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.rc .drvbig .l{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.rc .drvbar{height:6px;border-radius:4px;background:var(--panel3);margin:12px 0 7px;overflow:hidden}
+.rc .drvbar i{display:block;height:100%;background:var(--c);border-radius:4px}
+.rc .drvmeta{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dim)}
+.rc .drvmeta .pct{margin-left:auto;font-family:var(--font-disp);font-weight:700;color:var(--txt);
+  font-variant-numeric:tabular-nums}
+.rc .drvstints{display:flex;gap:4px;flex-wrap:wrap;margin-top:9px}
+.rc .drvstints .st{font-family:var(--font-disp);font-weight:600;font-size:11px;background:var(--panel3);
+  border:1px solid var(--line2);border-radius:5px;padding:1px 6px;color:var(--dim);
+  font-variant-numeric:tabular-nums}
+.rc .drvsched{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.rc .drvsched .srow{display:grid;grid-template-columns:34px 1fr auto;align-items:center;gap:10px;
+  padding:7px 12px;font-size:13px}
+.rc .drvsched .srow:not(:last-child){border-bottom:1px solid var(--line)}
+.rc .drvsched .srow:nth-child(even){background:rgba(255,255,255,.02)}
+.rc .drvsched .sno{font-family:var(--font-disp);font-weight:700;font-size:15px;color:var(--muted)}
+.rc .drvsched .swin{color:var(--dim);font-size:12px;font-variant-numeric:tabular-nums}
+.rc .drvsched .swin b{color:var(--txt);font-weight:600}
+.rc .drvsched .sasg{display:inline-flex;align-items:center;gap:7px}
+.rc .drvsched .sasg select{background:var(--panel2);border:1px solid var(--line);border-radius:7px;
+  color:var(--txt);font-family:var(--font-ui);font-size:12.5px;padding:5px 8px}
+.rc .drvlegend{flex:1 1 300px;display:flex;flex-direction:column;gap:2px}
+.rc .drvlegend .lrow{display:flex;align-items:center;gap:8px;padding:4px 2px;font-size:13px;
+  border-bottom:1px solid rgba(255,255,255,.04)}
+.rc .drvlegend .dot{width:12px;height:12px;border-radius:3px;flex:none}
+.rc .drvlegend .ln{font-weight:500}
+.rc .drvlegend .ls{margin-left:auto;color:var(--dim);font-size:12px;font-variant-numeric:tabular-nums}
+.rc .drvlegend .lp{font-family:var(--font-disp);font-weight:700;color:var(--txt);min-width:46px;
+  text-align:right;font-variant-numeric:tabular-nums}
 /* ⚖ setup karşılaştırma penceresi + alt-sabit seçim çubuğu */
 .rc .cmphead{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;
   margin:0 0 6px}
