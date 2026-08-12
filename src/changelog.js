@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.143",
+    date: "2026-08-12",
+    tr: [
+      "🧹 Lastik Stratejisi sekmesinden 'Kullanılan kuru lastik no' satırı kaldırıldı (hangi lastik numaralarının kullanıldığı zaten hücre renkleri ve 'Kullanılan / Kalan Lastik' sayaçlarında görünüyordu). Sayaçlar ve köşe kuralı denetimi aynen çalışıyor.",
+      "🔍 Lastik ↔ Stint durum akışı yeniden gözden geçirildi (bileşim, kullanılmış/yeni, stint değişimi, pit, sürücü değişimi, seans sıfırlama): önceki sıkılaştırmalar (pit bayrakları tablodan türetilir, kullanılan-set sayımı her seferinde yeniden hesaplanır) sağlam; yeni bir hata bulunmadı.",
+    ],
+    en: [
+      "🧹 Removed the 'Used dry tyre no' line from the Tyre Strategy tab (which tyre numbers are in use was already visible from the cell colors and the 'Used / Remaining Tyres' counters). The counters and corner-rule validation keep working unchanged.",
+      "🔍 Re-audited the Tyre ↔ Stint state flow (compound, used/new, stint change, pit, driver swap, session reset): the prior hardening (pit flags derived from the table, used-set count recomputed every time) holds; no new bug found.",
+    ],
+  },
+  {
     v: "v1.4.142",
     date: "2026-08-12",
     tr: [
