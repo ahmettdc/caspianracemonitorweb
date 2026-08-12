@@ -342,8 +342,12 @@ export const css = `
   border:1px solid var(--brand2);border-radius:13px;padding:14px;cursor:pointer;color:var(--txt);
   background:radial-gradient(120% 160% at 100% 0,var(--sel-bg),var(--panel2) 60%)}
 .rc .mmnext:hover{border-color:var(--accent)}
-.rc .mmnext .mmntrk{width:72px;height:52px;border-radius:9px;background:var(--panel);
-  border:1px solid var(--line2);display:grid;place-items:center;font-size:28px;flex:none}
+.rc .mmnext .mmntrk{height:52px;border-radius:9px;background:var(--panel);
+  border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;
+  gap:8px;padding:0 10px;font-size:26px;flex:none}
+.rc .mmnext .mmntrk .mmnflag{width:30px;height:20px;object-fit:cover;border-radius:3px;
+  border:1px solid var(--line);flex:0 0 auto}
+.rc .mmnext .mmntrk .mmntrkimg{width:58px;height:40px;object-fit:contain;flex:0 0 auto}
 .rc .mmnext .mmninfo{display:flex;flex-direction:column;min-width:0;flex:1;gap:2px}
 .rc .mmnext .mmnrnd{font-size:11px;color:var(--accent);font-weight:600;letter-spacing:.04em}
 .rc .mmnext .mmnttl{font-family:var(--font-disp);font-weight:700;font-size:20px;line-height:1.05;
