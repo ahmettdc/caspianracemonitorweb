@@ -5,6 +5,20 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.5.1",
+    date: "2026-08-12",
+    tr: [
+      "📊 Telemetri: LMU'nun yeni yerel kayıt formatı .duckdb artık DOĞRUDAN yüklenebiliyor (MoTeC → CSV export adımı gerekmez; .ld de çalışmaya devam eder). Aynı tur tablosu, %105, stint kaydı, iz karşılaştırması ve pist haritası .duckdb ile de çalışır.",
+      "🗺 .duckdb'de pist haritası GERÇEK GPS'ten çizilir (yaklaşık yerine kesin devre şekli); vites/gaz/fren/hız/RPM/direksiyon izleri ve tur-tur yakıt/lastik aşınması dosyadan okunur.",
+      "ℹ️ İlk .duckdb açılışında telemetri motoru (WebAssembly, ~35 MB) bir kez indirilir — yalnız telemetri kullanınca; site/ana uygulama etkilenmez. Dosya yalnız kendi aracının verisini içerir (saha yok); köşe sırası varsayımı ileride oyun HUD'u ile doğrulanacak.",
+    ],
+    en: [
+      "📊 Telemetry: LMU's new native recording format .duckdb can now be loaded DIRECTLY (no MoTeC → CSV export step; .ld still works). The same lap table, 105% rule, stint save, trace comparison and track map all work with .duckdb.",
+      "🗺 For .duckdb the track map is drawn from REAL GPS (exact circuit shape instead of an estimate); gear/throttle/brake/speed/RPM/steering traces and per-lap fuel/tyre wear are read from the file.",
+      "ℹ️ On the first .duckdb open the telemetry engine (WebAssembly, ~35 MB) downloads once — only when you use telemetry; the site/main app is unaffected. The file contains only your own car's data (no field); the corner order assumption will be verified against the game HUD later.",
+    ],
+  },
+  {
     v: "v1.5.0",
     date: "2026-08-12",
     tr: [

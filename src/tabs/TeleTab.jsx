@@ -634,7 +634,7 @@ export default function TeleTab({
             </button>
           ))}
         </div>
-        <label>{t("MoTeC tur istatistiklerini yapıştır veya dosya seç (CSV/TSV) — .ld doğrudan çalışır")}</label>
+        <label>{t("MoTeC tur istatistiklerini yapıştır veya dosya seç (CSV/TSV) — .ld ve .duckdb doğrudan çalışır")}</label>
         <textarea value={rawTele}
           onChange={(e) => { setRawTele(e.target.value); doParse(e.target.value); }}
           placeholder={"Out Lap\t310127\t-6.403 ...\nLap 1\t237350\t-6.36 ..."}
@@ -642,13 +642,14 @@ export default function TeleTab({
             border: "1px solid var(--line)", borderRadius: 6, color: "var(--txt)",
             fontFamily: "var(--font-mono)", fontSize: 11, padding: 8 }} />
         <div style={{ margin: "6px 0" }}>
-          <input type="file" accept=".csv,.tsv,.txt,.ld" onChange={onTeleFile} />
+          <input type="file" accept=".csv,.tsv,.txt,.ld,.duckdb" onChange={onTeleFile} />
           {savedMsg && (
             <span className="hint" style={{ color: "var(--green)", marginLeft: 10, fontWeight: 600 }}>
               ✓ Stint {savedMsg} {t("kaydedildi")}</span>
           )}
         </div>
-        {parsed?.loading && <div className="hint">⏳ {t(".ld çözümleniyor…")}</div>}
+        {parsed?.loading && <div className="hint">⏳ {parsed.duck
+          ? t("DuckDB çözümleniyor (ilk açılışta motor indirilir)…") : t(".ld çözümleniyor…")}</div>}
         {parsed?.error && <div className="hint warn">⚠ {t(parsed.error)}</div>}
         {parsed?.motec && (<>
           <div className="hint" style={{ marginTop: 4 }}>
