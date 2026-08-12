@@ -56,6 +56,13 @@ def log_path():
     return os.path.join(log_dir(), _LOG_NAME)
 
 
+def parent_app_path():
+    """Race Monitor masaüstü uygulaması köprüyü açarken kendi exe yolunu buraya yazar
+    (lib.rs launch_bridge_and_quit). Köprü bunu okuyup 'Race Engineer'a Dön' butonunu
+    gösterir. Standalone indirmede bu dosya yoktur → buton görünmez."""
+    return os.path.join(log_dir(), "parent_app.txt")
+
+
 def _exe_dir():
     try:
         return os.path.dirname(

@@ -9,7 +9,7 @@ from tkinter import messagebox
 
 from fb import FirebaseClient
 from main import make_source, build_payload, lower_priority
-from logfile import get_logger, heartbeat_line, log_path
+from logfile import get_logger, heartbeat_line, log_path, parent_app_path
 
 API_KEY = "AIzaSyB9hEH26etwvn9adAGNOpPAlpUym1qzpns"
 DB_URL = "https://caspian-race-control-default-rtdb.europe-west1.firebasedatabase.app"
@@ -60,13 +60,11 @@ class BridgeGUI:
         root.configure(bg=BG)
 
         self.vars = {k: tk.StringVar() for k in
-                     ("email", "password", "team_id", "race_id", "hz", "rest_interval")}
+                     ("email", "password", "team_id", "race_id", "hz")}
         self.vars["hz"].set("2")
-        self.vars["rest_interval"].set("3")
-        self.mock = tk.BooleanVar(value=False)
-        # REST varsayılan KAPALI — oyun donmasının en güçlü şüphelisi (LMU localhost REST).
-        # Açınca VE% + takım adı gelir ama oyun donabilir.
-        self.rest_on = tk.BooleanVar(value=False)
+        # §2.1/2.2: REST HEP AÇIK (toggle yok), Mock kutusu yok, REST yenileme 3 sn SABİT
+        # (§2.3). Donma kökten çözüldü (v1.4.140 fetch-once) → REST'i kapatmaya gerek yok.
+        self.parent_app = self._read_parent_app()   # §2.5 Race Engineer'a Dön (masaüstü açtıysa)
         # Google oturumu (bot yerine kendi hesabın) + takım/yarış listeleri
         self.refresh_token = ""
         self.google_email = ""
@@ -97,21 +95,8 @@ class BridgeGUI:
         self.race_menu = self._menu("Yarış", self.race_label, self.on_race_pick)
 
         self._field("Gönderim (Hz)", "hz")
-        tk.Checkbutton(root, text="⚡ REST aç — VE% + takım adı (arka planda; oyun DONMAZ)",
-                       variable=self.rest_on, bg=BG, fg=WARN, selectcolor=BG2, activebackground=BG,
-                       activeforeground=INK, font=("Segoe UI", 9)).pack(anchor="w", padx=12, pady=(6, 0))
-        rrow = tk.Frame(root, bg=BG)
-        rrow.pack(anchor="w", padx=26, pady=(0, 0))
-        tk.Label(rrow, text="REST yenileme (sn):", bg=BG, fg=DIM,
-                 font=("Segoe UI", 8)).pack(side="left")
-        tk.Entry(rrow, textvariable=self.vars["rest_interval"], width=4, bg=BG2, fg=INK,
-                 insertbackground=INK, relief="flat", font=("Segoe UI", 9)).pack(
-            side="left", padx=4, ipady=1)
-        tk.Label(rrow, text="(hâlâ takılırsa 5-10 yap)", bg=BG, fg=DIM,
-                 font=("Segoe UI", 8)).pack(side="left")
-        tk.Checkbutton(root, text="Mock veri (oyunsuz test)", variable=self.mock,
-                       bg=BG, fg=DIM, selectcolor=BG2, activebackground=BG,
-                       activeforeground=INK, font=("Segoe UI", 9)).pack(anchor="w", padx=12, pady=(2, 2))
+        tk.Label(root, text="⚡ REST açık — VE% + takım/numara arka planda (3 sn) · oyun donmaz",
+                 bg=BG, fg=DIM, font=("Segoe UI", 8)).pack(anchor="w", padx=14, pady=(4, 2))
 
         # --- Gelişmiş (bot hesabı) — katlanır; Google giriş yaptıysan gerekmez ---
         self.adv_open = False
@@ -137,6 +122,11 @@ class BridgeGUI:
         tk.Button(btns, text="📄 Logu aç", command=self.open_log, bg=BG2, fg=INK,
                   relief="flat", padx=12, pady=7, font=("Segoe UI", 10),
                   cursor="hand2").pack(side="left")
+        # §2.5: köprü, masaüstü Race Monitor'dan açıldıysa (parent_app.txt var) geri dön düğmesi.
+        if self.parent_app:
+            tk.Button(btns, text="🏎 Race Engineer'a Dön", command=self.back_to_engineer,
+                      bg=BG2, fg=INK, relief="flat", padx=12, pady=7, font=("Segoe UI", 10),
+                      cursor="hand2").pack(side="right")
 
         self.status = tk.Label(root, text="Hazır", bg=BG, fg=DIM,
                                font=("Segoe UI", 10, "bold"), anchor="w")
@@ -162,6 +152,35 @@ class BridgeGUI:
                 subprocess.Popen(["xdg-open", p])
         except Exception as e:  # noqa: BLE001
             self.log(f"log açılamadı: {p} ({e})")
+
+    @staticmethod
+    def _read_parent_app():
+        """parent_app.txt varsa (masaüstü Race Monitor köprüyü açtıysa) ana uygulama exe
+        yolunu döndür; yoksa/okunamıyorsa "" → standalone indirme, geri-dön butonu yok."""
+        try:
+            p = parent_app_path()
+            if os.path.exists(p):
+                with open(p, encoding="utf-8") as f:
+                    path = f.read().strip()
+                if path and os.path.exists(path):
+                    return path
+        except Exception:  # noqa: BLE001
+            pass
+        return ""
+
+    def back_to_engineer(self):
+        """§2.5: köprüyü kapat + masaüstü Race Monitor uygulamasını yeniden aç."""
+        try:
+            if os.name == "nt":
+                os.startfile(self.parent_app)  # noqa: E1101  (yalnız Windows)
+            else:
+                import subprocess
+                subprocess.Popen([self.parent_app])
+        except Exception as e:  # noqa: BLE001
+            self.log(f"Race Engineer açılamadı: {e}")
+            return
+        self.stop_evt.set()      # köprü döngüsünü durdur
+        self._real_quit()        # tepsiyi kapat + pencereyi yok et (orphan/duplicate yok)
 
     # ---------- ui helpers ----------
     def _field(self, label, key, show=None):
@@ -336,9 +355,7 @@ class BridgeGUI:
                 self.vars["race_id"].set(cp["race"].get("race_id", ""))
             if cp.has_section("rate"):
                 self.vars["hz"].set(cp["rate"].get("hz", "2"))
-                self.rest_on.set(cp["rate"].get("rest_on", "").strip().lower()
-                                 in ("1", "true", "yes", "on"))
-                self.vars["rest_interval"].set(cp["rate"].get("rest_interval", "3"))
+                # REST hep açık + 3 sn sabit (§2.1/2.3) → rest_on/rest_interval artık okunmaz.
             self.log("Kayıtlı ayarlar yüklendi.")
             # Google oturumu kayıtlıysa: giriş göster + takım/yarış listelerini tazele
             if self.refresh_token:
@@ -357,8 +374,7 @@ class BridgeGUI:
         cp["race"] = {"team_id": self.vars["team_id"].get().strip(),
                       "race_id": self.vars["race_id"].get().strip()}
         cp["rate"] = {"hz": self.vars["hz"].get().strip() or "2",
-                      "rest_on": "true" if self.rest_on.get() else "false",
-                      "rest_interval": self.vars["rest_interval"].get().strip() or "3"}
+                      "rest_on": "true", "rest_interval": "3"}   # REST hep açık, 3 sn sabit
         with open(self.cfg, "w", encoding="utf-8") as f:
             cp.write(f)
 
@@ -445,30 +461,22 @@ class BridgeGUI:
         except ValueError:
             hz = 2.0
         period = 1.0 / max(0.2, min(hz, 10))
-        no_rest = not self.rest_on.get()
-        try:
-            rest_iv = max(0.5, min(float(self.vars["rest_interval"].get().strip() or "3"), 60.0))
-        except ValueError:
-            rest_iv = 3.0
         low = lower_priority()  # oyunla çekişmede oyun kazansın
-        self.lg.info("=== Köprü başladı === hedef teams/%s/live/%s · %g Hz · %s · REST:%s (aralık %gs) · öncelik:%s",
-                     tid, rid, hz, "MOCK" if self.mock.get() else "oyun",
-                     "kapalı" if no_rest else "AÇIK", rest_iv, "düşük" if low else "normal")
-        self.log(f"REST: {'kapalı (donma önlemi)' if no_rest else f'AÇIK — arka plan {rest_iv:g}s'}"
-                 f" · öncelik: {'düşük' if low else 'normal'}")
+        # §2.1/2.3: REST HEP AÇIK, yenileme 3 sn SABİT (kullanıcı toggle'ı kaldırıldı).
+        self.lg.info("=== Köprü başladı === hedef teams/%s/live/%s · %g Hz · REST:AÇIK (3s) · öncelik:%s",
+                     tid, rid, hz, "düşük" if low else "normal")
+        self.log(f"REST: AÇIK — arka plan 3s · öncelik: {'düşük' if low else 'normal'}")
         try:
             fb = self._client()
             self.log("[firebase] giriş…")
             fb.sign_in()
             self.log(f"Giriş yapıldı — UID: {fb.uid}")
             self.lg.info("giriş OK — UID %s", fb.uid)
-            src = make_source(self.mock.get(), no_rest, rest_iv)
-            self.log("Mock veri" if self.mock.get() else "Oyun (paylaşımlı bellek) okunuyor")
+            src = make_source(False, False, 3.0)   # mock=False, no_rest=False (REST açık), aralık 3s
+            self.log("Oyun (paylaşımlı bellek) okunuyor")
         except Exception as e:  # noqa: BLE001
             self.log(f"başlatılamadı: {e}")
             self.lg.error("başlatılamadı: %s", e)
-            if not self.mock.get():
-                self.log("Oyun okunamadıysa 'Mock veri' ile hattı test edebilirsin.")
             self.set_status("Hata", BAD)
             self._set_btn("Kaydet & Başlat")
             return
@@ -485,6 +493,10 @@ class BridgeGUI:
                 t2 = time.time()
                 fails = 0
                 sent += 1
+                if sent == 1 and self.tray is not None:
+                    # §2.4: ilk kare BAŞARIYLA gönderildi → pencereyi tepsiye indir. (Başarısız
+                    # başlatmada bu satıra ulaşılmaz → pencere görünür kalır, kullanıcı hatayı görür.)
+                    self.root.after(0, self._hide_to_tray)
                 fuel = (payload["own"] or {}).get("fuel")
                 self.set_status(f"● {len(payload['field'])} araç · yakıt "
                                 f"{fuel if fuel is not None else '—'}", GOOD)

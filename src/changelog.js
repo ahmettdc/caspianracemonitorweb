@@ -5,6 +5,20 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.141",
+    date: "2026-08-12",
+    tr: [
+      "🪶 Caspian Live Bridge sadeleştirildi: 'REST aç' ve 'Mock veri' kutuları kaldırıldı. REST (VE% + takım/numara) artık HEP açık ve arka planda 3 saniyede bir çalışır (oyunu dondurmadan — v1.4.140 ile kökten çözüldü).",
+      "🪶 'Kaydet & Başlat' başarıyla bağlanınca köprü penceresi otomatik olarak sistem tepsisine iner (yayın sürer). Başlatma başarısız olursa pencere görünür kalır ki hatayı görebilesin.",
+      "🏎 Köprü penceresine 'Race Engineer'a Dön' butonu eklendi (yalnız masaüstü uygulamasından açıldıysa görünür): köprüyü kapatır ve Race Monitor'ı geri açar.",
+    ],
+    en: [
+      "🪶 Caspian Live Bridge simplified: the 'Enable REST' and 'Mock data' checkboxes were removed. REST (VE% + team/number) is now ALWAYS on and runs in the background every 3 seconds (without stuttering the game — fixed at the root in v1.4.140).",
+      "🪶 On a successful 'Save & Start', the bridge window now auto-minimizes to the system tray (streaming continues). If start fails, the window stays visible so you can see the error.",
+      "🏎 Added a 'Back to Race Engineer' button to the bridge window (shown only when it was opened from the desktop app): it closes the bridge and reopens Race Monitor.",
+    ],
+  },
+  {
     v: "v1.4.140",
     date: "2026-08-09",
     tr: [
