@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.145",
+    date: "2026-08-12",
+    tr: [
+      "🔧 Setup İçeriği penceresi yeniden düzenlendi: ham bölüm adları (REARWING, FRONTLEFT…) yerine dostça kategoriler (Aero · Lastik · Süspansiyon · Hizalama · Fren · Diferansiyel · Elektronik · Motor & Yakıt) altında, net etiket · değer · birim hiyerarşisiyle iki kolon. Ön/arka eş alanlar (basınç, kamber, yükseklik…) tek satırda ÖN·ARKA olarak birleşir → liste yarı yarıya kısalır.",
+      "🔧 Setup İçeriğine alan araması ve 'Anlamlı alanlar / Tümünü göster' anahtarı eklendi. Değerler yine dosyanın kendi etiketlerinden gelir (uydurma yok); yalnız veride bulunan kategoriler çizilir.",
+    ],
+    en: [
+      "🔧 Redesigned the Setup Contents window: instead of raw section names (REARWING, FRONTLEFT…), fields are grouped under friendly categories (Aero · Tyres · Suspension · Alignment · Brakes · Differential · Electronics · Engine & Fuel) with a clear label · value · unit hierarchy in two columns. Matching front/rear fields (pressure, camber, ride height…) merge into a single FRONT·REAR row → the list is roughly half as long.",
+      "🔧 Added field search and a 'Key fields / Show all' toggle to Setup Contents. Values still come from the file's own labels (nothing invented); only categories present in the data are drawn.",
+    ],
+  },
+  {
     v: "v1.4.144",
     date: "2026-08-12",
     tr: [

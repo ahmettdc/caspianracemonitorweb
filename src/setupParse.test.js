@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseSvm, setupSummary, b64ToText, diffSetups } from "./setupParse";
+import { parseSvm, setupSummary, b64ToText, diffSetups, categorizeSetup } from "./setupParse";
 
 /* Kullanıcının paylaştığı gerçek LMU_Porsche_LMGT3.svm'den kesitler. */
 const SAMPLE = `VehicleClassSetting="GT3 Porsche_911_GT3_R_LMGT3 WEC2024"
@@ -111,6 +111,44 @@ describe("setupSummary", () => {
   it("ok değilse boş", () => {
     expect(setupSummary({ ok: false })).toEqual([]);
     expect(setupSummary(null)).toEqual([]);
+  });
+});
+
+describe("categorizeSetup", () => {
+  const cats = categorizeSetup(parseSvm(SAMPLE));
+  const byCat = Object.fromEntries(cats.map((c) => [c.cat, c.rows]));
+  const find = (cat, key) => (byCat[cat] || []).find((r) => r.key === key);
+
+  it("ham bölüm/anahtarları dostça kategorilere toplar", () => {
+    expect(find("aero", "RWSetting").value).toBe("8.3 deg");     // REARWING → aero
+    expect(find("aero", "FWSetting").value).toBe("Standard");
+    expect(find("engine", "VirtualEnergySetting").value).toBe("100% (19.8 laps)"); // GENERAL → engine
+    expect(find("brake", "RearBrakeSetting").value).toBe("46.2:53.8");             // CONTROLS → brake
+    expect(find("elec", "AntilockBrakeSystemMapSetting").value).toBe("9 (Understeer)"); // key → elec
+    expect(find("diff", "DiffPreloadSetting").value).toBe("250 Nm");
+    expect(find("susp", "FrontAntiSwaySetting").value).toBe("P7 (hard)");
+  });
+
+  it("köşe (FRONTLEFT/REARLEFT) eş anahtarları tek axle satırında ÖN·ARKA birleştirir", () => {
+    const camber = find("align", "CamberSetting");
+    expect(camber.kind).toBe("axle");
+    expect(camber.front).toBe("-2.0 deg");   // FRONTLEFT
+    expect(camber.rear).toBe("-1.5 deg");    // REARLEFT
+    const ride = find("susp", "RideHeightSetting");
+    expect(ride.kind).toBe("axle");
+    expect(ride.front).toBe("5.0 cm");
+    expect(ride.rear).toBe("6.2 cm");
+  });
+
+  it("gürültü varsayılan gizli; all=true ile dahil; ok değilse boş", () => {
+    // N/A satırları (ChassisAdj, CGRear) varsayılan görünmez
+    const withNoise = categorizeSetup(parseSvm(SAMPLE), true);
+    const allKeys = withNoise.flatMap((c) => c.rows.map((r) => r.key));
+    expect(allKeys).toContain("CGRearSetting");
+    const noNoise = cats.flatMap((c) => c.rows.map((r) => r.key));
+    expect(noNoise).not.toContain("CGRearSetting");
+    expect(categorizeSetup({ ok: false })).toEqual([]);
+    expect(categorizeSetup(null)).toEqual([]);
   });
 });
 

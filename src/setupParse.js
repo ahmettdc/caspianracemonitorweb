@@ -115,6 +115,68 @@ export function diffSetups(parsedA, parsedB) {
   return out;
 }
 
+/* ---- Kategori gruplama (§9) — ham bölüm/anahtarları dostça kategorilere topla ----
+   Anahtar → kategori (birincil); bulunmazsa bölüm → kategori (yedek); o da yoksa "other".
+   Böylece hiçbir alan kaybolmaz (tam kapsama). SAF — test edilebilir. */
+const FIELD_CAT = {
+  FWSetting: "aero", RWSetting: "aero", WaterRadiatorSetting: "aero",
+  OilRadiatorSetting: "aero", BrakeDuctSetting: "aero", BrakeDuctRearSetting: "aero",
+  PressureSetting: "tyre", CompoundSetting: "tyre",
+  FrontAntiSwaySetting: "susp", RearAntiSwaySetting: "susp", SpringSetting: "susp",
+  RideHeightSetting: "susp", SlowBumpSetting: "susp", FastBumpSetting: "susp",
+  SlowReboundSetting: "susp", FastReboundSetting: "susp",
+  CamberSetting: "align", FrontToeInSetting: "align", RearToeInSetting: "align",
+  SteerLockSetting: "align",
+  RearBrakeSetting: "brake", BrakeMigrationSetting: "brake", BrakePressureSetting: "brake",
+  DiffPreloadSetting: "diff",
+  TractionControlMapSetting: "elec", TCPowerCutMapSetting: "elec",
+  TCSlipAngleMapSetting: "elec", AntilockBrakeSystemMapSetting: "elec",
+  FuelSetting: "engine", VirtualEnergySetting: "engine", EngineMixtureSetting: "engine",
+  RevLimitSetting: "engine",
+};
+const SECTION_CAT = {
+  FRONTWING: "aero", REARWING: "aero", BODYAERO: "aero",
+  SUSPENSION: "susp", CONTROLS: "brake", DRIVELINE: "diff", ENGINE: "engine", GENERAL: "engine",
+};
+/* Kategori sırası + kimliği (görsel meta component'te — burada yalnız id/sıra). */
+export const SETUP_CATS = ["aero", "tyre", "susp", "align", "brake", "diff", "elec", "engine", "other"];
+const CORNER = /^(FRONT|REAR)(LEFT|RIGHT)$/;
+
+/* parsed → [{ cat, rows:[{ key, kind:"single"|"axle", value?, front?, rear? }] }] (dolu kategoriler,
+   SETUP_CATS sırasında). Köşe bölümlerindeki (FRONTLEFT/REARLEFT…) eş anahtarlar tek "axle" satırında
+   ÖN·ARKA olarak birleşir (LEFT tarafı temsilci; yoksa RIGHT). `all=true` → gürültü satırları da dahil. */
+export function categorizeSetup(parsed, all = false) {
+  if (!parsed?.ok) return [];
+  const buckets = {};            // cat -> { order:[key], single:{key:value}, axle:{key:{front,rear}} }
+  const bucket = (c) => (buckets[c] = buckets[c] || { order: [], single: {}, axle: {} });
+  for (const r of parsed.rows) {
+    if (!all && !r.meaningful) continue;
+    const cat = FIELD_CAT[r.key] || SECTION_CAT[r.section] || "other";
+    const b = bucket(cat);
+    const m = r.section.match(CORNER);
+    if (m) {
+      const side = m[1] === "FRONT" ? "front" : "rear";
+      const ax = b.axle[r.key] || (b.axle[r.key] = {});
+      // LEFT tarafı öncelikli: boşsa ya da mevcut RIGHT'ten geldiyse yaz
+      if (ax[side] == null || m[2] === "LEFT") ax[side] = r.label;
+      if (!b.order.includes("ax:" + r.key)) b.order.push("ax:" + r.key);
+    } else {
+      if (b.single[r.key] == null) { b.single[r.key] = r.label; b.order.push(r.key); }
+    }
+  }
+  const out = [];
+  for (const cat of SETUP_CATS) {
+    const b = buckets[cat];
+    if (!b) continue;
+    const rows = b.order.map((o) => o.startsWith("ax:")
+      ? { key: o.slice(3), kind: "axle", front: b.axle[o.slice(3)].front ?? "—",
+          rear: b.axle[o.slice(3)].rear ?? "—" }
+      : { key: o, kind: "single", value: b.single[o] });
+    if (rows.length) out.push({ cat, rows });
+  }
+  return out;
+}
+
 /* parseSvm çıktısından küratörlü özet → [{ label, value }] (bulunmayan alan atlanır). */
 export function setupSummary(parsed) {
   if (!parsed?.ok) return [];

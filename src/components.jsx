@@ -10,7 +10,7 @@ import { CHANGELOG } from "./changelog";
 import { msToLocalInput, parseLap, fmtLap } from "./engine";
 import { SETUP_LIMITS, poolEmptyReason, lapDeltas } from "./setupPool";
 import { trackOptions, classOptions, carOptions } from "./pickerOptions";
-import { parseSvm, b64ToText, setupSummary, diffSetups } from "./setupParse";
+import { parseSvm, b64ToText, setupSummary, diffSetups, categorizeSetup } from "./setupParse";
 import { renameTeam, syncMyTeamName, createSeason, deleteRace,
   leaveTeam, createTeam, joinTeam, getSetupBlob } from "./storage";
 
@@ -1023,6 +1023,15 @@ const SVM_FIELDS = {
   FastReboundSetting: "Hızlı Yaylanma", CompoundSetting: "Lastik Hamuru",
 };
 
+/* Kategori kimliği → görünen ad + ikon (setupParse SETUP_CATS sırasında çizilir). */
+const CAT_META = {
+  aero: { tr: "Aero", icon: "✈" }, tyre: { tr: "Lastik", icon: "🛞" },
+  susp: { tr: "Süspansiyon", icon: "⚙" }, align: { tr: "Hizalama", icon: "📐" },
+  brake: { tr: "Fren", icon: "🛑" }, diff: { tr: "Diferansiyel", icon: "🔩" },
+  elec: { tr: "Elektronik", icon: "💡" }, engine: { tr: "Motor & Yakıt", icon: "🛢" },
+  other: { tr: "Diğer", icon: "•" },
+};
+
 /* Setup gövdesini (base64) hazırla — legacy kayıt su.data'yı meta içinde taşır
    (senkron yol, eskisi gibi); yeni kayıtlarda (şema bölme) globalSetupData/{id}
    talep üzerine çekilir. Dönen: { b64, loading }. Hook kuralı: erken return'lerden
@@ -1048,6 +1057,8 @@ function useSetupBlob(su, open) {
    özet çipleri (Arka Kanat vb.), altında bölüm bölüm anlamlı değerler. open=false → null. */
 export function SetupContentModal({ open, su, onClose, t }) {
   const blob = useSetupBlob(su, open);
+  const [q, setQ] = useState("");
+  const [showAll, setShowAll] = useState(false);
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
@@ -1057,17 +1068,27 @@ export function SetupContentModal({ open, su, onClose, t }) {
   if (!open || !su) return null;
   const parsed = parseSvm(b64ToText(blob.b64));
   const summary = setupSummary(parsed);
+  const fieldName = (key) => t(SVM_FIELDS[key] || key);
+  const cats = categorizeSetup(parsed, showAll);
+  const needle = q.trim().toLowerCase();
+  const shown = needle
+    ? cats.map((c) => ({ ...c, rows: c.rows.filter((r) => {
+      const nm = fieldName(r.key).toLowerCase();
+      const val = (r.kind === "axle" ? `${r.front} ${r.rear}` : r.value || "").toLowerCase();
+      return nm.includes(needle) || val.includes(needle);
+    }) })).filter((c) => c.rows.length)
+    : cats;
   const title = [carName(su.cls, su.car) || su.car, trackName(su.track) || su.track]
     .filter(Boolean).join(" · ");
   return (
     <div className="wxmodal" onClick={onClose}>
-      <div className="wxmbox" style={{ width: "min(560px,95vw)" }}
+      <div className="wxmbox" style={{ width: "min(640px,95vw)" }}
         onClick={(e) => e.stopPropagation()}>
         <div className="wxmhead">
-          <span>🔍 {t("Setup İçeriği")}</span>
+          <span>🔧 {t("Setup İçeriği")}</span>
           <button className="lbclose" onClick={onClose}>✕</button>
         </div>
-        <div className="wxmlist" style={{ maxHeight: "72vh" }}>
+        <div className="wxmlist" style={{ maxHeight: "74vh" }}>
           <div className="hint" style={{ margin: "0 0 8px" }}>
             {su.name}{title ? ` · ${title}` : ""}{su.lap ? ` · ⏱ ${su.lap}` : ""}</div>
           {blob.loading ? (
@@ -1084,21 +1105,42 @@ export function SetupContentModal({ open, su, onClose, t }) {
                   ))}
                 </div>
               )}
-              {Object.entries(parsed.bySection).map(([sec, list]) => {
-                const rows = list.filter((r) => r.meaningful);
-                if (!rows.length) return null;
-                return (
-                  <div className="setupsec" key={sec}>
-                    <div className="setupsec-h">{t(SVM_SECTIONS[sec] || sec)}</div>
-                    {rows.map((r) => (
-                      <div className="setuprow" key={r.key}>
-                        <span className="setuprow-k">{t(SVM_FIELDS[r.key] || r.key)}</span>
-                        <span className="setuprow-v">{r.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })}
+              <div className="setuptools">
+                <div className="seg" role="group">
+                  <button aria-pressed={!showAll} onClick={() => setShowAll(false)}>
+                    {t("Anlamlı alanlar")}</button>
+                  <button aria-pressed={showAll} onClick={() => setShowAll(true)}>
+                    {t("Tümünü göster")}</button>
+                </div>
+                <input className="setupsearch" value={q} onChange={(e) => setQ(e.target.value)}
+                  placeholder={t("ara: kanat, basınç…")} aria-label={t("Setup alanı ara")} />
+              </div>
+              {shown.length ? (
+                <div className="setupcats">
+                  {shown.map((c) => (
+                    <section className="setupcat" key={c.cat}>
+                      <h4 className="setupcat-h">
+                        <span className="ic">{CAT_META[c.cat]?.icon || "•"}</span>
+                        {t(CAT_META[c.cat]?.tr || c.cat)}
+                        <span className="n">{c.rows.length}</span></h4>
+                      {c.rows.map((r) => (
+                        <div className="setuprow" key={r.key}>
+                          <span className="setuprow-k">{fieldName(r.key)}</span>
+                          {r.kind === "axle" ? (
+                            <span className="setuprow-v axle">
+                              <span><b>{t("ÖN")}</b>{r.front}</span>
+                              <span><b>{t("ARKA")}</b>{r.rear}</span></span>
+                          ) : (
+                            <span className="setuprow-v">{r.value}</span>
+                          )}
+                        </div>
+                      ))}
+                    </section>
+                  ))}
+                </div>
+              ) : (
+                <div className="hint">{t("Eşleşen alan yok.")}</div>
+              )}
             </>
           )}
         </div>
