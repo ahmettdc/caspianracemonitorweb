@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.142",
+    date: "2026-08-12",
+    tr: [
+      "🔧 Stint plan tablosunda her pit için, FUEL'in yanına 'Hasar' (tamir süresi, sn) alanı eklendi. Girilen süre plana +Ns olarak yansır (bitiş saati ve kalan süre yeniden hesaplanır) ve canlı Pit Board'daki tamir alanıyla AYNI değeri paylaşır — iki yerde ayrı tutulmaz. Önceden tamir süresi yalnız pit atıldıktan sonra Pit Board'dan girilebiliyordu; artık planlarken de önden girilebilir.",
+    ],
+    en: [
+      "🔧 In the Stint plan table, a 'Damage' field (repair time, s) was added next to FUEL for each pit. The value flows into the plan as +Ns (end time and time-left recompute) and shares the SAME value as the repair field on the live Pit Board — it isn't stored twice. Previously repair time could only be entered from the Pit Board after a pit was marked; now it can be pre-entered while planning too.",
+    ],
+  },
+  {
     v: "v1.4.141",
     date: "2026-08-12",
     tr: [

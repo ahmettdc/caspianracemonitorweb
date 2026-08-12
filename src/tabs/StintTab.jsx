@@ -8,7 +8,7 @@ import { Tyre } from "../components";
 export default function StintTab({
   tab, mode, t, st, plan, totalVE, totalFuelL, timeline, liveInfo, pitSoon,
   tyreInfo, quickTyre, bumpLaps, clearLaps, upStintLap, upTyre, upPit,
-  assignDriver, upOvr,
+  assignDriver, upOvr, setRepair,
 }) {
   const TY = ["FL", "FR", "RL", "RR"];
   return (
@@ -239,6 +239,13 @@ export default function StintTab({
                   <span className="pitopt">
                     <button className={(st.pits[i] || EMPTY_PIT).fuel ? "on" : ""}
                       onClick={() => upPit(i, { fuel: !(st.pits[i] || EMPTY_PIT).fuel })}>FUEL</button>
+                    {/* §3: Fuel yanında Hasar/tamir süresi — canlı pit board ile AYNI
+                       st.pitRepairs[i] + setRepair; ayrı state YOK. Plana +Ns eklenir. */}
+                    <label className="dmg" title={t("Hasar tamir süresi (s) — plana eklenir")}>
+                      🔧<input type="number" min="0" step="1" placeholder="0"
+                        value={(st.pitRepairs || [])[i] || ""}
+                        onChange={(e) => setRepair?.(i, e.target.value)} />
+                    </label>
                   </span>
                 </>)}
               </td>

@@ -129,6 +129,13 @@ export const css = `
   background:var(--panel2);color:var(--dim);font-size:10px;cursor:pointer}
 .rc .pitopt button:disabled{opacity:.35;cursor:not-allowed}
 .rc .pitopt button.on{background:var(--car);color:#FFE9ED;border-color:var(--accent)}
+/* §3: Fuel yanı Hasar/tamir süresi (s) — canlı pit board ile aynı st.pitRepairs[i]. */
+.rc .pitopt .dmg{display:inline-flex;align-items:center;gap:2px;font-size:10px;color:var(--dim)}
+.rc .pitopt .dmg input{width:34px;padding:2px 4px;border-radius:4px;border:1px solid var(--line);
+  background:var(--panel2);color:var(--txt);font-size:10px;text-align:right;
+  font-family:'IBM Plex Mono',monospace}
+.rc .pitopt .dmg input::-webkit-outer-spin-button,
+.rc .pitopt .dmg input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .rc .ovr{width:82px!important;padding:3px 6px!important;font-size:11px!important}
 .rc .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));
   gap:10px;margin-bottom:14px}

@@ -2389,7 +2389,7 @@ ${bottomBar}
               totalFuelL={totalFuelL} timeline={timeline} liveInfo={liveInfo} pitSoon={pitSoon}
               tyreInfo={tyreInfo} quickTyre={quickTyre} bumpLaps={bumpLaps} clearLaps={clearLaps}
               upStintLap={upStintLap} upTyre={upTyre} upPit={upPit} assignDriver={assignDriver}
-              upOvr={upOvr} />
+              upOvr={upOvr} setRepair={setRepair} />
           )}
 
           {tab === "dash" && (
