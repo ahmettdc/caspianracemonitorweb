@@ -184,6 +184,8 @@ export const EN = {
   "Henüz pilot yok — aşağıdan ekle.": "No drivers yet — add below.",
   "Pilot adı": "Driver name", "Ekle": "Add", "Süre": "Duration", "Pilot": "Driver",
   "— seç —": "— select —", "Toplam Süre": "Total Time",
+  "Sürüş dağılımı": "Time share", "Stint programı": "Stint schedule",
+  "toplam": "total", "stint": "stint", "Takımdan": "From team",
   "Atamaları Temizle": "Clear Assignments",
   "Geçerli bir yarış başlangıç zamanı gir.": "Enter a valid race start time.",
   // telemetri

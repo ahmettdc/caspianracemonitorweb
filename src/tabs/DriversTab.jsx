@@ -2,15 +2,40 @@ import { fmtHMS, msToLocalInput } from "../engine";
 import { PIE_COLORS } from "../constants";
 import { Donut } from "../components";
 
-/* Pilotlar sekmesi — kadro yönetimi + stint→pilot atama + süre dağılımı (Donut).
-   Türetilmiş driverPlan/teamDrivers ve tüm handler'lar App'ten prop gelir. */
+/* Ad → baş harf(ler) rozeti (en çok 2). "A. Demircan" → "AD", "Savaş" → "SA". */
+function initials(name) {
+  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+/* Pilotlar sekmesi — kadro yönetimi + pilot kartları (süre dağılımı) + stint→pilot atama
+   programı + Donut. Türetilmiş driverPlan/teamDrivers ve handler'lar App'ten prop gelir.
+   §6 (v1.4.146): düz tablo → kart/görsel hiyerarşi; atama programı korunur. */
 export default function DriversTab({
   t, st, up, driverPlan, fmtClock, removeDriver, newDriver, setNewDriver,
   addDriver, teamDrivers, setSt, assignDriver, teamData, clearAssign,
 }) {
+  const poolExtra = teamDrivers.filter((n) => !st.roster.includes(n));
+  /* süre-dağılımı adları (Donut ile AYNI) + renk + atanan stint numaraları */
+  const names = driverPlan ? st.roster.filter((n) => driverPlan.totals[n]) : [];
+  const colorOf = (n) => PIE_COLORS[names.indexOf(n) % PIE_COLORS.length];
+  const stintsOf = {};
+  if (driverPlan) {
+    driverPlan.rows.forEach((r, i) => {
+      const n = st.driverAssign[i];
+      if (n && r.dur > 0) (stintsOf[n] = stintsOf[n] || []).push(r.idx);
+    });
+  }
+  const Av = ({ n, size = 22 }) => (
+    <span className="drvav" style={{ width: size, height: size,
+      fontSize: size * 0.46, background: colorOf(n) }}>{initials(n)}</span>
+  );
+
   return (
     <div className="card">
-      <h2>Pilotlar</h2>
+      <h2>{t("Pilotlar")}</h2>
       <div className="row2" style={{ maxWidth: 420 }}>
         <div>
           <label>{t("Yarış Başlangıcı")}</label>
@@ -29,7 +54,8 @@ export default function DriversTab({
       <label data-tour="roster">{t("Pilot Kadrosu")}</label>
       <div style={{ marginBottom: 4 }}>
         {st.roster.map((n) => (
-          <span className="rchip" key={n}>{n}
+          <span className="rchip" key={n}>
+            {driverPlan && driverPlan.totals[n] && <Av n={n} size={20} />}{n}
             <b onClick={() => removeDriver(n)} title={t("Kadrodan çıkar")}>×</b></span>
         ))}
         {st.roster.length === 0 &&
@@ -41,11 +67,10 @@ export default function DriversTab({
           onKeyDown={(e) => e.key === "Enter" && addDriver()} />
         <button className="act" onClick={addDriver}>{t("Ekle")}</button>
       </div>
-      {teamDrivers.filter((n) => !st.roster.includes(n)).length > 0 && (
+      {poolExtra.length > 0 && (
         <div style={{ marginBottom: 14 }}>
-          <span className="hint" style={{ marginRight: 6 }}>
-            {t("Takımdan ekle")}:</span>
-          {teamDrivers.filter((n) => !st.roster.includes(n)).map((n) => (
+          <span className="hint" style={{ marginRight: 6 }}>{t("Takımdan ekle")}:</span>
+          {poolExtra.map((n) => (
             <button key={n} className="act" style={{ marginRight: 6, marginTop: 4 }}
               onClick={() => setSt((s) => s.roster.includes(n)
                 ? s : { ...s, roster: [...s.roster, n] })}>+ {n}</button>
@@ -54,74 +79,97 @@ export default function DriversTab({
       )}
 
       {driverPlan && (<>
-        <table>
-          <thead><tr>
-            <th>#</th><th>Start</th><th>Finish</th><th>{t("Süre")}</th><th>{t("Pilot")}</th>
-          </tr></thead>
-          <tbody>
-            {driverPlan.rows.map((r, i) => (
-              <tr key={i} style={r.dur === 0 ? { opacity: .45 } : {}}>
-                <td className="disp" style={{ fontSize: 15 }}>{r.idx}</td>
-                <td>{fmtClock(r.start, driverPlan.startMs)}</td>
-                <td>{fmtClock(r.finish, driverPlan.startMs)}</td>
-                <td>{fmtHMS(r.dur / 1000)}</td>
-                <td>
-                  <select value={st.driverAssign[i] || ""}
-                    onChange={(e) => assignDriver(i, e.target.value)}>
+        {/* --- pilot kartları: süre dağılımı (kim ne kadar sürüyor, tek bakışta) --- */}
+        {names.length > 0 && (
+          <>
+            <div className="drvcap">{t("Sürüş dağılımı")}</div>
+            <div className="drivers">
+              {names.map((n) => {
+                const d = driverPlan.totals[n];
+                const pct = driverPlan.grandMs ? (d.ms / driverPlan.grandMs) * 100 : 0;
+                return (
+                  <div className="drv" key={n} style={{ "--c": colorOf(n) }}>
+                    <div className="drvtop">
+                      <Av n={n} size={42} />
+                      <div className="drvwho">
+                        <div className="drvnm">{n}</div>
+                        <div className="drvteam">
+                          {poolExtra.includes(n) ? `🏢 ${t("Takımdan")}` : t("Kadro")}</div>
+                      </div>
+                      <div className="drvbig">
+                        <div className="v">{fmtHMS(d.ms / 1000)}</div>
+                        <div className="l">{t("toplam")}</div></div>
+                    </div>
+                    <div className="drvbar"><i style={{ width: `${pct}%` }} /></div>
+                    <div className="drvmeta">
+                      <span>🏁 {d.stints} {t("stint")}</span>
+                      <span className="pct">%{pct.toFixed(0)}</span></div>
+                    {(stintsOf[n] || []).length > 0 && (
+                      <div className="drvstints">
+                        {stintsOf[n].map((s) => <span className="st" key={s}>S{s}</span>)}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {/* --- stint programı: pilot ataması (asıl işlev korunur) --- */}
+        <div className="drvcap">{t("Stint programı")}</div>
+        <div className="drvsched">
+          {driverPlan.rows.map((r, i) => {
+            const cur = st.driverAssign[i] || "";
+            return (
+              <div className="srow" key={i} style={r.dur === 0 ? { opacity: .5 } : {}}>
+                <span className="sno">{r.idx}</span>
+                <span className="swin">
+                  <b>{fmtClock(r.start, driverPlan.startMs)}</b> → {fmtClock(r.finish, driverPlan.startMs)}
+                  {" · "}{fmtHMS(r.dur / 1000)}</span>
+                <span className="sasg">
+                  {cur && driverPlan.totals[cur] && <Av n={cur} size={20} />}
+                  <select value={cur} onChange={(e) => assignDriver(i, e.target.value)}>
                     <option value="">{t("— seç —")}</option>
                     {st.roster.length > 0 && (
                       <optgroup label={t("Kadro")}>
-                        {st.roster.map((n) =>
-                          <option key={n} value={n}>{n}</option>)}
+                        {st.roster.map((n) => <option key={n} value={n}>{n}</option>)}
                       </optgroup>
                     )}
-                    {teamDrivers.filter((n) => !st.roster.includes(n)).length > 0 && (
+                    {poolExtra.length > 0 && (
                       <optgroup label={teamData?.meta?.name || t("Takım")}>
-                        {teamDrivers.filter((n) => !st.roster.includes(n)).map((n) =>
-                          <option key={n} value={n}>{n}</option>)}
+                        {poolExtra.map((n) => <option key={n} value={n}>{n}</option>)}
                       </optgroup>
                     )}
                   </select>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </span>
+              </div>
+            );
+          })}
+        </div>
 
-        {Object.keys(driverPlan.totals).length > 0 && (() => {
-          const names = st.roster.filter((n) => driverPlan.totals[n]);
-          const colorOf = (n) => PIE_COLORS[names.indexOf(n) % PIE_COLORS.length];
-          const pieData = names.map((n) => ({
-            name: n, value: driverPlan.totals[n].ms, color: colorOf(n),
-          }));
-          return (
+        {names.length > 0 && (
           <div style={{ display: "flex", gap: 22, marginTop: 16, flexWrap: "wrap",
             alignItems: "center" }}>
-            <Donut data={pieData} />
-            <table style={{ maxWidth: 480, flex: "1 1 340px", margin: 0 }}>
-              <thead><tr><th></th><th>{t("Pilot")}</th><th>Stint</th>
-                <th>{t("Toplam Süre")}</th><th>%</th></tr></thead>
-              <tbody>
-                {names.map((n) => {
-                  const d = driverPlan.totals[n];
-                  return (
-                    <tr key={n}>
-                      <td style={{ width: 18, padding: "0 0 0 6px" }}>
-                        <span style={{ display: "inline-block", width: 12, height: 12,
-                          borderRadius: 3, background: colorOf(n) }} /></td>
-                      <td>{n}</td><td>{d.stints}</td>
-                      <td>{fmtHMS(d.ms / 1000)}</td>
-                      <td className="pos">
-                        {driverPlan.grandMs ? ((d.ms / driverPlan.grandMs) * 100).toFixed(1) : "0"}%
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <Donut data={names.map((n) => ({
+              name: n, value: driverPlan.totals[n].ms, color: colorOf(n) }))} />
+            <div className="drvlegend">
+              {names.map((n) => {
+                const d = driverPlan.totals[n];
+                return (
+                  <div className="lrow" key={n}>
+                    <span className="dot" style={{ background: colorOf(n) }} />
+                    <span className="ln">{n}</span>
+                    <span className="ls">{d.stints} · {fmtHMS(d.ms / 1000)}</span>
+                    <span className="lp">
+                      {driverPlan.grandMs ? ((d.ms / driverPlan.grandMs) * 100).toFixed(1) : "0"}%
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-          );
-        })()}
+        )}
         <div style={{ marginTop: 12 }}>
           <button className="act danger" onClick={clearAssign}>{t("Atamaları Temizle")}</button>
         </div>

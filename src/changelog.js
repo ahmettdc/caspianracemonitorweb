@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.146",
+    date: "2026-08-12",
+    tr: [
+      "🏎 Pilotlar sekmesi yeniden düzenlendi: düz tablo yerine pilot kartları — renkli baş-harf rozeti (süre-dağılımı grafiğiyle aynı renk), toplam sürüş süresi, stint sayısı, % pay çubuğu ve atandığı stint numaraları → kimin ne kadar sürdüğü tek bakışta. Stint→pilot ataması artık daha temiz bir program listesi (numara · zaman penceresi · pilot seçici). Süre dağılımı grafiği (Donut) ve tüm işlevler (ekle/çıkar, atama, temizle) korunuyor.",
+      "ℹ️ Yalnız mevcut veriler kullanıldı (fotoğraf/canlı-durum gibi uydurma alan yok — baş-harf rozeti addan türer).",
+    ],
+    en: [
+      "🏎 Redesigned the Drivers tab: instead of a flat table, driver cards — colored initials badge (same color as the time-share chart), total stint time, stint count, % share bar, and the stint numbers assigned → who drove how much, at a glance. The stint→driver assignment is now a cleaner schedule list (number · time window · driver picker). The time-share chart (donut) and all functions (add/remove, assign, clear) are preserved.",
+      "ℹ️ Only existing data is used (no invented fields like photos or live status — the initials badge derives from the name).",
+    ],
+  },
+  {
     v: "v1.4.145",
     date: "2026-08-12",
     tr: [
