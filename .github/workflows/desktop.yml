@@ -95,7 +95,14 @@ jobs:
             --distpath bridge/dist2 bridge/main.py
           Copy-Item bridge/dist2/CaspianLiveBridge.exe src-tauri/CaspianLiveBridge.exe
 
+      # v1.6.3: NSIS araç indirmesi ("Downloading nsis-3.11.zip → io: Peer disconnected")
+      # KRONİK olarak flok yapıp release'i engelliyordu (v1.5.2/v1.6.0/v1.6.2 hiç
+      # yayınlanamadı → düzeltmeler kullanıcıya ulaşmadı). Geçici hatalara karşı adım
+      # bir kez YENİDEN denenir: ilk deneme Cargo derlemesini bitirmiş olur, ikinci
+      # deneme ~2 dk'da yalnız paketleme+yükleme yapar.
       - uses: tauri-apps/tauri-action@v0
+        id: tauri_try1
+        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -103,6 +110,22 @@ jobs:
           # Masaüstü Google girişi (sistem tarayıcısı + loopback OAuth).
           # VITE_… ön yüz derlemesine gömülür (client_id gizli değildir);
           # GOOGLE_OAUTH_CLIENT_SECRET yalnız Rust'ta derleme zamanı okunur.
+          VITE_GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+        with:
+          tagName: desktop-v__VERSION__
+          releaseName: "Caspian Race Monitor v__VERSION__"
+          releaseBody: "Otomatik derleme — uygulama içi güncelleyici bunu kullanır."
+          releaseDraft: false
+          prerelease: false
+          includeUpdaterJson: true
+
+      - uses: tauri-apps/tauri-action@v0
+        if: steps.tauri_try1.outcome == 'failure'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           VITE_GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_ID }}
           GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
         with:

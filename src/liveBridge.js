@@ -86,6 +86,8 @@ export async function startBridge(opts, onStatus) {
   // (frame'ler ancak spawn sonrası gelir; ilk frame'in sid'i saklanana eşitse temizlemez).
   let knownSessionId = null;
   let freshChecked = false; // v1.6: ilk harvest'te "aynı yarışı tekrar koşma" temizliği bir kez
+  let prevMaxLaps = 0;      // v1.6.3 — yarış-restart dedektörü: sahadaki en yüksek lapsDone
+  let zeroFrames = 0;       // v1.6.3 — ardışık "saha 0 turda" kare sayacı (tek bozuk kareye karşı)
   let diag = null;         // gizli teşhis (shm/lmu/cars/ve) — arayüzde gösterilmez
   let diagSig = "";        // teşhis özeti (yalnız durum değişince konsola yaz)
 
@@ -125,12 +127,30 @@ export async function startBridge(opts, onStatus) {
        kira devrinde yanlış temizleme YOK: yarış-ortası devralan PC lapsDone > 0 görür,
        temizlemez. (Köprüyü re-run'ın ORTASINDA açarsan lapsDone>0 → temizlemez; o durumda
        Canlı kartındaki "Geçmişi Temizle" düğmesi elle temizler.) */
-    if (!freshChecked && rows.length) {
-      freshChecked = true;
+    if (rows.length) {
       const maxLaps = rows.reduce((m, r) => Math.max(m, r.lapsDone || 0), 0);
-      if (hadHistory && maxLaps === 0) {
-        try { await liveHistoryClearAll(tid, rid); } catch { /* yoksay */ }
-        lastLap = {}; lastPit = {}; lastDrv = {}; lastTyre = {};
+      if (!freshChecked) {
+        freshChecked = true;
+        if (hadHistory && maxLaps === 0) {
+          try { await liveHistoryClearAll(tid, rid); } catch { /* yoksay */ }
+          lastLap = {}; lastPit = {}; lastDrv = {}; lastTyre = {};
+        }
+      } else if (maxLaps === 0 && prevMaxLaps >= 2) {
+        /* v1.6.3 — yarış, köprü ÇALIŞIRKEN yeniden başlatıldı (lobby restart):
+           sessionId (=mSession, yarış hep 10) DEĞİŞMEZ ve fresh-start kontrolü çoktan
+           tüketildi → yukarıdaki iki temizleme de ateşlenmez, eski koşunun turları yeni
+           koşuya sızardı. Saha max lapsDone'un ≥2'den 0'a düşmesi restart demektir;
+           İKİ ARDIŞIK karede görülmesi şartı tekil bozuk kareye karşı koruma. lapsDone
+           paylaşımlı bellekte tüm PC'lerde AYNI → çok-PC kira devrinde yanlış temizleme yok. */
+        zeroFrames += 1;
+        if (zeroFrames >= 2) {
+          try { await liveHistoryClearAll(tid, rid); } catch { /* yoksay */ }
+          lastLap = {}; lastPit = {}; lastDrv = {}; lastTyre = {};
+          prevMaxLaps = 0; zeroFrames = 0;
+        }
+      } else {
+        zeroFrames = 0;
+        if (maxLaps > 0) prevMaxLaps = maxLaps;
       }
     }
     const entries = {};      // livelaps: lapKey/n → süre

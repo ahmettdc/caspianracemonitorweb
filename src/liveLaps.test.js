@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { lapNumbersOf, driverAtLap, parseLapCond } from "./liveLaps.js";
+import { lapNumbersOf, capLapEntries, driverAtLap, parseLapCond } from "./liveLaps.js";
 
 /* Tur numarası eşlemesi — kalıcı livelaps/livepos/livesec düğümlerine YAZILAN
    anahtarları belirler; hata kalıcı veri bozulması demektir (append-only). */
@@ -71,6 +71,31 @@ describe("driverAtLap", () => {
     expect(driverAtLap("çöp", 5)).toBe("");
     expect(driverAtLap(map, 0)).toBe("");
     expect(driverAtLap({ 1: 42, 2: "" }, 5)).toBe("");   // string olmayan/boş atlanır
+  });
+});
+
+/* ---- capLapEntries: "+" popup'ında bayat (önceki koşudan kalan) turları gizle ----
+   v1.6.3 regresyonu: araç 0 turdayken popup önceki koşunun 8 turunu ("Vanthoor")
+   gösteriyordu — okuyucu tarafı artık n > lapsDone girişlerini süzer. */
+describe("capLapEntries", () => {
+  const stale = { 1: 227.4, 2: 212.3, 7: 209.8, 8: 219.1 };
+  it("lapsDone=0 → hepsi bayat, boş döner (ekran görüntüsündeki durum)", () => {
+    expect(capLapEntries(stale, 0)).toEqual({});
+  });
+  it("n > lapsDone girişleri atılır, n <= lapsDone kalır (sınır dahil)", () => {
+    expect(capLapEntries(stale, 2)).toEqual({ 1: 227.4, 2: 212.3 });
+    expect(capLapEntries(stale, 7)).toEqual({ 1: 227.4, 2: 212.3, 7: 209.8 });
+  });
+  it("lapsDone yok/geçersiz → dokunulmaz (geriye uyum: eski kare/kayıt)", () => {
+    expect(capLapEntries(stale, undefined)).toBe(stale);
+    expect(capLapEntries(stale, null)).toBe(stale);
+    expect(capLapEntries(stale, "x")).toBe(stale);
+    expect(capLapEntries(stale, -1)).toBe(stale);
+  });
+  it("boş/bozuk harita → aynen döner", () => {
+    expect(capLapEntries(null, 3)).toBeNull();
+    expect(capLapEntries(undefined, 3)).toBeUndefined();
+    expect(capLapEntries({}, 3)).toEqual({});
   });
 });
 

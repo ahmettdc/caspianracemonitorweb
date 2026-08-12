@@ -6,7 +6,7 @@ import { DESKTOP_RELEASE_URL, BRIDGE_EXE_URL, ASSET, classId, classAccent, brand
 import { isTauri } from "../tauriEnv";
 import { liveLapsSubscribe, liveSecSubscribe, liveDrvSubscribe, liveTyreSubscribe,
   liveCondSubscribe, liveHistoryClearAll, serverNow } from "../storage";
-import { driverAtLap, parseLapCond } from "../liveLaps";
+import { driverAtLap, parseLapCond, capLapEntries } from "../liveLaps";
 import { detectFlashes, carKey } from "../liveFlash";
 import { binKey } from "../trackShape";
 import { demoLive } from "../liveDemo";
@@ -147,12 +147,13 @@ function Brand({ manufacturer, vehicleName }) {
    Geçmiş kalıcı livelaps düğümünden (teams/{tid}/livelaps/{rid}/{lapKey}) talep üzerine
    okunur → tüm yarış (300+ tur) kapsanır. En yeni üstte; en hızlı tur mor, out/pit turu
    (best'in %110'undan büyük) soluk. wxmodal desenini yeniden kullanır. */
-function LapsModal({ t, tid, rid, row, onClose }) {
+function LapsModal({ t, tid, rid, row, canEdit, onClose }) {
   const [lapMap, setLapMap] = useState(null);   // {n: sec} livelaps'ten
   const [secMap, setSecMap] = useState(null);   // {n: "s1,s2,s3"} livesec'ten
   const [drvMap, setDrvMap] = useState(null);   // {n: "ad"} livedrv'den (SEYREK)
   const [tyreMap, setTyreMap] = useState(null); // {n: "adet|hamur"} livetyre'den (pit turu)
   const [condMap, setCondMap] = useState(null); // {n: "temp,wet,grip"} livecond'dan (pist koşulu)
+  const [cleared, setCleared] = useState(false); // v1.6.3 — elle temizleme geri bildirimi
   useEffect(() => {
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", onKey);
@@ -164,16 +165,24 @@ function LapsModal({ t, tid, rid, row, onClose }) {
       setLapMap(null); setSecMap(null); setDrvMap(null); setTyreMap(null); setCondMap(null);
       return undefined;
     }
-    const off1 = liveLapsSubscribe(tid, rid, row.lapKey, setLapMap);
+    // boş/silinmiş düğüm (null) → {}: "yükleniyor…" yerine "tur yok" göstersin
+    const off1 = liveLapsSubscribe(tid, rid, row.lapKey, (v) => setLapMap(v || {}));
     const off2 = liveSecSubscribe(tid, rid, row.lapKey, setSecMap);
     const off3 = liveDrvSubscribe(tid, rid, row.lapKey, setDrvMap);
     const off4 = liveTyreSubscribe(tid, rid, row.lapKey, setTyreMap);
     const off5 = liveCondSubscribe(tid, rid, row.lapKey, setCondMap);
     return () => { off1(); off2(); off3(); off4(); off5(); };
   }, [tid, rid, row?.lapKey]);
+  /* v1.6.3 — BAYAT-VERİ KORUMASI: yalnız aracın GÜNCEL lapsDone'una kadar olan turlar.
+     Araç kimliği (c{mID}) oyun tarafından yeniden kullanıldığından, aynı yarışın önceki
+     koşusundan kalan turlar/pilotlar ("Vanthoor" hayaleti) yazıcı temizlemesi ateşlenmediyse
+     burada görünüyordu. Cap OKUYUCU tarafında → yazıcının sürümünden bağımsız, tüm
+     izleyicilerde anında etkili. row TAZE kareden gelir (LiveTab freshRow lookup) →
+     modal açıkken yeni turlar da görünür. */
+  const capped = capLapEntries(lapMap, row?.lapsDone);
   // {n: sec} → [{n, sec}] sayısal sıralı; en yeni üstte
-  const entries = lapMap && typeof lapMap === "object"
-    ? Object.entries(lapMap).map(([n, sec]) => ({ n: +n, sec: +sec }))
+  const entries = capped && typeof capped === "object"
+    ? Object.entries(capped).map(([n, sec]) => ({ n: +n, sec: +sec }))
       .filter((e) => e.sec > 0).sort((a, b) => a.n - b.n)
     : [];
   const best = entries.length ? Math.min(...entries.map((e) => e.sec)) : 0;
@@ -259,7 +268,21 @@ function LapsModal({ t, tid, rid, row, onClose }) {
             );
           })}
         </div>
-        <div className="wxmfoot">
+        <div className="wxmfoot" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {/* v1.6.3 — bayat geçmişi ELLE sıfırla (owner/editor): köprü yarışın ortasında
+              açıldıysa oto-temizleme ateşlenmez; bu düğme rid'in TÜM canlı geçmişini
+              (livelaps/pos/sec/drv/tyre/cond) siler. Web + masaüstü. */}
+          {canEdit && tid && rid && (
+            <button className="act" style={{ marginRight: "auto", fontSize: 11 }}
+              title={t("Bu yarışın '+' tur geçmişini (eski koşulardan kalan turlar/pilotlar) sıfırla")}
+              onClick={async () => {
+                if (!window.confirm(t("Bu yarışın tüm '+' tur geçmişi silinsin mi? (Yeni turlar yine kaydedilir.)"))) return;
+                try { await liveHistoryClearAll(tid, rid); setCleared(true); }
+                catch { /* yoksay */ }
+              }}>🗑 {t("Tur geçmişini temizle")}</button>
+          )}
+          {cleared && <span className="hint" style={{ margin: 0, color: "var(--green)" }}>
+            ✓ {t("temizlendi")}</span>}
           <button className="act" onClick={onClose}>{t("Kapat")}</button>
         </div>
       </div>
@@ -904,8 +927,15 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
       </div>
       {!big && isRace && <PosChart t={t} tid={tid} rid={rid} field={fieldAll} />}
 
-      {lapsFor && <LapsModal t={t} tid={tid} rid={rid} row={lapsFor}
-        onClose={() => setLapsFor(null)} />}
+      {/* v1.6.3 — satırı TAZE kareden bul: modal açıkken lapsDone canlı güncellenir →
+          bayat-veri cap'i (capLapEntries) yeni turları anında gösterir, snapshot'ta
+          takılı kalmaz. Araç kareden düşerse tıklama anındaki satıra düşülür. */}
+      {lapsFor && (() => {
+        const fk = lapsFor.lapKey || lapsFor.driver;
+        const fresh = fieldAll.find((c) => (c.lapKey || c.driver) === fk) || lapsFor;
+        return <LapsModal t={t} tid={tid} rid={rid} row={fresh} canEdit={canEdit}
+          onClose={() => setLapsFor(null)} />;
+      })()}
     </div>
   );
 }
