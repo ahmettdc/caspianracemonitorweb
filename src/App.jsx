@@ -2245,7 +2245,7 @@ ${bottomBar}
                       cursor: liveInfo.phase === "pit" ? "default" : "pointer",
                       opacity: liveInfo.phase === "pit" ? 0.45 : 1,
                       background: "var(--car)", color: "#FFE9ED", border: "2px solid var(--teal)",
-                      fontFamily: "'Rajdhani'", fontSize: 26, fontWeight: 700,
+                      fontFamily: "var(--font-disp)", fontSize: 26, fontWeight: 700,
                       letterSpacing: ".06em" }}>
                     {liveInfo.phase === "pit" ? t("⛽ PIT YOLUNDA") : t("✔ PIT")} — S{liveInfo.stintIdx + 1}
                   </button>

@@ -815,7 +815,7 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
                         {dirRef.current[c.lapKey || c.driver] === "down" && <span
                           style={{ color: "var(--red)", fontSize: 10, marginLeft: 3 }}>▼</span>}
                       </td>
-                      <td style={{ fontFamily: "'Inter',system-ui,sans-serif", whiteSpace: "nowrap" }}>
+                      <td style={{ fontFamily: "var(--font-ui)", whiteSpace: "nowrap" }}>
                         <Brand manufacturer={c.manufacturer} vehicleName={c.vehicleName} />
                         {c.number != null && <span style={{ color: "var(--dim)", fontSize: 11,
                           marginRight: 5 }}>#{c.number}</span>}

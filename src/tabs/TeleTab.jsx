@@ -640,7 +640,7 @@ export default function TeleTab({
           placeholder={"Out Lap\t310127\t-6.403 ...\nLap 1\t237350\t-6.36 ..."}
           style={{ width: "100%", height: 90, background: "var(--panel2)",
             border: "1px solid var(--line)", borderRadius: 6, color: "var(--txt)",
-            fontFamily: "IBM Plex Mono", fontSize: 11, padding: 8 }} />
+            fontFamily: "var(--font-mono)", fontSize: 11, padding: 8 }} />
         <div style={{ margin: "6px 0" }}>
           <input type="file" accept=".csv,.tsv,.txt,.ld" onChange={onTeleFile} />
           {savedMsg && (

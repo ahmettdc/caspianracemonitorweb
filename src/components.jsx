@@ -324,10 +324,10 @@ export function Donut({ data, size = 190, thickness = 34 }) {
         })}
       </g>
       <text x="50%" y="47%" textAnchor="middle" fill="var(--txt)"
-        style={{ fontFamily: "'Rajdhani'", fontSize: 30, fontWeight: 700 }}>
+        style={{ fontFamily: "var(--font-disp)", fontSize: 30, fontWeight: 700 }}>
         {data.length}</text>
       <text x="50%" y="60%" textAnchor="middle" fill="var(--dim)"
-        style={{ fontFamily: "'Rajdhani'", fontSize: 12, letterSpacing: ".1em" }}>
+        style={{ fontFamily: "var(--font-disp)", fontSize: 12, letterSpacing: ".1em" }}>
         PİLOT</text>
     </svg>
   );
@@ -349,7 +349,7 @@ export function Ring({ value = 0, size = 76, thickness = 8, color = "var(--teal)
         style={glow ? { filter: `drop-shadow(0 0 6px ${color})` } : undefined} />
       {big != null && (
         <text x="50%" y="50%" textAnchor="middle" dominantBaseline="central" fill={color}
-          style={{ fontFamily: "'Rajdhani'", fontWeight: 700, fontSize: fs || size * 0.26,
+          style={{ fontFamily: "var(--font-disp)", fontWeight: 700, fontSize: fs || size * 0.26,
             fontVariantNumeric: "tabular-nums" }}>{big}</text>
       )}
     </svg>

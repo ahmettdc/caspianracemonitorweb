@@ -16,6 +16,11 @@ export const css = `
   /* seçili/aktif durum dolgusu — tek kaynak (eski dağınık rgba(150,0,24,.14–.25)). */
   --sel-bg:rgba(150,0,24,.22); --sel-bg-soft:rgba(150,0,24,.12);
   --sel-border:var(--accent);
+  /* Typography — TEK KAYNAK (§1.5): gövde/UI, disp başlık, mono yalnız tablo/sayı hizası.
+     Bileşenler hardcoded font aile yerine bu değişkenleri kullanır → font seçimi buradan. */
+  --font-ui:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --font-disp:'Rajdhani','Inter',system-ui,sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,'Cascadia Code',Consolas,monospace;
 }
 /* --- Light mode (opsiyonel) — koyu tema ana kimlik; bu blok tokenları rol-swap eder.
    Marka #960018 / --car korunur. Anlamsal renkler açık zemine göre koyulaştırıldı. --- */
@@ -37,9 +42,9 @@ export const css = `
   background:radial-gradient(ellipse at 50% 0%,#F6D9DE 0%,var(--bg) 60%)}
 .rc *{box-sizing:border-box}
 .rc{min-height:100vh;background:var(--bg);color:var(--txt);
-  font-family:'Inter',system-ui,sans-serif;font-size:13px;padding:0 0 40px}
-.rc .mono{font-family:'IBM Plex Mono',monospace}
-.rc .disp{font-family:'Rajdhani',sans-serif;letter-spacing:.04em}
+  font-family:var(--font-ui);font-size:13px;padding:0 0 40px}
+.rc .mono{font-family:var(--font-mono)}
+.rc .disp{font-family:var(--font-disp);letter-spacing:.04em}
 .rc header{display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding:14px 20px;
   border-bottom:1px solid var(--line)}
 @media(max-width:720px){.rc header{gap:8px;padding:10px 14px}}
@@ -63,12 +68,12 @@ export const css = `
    --subtle görünümü mevcut .adminbtn ile eşleşir. */
 .rc .btn{position:relative;display:inline-flex;align-items:center;gap:6px;cursor:pointer;
   border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--txt);
-  font-family:'Inter',sans-serif;line-height:1.2;white-space:nowrap;
+  font-family:var(--font-ui);line-height:1.2;white-space:nowrap;
   transition:border-color .15s,color .15s,background .15s}
 .rc .btn .btn-i{display:inline-flex;flex:0 0 auto}
 .rc .btn--sm{padding:5px 11px;font-size:12px}
 .rc .btn--md{padding:7px 13px;font-size:13px}
-.rc .btn--lg{padding:11px 18px;font-size:16px;font-family:'Rajdhani';font-weight:700;
+.rc .btn--lg{padding:11px 18px;font-size:16px;font-family:var(--font-disp);font-weight:700;
   letter-spacing:.05em;text-transform:uppercase}
 .rc .btn--subtle:hover{border-color:var(--accent);color:var(--accent)}
 .rc .btn--ghost{background:transparent;border-color:var(--accent);color:var(--accent)}
@@ -80,12 +85,12 @@ export const css = `
 .rc .btn:disabled{opacity:.5;cursor:not-allowed}
 .rc .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
 .rc .card h2{margin:0 0 10px;font-size:15px;text-transform:uppercase;
-  font-family:'Rajdhani';letter-spacing:.08em;color:var(--accent)}
+  font-family:var(--font-disp);letter-spacing:.08em;color:var(--accent)}
 .rc label{display:block;color:var(--dim);font-size:11px;margin:8px 0 3px;
   text-transform:uppercase;letter-spacing:.05em}
 .rc input[type=text],.rc input[type=number],.rc input[type=datetime-local]{width:100%;background:var(--panel2);
   border:1px solid var(--line);border-radius:6px;color:var(--txt);
-  padding:6px 8px;font-family:'IBM Plex Mono',monospace;font-size:13px}
+  padding:6px 8px;font-family:var(--font-mono);font-size:13px}
 .rc input:focus{outline:2px solid var(--accent);outline-offset:-1px}
 /* sayı alanlarında yukarı/aşağı ok her zaman görünür (madde: elle girme yerine tıkla) */
 .rc input[type=number]{-moz-appearance:auto;appearance:auto}
@@ -97,19 +102,19 @@ export const css = `
 .rc .row4{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .rc .strat{display:flex;gap:6px;margin-top:4px}
 .rc .strat button{flex:1;padding:7px 0;border-radius:6px;border:1px solid var(--line);
-  background:var(--panel2);color:var(--dim);font-family:'Rajdhani';
+  background:var(--panel2);color:var(--dim);font-family:var(--font-disp);
   font-size:15px;font-weight:600;cursor:pointer}
 .rc .strat button.on{background:var(--car);color:#FFE9ED;border-color:var(--accent)}
 .rc .tabs{display:flex;gap:8px;margin-bottom:12px}
 .rc .tabs button{padding:8px 16px;border-radius:8px 8px 0 0;border:1px solid var(--line);
   border-bottom:none;background:transparent;color:var(--dim);cursor:pointer;
-  font-family:'Rajdhani';font-size:16px;font-weight:600;letter-spacing:.05em;
+  font-family:var(--font-disp);font-size:16px;font-weight:600;letter-spacing:.05em;
   text-transform:uppercase}
 .rc .tabs button.on{background:var(--panel);color:var(--txt);border-color:var(--accent)}
 .rc table{width:100%;border-collapse:collapse}
 .rc th{color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.06em;
   text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
-.rc td{padding:7px 8px;border-bottom:1px solid #2E1D21;font-family:'IBM Plex Mono',monospace;
+.rc td{padding:7px 8px;border-bottom:1px solid #2E1D21;font-family:var(--font-mono);
   font-size:12.5px}
 .rc tr.last td{background:rgba(64,214,140,.06)}
 .rc .neg{color:var(--red)} .rc .pos{color:var(--green)}
@@ -118,7 +123,7 @@ export const css = `
 .rc .tyrebox{display:inline-flex;gap:3px;margin-right:8px}
 .rc .tyrebox button{width:26px;height:22px;border-radius:4px;border:1px solid var(--line);
   background:var(--panel2);color:var(--dim);font-size:9px;cursor:pointer;
-  font-family:'IBM Plex Mono'}
+  font-family:var(--font-mono)}
 .rc .tyrebox button.on{background:var(--yellow);color:#3A2E00;border-color:var(--yellow)}
 .rc .tyrebox button.qual{background:#4D9FFF;color:#04213F;border-color:#4D9FFF}
 .rc .tyrebox button.wet{background:#7FE3A0;color:#0C3A1F;border-color:#7FE3A0}
@@ -133,21 +138,21 @@ export const css = `
 .rc .pitopt .dmg{display:inline-flex;align-items:center;gap:2px;font-size:10px;color:var(--dim)}
 .rc .pitopt .dmg input{width:34px;padding:2px 4px;border-radius:4px;border:1px solid var(--line);
   background:var(--panel2);color:var(--txt);font-size:10px;text-align:right;
-  font-family:'IBM Plex Mono',monospace}
+  font-family:var(--font-mono)}
 .rc .pitopt .dmg input::-webkit-outer-spin-button,
 .rc .pitopt .dmg input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .rc .ovr{width:82px!important;padding:3px 6px!important;font-size:11px!important}
 .rc .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));
   gap:10px;margin-bottom:14px}
 .rc .kpi{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px}
-.rc .kpi .v{font-family:'Rajdhani';font-size:24px;font-weight:700;line-height:1}
+.rc .kpi .v{font-family:var(--font-disp);font-size:24px;font-weight:700;line-height:1}
 .rc .kpi .l{color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.06em;
   margin-top:4px}
 .rc .timeline{height:34px;display:flex;border-radius:6px;overflow:hidden;
   border:1px solid var(--line);margin:4px 0 14px}
 .rc .timeline .seg{position:relative;min-width:2px}
 .rc .timeline .seg span{position:absolute;inset:0;display:flex;align-items:center;
-  justify-content:center;font-family:'Rajdhani';font-size:12px;font-weight:700;
+  justify-content:center;font-family:var(--font-disp);font-size:12px;font-weight:700;
   color:#FFE3E8;letter-spacing:.02em;overflow:hidden}
 .rc .timeline .pit{background:var(--yellow)}
 /* pilot şeridi (timeline omurgasının altı) */
@@ -163,27 +168,27 @@ export const css = `
 .rc .drvlane .dgap{background:transparent;flex:0 0 auto}
 .rc .hint{color:var(--dim);font-size:11px;margin-top:6px;line-height:1.5}
 .rc .warn{color:var(--yellow)}
-.rc .fuelbig{font-family:'Rajdhani';font-size:52px;font-weight:700;
+.rc .fuelbig{font-family:var(--font-disp);font-size:52px;font-weight:700;
   color:var(--green);line-height:1;margin:6px 0}
 .rc .teambar{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:8px;
   padding:10px 20px;border-bottom:1px solid var(--line);background:var(--panel)}
 .rc .teambar.collapsed{padding:5px 20px}
 .rc .bartoggle{background:var(--panel2);border:1px solid var(--line);border-radius:6px;
   color:var(--dim);cursor:pointer;padding:2px 12px;font-size:11px;line-height:1.4;
-  font-family:'IBM Plex Mono'}
+  font-family:var(--font-mono)}
 .rc .bartoggle:hover{color:var(--txt);border-color:var(--accent)}
 .rc .teambar input{width:110px;background:var(--panel2);border:1px solid var(--line);
-  border-radius:6px;color:var(--txt);padding:6px 8px;font-family:'IBM Plex Mono';
+  border-radius:6px;color:var(--txt);padding:6px 8px;font-family:var(--font-mono);
   font-size:12px;text-transform:uppercase}
 .rc .teambar button{padding:6px 12px;border-radius:6px;border:1px solid var(--accent);
-  background:transparent;color:var(--accent);cursor:pointer;font-family:'Rajdhani';
+  background:transparent;color:var(--accent);cursor:pointer;font-family:var(--font-disp);
   font-size:14px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
 .rc .teambar button.solid{background:var(--car);color:#FFE9ED}
 .rc .teambar button.leave{border-color:var(--red);color:var(--red)}
 .rc .dot{width:9px;height:9px;border-radius:99px;display:inline-block}
 .rc .dot.on{background:var(--green);box-shadow:0 0 6px var(--green)}
 .rc .dot.off{background:var(--dim)}
-.rc .roomcode{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:17px;
+.rc .roomcode{font-family:var(--font-disp);font-weight:700;font-size:17px;
   color:var(--yellow);letter-spacing:.02em}
 .rc .syncinfo{color:var(--dim);font-size:11px;margin-left:auto}
 /* --- lobi --- */
@@ -197,11 +202,11 @@ export const css = `
 .rc .lobby .box{width:100%;max-width:430px;background:var(--panel);
   border:1px solid var(--line);border-radius:14px;padding:30px 28px}
 .rc .lobby h1{margin:0;font-size:30px;font-weight:700;text-transform:uppercase;
-  text-align:center;font-family:'Rajdhani';letter-spacing:.04em}
+  text-align:center;font-family:var(--font-disp);letter-spacing:.04em}
 .rc .lobby h1 b{color:var(--accent)}
 .rc .lobby .sub{text-align:center;color:var(--dim);font-size:12px;margin:4px 0 22px}
 .rc .lobby .bigbtn{width:100%;padding:12px;border-radius:8px;border:1px solid var(--accent);
-  background:var(--car);color:#FFE9ED;cursor:pointer;font-family:'Rajdhani';
+  background:var(--car);color:#FFE9ED;cursor:pointer;font-family:var(--font-disp);
   font-size:18px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-top:8px}
 .rc .lobby .bigbtn.ghost{background:transparent;color:var(--accent);border-color:var(--accent)}
 .rc .lobby .bigbtn:disabled{opacity:.5;cursor:wait}
@@ -218,7 +223,7 @@ export const css = `
 /* --- pist & araç seçimi --- */
 .rc .picksec{margin-top:18px}
 .rc .picksec h3{margin:0 0 8px;font-size:12px;text-transform:uppercase;
-  letter-spacing:.08em;color:var(--dim);font-family:'Rajdhani';font-size:15px}
+  letter-spacing:.08em;color:var(--dim);font-family:var(--font-disp);font-size:15px}
 .rc .trackgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
 .rc .trackgrid button{display:flex;align-items:center;gap:8px;padding:9px 10px;
   border-radius:8px;border:1px solid var(--line);background:var(--panel2);
@@ -232,7 +237,7 @@ export const css = `
 .rc .wxsel button{padding:6px 2px;border:1px solid var(--line);border-radius:8px;
   background:var(--panel2);color:var(--dim);cursor:pointer;font-size:11px;line-height:1.3;
   text-align:center;transition:border-color .15s,color .15s}
-.rc .wxsel button small{font-family:'IBM Plex Mono',monospace;opacity:.8;font-size:10px}
+.rc .wxsel button small{font-family:var(--font-mono);opacity:.8;font-size:10px}
 .rc .wxsel button.on{background:rgba(255,255,255,.05)}
 .rc .minibtn{width:22px;height:22px;padding:0;border:1px solid var(--line);border-radius:6px;
   background:var(--panel2);color:var(--txt);cursor:pointer;font-size:13px;line-height:1}
@@ -242,7 +247,7 @@ export const css = `
 .rc .histbtn:hover{border-color:var(--accent);color:var(--accent)}
 .rc .gbtn{display:inline-flex;align-items:center;gap:10px;margin:0 auto;padding:11px 22px;
   border:1px solid var(--line);border-radius:10px;background:#fff;color:#1f1f1f;
-  font-family:'Rajdhani';font-size:16px;letter-spacing:.04em;text-transform:uppercase;
+  font-family:var(--font-disp);font-size:16px;letter-spacing:.04em;text-transform:uppercase;
   font-weight:600;cursor:pointer;transition:box-shadow .18s,transform .12s}
 .rc .gbtn:hover{box-shadow:0 6px 20px rgba(0,0,0,.45);transform:translateY(-1px)}
 .rc .gbtn:active{transform:scale(.98)}
@@ -376,7 +381,7 @@ export const css = `
   width:min(440px,94vw);max-height:80vh;display:flex;flex-direction:column;overflow:hidden;
   animation:lbzoom .26s cubic-bezier(.2,.85,.3,1.12)}
 .rc .wxmhead{display:flex;align-items:center;justify-content:space-between;
-  padding:12px 16px;border-bottom:1px solid var(--line);font-family:'Rajdhani';
+  padding:12px 16px;border-bottom:1px solid var(--line);font-family:var(--font-disp);
   font-size:18px;letter-spacing:.04em;text-transform:uppercase}
 /* tur listesi penceresi: pilot sütunu için biraz geniş */
 .rc .wxmbox.laps{width:min(520px,94vw)}
@@ -404,16 +409,16 @@ export const css = `
 .rc .wxmlist{overflow:auto;padding:8px}
 /* Setup içeriği penceresi — özet çipleri + bölüm/alan listesi */
 .rc .setupsum{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
-.rc .setupchip{font-family:'IBM Plex Mono';font-size:11.5px;padding:4px 8px;border-radius:7px;
+.rc .setupchip{font-family:var(--font-ui);font-variant-numeric:tabular-nums;font-size:11.5px;padding:4px 8px;border-radius:7px;
   background:rgba(150,0,24,.12);border:1px solid rgba(210,67,87,.35);color:var(--txt)}
 .rc .setupchip b{color:var(--accent);font-weight:600;margin-right:4px}
 .rc .setupsec{margin:0 0 10px}
-.rc .setupsec-h{font-family:'Rajdhani';text-transform:uppercase;letter-spacing:.05em;
+.rc .setupsec-h{font-family:var(--font-disp);text-transform:uppercase;letter-spacing:.05em;
   font-size:12px;color:var(--dim);border-bottom:1px solid var(--line);padding:0 2px 3px;margin-bottom:4px}
 .rc .setuprow{display:flex;justify-content:space-between;gap:12px;padding:3px 4px;font-size:12px}
 .rc .setuprow:nth-child(even){background:rgba(255,255,255,.03)}
 .rc .setuprow-k{color:var(--muted)}
-.rc .setuprow-v{font-family:'IBM Plex Mono';color:var(--txt);text-align:right}
+.rc .setuprow-v{font-family:var(--font-ui);font-variant-numeric:tabular-nums;color:var(--txt);text-align:right}
 /* ⚖ setup karşılaştırma penceresi + alt-sabit seçim çubuğu */
 .rc .cmphead{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;
   margin:0 0 6px}
@@ -501,7 +506,7 @@ export const css = `
 .rc .classtoggle button{flex:1;display:flex;align-items:center;justify-content:center;
   gap:8px;padding:10px;border-radius:8px;border:1px solid var(--line);
   background:var(--panel2);color:var(--dim);cursor:pointer;
-  font-family:'Rajdhani';font-size:16px;font-weight:600;letter-spacing:.05em}
+  font-family:var(--font-disp);font-size:16px;font-weight:600;letter-spacing:.05em}
 .rc .classtoggle button img{width:26px;height:auto}
 .rc .classtoggle button.on{border-color:var(--accent);background:var(--sel-bg);
   color:var(--accent)}
@@ -532,7 +537,7 @@ export const css = `
 .rc .floatstream .fsgrip:hover{color:var(--accent)}
 .rc .floatstream .fsshield{position:absolute;inset:0;z-index:2}
 .rc .floatstream .fstitle{font-size:10.5px;letter-spacing:.1em;color:var(--muted);
-  font-family:'Rajdhani',sans-serif;margin-right:auto}
+  font-family:var(--font-disp);margin-right:auto}
 .rc .floatstream .fsbtns{display:flex;gap:2px;align-items:center}
 .rc .floatstream .fsbtns button,.rc .floatstream .fsbtns a{background:none;border:0;
   color:var(--dim);cursor:pointer;font-size:11px;padding:1px 4px;line-height:1;
@@ -557,7 +562,7 @@ export const css = `
   border-radius:12px;padding:14px 16px;box-shadow:0 12px 40px rgba(0,0,0,.6);
   transition:all .28s ease}
 .rc .tourcard h3{margin:0 0 6px;font-size:15px;color:var(--red);
-  font-family:'Rajdhani',sans-serif;letter-spacing:.04em}
+  font-family:var(--font-disp);letter-spacing:.04em}
 .rc .tourcard p{margin:0 0 12px;font-size:12.5px;line-height:1.55;color:var(--txt)}
 .rc .tourstep{font-size:10px;color:var(--dim);letter-spacing:.14em;margin-bottom:4px}
 /* ilerleme çubuğu — uzun turda nerede olduğun tek bakışta belli olsun */
@@ -648,11 +653,11 @@ export const css = `
 .rc .drivepause-sub{font-size:13px;line-height:1.45;color:var(--muted)}
 .rc textarea:focus{outline:2px solid var(--accent)}
 .rc select{background:var(--panel2);border:1px solid var(--line);border-radius:6px;
-  color:var(--txt);padding:5px 6px;font-family:'IBM Plex Mono';font-size:12px}
+  color:var(--txt);padding:5px 6px;font-family:var(--font-mono);font-size:12px}
 /* Logolu açılır liste (ImgSelect) — native select görünümüyle uyumlu tetik + fixed popup */
 .rc .imgsel-btn{display:flex;align-items:center;gap:6px;width:100%;
   background:var(--panel2);border:1px solid var(--line);border-radius:6px;
-  color:var(--txt);padding:5px 6px;font-family:'IBM Plex Mono';font-size:12px;
+  color:var(--txt);padding:5px 6px;font-family:var(--font-mono);font-size:12px;
   cursor:pointer;text-align:left}
 .rc .imgsel-btn.off{opacity:.5;cursor:not-allowed}
 .rc .imgsel-btn:hover:not(.off){border-color:var(--muted)}
@@ -667,7 +672,7 @@ export const css = `
   box-shadow:0 12px 30px rgba(0,0,0,.5);padding:4px;min-width:150px}
 .rc .imgsel-opt{display:flex;align-items:center;gap:8px;width:100%;
   background:transparent;border:0;border-radius:6px;color:var(--txt);
-  padding:6px 8px;font-family:'IBM Plex Mono';font-size:12px;cursor:pointer;text-align:left}
+  padding:6px 8px;font-family:var(--font-mono);font-size:12px;cursor:pointer;text-align:left}
 .rc .imgsel-opt img{height:20px;width:auto;flex:0 0 auto}
 .rc .imgsel-opt:hover{background:rgba(255,255,255,.06)}
 .rc .imgsel-opt.on{background:var(--sel-bg-soft);color:var(--txt)}
@@ -701,7 +706,7 @@ export const css = `
 /* --- canlı mod --- */
 .rc .livestrip{display:flex;flex-wrap:wrap;align-items:center;gap:16px;
   padding:8px 20px;border-bottom:1px solid var(--line);background:#210B10}
-.rc .livestrip .big{font-family:'Rajdhani';font-size:22px;font-weight:700}
+.rc .livestrip .big{font-family:var(--font-disp);font-size:22px;font-weight:700}
 .rc .livestrip .lbl{color:var(--dim);font-size:10px;text-transform:uppercase;
   letter-spacing:.07em;display:block}
 @keyframes rcpulse{0%,100%{opacity:1}50%{opacity:.35}}
@@ -714,7 +719,7 @@ export const css = `
 .rc tr.pitsoon td{background:rgba(242,201,76,.12)}
 /* --- canlı timing rozeti --- */
 .rc .livebadge{display:inline-flex;align-items:center;gap:6px;font-size:11px;
-  font-family:'IBM Plex Mono';letter-spacing:.04em;padding:2px 9px;border-radius:99px;
+  font-family:var(--font-mono);letter-spacing:.04em;padding:2px 9px;border-radius:99px;
   border:1px solid var(--line);text-transform:uppercase}
 .rc .livebadge i{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
 .rc .livebadge.on{color:var(--green);border-color:rgba(55,214,122,.5)}
@@ -743,14 +748,14 @@ export const css = `
   background:radial-gradient(130% 180% at 100% 0,rgba(150,0,24,.22),#1E0A0E 62%)}
 .rc .hudstrip .hcell{display:flex;flex-direction:column;justify-content:center;gap:2px;min-width:0}
 .rc .hudstrip .lbl{color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.07em}
-.rc .hudstrip .hclock{font-family:'Rajdhani';font-weight:700;font-variant-numeric:tabular-nums;
+.rc .hudstrip .hclock{font-family:var(--font-disp);font-weight:700;font-variant-numeric:tabular-nums;
   font-size:clamp(30px,5vw,48px);line-height:.95;color:var(--green);
   text-shadow:0 0 20px rgba(55,214,122,.28)}
 .rc .hudstrip .hbar{height:4px;border-radius:3px;background:var(--panel2);overflow:hidden;
   margin-top:5px;min-width:150px}
 .rc .hudstrip .hbar i{display:block;height:100%;border-radius:3px;
   background:linear-gradient(90deg,var(--car),var(--accent))}
-.rc .hudstrip .hstint{font-family:'Rajdhani';font-weight:700;font-size:30px;line-height:1;
+.rc .hudstrip .hstint{font-family:var(--font-disp);font-weight:700;font-size:30px;line-height:1;
   letter-spacing:.02em}
 .rc .hudstrip .hdrv{color:var(--accent);font-weight:600;font-size:14px}
 .rc .hudstrip .hgauge{align-items:center;gap:4px}
@@ -761,10 +766,10 @@ export const css = `
   background:radial-gradient(1100px 550px at 50% -12%,#2E0C15 0%,#06040A 64%);
   display:flex;flex-direction:column;align-items:center;justify-content:center;
   gap:3vh;text-align:center;padding:4vh 4vw}
-.rc .pitboard .huge{font-family:'Rajdhani';font-weight:700;
+.rc .pitboard .huge{font-family:var(--font-disp);font-weight:700;
   font-size:clamp(70px,18vw,220px);line-height:.95;color:var(--green);
   font-variant-numeric:tabular-nums}
-.rc .pitboard .mid{font-family:'Rajdhani';font-weight:600;
+.rc .pitboard .mid{font-family:var(--font-disp);font-weight:600;
   font-size:clamp(28px,6vw,64px);color:var(--txt)}
 .rc .pitboard .plbl{color:var(--dim);font-size:clamp(12px,2vw,18px);
   text-transform:uppercase;letter-spacing:.15em}
@@ -779,7 +784,7 @@ export const css = `
   border-radius:16px;padding:1.4vh 2.6vw;min-width:170px}
 .rc .pitboard .chips{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;
   align-items:center}
-.rc .pitboard .chip2{font-family:'Rajdhani';font-weight:700;letter-spacing:.08em;
+.rc .pitboard .chip2{font-family:var(--font-disp);font-weight:700;letter-spacing:.08em;
   padding:5px 16px;border-radius:9px;font-size:clamp(15px,2.4vw,22px);line-height:1;
   border:1px solid}
 .rc .pitboard .chip2.fuel{color:var(--green);border-color:var(--green);
@@ -805,7 +810,7 @@ export const css = `
 .rc .lightbox img{max-width:90vw;max-height:78vh;object-fit:contain;
   animation:lbzoom .3s cubic-bezier(.2,.85,.3,1.12);
   filter:drop-shadow(0 16px 48px rgba(0,0,0,.75))}
-.rc .lightbox .lbcap{font-family:'Rajdhani';font-size:20px;letter-spacing:.05em;
+.rc .lightbox .lbcap{font-family:var(--font-disp);font-size:20px;letter-spacing:.05em;
   text-transform:uppercase;color:var(--txt);animation:lbfade .4s ease}
 .rc .lightbox .lbclose{position:absolute;top:18px;right:22px;background:var(--panel2);
   border:1px solid var(--line);border-radius:8px;color:var(--txt);font-size:16px;
@@ -869,7 +874,7 @@ export const css = `
 .rc .cmdk-in{display:flex;align-items:center;gap:9px;padding:12px 16px;
   border-bottom:1px solid var(--line);color:var(--dim)}
 .rc .cmdk-in input{flex:1;background:none;border:none;outline:none;color:var(--txt);
-  font-family:'Inter',sans-serif;font-size:16px;padding:0}
+  font-family:var(--font-ui);font-size:16px;padding:0}
 .rc .cmdk-list{max-height:min(52vh,420px);overflow-y:auto;padding:6px}
 .rc .cmdk-opt{display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;
   border-radius:8px;color:var(--txt);cursor:pointer;padding:9px 11px;text-align:left;font-size:13px}
@@ -877,7 +882,7 @@ export const css = `
 .rc .cmdk-i{display:inline-flex;color:var(--dim);flex:0 0 auto}
 .rc .cmdk-opt.on .cmdk-i{color:var(--accent)}
 .rc .cmdk-l{flex:1}
-.rc .cmdk-h{font-size:11px;color:var(--muted);font-family:'IBM Plex Mono'}
+.rc .cmdk-h{font-size:11px;color:var(--muted);font-family:var(--font-mono)}
 .rc .cmdk-foot{display:flex;gap:16px;padding:8px 14px;border-top:1px solid var(--line);
   font-size:10.5px;color:var(--muted);letter-spacing:.04em}
 /* --- İskelet yükleme (Suspense / veri beklerken düz metin yerine) --- */
