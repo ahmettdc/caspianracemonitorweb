@@ -15,6 +15,8 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { msFromCell, parseMotecLog, parseTelemetryText, guessMapping } from "./parsers";
 import { parseLd } from "./ldParser";
 import { buildReaders, buildTrace, buildCompare } from "./ldTrace";
+import { duckLaps, duckMeta } from "./duckParse";        // saf — WASM'sız
+import { buildDuckReaders, buildDuckTrace } from "./duckTrace";
 import { computeSlotStats, computeChartData, apply105Rule } from "./state";
 
 export function useTelemetry({ st, setSt }) {
@@ -55,6 +57,35 @@ export function useTelemetry({ st, setSt }) {
     const f = e.target.files?.[0];
     if (!f) return;
     setSavedMsg("");   // yeni dosya → eski kayıt onayını temizle
+    /* .duckdb = LMU yerel telemetri kaydı (MoTeC .ld'nin yerini alır) → duckdb-wasm ile
+       oku, aynı motec şekli. Ağır WASM (~35 MB) LAZY: yalnız .duckdb açılınca indirilir. */
+    if (/\.duckdb$/i.test(f.name)) {
+      setRawTele("");
+      setMapping(null);
+      setParsed({ loading: true, duck: true });
+      setCmpASrc("cur"); setCmpBSrc("cur");
+      setCmpData(null); setCmpLaps(null); setCmpMeta(null); setTeleFile(null); setTeleHeader(null);
+      import("./duckdb")
+        .then(({ openDuck }) => openDuck(f))
+        .then((ds) => {
+          const laps = duckLaps(ds);
+          const meta = duckMeta(ds);
+          if (!laps.length) { setParsed({ error: "DuckDB: geçerli tur bulunamadı" }); return; }
+          const header = { duck: ds };            // iz okuyucuları bu dataset'ten kurulur
+          setParsed({ motec: true, laps, meta, _header: header });
+          setTeleFile(f);
+          setTeleHeader(header);
+          setCmpLaps(laps);
+          setCmpMeta(meta);
+          const idx = laps.map((_, i) => i).sort((i, j) => laps[i].sec - laps[j].sec);
+          const fulls = idx.filter((i) => !laps[i].partial);
+          const pick = fulls.length >= 2 ? fulls : idx;
+          setCmpA(pick[0] ?? 0);
+          setCmpB(pick[1] ?? pick[0] ?? 0);
+        })
+        .catch(() => setParsed({ error: "DuckDB dosyası okunamadı" }));
+      return;
+    }
     /* .ld = MoTeC ikili log → CSV'ye çevirmeden doğrudan oku (parseLd, aynı motec şekli).
        parseLd SEÇİCİ okur: tüm dosyayı belleğe almaz, yalnız gereken kanalları File.slice
        ile çeker → 100MB+ log'lar donmadan/şişmeden açılır. Diğerleri (csv/tsv/txt) = metin. */
@@ -99,7 +130,11 @@ export function useTelemetry({ st, setSt }) {
   /* Okuyucuları File kimliğiyle önbellekle (kaynak değişse de bayatlamaz; eşzamanlı çağrı promise paylaşır). */
   const getReaders = (file, header) => {
     const m = readersRef.current;
-    if (!m.has(file)) m.set(file, buildReaders(file, header));
+    if (!m.has(file)) {
+      /* .duckdb: okuyucular bellek-içi dataset'ten (senkron, ucuz) → promise'e sar.
+         .ld: byte-slice okuyucular (async). Karışık kaynak (biri .ld biri .duckdb) desteklenir. */
+      m.set(file, header?.duck ? Promise.resolve(buildDuckReaders(header.duck)) : buildReaders(file, header));
+    }
     return m.get(file);
   };
 
@@ -115,7 +150,9 @@ export function useTelemetry({ st, setSt }) {
       try {
         const rA = await getReaders(sA.file, sA.header);
         const rB = (sA.file === sB.file) ? rA : await getReaders(sB.file, sB.header);
-        const cmp = buildCompare(buildTrace(rA, sA.laps[cmpA]), buildTrace(rB, sB.laps[cmpB]));
+        const tA = sA.header?.duck ? buildDuckTrace : buildTrace;   // kaynağa göre iz fonksiyonu
+        const tB = sB.header?.duck ? buildDuckTrace : buildTrace;
+        const cmp = buildCompare(tA(rA, sA.laps[cmpA]), tB(rB, sB.laps[cmpB]));
         if (alive) setCmpData(cmp);
       } catch { if (alive) setCmpData(null); }
       finally { if (alive) setCmpBusy(false); }
