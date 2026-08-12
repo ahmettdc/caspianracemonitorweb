@@ -5,6 +5,24 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.6.0",
+    date: "2026-08-12",
+    tr: [
+      "🎨 Ana Menü: Telemetri kartının sürekli kırmızı görünümü kaldırıldı — artık diğer hızlı-erişim kartlarıyla aynı renk/hover davranışında (işlevi aynı).",
+      "🔤 Setup penceresi: dosya adı, tur zamanı ve karşılaştırma değerlerindeki daktilo (Roboto Mono) görünümü kaldırıldı — uygulamanın gövde fontuna (rakamlar yine hizalı) geçti.",
+      "🧩 Takım Yönetimi penceresi yeniden düzenlendi: Takım Kimliği · Sezonlar & Takvim · Üyeler & Yetkiler · Takım Erişimi kart bölümleri; üye satırları hizalı (rozet · ad · rol · eylem), daha kompakt ve okunur.",
+      "🏢 \"Kur & Katıl\": Ana Menü'deki takım ekle butonu artık yönetim penceresinin tamamını değil, yalnızca Takım Kur + Katılım Kodu içeren sade bir ekran açıyor. Yönetim akışı (sezon/takvim/üye/izin) ayrı kaldı.",
+      "🌐 Varsayılan dil artık İngilizce (ilk açılış). Kayıtlı bir dil tercihin varsa o korunur; istediğin zaman TR/EN geçebilirsin.",
+    ],
+    en: [
+      "🎨 Main Menu: removed the always-red look of the Telemetry card — it now matches the other quick-access cards' color/hover behavior (function unchanged).",
+      "🔤 Setup window: dropped the typewriter (Roboto Mono) look from file names, lap times and comparison values — now uses the app's body font (numbers still aligned).",
+      "🧩 Team Management redesigned into clear card sections: Team Identity · Seasons & Calendar · Members & Permissions · Team Access; member rows aligned (badge · name · role · action), more compact and readable.",
+      "🏢 \"Create & Join\": the add-team button in the Main Menu now opens a simple screen with just Create Team + Join Code, instead of the whole management window. The management flow (seasons/calendar/members/permissions) stays separate.",
+      "🌐 Default language is now English (first launch). A saved language preference is preserved; switch TR/EN anytime.",
+    ],
+  },
+  {
     v: "v1.5.3",
     date: "2026-08-12",
     tr: [

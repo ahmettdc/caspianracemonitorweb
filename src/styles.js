@@ -324,7 +324,6 @@ export const css = `
   background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:11px 13px;
   cursor:pointer;color:var(--txt)}
 .rc .mmqa:hover{border-color:var(--line2)}
-.rc .mmqa.tel{background:var(--sel-bg);border-color:var(--brand2)}
 .rc .mmqa .mmqi{font-size:19px}
 .rc .mmqa .mmql{font-family:var(--font-disp);font-weight:600;font-size:14px;
   display:inline-flex;align-items:center;gap:6px}
@@ -386,6 +385,41 @@ export const css = `
 .rc .tmfoot{display:flex;gap:6px;padding:10px 14px;border-top:1px solid var(--line);
   align-items:center;flex-wrap:wrap}
 .rc .tmfoot input{margin:0;flex:1;min-width:120px}
+/* v1.6 — Team Management: mantıksal kart bölümleri + hizalı üye satırları */
+.rc .tmbody{padding:12px 14px 14px}
+.rc .tmcard{background:var(--panel2);border:1px solid var(--line);border-radius:12px;
+  padding:12px 14px;margin:0 0 12px}
+.rc .tmcard:last-child{margin-bottom:0}
+.rc .tmcard-h{font-family:var(--font-disp);text-transform:uppercase;letter-spacing:.06em;
+  font-size:12px;font-weight:700;color:var(--accent);margin:0 0 10px;
+  display:flex;align-items:center;gap:8px}
+.rc .tmid{display:flex;align-items:center;gap:10px}
+.rc .tmid-name{font-family:var(--font-disp);font-size:17px;font-weight:700}
+.rc .tmlegend{display:flex;flex-direction:column;gap:3px;margin:0 0 10px;
+  font-size:11px;color:var(--muted);line-height:1.5}
+.rc .tmmembers{display:flex;flex-direction:column;gap:2px}
+.rc .tmmem2{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;
+  gap:10px;padding:7px 9px;border-radius:9px}
+.rc .tmmembers .tmmem2:nth-child(odd){background:rgba(255,255,255,.03)}
+.rc .tmm-badges{display:inline-flex;gap:4px;flex:0 0 auto}
+.rc .tmm-name{display:flex;align-items:center;gap:9px;min-width:0}
+.rc .tmm-name b{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rc .tmm-role{flex:0 0 auto;font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;
+  padding:2px 8px;border-radius:6px;border:1px solid var(--line);color:var(--dim);white-space:nowrap}
+.rc .tmm-act{display:inline-flex;gap:5px;flex:0 0 auto}
+.rc .tmcode{display:inline-flex;align-items:center;gap:12px;background:var(--panel);
+  border:1px solid var(--line2);border-radius:9px;padding:7px 14px;margin:0 0 8px}
+.rc .tmcode-k{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.rc .tmcode-v{font-family:var(--font-disp);font-weight:700;letter-spacing:.16em;font-size:17px;color:var(--txt)}
+/* v1.6 — Create & Join: sade kur/katıl ekranı */
+.rc .cjsec{margin:0 0 16px}
+.rc .cjsec:last-child{margin-bottom:0}
+.rc .cjsec-h{font-family:var(--font-disp);text-transform:uppercase;letter-spacing:.06em;
+  font-size:12px;font-weight:700;color:var(--accent);margin:0 0 8px;display:flex;align-items:center;gap:7px}
+.rc .cjrow{display:flex;gap:8px;align-items:center}
+.rc .cjrow input{margin:0;flex:1;min-width:0}
+.rc .cjrow .ubtn{flex:0 0 auto;white-space:nowrap}
+@media(max-width:440px){.rc .cjrow{flex-wrap:wrap}.rc .cjrow .ubtn{width:100%}}
 .rc .urow{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px}
 .rc .urow:nth-child(odd){background:rgba(255,255,255,.03)}
 .rc .urow img,.rc .urow .uav{width:32px;height:32px;border-radius:50%;object-fit:cover;flex:0 0 auto;
@@ -479,6 +513,8 @@ export const css = `
 .rc .setuprow:nth-child(even){background:rgba(255,255,255,.03)}
 .rc .setuprow-k{color:var(--muted)}
 .rc .setuprow-v{font-family:var(--font-ui);font-variant-numeric:tabular-nums;color:var(--txt);text-align:right}
+/* v1.6 — Setup penceresi: daktilo (Roboto Mono) yerine gövde fontu + hizalı rakamlar */
+.rc .setupmono{font-family:var(--font-ui);font-variant-numeric:tabular-nums}
 /* §9 Setup İçeriği kategori düzeni — araç toolbar (Anlamlı/Tümü + ara) + iki-kolon kategori */
 .rc .setuptools{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:2px 0 12px}
 .rc .setuptools .seg{display:inline-flex;background:var(--panel2);border:1px solid var(--line);

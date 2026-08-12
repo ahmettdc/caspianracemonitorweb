@@ -697,7 +697,7 @@ export function SetupTable({ rows, t, st, lang, isAdmin, onDownload, onDelete, o
                 ...(su.track === st.track ? { background: "rgba(150,0,24,.08)" } : {}),
                 ...(hasFile(su) && onView ? { cursor: "pointer" } : {}),
               }}>
-              <td className="mono">{new Date(su.at || 0)
+              <td className="setupmono">{new Date(su.at || 0)
                 .toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR",
                   { day: "2-digit", month: "2-digit", year: "2-digit" })}</td>
               <td>
@@ -732,11 +732,11 @@ export function SetupTable({ rows, t, st, lang, isAdmin, onDownload, onDelete, o
                     {carName(su.cls, su.car)}
                   </span>
                 : "—"}</td>
-              <td className="mono" style={{ whiteSpace: "nowrap" }}>
+              <td className="setupmono" style={{ whiteSpace: "nowrap" }}>
                 <LapCell su={su} d={deltas.get(su.id)} t={t} /></td>
               {/* Dosya hücresi: ad + (şampiyona · sürüm) + not — sütun birleştirme */}
               <td title={su.note || ""}>
-                <span className="mono" style={{ fontSize: 11 }}>{su.name}</span>
+                <span className="setupmono" style={{ fontSize: 11 }}>{su.name}</span>
                 {(su.champ || su.ver) && <span className="hint" style={{ display: "block",
                   margin: 0 }}>{[su.champ, su.ver].filter(Boolean).join(" · ")}</span>}
                 {su.note && <span className="hint" style={{ display: "block",
@@ -804,9 +804,9 @@ export function SetupCards({ rows, t, st, lang, isAdmin, onDownload, onDelete, o
                 onError={(e) => { e.currentTarget.style.display = "none"; }} />)}
             <span className="nm">{carName(su.cls, su.car) || "—"}</span>
           </div>
-          <div className="sucard-lap mono">
+          <div className="sucard-lap setupmono">
             <LapCell su={su} d={deltas.get(su.id)} t={t} /></div>
-          <div className="sucard-file mono">{su.name}</div>
+          <div className="sucard-file setupmono">{su.name}</div>
           {(su.champ || su.ver || su.note) && (
             <div className="hint" style={{ margin: 0 }}>
               {[su.champ, su.ver, su.note].filter(Boolean).join(" · ")}</div>
@@ -1274,7 +1274,7 @@ export function SetupCompareModal({ open, a, b, onClose, t }) {
   const mismatch = a.track !== b.track || a.cls !== b.cls;
   const side = (su) => (
     <>
-      <b className="mono" style={{ fontSize: 11, wordBreak: "break-all" }}>{su.name}</b>
+      <b className="setupmono" style={{ fontSize: 11, wordBreak: "break-all" }}>{su.name}</b>
       <span className="hint" style={{ margin: 0 }}>
         {[carName(su.cls, su.car) || su.car, trackName(su.track) || su.track,
           su.uname].filter(Boolean).join(" · ")}</span>
@@ -1292,7 +1292,7 @@ export function SetupCompareModal({ open, a, b, onClose, t }) {
           {/* başlık: iki taraf + tur zamanları */}
           <div className="cmphead">
             <div className="cmpside">{side(a)}</div>
-            <div className="cmpvs mono">
+            <div className="cmpvs setupmono">
               {(a.lap || b.lap) ? <>{a.lap || "—"} ↔ {b.lap || "—"}</> : "↔"}</div>
             <div className="cmpside" style={{ textAlign: "right" }}>{side(b)}</div>
           </div>
@@ -1339,8 +1339,8 @@ export function SetupCompareModal({ open, a, b, onClose, t }) {
                     <div className={`cmprow${r.differ ? " diffhl" : ""}`}
                       key={`${r.section}/${r.key}`}>
                       <span className="setuprow-k">{t(SVM_FIELDS[r.key] || r.key)}</span>
-                      <span className="cmpv mono">{r.a}</span>
-                      <span className="cmpv mono">{r.b}</span>
+                      <span className="cmpv setupmono">{r.a}</span>
+                      <span className="cmpv setupmono">{r.b}</span>
                     </div>
                   ))}
                 </div>
@@ -1441,22 +1441,90 @@ export function SetupModal({ open, onClose, t, suUpOpen, setSuUpOpen, suList, se
    kur/katıl. App.jsx'ten çıkarıldı (en büyük modal). Depo fonksiyonları burada
    import; navigasyon/rozet/rol yardımcıları (openRace/setRForm/setBadge/roleLabel)
    App'ten prop. open=false || user yok → null döner. */
+/* Create & Join — sade takım OLUŞTUR / KATIL ekranı (v1.6). Team Management'tan
+   AYRI: yalnız yeni takım kur + katılım kodu ile katıl. Yönetim (sezon/takvim/
+   üye/izin) burada YOK — o TeamModal'da. Backend/Firebase davranışı değişmez. */
+export function CreateJoinModal({ open, onClose, user, t, userName,
+  tForm, setTForm, setTErr, tErr, setCurTeam }) {
+  if (!open || !user) return null;
+  return (
+    <div className="wxmodal" onClick={onClose}>
+      <div className="wxmbox" style={{ width: "min(460px,94vw)" }}
+        onClick={(e) => e.stopPropagation()}>
+        <div className="wxmhead">
+          <span>🏢 {t("Kur & Katıl")}</span>
+          <button className="lbclose" onClick={onClose}>✕</button>
+        </div>
+        <div className="wxmlist" style={{ padding: "14px 16px" }}>
+          <div className="hint" style={{ marginTop: 0, marginBottom: 16 }}>
+            {t("Yeni bir takım kur ya da katılım koduyla mevcut bir takıma katıl.")}
+          </div>
+
+          <div className="cjsec">
+            <div className="cjsec-h">➕ {t("Takım Kur")}</div>
+            <div className="cjrow">
+              <input placeholder={t("Yeni takım adı")} value={tForm.name}
+                onChange={(e) => setTForm({ ...tForm, name: e.target.value })}
+                style={{ textTransform: "none" }} />
+              <button className="gbtn ubtn" disabled={!tForm.name.trim()}
+                style={{ opacity: tForm.name.trim() ? 1 : .45 }}
+                onClick={async () => {
+                  setTErr("");
+                  try {
+                    const tid = await createTeam(user, tForm.name.trim(), userName);
+                    setCurTeam(tid); setTForm({ ...tForm, name: "" }); onClose();
+                  } catch { setTErr(t("Takım kurulamadı")); }
+                }}>{t("Takım Kur")}</button>
+            </div>
+          </div>
+
+          <div className="cjsec">
+            <div className="cjsec-h">🔑 {t("Takıma Katıl")}</div>
+            <div className="cjrow">
+              <input placeholder={t("KATILIM KODU")} maxLength={6} value={tForm.join}
+                onChange={(e) => setTForm({ ...tForm, join: e.target.value.toUpperCase() })} />
+              <button className="gbtn ubtn" disabled={tForm.join.trim().length < 4}
+                style={{ opacity: tForm.join.trim().length >= 4 ? 1 : .45 }}
+                onClick={async () => {
+                  setTErr("");
+                  try {
+                    const tid = await joinTeam(user, tForm.join, userName);
+                    setCurTeam(tid); setTForm({ ...tForm, join: "" }); onClose();
+                  } catch (e) {
+                    setTErr(e.message === "NOT_FOUND" ? t("Takım bulunamadı") : t("Katılınamadı"));
+                  }
+                }}>{t("Katıl")}</button>
+            </div>
+          </div>
+
+          {tErr && <div className="hint" style={{ color: "var(--red)", margin: 0 }}>{tErr}</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* Team Management (v1.6 yeniden düzenleme): mantıksal kart bölümleri —
+   Takım Kimliği · Sezonlar & Takvim · Üyeler & Yetkiler · Takım Erişimi.
+   Kur/Katıl ARTIK burada değil (CreateJoinModal'a taşındı) → yönetim penceresi
+   sade ve kompakt kalır. Tüm mevcut işlevler (ad düzenle, sezon/yarış CRUD,
+   rol rozetleri, join code, ayrıl) korunur. */
 export function TeamModal({ open, onClose, user, t, lang, myTeams, curTeam, setCurTeam,
   teamData, tnEdit, setTnEdit, canManageTeam, canEditTeam, curSeason, setCurSeason,
-  seasons, races, st, myRole, tForm, setTForm, setTErr, tErr, userName,
-  openRace, setRForm, setBadge, roleLabel }) {
+  seasons, races, st, myRole,
+  openRace, setRForm, setBadge, roleLabel, onCreateJoin }) {
   if (!open || !user) return null;
   return (
         <div className="wxmodal" onClick={onClose}>
           <div className="wxmbox" style={{ width: "min(680px,95vw)" }}
             onClick={(e) => e.stopPropagation()}>
             <div className="wxmhead">
-              <span>🏢 {t("Takımlar")}</span>
+              <span>⚙ {t("Yönet")} · {t("Takımlar")}</span>
               <button className="lbclose" onClick={onClose}>✕</button>
             </div>
 
-            {/* takım seçici */}
-            {Object.keys(myTeams).length > 0 && (
+            {/* takım seçici (birden çok takım) */}
+            {Object.keys(myTeams).length > 1 && (
               <div className="tmtabs">
                 {Object.entries(myTeams).map(([tid, nm]) => (
                   <button key={tid} className={curTeam === tid ? "on" : ""}
@@ -1465,209 +1533,190 @@ export function TeamModal({ open, onClose, user, t, lang, myTeams, curTeam, setC
               </div>
             )}
 
-            <div className="wxmlist" style={{ padding: "10px 14px" }}>
+            <div className="wxmlist tmbody">
               {!curTeam && (
-                <div className="hint" style={{ marginBottom: 12 }}>
+                <div className="hint" style={{ marginBottom: 4 }}>
                   {t("Henüz bir takımın yok. Yeni takım kur ya da katılım kodu ile katıl.")}
+                  {onCreateJoin && (
+                    <><br /><button className="gbtn ubtn" style={{ marginTop: 8 }}
+                      onClick={onCreateJoin}>🏢 {t("Kur & Katıl")}</button></>
+                  )}
                 </div>
               )}
 
               {curTeam && teamData && (<>
-                {/* takım adı */}
-                <div className="tmsec">{t("Takım Adı")}</div>
-                {tnEdit === null ? (
-                  <div style={{ display: "flex", alignItems: "center", gap: 8,
-                    marginBottom: 10 }}>
-                    <b style={{ fontSize: 15 }}>{teamData?.meta?.name || "—"}</b>
-                    {canManageTeam && (
-                      <button className="minibtn" style={{ width: "auto", padding: "0 8px" }}
-                        onClick={() => setTnEdit(teamData?.meta?.name || "")}>
-                        {t("Düzenle")}</button>
-                    )}
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", gap: 8, marginBottom: 10, maxWidth: 420 }}>
-                    <input type="text" value={tnEdit} maxLength={40} autoFocus
-                      style={{ textTransform: "none", margin: 0 }}
-                      onChange={(e) => setTnEdit(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Escape") setTnEdit(null); }} />
-                    <button className="gbtn ubtn" disabled={!tnEdit.trim()}
-                      style={{ opacity: tnEdit.trim() ? 1 : .45 }}
-                      onClick={async () => {
-                        const nm = tnEdit.trim();
-                        setTnEdit(null);
-                        try {
-                          await renameTeam(curTeam, nm);
-                          await syncMyTeamName(user.uid, curTeam, nm);
-                        } catch (e) { console.warn("ad değiştirilemedi:", e?.message); }
-                      }}>{t("Kaydet")}</button>
-                    <button className="histbtn"
-                      onClick={() => setTnEdit(null)}>{t("Vazgeç")}</button>
-                  </div>
-                )}
-                {tnEdit !== null && (
-                  <div className="hint" style={{ marginTop: -6, marginBottom: 10 }}>
-                    {t("Yeni ad diğer üyelerde uygulamayı açtıklarında güncellenir.")}</div>
-                )}
-
-                {/* sezonlar */}
-                <div className="tmsec">{t("Sezonlar")}</div>
-                <div className="tmtabs" style={{ padding: "0 0 8px" }}>
-                  <button className={curSeason === "" ? "on" : ""}
-                    onClick={() => setCurSeason("")}>{t("Tümü")}</button>
-                  {Object.entries(seasons).map(([sid, se]) => (
-                    <button key={sid} className={curSeason === sid ? "on" : ""}
-                      onClick={() => setCurSeason(sid)}>{se.name}</button>
-                  ))}
-                  {canEditTeam && (
-                    <button onClick={async () => {
-                      const nm = window.prompt(t("Sezon adı"), `${new Date().getFullYear()} WEC`);
-                      if (nm) await createSeason(curTeam, nm, new Date().getFullYear())
-                        .catch(() => {});
-                    }}>+ {t("Sezon")}</button>
-                  )}
-                </div>
-
-                {/* yarış takvimi */}
-                <div className="tmsec">{t("Yarış Takvimi")}</div>
-                {Object.entries(races)
-                  .filter(([, r]) => !curSeason || r.seasonId === curSeason)
-                  .sort(([, a], [, b]) => (a.startsAt || 0) - (b.startsAt || 0))
-                  .map(([rid, r]) => (
-                    <div key={rid} className="tmroom">
-                      {r.round ? <span className="rcode mono">R{r.round}</span> : null}
-                      <span className="rlabel">
-                        <b>{r.name || trackName(r.trackId) || "—"}</b>
-                        <span className="rmeta">
-                          {r.trackId ? trackName(r.trackId) : ""}
-                          {r.raceTime ? ` · ${r.raceTime}` : ""}
-                          {r.startsAt ? ` · ${new Date(r.startsAt)
-                            .toLocaleString(lang === "en" ? "en-GB" : "tr-TR",
-                              { day: "2-digit", month: "2-digit", hour: "2-digit",
-                                minute: "2-digit" })}` : ""}
-                        </span>
-                      </span>
-                      <button className="gbtn ubtn" onClick={() => openRace(rid)}>
-                        {t("Aç")}</button>
-                      {canEditTeam && (<>
-                        <button className="minibtn" title={t("Düzenle")}
-                          onClick={() => setRForm({ rid, ...r })}>✎</button>
-                        <button className="minibtn" title={t("Sil")}
-                          onClick={() => { if (window.confirm(t("Yarış silinsin mi?")))
-                            deleteRace(curTeam, rid).catch(() => {}); }}>✕</button>
-                      </>)}
-                    </div>
-                  ))}
-                {Object.keys(races).length === 0 && (
-                  <div className="hint">{t("Takvimde yarış yok.")}</div>
-                )}
-                {canEditTeam && (
-                  <button className="gbtn ubtn" style={{ width: "100%", marginTop: 8 }}
-                    onClick={() => setRForm({
-                      rid: null, seasonId: curSeason || null, round: "", name: "",
-                      trackId: st.track || "", carClass: st.carClass || "hypercar",
-                      carId: st.car || "", raceTime: st.raceTime || "6:00:00",
-                      startsAt: Date.now(),
-                    })}>
-                    ➕ {t("Yarış Ekle")}
-                  </button>
-                )}
-
-                {/* üyeler */}
-                <div className="tmsec" style={{ marginTop: 16 }}>{t("Takım Üyeleri")}</div>
-                {canManageTeam && (
-                  <div className="hint" style={{ marginBottom: 6, lineHeight: 1.6 }}>
-                    {t("Rozet yetkiyi belirler:")}<br />
-                    🎧 {t("Yarış Mühendisi")} — {t("yarış datasını değiştirebilir, üyelere dokunamaz")}<br />
-                    <span style={{ verticalAlign: -2 }}><Wheel size={12} /></span> {t("Sürücü")}
-                    {" "}— {t("her şeyi görür, hiçbir şeyi değiştiremez")}<br />
-                    👑 {t("Takım Sahibi")} — {t("rozetleri ve yetkileri yönetir")}
-                  </div>
-                )}
-                {Object.entries(teamData.members || {}).map(([uid, role]) => {
-                  const mbs = teamBadgesOf(teamData, uid, null);
-                  return (
-                    <div key={uid} className="tmmem">
-                      <span className="mbadges">
-                        {mbs.length ? mbs.map((b) => (
-                          <span key={b.lbl} className="ubadge" title={t(b.lbl)}
-                            style={{ color: b.col, background: b.bg, borderColor: b.col }}>
-                            {b.ico}</span>
-                        )) : <span className="ubadge" style={{ opacity: .25 }}>·</span>}
-                      </span>
-                      <span className="mrole" title={t("Yetki")}>{t(roleLabel(role))}</span>
-                      <span className="muid">
-                        {teamData?.names?.[uid]
-                          ? <>{teamData.names[uid]}
-                            {uid === user.uid && <> {t("(sen)")}</>}</>
-                          : <span className="mono">
-                            {uid === user.uid ? t("(sen)") : uid.slice(0, 10) + "…"}</span>}
-                      </span>
+                {/* ── Takım Kimliği ── */}
+                <section className="tmcard">
+                  <div className="tmcard-h">🏷 {t("Takım Kimliği")}</div>
+                  {tnEdit === null ? (
+                    <div className="tmid">
+                      <b className="tmid-name">{teamData?.meta?.name || "—"}</b>
                       {canManageTeam && (
-                        <span style={{ marginLeft: "auto", display: "flex", gap: 5,
-                          alignItems: "center" }}>
-                          {["driver", "engineer"].map((id) => {
-                            const on = hasBadge(teamData, uid, id);
-                            const b = BADGES[id];
-                            return (
-                              <button key={id} className={`btgl ${on ? "on" : ""}`}
-                                title={`${t(b.lbl)} — ${t(id === "engineer"
-                                  ? "datayı değiştirebilir" : "sadece görür")}`}
-                                style={on ? { color: b.col, borderColor: b.col,
-                                  background: b.bg } : undefined}
-                                onClick={() => setBadge(uid, id, !on)}>
-                                {b.ico}
-                              </button>
-                            );
-                          })}
-                        </span>
+                        <button className="minibtn" style={{ width: "auto", padding: "0 10px" }}
+                          onClick={() => setTnEdit(teamData?.meta?.name || "")}>
+                          {t("Düzenle")}</button>
                       )}
                     </div>
-                  );
-                })}
-                <div className="hint" style={{ marginTop: 8 }}>
-                  {t("Katılım kodu")}: <b className="mono">{teamData?.meta?.joinCode || "—"}</b>
-                  {" · "}{t("PIN'leri yalnız düzenleyiciler görür.")}
-                </div>
-                {myRole !== "owner" && (
-                  <div style={{ marginTop: 10 }}>
+                  ) : (
+                    <>
+                      <div style={{ display: "flex", gap: 8, maxWidth: 420 }}>
+                        <input type="text" value={tnEdit} maxLength={40} autoFocus
+                          style={{ textTransform: "none", margin: 0 }}
+                          onChange={(e) => setTnEdit(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Escape") setTnEdit(null); }} />
+                        <button className="gbtn ubtn" disabled={!tnEdit.trim()}
+                          style={{ opacity: tnEdit.trim() ? 1 : .45 }}
+                          onClick={async () => {
+                            const nm = tnEdit.trim();
+                            setTnEdit(null);
+                            try {
+                              await renameTeam(curTeam, nm);
+                              await syncMyTeamName(user.uid, curTeam, nm);
+                            } catch (e) { console.warn("ad değiştirilemedi:", e?.message); }
+                          }}>{t("Kaydet")}</button>
+                        <button className="histbtn"
+                          onClick={() => setTnEdit(null)}>{t("Vazgeç")}</button>
+                      </div>
+                      <div className="hint" style={{ marginBottom: 0 }}>
+                        {t("Yeni ad diğer üyelerde uygulamayı açtıklarında güncellenir.")}</div>
+                    </>
+                  )}
+                </section>
+
+                {/* ── Sezonlar & Takvim ── */}
+                <section className="tmcard">
+                  <div className="tmcard-h">🏁 {t("Sezonlar & Takvim")}</div>
+                  <div className="tmtabs" style={{ padding: "0 0 10px" }}>
+                    <button className={curSeason === "" ? "on" : ""}
+                      onClick={() => setCurSeason("")}>{t("Tümü")}</button>
+                    {Object.entries(seasons).map(([sid, se]) => (
+                      <button key={sid} className={curSeason === sid ? "on" : ""}
+                        onClick={() => setCurSeason(sid)}>{se.name}</button>
+                    ))}
+                    {canEditTeam && (
+                      <button onClick={async () => {
+                        const nm = window.prompt(t("Sezon adı"), `${new Date().getFullYear()} WEC`);
+                        if (nm) await createSeason(curTeam, nm, new Date().getFullYear())
+                          .catch(() => {});
+                      }}>+ {t("Sezon")}</button>
+                    )}
+                  </div>
+                  {Object.entries(races)
+                    .filter(([, r]) => !curSeason || r.seasonId === curSeason)
+                    .sort(([, a], [, b]) => (a.startsAt || 0) - (b.startsAt || 0))
+                    .map(([rid, r]) => (
+                      <div key={rid} className="tmroom">
+                        {r.round ? <span className="rcode">R{r.round}</span> : null}
+                        <span className="rlabel">
+                          <b>{r.name || trackName(r.trackId) || "—"}</b>
+                          <span className="rmeta">
+                            {r.trackId ? trackName(r.trackId) : ""}
+                            {r.raceTime ? ` · ${r.raceTime}` : ""}
+                            {r.startsAt ? ` · ${new Date(r.startsAt)
+                              .toLocaleString(lang === "en" ? "en-GB" : "tr-TR",
+                                { day: "2-digit", month: "2-digit", hour: "2-digit",
+                                  minute: "2-digit" })}` : ""}
+                          </span>
+                        </span>
+                        <button className="gbtn ubtn" onClick={() => openRace(rid)}>
+                          {t("Aç")}</button>
+                        {canEditTeam && (<>
+                          <button className="minibtn" title={t("Düzenle")}
+                            onClick={() => setRForm({ rid, ...r })}>✎</button>
+                          <button className="minibtn" title={t("Sil")}
+                            onClick={() => { if (window.confirm(t("Yarış silinsin mi?")))
+                              deleteRace(curTeam, rid).catch(() => {}); }}>✕</button>
+                        </>)}
+                      </div>
+                    ))}
+                  {Object.keys(races).length === 0 && (
+                    <div className="hint" style={{ marginBottom: 0 }}>{t("Takvimde yarış yok.")}</div>
+                  )}
+                  {canEditTeam && (
+                    <button className="gbtn ubtn" style={{ width: "100%", marginTop: 10 }}
+                      onClick={() => setRForm({
+                        rid: null, seasonId: curSeason || null, round: "", name: "",
+                        trackId: st.track || "", carClass: st.carClass || "hypercar",
+                        carId: st.car || "", raceTime: st.raceTime || "6:00:00",
+                        startsAt: Date.now(),
+                      })}>
+                      ➕ {t("Yarış Ekle")}
+                    </button>
+                  )}
+                </section>
+
+                {/* ── Üyeler & Yetkiler ── */}
+                <section className="tmcard">
+                  <div className="tmcard-h">👥 {t("Üyeler & Yetkiler")}</div>
+                  {canManageTeam && (
+                    <div className="tmlegend">
+                      <span>🎧 {t("Yarış Mühendisi")} — {t("yarış datasını değiştirebilir, üyelere dokunamaz")}</span>
+                      <span><span style={{ verticalAlign: -2 }}><Wheel size={12} /></span> {t("Sürücü")} — {t("her şeyi görür, hiçbir şeyi değiştiremez")}</span>
+                      <span>👑 {t("Takım Sahibi")} — {t("rozetleri ve yetkileri yönetir")}</span>
+                    </div>
+                  )}
+                  <div className="tmmembers">
+                    {Object.entries(teamData.members || {}).map(([uid, role]) => {
+                      const mbs = teamBadgesOf(teamData, uid, null);
+                      return (
+                        <div key={uid} className="tmmem2">
+                          <span className="tmm-badges">
+                            {mbs.length ? mbs.map((b) => (
+                              <span key={b.lbl} className="ubadge" title={t(b.lbl)}
+                                style={{ color: b.col, background: b.bg, borderColor: b.col }}>
+                                {b.ico}</span>
+                            )) : <span className="ubadge" style={{ opacity: .25 }}>·</span>}
+                          </span>
+                          <span className="tmm-name">
+                            <b>{teamData?.names?.[uid]
+                              ? teamData.names[uid]
+                              : (uid === user.uid ? t("(sen)") : uid.slice(0, 10) + "…")}
+                              {teamData?.names?.[uid] && uid === user.uid ? ` ${t("(sen)")}` : ""}</b>
+                            <span className="tmm-role" title={t("Yetki")}>{t(roleLabel(role))}</span>
+                          </span>
+                          {canManageTeam && (
+                            <span className="tmm-act">
+                              {["driver", "engineer"].map((id) => {
+                                const on = hasBadge(teamData, uid, id);
+                                const b = BADGES[id];
+                                return (
+                                  <button key={id} className={`btgl ${on ? "on" : ""}`}
+                                    title={`${t(b.lbl)} — ${t(id === "engineer"
+                                      ? "datayı değiştirebilir" : "sadece görür")}`}
+                                    style={on ? { color: b.col, borderColor: b.col,
+                                      background: b.bg } : undefined}
+                                    onClick={() => setBadge(uid, id, !on)}>
+                                    {b.ico}
+                                  </button>
+                                );
+                              })}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+
+                {/* ── Takım Erişimi ── */}
+                <section className="tmcard">
+                  <div className="tmcard-h">🔑 {t("Takım Erişimi")}</div>
+                  <div className="tmcode">
+                    <span className="tmcode-k">{t("Katılım kodu")}</span>
+                    <b className="tmcode-v">{teamData?.meta?.joinCode || "—"}</b>
+                  </div>
+                  <div className="hint" style={{ marginBottom: myRole !== "owner" ? 10 : 0 }}>
+                    {t("Bu kodu paylaş — üyeler katılırken girer.")}
+                    {" "}{t("PIN'leri yalnız düzenleyiciler görür.")}
+                  </div>
+                  {myRole !== "owner" && (
                     <button className="histbtn" onClick={() => {
                       leaveTeam(curTeam, user.uid).catch(() => {}); setCurTeam("");
                     }}>{t("Takımdan ayrıl")}</button>
-                  </div>
-                )}
+                  )}
+                </section>
               </>)}
             </div>
-
-            {/* kur / katıl */}
-            <div className="tmfoot">
-              <input placeholder={t("Yeni takım adı")} value={tForm.name}
-                onChange={(e) => setTForm({ ...tForm, name: e.target.value })}
-                style={{ textTransform: "none" }} />
-              <button className="histbtn" disabled={!tForm.name.trim()}
-                onClick={async () => {
-                  setTErr("");
-                  try {
-                    const tid = await createTeam(user, tForm.name.trim(), userName);
-                    setCurTeam(tid); setTForm({ ...tForm, name: "" });
-                  } catch { setTErr(t("Takım kurulamadı")); }
-                }}>{t("Takım Kur")}</button>
-              <input placeholder={t("KATILIM KODU")} maxLength={6} value={tForm.join}
-                onChange={(e) => setTForm({ ...tForm, join: e.target.value.toUpperCase() })}
-                style={{ width: 130 }} />
-              <button className="histbtn" disabled={tForm.join.trim().length < 4}
-                onClick={async () => {
-                  setTErr("");
-                  try {
-                    const tid = await joinTeam(user, tForm.join, userName);
-                    setCurTeam(tid); setTForm({ ...tForm, join: "" });
-                  } catch (e) {
-                    setTErr(e.message === "NOT_FOUND" ? t("Takım bulunamadı") : t("Katılınamadı"));
-                  }
-                }}>{t("Katıl")}</button>
-            </div>
-            {tErr && <div className="hint" style={{ color: "var(--red)", padding: "0 14px 10px" }}>
-              {tErr}</div>}
           </div>
         </div>
   );

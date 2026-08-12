@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
-  VersionModal, RaceEditModal, ChatModal, SetupModal, TeamModal, TourOverlay, ImgSelect,
+  VersionModal, RaceEditModal, ChatModal, SetupModal, TeamModal, CreateJoinModal, TourOverlay, ImgSelect,
   SetupContentModal, SetupCompareModal, SetupTable, SetupCards, SessionSetupBox,
 } from "./components.jsx";
 import { buildTourSteps } from "./tourSteps";
@@ -63,11 +63,32 @@ describe("modal bileşenleri: açık halde çökmeden render olur", () => {
         races={{ r1: { name: "Le Mans", trackId: "lemans", raceTime: "6:00:00",
           round: 1, seasonId: "s1", startsAt: Date.now() } }}
         st={{ track: "lemans", carClass: "hypercar", car: "toyota", raceTime: "6:00:00" }}
-        myRole="owner" tForm={{ name: "", join: "" }} setTForm={noop} setTErr={noop}
-        tErr="" userName="Ben" openRace={noop} setRForm={noop} setBadge={noop}
-        roleLabel={(r) => r} />);
+        myRole="owner" openRace={noop} setRForm={noop} setBadge={noop}
+        roleLabel={(r) => r} onCreateJoin={noop} />);
     expect(html).toContain("Takımlar");
-    expect(html).toContain("Caspian");
+    expect(html).toContain("Caspian");            // Takım Kimliği kartında ad
+    expect(html).toContain("Takım Kimliği");      // v1.6 bölüm başlığı
+    expect(html).toContain("ABC123");             // Takım Erişimi: join code
+    expect(html).toContain("Coco");               // üye satırı
+  });
+
+  it("CreateJoinModal (v1.6 — sade kur/katıl, yönetim yok)", () => {
+    const html = render(
+      <CreateJoinModal open onClose={noop} user={{ uid: "u1" }} t={t}
+        userName="Ben" tForm={{ name: "", join: "" }} setTForm={noop}
+        setTErr={noop} tErr="" setCurTeam={noop} />);
+    expect(html).toContain("Kur &amp; Katıl");   // & → &amp; (HTML escape)
+    expect(html).toContain("Takım Kur");
+    expect(html).toContain("Takıma Katıl");
+    // yönetim bölümleri BU ekranda görünmemeli
+    expect(html).not.toContain("Sezonlar & Takvim");
+    expect(html).not.toContain("Üyeler & Yetkiler");
+  });
+
+  it("CreateJoinModal kapalı → boş render", () => {
+    expect(render(<CreateJoinModal open={false} onClose={noop} user={{ uid: "u1" }}
+      t={t} userName="Ben" tForm={{ name: "", join: "" }} setTForm={noop}
+      setTErr={noop} tErr="" setCurTeam={noop} />)).toBe("");
   });
 });
 
