@@ -526,8 +526,8 @@ export function SetupForm({
 }) {
   const [dragOn, setDragOn] = useState(false);   // sürükleme vurgusu
   return (
-    <>
-      <div className="row2" style={{ maxWidth: 720 }}>
+    <div className="suform">
+      <div className="suform-2">
         <div>
           <label>{t("Dosya")}</label>
           {/* sürükle-bırak bölgesi — dosya seçici de içinde; .svm bırakılınca
@@ -557,7 +557,7 @@ export function SetupForm({
             borderRadius: 8, filter: "drop-shadow(0 3px 10px rgba(0,0,0,.45))" }}
           onError={(e) => { e.currentTarget.style.display = "none"; }} />
       )}
-      <div className="row4" style={{ maxWidth: 720 }}>
+      <div className="suform-4">
         <div>
           <label>{t("Koşul")}</label>
           <select value={suMeta.cond}
@@ -586,7 +586,7 @@ export function SetupForm({
             onChange={(v) => setSuMeta({ ...suMeta, car: v })} />
         </div>
       </div>
-      <div className="row4" style={{ maxWidth: 720 }}>
+      <div className="suform-4">
         <div>
           <label>{t("Şampiyona")}</label>
           {/* maxLength kaydetmedeki kırpma sözleşmesiyle eşit (setupPool.SETUP_LIMITS)
@@ -633,7 +633,7 @@ export function SetupForm({
         {suBusy ? t("Yükleniyor…") : t("Yükle")}</button>
       <div className="hint" style={{ marginTop: 6 }}>
         {t("Yüklenen setup tüm takımlara açık ortak havuza gider. Tarih otomatik kaydedilir.")}</div>
-    </>
+    </div>
   );
 }
 

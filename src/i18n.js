@@ -372,6 +372,7 @@ export const EN = {
   "Solo mod — takım takvimi için lobiye dön.":
     "Solo mode — go back to the lobby for the team calendar.",
   "Sezon": "Season",
+  "Yönetim": "Manage",
   "Sezonlar": "Seasons",
   "Sezon adı": "Season name",
   "Round": "Round",

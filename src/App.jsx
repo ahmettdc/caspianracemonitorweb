@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef, lazy, Suspense } from "react";
+import { useState, useMemo, useEffect, useRef, lazy, Suspense, Fragment } from "react";
 import UpdateBanner from "./UpdateBanner";
 import { isTauri } from "./tauriEnv";
 import { useLiveBridge } from "./useLiveBridge";
@@ -1513,7 +1513,7 @@ ${bottomBar}
         <UpdateBanner t={t} />
         {teamModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}{cmdPalette}
         <div className="lobby">
-          <div className="box" style={{ maxWidth: 560 }}>
+          <div className="box" style={{ maxWidth: 900 }}>
             <div className="langsw" style={{ display: "flex", justifyContent: "flex-end",
               alignItems: "center", gap: 6, marginBottom: 6 }}>
               <button className="tourbtn" onClick={() => setTour("lobby")}
@@ -1533,9 +1533,11 @@ ${bottomBar}
                 👤 {userName || t("isimsiz")}</div>
 
               {Object.keys(myTeams).length === 0 ? (
-                <button className="bigbtn ghost" onClick={() => setTeamOpen(true)}>
-                  🏢 {t("Takım Kur / Katıl")}
-                </button>
+                <div className="lobbyfoot">
+                  <button className="bigbtn ghost" onClick={() => setTeamOpen(true)}>
+                    🏢 {t("Takım Kur / Katıl")}
+                  </button>
+                </div>
               ) : (<>
                 {Object.keys(myTeams).length > 1 && (
                   <div className="tmtabs" style={{ padding: "0 0 10px" }}>
@@ -1547,55 +1549,66 @@ ${bottomBar}
                 )}
 
                 <div className="lobbyteams" data-tour="races">
-                  {/* hangi takımın takvimine baktığın belli olsun */}
-                  <div className="lteam">🏢 {teamData?.meta?.name
-                    || myTeams[curTeam] || t("Takım")}</div>
-                  <div className="tmsec">🏁 {t("Yaklaşan Yarışlar")}</div>
-                  {seasonIds.length > 1 && (
-                    <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 8 }}>
-                      {[["all", t("Tümü")], ...seasonIds.map((sid) => [sid, sName(sid)])]
-                        .map(([v, l]) => (
-                          <button key={v} className="act" style={{ fontSize: 11,
-                            ...(lobSeason === v
-                              ? { borderColor: "var(--red)", color: "var(--red)" } : {}) }}
-                            onClick={() => setLobSeason(v)}>{l}</button>
-                        ))}
+                  <div className="lobbygrid">
+                    {/* SOL RAY — takım · sezon filtresi · yönetim */}
+                    <div className="lobbyrail">
+                      {/* hangi takımın takvimine baktığın belli olsun */}
+                      <div className="lteam">🏢 {teamData?.meta?.name
+                        || myTeams[curTeam] || t("Takım")}</div>
+                      {seasonIds.length > 1 && (<>
+                        <div className="rail-lbl">{t("Sezon")}</div>
+                        <div className="seasonfilter">
+                          {[["all", t("Tümü")], ...seasonIds.map((sid) => [sid, sName(sid)])]
+                            .map(([v, l]) => (
+                              <button key={v} className="act" style={{ fontSize: 11,
+                                ...(lobSeason === v
+                                  ? { borderColor: "var(--red)", color: "var(--red)" } : {}) }}
+                                onClick={() => setLobSeason(v)}>{l}</button>
+                            ))}
+                        </div>
+                      </>)}
+                      <div className="rail-lbl">{t("Yönetim")}</div>
+                      <div className="railmgmt">
+                        <button className="histbtn" data-tour="manage"
+                          onClick={() => setTeamOpen(true)}>
+                          ⚙ {canEditTeam ? t("Takvimi & Takımı Yönet") : t("Takımı Görüntüle")}</button>
+                        <button className="histbtn" onClick={() => setSuOpen(true)}>
+                          🔧 {t("Setup Havuzu")}{setups.length > 0 && <> · {setups.length}</>}</button>
+                        <button className="histbtn" data-tour="chat" onClick={() => setChatOpen(true)}>
+                          💬 {t("Sohbet")}{chatUnread > 0 && <> · {chatUnread}</>}</button>
+                      </div>
                     </div>
-                  )}
-                  {upcoming.length === 0
-                    ? <div className="hint">{t("Takvimde yaklaşan yarış yok.")}</div>
-                    : upGroups.map((g) => (
-                      <div key={g.sid || "none"}>
-                        {seasonIds.length > 1 && (
-                          <div className="lseason">{g.name}</div>
-                        )}
-                        {g.items.map((e) => RaceRow(e, e[0] === nextRid))}
-                      </div>
-                    ))}
-
-                  {past.length > 0 && (<>
-                    <div className="tmsec" style={{ marginTop: 12 }}>
-                      {t("Geçmiş")}</div>
-                    {past.slice(0, 5).map((e) => (
-                      <div key={e[0]}>
-                        {seasonIds.length > 1 && lobSeason === "all" && (
-                          <div className="lseason">{sName(sidOf(e))}</div>
-                        )}
-                        {RaceRow(e, false)}
-                      </div>
-                    ))}
-                  </>)}
-
-                  <button className="histbtn" data-tour="manage"
-                    style={{ marginTop: 10, width: "100%" }}
-                    onClick={() => setTeamOpen(true)}>
-                    ⚙ {canEditTeam ? t("Takvimi & Takımı Yönet") : t("Takımı Görüntüle")}</button>
-          <button className="histbtn" onClick={() => setSuOpen(true)}
-            style={{ marginTop: 8, width: "100%" }}>
-            🔧 {t("Setup Havuzu")}{setups.length > 0 && <> · {setups.length}</>}</button>
-          <button className="histbtn" data-tour="chat" onClick={() => setChatOpen(true)}
-            style={{ marginTop: 8, width: "100%" }}>
-            💬 {t("Sohbet")}{chatUnread > 0 && <> · {chatUnread}</>}</button>
+                    {/* SAĞ ANA ALAN — yarış grid'i */}
+                    <div className="lobbymain">
+                      <div className="tmsec">🏁 {t("Yaklaşan Yarışlar")}</div>
+                      {upcoming.length === 0
+                        ? <div className="hint">{t("Takvimde yaklaşan yarış yok.")}</div>
+                        : <div className="racegrid">
+                          {upGroups.map((g) => (
+                            <Fragment key={g.sid || "none"}>
+                              {seasonIds.length > 1 && (
+                                <div className="lseason">{g.name}</div>
+                              )}
+                              {g.items.map((e) => RaceRow(e, e[0] === nextRid))}
+                            </Fragment>
+                          ))}
+                        </div>}
+                      {past.length > 0 && (<>
+                        <div className="tmsec" style={{ marginTop: 12 }}>
+                          {t("Geçmiş")}</div>
+                        <div className="racegrid">
+                          {past.slice(0, 5).map((e) => (
+                            <Fragment key={e[0]}>
+                              {seasonIds.length > 1 && lobSeason === "all" && (
+                                <div className="lseason">{sName(sidOf(e))}</div>
+                              )}
+                              {RaceRow(e, false)}
+                            </Fragment>
+                          ))}
+                        </div>
+                      </>)}
+                    </div>
+                  </div>
                 </div>
               </>)}
 
@@ -1606,6 +1619,7 @@ ${bottomBar}
               </div>
             )}
 
+            <div className="lobbyfoot">
             <button className="solo" onClick={() => setEntered(true)}>
               {t("Takımsız solo devam et →")}
             </button>
@@ -1647,6 +1661,7 @@ ${bottomBar}
               <div className="hint" style={{ textAlign: "center", marginTop: 6 }}>
                 {t("Oyunun PC'sinde: ağır arayüzü kapatıp yalnız tarayıcısız köprüyü çalıştırır → oyun donmaz. Köprü tepside çalışır; mühendisler canlıyı web'den izler.")}</div>
             </>)}
+            </div>
           </div>
         </div>
       </div>
@@ -2391,40 +2406,46 @@ ${bottomBar}
 
             <div className="card" style={{ marginTop: 12 }}>
               <h2>📚 {t("Setup Havuzu")} ({suList.length}/{setups.length})</h2>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-                <select value={suFTrack} onChange={(e) => setSuFTrack(e.target.value)}>
-                  <option value="">{t("Tüm pistler")}</option>
-                  {TRACKS.filter((tr) => setups.some((x) => x.track === tr.id))
-                    .map((tr) =>
-                      <option key={tr.id} value={tr.id}>{trackFlag(tr.id)} {tr.name}</option>)}
-                </select>
-                <select value={suFCond} onChange={(e) => setSuFCond(e.target.value)}>
-                  <option value="">{t("Kuru + Wet")}</option>
-                  <option value="dry">☀️ {t("Kuru")}</option>
-                  <option value="wet">🌧 Wet</option>
-                </select>
-                <select value={suFSess} onChange={(e) => setSuFSess(e.target.value)}>
-                  <option value="">{t("Yarış + Sıralama")}</option>
-                  <option value="R">{t("Yarış")}</option>
-                  <option value="Q">{t("Sıralama")}</option>
-                </select>
-                <input type="text" value={suQuery} placeholder={`🔎 ${t("ara")}…`}
-                  style={{ textTransform: "none", minWidth: 160 }}
-                  onChange={(e) => setSuQuery(e.target.value)} />
-                {st.track && setups.some((x) => x.track === st.track) && (
+              {/* araç çubuğu: solda filtreler, sağda aksiyonlar — eşit yükseklik, sarınca da düzenli */}
+              <div className="toolbar">
+                <div className="tb-group">
+                  <select value={suFTrack} onChange={(e) => setSuFTrack(e.target.value)}>
+                    <option value="">{t("Tüm pistler")}</option>
+                    {TRACKS.filter((tr) => setups.some((x) => x.track === tr.id))
+                      .map((tr) =>
+                        <option key={tr.id} value={tr.id}>{trackFlag(tr.id)} {tr.name}</option>)}
+                  </select>
+                  <select value={suFCond} onChange={(e) => setSuFCond(e.target.value)}>
+                    <option value="">{t("Kuru + Wet")}</option>
+                    <option value="dry">☀️ {t("Kuru")}</option>
+                    <option value="wet">🌧 Wet</option>
+                  </select>
+                  <select value={suFSess} onChange={(e) => setSuFSess(e.target.value)}>
+                    <option value="">{t("Yarış + Sıralama")}</option>
+                    <option value="R">{t("Yarış")}</option>
+                    <option value="Q">{t("Sıralama")}</option>
+                  </select>
+                  <input type="text" value={suQuery} placeholder={`🔎 ${t("ara")}…`}
+                    style={{ textTransform: "none", minWidth: 150 }}
+                    onChange={(e) => setSuQuery(e.target.value)} />
+                </div>
+                <div className="tb-group">
+                  {st.track && setups.some((x) => x.track === st.track) && (
+                    <button className="act" style={{ fontSize: 11 }}
+                      onClick={() => setSuFTrack(st.track)}>
+                      📍 {trackName(st.track)}</button>
+                  )}
+                  <button className="act" style={{ fontSize: 11,
+                      ...(suMine ? { borderColor: "var(--green)", color: "var(--green)" } : {}) }}
+                    title={t("Yalnız senin yüklediklerin")}
+                    onClick={() => setSuMine((v) => !v)}>
+                    👤 {t("Benim setuplarım")}</button>
+                  <span className="tb-sep" />
                   <button className="act" style={{ fontSize: 11 }}
-                    onClick={() => setSuFTrack(st.track)}>
-                    📍 {trackName(st.track)}</button>
-                )}
-                <button className="act" style={{ fontSize: 11,
-                    ...(suMine ? { borderColor: "var(--green)", color: "var(--green)" } : {}) }}
-                  title={t("Yalnız senin yüklediklerin")}
-                  onClick={() => setSuMine((v) => !v)}>
-                  👤 {t("Benim setuplarım")}</button>
-                <button className="act" style={{ fontSize: 11, marginLeft: "auto" }}
-                  title={suView === "cards" ? t("Tablo") : t("Kartlar")}
-                  onClick={toggleSuView}>
-                  {suView === "cards" ? <>☰ {t("Tablo")}</> : <>⊞ {t("Kartlar")}</>}</button>
+                    title={suView === "cards" ? t("Tablo") : t("Kartlar")}
+                    onClick={toggleSuView}>
+                    {suView === "cards" ? <>☰ {t("Tablo")}</> : <>⊞ {t("Kartlar")}</>}</button>
+                </div>
               </div>
               {suDelErr && <div className="hint warn">⚠ {suDelErr}</div>}
               {/* Havuz doluyken süzgeç hiçbir şeyi tutmuyorsa "Henüz setup yok" demek

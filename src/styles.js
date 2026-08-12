@@ -219,7 +219,8 @@ export const css = `
 .rc .trackgrid button img{width:22px;height:auto;border-radius:2px;flex-shrink:0}
 .rc .trackgrid button.on{border-color:var(--accent);background:var(--sel-bg);
   color:var(--accent);font-weight:600}
-.rc .classtoggle{display:flex;gap:8px}
+.rc .classtoggle{display:flex;flex-wrap:wrap;gap:8px}
+.rc .classtoggle button{min-width:120px}
 .rc .wxsel{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:4px 0 2px}
 .rc .wxsel button{padding:6px 2px;border:1px solid var(--line);border-radius:8px;
   background:var(--panel2);color:var(--dim);cursor:pointer;font-size:11px;line-height:1.3;
@@ -245,6 +246,22 @@ export const css = `
 .rc .adminbtn .badge{position:absolute;top:-6px;right:-6px;background:var(--car);color:#fff;
   border-radius:9px;font-size:10px;padding:1px 6px;line-height:1.4}
 .rc .lobbyteams{margin-bottom:14px;text-align:left}
+/* Ana menü iki-kolon: sol ray (takım/sezon/yönetim) + sağ yarış grid'i.
+   Dar ekranda tek kolona iner. İkincil footer (solo/indirme) ortalanır. */
+.rc .lobbygrid{display:grid;grid-template-columns:232px 1fr;gap:18px;align-items:start}
+.rc .lobbyrail{display:flex;flex-direction:column;gap:9px;min-width:0}
+.rc .lobbyrail .rail-lbl{font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--muted);margin:6px 0 0 2px}
+.rc .seasonfilter{display:flex;flex-wrap:wrap;gap:6px}
+.rc .railmgmt{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.rc .railmgmt .histbtn{width:100%;text-align:left}
+.rc .lobbymain{min-width:0}
+.rc .racegrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;
+  margin-bottom:4px}
+.rc .racegrid .lseason{grid-column:1/-1;margin:6px 0 2px 2px}
+.rc .racegrid .lrace{margin-bottom:0;height:100%}
+.rc .lobbyfoot{max-width:520px;margin-left:auto;margin-right:auto}
+@media(max-width:720px){.rc .lobbygrid{grid-template-columns:1fr}}
 .rc .lrace{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;margin-bottom:6px;
   border:1px solid var(--line);border-radius:10px;background:var(--panel2);cursor:pointer;
   transition:border-color .15s,transform .12s;text-align:left}
@@ -432,6 +449,19 @@ export const css = `
 .rc .sudrop{border:1.5px dashed var(--line);border-radius:8px;padding:8px 10px;
   display:flex;flex-direction:column;gap:5px;transition:border-color .15s,background .15s}
 .rc .sudrop.on{border-color:var(--accent);background:rgba(210,67,87,.08)}
+/* Setup formu — sabit row2/row4 yerine responsive grid (dar ekranda sarar, kırpılmaz).
+   generic .row2/.row4 (Drivers/Fuel'de kullanılıyor) korunur; bunlar Setup'a özel. */
+.rc .suform{max-width:960px}
+.rc .suform-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start}
+.rc .suform-4{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:9px;align-items:start}
+@media(max-width:560px){.rc .suform-2{grid-template-columns:1fr}}
+/* Setup havuzu araç çubuğu — filtre grubu | aksiyon grubu; eşit kontrol yüksekliği. */
+.rc .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;
+  background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-bottom:10px}
+.rc .toolbar .tb-group{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.rc .toolbar select,.rc .toolbar input[type=text],.rc .toolbar .act{height:32px;font-size:12px}
+.rc .toolbar input[type=text]{width:auto}
+.rc .toolbar .tb-sep{width:1px;align-self:stretch;background:var(--line);margin:0 1px}
 .rc .wxrow{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px}
 .rc .wxrow:nth-child(odd){background:rgba(255,255,255,.03)}
 .rc .wxrow .wxdot{width:11px;height:11px;border-radius:3px;flex:0 0 auto}
