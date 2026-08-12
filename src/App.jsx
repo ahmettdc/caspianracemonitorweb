@@ -2391,40 +2391,46 @@ ${bottomBar}
 
             <div className="card" style={{ marginTop: 12 }}>
               <h2>📚 {t("Setup Havuzu")} ({suList.length}/{setups.length})</h2>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-                <select value={suFTrack} onChange={(e) => setSuFTrack(e.target.value)}>
-                  <option value="">{t("Tüm pistler")}</option>
-                  {TRACKS.filter((tr) => setups.some((x) => x.track === tr.id))
-                    .map((tr) =>
-                      <option key={tr.id} value={tr.id}>{trackFlag(tr.id)} {tr.name}</option>)}
-                </select>
-                <select value={suFCond} onChange={(e) => setSuFCond(e.target.value)}>
-                  <option value="">{t("Kuru + Wet")}</option>
-                  <option value="dry">☀️ {t("Kuru")}</option>
-                  <option value="wet">🌧 Wet</option>
-                </select>
-                <select value={suFSess} onChange={(e) => setSuFSess(e.target.value)}>
-                  <option value="">{t("Yarış + Sıralama")}</option>
-                  <option value="R">{t("Yarış")}</option>
-                  <option value="Q">{t("Sıralama")}</option>
-                </select>
-                <input type="text" value={suQuery} placeholder={`🔎 ${t("ara")}…`}
-                  style={{ textTransform: "none", minWidth: 160 }}
-                  onChange={(e) => setSuQuery(e.target.value)} />
-                {st.track && setups.some((x) => x.track === st.track) && (
+              {/* araç çubuğu: solda filtreler, sağda aksiyonlar — eşit yükseklik, sarınca da düzenli */}
+              <div className="toolbar">
+                <div className="tb-group">
+                  <select value={suFTrack} onChange={(e) => setSuFTrack(e.target.value)}>
+                    <option value="">{t("Tüm pistler")}</option>
+                    {TRACKS.filter((tr) => setups.some((x) => x.track === tr.id))
+                      .map((tr) =>
+                        <option key={tr.id} value={tr.id}>{trackFlag(tr.id)} {tr.name}</option>)}
+                  </select>
+                  <select value={suFCond} onChange={(e) => setSuFCond(e.target.value)}>
+                    <option value="">{t("Kuru + Wet")}</option>
+                    <option value="dry">☀️ {t("Kuru")}</option>
+                    <option value="wet">🌧 Wet</option>
+                  </select>
+                  <select value={suFSess} onChange={(e) => setSuFSess(e.target.value)}>
+                    <option value="">{t("Yarış + Sıralama")}</option>
+                    <option value="R">{t("Yarış")}</option>
+                    <option value="Q">{t("Sıralama")}</option>
+                  </select>
+                  <input type="text" value={suQuery} placeholder={`🔎 ${t("ara")}…`}
+                    style={{ textTransform: "none", minWidth: 150 }}
+                    onChange={(e) => setSuQuery(e.target.value)} />
+                </div>
+                <div className="tb-group">
+                  {st.track && setups.some((x) => x.track === st.track) && (
+                    <button className="act" style={{ fontSize: 11 }}
+                      onClick={() => setSuFTrack(st.track)}>
+                      📍 {trackName(st.track)}</button>
+                  )}
+                  <button className="act" style={{ fontSize: 11,
+                      ...(suMine ? { borderColor: "var(--green)", color: "var(--green)" } : {}) }}
+                    title={t("Yalnız senin yüklediklerin")}
+                    onClick={() => setSuMine((v) => !v)}>
+                    👤 {t("Benim setuplarım")}</button>
+                  <span className="tb-sep" />
                   <button className="act" style={{ fontSize: 11 }}
-                    onClick={() => setSuFTrack(st.track)}>
-                    📍 {trackName(st.track)}</button>
-                )}
-                <button className="act" style={{ fontSize: 11,
-                    ...(suMine ? { borderColor: "var(--green)", color: "var(--green)" } : {}) }}
-                  title={t("Yalnız senin yüklediklerin")}
-                  onClick={() => setSuMine((v) => !v)}>
-                  👤 {t("Benim setuplarım")}</button>
-                <button className="act" style={{ fontSize: 11, marginLeft: "auto" }}
-                  title={suView === "cards" ? t("Tablo") : t("Kartlar")}
-                  onClick={toggleSuView}>
-                  {suView === "cards" ? <>☰ {t("Tablo")}</> : <>⊞ {t("Kartlar")}</>}</button>
+                    title={suView === "cards" ? t("Tablo") : t("Kartlar")}
+                    onClick={toggleSuView}>
+                    {suView === "cards" ? <>☰ {t("Tablo")}</> : <>⊞ {t("Kartlar")}</>}</button>
+                </div>
               </div>
               {suDelErr && <div className="hint warn">⚠ {suDelErr}</div>}
               {/* Havuz doluyken süzgeç hiçbir şeyi tutmuyorsa "Henüz setup yok" demek

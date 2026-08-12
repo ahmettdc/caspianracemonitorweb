@@ -432,6 +432,19 @@ export const css = `
 .rc .sudrop{border:1.5px dashed var(--line);border-radius:8px;padding:8px 10px;
   display:flex;flex-direction:column;gap:5px;transition:border-color .15s,background .15s}
 .rc .sudrop.on{border-color:var(--accent);background:rgba(210,67,87,.08)}
+/* Setup formu — sabit row2/row4 yerine responsive grid (dar ekranda sarar, kırpılmaz).
+   generic .row2/.row4 (Drivers/Fuel'de kullanılıyor) korunur; bunlar Setup'a özel. */
+.rc .suform{max-width:960px}
+.rc .suform-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start}
+.rc .suform-4{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:9px;align-items:start}
+@media(max-width:560px){.rc .suform-2{grid-template-columns:1fr}}
+/* Setup havuzu araç çubuğu — filtre grubu | aksiyon grubu; eşit kontrol yüksekliği. */
+.rc .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;
+  background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-bottom:10px}
+.rc .toolbar .tb-group{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.rc .toolbar select,.rc .toolbar input[type=text],.rc .toolbar .act{height:32px;font-size:12px}
+.rc .toolbar input[type=text]{width:auto}
+.rc .toolbar .tb-sep{width:1px;align-self:stretch;background:var(--line);margin:0 1px}
 .rc .wxrow{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px}
 .rc .wxrow:nth-child(odd){background:rgba(255,255,255,.03)}
 .rc .wxrow .wxdot{width:11px;height:11px;border-radius:3px;flex:0 0 auto}
