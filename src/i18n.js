@@ -186,6 +186,14 @@ export const EN = {
   "— seç —": "— select —", "Toplam Süre": "Total Time",
   "Sürüş dağılımı": "Time share", "Stint programı": "Stint schedule",
   "toplam": "total", "stint": "stint", "Takımdan": "From team",
+  /* §1 Ana Menü dashboard (v1.5.0) */
+  "Görüntüle": "View", "takvim & takım": "calendar & team",
+  ".ld yükle · analiz": "load .ld · analyze", "paylaşımlı setuplar": "shared setups",
+  "takım kanalları": "team channels", "Sıradaki Yarış": "Next Race",
+  "Geçmiş Yarışlar": "Past Races", "Yaklaşan": "Upcoming",
+  "ara: pist, yarış adı…": "search: track, race name…",
+  "Aramayla eşleşen geçmiş yarış yok.": "No past race matches your search.",
+  "Daha fazla göster": "Show more",
   "Atamaları Temizle": "Clear Assignments",
   "Geçerli bir yarış başlangıç zamanı gir.": "Enter a valid race start time.",
   // telemetri
