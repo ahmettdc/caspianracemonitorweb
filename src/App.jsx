@@ -50,7 +50,7 @@ import {
   TourOverlay, Wheel, Num, Bolt, Tyre, Ring, Icon, Btn,
   BADGES, teamBadgesOf, hasBadge, ChatPanel, SetupForm, SetupTable, SetupCards,
   VersionModal, RaceEditModal,
-  ChatModal, SetupModal, TeamModal, DenyToast, SetupContentModal, SetupCompareModal,
+  ChatModal, SetupModal, TeamModal, CreateJoinModal, DenyToast, SetupContentModal, SetupCompareModal,
   CommandPalette,
 } from "./components";
 import { WetIcon } from "./WetIcon";
@@ -151,7 +151,7 @@ export default function App() {
 
   /* ---------- Faz 2: takım senkronizasyonu + yetki ---------- */
   const [lang, setLang] = useState(() => {
-    try { return localStorage.getItem("crm-lang") || "tr"; } catch { return "tr"; }
+    try { return localStorage.getItem("crm-lang") || "en"; } catch { return "en"; }
   });
   const t = (str) => (lang === "en" ? (EN[str] ?? str) : str);
   const switchLang = (l) => {
@@ -698,6 +698,7 @@ ${bottomBar}
   const [profOpen, setProfOpen] = useState(false);
   /* ---- takımlar ---- */
   const [teamOpen, setTeamOpen] = useState(false);
+  const [createJoinOpen, setCreateJoinOpen] = useState(false); // v1.6 — sade Kur & Katıl ekranı (yönetimden ayrı)
   /* ---- takım/sezon/yarış abonelikleri → useTeams hook'u ---- */
   const { myTeams, curTeam, setCurTeam, teamData, seasons, races } = useTeams({ user, access });
   /* .duckdb telemetrisine gömülü setup'ı Setup Havuzuna kaydet (v1.5.2): VM_/WM_ JSON'u
@@ -1199,9 +1200,16 @@ ${bottomBar}
       myTeams={myTeams} curTeam={curTeam} setCurTeam={setCurTeam} teamData={teamData}
       tnEdit={tnEdit} setTnEdit={setTnEdit} canManageTeam={canManageTeam} canEditTeam={canEditTeam}
       curSeason={curSeason} setCurSeason={setCurSeason} seasons={seasons} races={races} st={st}
-      myRole={myRole} tForm={tForm} setTForm={setTForm} setTErr={setTErr} tErr={tErr}
-      userName={userName} openRace={openRace} setRForm={setRForm} setBadge={setBadge}
-      roleLabel={roleLabel} />
+      myRole={myRole} openRace={openRace} setRForm={setRForm} setBadge={setBadge}
+      roleLabel={roleLabel}
+      onCreateJoin={() => { setTeamOpen(false); setCreateJoinOpen(true); }} />
+  );
+
+  /* Create & Join — takım kur / katıl (yönetimden AYRI, sade ekran; v1.6) */
+  const createJoinModal = (
+    <CreateJoinModal open={createJoinOpen} onClose={() => setCreateJoinOpen(false)}
+      user={user} t={t} userName={userName}
+      tForm={tForm} setTForm={setTForm} setTErr={setTErr} tErr={tErr} setCurTeam={setCurTeam} />
   );
 
   /* ---------- ortak data kartları (setup + ana arayüz sol kolon) ---------- */
@@ -1390,7 +1398,7 @@ ${bottomBar}
       <div className="rc">
         <style>{css}</style>
         <UpdateBanner t={t} />
-        {teamModal}{raceForm}
+        {teamModal}{createJoinModal}{raceForm}
         <div className="lobby">
           <div className="box" style={{ textAlign: "center" }}>
             <img className="logo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
@@ -1431,7 +1439,7 @@ ${bottomBar}
       <div className="rc">
         <style>{css}</style>
         <UpdateBanner t={t} />
-        {teamModal}{raceForm}
+        {teamModal}{createJoinModal}{raceForm}
         <div className="lobby">
           <div className="box" style={{ textAlign: "center" }}>
             <img className="logo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
@@ -1551,7 +1559,7 @@ ${bottomBar}
       <div className="rc">
         <style>{css}</style>
         <UpdateBanner t={t} />
-        {teamModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}{cmdPalette}
+        {teamModal}{createJoinModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}{cmdPalette}
         <div className="lobby">
           <div className="box" style={{ maxWidth: 900 }}>
             <div className="langsw" style={{ display: "flex", justifyContent: "flex-end",
@@ -1574,8 +1582,8 @@ ${bottomBar}
 
               {Object.keys(myTeams).length === 0 ? (
                 <div className="lobbyfoot">
-                  <button className="bigbtn ghost" onClick={() => setTeamOpen(true)}>
-                    🏢 {t("Takım Kur / Katıl")}
+                  <button className="bigbtn ghost" onClick={() => setCreateJoinOpen(true)}>
+                    🏢 {t("Kur & Katıl")}
                   </button>
                 </div>
               ) : (<>
@@ -1589,15 +1597,15 @@ ${bottomBar}
                       <span className="mmtnm">{nm}</span>
                     </button>
                   ))}
-                  <button className="mmtm add" onClick={() => setTeamOpen(true)}>
+                  <button className="mmtm add" onClick={() => setCreateJoinOpen(true)}>
                     <span className="mmtlg">＋</span>
-                    <span className="mmtnm">{t("Katıl")}</span>
+                    <span className="mmtnm">{t("Kur & Katıl")}</span>
                   </button>
                 </div>
 
                 {/* §1.2 — hızlı eylemler: 📊 Telemetri belirgin */}
                 <div className="mmquick">
-                  <button className="mmqa tel"
+                  <button className="mmqa"
                     onClick={() => setTeleOnly(true)}>
                     <span className="mmqi">📊</span>
                     <span className="mmql">{t("Telemetri")}</span>
@@ -1882,7 +1890,7 @@ ${bottomBar}
     <div className="rc">
       <style>{css}</style>
       <UpdateBanner t={t} />
-      {teamModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{streamPlayer}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}
+      {teamModal}{createJoinModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{streamPlayer}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}
       {denyToast}{cmdPalette}
       {profOpen && user && (
         <div className="wxmodal" onClick={() => setProfOpen(false)}>

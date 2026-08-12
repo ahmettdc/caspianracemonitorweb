@@ -355,9 +355,22 @@ export const EN = {
   "Takım senkronizasyonu kapalı — ": "Team sync is off — ",
   " dosyasını doldur.": " needs to be filled in.",
   /* --- takım / sezon / yarış takvimi --- */
+  /* v1.6 — Create & Join ayrı ekran + Team Management yeniden düzenleme */
+  "Kur & Katıl": "Create & Join",
+  "Yeni bir takım kur ya da katılım koduyla mevcut bir takıma katıl.":
+    "Create a new team or join an existing one with a code.",
+  "Yönet": "Manage",
+  "Takım Kimliği": "Team Identity",
+  "Sezonlar & Takvim": "Seasons & Calendar",
+  "Üyeler & Yetkiler": "Members & Permissions",
+  "Takım Erişimi": "Team Access",
+  "Bu kodu paylaş — üyeler katılırken girer.": "Share this code — members enter it to join.",
+  "Rozet yetkiyi belirler.": "Badges set permissions.",
+  "Takım seç": "Select team",
   "Takımlar": "Teams",
   "Takımlarım": "My Teams",
   "Takım Kur": "Create Team",
+  "Takıma Katıl": "Join Team",
   "Takım Kur / Katıl": "Create / Join Team",
   "Takımı Görüntüle": "View Team",
   "Takım Üyeleri": "Team Members",
