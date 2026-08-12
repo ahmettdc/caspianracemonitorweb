@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { parseSvm, setupSummary, b64ToText, diffSetups, categorizeSetup } from "./setupParse";
+import { parseSvm, setupSummary, b64ToText, diffSetups, categorizeSetup,
+  duckSetupToParsed, duckSetupToSvm, textToB64 } from "./setupParse";
 
 /* Kullanıcının paylaştığı gerçek LMU_Porsche_LMGT3.svm'den kesitler. */
 const SAMPLE = `VehicleClassSetting="GT3 Porsche_911_GT3_R_LMGT3 WEC2024"
@@ -210,5 +211,77 @@ describe("b64ToText", () => {
   it("bozuk base64 → boş dize (çökmez)", () => {
     expect(b64ToText("@@@not-base64@@@")).toBe("");
     expect(b64ToText(null)).toBe("");
+  });
+});
+
+describe("duckSetupToParsed (DuckDB gömülü VM_/WM_ setup)", () => {
+  const S = (v) => ({ stringValue: v });
+  const duck = {
+    VM_REAR_WING: S("6.3 deg"), VM_FRONT_WING: S("Standard"),
+    VM_BRAKE_BALANCE: S("50.0:50.0"), VM_BRAKE_PRESSURE: S("120 kgf (100%)"),
+    VM_ANTILOCKBRAKESYSTEMMAP: S("9 (Understeer)"), VM_TRACTIONCONTROLMAP: S("5"),
+    VM_FRONT_ANTISWAY: S("P7 (hard)"), VM_REAR_ANTISWAY: S("Detached"),
+    VM_DIFF_PRELOAD: S("150 Nm"), VM_ENGINE_MIXTURE: S("Race"), VM_FUEL_CAPACITY: S("81.0L"),
+    "WM_PRESSURE-W_FL": S("136 kPa"), "WM_PRESSURE-W_FR": S("136 kPa"),
+    "WM_PRESSURE-W_RL": S("135 kPa"), "WM_PRESSURE-W_RR": S("135 kPa"),
+    "WM_CAMBER-W_FL": S("-2.2 deg"), "WM_CAMBER-W_RL": S("-2.0 deg"),
+    "WM_UNKNOWN-W_FL": S("x"), VM_UNMAPPED: S("y"),
+  };
+  const parsed = duckSetupToParsed(JSON.stringify(duck));
+  it("VM_/WM_ JSON'u parseSvm şekline çevirir", () => {
+    expect(parsed.ok).toBe(true);
+    const idx = {};
+    for (const r of parsed.rows) idx[`${r.section}/${r.key}`] = r.label;
+    expect(idx["REARWING/RWSetting"]).toBe("6.3 deg");
+    expect(idx["CONTROLS/BrakePressureSetting"]).toBe("120 kgf (100%)");
+    expect(idx["SUSPENSION/FrontAntiSwaySetting"]).toBe("P7 (hard)");
+    expect(idx["FRONTLEFT/PressureSetting"]).toBe("136 kPa");
+    expect(idx["FRONTLEFT/CamberSetting"]).toBe("-2.2 deg");
+  });
+  it("eşleşmeyen anahtarları atlar; Detached = anlamsız", () => {
+    expect(parsed.rows.find((r) => r.label === "y")).toBeUndefined();       // VM_UNMAPPED
+    expect(parsed.rows.find((r) => r.key === "UNKNOWN")).toBeUndefined();   // WM_UNKNOWN
+    const arb = parsed.rows.find((r) => r.section === "SUSPENSION" && r.key === "RearAntiSwaySetting");
+    expect(arb.meaningful).toBe(false);   // "Detached"
+  });
+  it("categorizeSetup ile kategorilere ayrılır (Pressure = axle)", () => {
+    const cats = categorizeSetup(parsed);
+    const tyre = cats.find((c) => c.cat === "tyre");
+    const pr = tyre.rows.find((r) => r.key === "PressureSetting");
+    expect(pr.kind).toBe("axle");
+    expect(pr.front).toBe("136 kPa");
+    expect(pr.rear).toBe("135 kPa");
+    expect(cats.find((c) => c.cat === "aero")).toBeTruthy();
+    expect(cats.find((c) => c.cat === "brake")).toBeTruthy();
+  });
+  it("setupSummary çipleri dolar (Arka Kanat / Fren Basıncı)", () => {
+    const s = setupSummary(parsed);
+    expect(s.find((x) => x.value === "6.3 deg")).toBeTruthy();
+    expect(s.find((x) => x.value === "120 kgf (100%)")).toBeTruthy();
+  });
+  it("bozuk/boş JSON → ok:false", () => {
+    expect(duckSetupToParsed("{bozuk").ok).toBeFalsy();
+    expect(duckSetupToParsed("{}").ok).toBe(false);
+  });
+});
+
+describe("duckSetupToSvm + textToB64", () => {
+  const duck = { VM_REAR_WING: { stringValue: "6.3 deg" },
+    "WM_PRESSURE-W_FL": { stringValue: "136 kPa" } };
+  it(".svm metni üretir ve parseSvm ile round-trip eder", () => {
+    const svm = duckSetupToSvm(JSON.stringify(duck));
+    expect(svm).toContain("[REARWING]");
+    expect(svm).toContain("RWSetting=0//6.3 deg");
+    const re = parseSvm(svm);
+    expect(re.ok).toBe(true);
+    const idx = {};
+    for (const r of re.rows) idx[`${r.section}/${r.key}`] = r.label;
+    expect(idx["REARWING/RWSetting"]).toBe("6.3 deg");
+    expect(idx["FRONTLEFT/PressureSetting"]).toBe("136 kPa");
+  });
+  it("boş/bozuk → boş dize", () => { expect(duckSetupToSvm("{}")).toBe(""); });
+  it("textToB64 → b64ToText round-trip (Türkçe)", () => {
+    const txt = "[X]\nY=0//düşük · P7 (hard)";
+    expect(b64ToText(textToB64(txt))).toBe(txt);
   });
 });

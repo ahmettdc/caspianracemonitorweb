@@ -643,6 +643,13 @@ export const EN = {
     "Paste MoTeC lap stats or pick a file (CSV/TSV) — .ld and .duckdb work directly",
   "DuckDB çözümleniyor (ilk açılışta motor indirilir)…":
     "Parsing DuckDB (engine downloads on first open)…",
+  /* §8b — Seans Setup kutusu (telemetriye gömülü kurulum) */
+  "Bu Seansın Setup'ı": "This Session's Setup", "YENİ": "NEW", "ayar": "settings",
+  "Özet": "Summary", "Detay": "Detail", "Havuza Kaydet": "Save to Pool",
+  "Havuza kaydedildi": "Saved to pool", "Kaydediliyor…": "Saving…",
+  "Telemetriden": "From telemetry", "Kaydedilemedi": "Could not save",
+  "Kaydetmek için giriş yapmalısın.": "Sign in to save.",
+  "Setup okunamadı.": "Could not read the setup.",
   "DuckDB: geçerli tur bulunamadı": "DuckDB: no valid laps found",
   "DuckDB dosyası okunamadı": "Could not read the DuckDB file",
   "Neler değişti": "What's new",

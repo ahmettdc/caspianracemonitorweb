@@ -16,9 +16,10 @@ import { firebaseReady,
   requestAccess, watchAllUsers, setUserAllowed, updateProfile,
   setTeamRole, toggleTeamBadge, setTeamMemberName,
   deleteChat, syncMyTeamName,
-  deleteSetup,
+  deleteSetup, addSetup,
   createRace, updateRace,
   raceStateGet } from "./storage";
+import { duckSetupToSvm, textToB64 } from "./setupParse";
 import { signInGoogle, signOut, authReady } from "./auth";
 import {
   parseHMS, fmtHMS, fmtLap, parseLap, msToLocalInput,
@@ -31,7 +32,7 @@ import { EN } from "./i18n";
 import {
   SLOT_COLORS, APP_VERSION, SEEN_VER_KEY, ASSET, AV,
   TRACKS, PIT_LANE_TIMES, TRACK_ASSET, trackFlag,
-  CARS, CAR_CLASSES, trackName, carName, carImg,
+  CARS, CAR_CLASSES, trackName, carName, carImg, classId, venueToTrackId,
   PIE_COLORS, DESKTOP_RELEASE_URL, BRIDGE_EXE_URL,
 } from "./constants";
 import {
@@ -692,6 +693,21 @@ ${bottomBar}
   const [teamOpen, setTeamOpen] = useState(false);
   /* ---- takım/sezon/yarış abonelikleri → useTeams hook'u ---- */
   const { myTeams, curTeam, setCurTeam, teamData, seasons, races } = useTeams({ user, access });
+  /* .duckdb telemetrisine gömülü setup'ı Setup Havuzuna kaydet (v1.5.2): VM_/WM_ JSON'u
+     .svm metnine çevir → mevcut addSetup borusuna ver (havuz bu formatı okur). Pist/sınıf
+     telemetri meta'sından en iyi çaba etiketlenir. */
+  const saveTeleSetup = async (rawJson, meta) => {
+    if (!user) throw new Error(t("Kaydetmek için giriş yapmalısın."));
+    const svm = duckSetupToSvm(rawJson);
+    if (!svm) throw new Error(t("Setup okunamadı."));
+    await addSetup(user, {
+      track: venueToTrackId(meta?.venue) || "",
+      cls: classId(meta?.carClass) || "",
+      car: "", cond: "", sess: "", champ: "", ver: "", lap: "",
+      note: [t("Telemetriden"), meta?.driver, meta?.session].filter(Boolean).join(" · "),
+      team: teamData?.meta?.name || "",
+    }, textToB64(svm));
+  };
   const [tForm, setTForm] = useState({ name: "", join: "" });
   const [curSeason, setCurSeason] = useState("");   // "" = tümü
   const [rForm, setRForm] = useState(null);          // yarış ekleme/düzenleme formu
@@ -2578,7 +2594,8 @@ ${bottomBar}
               toggleLap={toggleLap} cmpMeta={telCmpMeta} cmpA={telCmpA} setCmpA={setTelCmpA}
               cmpB={telCmpB} setCmpB={setTelCmpB} cmpData={telCmpData} cmpBusy={telCmpBusy}
               savedMsg={telSavedMsg} cmpSources={telCmpSources} cmpASrc={telCmpASrc} setCmpASrc={setTelCmpASrc}
-              cmpBSrc={telCmpBSrc} setCmpBSrc={setTelCmpBSrc} />
+              cmpBSrc={telCmpBSrc} setCmpBSrc={setTelCmpBSrc}
+              onSaveDuckSetup={user ? saveTeleSetup : null} />
           )}
 
           {tab === "fuel" && (

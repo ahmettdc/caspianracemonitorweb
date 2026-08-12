@@ -5,6 +5,20 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.5.2",
+    date: "2026-08-12",
+    tr: [
+      "🔧 Telemetri: .duckdb dosyasına GÖMÜLÜ setup artık Telemetri sekmesinde görünüyor. Yeni \"Bu Seansın Setup'ı\" kutusu — özet çipleri (fren dengesi, kanat, ABS/TC, basınç…) + \"Detay\" ile kategorili tam liste (Setup İçerik penceresiyle aynı düzen: Aero · Fren · Lastik · Hizalama · Süspansiyon · Diferansiyel · Elektronik · Motor) + arama.",
+      "⬆ \"Havuza Kaydet\": telemetriyle gelen setup tek tıkla Setup Havuzuna eklenir — ayrı .svm dosyası yüklemeye gerek yok; pist/sınıf telemetri bilgisinden otomatik etiketlenir.",
+      "ℹ️ Değerler dosyanın kendi okunabilir etiketlerinden gelir (ör. \"120 kgf (%100)\", \"P7 (hard)\"). Pist adı tanınmazsa setup havuzda etiketsiz kalır (elle düzeltilebilir).",
+    ],
+    en: [
+      "🔧 Telemetry: the setup EMBEDDED in the .duckdb file now shows on the Telemetry tab. A new \"This Session's Setup\" box — summary chips (brake bias, wing, ABS/TC, pressure…) + \"Detail\" for the full categorized list (same layout as the Setup Content window: Aero · Brakes · Tyres · Alignment · Suspension · Differential · Electronics · Engine) + search.",
+      "⬆ \"Save to Pool\": the setup that came with the telemetry is added to the Setup Pool in one click — no need to upload a separate .svm; track/class are auto-tagged from the telemetry.",
+      "ℹ️ Values come from the file's own readable labels (e.g. \"120 kgf (100%)\", \"P7 (hard)\"). If the track name isn't recognized the setup stays untagged in the pool (editable).",
+    ],
+  },
+  {
     v: "v1.5.1",
     date: "2026-08-12",
     tr: [

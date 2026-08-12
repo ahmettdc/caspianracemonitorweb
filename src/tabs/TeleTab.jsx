@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ReferenceLine, ReferenceDot, ResponsiveContainer } from "recharts";
 import { fmtLap } from "../engine";
 import { SLOT_COLORS } from "../constants";
-import { Tyre, BoxPlot } from "../components";
+import { Tyre, BoxPlot, SessionSetupBox } from "../components";
 import { zoomViewAt, panView, zoomDomain, advanceCursor } from "../zoomView";
 import { sectorOf, sectorMarks } from "../ldTrace";
 import { detectApexes, cornerStats } from "../corners";
@@ -616,7 +616,7 @@ export default function TeleTab({
   parsed, mapping, setMapping, saveMotec, saveSlot, loadedSlots, slotStats,
   up, apply105Slot, removeSlot, chartMode, setChartMode, chartData, baseSlot, toggleLap,
   cmpMeta, cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy, savedMsg,
-  cmpSources, cmpASrc, setCmpASrc, cmpBSrc, setCmpBSrc,
+  cmpSources, cmpASrc, setCmpASrc, cmpBSrc, setCmpBSrc, onSaveDuckSetup,
 }) {
   const fmtMs = (ms) => fmtLap(ms / 1000);
   return (
@@ -881,6 +881,10 @@ export default function TeleTab({
             </details>
           ))}
         </div>
+      )}
+
+      {cmpMeta?.setup && (
+        <SessionSetupBox setup={cmpMeta.setup} meta={cmpMeta} t={t} onSave={onSaveDuckSetup} />
       )}
 
       {cmpSources?.length > 0 && (

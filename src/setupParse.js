@@ -189,3 +189,70 @@ export function setupSummary(parsed) {
   }
   return out;
 }
+
+/* ---------- DuckDB gömülü setup (VM_/WM_ JSON) → parseSvm şekli (v1.5.2) ----------
+   LMU .duckdb'sinin metadata.CarSetup'ı `.svm` değil, VM_/WM_ anahtarlı JSON'dur
+   (her değer {stringValue,...}). Aşağıdaki eşleme onu parseSvm'in ürettiği
+   { section, key, label } satırlarına çevirir → categorizeSetup/setupSummary/
+   SVM_FIELDS AYNEN çalışır (Setup İçerik penceresiyle tek düzen). */
+const DUCK_MAP = {   // VM_<...> → [SECTION, Key]
+  VM_FRONT_WING: ["FRONTWING", "FWSetting"], VM_REAR_WING: ["REARWING", "RWSetting"],
+  VM_BRAKE_BALANCE: ["CONTROLS", "RearBrakeSetting"],
+  VM_BRAKE_PRESSURE: ["CONTROLS", "BrakePressureSetting"],
+  VM_BRAKE_MIGRATION: ["CONTROLS", "BrakeMigrationSetting"],
+  VM_BRAKE_DUCTS: ["CONTROLS", "BrakeDuctSetting"],
+  VM_BRAKE_DUCTS_REAR: ["CONTROLS", "BrakeDuctRearSetting"],
+  VM_ANTILOCKBRAKESYSTEMMAP: ["CONTROLS", "AntilockBrakeSystemMapSetting"],
+  VM_TRACTIONCONTROLMAP: ["CONTROLS", "TractionControlMapSetting"],
+  VM_STEER_LOCK: ["CONTROLS", "SteerLockSetting"],
+  VM_FRONT_ANTISWAY: ["SUSPENSION", "FrontAntiSwaySetting"],
+  VM_REAR_ANTISWAY: ["SUSPENSION", "RearAntiSwaySetting"],
+  VM_DIFF_PRELOAD: ["DRIVELINE", "DiffPreloadSetting"],
+  VM_ENGINE_MIXTURE: ["ENGINE", "EngineMixtureSetting"],
+  VM_FUEL_CAPACITY: ["GENERAL", "FuelSetting"],
+  VM_VIRTUALENERGY: ["GENERAL", "VirtualEnergySetting"],
+  VM_VIRTUAL_ENERGY: ["GENERAL", "VirtualEnergySetting"],
+};
+/* Köşe kanalları (WM_<BASE>-W_FL/FR/RL/RR) — tek anahtar, dört köşe → categorizeSetup
+   ÖN·ARKA "axle" satırında birleştirir. */
+const DUCK_CORNER = { PRESSURE: "PressureSetting", CAMBER: "CamberSetting", RIDEHEIGHT: "RideHeightSetting" };
+const CORNER_SEC = { FL: "FRONTLEFT", FR: "FRONTRIGHT", RL: "REARLEFT", RR: "REARRIGHT" };
+
+export function duckSetupToParsed(jsonStr) {
+  let obj;
+  try { obj = JSON.parse(jsonStr); } catch { return { ok: false }; }
+  if (!obj || typeof obj !== "object") return { ok: false };
+  const rows = [];
+  const bySection = {};
+  const add = (section, key, label) => {
+    const lbl = label ?? "";
+    rows.push({ section, key, raw: "", label: lbl, meaningful: !NOISE.has(lbl) });
+    (bySection[section] = bySection[section] || []).push({ key, label: lbl });
+  };
+  for (const [k, v] of Object.entries(obj)) {
+    const label = (v && typeof v === "object") ? (v.stringValue ?? "") : String(v ?? "");
+    if (DUCK_MAP[k]) { add(DUCK_MAP[k][0], DUCK_MAP[k][1], label); continue; }
+    const cm = k.match(/^WM_([A-Z0-9]+)-W_(FL|FR|RL|RR)$/);
+    if (cm && DUCK_CORNER[cm[1]]) add(CORNER_SEC[cm[2]], DUCK_CORNER[cm[1]], label);
+  }
+  return { ok: rows.some((r) => r.meaningful), vehicle: "", rows, bySection };
+}
+
+/* Duck setup → .svm metni (Setup Havuzu bu formatı saklar/okur → tek tıkla kaydet). */
+export function duckSetupToSvm(jsonStr) {
+  const p = duckSetupToParsed(jsonStr);
+  if (!p.ok) return "";
+  const secs = {}; const order = [];
+  for (const r of p.rows) {
+    if (!secs[r.section]) { secs[r.section] = []; order.push(r.section); }
+    secs[r.section].push(r);
+  }
+  let out = "//Caspian Race Monitor — telemetriden alınan setup\n";
+  for (const s of order) { out += `[${s}]\n`; for (const r of secs[s]) out += `${r.key}=0//${r.label}\n`; }
+  return out;
+}
+
+/* UTF-8 güvenli metin → base64 (Setup Havuzu data'sı; b64ToText'in tersi). */
+export function textToB64(text) {
+  return btoa(unescape(encodeURIComponent(String(text || ""))));
+}

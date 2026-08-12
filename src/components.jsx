@@ -10,7 +10,8 @@ import { CHANGELOG } from "./changelog";
 import { msToLocalInput, parseLap, fmtLap } from "./engine";
 import { SETUP_LIMITS, poolEmptyReason, lapDeltas } from "./setupPool";
 import { trackOptions, classOptions, carOptions } from "./pickerOptions";
-import { parseSvm, b64ToText, setupSummary, diffSetups, categorizeSetup } from "./setupParse";
+import { parseSvm, b64ToText, setupSummary, diffSetups, categorizeSetup,
+  duckSetupToParsed } from "./setupParse";
 import { renameTeam, syncMyTeamName, createSeason, deleteRace,
   leaveTeam, createTeam, joinTeam, getSetupBlob } from "./storage";
 
@@ -1145,6 +1146,97 @@ export function SetupContentModal({ open, su, onClose, t }) {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/* Seans Setup kutusu (v1.5.2) — .duckdb telemetrisine gömülü kurulumu Telemetri
+   sekmesinde gösterir. `setup` = ham VM_/WM_ JSON (cmpMeta.setup). Özet çipleri +
+   "Detay" ile kategorili tam görünüm (Setup İçerik penceresiyle aynı düzen, aynı
+   categorizeSetup/CAT_META) + "⬆ Havuza Kaydet" (onSave). onSave yoksa buton yok. */
+export function SessionSetupBox({ setup, meta, t, onSave }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [err, setErr] = useState("");
+  if (!setup) return null;
+  const parsed = duckSetupToParsed(setup);
+  if (!parsed.ok) return null;
+  const summary = setupSummary(parsed);
+  const fieldName = (key) => t(SVM_FIELDS[key] || key);
+  const cats = categorizeSetup(parsed);
+  const count = parsed.rows.filter((r) => r.meaningful).length;
+  const needle = q.trim().toLowerCase();
+  const shown = needle
+    ? cats.map((c) => ({ ...c, rows: c.rows.filter((r) => {
+      const nm = fieldName(r.key).toLowerCase();
+      const val = (r.kind === "axle" ? `${r.front} ${r.rear}` : r.value || "").toLowerCase();
+      return nm.includes(needle) || val.includes(needle);
+    }) })).filter((c) => c.rows.length)
+    : cats;
+  const doSave = async () => {
+    if (!onSave || saving) return;
+    setSaving(true); setErr("");
+    try { await onSave(setup, meta); setSaved(true); }
+    catch (e) { setErr(String(e?.message || t("Kaydedilemedi"))); }
+    finally { setSaving(false); }
+  };
+  return (
+    <div className="card sessetup">
+      <h2>🔧 {t("Bu Seansın Setup'ı")} <span className="newtag">{t("YENİ")}</span>
+        <span className="n">{[meta?.driver, meta?.session].filter(Boolean).join(" · ")}
+          {count ? ` · ${count} ${t("ayar")}` : ""}</span></h2>
+      {summary.length > 0 && (
+        <div className="setupsum">
+          {summary.map((s) => (
+            <span className="setupchip" key={s.label}><b>{t(s.label)}</b> {s.value}</span>
+          ))}
+        </div>
+      )}
+      <div className="setuptools">
+        <div className="seg" role="group">
+          <button aria-pressed={!open} onClick={() => setOpen(false)}>{t("Özet")}</button>
+          <button aria-pressed={open} onClick={() => setOpen(true)}>{t("Detay")}</button>
+        </div>
+        {open && (
+          <input className="setupsearch" value={q} onChange={(e) => setQ(e.target.value)}
+            placeholder={t("ara: kanat, basınç…")} aria-label={t("Setup alanı ara")} />
+        )}
+        {onSave && (
+          <button className="act" onClick={doSave} disabled={saving || saved}
+            style={{ marginLeft: "auto" }}>
+            {saved ? `✓ ${t("Havuza kaydedildi")}` : saving ? t("Kaydediliyor…") : `⬆ ${t("Havuza Kaydet")}`}
+          </button>
+        )}
+      </div>
+      {err && <div className="hint warn">⚠ {err}</div>}
+      {open && (shown.length ? (
+        <div className="setupcats">
+          {shown.map((c) => (
+            <section className="setupcat" key={c.cat}>
+              <h4 className="setupcat-h">
+                <span className="ic">{CAT_META[c.cat]?.icon || "•"}</span>
+                {t(CAT_META[c.cat]?.tr || c.cat)}
+                <span className="n">{c.rows.length}</span></h4>
+              {c.rows.map((r) => (
+                <div className="setuprow" key={r.key}>
+                  <span className="setuprow-k">{fieldName(r.key)}</span>
+                  {r.kind === "axle" ? (
+                    <span className="setuprow-v axle">
+                      <span><b>{t("ÖN")}</b>{r.front}</span>
+                      <span><b>{t("ARKA")}</b>{r.rear}</span></span>
+                  ) : (
+                    <span className="setuprow-v">{r.value}</span>
+                  )}
+                </div>
+              ))}
+            </section>
+          ))}
+        </div>
+      ) : (
+        <div className="hint">{t("Eşleşen alan yok.")}</div>
+      ))}
     </div>
   );
 }
