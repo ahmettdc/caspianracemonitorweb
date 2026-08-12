@@ -676,6 +676,13 @@ export const EN = {
   /* --- canlı timing --- */
   "Canlı Timing": "Live Timing",
   "Canlı Köprü": "Live Bridge",
+  /* v1.6 — "+" tur geçmişini elle temizle */
+  "Tur geçmişini temizle": "Clear lap history",
+  "Bu yarışın '+' tur geçmişini (eski koşulardan kalan turlar/pilotlar) sıfırla":
+    "Reset this race's '+' lap history (laps/drivers left over from earlier runs)",
+  "Bu yarışın tüm '+' tur geçmişi silinsin mi? (Yeni turlar yine kaydedilir.)":
+    "Clear all of this race's '+' lap history? (New laps will still be recorded.)",
+  "temizlendi": "cleared",
   "Masaüstü Uygulamasını İndir": "Download Desktop App",
   "sürüş PC'si için hafif köprü": "lightweight bridge for the driving PC",
   "Hafif Köprüyü İndir (.exe)": "Download Lightweight Bridge (.exe)",

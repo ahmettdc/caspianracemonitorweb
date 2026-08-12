@@ -115,6 +115,30 @@ def test_flags_lokal_sektor_sarisi_konumsal():
     assert flags({"SectorFlag": ["Yellow", "", "Yellow"]})["yellowSectors"] == [1, 3]
 
 
+def test_flags_v16_yesil_disi_deger_sari_sayilir():
+    """v1.6: SectorFlag'te YEŞİL-DIŞI her değer (farklı kelime / sayısal kod) sarı sayılır
+    (kullanıcı bug'ı: oyunda sarı, live'da yeşil). 'yellow' kelimesi şart DEĞİL."""
+    # sayısal kod: sektör 2 = "1" (yeşil-dışı) → sarı
+    assert flags({"YellowFlagState": "NoFlag", "SectorFlag": ["", "1", ""]}) == {
+        "flag": "Yellow", "yellowSectors": [2]}
+    # tamsayı dizi: 0=yeşil, 2=bayrak → sektör 3
+    assert flags({"SectorFlag": [0, 0, 2]})["yellowSectors"] == [3]
+    # farklı kelime ("Caution" değil ama yeşil-dışı bir söz) da yakalanır
+    assert flags({"YellowFlagState": "NoFlag",
+                  "SectorFlag": ["", "Waved", ""]})["flag"] == "Yellow"
+
+
+def test_flags_v16_uc_sektor_nonfcy_yesil_guard():
+    """v1.6 guard: FCY olmadan ÜÇ sektörün birden sarı gelmesi güvenilmez (v1.4.57
+    yanlış full-yellow deseni) → yeşil. Gerçek tam-pist sarısı zaten FCY olur."""
+    assert flags({"YellowFlagState": "NoFlag",
+                  "SectorFlag": ["Yellow", "Yellow", "Yellow"]}) == {
+        "flag": "Green", "yellowSectors": []}
+    # ama FCY iken üç sektör de raporlanır (bilgi kaybolmaz)
+    assert flags({"GamePhase": 6,
+                  "SectorFlag": ["Yellow", "Yellow", "Yellow"]})["flag"] == "FCY"
+
+
 def test_flags_fcy_gamephase_ve_yellowstate():
     assert flags({"GamePhase": 6, "YellowFlagState": "NoFlag"})["flag"] == "FCY"
     assert flags({"GamePhase": 5, "YellowFlagState": "PitClosed"})["flag"] == "FCY"

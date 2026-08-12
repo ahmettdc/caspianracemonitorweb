@@ -85,6 +85,7 @@ export async function startBridge(opts, onStatus) {
   // Firebase'den okunur → yarış-ortası köprü yeniden başlatmada yanlış temizleme YOK
   // (frame'ler ancak spawn sonrası gelir; ilk frame'in sid'i saklanana eşitse temizlemez).
   let knownSessionId = null;
+  let freshChecked = false; // v1.6: ilk harvest'te "aynı yarışı tekrar koşma" temizliği bir kez
   let diag = null;         // gizli teşhis (shm/lmu/cars/ve) — arayüzde gösterilmez
   let diagSig = "";        // teşhis özeti (yalnız durum değişince konsola yaz)
 
@@ -105,6 +106,7 @@ export async function startBridge(opts, onStatus) {
        seans başlayınca (antrenman→yarış) belirteç değişir → eski turlar temizlenir,
        "+" tur listesi popup'ına önceki seansın verisi sızmaz. Belirteç yoksa (eski
        köprü) mevcut per-araç gerileme-temizleme ikincil güvenlik olarak devreye girer. */
+    const hadHistory = knownSessionId != null;   // FB'den yüklenen belirteç: bu rid'de eski veri var mı (sid bloğu değiştirmeden ÖNCE yakala)
     const sid = frame?.session?.sessionId;
     if (sid && sid !== knownSessionId) {
       if (knownSessionId != null) {   // ilk görüşte (spawn'da okunan değerle) temizleme yok
@@ -114,6 +116,23 @@ export async function startBridge(opts, onStatus) {
       knownSessionId = sid;
     }
     const rows = Array.isArray(frame?.field) ? frame.field : [];
+    /* v1.6 — AYNI takvim yarışını (rid) TEKRAR koşma: sessionId = mSession (yarış=10)
+       olduğundan seans-indeksi değişmez → yukarıdaki sessionId-temizlemesi ateşlenmez ve
+       önceki koşunun turları/pilotları "+" geçmişine sızar (kullanıcı bug'ı: "olmayan
+       veriler/pilotlar"). Ek güvenlik: köprü YENİ başladığında (ilk harvest) ve yarış TAM
+       BAŞINDAYSA (sahadaki en yüksek lapsDone == 0) ve rid'de zaten kayıtlı geçmiş varsa
+       (hadHistory) → bir kez temizle. lapsDone SUNUCU-SENKRON (tüm PC'lerde AYNI) → çok-PC
+       kira devrinde yanlış temizleme YOK: yarış-ortası devralan PC lapsDone > 0 görür,
+       temizlemez. (Köprüyü re-run'ın ORTASINDA açarsan lapsDone>0 → temizlemez; o durumda
+       Canlı kartındaki "Geçmişi Temizle" düğmesi elle temizler.) */
+    if (!freshChecked && rows.length) {
+      freshChecked = true;
+      const maxLaps = rows.reduce((m, r) => Math.max(m, r.lapsDone || 0), 0);
+      if (hadHistory && maxLaps === 0) {
+        try { await liveHistoryClearAll(tid, rid); } catch { /* yoksay */ }
+        lastLap = {}; lastPit = {}; lastDrv = {}; lastTyre = {};
+      }
+    }
     const entries = {};      // livelaps: lapKey/n → süre
     const posEntries = {};   // livepos: lapKey/n → pozisyon (pit turu → negatif)
     const secEntries = {};   // livesec: lapKey/n → "s1,s2,s3" (yalnız en yeni tur)

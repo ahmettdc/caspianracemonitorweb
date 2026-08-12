@@ -363,12 +363,12 @@ class LmuApi:
         _GREEN = ("", "green", "no", "none", "noflag", "no_flag", "nogreen",
                   "clear", "invalid", "-1", "0")
 
-        def is_yellow_word(s):
-            s = str(s or "").strip().lower()
-            return s not in _GREEN and (
-                "yellow" in s or "caution" in s or "fcy" in s or "full" in s)
-
-        def is_fcy_state(s):
+        def non_green(s):
+            # v1.6: REST'in per-sektör SectorFlag'i YETKİLİ kaynak. Yeşil-DIŞI HER değeri
+            # bayrak say — yalnız "yellow"/"caution" kelimesini değil. LMU bazı sürümlerde
+            # sektör bayrağını farklı kelime ya da sayısal kod ("1"/"2") olarak gönderiyor;
+            # eski "kelime içermeli" filtresi bunları kaçırıp gerçek lokal sarıyı YEŞİL
+            # gösteriyordu (kullanıcı bug'ı: "oyunda sarı, live'da yeşil"). Yeşiller _GREEN'de.
             return str(s or "").strip().lower() not in _GREEN
 
         try:
@@ -376,10 +376,15 @@ class LmuApi:
         except (TypeError, ValueError):
             ph = -1
         ysec = [i + 1 for i, sv in enumerate(list(sectors)[:3])
-                if is_yellow_word(sv)] if isinstance(sectors, (list, tuple)) else []
-        if ph == 6 or is_fcy_state(yellow):
+                if non_green(sv)] if isinstance(sectors, (list, tuple)) else []
+        if ph == 6 or non_green(yellow):
             return {"flag": "FCY", "yellowSectors": ysec}
-        return {"flag": "Yellow" if ysec else "Green", "yellowSectors": ysec}
+        # v1.6: 1-2 sektör lokal sarı = GERÇEK. Ama FCY olmadan ÜÇ sektörün BİRDEN sarı
+        # gelmesi güvenilmez (v1.4.57'deki "yanlış full-yellow" deseni: green iken dizi
+        # üçü de dolu) → yeşil say. Gerçek tam-pist sarısı zaten FCY (üstte yakalanır).
+        if 0 < len(ysec) < 3:
+            return {"flag": "Yellow", "yellowSectors": ysec}
+        return {"flag": "Green", "yellowSectors": []}
 
     def session_flags(self):
         """YETKİLİ bayrak — YALNIZ önbelleği okur (HTTP YOK; poller yükler). Döner:
