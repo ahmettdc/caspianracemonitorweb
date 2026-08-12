@@ -671,6 +671,7 @@ export const EN = {
   "Tüm saha": "Whole field",
   "Bayrak / Faz": "Flag / Phase",
   "Hasar": "Damage",
+  "Hasar tamir süresi (s) — plana eklenir": "Damage repair time (s) — added to the plan",
   "Stint": "Stint",
   "Pit": "Pit",
   "Pit çıkışı": "Pit exit",

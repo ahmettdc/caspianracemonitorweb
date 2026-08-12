@@ -21,7 +21,8 @@ const draw = (st) => {
       totalVE={plan.totalFuel + st.extraLap * effCons(st)} totalFuelL={10}
       timeline={buildTimeline(plan)} liveInfo={{ status: "idle" }} pitSoon={false}
       tyreInfo={{ available: 22 }} quickTyre={noop} bumpLaps={noop} clearLaps={noop}
-      upStintLap={noop} upTyre={noop} upPit={noop} assignDriver={noop} upOvr={noop} />);
+      upStintLap={noop} upTyre={noop} upPit={noop} assignDriver={noop} upOvr={noop}
+      setRepair={noop} />);
   return { html, plan, bodyRows: (html.match(/<tbody>|<tr/g) || []).length - 2 };
 };
 
