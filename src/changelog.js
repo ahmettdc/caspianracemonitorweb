@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.6.1",
+    date: "2026-08-12",
+    tr: [
+      "🏳 Ana Menü \"Sıradaki Yarış\" kartı: emoji bayrak (bazı sistemlerde \"FR\" harflerine düşüyordu) yerine artık mevcut bayrak görseli (assets/flags) + hemen sağında pistin görseli (assets/tracks) gösteriliyor. Le Mans → Fransa bayrağı + Le Mans pist görseli; aynı mekanizma tüm ülke/pistlerde çalışır.",
+    ],
+    en: [
+      "🏳 Main Menu \"Next Race\" card: the emoji flag (which fell back to \"FR\" letters on some systems) is replaced by the existing flag image (assets/flags) plus the track image (assets/tracks) right beside it. Le Mans → French flag + Le Mans track image; the same mechanism works for every country/track.",
+    ],
+  },
+  {
     v: "v1.6.0",
     date: "2026-08-12",
     tr: [

@@ -1648,7 +1648,18 @@ ${bottomBar}
                     return (<>
                       <div className="mmsec">🏁 {t("Sıradaki Yarış")}</div>
                       <button className="mmnext" onClick={() => openRace(rid)}>
-                        <span className="mmntrk">{trackFlag(r.trackId) || "🏁"}</span>
+                        {/* bayrak + pist görseli — mevcut asset sistemi (flags/ + tracks/,
+                            TRACK_ASSET ile). Emoji bayrak bazı OS'lerde "FR" harfine düşüyordu. */}
+                        <span className="mmntrk">
+                          {r.trackId ? (<>
+                            <img className="mmnflag"
+                              src={`${ASSET}flags/${TRACK_ASSET(r.trackId)}.png${AV}`} alt=""
+                              onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                            <img className="mmntrkimg"
+                              src={`${ASSET}tracks/${TRACK_ASSET(r.trackId)}.png${AV}`} alt=""
+                              onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                          </>) : "🏁"}
+                        </span>
                         <span className="mmninfo">
                           <span className="mmnrnd">
                             {sName(sidOf(nextEntry))}{r.round ? ` · R${r.round}` : ""}</span>
