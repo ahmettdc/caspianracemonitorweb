@@ -492,6 +492,13 @@ export const css = `
 .rc .setupsearch::placeholder{color:var(--muted)}
 .rc .setupcats{column-count:2;column-gap:24px}
 @media(max-width:600px){.rc .setupcats{column-count:1}}
+/* Seans Setup kutusu (v1.5.2) — .duckdb telemetriye gömülü kurulum */
+.rc .sessetup{border-color:var(--brand2);
+  background:linear-gradient(180deg,var(--sel-bg-soft),var(--panel) 55%)}
+.rc .sessetup h2 .n{margin-left:8px;font-family:var(--font-ui);font-size:11px;
+  font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0}
+.rc .newtag{background:var(--brand2);color:#fff;border-radius:20px;font-family:var(--font-disp);
+  font-weight:600;font-size:10px;padding:2px 9px;letter-spacing:.05em;vertical-align:middle}
 .rc .setupcat{break-inside:avoid;margin:0 0 16px}
 .rc .setupcat-h{display:flex;align-items:center;gap:8px;margin:0 0 5px;
   font-family:var(--font-disp);text-transform:uppercase;letter-spacing:.06em;font-size:13px;

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
   VersionModal, RaceEditModal, ChatModal, SetupModal, TeamModal, TourOverlay, ImgSelect,
-  SetupContentModal, SetupCompareModal, SetupTable, SetupCards,
+  SetupContentModal, SetupCompareModal, SetupTable, SetupCards, SessionSetupBox,
 } from "./components.jsx";
 import { buildTourSteps } from "./tourSteps";
 
@@ -243,5 +243,28 @@ describe("SetupCompareModal", () => {
     const bad = mk("x.svm", "selam");
     const html = render(<SetupCompareModal open a={a} b={bad} onClose={noop} t={t} />);
     expect(html).toContain("okunamadı");
+  });
+});
+
+describe("SessionSetupBox (.duckdb gömülü setup)", () => {
+  const setup = JSON.stringify({
+    VM_REAR_WING: { stringValue: "6.3 deg" },
+    VM_BRAKE_BALANCE: { stringValue: "50.0:50.0" },
+    "WM_PRESSURE-W_FL": { stringValue: "136 kPa" },
+    "WM_PRESSURE-W_RL": { stringValue: "135 kPa" },
+  });
+  const meta = { driver: "AD", session: "Practice", venue: "Circuit de la Sarthe", carClass: "GT3" };
+  it("özet + Havuza Kaydet ile çökmeden render olur", () => {
+    const html = render(<SessionSetupBox setup={setup} meta={meta} t={t} onSave={noop} />);
+    expect(html).toContain("6.3 deg");
+    expect(html).toContain("Havuza Kaydet");
+  });
+  it("setup yoksa / bozuksa null", () => {
+    expect(render(<SessionSetupBox setup={null} meta={{}} t={t} />)).toBe("");
+    expect(render(<SessionSetupBox setup={"{bozuk"} meta={{}} t={t} />)).toBe("");
+  });
+  it("onSave yoksa kaydet butonu görünmez", () => {
+    const html = render(<SessionSetupBox setup={setup} meta={meta} t={t} />);
+    expect(html).not.toContain("Havuza Kaydet");
   });
 });

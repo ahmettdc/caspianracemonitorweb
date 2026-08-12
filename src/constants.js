@@ -3,7 +3,7 @@
 export const SLOT_COLORS = { A: "#40D68C", B: "#F0604D", C: "#F2A33C", D: "#6694FF" };
 
 /* ---------- pist & araç seçimi ---------- */
-export const APP_VERSION = "v1.5.1";   // tek kaynak — sürüm yazısı buradan
+export const APP_VERSION = "v1.5.2";   // tek kaynak — sürüm yazısı buradan
 export const REPO_URL = "https://github.com/ahmettdc/caspianracemonitorweb";
 export const SEEN_VER_KEY = "rm_seen_version";
 export const ASSET = import.meta.env.BASE_URL + "assets/";
@@ -155,6 +155,24 @@ const MANUF_ALIAS = { chevrolet: "corvette", vandervell: "vanwall", chevy: "corv
 export const manufacturerKey = (manufacturer) => {
   const k = String(manufacturer || "").toLowerCase().replace(/[^a-z0-9]/g, "");
   return k ? (MANUF_ALIAS[k] || k) : "";
+};
+/* LMU telemetri venue adı ("Circuit de la Sarthe" vb.) → iç pist id'si. Önce alias,
+   sonra TRACKS adıyla gevşek eşleme; bulunamazsa "" (setup havuzunda etiketsiz kalır). */
+const VENUE_ALIAS = {
+  sarthe: "lemans", lemans: "lemans", spa: "spa", francorchamps: "spa",
+  monza: "monza", imola: "imola", silverstone: "silverstone", "paul ricard": "paulricard",
+  portimao: "portimao", barcelona: "barcelona", bahrain: "bahrain", losail: "lusail",
+  lusail: "lusail", fuji: "fuji", "circuit of the americas": "cota", cota: "cota",
+  sebring: "sebring", interlagos: "interlagos", daytona: "daytona",
+  "laguna seca": "lagunaseca", "watkins glen": "watkinsglen", "road atlanta": "roadatlanta",
+  "long beach": "longbeach", indianapolis: "indianapolis",
+};
+export const venueToTrackId = (name) => {
+  const s = String(name || "").toLowerCase();
+  if (!s) return "";
+  for (const [k, id] of Object.entries(VENUE_ALIAS)) if (s.includes(k)) return id;
+  const hit = TRACKS.find((t) => s.includes(t.name.toLowerCase()));
+  return hit ? hit.id : "";
 };
 export const trackName = (id) => TRACKS.find((t) => t.id === id)?.name || "";
 export const carName = (cls, id) => CARS[cls]?.find((c) => c.id === id)?.name || "";
