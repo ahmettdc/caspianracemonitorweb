@@ -5,7 +5,7 @@ import { Ring } from "../components";
 import { DESKTOP_RELEASE_URL, BRIDGE_EXE_URL, ASSET, classId, classAccent, brandKey, manufacturerKey } from "../constants";
 import { isTauri } from "../tauriEnv";
 import { liveLapsSubscribe, liveSecSubscribe, liveDrvSubscribe, liveTyreSubscribe,
-  liveCondSubscribe, serverNow } from "../storage";
+  liveCondSubscribe, liveHistoryClearAll, serverNow } from "../storage";
 import { driverAtLap, parseLapCond } from "../liveLaps";
 import { detectFlashes, carKey } from "../liveFlash";
 import { binKey } from "../trackShape";
@@ -429,8 +429,9 @@ function OwnCar({ t, own, liveFuelObs }) {
 /* Canlı köprü durum kartı (yalnız gösterim). Köprü masaüstünde OTOMATİK çalışır
    (App.jsx yönetir): oyunun PC'sinde uygulama açık + owner/editor + yarış seçiliyse
    kendiliğinden bağlanır, koparsa ~4 sn'de bir yeniden dener. Elle başlatma yok. */
-function BridgeControl({ t, bridge, canBridge }) {
+function BridgeControl({ t, bridge, canBridge, canEdit, tid, rid }) {
   const phase = bridge?.phase || "idle";
+  const [cleared, setCleared] = useState(false);
   const dot = phase === "running" ? "var(--green)"
     : phase === "error" ? "var(--red)"
       : phase === "starting" || phase === "standby" ? "var(--yellow)" : "var(--muted)";
@@ -477,6 +478,22 @@ function BridgeControl({ t, bridge, canBridge }) {
           <div style={{ marginTop: 2 }}>
             {t("Oyunu kapatıp değiştir, sonra aç. Diğer araçların bu veriye ihtiyaç duyabilir — en güvenli değerle başla.")}
           </div>
+        </div>
+      )}
+      {/* v1.6 — "+" tur geçmişini elle temizle: aynı takvim yarışını TEKRAR koşarken
+          köprü yarış ORTASINDA açıldıysa oto-temizleme ateşlenmez (lapsDone>0). Bu düğme
+          o rid'in tüm canlı geçmişini (livelaps/pos/sec/drv/tyre/cond) sıfırlar. Yalnız
+          owner/editor; yeni turlar normal birikmeye devam eder. */}
+      {canEdit && tid && rid && (
+        <div className="hint" style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
+          <button className="act" style={{ fontSize: 11, padding: "3px 8px" }}
+            title={t("Bu yarışın '+' tur geçmişini (eski koşulardan kalan turlar/pilotlar) sıfırla")}
+            onClick={async () => {
+              if (!window.confirm(t("Bu yarışın tüm '+' tur geçmişi silinsin mi? (Yeni turlar yine kaydedilir.)"))) return;
+              try { await liveHistoryClearAll(tid, rid); setCleared(true); setTimeout(() => setCleared(false), 2500); }
+              catch { /* yoksay */ }
+            }}>🗑 {t("Tur geçmişini temizle")}</button>
+          {cleared && <span style={{ color: "var(--green)" }}>✓ {t("temizlendi")}</span>}
         </div>
       )}
     </div>
@@ -593,7 +610,8 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
   }, []);
 
   const bridgeCard = isTauri ? (
-    <BridgeControl t={t} bridge={bridge} canBridge={canBridge} />
+    <BridgeControl t={t} bridge={bridge} canBridge={canBridge}
+      canEdit={canEdit} tid={tid} rid={rid} />
   ) : null;
 
   /* Bağlantı durumunu erken-return'den ÖNCE hesapla: veri GELDİKTEN sonra köprü/oyun

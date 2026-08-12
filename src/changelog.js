@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.6.2",
+    date: "2026-08-12",
+    tr: [
+      "🏳 Canlı Timing bayrağı: oyunda yerel/sektör sarısı yandığında artık doğru gösteriliyor (eskiden yeşil kalıyordu). Sektör bayrağı çözümlemesi genişletildi — LMU'nun 'yellow' kelimesi yerine sayısal kod/farklı sözcük gönderdiği durumlar da yakalanıyor; FCY olmadan üç sektörün birden sarı gelmesi ise (güvenilmez 'yanlış full-yellow' deseni) yeşil sayılıyor.",
+      "🗑 '+' tur geçmişi: aynı takvim yarışını TEKRAR koştuğunda önceki koşunun turları/pilotları artık sızmıyor. Köprü yarış başında açıldığında eski geçmiş otomatik temizleniyor; yarış ortasında açtıysan Canlı Köprü kartındaki yeni 'Tur geçmişini temizle' düğmesiyle (owner/editor) elle sıfırlayabilirsin.",
+    ],
+    en: [
+      "🏳 Live Timing flag: local/sector yellows in game are now shown correctly (they used to stay green). Sector-flag parsing was widened — cases where LMU sends a numeric code or a different word instead of literally 'yellow' are now caught; and three sectors all yellow without FCY (the unreliable 'false full-yellow' pattern) is treated as green.",
+      "🗑 '+' lap history: running the same calendar race AGAIN no longer leaks the previous run's laps/drivers. Old history is auto-cleared when the bridge starts at the race start; if you start it mid-run, use the new 'Clear lap history' button on the Live Bridge card (owner/editor).",
+    ],
+  },
+  {
     v: "v1.6.1",
     date: "2026-08-12",
     tr: [
