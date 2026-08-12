@@ -90,6 +90,14 @@ fn launch_bridge_and_quit(app: AppHandle) -> Result<(), String> {
   if !path.exists() {
     return Err("CaspianLiveBridge.exe kurulum kaynağında bulunamadı".to_string());
   }
+  // §2.5: köprünün "Race Engineer'a Dön" düğmesi için bu uygulamanın exe yolunu bırak
+  // (%LOCALAPPDATA%\CaspianLiveBridge\parent_app.txt — gui.py aynı dizinden okur).
+  // LOCALAPPDATA yoksa (Linux/dev) sessizce atlanır; yalnız std, ekstra bağımlılık yok.
+  if let (Ok(exe), Ok(local)) = (std::env::current_exe(), std::env::var("LOCALAPPDATA")) {
+    let dir = std::path::Path::new(&local).join("CaspianLiveBridge");
+    let _ = std::fs::create_dir_all(&dir);
+    let _ = std::fs::write(dir.join("parent_app.txt"), exe.to_string_lossy().as_bytes());
+  }
   // ShellExecute (opener) → köprü bağımsız süreç olarak açılır (Race Monitor'ın
   // Job Object/affinity kısıtını miras almaz, biz kapansak da yaşar).
   app

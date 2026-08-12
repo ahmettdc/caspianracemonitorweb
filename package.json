@@ -1,7 +1,7 @@
 {
   "name": "caspian-race-control",
   "private": true,
-  "version": "1.4.140",
+  "version": "1.4.141",
   "type": "module",
   "scripts": {
     "dev": "vite",
