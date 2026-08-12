@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.5.3",
+    date: "2026-08-12",
+    tr: [
+      "🛰 Ana Menü → Telemetre artık Race Solo'dan TAMAMEN bağımsız. Telemetre butonu kendi başına bir telemetri ekranı açıyor — pist/araç seçim sihirbazına ya da Race Solo kurulumuna girmiyor; .ld / .duckdb yükle, analiz et, 🏠 Ana Menü ile geri dön.",
+      "🔒 İki taraf birbirine sızmıyor: bağımsız telemetri ekranı kendi durumunu tutar; Race Solo'nun telemetri sekmesi (Takımsız solo akışı) eskisi gibi çalışır. Birini kapatmak diğerini etkilemez.",
+    ],
+    en: [
+      "🛰 Main Menu → Telemetry is now FULLY independent of Race Solo. The Telemetry button opens a standalone telemetry screen — no track/car pick wizard or Race Solo setup; load .ld / .duckdb, analyze, return with 🏠 Main Menu.",
+      "🔒 The two sides don't leak into each other: the standalone telemetry screen keeps its own state; Race Solo's telemetry tab still works as before. Closing one doesn't affect the other.",
+    ],
+  },
+  {
     v: "v1.5.2",
     date: "2026-08-12",
     tr: [

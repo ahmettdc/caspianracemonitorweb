@@ -616,7 +616,7 @@ export default function TeleTab({
   parsed, mapping, setMapping, saveMotec, saveSlot, loadedSlots, slotStats,
   up, apply105Slot, removeSlot, chartMode, setChartMode, chartData, baseSlot, toggleLap,
   cmpMeta, cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy, savedMsg,
-  cmpSources, cmpASrc, setCmpASrc, cmpBSrc, setCmpBSrc, onSaveDuckSetup,
+  cmpSources, cmpASrc, setCmpASrc, cmpBSrc, setCmpBSrc, onSaveDuckSetup, standalone,
 }) {
   const fmtMs = (ms) => fmtLap(ms / 1000);
   return (
@@ -774,6 +774,9 @@ export default function TeleTab({
                       {s.dropped > 0 && <> · {s.dropped} {t("tur hariç")}</>}</span>
                   </div>
                   <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+                    {/* Strateji "DATA'ya uygula"/"ort." yalnız Race Solo'da anlamlı (Data/strateji
+                        var). Bağımsız Telemetri ekranında (standalone) gizlenir. */}
+                    {!standalone && (<>
                     <button className="act" style={{ fontSize: 11 }}
                       onClick={() => up({
                         avgLap: fmtMs(s.medMs),
@@ -786,7 +789,7 @@ export default function TeleTab({
                         avgLap: fmtMs(s.avgMs),
                         ...(s.avgFuel != null
                           ? { consumption: +s.avgFuel.toFixed(2) } : {}),
-                      })}>{t("ort.")}</button>
+                      })}>{t("ort.")}</button></>)}
                     <button className="act" style={{ fontSize: 11, opacity: .75 }}
                       title={t("En iyi turun %105'ini aşan turların tikini kaldır")}
                       onClick={() => apply105Slot(sl)}>%105</button>

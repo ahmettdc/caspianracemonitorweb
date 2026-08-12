@@ -12,6 +12,7 @@ import { useChat } from "./useChat";
 import { useSetups } from "./useSetups";
 import { useRaceSync } from "./useRaceSync";
 import { useTelemetry } from "./useTelemetry";
+import TelemetryStandalone from "./TelemetryStandalone";
 import { firebaseReady,
   requestAccess, watchAllUsers, setUserAllowed, updateProfile,
   setTeamRole, toggleTeamBadge, setTeamMemberName,
@@ -207,6 +208,7 @@ export default function App() {
     return () => window.removeEventListener("keydown", h);
   }, []);
   const [entered, setEntered] = useState(false); // lobi geçildi mi (solo/oda)
+  const [teleOnly, setTeleOnly] = useState(false); // bağımsız telemetri ekranı (Race Solo'dan AYRI)
   const [pickDone, setPickDone] = useState(false); // pist/araç seçimi tamamlandı mı
   const [setupDone, setSetupDone] = useState(false); // data giriş adımı tamamlandı mı
   const [userName, setUserName] = useState("");
@@ -381,6 +383,11 @@ export default function App() {
     cmpData: telCmpData, cmpBusy: telCmpBusy, savedMsg: telSavedMsg,
     cmpSources: telCmpSources, cmpASrc: telCmpASrc, setCmpASrc: setTelCmpASrc,
     cmpBSrc: telCmpBSrc, setCmpBSrc: setTelCmpBSrc } = useTelemetry({ st, setSt });
+  /* Bağımsız Telemetri ekranı (Ana Menü → Telemetri): Race Solo'dan TAMAMEN ayrı, KENDİ
+     telemetri örneği + kendi scratch `st`'si. Race Solo'nun `st`/ilk useTelemetry'sine
+     dokunmaz → iki taraf birbirine sızmaz, uygulama açık kaldıkça durumu korunur. */
+  const [teleSt, setTeleSt] = useState(() => ({ ...DEFAULT_STATE }));
+  const teleHook = useTelemetry({ st: teleSt, setSt: setTeleSt });
 
   /* ---------- canlı yarış modu ---------- */
   const [now, setNow] = useState(Date.now());
@@ -1482,6 +1489,18 @@ ${bottomBar}
     );
   }
 
+  /* ---------- bağımsız Telemetri ekranı (Ana Menü → Telemetri) ----------
+     Race Solo yolundan (entered/pick/setup/race shell) TAMAMEN ayrı üst-düzey görünüm;
+     kendi (ikinci) useTelemetry örneğiyle beslenir. Çıkış (🏠 Ana Menü) yalnız teleOnly'yi
+     kapatır → lobiye döner; entered/curRace'e dokunmaz. */
+  if (teleOnly) {
+    return (
+      <TelemetryStandalone t={t} lang={lang} switchLang={switchLang} st={teleSt} up={() => {}}
+        onSaveDuckSetup={user ? saveTeleSetup : null}
+        onExit={() => setTeleOnly(false)} {...teleHook} />
+    );
+  }
+
   /* ---------- lobi: takım takvimi ---------- */
   if (!curRace && !entered) {
     const now = Date.now();
@@ -1579,7 +1598,7 @@ ${bottomBar}
                 {/* §1.2 — hızlı eylemler: 📊 Telemetri belirgin */}
                 <div className="mmquick">
                   <button className="mmqa tel"
-                    onClick={() => { setEntered(true); setTab("tele"); }}>
+                    onClick={() => setTeleOnly(true)}>
                     <span className="mmqi">📊</span>
                     <span className="mmql">{t("Telemetri")}</span>
                     <span className="mmqs">{t(".ld yükle · analiz")}</span>
