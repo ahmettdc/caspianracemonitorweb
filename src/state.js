@@ -270,11 +270,10 @@ export function computeTyreInfo(st, racePlan) {
   };
   // sütun ci için seçilebilir mi: hiç kullanılmamış YA DA sadece bu sütunda kullanılmış
   const allowedIn = (k, ci) => !posCols[k] || (posCols[k].size === 1 && posCols[k].has(ci));
-  const usedList = Object.keys(counts).filter((k) => k !== "W")
-    .sort((a, b) => (Number(a) || 0) - (Number(b) || 0));
-  const used = usedList.length;
-  const wetUsed = counts["W"] || 0;
-  return { rows, cellCls, used, usedList, wetUsed, counts, allowedIn, conflicts,
+  /* used = kaç FARKLI kuru lastik numarası kullanıldı (KPI için); liste artık
+     UI'da gösterilmiyor (§5.2 kaldırıldı) ama sayım KPI'sini besliyor. */
+  const used = Object.keys(counts).filter((k) => k !== "W").length;
+  return { rows, cellCls, used, counts, allowedIn, conflicts,
     available: st.tyreLimit - used };
 }
 

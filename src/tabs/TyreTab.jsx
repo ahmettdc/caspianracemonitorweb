@@ -24,12 +24,6 @@ export default function TyreTab({
         <div className="kpi"><div className="v">{racePlan.fullStints}</div>
           <div className="l">{t("Stint Sayısı")}</div></div>
       </div>
-      <div className="hint" style={{ marginTop: 2 }}>
-        {t("Kullanılan kuru lastik no")}: {tyreInfo.usedList.length
-          ? tyreInfo.usedList.join(", ") : "—"}
-        {" "}<b>({tyreInfo.used}/{st.tyreLimit})</b>
-        {tyreInfo.wetUsed > 0 && <> · 🌧 {t("wet (limitsiz)")}: {tyreInfo.wetUsed}</>}
-      </div>
       <div style={{ overflowX: "auto" }}>
       <table aria-label={t("Lastik strateji tablosu")}>
         <thead><tr><th>Stint</th><th>FL</th><th>FR</th><th>RL</th><th>RR</th><th>{t("Hızlı Atama")}</th></tr></thead>
