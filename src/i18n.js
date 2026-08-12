@@ -423,6 +423,12 @@ export const EN = {
   "Setup İçeriği": "Setup Contents",
   "İçerik okunamadı — bu bir LMU setup dosyası değil ya da bozuk.":
     "Could not read the contents — this is not an LMU setup file, or it's corrupted.",
+  /* setup içeriği kategori düzeni (§9) */
+  "Anlamlı alanlar": "Key fields", "Tümünü göster": "Show all",
+  "ara: kanat, basınç…": "search: wing, pressure…", "Setup alanı ara": "Search setup field",
+  "Eşleşen alan yok.": "No matching field.",
+  "Aero": "Aero", "Hizalama": "Alignment", "Diferansiyel": "Differential",
+  "Elektronik": "Electronics", "Motor & Yakıt": "Engine & Fuel", "Diğer": "Other",
   /* setup .svm bölüm başlıkları */
   "Gövde/Aero": "Body/Aero", "Süspansiyon": "Suspension",
   "Kontroller": "Controls", "Motor": "Engine", "Aktarma": "Drivetrain",

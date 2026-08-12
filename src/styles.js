@@ -419,6 +419,32 @@ export const css = `
 .rc .setuprow:nth-child(even){background:rgba(255,255,255,.03)}
 .rc .setuprow-k{color:var(--muted)}
 .rc .setuprow-v{font-family:var(--font-ui);font-variant-numeric:tabular-nums;color:var(--txt);text-align:right}
+/* §9 Setup İçeriği kategori düzeni — araç toolbar (Anlamlı/Tümü + ara) + iki-kolon kategori */
+.rc .setuptools{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:2px 0 12px}
+.rc .setuptools .seg{display:inline-flex;background:var(--panel2);border:1px solid var(--line);
+  border-radius:8px;overflow:hidden}
+.rc .setuptools .seg button{border:0;background:transparent;color:var(--dim);
+  font-family:var(--font-ui);font-size:12px;padding:6px 12px;cursor:pointer}
+.rc .setuptools .seg button[aria-pressed=true]{background:var(--car);color:#fff}
+.rc .setupsearch{margin-left:auto;background:var(--panel2);border:1px solid var(--line);
+  border-radius:8px;color:var(--txt);font-family:var(--font-ui);font-size:12px;
+  padding:6px 10px;width:200px;max-width:44vw}
+.rc .setupsearch::placeholder{color:var(--muted)}
+.rc .setupcats{column-count:2;column-gap:24px}
+@media(max-width:600px){.rc .setupcats{column-count:1}}
+.rc .setupcat{break-inside:avoid;margin:0 0 16px}
+.rc .setupcat-h{display:flex;align-items:center;gap:8px;margin:0 0 5px;
+  font-family:var(--font-disp);text-transform:uppercase;letter-spacing:.06em;font-size:13px;
+  color:var(--txt);border-bottom:1px solid var(--line);padding-bottom:4px}
+.rc .setupcat-h .ic{color:var(--accent);font-size:13px}
+.rc .setupcat-h .n{margin-left:auto;font-family:var(--font-ui);font-weight:500;font-size:10.5px;
+  color:var(--muted)}
+.rc .setupcat .setuprow{padding:3px 2px}
+.rc .setupcat .setuprow:not(:last-child){border-bottom:1px solid rgba(255,255,255,.04)}
+.rc .setuprow-v.axle{display:inline-flex;gap:10px}
+.rc .setuprow-v.axle span{min-width:56px;text-align:right}
+.rc .setuprow-v.axle b{display:block;color:var(--muted);font-weight:500;font-size:9.5px;
+  letter-spacing:.08em;text-transform:uppercase;margin-bottom:-2px}
 /* ⚖ setup karşılaştırma penceresi + alt-sabit seçim çubuğu */
 .rc .cmphead{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;
   margin:0 0 6px}
