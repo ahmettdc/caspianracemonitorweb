@@ -26,6 +26,27 @@ export function lapNumbersOf(row) {
   return laps.map((_, i) => from + i);
 }
 
+/* v1.6.3 — OKUYUCU tarafı bayat-veri koruması: "+" popup'ı yalnız aracın GÜNCEL
+   lapsDone'una kadar olan turları göstermeli. Neden: livelaps append-only ve araç
+   kimliği (c{mID}) oyun tarafından YENİDEN KULLANILIR — aynı takvim yarışının önceki
+   koşusundan kalan turlar (yazıcı temizlemesi ateşlenmediyse) yeni araca "olmayan
+   turlar/pilotlar" olarak sızar. Tur numaraları ardışık tamamlandığı ve her tur
+   tamamlandığı anda livelaps/{key}/{n} ÜZERİNE yazıldığı için n ≤ lapsDone satırları
+   bu seansın verisidir (köprü seans başından çalışıyorsa). lapsDone yok/geçersiz →
+   dokunma (geriye uyum: eski kare/kayıt). */
+export function capLapEntries(lapMap, lapsDone) {
+  if (!lapMap || typeof lapMap !== "object") return lapMap;
+  if (lapsDone == null) return lapMap;         // Number(null)===0 tuzağı: null = "cap yok"
+  const cap = Number(lapsDone);
+  if (!Number.isFinite(cap) || cap < 0) return lapMap;
+  const out = {};
+  for (const k of Object.keys(lapMap)) {
+    const n = Number(k);
+    if (Number.isFinite(n) && n <= cap) out[k] = lapMap[k];
+  }
+  return out;
+}
+
 /* Bir turu KİMİN attığı (endurance driver swap).
    `livedrv/{rid}/{lapKey}/{n} = ad` düğümü SEYREKTİR: pilot yalnız DEĞİŞTİĞİ turda
    yazılır (stint boyunca sabit olduğu için her tura ad yazmak gereksiz yazma olurdu).

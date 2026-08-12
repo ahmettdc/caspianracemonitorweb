@@ -5,6 +5,22 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.6.3",
+    date: "2026-08-12",
+    tr: [
+      "🛡 '+' tur geçmişi hayalet verisi KÖKTEN çözüldü: popup artık yalnız aracın o an tamamladığı tur sayısına kadar olan turları gösteriyor. Önceki koşudan kalan turlar/pilotlar ('Vanthoor' hayaleti) — köprüyü çalıştıran PC'nin sürümünden BAĞIMSIZ olarak — tüm izleyicilerde anında gizlenir. 0 turdaki araçta popup boş görünür.",
+      "🔁 Yarış, köprü çalışırken yeniden başlatılırsa (lobby restart) eski geçmiş artık otomatik temizleniyor (sahadaki tur sayısının sıfıra düştüğü iki ardışık kare = restart).",
+      "🗑 'Tur geçmişini temizle' düğmesi artık '+' penceresinin altında ve WEB'de de var (owner/editor) — masaüstü şart değil.",
+      "📦 Masaüstü sürümlerinin yayınlanmasını engelleyen kronik derleme hatası (NSIS araç indirmesi kopması) giderildi — paketleme adımı geçici hatada bir kez otomatik yeniden denenir. (v1.6.2 bu yüzden hiç yayınlanamamıştı; v1.6.3 hepsini içerir.)",
+    ],
+    en: [
+      "🛡 '+' lap-history phantom data fixed at the ROOT: the popup now only shows laps up to the car's current completed-lap count. Leftover laps/drivers from a previous run (the 'Vanthoor' ghost) are hidden instantly for every viewer — regardless of which version the bridge PC runs. A car with 0 laps shows an empty popup.",
+      "🔁 If the race is restarted while the bridge keeps running (lobby restart), old history is now auto-cleared (two consecutive frames with the field's lap count back at zero = restart).",
+      "🗑 The 'Clear lap history' button now also lives at the bottom of the '+' window and works on WEB too (owner/editor) — desktop not required.",
+      "📦 Fixed the chronic build failure (NSIS tool download drop) that blocked desktop releases — the bundling step now retries once on transient errors. (v1.6.2 never shipped because of it; v1.6.3 includes everything.)",
+    ],
+  },
+  {
     v: "v1.6.2",
     date: "2026-08-12",
     tr: [
