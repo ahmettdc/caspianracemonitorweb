@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.4.144",
+    date: "2026-08-12",
+    tr: [
+      "🔤 Typography merkezileştirildi: font aileleri artık tek yerde (CSS değişkenleri --font-ui / --font-disp / --font-mono) tanımlı; kod içine dağılmış sabit font-family değerleri bunlara çekildi. Font seçimi tek noktadan değişebiliyor.",
+      "🔤 Setup bölümündeki daktilo (monospace) görünümü kaldırıldı — Setup içeriği özet çipleri ve değer satırları artık uygulamanın gövde fontuyla (sayılar yine hizalı) görünüyor. Canlı timing tabloları ve sayaçlar bilinçli olarak monospace kalıyor (rakam hizası).",
+    ],
+    en: [
+      "🔤 Typography centralized: font families are now defined in one place (CSS variables --font-ui / --font-disp / --font-mono); hardcoded font-family values scattered across the code were pulled into them. The font choice can be changed from a single point.",
+      "🔤 Removed the typewriter (monospace) look from the Setup section — Setup content summary chips and value rows now use the app's body font (numbers still aligned). Live timing tables and counters intentionally stay monospace (digit alignment).",
+    ],
+  },
+  {
     v: "v1.4.143",
     date: "2026-08-12",
     tr: [

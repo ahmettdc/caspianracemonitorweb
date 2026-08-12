@@ -69,7 +69,7 @@ export default function FuelTab({ t, st, up, lsf, autoCd, setAutoCd, planLastCd,
           <div className="hint">{t("Örnek")}: <b>{liveFuelObs.samples}</b> {t("tur")}</div>
           <button className="act" onClick={applyLiveFuel} disabled={applyDisabled}
             style={{ marginTop: 12, background: "var(--car)", color: "#FFE9ED",
-              borderColor: "var(--teal)", fontFamily: "'Rajdhani'", fontWeight: 700,
+              borderColor: "var(--teal)", fontFamily: "var(--font-disp)", fontWeight: 700,
               letterSpacing: ".04em", padding: "8px 16px", opacity: applyDisabled ? .5 : 1 }}>
             {t("Yakıt modeline uygula")}</button>
           {!canEdit && <div className="hint" style={{ marginTop: 6 }}>
