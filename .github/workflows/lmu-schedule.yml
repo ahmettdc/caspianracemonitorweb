@@ -31,6 +31,6 @@ jobs:
           npx --yes firebase-tools database:set /lmuSchedule schedule.json
           --project caspian-race-control
           --token "$FIREBASE_TOKEN"
-          --confirm
+          --force
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
