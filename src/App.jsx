@@ -848,12 +848,17 @@ ${bottomBar}
   /* not: yetki rozetten türer — 🎧 mühendis editor, 🛞 sürücü/rozetsiz viewer */
   const myBadges = teamBadgesOf(teamData, user?.uid, udoc);
 
-  /* Kendi görünen adımı takım düğümüne yaz — diğer üyeler pilot listesinde görsün */
+  /* Kendi görünen adımı + Google foto URL'imi takım düğümüne yaz —
+     diğer üyeler pilot listesinde ad + avatar görsün */
   useEffect(() => {
     if (!curTeam || !user?.uid || !teamData?.members?.[user.uid]) return;
     const nm = (userName || "").trim();
-    if (!nm || teamData?.names?.[user.uid] === nm) return;
-    setTeamMemberName(curTeam, user.uid, nm).catch(() => {});
+    if (!nm) return;
+    const ph = user.photoURL || "";
+    const nameSame = teamData?.names?.[user.uid] === nm;
+    const photoSame = (teamData?.photos?.[user.uid] || "") === ph;
+    if (nameSame && photoSame) return;
+    setTeamMemberName(curTeam, user.uid, nm, ph).catch(() => {});
   }, [curTeam, user, userName, teamData]);
 
   /* Rozet yetkiyi belirler: 🎧 Mühendis → editor (datayı değiştirir),

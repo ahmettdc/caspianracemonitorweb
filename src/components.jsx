@@ -21,8 +21,10 @@ import { carAssetKey, teamLogoSrc } from "./teamAssets";
 /* ---- kullanıcı avatarı ----
    Sıra: userAvatars/{uid} (cache'li tek get) → photo prop (Google photoURL) →
    baş harf rozeti (ada göre PIE_COLORS rengi). dataURI kaynakta referrerPolicy
-   gerekmez; yalnız http(s) kaynakta no-referrer. */
-export function Avatar({ uid, name = "", photo = "", size = 24 }) {
+   gerekmez; yalnız http(s) kaynakta no-referrer.
+   Opsiyonel bg + text: görsel yoksa dolu daire rozeti (.drvav görünümü) çizer —
+   Pilotlar sekmesi baş-harf rozetini (pasta rengiyle) korumak için kullanır. */
+export function Avatar({ uid, name = "", photo = "", size = 24, bg = "", text = "" }) {
   const [custom, setCustom] = useState("");
   useEffect(() => {
     let on = true;
@@ -41,7 +43,17 @@ export function Avatar({ uid, name = "", photo = "", size = 24 }) {
     );
   }
   const nm = String(name || "").trim();
-  const initial = nm ? nm.charAt(0).toUpperCase() : "?";
+  /* dolu rozet (bg verildiyse): koyu yazı + tam renk zemin (.drvav stili) */
+  if (bg) {
+    return (
+      <span className="drvav" aria-hidden="true"
+        style={{ width: size, height: size, fontSize: Math.round(size * 0.46),
+          background: bg }}>
+        {text || (nm ? nm.charAt(0).toUpperCase() : "?")}
+      </span>
+    );
+  }
+  const initial = text || (nm ? nm.charAt(0).toUpperCase() : "?");
   let h = 0;
   for (let i = 0; i < nm.length; i++) h = (h * 31 + nm.charCodeAt(i)) >>> 0;
   const col = PIE_COLORS[h % PIE_COLORS.length];

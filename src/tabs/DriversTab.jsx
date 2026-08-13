@@ -1,6 +1,6 @@
 import { fmtHMS, msToLocalInput } from "../engine";
 import { PIE_COLORS } from "../constants";
-import { Donut } from "../components";
+import { Donut, Avatar } from "../components";
 
 /* Ad → baş harf(ler) rozeti (en çok 2). "A. Demircan" → "AD", "Savaş" → "SA". */
 function initials(name) {
@@ -28,10 +28,25 @@ export default function DriversTab({
       if (n && r.dur > 0) (stintsOf[n] = stintsOf[n] || []).push(r.idx);
     });
   }
-  const Av = ({ n, size = 22 }) => (
-    <span className="drvav" style={{ width: size, height: size,
-      fontSize: size * 0.46, background: colorOf(n) }}>{initials(n)}</span>
-  );
+  /* ad → uid köprüsü: teamData.names (uid→ad) tersine çevrilir. Takım üyesi olan
+     pilotlarda uid bulunur → Avatar yüklenen/Google avatarını gösterir; elle
+     yazılan pilotlarda uid yok → colorOf+initials dolu rozeti (mevcut görünüm). */
+  const uidByName = {};
+  const nmeta = teamData?.names || {};
+  Object.keys(nmeta).forEach((uid) => {
+    const nm = nmeta[uid];
+    if (nm && !(nm in uidByName)) uidByName[nm] = uid;
+  });
+  /* not: JSX bileşeni olarak DEĞİL, düz fonksiyon olarak çağrılır ({av(n,20)})
+     — böylece stabil (modül kapsamlı) Avatar yeniden mount olmaz, avatar
+     getirme effect'i her render'da tekrar çalışmaz (titreme olmaz). */
+  const av = (n, size = 22) => {
+    const uid = uidByName[n] || "";
+    return (
+      <Avatar uid={uid} name={n} photo={teamData?.photos?.[uid] || ""}
+        size={size} bg={colorOf(n)} text={initials(n)} />
+    );
+  };
 
   return (
     <div className="card">
@@ -55,7 +70,7 @@ export default function DriversTab({
       <div style={{ marginBottom: 4 }}>
         {st.roster.map((n) => (
           <span className="rchip" key={n}>
-            {driverPlan && driverPlan.totals[n] && <Av n={n} size={20} />}{n}
+            {driverPlan && driverPlan.totals[n] && av(n, 20)}{n}
             <b onClick={() => removeDriver(n)} title={t("Kadrodan çıkar")}>×</b></span>
         ))}
         {st.roster.length === 0 &&
@@ -90,7 +105,7 @@ export default function DriversTab({
                 return (
                   <div className="drv" key={n} style={{ "--c": colorOf(n) }}>
                     <div className="drvtop">
-                      <Av n={n} size={42} />
+                      {av(n, 42)}
                       <div className="drvwho">
                         <div className="drvnm">{n}</div>
                         <div className="drvteam">
@@ -128,7 +143,7 @@ export default function DriversTab({
                   <b>{fmtClock(r.start, driverPlan.startMs)}</b> → {fmtClock(r.finish, driverPlan.startMs)}
                   {" · "}{fmtHMS(r.dur / 1000)}</span>
                 <span className="sasg">
-                  {cur && driverPlan.totals[cur] && <Av n={cur} size={20} />}
+                  {cur && driverPlan.totals[cur] && av(cur, 20)}
                   <select value={cur} onChange={(e) => assignDriver(i, e.target.value)}>
                     <option value="">{t("— seç —")}</option>
                     {st.roster.length > 0 && (
