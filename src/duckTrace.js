@@ -12,6 +12,7 @@
    yanal-G ile yeniden kurmaya gerek yok.
    ============================================================ */
 import { sampleContAt } from "./duckParse";
+import { gShapeXY, sampleArrAtTime } from "./ldTrace";
 export { buildCompare, sectorOf, sectorMarks } from "./ldTrace";
 
 /* dataset → iz okuyucuları (sürekli = {hz}, vites = olay adım). */
@@ -24,7 +25,7 @@ export function buildDuckReaders(ds) {
     t0: ds.t0,
     speed: cont("speed"), throttle: cont("throttle"), brake: cont("brake"),
     rpm: cont("rpm"), steer: cont("steer"), dist: cont("dist"),
-    posx: cont("posx"), posz: cont("posz"), gear,
+    posx: cont("posx"), posz: cont("posz"), latg: cont("latg"), gear,
   };
 }
 
@@ -139,13 +140,31 @@ export function buildDuckTrace(readers, lap, N = 600) {
   if (readers.rpm) out.rpm = chOf(readers.rpm);
   if (readers.steer) out.steer = chOf(readers.steer);
 
-  // pist haritası — gerçek GPS (lon=x, lat=y); UI fit-to-box normalize eder
+  // pist haritası — öncelik: gerçek GPS (lon=x, lat=y) → yoksa hız+yanal-G ile
+  // yeniden kur (ldTrace gShapeXY — .ld ile aynı desen). UI fit-to-box normalize eder.
   if (readers.posx && readers.posz) {
     const gx = tGrid.map((t) => at(readers.posx, t0g, t));
     const gy = tGrid.map((t) => at(readers.posz, t0g, t));
-    const span = (a) => Math.max(...a.filter(Number.isFinite)) - Math.min(...a.filter(Number.isFinite));
+    const fin = (a) => a.filter(Number.isFinite);
+    const span = (a) => { const f = fin(a); return f.length ? Math.max(...f) - Math.min(...f) : NaN; };
     if (Number.isFinite(span(gx)) && (span(gx) > 0 || span(gy) > 0)) {
-      out.x = gx; out.y = gy; out.mapSrc = "gps";
+      /* 1° boylam = cos(enlem) × 1° enlem — ham dereceler oranlanmazsa pist dikeyde
+         ~%35 uzar (Le Mans). Boylamı cos(ortalama enlem) ile ölçekle → metrik oran. */
+      const latF = fin(gy);
+      const latMean = latF.length ? latF.reduce((a, b) => a + b, 0) / latF.length : 0;
+      const k = Math.abs(latMean) <= 90 ? (Math.cos((latMean * Math.PI) / 180) || 1) : 1;
+      out.x = gx.map((v) => (Number.isFinite(v) ? v * k : v));
+      out.y = gy;
+      out.mapSrc = "gps";
+    }
+  }
+  if (!out.x && readers.latg && readers.speed) {
+    const la = Array.from({ length: M }, (_, j) => at(readers.latg, t0g, rawT[j]));
+    const g = gShapeXY(rawV, la, dt);
+    if (g) {
+      out.x = tGrid.map((tg) => sampleArrAtTime(g.x, t0, dt, tg));
+      out.y = tGrid.map((tg) => sampleArrAtTime(g.y, t0, dt, tg));
+      out.mapSrc = "g";
     }
   }
   return out;
