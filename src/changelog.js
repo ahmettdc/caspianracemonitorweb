@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.7.1",
+    date: "2026-08-13",
+    tr: [
+      "👥 Pilotlar sekmesinde baş-harf rozetleri yerine artık kullanıcı avatarı gösteriliyor: yüklenmiş özel avatar → yoksa Google hesabı profil fotoğrafı → yoksa (elle yazılan/takım dışı pilotlar için) renkli baş-harf rozeti. Kadro çipleri, sürüş dağılımı kartları ve stint atama satırlarının hepsinde geçerli.",
+      "🔗 Takım üyelerinin Google profil fotoğrafı takım düğümünde saklanır (ad kopyasıyla aynı desen) — üye bir sonraki girişinde otomatik güncellenir; diğer üyeler pilot listesinde avatarını görür.",
+    ],
+    en: [
+      "👥 The Drivers tab now shows user avatars instead of initial badges: uploaded custom avatar → else the Google account profile photo → else (for manually-typed / non-team pilots) a colored initial badge. Applies to the roster chips, driving-distribution cards and stint assignment rows.",
+      "🔗 Team members' Google profile photo is stored on the team node (same pattern as the name copy) — auto-synced on the member's next login; other members see the avatar in the pilot list.",
+    ],
+  },
+  {
     v: "v1.7.0",
     date: "2026-08-13",
     tr: [
