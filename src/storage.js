@@ -169,12 +169,13 @@ export function watchMyTeams(uid, cb) {
    kalsın diye teams/$tid seviyesinde .read yok — bu yüzden çocuklar ayrı.) */
 export function watchTeam(tid, cb) {
   if (!db || !tid) { cb(null); return () => {}; }
-  const acc = { meta: null, members: null, badges: null, rooms: null, names: null, assets: null };
+  const acc = { meta: null, members: null, badges: null, rooms: null, names: null,
+    photos: null, assets: null };
   const emit = () => cb({ ...acc });
   const sub = (key) => onValue(ref(db, `teams/${tid}/${key}`),
     (s) => { acc[key] = s.exists() ? s.val() : (key === "meta" ? null : {}); emit(); },
     () => { acc[key] = key === "meta" ? null : {}; emit(); });
-  const offs = ["meta", "members", "badges", "rooms", "names", "assets"].map(sub);
+  const offs = ["meta", "members", "badges", "rooms", "names", "photos", "assets"].map(sub);
   return () => offs.forEach((o) => o());
 }
 
@@ -340,10 +341,14 @@ export async function deleteChat(path, id) {
   await remove(ref(db, `${path}/${id}`));
 }
 
-/* Uye kendi gorunen adini takim dugumune yazar (pilot listesi icin) */
-export async function setTeamMemberName(tid, uid, name) {
+/* Uye kendi gorunen adini (ve Google foto URL'ini) takim dugumune yazar
+   (pilot listesi + avatar icin). photo bos ise foto yolu temizlenir. */
+export async function setTeamMemberName(tid, uid, name, photo = "") {
   if (!db || !tid || !uid) return;
-  await set(ref(db, `teams/${tid}/names/${uid}`), String(name || "").slice(0, 60));
+  await update(ref(db), {
+    [`teams/${tid}/names/${uid}`]: String(name || "").slice(0, 60),
+    [`teams/${tid}/photos/${uid}`]: String(photo || "").slice(0, 500) || null,
+  });
 }
 
 export async function setTeamRole(tid, uid, role) {
@@ -355,6 +360,7 @@ export async function leaveTeam(tid, uid) {
   if (!db) return;
   await remove(ref(db, `teams/${tid}/members/${uid}`));
   await remove(ref(db, `teams/${tid}/names/${uid}`));
+  await remove(ref(db, `teams/${tid}/photos/${uid}`));
   await remove(ref(db, `users/${uid}/teams/${tid}`));
 }
 
