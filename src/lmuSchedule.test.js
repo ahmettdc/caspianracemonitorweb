@@ -1,0 +1,114 @@
+import { describe, it, expect } from "vitest";
+import {
+  raceStatus, matchesFilters, sortByStart, groupByStatus,
+  nextOfficialRace, deriveOptions, filtersActive, EMPTY_FILTERS,
+} from "./lmuSchedule";
+
+/* Sabit "now": 2026-08-13T09:00:00Z. Yarışlar bu ankere göre kurulur. */
+const NOW = Date.parse("2026-08-13T09:00:00Z");
+const H = 3600 * 1000;
+const mk = (over) => ({
+  id: "x", kind: "daily", name: "Race", startMs: NOW + H, lenSec: 1200,
+  live: false, sr: "B0", srRank: "Bronze", trackId: "spa", trackRaw: "",
+  classes: ["GT3"], lenLabel: "20m", ...over,
+});
+
+/* Gerçekçi karışık liste: geçmiş, canlı, yaklaşan; farklı seri/sınıf/pist. */
+const RACES = [
+  mk({ id: "past-1", name: "Past A", kind: "weekly", startMs: NOW - 5 * H, trackId: "monza", classes: ["LMP2"], srRank: "Silver" }),
+  mk({ id: "live-1", name: "Live A", kind: "daily", startMs: NOW - 10 * 60000, lenSec: 1800, trackId: "spa", classes: ["GT3"], srRank: "Bronze" }),
+  mk({ id: "up-2", name: "Up Later", kind: "special", startMs: NOW + 6 * H, trackId: "lemans", classes: ["HY", "GT3"], srRank: "Gold" }),
+  mk({ id: "up-1", name: "Up Soon", kind: "daily", startMs: NOW + 2 * H, trackId: "bahrain", classes: ["LMP3"], srRank: "Bronze" }),
+  mk({ id: "past-2", name: "Past B", kind: "daily", startMs: NOW - 2 * H, trackId: "spa", classes: ["GT3"], srRank: "Bronze" }),
+];
+
+describe("raceStatus — zamana göre hesaplanır (senaryo 12)", () => {
+  it("upcoming / live / completed doğru ayrışır", () => {
+    expect(raceStatus(mk({ startMs: NOW + H }), NOW)).toBe("upcoming");
+    expect(raceStatus(mk({ startMs: NOW - 5 * 60000, lenSec: 1800 }), NOW)).toBe("live");
+    expect(raceStatus(mk({ startMs: NOW - 5 * H, lenSec: 1200 }), NOW)).toBe("completed");
+  });
+  it("now ilerledikçe aynı yarış upcoming→live→completed olur", () => {
+    const r = mk({ startMs: NOW, lenSec: 1200 }); // 20 dk
+    expect(raceStatus(r, NOW - 60000)).toBe("upcoming");
+    expect(raceStatus(r, NOW + 5 * 60000)).toBe("live");
+    expect(raceStatus(r, NOW + 40 * 60000)).toBe("completed");
+  });
+  it("startMs yoksa güvenli fallback (kart kırılmaz)", () => {
+    expect(raceStatus(mk({ startMs: null }), NOW)).toBe("upcoming");
+  });
+});
+
+describe("sortByStart — kronolojik + deterministik tiebreak (senaryo 1)", () => {
+  it("asc: yaklaşan yarıştan başlar", () => {
+    const s = sortByStart(RACES, "asc").map((r) => r.id);
+    expect(s).toEqual(["past-1", "past-2", "live-1", "up-1", "up-2"]);
+  });
+  it("aynı startMs → id ile deterministik", () => {
+    const same = [mk({ id: "b", startMs: NOW }), mk({ id: "a", startMs: NOW })];
+    expect(sortByStart(same, "asc").map((r) => r.id)).toEqual(["a", "b"]);
+  });
+});
+
+describe("filtreler (senaryo 2,4,5)", () => {
+  it("Seri (kind) filtresi", () => {
+    const only = RACES.filter((r) => matchesFilters(r, { series: "daily" }, NOW));
+    expect(only.map((r) => r.id).sort()).toEqual(["live-1", "past-2", "up-1"]);
+  });
+  it("Status filtresi", () => {
+    const up = RACES.filter((r) => matchesFilters(r, { status: "upcoming" }, NOW));
+    expect(up.map((r) => r.id).sort()).toEqual(["up-1", "up-2"]);
+  });
+  it("Çoklu filtre AND (Seri=daily + Status=upcoming + Sınıf=LMP3)", () => {
+    const r = RACES.filter((x) => matchesFilters(x, { series: "daily", status: "upcoming", cls: "LMP3" }, NOW));
+    expect(r.map((x) => x.id)).toEqual(["up-1"]);
+  });
+  it("Pist ve SR filtreleri", () => {
+    expect(RACES.filter((r) => matchesFilters(r, { track: "spa" }, NOW)).map((r) => r.id).sort())
+      .toEqual(["live-1", "past-2"]);
+    expect(RACES.filter((r) => matchesFilters(r, { sr: "Gold" }, NOW)).map((r) => r.id)).toEqual(["up-2"]);
+  });
+});
+
+describe("arama + filtre birlikte (senaryo 6)", () => {
+  it("metin araması ada/piste/seriye göre eşleşir", () => {
+    expect(RACES.filter((r) => matchesFilters(r, { q: "monza" }, NOW)).map((r) => r.id)).toEqual(["past-1"]);
+    expect(RACES.filter((r) => matchesFilters(r, { q: "up" }, NOW)).map((r) => r.id).sort()).toEqual(["up-1", "up-2"]);
+  });
+  it("arama + status AND", () => {
+    const r = RACES.filter((x) => matchesFilters(x, { q: "spa", status: "completed" }, NOW));
+    expect(r.map((x) => x.id)).toEqual(["past-2"]);
+  });
+});
+
+describe("Clear Filters (senaryo 7) + empty state (senaryo 8)", () => {
+  it("filtersActive & EMPTY_FILTERS", () => {
+    expect(filtersActive(EMPTY_FILTERS)).toBe(false);
+    expect(filtersActive({ ...EMPTY_FILTERS, series: "weekly" })).toBe(true);
+    expect(filtersActive({ ...EMPTY_FILTERS, q: "x" })).toBe(true);
+  });
+  it("eşleşme yoksa matchedCount 0 (empty state tetikler)", () => {
+    const g = groupByStatus(RACES, { series: "weekly", status: "live" }, NOW);
+    expect(g.matchedCount).toBe(0);
+    expect(g.live).toEqual([]); expect(g.upcoming).toEqual([]); expect(g.completed).toEqual([]);
+  });
+});
+
+describe("groupByStatus + nextOfficialRace + deriveOptions", () => {
+  it("gruplar doğru + completed ters kronolojik", () => {
+    const g = groupByStatus(RACES, {}, NOW);
+    expect(g.live.map((r) => r.id)).toEqual(["live-1"]);
+    expect(g.upcoming.map((r) => r.id)).toEqual(["up-1", "up-2"]);
+    expect(g.completed.map((r) => r.id)).toEqual(["past-2", "past-1"]); // en yeni önce
+  });
+  it("nextOfficialRace = en yakın yaklaşan", () => {
+    expect(nextOfficialRace(RACES, NOW).id).toBe("up-1");
+  });
+  it("deriveOptions yalnız veride bulunanları döndürür (season YOK)", () => {
+    const o = deriveOptions(RACES);
+    expect(o.series.sort()).toEqual(["daily", "special", "weekly"]);
+    expect(o.classes.sort()).toEqual(["GT3", "HY", "LMP2", "LMP3"]);
+    expect(o.srRanks.sort()).toEqual(["Bronze", "Gold", "Silver"]);
+    expect(o).not.toHaveProperty("season");
+  });
+});

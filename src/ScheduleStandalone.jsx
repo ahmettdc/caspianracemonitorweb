@@ -18,7 +18,7 @@ import { Icon, Btn } from "./components";
 const ScheduleTab = lazy(() => import("./tabs/ScheduleTab"));
 
 export default function ScheduleStandalone({
-  t, lang, switchLang, live, upcoming, updatedAt, loading, onExit,
+  t, lang, switchLang, races, updatedAt, loading, onExit,
 }) {
   return (
     <div className="rc">
@@ -41,7 +41,7 @@ export default function ScheduleStandalone({
       </header>
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "16px 20px 60px" }}>
         <Suspense fallback={<div className="hint" style={{ padding: 20 }}>⏳ {t("Yükleniyor…")}</div>}>
-          <ScheduleTab t={t} live={live} upcoming={upcoming}
+          <ScheduleTab t={t} lang={lang} races={races}
             updatedAt={updatedAt} loading={loading} />
         </Suspense>
       </div>
