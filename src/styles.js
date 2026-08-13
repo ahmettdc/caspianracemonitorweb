@@ -1090,4 +1090,88 @@ export const css = `
 .rc button:focus-visible,.rc select:focus-visible,.rc a:focus-visible,
 .rc [role="button"]:focus-visible{outline:2px solid var(--accent);outline-offset:2px;
   border-radius:6px}
+
+/* ===== Resmi Yarış Merkezi (ScheduleTab) — mevcut token'lar, yeni UI dili yok ===== */
+.rc .sch-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.rc .sch-head h2{margin:0}
+.rc .sch-upd{margin-left:auto;font-size:12px}
+.rc .sch-summary{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.rc .sch-stat{background:var(--panel2);border:1px solid var(--line);border-radius:8px;
+  padding:8px 12px;min-width:70px;display:flex;flex-direction:column;gap:2px}
+.rc .sch-stat .n{font-family:var(--font-disp);font-size:20px;font-weight:700;line-height:1}
+.rc .sch-stat .l{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.rc .sch-next{flex:1 1 260px;min-width:220px;background:var(--sel-bg-soft);border:1px solid var(--line);
+  border-radius:8px;padding:8px 12px;display:flex;flex-direction:column;gap:2px}
+.rc .sch-next .l{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--accent);font-weight:600}
+.rc .sch-next .nm{font-family:var(--font-disp);font-weight:600;font-size:15px}
+.rc .sch-next .mt{font-size:11.5px;color:var(--dim)}
+.rc .sch-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.rc .sch-search{flex:1 1 240px;min-width:150px;padding:8px 10px;background:var(--panel2);
+  border:1px solid var(--line);border-radius:8px;color:var(--txt);font-size:13px}
+.rc .sch-clear{padding:6px 12px;border-radius:8px;border:1px solid var(--line);
+  background:var(--panel2);color:var(--dim);cursor:pointer;font-size:12px;white-space:nowrap}
+.rc .sch-clear:hover{border-color:var(--accent);color:var(--accent)}
+.rc .sch-series{margin:4px 0 8px}
+.rc .sch-selrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.rc .sch-sel{display:flex;flex-direction:column;gap:2px;font-size:10px;text-transform:uppercase;
+  letter-spacing:.04em;color:var(--muted);margin:0}
+.rc .sch-sel select{padding:6px 8px;background:var(--panel2);border:1px solid var(--line);
+  border-radius:6px;color:var(--txt);font-size:12px;min-width:108px}
+.rc .sch-sec{display:flex;align-items:center;gap:8px;margin:14px 0 8px;font-family:var(--font-disp);
+  text-transform:uppercase;letter-spacing:.05em;font-size:13px;color:var(--txt)}
+.rc .sch-sec .sch-cnt{font-size:11px;color:var(--muted);background:var(--panel2);
+  border:1px solid var(--line);border-radius:99px;padding:1px 8px}
+.rc .sch-list{display:flex;flex-direction:column;gap:8px}
+.rc .sch-card{display:flex;align-items:center;gap:12px;background:var(--panel2);
+  border:1px solid var(--line);border-left:3px solid var(--line2);border-radius:10px;padding:10px 12px}
+.rc .sch-card[data-status="live"]{border-left-color:var(--green)}
+.rc .sch-card[data-status="upcoming"]{border-left-color:var(--accent)}
+.rc .sch-card[data-status="completed"]{opacity:.72}
+.rc .sch-when{display:flex;flex-direction:column;gap:2px;min-width:92px;flex:none}
+.rc .sch-when .sch-time{font-family:var(--font-disp);font-weight:700;font-size:15px}
+.rc .sch-when .sch-date{font-size:11px;color:var(--dim)}
+.rc .sch-when .sch-rel{font-size:11px;color:var(--muted)}
+.rc .sch-badge{display:inline-flex;align-items:center;gap:4px;font-size:9.5px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.05em;padding:2px 7px;border-radius:99px;width:fit-content;
+  border:1px solid var(--line);color:var(--dim);background:var(--panel)}
+.rc .sch-badge[data-status="live"]{color:var(--green);border-color:var(--green)}
+.rc .sch-badge[data-status="upcoming"]{color:var(--accent);border-color:var(--accent)}
+.rc .sch-badge[data-status="completed"]{color:var(--muted)}
+.rc .sch-dot{width:7px;height:7px;border-radius:99px;background:var(--green);
+  box-shadow:0 0 6px var(--green);animation:schpulse 1.4s ease-in-out infinite}
+@keyframes schpulse{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.rc .sch-dot{animation:none}}
+.rc .sch-thumb{width:56px;height:38px;flex:none;border-radius:6px;overflow:hidden;background:var(--panel);
+  border:1px solid var(--line);display:flex;align-items:center;justify-content:center}
+.rc .sch-thumb img{width:100%;height:100%;object-fit:cover}
+.rc .sch-main{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:3px}
+.rc .sch-title{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rc .sch-sub{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.rc .sch-kind{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);
+  border:1px solid var(--line);border-radius:4px;padding:1px 6px}
+.rc .sch-cls{font-size:10px;font-weight:600;padding:1px 6px;border-radius:4px;
+  background:var(--panel);border:1px solid var(--line2);color:var(--dim)}
+.rc .sch-venue{font-size:12px;color:var(--dim)}
+.rc .sch-venue .sch-len{color:var(--muted);margin-left:4px}
+.rc .sch-side{display:flex;align-items:center;gap:8px;flex:none;margin-left:auto}
+.rc .sch-sr{font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:6px;
+  border:1px solid var(--line);color:var(--dim);white-space:nowrap}
+.rc .sch-sr[data-rank="Bronze"]{color:#C77B3B}
+.rc .sch-sr[data-rank="Silver"]{color:#9FA7AE}
+.rc .sch-sr[data-rank="Gold"]{color:var(--yellow)}
+.rc .sch-actions{display:flex;gap:4px}
+.rc .sch-open{width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--dim);
+  cursor:pointer;text-decoration:none;font-size:14px}
+.rc .sch-open:hover{border-color:var(--accent);color:var(--accent)}
+.rc .sch-empty{text-align:center;padding:28px 12px;color:var(--dim);display:flex;
+  flex-direction:column;align-items:center;gap:8px}
+.rc .sch-empty-i{font-size:28px;opacity:.7}
+.rc .sch-src{margin-top:12px;font-size:12px}
+@media(max-width:640px){
+  .rc .sch-card{flex-wrap:wrap;gap:8px}
+  .rc .sch-thumb{display:none}
+  .rc .sch-side{margin-left:0;width:100%;justify-content:space-between}
+  .rc .sch-sel select{min-width:0}
+}
 `;

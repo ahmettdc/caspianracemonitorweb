@@ -1,6 +1,36 @@
 /* İngilizce çeviri sözlüğü — anahtar = Türkçe kaynak metin.
    App.jsx: t = (str) => lang === "en" ? (EN[str] ?? str) : str */
 export const EN = {
+  // LMU Garage takvim entegrasyonu (Ana Menü → Resmi Yarışlar) — "Canlı"/"Yaklaşan"/"Şampiyona"/"Tümü"/"Sınıf" zaten var
+  "Resmi Yarışlar": "Official Races",
+  "Toplam": "Total", "Durum": "Status", "Pist": "Track",
+  "Sıradaki Resmi Yarış": "Next Official Race",
+  "Yarış, pist veya seri ara…": "Search race, track or series…",
+  "Filtreleri Temizle": "Clear Filters",
+  "Tamamlanan": "Completed", "Tamamlandı": "Completed",
+  "Filtrelere uyan yarış yok.": "No races match your filters.",
+  "Bugün": "Today", "Yarın": "Tomorrow", "Dün": "Yesterday",
+  "gün": "days", "gün önce": "days ago", "g": "d",
+  "resmi yarış takvimi": "official race schedule",
+  "Yarışlar": "Races",
+  "Resmi Yarış Takvimi": "Official Race Schedule",
+  "Güncellendi": "Updated",
+  "Le Mans Ultimate resmi günlük/haftalık yarış takvimi. Canlı ve yaklaşan yarışlar aşağıda.":
+    "Official daily/weekly Le Mans Ultimate race schedule. Live and upcoming races below.",
+  "Takvim yükleniyor…": "Loading schedule…",
+  "Takvim henüz yüklenmedi — birkaç dakika içinde güncellenir.":
+    "Schedule not loaded yet — it refreshes within a few minutes.",
+  "Şu An Canlı": "Live Now",
+  "Kaynak": "Source",
+  "resmi olmayan topluluk projesi.": "unofficial community project.",
+  "başlıyor": "starting",
+  "Güvenlik derecesi şartı": "Safety rating requirement",
+  "lmugarage'da aç": "Open on lmugarage",
+  "Bu yarışa planla": "Plan this race",
+  "Planla": "Plan",
+  "Günlük": "Daily",
+  "Haftalık": "Weekly",
+  "Özel": "Special",
   // REST takılma teşhisi (v1.4.101)
   "REST'i kapat (takılma testi)": "Turn off REST (stutter test)",
   "REST kapalı (test) — aç": "REST off (test) — turn on",

@@ -1,0 +1,36 @@
+name: LMU Schedule Sync
+
+# lmugarage.com resmi LMU yarış takvimini periyodik çekip Firebase RTDB'ye
+# (/lmuSchedule) yazar. Web uygulaması bunu onValue ile okur (Yarışlar sekmesi).
+# Yazma, mevcut FIREBASE_TOKEN secret'ıyla firebase-tools üzerinden yapılır —
+# yeni secret/servis hesabı gerekmez (deploy.yml ile aynı token).
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # 15 dakikada bir (sayfanın cache-control'ü 60s ile uyumlu)
+  workflow_dispatch:          # elle tetikleme
+
+concurrency:
+  group: lmu-schedule
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Scrape lmugarage.com → schedule.json
+        run: node scripts/scrape-lmu-schedule.mjs schedule.json
+
+      - name: Write /lmuSchedule to Firebase RTDB
+        run: >-
+          npx --yes firebase-tools database:set /lmuSchedule schedule.json
+          --project caspian-race-control
+          --token "$FIREBASE_TOKEN"
+          --force
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}

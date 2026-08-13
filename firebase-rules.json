@@ -53,6 +53,11 @@
       }
     },
 
+    "lmuSchedule": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true",
+      ".write": false
+    },
+
     "teams": {
       "$tid": {
         "meta": {
@@ -70,6 +75,13 @@
           "$uid": {
             ".write": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && (auth.uid == $uid || root.child('teams').child($tid).child('members').child(auth.uid).val() == 'owner')",
             ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 60)"
+          }
+        },
+        "photos": {
+          ".read": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && root.child('teams').child($tid).child('members').child(auth.uid).exists()",
+          "$uid": {
+            ".write": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && (auth.uid == $uid || root.child('teams').child($tid).child('members').child(auth.uid).val() == 'owner')",
+            ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 500)"
           }
         },
         "badges": {

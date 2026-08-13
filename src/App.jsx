@@ -10,9 +10,11 @@ import { useAuth } from "./useAuth";
 import { useTeams } from "./useTeams";
 import { useChat } from "./useChat";
 import { useSetups } from "./useSetups";
+import { useLmuSchedule } from "./useLmuSchedule";
 import { useRaceSync } from "./useRaceSync";
 import { useTelemetry } from "./useTelemetry";
 import TelemetryStandalone from "./TelemetryStandalone";
+import ScheduleStandalone from "./ScheduleStandalone";
 import { firebaseReady,
   requestAccess, watchAllUsers, setUserAllowed, updateProfile,
   setTeamRole, toggleTeamBadge, setTeamMemberName,
@@ -212,6 +214,7 @@ export default function App() {
   }, []);
   const [entered, setEntered] = useState(false); // lobi geçildi mi (solo/oda)
   const [teleOnly, setTeleOnly] = useState(false); // bağımsız telemetri ekranı (Race Solo'dan AYRI)
+  const [scheduleOnly, setScheduleOnly] = useState(false); // bağımsız Resmi Yarışlar takvimi (yarıştan AYRI)
   const [pickDone, setPickDone] = useState(false); // pist/araç seçimi tamamlandı mı
   const [setupDone, setSetupDone] = useState(false); // data giriş adımı tamamlandı mı
   const [userName, setUserName] = useState("");
@@ -802,6 +805,10 @@ ${bottomBar}
     /* aktif yarıştan ön-doldurma: form açıldığında boş alanlar buradan dolar */
     raceSel: { track: st.track, cls: st.carClass, car: st.car } });
 
+  /* ---- lmugarage.com resmi LMU yarış takvimi — Ana Menü → Resmi Yarışlar ----
+     Yarıştan BAĞIMSIZ: yalnız scheduleOnly görünürken abone olur; race state gerekmez. */
+  const lmu = useLmuSchedule({ user, udoc, active: scheduleOnly });
+
   /* ---- yüzen mini oynatıcı → useMiniPlayer hook'u (konum/boyut/sürükle) ---- */
   const { streamCorner, streamMin, setStreamMin, streamW, streamDrag,
     startResize, moveStream } = useMiniPlayer();
@@ -841,12 +848,17 @@ ${bottomBar}
   /* not: yetki rozetten türer — 🎧 mühendis editor, 🛞 sürücü/rozetsiz viewer */
   const myBadges = teamBadgesOf(teamData, user?.uid, udoc);
 
-  /* Kendi görünen adımı takım düğümüne yaz — diğer üyeler pilot listesinde görsün */
+  /* Kendi görünen adımı + Google foto URL'imi takım düğümüne yaz —
+     diğer üyeler pilot listesinde ad + avatar görsün */
   useEffect(() => {
     if (!curTeam || !user?.uid || !teamData?.members?.[user.uid]) return;
     const nm = (userName || "").trim();
-    if (!nm || teamData?.names?.[user.uid] === nm) return;
-    setTeamMemberName(curTeam, user.uid, nm).catch(() => {});
+    if (!nm) return;
+    const ph = user.photoURL || "";
+    const nameSame = teamData?.names?.[user.uid] === nm;
+    const photoSame = (teamData?.photos?.[user.uid] || "") === ph;
+    if (nameSame && photoSame) return;
+    setTeamMemberName(curTeam, user.uid, nm, ph).catch(() => {});
   }, [curTeam, user, userName, teamData]);
 
   /* Rozet yetkiyi belirler: 🎧 Mühendis → editor (datayı değiştirir),
@@ -1126,6 +1138,7 @@ ${bottomBar}
   /* Komut paleti aksiyonları — sekmeler + hızlı ayarlar. */
   const cmdActions = [
     { id: "dash", label: t("Dashboard"), keywords: "dash panel", icon: <Icon name="chart" size={15} />, run: () => setTab("dash") },
+    { id: "schedule", label: t("Resmi Yarışlar"), keywords: "schedule takvim race yarış lmugarage resmi official", icon: "🏁", run: () => setScheduleOnly(true) },
     { id: "stint", label: t("Stint"), keywords: "stint", icon: <Icon name="cap" size={15} />, run: () => setTab("stint") },
     { id: "fuel", label: t("Son Stint Yakıtı"), keywords: "fuel yakıt", icon: <Icon name="zap" size={15} />, run: () => setTab("fuel") },
     { id: "live", label: t("Canlı"), keywords: "live canlı timing", icon: <Icon name="live" size={15} />, run: () => setTab("live") },
@@ -1535,6 +1548,18 @@ ${bottomBar}
     );
   }
 
+  /* ---------- bağımsız Resmi Yarışlar ekranı (Ana Menü → Resmi Yarışlar) ----------
+     Race Solo yolundan TAMAMEN ayrı üst-düzey görünüm; yarış seçmeye/oda-solo açmaya
+     gerek yok. Çıkış (🏠 Ana Menü) yalnız scheduleOnly'yi kapatır; entered/curRace'e
+     dokunmaz. curRace/entered'den ÖNCE gelir → yarış açıkken bile bağımsız açılır. */
+  if (scheduleOnly) {
+    return (
+      <ScheduleStandalone t={t} lang={lang} switchLang={switchLang}
+        races={lmu.races} updatedAt={lmu.updatedAt}
+        loading={lmu.loading} onExit={() => setScheduleOnly(false)} />
+    );
+  }
+
   /* ---------- lobi: takım takvimi ---------- */
   if (!curRace && !entered) {
     const now = Date.now();
@@ -1611,6 +1636,9 @@ ${bottomBar}
                   <button className="bigbtn ghost" onClick={() => setCreateJoinOpen(true)}>
                     🏢 {t("Kur & Katıl")}
                   </button>
+                  <button className="bigbtn ghost" onClick={() => setScheduleOnly(true)}>
+                    🏁 {t("Resmi Yarışlar")}
+                  </button>
                 </div>
               ) : (<>
                 {/* §1 — takım seçici: yatay kaydırılan kartlar (10+ ölçeklenir) */}
@@ -1635,6 +1663,11 @@ ${bottomBar}
 
                 {/* §1.2 — hızlı eylemler: 📊 Telemetri belirgin */}
                 <div className="mmquick">
+                  <button className="mmqa" onClick={() => setScheduleOnly(true)}>
+                    <span className="mmqi">🏁</span>
+                    <span className="mmql">{t("Resmi Yarışlar")}</span>
+                    <span className="mmqs">{t("resmi yarış takvimi")}</span>
+                  </button>
                   <button className="mmqa"
                     onClick={() => setTeleOnly(true)}>
                     <span className="mmqi">📊</span>

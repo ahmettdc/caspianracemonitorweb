@@ -338,3 +338,14 @@ describe("teams/chat + raceState + badges", () => {
     await assertFails(set(ref(db("bob"), "teams/team1/badges/bob"), { engineer: true }));
   });
 });
+
+describe("lmuSchedule", () => {
+  it("onaylı kullanıcı okur; onaysız (mallory) okuyamaz", async () => {
+    await assertSucceeds(get(ref(db("carol"), "lmuSchedule")));
+    await assertFails(get(ref(db("mallory"), "lmuSchedule")));
+  });
+  it("istemci (admin bile) yazamaz — yalnız Action admin token'ı yazar", async () => {
+    await assertFails(set(ref(db("alice"), "lmuSchedule"), { count: 0, races: [] }));
+    await assertFails(set(ref(db("admin"), "lmuSchedule"), { count: 0, races: [] }));
+  });
+});

@@ -5,7 +5,7 @@
    ============================================================ */
 export const CHANGELOG = [
   {
-    v: "v1.7.1",
+    v: "v1.7.2",
     date: "2026-08-13",
     tr: [
       "🎞 Telemetri oynatma artık AKICI: playhead (kanallardaki yeşil çizgi) ve haritadaki daire, veri noktaları ARASINDA interpole edilerek 25 kare/sn kayar — eski ~7 kare/sn'lik zıplama bitti (.ld ve .duckdb ikisinde de).",
@@ -16,6 +16,18 @@ export const CHANGELOG = [
       "🎞 Telemetry playback is now SMOOTH: the playhead (green line on channels) and the map dot glide at 25 fps by interpolating between data points — the old ~7 fps stepping is gone (both .ld and .duckdb).",
       "🗺 For .duckdb logs without GPS channels the track map is now reconstructed from speed + lateral-G (same method as .ld) → the map, wheel zoom/pan/scrub, sector marks and the ⛶ Expand button appear for these files too.",
       "📐 Fixed the latitude/longitude aspect on GPS-based .duckdb maps (longitude scaled by cos(latitude)) — the track no longer looks vertically stretched.",
+    ],
+  },
+  {
+    v: "v1.7.1",
+    date: "2026-08-13",
+    tr: [
+      "👥 Pilotlar sekmesinde baş-harf rozetleri yerine artık kullanıcı avatarı gösteriliyor: yüklenmiş özel avatar → yoksa Google hesabı profil fotoğrafı → yoksa (elle yazılan/takım dışı pilotlar için) renkli baş-harf rozeti. Kadro çipleri, sürüş dağılımı kartları ve stint atama satırlarının hepsinde geçerli.",
+      "🔗 Takım üyelerinin Google profil fotoğrafı takım düğümünde saklanır (ad kopyasıyla aynı desen) — üye bir sonraki girişinde otomatik güncellenir; diğer üyeler pilot listesinde avatarını görür.",
+    ],
+    en: [
+      "👥 The Drivers tab now shows user avatars instead of initial badges: uploaded custom avatar → else the Google account profile photo → else (for manually-typed / non-team pilots) a colored initial badge. Applies to the roster chips, driving-distribution cards and stint assignment rows.",
+      "🔗 Team members' Google profile photo is stored on the team node (same pattern as the name copy) — auto-synced on the member's next login; other members see the avatar in the pilot list.",
     ],
   },
   {
