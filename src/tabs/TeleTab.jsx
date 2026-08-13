@@ -84,7 +84,17 @@ function TrackMini({ t, data, cursor, src, big, marks, apex, onScrub }) {
     segs.push(<line key={k} x1={x1} y1={y1} x2={x2} y2={y2} stroke={col} strokeWidth={3.2}
       strokeLinecap="round" vectorEffect="non-scaling-stroke" />);
   }
-  const cur = cursor != null && data[cursor] ? scr(data[cursor].mapX, data[cursor].mapY) : null;
+  /* imleç dairesi — kesirli cursor (oynatma) iki nokta ARASINDA interpole edilir → akıcı */
+  const cur = (() => {
+    if (cursor == null || !data.length) return null;
+    const i = Math.max(0, Math.min(Math.floor(cursor), data.length - 1));
+    const f = cursor - i;
+    const a = data[i], b = data[Math.min(i + 1, data.length - 1)] || a;
+    if (!a) return null;
+    const [x1, y1] = scr(a.mapX, a.mapY);
+    const [x2, y2] = scr(b.mapX, b.mapY);
+    return [x1 + f * (x2 - x1), y1 + f * (y2 - y1)];
+  })();
   const zf = view.vw / S;   // daire yarıçapı ekranda sabit kalsın diye ölçek
   /* S/F + sektör sınırları: yolu KESEN kısa çizgi (teğete dik) + etiket — daire yok. */
   const TICK = 7;   // yarı-uzunluk (SVG birimi) → yol bandını keser, zoom'la ölçeklenir
@@ -218,6 +228,11 @@ function TrackMini({ t, data, cursor, src, big, marks, apex, onScrub }) {
 function TraceCompareCard({ t, sources, fallbackMeta, cmpASrc, setCmpASrc, cmpBSrc, setCmpBSrc,
   cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy }) {
   const [cursor, setCursor] = useState(null);   // ize gelince pist haritasında işaretlenen nokta
+  /* v1.7.1 — kesirli oynatma konumu: playhead yalnız tam index'e yuvarlanınca 600 nokta /
+     90 sn'lik turda ~7 kare/sn ZIPLAR (kullanıcının "10 fps" şikâyeti). Oynatma sırasında
+     kesir state'e yazılır; cursorD + harita dairesi noktalar ARASINDA interpole edilir →
+     çizgi 25 fps akıcı kayar. Hover/scrub tam sayı davranışında kalır (cursorF=null). */
+  const [cursorF, setCursorF] = useState(null);
   const [big, setBig] = useState(false);        // harita tam pencere
   const [xWin, setXWin] = useState(null);       // kanal mesafe penceresi (null = tam genişlik)
   const [playing, setPlaying] = useState(false);
@@ -256,23 +271,34 @@ function TraceCompareCard({ t, sources, fallbackMeta, cmpASrc, setCmpASrc, cmpBS
   const corners = useMemo(() => cornerStats(data, apexes), [data, apexes]);
   const curSec = cursor != null && data?.[cursor]
     ? sectorOf((data[cursor].frac ?? 0) / 100) : null;   // data.frac 0..100
-  const cursorD = cursor != null && data?.[cursor] ? data[cursor].d : null;
+  /* imleç konumu: kesirli oynatma varsa iki nokta arası interpole (akıcı), yoksa tam index */
+  const cf = cursorF ?? cursor;
+  const cursorD = (() => {
+    if (cf == null || !data?.length) return null;
+    const i = Math.max(0, Math.min(Math.floor(cf), N - 1));
+    const f = cf - i;
+    const a = data[i], b = data[Math.min(i + 1, N - 1)];
+    return a ? a.d + f * (((b?.d) ?? a.d) - a.d) : null;
+  })();
   const lapSecA = lapsA[cmpA]?.sec;
   /* haritada daireyi sürükleyince (scrub): oynatmayı durdur + imleci o noktaya taşı */
-  const onScrub = (i) => { setPlaying(false); playPosRef.current = i; setCursor(i); };
+  const onScrub = (i) => { setPlaying(false); playPosRef.current = i; setCursorF(null); setCursor(i); };
+  /* grafik üzerinde hover — kesirli oynatma konumunu bırak, tam index'e geç */
+  const hoverCursor = (i) => { setCursorF(null); setCursor(i); };
 
   /* Oynatma: setInterval (~40ms) imleci tur A süresi boyunca ilerletir; harita noktası +
-     tüm kanallarda playhead (ReferenceLine) kayar. Veri/tur değişince durur. */
+     tüm kanallarda playhead (ReferenceLine) noktalar arası interpole edilerek AKICI kayar. */
   useEffect(() => {
     if (!playing || N < 2) return undefined;
     const id = setInterval(() => {
       playPosRef.current = advanceCursor(playPosRef.current, N, lapSecA, playSpeed, 40);
+      setCursorF(playPosRef.current);
       setCursor(Math.round(playPosRef.current));
     }, 40);
     return () => clearInterval(id);
   }, [playing, playSpeed, N, lapSecA]);
   // tur/dosya değişince oynatmayı durdur (index karışmasın)
-  useEffect(() => { setPlaying(false); playPosRef.current = 0; }, [cmpA, cmpB]);
+  useEffect(() => { setPlaying(false); playPosRef.current = 0; setCursorF(null); }, [cmpA, cmpB]);
 
   /* Esc → harita tam pencereyi kapat (TrackMap deseni) */
   useEffect(() => {
@@ -429,7 +455,7 @@ ${svgs}
           </select>
           <input type="range" min={0} max={Math.max(0, N - 1)} value={cursor ?? 0}
             onChange={(e) => { const i = +e.target.value; setPlaying(false);
-              playPosRef.current = i; setCursor(i); }}
+              playPosRef.current = i; setCursorF(null); setCursor(i); }}
             style={{ flex: "1 1 140px", minWidth: 120 }} aria-label={t("Konum")} />
           {cmpData.hasMap && (
             <button className="act" style={{ fontSize: 11, padding: "3px 10px" }}
@@ -473,7 +499,7 @@ ${svgs}
       )}
 
       {cmpData && cmpData.hasMap && (
-        <TrackMini t={t} data={cmpData.data} cursor={cursor} src={cmpData.mapSrc} marks={marks} apex={apexes} onScrub={onScrub} />
+        <TrackMini t={t} data={cmpData.data} cursor={cf} src={cmpData.mapSrc} marks={marks} apex={apexes} onScrub={onScrub} />
       )}
       {cmpData && !cmpData.hasMap && (
         <div className="hint" style={{ marginTop: 6, opacity: .7 }}>
@@ -494,11 +520,11 @@ ${svgs}
         <div ref={tracesRef}>
         <TraceRow data={cmpData.data} title={`⏱ ${t("Zaman-Delta (B−A)")}`} unit={unit}
           keys={["dt"]} colors={["#F5C84C"]} fmt={dlt} height={140} zero
-          onCursor={setCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} bounds={marks} cursorD={cursorD} />
+          onCursor={hoverCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} bounds={marks} cursorD={cursorD} />
         {ch.speed && (
           <TraceRow data={cmpData.data} title={`🏁 ${t("Hız")} (km/h)`} unit={unit}
             keys={["spA", "spB"]} colors={[CA, CB]} fmt={sp1}
-            onCursor={setCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} bounds={marks} cursorD={cursorD}
+            onCursor={hoverCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} bounds={marks} cursorD={cursorD}
             dots={corners.flatMap((c) => [
               c.aMin != null ? { x: c.apexD, y: c.aMin, c: CA } : null,
               c.bMin != null ? { x: c.apexD, y: c.bMin, c: CB } : null].filter(Boolean))} />
@@ -506,27 +532,27 @@ ${svgs}
         {ch.throttle && (
           <TraceRow data={cmpData.data} title={`🟢 ${t("Gaz")} %`} unit={unit}
             keys={["thA", "thB"]} colors={[CA, CB]} fmt={pct} height={110} dashB
-            onCursor={setCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} bounds={marks} cursorD={cursorD} />
+            onCursor={hoverCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} bounds={marks} cursorD={cursorD} />
         )}
         {ch.brake && (
           <TraceRow data={cmpData.data} title={`🔴 ${t("Fren")} %`} unit={unit}
             keys={["brA", "brB"]} colors={[CA, CB]} fmt={pct} height={110} dashB
-            onCursor={setCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} bounds={marks} cursorD={cursorD} />
+            onCursor={hoverCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} bounds={marks} cursorD={cursorD} />
         )}
         {ch.gear && (
           <TraceRow data={cmpData.data} title={`⚙ ${t("Vites")}`} unit={unit}
             keys={["gA", "gB"]} colors={[CA, CB]} fmt={(v) => (v == null ? "—" : String(Math.round(v)))} height={100} dashB
-            onCursor={setCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} bounds={marks} cursorD={cursorD} />
+            onCursor={hoverCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} bounds={marks} cursorD={cursorD} />
         )}
         {ch.rpm && (
           <TraceRow data={cmpData.data} title={`🔧 ${t("RPM")}`} unit={unit}
             keys={["rpmA", "rpmB"]} colors={[CA, CB]} fmt={(v) => (v == null ? "—" : String(Math.round(v)))} height={100}
-            onCursor={setCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} bounds={marks} cursorD={cursorD} />
+            onCursor={hoverCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} bounds={marks} cursorD={cursorD} />
         )}
         {ch.steer && (
           <TraceRow data={cmpData.data} title={`🕹 ${t("Direksiyon")}`} unit={unit}
             keys={["stA", "stB"]} colors={[CA, CB]} fmt={sp1} height={100}
-            onCursor={setCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} bounds={marks} cursorD={cursorD} />
+            onCursor={hoverCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} bounds={marks} cursorD={cursorD} />
         )}
         </div>
 
@@ -599,7 +625,7 @@ ${svgs}
                 title={t("Kapat")} onClick={() => setBig(false)}>✕</button>
             </div>
             <div className="mapwrap">
-              <TrackMini t={t} data={cmpData.data} cursor={cursor} src={cmpData.mapSrc} marks={marks} apex={apexes} onScrub={onScrub} big />
+              <TrackMini t={t} data={cmpData.data} cursor={cf} src={cmpData.mapSrc} marks={marks} apex={apexes} onScrub={onScrub} big />
             </div>
           </div>
         </div>

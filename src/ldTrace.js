@@ -44,8 +44,9 @@ function pctScale(r, t0, tEnd) {
   return mx > 0 && mx <= 1.5 ? 100 : 1;
 }
 
-/* Uniform (t0, dt) ham diziden mutlak zaman tg'de doğrusal örnek. */
-function sampleArrAtTime(rawArr, t0, dt, tg) {
+/* Uniform (t0, dt) ham diziden mutlak zaman tg'de doğrusal örnek.
+   (export: duckTrace da G-şekli/gridi hizalarken aynı yardımcıyı kullanır.) */
+export function sampleArrAtTime(rawArr, t0, dt, tg) {
   const p = (tg - t0) / dt;
   const i = Math.max(0, Math.min(rawArr.length - 2, Math.floor(p)));
   const f = p - i;
@@ -70,21 +71,35 @@ function trackXY(readers, rawT, rawV, dt) {
     if (ok && (span(xs) > 0 || span(ys) > 0)) return { x: xs, y: ys, src: "pos" };
   }
   if (readers.latg) {
-    let mx = 0;
-    for (let j = 0; j < M; j++) { const v = at(readers.latg, rawT[j]); if (Number.isFinite(v)) mx = Math.max(mx, Math.abs(v)); }
-    const gUnit = mx > 0 && mx <= 5 ? 9.81 : 1;   // ≤5 → g cinsinden → m/s²'ye çevir
-    let th = 0, x = 0, y = 0;
-    for (let j = 0; j < M; j++) {
-      const v = rawV[j] || 0;
-      const laRaw = at(readers.latg, rawT[j]);
-      const la = (Number.isFinite(laRaw) ? laRaw : 0) * gUnit;
-      if (v > 0.5) th += (la / v) * dt;           // yaw hızı = latG / v
-      x += v * dt * Math.cos(th); y += v * dt * Math.sin(th);
-      xs[j] = x; ys[j] = y;
-    }
-    if (span(xs) > 0 || span(ys) > 0) return { x: xs, y: ys, src: "g" };
+    const la = Array.from({ length: M }, (_, j) => at(readers.latg, rawT[j]));
+    const g = gShapeXY(rawV, la, dt);
+    if (g) return { x: g.x, y: g.y, src: "g" };
   }
   return null;
+}
+
+/* Hız + yanal-G'den pist şekli (klasik MoTeC track-map): yaw = latG/v; θ+=yaw·dt;
+   x+=v·dt·cosθ, y+=v·dt·sinθ. rawV = m/s; latgRaw = ham yanal ivme dizisi (g ya da
+   m/s² — birim otomatik: |max| ≤ 5 → g kabul edilir). Dönen {x,y} ya da null.
+   (export: duckTrace GPS'siz .duckdb için aynı yeniden kurmayı kullanır.) */
+export function gShapeXY(rawV, latgRaw, dt) {
+  const M = rawV.length;
+  if (!M || latgRaw.length !== M) return null;
+  let mx = 0;
+  for (let j = 0; j < M; j++) if (Number.isFinite(latgRaw[j])) mx = Math.max(mx, Math.abs(latgRaw[j]));
+  const gUnit = mx > 0 && mx <= 5 ? 9.81 : 1;   // ≤5 → g cinsinden → m/s²'ye çevir
+  let th = 0, x = 0, y = 0;
+  const xs = Array.from({ length: M });
+  const ys = Array.from({ length: M });
+  for (let j = 0; j < M; j++) {
+    const v = rawV[j] || 0;
+    const la = (Number.isFinite(latgRaw[j]) ? latgRaw[j] : 0) * gUnit;
+    if (v > 0.5) th += (la / v) * dt;           // yaw hızı = latG / v
+    x += v * dt * Math.cos(th); y += v * dt * Math.sin(th);
+    xs[j] = x; ys[j] = y;
+  }
+  const span = (arr) => Math.max(...arr) - Math.min(...arr);
+  return span(xs) > 0 || span(ys) > 0 ? { x: xs, y: ys } : null;
 }
 
 /* Monoton artan rawDist üzerinden dGrid mesafelerine karşılık gelen zamanı interpole et. */

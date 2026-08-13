@@ -55,6 +55,45 @@ describe("buildDuckTrace", () => {
   });
 });
 
+describe("duck pist haritası (v1.7.1)", () => {
+  it("GPS oran düzeltmesi: boylam cos(enlem) ile ölçeklenir (pist dikeyde uzamaz)", () => {
+    const d = ds();
+    // Le Mans ~47.9° enlem: 0.01° boylam ve 0.01° enlem eşit DERECE ama eşit metre değil
+    d.cont.posx = cont(10, 2400, (i) => 0.208 + 0.01 * Math.sin(i / 100));
+    d.cont.posz = cont(10, 2400, (i) => 47.95 + 0.01 * Math.cos(i / 100));
+    const laps = duckLaps(d);
+    const tr = buildDuckTrace(buildDuckReaders(d), laps[1], 600);
+    expect(tr.mapSrc).toBe("gps");
+    const span = (a) => Math.max(...a) - Math.min(...a);
+    // ham derecelerde oran 1:1 olurdu; düzeltme sonrası x/y ≈ cos(47.95°) ≈ 0.67
+    expect(span(tr.x) / span(tr.y)).toBeCloseTo(Math.cos((47.95 * Math.PI) / 180), 1);
+  });
+
+  it("GPS yoksa hız+yanal-G'den yeniden kurar (mapSrc=g) → harita/zoom/Büyüt gelir", () => {
+    const d = ds();
+    delete d.cont.posx; delete d.cont.posz;
+    d.cont.latg = cont(10, 2400, () => 1.2);   // sabit 1.2g sola → kapalı-benzeri döngü
+    const laps = duckLaps(d);
+    const tr = buildDuckTrace(buildDuckReaders(d), laps[1], 600);
+    expect(tr.mapSrc).toBe("g");
+    expect(tr.x.length).toBe(600);
+    const span = (a) => Math.max(...a) - Math.min(...a);
+    expect(span(tr.x)).toBeGreaterThan(0);
+    expect(span(tr.y)).toBeGreaterThan(0);
+    const cmp = buildCompare(tr, buildDuckTrace(buildDuckReaders(d), laps[0], 600));
+    expect(cmp.hasMap).toBe(true);
+  });
+
+  it("ne GPS ne yanal-G → harita yok (mapSrc/x tanımsız, çökme yok)", () => {
+    const d = ds();
+    delete d.cont.posx; delete d.cont.posz;
+    const laps = duckLaps(d);
+    const tr = buildDuckTrace(buildDuckReaders(d), laps[1], 600);
+    expect(tr.x).toBeUndefined();
+    expect(tr.mapSrc).toBeUndefined();
+  });
+});
+
 describe("buildCompare (duck izleri)", () => {
   const d = ds();
   const laps = duckLaps(d);

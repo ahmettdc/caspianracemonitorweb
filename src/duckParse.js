@@ -32,6 +32,9 @@ export const DUCK_CONT = {
   dist: [/^lap dist$/i, /^lap distance$/i, /dist/i],
   posx: [/^gps longitude$/i, /longitude/i],
   posz: [/^gps latitude$/i, /latitude/i],
+  /* yanal ivme — GPS kanalı olmayan kayıtlarda pist şekli hız+yanal-G'den kurulur
+     (ldTrace gShapeXY). Ad varyantları toleranslı (G Force Lat / Lat Accel / …). */
+  latg: [/^g force lat$/i, /lat.*acc/i, /acc.*lat/i, /g[ _]?lat/i, /lateral/i],
   fuel: [/^fuel level$/i, /^fuel$/i],
   trk: [/^track temperature$/i, /track temp/i],
   amb: [/^ambient temperature$/i, /ambient temp/i],

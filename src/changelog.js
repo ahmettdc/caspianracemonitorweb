@@ -5,6 +5,20 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.7.1",
+    date: "2026-08-13",
+    tr: [
+      "🎞 Telemetri oynatma artık AKICI: playhead (kanallardaki yeşil çizgi) ve haritadaki daire, veri noktaları ARASINDA interpole edilerek 25 kare/sn kayar — eski ~7 kare/sn'lik zıplama bitti (.ld ve .duckdb ikisinde de).",
+      "🗺 GPS kanalı olmayan .duckdb kayıtlarında pist haritası artık hız + yanal-G'den yeniden kurulur (.ld ile aynı yöntem) → harita, tekerlek zoom/pan/sürükle, sektör işaretleri ve ⛶ Büyüt düğmesi bu dosyalarda da gelir.",
+      "📐 GPS'li .duckdb haritasında enlem/boylam oranı düzeltildi (boylam cos(enlem) ile ölçeklenir) — pist artık dikeyde uzamış görünmez.",
+    ],
+    en: [
+      "🎞 Telemetry playback is now SMOOTH: the playhead (green line on channels) and the map dot glide at 25 fps by interpolating between data points — the old ~7 fps stepping is gone (both .ld and .duckdb).",
+      "🗺 For .duckdb logs without GPS channels the track map is now reconstructed from speed + lateral-G (same method as .ld) → the map, wheel zoom/pan/scrub, sector marks and the ⛶ Expand button appear for these files too.",
+      "📐 Fixed the latitude/longitude aspect on GPS-based .duckdb maps (longitude scaled by cos(latitude)) — the track no longer looks vertically stretched.",
+    ],
+  },
+  {
     v: "v1.7.0",
     date: "2026-08-13",
     tr: [
