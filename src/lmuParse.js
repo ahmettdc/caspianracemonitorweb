@@ -124,3 +124,50 @@ export function parseRacingToday(html) {
   }
   return { source: "lmugarage.com", races };
 }
+
+/* /special ve /championships sayfaları — "article.race-card" kart yapısı (racing-today'in
+   .run-row'undan FARKLI). kind çağırandan gelir ("special" | "championship"). Kartlarda
+   yarış süresi YOK (lenSec/lenLabel boş). Tarihi (datetime) olmayan kart (completed, tarihsiz)
+   ATLANIR → kronolojiye uydurma tarih girmez. championship kartları "race-card champ-card"
+   sınıfını kullanır + standings tabloları içerir; bunlar tek article regex'iyle yok sayılır. */
+export function parseCardsPage(html, kind) {
+  const src = String(html || "");
+  const cardRe = /<article\s+class="race-card[^"]*"[^>]*>([\s\S]*?)<\/article>/g;
+  const races = [];
+  let mm;
+  while ((mm = cardRe.exec(src)) !== null) {
+    const inner = mm[1] || "";
+    const startIso = first(/datetime="([^"]+)"/, inner);
+    const href = first(/class="rc-link"\s+href="([^"]*)"/, inner) || first(/href="(\/[^"]+)"/, inner);
+    const name = clean(first(/class="rc-title">([\s\S]*?)<\/div>/, inner));
+    if (!startIso || !name) continue;  // tarihsiz/adsız kart atlanır (uydurma yok)
+
+    const trackRaw = clean(first(/class="rc-track">([\s\S]*?)<\/div>/, inner));
+    const srRank = first(/data-rank="([^"]+)"/, inner);
+    const srVal = clean(first(/class="v">([\s\S]*?)<\/span>/, inner));
+
+    const classes = [];
+    const clsRe = /data-class="([^"]+)"/g;
+    let cm;
+    while ((cm = clsRe.exec(inner)) !== null) classes.push(cm[1]);
+
+    const startMs = Date.parse(startIso);
+    races.push({
+      id: slugFromHref(href),
+      kind,
+      name,
+      startIso,
+      startMs: Number.isFinite(startMs) ? startMs : null,
+      live: false,           // status client-side (startMs+lenSec vs now) hesaplanır
+      sr: srVal || "",
+      srRank: srRank || "",
+      trackId: mapTrackId(trackRaw),
+      trackRaw,
+      classes,
+      lenSec: null,          // kartlarda süre yok
+      lenLabel: "",
+      url: href && href.startsWith("http") ? href : `https://lmugarage.com${href || ""}`,
+    });
+  }
+  return { source: "lmugarage.com", races };
+}

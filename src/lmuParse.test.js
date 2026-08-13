@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  parseRacingToday, mapTrackId, parseLenSec, slugFromHref, normLabel,
+  parseRacingToday, parseCardsPage, mapTrackId, parseLenSec, slugFromHref, normLabel,
 } from "./lmuParse";
 
 /* lmugarage.com /racing-today fragmanından alınmış gerçek yapıya dayalı fixture
@@ -100,5 +100,68 @@ describe("parseRacingToday", () => {
       sr: "S2", srRank: "Silver", trackId: "spa",
       classes: ["LMP2", "LMP3", "GT3"], lenSec: 8640,
     });
+  });
+});
+
+/* /special ve /championships kart yapısı (article.race-card). Gerçek markup'a dayalı. */
+const CARDS_FIXTURE = `
+<section class="section"><h2>Next race</h2><div class="cards">
+  <article class="race-card">
+    <img class="bg" src="https://x/card.webp" alt="">
+    <div class="rc-top chips">
+      <span class="rating" data-rank="Bronze"><span class="k">SR</span><span class="v">B0</span></span>
+      <span class="chips"><span class="badge badge-class" data-class="LMP2">LMP2</span><span class="badge badge-class" data-class="GT3">GT3</span></span>
+    </div>
+    <div class="rc-body">
+      <a class="rc-link" href="/special/13000000009"><div class="rc-title">ELMS 4 Hours of Spa</div></a>
+      <div class="rc-track">Spa-Francorchamps</div>
+    </div>
+    <div class="rc-start tnum"><div class="rs-when">
+      <span class="lab"><span class="dot dot-cyan"></span>Next race</span>
+      <span class="time"><time datetime="2026-08-14T03:00:00+00:00">Fri 14 Aug · 03:00</time></span>
+    </div><a class="cta" href="/special/13000000009">Full schedule →</a></div>
+  </article>
+  <article class="race-card">
+    <div class="rc-top chips"><span class="rating" data-rank="Bronze"><span class="k">SR</span><span class="v">B0</span></span>
+      <span class="chips"><span class="badge badge-class" data-class="HY">HY</span></span></div>
+    <div class="rc-body"><a class="rc-link" href="/special/13000000002"><div class="rc-title">6 Hours of São Paulo</div></a>
+      <div class="rc-track">Interlagos</div></div>
+    <div class="rc-start tnum"><a class="cta" href="/special/13000000002">Full schedule →</a></div>
+  </article>
+</div></section>`;
+
+const CHAMP_FIXTURE = `
+<div class="cards">
+  <article class="race-card champ-card">
+    <div class="rc-top chips"><span class="rating" data-rank="Silver"><span class="k">SR</span><span class="v">S1</span></span>
+      <span class="chips"><span class="badge badge-class" data-class="GT3">GT3</span></span></div>
+    <a class="rc-link" href="/championship/15000000007"><div class="rc-title">GT3 Sprint Cup</div></a>
+    <div class="rc-track">Monza</div>
+    <div class="rc-start tnum"><div class="rs-when"><span class="time"><time datetime="2026-08-18T11:00:00+00:00">Mon</time></span></div>
+      <a class="cta" href="/championship/15000000007?tab=schedule">Schedule →</a></div>
+    <div class="stand tnum"><div class="row p1"><span class="pos">1</span><span class="name">Driver X</span><span class="pts">50</span></div></div>
+  </article>
+</div>`;
+
+describe("parseCardsPage — /special ve /championships (article.race-card)", () => {
+  it("special: kind atar, alanları çıkarır, TARİHSİZ kartı ATLAR", () => {
+    const out = parseCardsPage(CARDS_FIXTURE, "special");
+    expect(out.races).toHaveLength(1);            // ikinci kart (tarihsiz) atlanır
+    expect(out.races[0]).toMatchObject({
+      id: "special-13000000009", kind: "special", name: "ELMS 4 Hours of Spa",
+      sr: "B0", srRank: "Bronze", trackId: "spa", trackRaw: "Spa-Francorchamps",
+      classes: ["LMP2", "GT3"], lenSec: null, lenLabel: "",
+      url: "https://lmugarage.com/special/13000000009",
+    });
+    expect(out.races[0].startMs).toBe(Date.parse("2026-08-14T03:00:00+00:00"));
+  });
+  it("championship: champ-card + standings tablosunu yok sayar, kind atar", () => {
+    const out = parseCardsPage(CHAMP_FIXTURE, "championship");
+    expect(out.races).toHaveLength(1);
+    expect(out.races[0]).toMatchObject({
+      id: "championship-15000000007", kind: "championship", name: "GT3 Sprint Cup",
+      srRank: "Silver", trackId: "monza", classes: ["GT3"],
+    });
+    expect(out.races[0].name).not.toContain("Driver X");  // standings sızmadı
   });
 });
