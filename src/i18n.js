@@ -1,12 +1,14 @@
 /* İngilizce çeviri sözlüğü — anahtar = Türkçe kaynak metin.
    App.jsx: t = (str) => lang === "en" ? (EN[str] ?? str) : str */
 export const EN = {
-  // LMU Garage takvim entegrasyonu (Yarışlar sekmesi) — "Canlı"/"Yaklaşan"/"Şampiyona" zaten var
+  // LMU Garage takvim entegrasyonu (Ana Menü → Resmi Yarışlar) — "Canlı"/"Yaklaşan"/"Şampiyona" zaten var
+  "Resmi Yarışlar": "Official Races",
+  "resmi yarış takvimi": "official race schedule",
   "Yarışlar": "Races",
   "Resmi Yarış Takvimi": "Official Race Schedule",
   "Güncellendi": "Updated",
-  "Le Mans Ultimate resmi günlük/haftalık yarışları. Bir yarışa \"Planla\" ile stint/yakıt planını hazırla.":
-    "Official daily/weekly Le Mans Ultimate races. Hit \"Plan\" on a race to prep its stint/fuel plan.",
+  "Le Mans Ultimate resmi günlük/haftalık yarış takvimi. Canlı ve yaklaşan yarışlar aşağıda.":
+    "Official daily/weekly Le Mans Ultimate race schedule. Live and upcoming races below.",
   "Takvim yükleniyor…": "Loading schedule…",
   "Takvim henüz yüklenmedi — birkaç dakika içinde güncellenir.":
     "Schedule not loaded yet — it refreshes within a few minutes.",

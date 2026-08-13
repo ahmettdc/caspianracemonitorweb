@@ -14,6 +14,7 @@ import { useLmuSchedule } from "./useLmuSchedule";
 import { useRaceSync } from "./useRaceSync";
 import { useTelemetry } from "./useTelemetry";
 import TelemetryStandalone from "./TelemetryStandalone";
+import ScheduleStandalone from "./ScheduleStandalone";
 import { firebaseReady,
   requestAccess, watchAllUsers, setUserAllowed, updateProfile,
   setTeamRole, toggleTeamBadge, setTeamMemberName,
@@ -84,7 +85,6 @@ const TyreTab = lazyRetry(() => import("./tabs/TyreTab"));
 const DriversTab = lazyRetry(() => import("./tabs/DriversTab"));
 const TeleTab = lazyRetry(() => import("./tabs/TeleTab"));
 const LiveTab = lazyRetry(() => import("./tabs/LiveTab"));
-const ScheduleTab = lazyRetry(() => import("./tabs/ScheduleTab"));
 
 /* ============================================================
    CASPIAN MOTORSPORT — RACE MONITOR  ·  Faz 2
@@ -214,6 +214,7 @@ export default function App() {
   }, []);
   const [entered, setEntered] = useState(false); // lobi geçildi mi (solo/oda)
   const [teleOnly, setTeleOnly] = useState(false); // bağımsız telemetri ekranı (Race Solo'dan AYRI)
+  const [scheduleOnly, setScheduleOnly] = useState(false); // bağımsız Resmi Yarışlar takvimi (yarıştan AYRI)
   const [pickDone, setPickDone] = useState(false); // pist/araç seçimi tamamlandı mı
   const [setupDone, setSetupDone] = useState(false); // data giriş adımı tamamlandı mı
   const [userName, setUserName] = useState("");
@@ -804,26 +805,9 @@ ${bottomBar}
     /* aktif yarıştan ön-doldurma: form açıldığında boş alanlar buradan dolar */
     raceSel: { track: st.track, cls: st.carClass, car: st.car } });
 
-  /* ---- lmugarage.com resmi LMU yarış takvimi ("Yarışlar" sekmesi) ---- */
-  const lmu = useLmuSchedule({ user, udoc, active: tab === "schedule" });
-  /* Takvimdeki bir yarışa göre planı ön-doldur: pist/sınıf/süre/başlangıç +
-     setup havuzu süzgeci → Stint sekmesi. Sadece mevcut alanları doldurur;
-     hesap motoru (engine.js) olduğu gibi kalır. */
-  const planFromRace = (r) => {
-    if (!r) return;
-    const cls = r.classes || [];
-    const carClass = cls.includes("HY") ? "hypercar"
-      : (cls.some((c) => c === "GT3" || c === "LMGT3" || c === "GTE") ? "gt3" : "");
-    edit((s) => ({
-      ...s,
-      track: r.trackId || s.track,
-      carClass: carClass || s.carClass,
-      raceTime: r.lenSec ? fmtHMS(r.lenSec) : s.raceTime,
-      raceStartMs: r.startMs || s.raceStartMs,
-    }));
-    if (r.trackId) setSuFTrack(r.trackId);
-    setTab("stint");
-  };
+  /* ---- lmugarage.com resmi LMU yarış takvimi — Ana Menü → Resmi Yarışlar ----
+     Yarıştan BAĞIMSIZ: yalnız scheduleOnly görünürken abone olur; race state gerekmez. */
+  const lmu = useLmuSchedule({ user, udoc, active: scheduleOnly });
 
   /* ---- yüzen mini oynatıcı → useMiniPlayer hook'u (konum/boyut/sürükle) ---- */
   const { streamCorner, streamMin, setStreamMin, streamW, streamDrag,
@@ -1149,7 +1133,7 @@ ${bottomBar}
   /* Komut paleti aksiyonları — sekmeler + hızlı ayarlar. */
   const cmdActions = [
     { id: "dash", label: t("Dashboard"), keywords: "dash panel", icon: <Icon name="chart" size={15} />, run: () => setTab("dash") },
-    { id: "schedule", label: t("Yarışlar"), keywords: "schedule takvim race yarış lmugarage resmi", icon: "🏁", run: () => setTab("schedule") },
+    { id: "schedule", label: t("Resmi Yarışlar"), keywords: "schedule takvim race yarış lmugarage resmi official", icon: "🏁", run: () => setScheduleOnly(true) },
     { id: "stint", label: t("Stint"), keywords: "stint", icon: <Icon name="cap" size={15} />, run: () => setTab("stint") },
     { id: "fuel", label: t("Son Stint Yakıtı"), keywords: "fuel yakıt", icon: <Icon name="zap" size={15} />, run: () => setTab("fuel") },
     { id: "live", label: t("Canlı"), keywords: "live canlı timing", icon: <Icon name="live" size={15} />, run: () => setTab("live") },
@@ -1559,6 +1543,18 @@ ${bottomBar}
     );
   }
 
+  /* ---------- bağımsız Resmi Yarışlar ekranı (Ana Menü → Resmi Yarışlar) ----------
+     Race Solo yolundan TAMAMEN ayrı üst-düzey görünüm; yarış seçmeye/oda-solo açmaya
+     gerek yok. Çıkış (🏠 Ana Menü) yalnız scheduleOnly'yi kapatır; entered/curRace'e
+     dokunmaz. curRace/entered'den ÖNCE gelir → yarış açıkken bile bağımsız açılır. */
+  if (scheduleOnly) {
+    return (
+      <ScheduleStandalone t={t} lang={lang} switchLang={switchLang}
+        live={lmu.live} upcoming={lmu.upcoming} updatedAt={lmu.updatedAt}
+        loading={lmu.loading} onExit={() => setScheduleOnly(false)} />
+    );
+  }
+
   /* ---------- lobi: takım takvimi ---------- */
   if (!curRace && !entered) {
     const now = Date.now();
@@ -1635,6 +1631,9 @@ ${bottomBar}
                   <button className="bigbtn ghost" onClick={() => setCreateJoinOpen(true)}>
                     🏢 {t("Kur & Katıl")}
                   </button>
+                  <button className="bigbtn ghost" onClick={() => setScheduleOnly(true)}>
+                    🏁 {t("Resmi Yarışlar")}
+                  </button>
                 </div>
               ) : (<>
                 {/* §1 — takım seçici: yatay kaydırılan kartlar (10+ ölçeklenir) */}
@@ -1659,6 +1658,11 @@ ${bottomBar}
 
                 {/* §1.2 — hızlı eylemler: 📊 Telemetri belirgin */}
                 <div className="mmquick">
+                  <button className="mmqa" onClick={() => setScheduleOnly(true)}>
+                    <span className="mmqi">🏁</span>
+                    <span className="mmql">{t("Resmi Yarışlar")}</span>
+                    <span className="mmqs">{t("resmi yarış takvimi")}</span>
+                  </button>
                   <button className="mmqa"
                     onClick={() => setTeleOnly(true)}>
                     <span className="mmqi">📊</span>
@@ -2546,8 +2550,7 @@ ${bottomBar}
                 : e.key === "Home" ? 0 : btns.length - 1;
               btns[n].focus(); btns[n].click();
             }}>
-            {[["dash", "Dashboard", <Icon name="chart" size={15} />],
-              ["schedule", t("Yarışlar"), "🏁"], ["stint", "Stint", <Icon name="cap" size={15} />],
+            {[["dash", "Dashboard", <Icon name="chart" size={15} />], ["stint", "Stint", <Icon name="cap" size={15} />],
               /* ["code80", "Code 80"], — şimdilik arayüzden gizli, kod korunuyor */
               ["fuel", t("Son Stint Yakıtı"), <Icon name="zap" size={15} />],
               /* Canlı timing tüm kullanıcılara açık (v1.4.79) — test aşaması bitti. */
@@ -2607,11 +2610,6 @@ ${bottomBar}
               liveInfo={liveInfo} racePlan={racePlan} tyreInfo={tyreInfo} planLsf={planLsf}
               driverPlan={driverPlan} carriedAt={carriedAt} pitSoon={pitSoon} lmuData={lmuData}
               assets={teamData?.assets} />
-          )}
-
-          {tab === "schedule" && (
-            <ScheduleTab t={t} live={lmu.live} upcoming={lmu.upcoming}
-              updatedAt={lmu.updatedAt} loading={lmu.loading} onPlan={planFromRace} />
           )}
 
           {tab === "setup" && (<>

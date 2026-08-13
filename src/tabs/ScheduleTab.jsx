@@ -80,9 +80,11 @@ function RaceRow({ r, now, t, onPlan }) {
           <a className="act" href={r.url} target="_blank" rel="noopener noreferrer"
             title={t("lmugarage'da aç")} style={{ textDecoration: "none" }}>↗</a>
         )}
-        <button className="act" onClick={() => onPlan(r)} title={t("Bu yarışa planla")}>
-          📋 {t("Planla")}
-        </button>
+        {onPlan && (
+          <button className="act" onClick={() => onPlan(r)} title={t("Bu yarışa planla")}>
+            📋 {t("Planla")}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -110,7 +112,7 @@ export default function ScheduleTab({ t, live = [], upcoming = [], updatedAt, lo
         )}
       </h2>
       <div className="hint" style={{ marginBottom: 8 }}>
-        {t("Le Mans Ultimate resmi günlük/haftalık yarışları. Bir yarışa \"Planla\" ile stint/yakıt planını hazırla.")}
+        {t("Le Mans Ultimate resmi günlük/haftalık yarış takvimi. Canlı ve yaklaşan yarışlar aşağıda.")}
       </div>
 
       {loading && <div className="hint">{t("Takvim yükleniyor…")}</div>}
