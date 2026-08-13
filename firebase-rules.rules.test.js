@@ -257,6 +257,67 @@ describe("teams/livetrackpit (paylaşımlı pit giriş/çıkış — v1.4.96)", 
   });
 });
 
+describe("userAvatars (v1.7.0 — kullanıcı avatarı)", () => {
+  const URI = "data:image/webp;base64,AAAA";
+  it("kişi kendi avatarını yazar ve DEĞİŞTİREBİLİR (create-only değil)", async () => {
+    await assertSucceeds(set(ref(db("bob"), "userAvatars/bob"), URI));
+    await assertSucceeds(set(ref(db("bob"), "userAvatars/bob"), URI + "BB"));   // replace
+    await assertSucceeds(set(ref(db("bob"), "userAvatars/bob"), null));         // kaldır
+  });
+  it("başkasının avatarını yazamaz", async () => {
+    await assertFails(set(ref(db("bob"), "userAvatars/alice"), URI));
+  });
+  it("onaysız (mallory) yazamaz", async () => {
+    await assertFails(set(ref(db("mallory"), "userAvatars/mallory"), URI));
+  });
+  it("admin başkasının avatarını yazabilir/silebilir", async () => {
+    await assertSucceeds(set(ref(db("admin"), "userAvatars/bob"), URI));
+    await assertSucceeds(set(ref(db("admin"), "userAvatars/bob"), null));
+  });
+  it("60000+ karakter / string olmayan reddedilir (validate)", async () => {
+    await assertFails(set(ref(db("bob"), "userAvatars/bob"), "d".repeat(60000)));
+    await assertFails(set(ref(db("bob"), "userAvatars/bob"), 42));
+  });
+  it("onaylı kullanıcı başkasının avatarını OKUR (üye listesi/sohbet)", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await set(ref(ctx.database(), "userAvatars/bob"), URI);
+    });
+    await assertSucceeds(get(ref(db("carol"), "userAvatars/bob")));
+    await assertFails(get(ref(db("mallory"), "userAvatars/bob")));   // onaysız okuyamaz
+  });
+});
+
+describe("teams/assets (v1.7.0 — takım logosu + araç görselleri)", () => {
+  const URI = "data:image/webp;base64,AAAA";
+  it("owner ve editor logo yazar/değiştirir/siler; viewer yazamaz", async () => {
+    await assertSucceeds(set(ref(db("alice"), "teams/team1/assets/logo"), URI));
+    await assertSucceeds(set(ref(db("bob"), "teams/team1/assets/logo"), URI + "BB"));
+    await assertFails(set(ref(db("carol"), "teams/team1/assets/logo"), URI));
+    await assertSucceeds(set(ref(db("bob"), "teams/team1/assets/logo"), null));
+  });
+  it("editor araç TOP/SIDE yazar; yabancı takım üyesi yazamaz", async () => {
+    await assertSucceeds(set(ref(db("bob"), "teams/team1/assets/cars/gt3_porsche/side"), URI));
+    await assertSucceeds(set(ref(db("bob"), "teams/team1/assets/cars/gt3_porsche/top"), URI));
+    await assertFails(set(ref(db("dave"), "teams/team1/assets/cars/gt3_porsche/side"), URI));
+  });
+  it("takım üyesi (viewer dahil) okur; yabancı okuyamaz", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await set(ref(ctx.database(), "teams/team1/assets/logo"), URI);
+    });
+    await assertSucceeds(get(ref(db("carol"), "teams/team1/assets")));
+    await assertFails(get(ref(db("dave"), "teams/team1/assets")));
+  });
+  it("boyut sınırları: logo 100000+, araç 200000+ reddedilir", async () => {
+    await assertFails(set(ref(db("bob"), "teams/team1/assets/logo"), "d".repeat(100000)));
+    await assertFails(
+      set(ref(db("bob"), "teams/team1/assets/cars/gt3_porsche/side"), "d".repeat(200000)));
+  });
+  it("şema dışı alanlar reddedilir ($other validate false)", async () => {
+    await assertFails(set(ref(db("bob"), "teams/team1/assets/banner"), URI));
+    await assertFails(set(ref(db("bob"), "teams/team1/assets/cars/gt3_porsche/front"), URI));
+  });
+});
+
 describe("teams/chat + raceState + badges", () => {
   it("üye kendi uid'iyle mesaj yazar; başkasının uid'iyle yazamaz", async () => {
     await assertSucceeds(set(ref(db("carol"), "teams/team1/chat/m1"), { uid: "carol", text: "selam" }));

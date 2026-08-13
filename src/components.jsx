@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, Fragment } from "react";
 import {
   ASSET, quantile, TRACKS, TRACK_ASSET,
   CAR_CLASSES, CARS, trackName, carImg, carName, brandLogo,
-  APP_VERSION, REPO_URL,
+  APP_VERSION, REPO_URL, PIE_COLORS,
 } from "./constants";
 import { CHANGELOG } from "./changelog";
 import { msToLocalInput, parseLap, fmtLap } from "./engine";
@@ -13,7 +13,46 @@ import { trackOptions, classOptions, carOptions } from "./pickerOptions";
 import { parseSvm, b64ToText, setupSummary, diffSetups, categorizeSetup,
   duckSetupToParsed } from "./setupParse";
 import { renameTeam, syncMyTeamName, createSeason, deleteRace,
-  leaveTeam, createTeam, joinTeam, getSetupBlob } from "./storage";
+  leaveTeam, createTeam, joinTeam, getSetupBlob,
+  getUserAvatar, saveTeamAsset, clearTeamAsset } from "./storage";
+import { processImageFile, IMG_ACCEPT_TYPES } from "./imageUpload";
+import { carAssetKey, teamLogoSrc } from "./teamAssets";
+
+/* ---- kullanıcı avatarı ----
+   Sıra: userAvatars/{uid} (cache'li tek get) → photo prop (Google photoURL) →
+   baş harf rozeti (ada göre PIE_COLORS rengi). dataURI kaynakta referrerPolicy
+   gerekmez; yalnız http(s) kaynakta no-referrer. */
+export function Avatar({ uid, name = "", photo = "", size = 24 }) {
+  const [custom, setCustom] = useState("");
+  useEffect(() => {
+    let on = true;
+    setCustom("");
+    if (uid) getUserAvatar(uid).then((v) => { if (on) setCustom(v || ""); });
+    return () => { on = false; };
+  }, [uid]);
+  const src = custom || photo;
+  if (src) {
+    return (
+      <img className="avimg" src={src} alt="" width={size} height={size}
+        style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover",
+          flex: "0 0 auto" }}
+        referrerPolicy={/^https?:/.test(src) ? "no-referrer" : undefined}
+        onError={(e) => { e.currentTarget.style.display = "none"; }} />
+    );
+  }
+  const nm = String(name || "").trim();
+  const initial = nm ? nm.charAt(0).toUpperCase() : "?";
+  let h = 0;
+  for (let i = 0; i < nm.length; i++) h = (h * 31 + nm.charCodeAt(i)) >>> 0;
+  const col = PIE_COLORS[h % PIE_COLORS.length];
+  return (
+    <span className="avfb" aria-hidden="true"
+      style={{ width: size, height: size, fontSize: Math.max(9, Math.round(size * 0.44)),
+        background: `${col}33`, color: col, borderColor: `${col}66` }}>
+      {initial}
+    </span>
+  );
+}
 
 /* Sohbet paneli — mesaj listesi + giriş çubuğu. Genel/takım/yarış kanalları
    için ortak (App.jsx'te iki yerde kullanılıyordu). Tüm veri prop ile gelir. */
@@ -40,6 +79,8 @@ export function ChatPanel({
                   { day: "2-digit", month: "long" })}</div>}
               <div className={`cmsg ${me ? "me" : ""}`}>
                 <div className="who">
+                  {!me && <Avatar uid={m.uid}
+                    name={teamData?.names?.[m.uid] || m.name} size={18} />}
                   {!me && <b>{teamData?.names?.[m.uid] || m.name || t("isimsiz")}</b>}
                   <span>{fmtClock(m.at || 0)}</span>
                   {(me || canManage) && (
@@ -1509,11 +1550,69 @@ export function CreateJoinModal({ open, onClose, user, t, userName,
    Kur/Katıl ARTIK burada değil (CreateJoinModal'a taşındı) → yönetim penceresi
    sade ve kompakt kalır. Tüm mevcut işlevler (ad düzenle, sezon/yarış CRUD,
    rol rozetleri, join code, ayrıl) korunur. */
+/* Görsel yükleme kutusu (v1.7.0) — sabit-aspect önizleme + Yükle/Değiştir/Kaldır.
+   current = takımın özel görseli; fallback = statik asset (varsa önizlemede görünür,
+   Kaldır yalnız özel görsel varken çıkar). Doğrulama/normalize processImageFile'da;
+   hata (tür/boyut/bozuk/kural reddi) kutunun altında hint warn ile gösterilir. */
+function AssetUpload({ label, current, fallback = "", specKey, aspect, w,
+  canEdit, t, onSave, onClear }) {
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const inpRef = useRef(null);
+  const pick = async (f) => {
+    if (!f) return;
+    setErr(""); setBusy(true);
+    try {
+      const uri = await processImageFile(f, specKey);
+      await onSave(uri);
+    } catch (e) {
+      setErr(t(e?.message || "Görsel işlenemedi — dosya bozuk olabilir."));
+    } finally {
+      setBusy(false);
+      if (inpRef.current) inpRef.current.value = "";
+    }
+  };
+  const shown = current || fallback;
+  return (
+    <div className="astbox">
+      <div className="astcap">{label}</div>
+      <div className="astprev" style={{ width: w, aspectRatio: aspect }}>
+        {shown
+          ? <img src={shown} alt=""
+              onError={(e) => { e.currentTarget.style.display = "none"; }} />
+          : <span className="hint" style={{ margin: 0 }}>{t("Görsel yok")}</span>}
+      </div>
+      {canEdit && (
+        <div className="astact">
+          <input ref={inpRef} type="file" accept={IMG_ACCEPT_TYPES.join(",")}
+            style={{ display: "none" }}
+            onChange={(e) => pick(e.target.files?.[0])} />
+          <button className="minibtn" style={{ width: "auto", padding: "0 10px" }}
+            disabled={busy} onClick={() => inpRef.current?.click()}>
+            {busy ? t("Yükleniyor…") : current ? t("Değiştir") : `⬆ ${t("Yükle")}`}
+          </button>
+          {current && (
+            <button className="minibtn" style={{ width: "auto", padding: "0 10px" }}
+              disabled={busy} title={t("Kaldır")}
+              onClick={() => { setErr(""); onClear(); }}>✕ {t("Kaldır")}</button>
+          )}
+        </div>
+      )}
+      {err && <div className="hint warn" style={{ margin: "4px 0 0" }}>{err}</div>}
+    </div>
+  );
+}
+
 export function TeamModal({ open, onClose, user, t, lang, myTeams, curTeam, setCurTeam,
   teamData, tnEdit, setTnEdit, canManageTeam, canEditTeam, curSeason, setCurSeason,
   seasons, races, st, myRole,
   openRace, setRForm, setBadge, roleLabel, onCreateJoin }) {
+  /* Araç Görselleri kartı seçimi — hook'lar erken return'den ÖNCE (React kuralı). */
+  const [astCls, setAstCls] = useState("hypercar");
+  const [astCar, setAstCar] = useState("");
   if (!open || !user) return null;
+  const astKey = astCar ? carAssetKey(astCls, astCar) : "";
+  const astCustom = (angle) => teamData?.assets?.cars?.[astKey]?.[angle] || "";
   return (
         <div className="wxmodal" onClick={onClose}>
           <div className="wxmbox" style={{ width: "min(680px,95vw)" }}
@@ -1581,7 +1680,55 @@ export function TeamModal({ open, onClose, user, t, lang, myTeams, curTeam, setC
                         {t("Yeni ad diğer üyelerde uygulamayı açtıklarında güncellenir.")}</div>
                     </>
                   )}
+                  {/* Takım logosu — ana menü kartı, başlık ve teambar'da görünür */}
+                  <div style={{ marginTop: 12 }}>
+                    <AssetUpload label={t("Takım Logosu")} specKey="logo"
+                      current={teamLogoSrc(teamData?.assets)} aspect="1 / 1" w={110}
+                      canEdit={canEditTeam} t={t}
+                      onSave={(uri) => saveTeamAsset(curTeam, "logo", uri)}
+                      onClear={() => clearTeamAsset(curTeam, "logo").catch(() => {})} />
+                  </div>
                 </section>
+
+                {/* ── Araç Görselleri (v1.7.0) ── */}
+                {canEditTeam && (
+                  <section className="tmcard">
+                    <div className="tmcard-h">🖼 {t("Araç Görselleri")}</div>
+                    <div className="hint">
+                      {t("Sınıf ve araç seç — yüklenen SIDE/TOP görseller o araç için tüm takım ekranlarında kullanılır. Yüklenmeyen araçlar varsayılan görselle kalır.")}
+                    </div>
+                    <div style={{ display: "flex", gap: 8, maxWidth: 460, marginBottom: 12 }}>
+                      <ImgSelect value={astCls} options={classOptions()} t={t}
+                        placeholder={t("Sınıf")}
+                        onChange={(v) => { setAstCls(v); setAstCar(""); }} />
+                      <ImgSelect value={astCar} options={carOptions(astCls)} t={t}
+                        placeholder={t("Araç")} disabled={!astCls}
+                        onChange={(v) => setAstCar(v)} />
+                    </div>
+                    {astCar ? (
+                      <div className="astgrid">
+                        <AssetUpload label={`${t("Yandan")} (SIDE · 1000×400)`}
+                          specKey="carSide" aspect="1000 / 400" w={300}
+                          current={astCustom("side")} fallback={carImg(astCls, astCar)}
+                          canEdit={canEditTeam} t={t}
+                          onSave={(uri) => saveTeamAsset(curTeam, `cars/${astKey}/side`, uri)}
+                          onClear={() => clearTeamAsset(curTeam, `cars/${astKey}/side`)
+                            .catch(() => {})} />
+                        <AssetUpload label={`${t("Üstten")} (TOP · 400×1000)`}
+                          specKey="carTop" aspect="400 / 1000" w={110}
+                          current={astCustom("top")}
+                          fallback={`${ASSET}cartop/default.png`}
+                          canEdit={canEditTeam} t={t}
+                          onSave={(uri) => saveTeamAsset(curTeam, `cars/${astKey}/top`, uri)}
+                          onClear={() => clearTeamAsset(curTeam, `cars/${astKey}/top`)
+                            .catch(() => {})} />
+                      </div>
+                    ) : (
+                      <div className="hint" style={{ marginBottom: 0 }}>
+                        {t("Görsel yüklemek için önce araç seç.")}</div>
+                    )}
+                  </section>
+                )}
 
                 {/* ── Sezonlar & Takvim ── */}
                 <section className="tmcard">
@@ -1660,6 +1807,7 @@ export function TeamModal({ open, onClose, user, t, lang, myTeams, curTeam, setC
                       const mbs = teamBadgesOf(teamData, uid, null);
                       return (
                         <div key={uid} className="tmmem2">
+                          <Avatar uid={uid} name={teamData?.names?.[uid]} size={24} />
                           <span className="tmm-badges">
                             {mbs.length ? mbs.map((b) => (
                               <span key={b.lbl} className="ubadge" title={t(b.lbl)}

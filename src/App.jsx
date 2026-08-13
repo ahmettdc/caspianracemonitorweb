@@ -19,7 +19,10 @@ import { firebaseReady,
   deleteChat, syncMyTeamName,
   deleteSetup, addSetup,
   createRace, updateRace,
-  raceStateGet } from "./storage";
+  raceStateGet,
+  getUserAvatar, saveUserAvatar, clearUserAvatar } from "./storage";
+import { processImageFile, IMG_ACCEPT_TYPES } from "./imageUpload";
+import { carImageSrc, teamLogoSrc } from "./teamAssets";
 import { duckSetupToSvm, textToB64 } from "./setupParse";
 import { signInGoogle, signOut, authReady } from "./auth";
 import {
@@ -33,7 +36,7 @@ import { EN } from "./i18n";
 import {
   SLOT_COLORS, APP_VERSION, SEEN_VER_KEY, ASSET, AV,
   TRACKS, PIT_LANE_TIMES, TRACK_ASSET, trackFlag,
-  CARS, CAR_CLASSES, trackName, carName, carImg, classId, venueToTrackId,
+  CARS, CAR_CLASSES, trackName, carName, classId, venueToTrackId,
   PIE_COLORS, DESKTOP_RELEASE_URL, BRIDGE_EXE_URL,
 } from "./constants";
 import {
@@ -47,7 +50,7 @@ import {
 import { buildTourSteps } from "./tourSteps";
 import { poolEmptyReason } from "./setupPool";
 import {
-  TourOverlay, Wheel, Num, Bolt, Tyre, Ring, Icon, Btn,
+  TourOverlay, Wheel, Num, Bolt, Tyre, Ring, Icon, Btn, Avatar,
   BADGES, teamBadgesOf, hasBadge, ChatPanel, SetupForm, SetupTable, SetupCards,
   VersionModal, RaceEditModal,
   ChatModal, SetupModal, TeamModal, CreateJoinModal, DenyToast, SetupContentModal, SetupCompareModal,
@@ -450,7 +453,8 @@ export default function App() {
       .filter(Boolean).join(" · ");
     /* araç + pist görselleri için mutlak URL (yeni pencerede relatif çözülmez) */
     const abs = (p) => new URL(p, window.location.href).href;
-    const carUrl = st.car ? abs(carImg(st.carClass, st.car)) : "";
+    /* Özel görsel dataURI ise abs() zarar vermez (data: mutlak URL'dir). */
+    const carUrl = st.car ? abs(carImageSrc(teamData?.assets, st.carClass, st.car, "side")) : "";
     const trackUrl = st.track ? abs(`${ASSET}tracks/${TRACK_ASSET(st.track)}.png`) : "";
     const logoUrl = abs(`${ASSET}logo.png`);
     const classUrl = st.carClass ? abs(`${ASSET}class/${st.carClass}.png`) : "";
@@ -721,6 +725,28 @@ ${bottomBar}
   const [rForm, setRForm] = useState(null);          // yarış ekleme/düzenleme formu
   const [tErr, setTErr] = useState("");
   const [profName, setProfName] = useState("");
+  /* ---- kullanıcı avatarı (v1.7.0) ----
+     Kendi avatarımız state'te tutulur (header chip + profil önizlemesi anında
+     güncellensin); diğer kullanıcılar <Avatar> bileşeninin cache'li get'iyle çözülür.
+     avStage: profil modalında seçilen ama henüz kaydedilmemiş görsel. */
+  const [myAvatar, setMyAvatar] = useState("");
+  const [avStage, setAvStage] = useState("");
+  const [avErr, setAvErr] = useState("");
+  const [avBusy, setAvBusy] = useState(false);
+  useEffect(() => {
+    let on = true;
+    setMyAvatar("");
+    if (user?.uid && access) getUserAvatar(user.uid)
+      .then((v) => { if (on) setMyAvatar(v || ""); });
+    return () => { on = false; };
+  }, [user?.uid, access]);
+  const onAvatarFile = async (f) => {
+    if (!f) return;
+    setAvErr(""); setAvBusy(true);
+    try { setAvStage(await processImageFile(f, "avatar")); }
+    catch (e) { setAvErr(t(e?.message || "Görsel işlenemedi — dosya bozuk olabilir.")); }
+    finally { setAvBusy(false); }
+  };
   const curTeamRef = useRef("");
   curTeamRef.current = curTeam;
   /* işbirlikçi yarış-durumu senkronizasyonu (debounce push + canlı dinle) → hook.
@@ -1593,7 +1619,11 @@ ${bottomBar}
                   {Object.entries(myTeams).map(([tid, nm]) => (
                     <button key={tid} className={`mmtm ${curTeam === tid ? "on" : ""}`}
                       onClick={() => setCurTeam(tid)}>
-                      <span className="mmtlg">🏁</span>
+                      <span className="mmtlg">
+                        {tid === curTeam && teamLogoSrc(teamData?.assets)
+                          ? <img src={teamLogoSrc(teamData.assets)} alt="" />
+                          : "🏁"}
+                      </span>
                       <span className="mmtnm">{nm}</span>
                     </button>
                   ))}
@@ -1838,7 +1868,7 @@ ${bottomBar}
                 {CARS[cls].map((c) => (
                   <button key={c.id} className={st.car === c.id ? "on" : ""}
                     onClick={() => up({ carClass: cls, car: c.id })}>
-                    <img src={carImg(cls, c.id)} alt="" loading="lazy"
+                    <img src={carImageSrc(teamData?.assets, cls, c.id, "side")} alt="" loading="lazy"
                       onError={(e) => { e.currentTarget.style.display = "none"; }} />
                     {c.name}
                   </button>
@@ -1913,9 +1943,34 @@ ${bottomBar}
             </div>
             <div style={{ padding: "14px 16px" }}>
               <div className="userchip" style={{ marginBottom: 14 }}>
-                {user.photoURL && <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />}
+                {(avStage || myAvatar || user.photoURL) && (
+                  <img src={avStage || myAvatar || user.photoURL} alt=""
+                    referrerPolicy={/^https?:/.test(avStage || myAvatar || user.photoURL)
+                      ? "no-referrer" : undefined} />
+                )}
                 <span className="uname" style={{ maxWidth: 260 }}>{user.email}</span>
               </div>
+              {/* v1.7.0 — avatar yükleme: seç → önizleme → Kaydet yazar; Kaldır siler */}
+              <label>{t("Avatar")}</label>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
+                <input id="avfile" type="file" accept={IMG_ACCEPT_TYPES.join(",")}
+                  style={{ display: "none" }}
+                  onChange={(e) => { onAvatarFile(e.target.files?.[0]); e.target.value = ""; }} />
+                <button className="histbtn" disabled={avBusy}
+                  onClick={() => document.getElementById("avfile")?.click()}>
+                  {avBusy ? t("Yükleniyor…") : `⬆ ${t("Görsel Seç")}`}</button>
+                {(myAvatar || avStage) && (
+                  <button className="histbtn" disabled={avBusy}
+                    onClick={async () => {
+                      setAvStage(""); setAvErr("");
+                      await clearUserAvatar(user.uid).catch(() => {});
+                      setMyAvatar("");
+                    }}>✕ {t("Kaldır")}</button>
+                )}
+                {avStage && <span className="hint" style={{ margin: 0 }}>
+                  {t("Önizleme — Kaydet ile uygulanır")}</span>}
+              </div>
+              {avErr && <div className="hint warn" style={{ marginBottom: 8 }}>{avErr}</div>}
               {myBadges.length > 0 && (
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
                   {myBadges.map((b) => (
@@ -1933,12 +1988,19 @@ ${bottomBar}
                 {t("Odalarda ve stint programında bu isim görünür.")}</div>
             </div>
             <div className="wxmfoot" style={{ gap: 8 }}>
-              <button className="histbtn" onClick={() => setProfOpen(false)}>{t("Vazgeç")}</button>
+              <button className="histbtn" onClick={() => {
+                setAvStage(""); setAvErr(""); setProfOpen(false);
+              }}>{t("Vazgeç")}</button>
               <button className="gbtn ubtn" disabled={!profName.trim()}
                 style={{ opacity: profName.trim() ? 1 : .45 }}
                 onClick={async () => {
                   const n = profName.trim().slice(0, 60);
                   await updateProfile(user.uid, { fullName: n }).catch(() => {});
+                  if (avStage) {
+                    try { await saveUserAvatar(user.uid, avStage); setMyAvatar(avStage); }
+                    catch { setAvErr(t("Avatar kaydedilemedi — tekrar deneyin.")); return; }
+                    setAvStage("");
+                  }
                   setUserName(n); setProfOpen(false);
                 }}>{t("Kaydet")}</button>
             </div>
@@ -1961,9 +2023,7 @@ ${bottomBar}
                 .sort(([, a], [, b]) => (b?.requestedAt || 0) - (a?.requestedAt || 0))
                 .map(([uid, u]) => (
                   <div key={uid} className="urow">
-                    {u?.photo
-                      ? <img src={u.photo} alt="" referrerPolicy="no-referrer" />
-                      : <span className="uav">?</span>}
+                    <Avatar uid={uid} name={u?.name || u?.email} photo={u?.photo} size={32} />
                     <span className="uinfo">
                       <b>{u?.name || "—"}</b>
                       <span className="umail">{u?.email || uid}</span>
@@ -2108,15 +2168,17 @@ ${bottomBar}
             {st.track && <><img className="flag" src={`${ASSET}flags/${st.track}.png`} alt="" />
               {trackName(st.track)}</>}
             {st.car && <>
-              <img className="car" src={carImg(st.carClass, st.car)} alt=""
-                onError={(e) => { e.currentTarget.style.display = "none"; }} />
+              <img className="car" src={carImageSrc(teamData?.assets, st.carClass, st.car, "side")}
+                alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} />
               {carName(st.carClass, st.car)}</>}
           </span>
         )}
         {access && (
           <Btn variant="subtle" size="sm" data-tour="hteam"
             onClick={() => setTeamOpen(true)} title={t("Takımlarım")}
-            iconLeft={<Icon name="building" size={14} />}>
+            iconLeft={teamLogoSrc(teamData?.assets)
+              ? <img className="hdteamlogo" src={teamLogoSrc(teamData.assets)} alt="" />
+              : <Icon name="building" size={14} />}>
             {teamData?.meta?.name || t("Takımlar")}
           </Btn>
         )}
@@ -2132,14 +2194,19 @@ ${bottomBar}
         )}
         {user && (
           <span className="userchip" data-tour="uchip" title={user.email || ""}>
-            {user.photoURL && <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />}
+            {(myAvatar || user.photoURL) && (
+              <img src={myAvatar || user.photoURL} alt=""
+                referrerPolicy={/^https?:/.test(myAvatar || user.photoURL)
+                  ? "no-referrer" : undefined} />
+            )}
             {myBadges.map((b) => (
               <span key={b.lbl} className="ubadge" title={t(b.lbl)}
                 style={{ color: b.col, background: b.bg, borderColor: b.col }}>
                 {b.ico}</span>
             ))}
             <button className="unamebtn" title={t("Profili düzenle")}
-              onClick={() => { setProfName(userName || user.displayName || ""); setProfOpen(true); }}>
+              onClick={() => { setProfName(userName || user.displayName || "");
+                setAvStage(""); setAvErr(""); setProfOpen(true); }}>
               {userName || user.displayName || user.email}</button>
             <button onClick={signOut} title={t("Çıkış yap")} aria-label={t("Çıkış yap")}>
               <Icon name="power" size={15} /></button>
@@ -2165,8 +2232,11 @@ ${bottomBar}
             {races[curRace]?.name || trackName(races[curRace]?.trackId) || curRace}</span></span>
           {/* rol rozeti yok — yetki takım rozetlerinden (🛞 sürücü / 🎧 mühendis) belli */}
           {teamData?.meta?.name && (
-            <span className="syncinfo" style={{ marginLeft: 0 }}>
-              🏢 {teamData.meta.name}</span>
+            <span className="syncinfo" style={{ marginLeft: 0, display: "inline-flex",
+              alignItems: "center", gap: 5 }}>
+              {teamLogoSrc(teamData?.assets)
+                ? <img className="hdteamlogo" src={teamLogoSrc(teamData.assets)} alt="" />
+                : "🏢"} {teamData.meta.name}</span>
           )}
           <button className="leave" onClick={leaveRace}>{t("Takvime Dön")}</button>
           <span className="syncinfo">
@@ -2510,7 +2580,8 @@ ${bottomBar}
           {tab === "dash" && (
             <DashTab t={t} st={st} zoom={zoom} setZoom={setZoom} exportPdf={exportPdf}
               liveInfo={liveInfo} racePlan={racePlan} tyreInfo={tyreInfo} planLsf={planLsf}
-              driverPlan={driverPlan} carriedAt={carriedAt} pitSoon={pitSoon} lmuData={lmuData} />
+              driverPlan={driverPlan} carriedAt={carriedAt} pitSoon={pitSoon} lmuData={lmuData}
+              assets={teamData?.assets} />
           )}
 
           {tab === "setup" && (<>
@@ -2588,7 +2659,8 @@ ${bottomBar}
 
           {tab === "live" && <LiveTab t={t} live={live} liveFuelObs={liveFuelObs}
             bridge={bridge} canEdit={canEditTeam} canBridge={isMember} tid={curTeam} rid={curRace}
-            tourDemo={tourDemo} onGuide={() => setTour("live")} isAdmin={isAdmin} />}
+            tourDemo={tourDemo} onGuide={() => setTour("live")} isAdmin={isAdmin}
+            ownTopSrc={carImageSrc(teamData?.assets, st.carClass, st.car, "top")} />}
 
           {tab === "tyre" && (
             <TyreTab t={t} st={st} up={up} tyreInfo={tyreInfo} racePlan={racePlan}

@@ -5,6 +5,24 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.7.0",
+    date: "2026-08-13",
+    tr: [
+      "🖼 Kapsamlı görsel asset sistemi: kullanıcı avatarı, takım logosu ve takım başına araç TOP/SIDE görselleri. Tüm görseller yüklenirken doğrulanır (PNG/JPEG/WebP + içerik kontrolü, ≤10 MB), otomatik ölçeklenip WebP'ye sıkıştırılır ve statik görsellerle birebir aynı tuval boyutuna (SIDE 1000×400, TOP 400×1000) normalize edilir — her araç her ekranda aynı boyda/hizada durur.",
+      "👤 Avatar: Profil penceresinden yükle/kaldır — başlıktaki kullanıcı çipinde, takım üye listesinde, sohbette ve admin üye yönetiminde görünür. Görsel yoksa ada göre renkli baş harf rozeti.",
+      "🏷 Takım logosu: Takım Yönetimi → Takım Kimliği'nden yüklenir (owner/editor) — ana menü takım kartında, başlıktaki takım düğmesinde ve yarış çubuğunda görünür.",
+      "🏎 Araç görselleri: Takım Yönetimi → Araç Görselleri kartından sınıf+araç seçip SIDE ve TOP yüklenir (owner/editor). SIDE: araç seçimi, Dashboard, başlık ve PDF'te; TOP: Canlı Timing 'Kendi Araç' panosunda kullanılır. Yüklenmeyen araçlar mevcut varsayılan görsellerle kalır.",
+      "🔒 Yetki: görselleri yalnız takım sahibi/mühendis değiştirir (avatar yalnız sahibinin); Firebase kuralları sunucu tarafında da doğrular (tür/boyut sınırları dahil).",
+    ],
+    en: [
+      "🖼 Comprehensive visual asset system: user avatars, team logo and per-team car TOP/SIDE images. Every upload is validated (PNG/JPEG/WebP + content sniffing, ≤10 MB), auto-scaled, compressed to WebP and normalized to the exact canvas of the bundled assets (SIDE 1000×400, TOP 400×1000) — every car renders at the same size and alignment on every screen.",
+      "👤 Avatar: upload/remove from the Profile window — shown in the header user chip, team member list, chat and the admin user manager. Without an image, a colored initial badge is shown.",
+      "🏷 Team logo: uploaded from Team Management → Team Identity (owner/editor) — shown on the main-menu team card, the header team button and the race bar.",
+      "🏎 Car images: from the Team Management → Car Images card pick class+car and upload SIDE and TOP (owner/editor). SIDE is used in car selection, Dashboard, header and PDF; TOP on the Live Timing 'Own Car' board. Cars without uploads keep the default images.",
+      "🔒 Permissions: only team owner/engineer can change team images (avatars only by their owner); Firebase rules also enforce this server-side (including type/size limits).",
+    ],
+  },
+  {
     v: "v1.6.3",
     date: "2026-08-12",
     tr: [

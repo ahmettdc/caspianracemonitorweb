@@ -861,4 +861,30 @@ export const EN = {
   "Gönderiliyor": "Sending",
   "Rolün izleyici — köprü bu rolde yayın yapamaz. Yayınlayacak üyenin takımda 🎧 Mühendis (editor) ya da Sahip olması gerekir.":
     "Your role is viewer — the bridge cannot broadcast with this role. The member who broadcasts needs the 🎧 Engineer (editor) or Owner role in the team.",
+
+  /* görsel asset sistemi (v1.7.0) — avatar + takım logosu + araç TOP/SIDE */
+  "Avatar": "Avatar",
+  "Görsel Seç": "Choose Image",
+  "Kaldır": "Remove",
+  "Değiştir": "Replace",
+  "Görsel yok": "No image",
+  "Takım Logosu": "Team Logo",
+  "Araç Görselleri": "Car Images",
+  "Yandan": "Side",
+  "Üstten": "Top",
+  "Önizleme — Kaydet ile uygulanır": "Preview — applied on Save",
+  "Avatar kaydedilemedi — tekrar deneyin.": "Avatar could not be saved — try again.",
+  "Sınıf ve araç seç — yüklenen SIDE/TOP görseller o araç için tüm takım ekranlarında kullanılır. Yüklenmeyen araçlar varsayılan görselle kalır.":
+    "Pick a class and car — uploaded SIDE/TOP images are used for that car across all team screens. Cars without uploads keep the default image.",
+  "Görsel yüklemek için önce araç seç.": "Select a car first to upload images.",
+  "Geçersiz görsel dosyası.": "Invalid image file.",
+  "Görsel çok büyük — en fazla 10 MB olabilir.": "Image too large — 10 MB max.",
+  "Desteklenmeyen dosya türü — PNG, JPEG ya da WebP yükleyin.":
+    "Unsupported file type — upload a PNG, JPEG or WebP.",
+  "Geçersiz görsel dosyası — içerik PNG/JPEG/WebP değil.":
+    "Invalid image file — content is not PNG/JPEG/WebP.",
+  "Görsel işlenemedi — dosya bozuk olabilir.":
+    "Image could not be processed — the file may be corrupt.",
+  "Görsel sıkıştırılamadı — daha küçük/az detaylı bir görsel deneyin.":
+    "Image could not be compressed — try a smaller or simpler image.",
 };

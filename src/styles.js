@@ -402,8 +402,20 @@ export const css = `
 .rc .tmlegend{display:flex;flex-direction:column;gap:3px;margin:0 0 10px;
   font-size:11px;color:var(--muted);line-height:1.5}
 .rc .tmmembers{display:flex;flex-direction:column;gap:2px}
-.rc .tmmem2{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;
+.rc .tmmem2{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;align-items:center;
   gap:10px;padding:7px 9px;border-radius:9px}
+/* v1.7.0 — avatar baş harf rozeti + görsel yükleme kutuları */
+.rc .avfb{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;
+  border:1px solid;font-weight:700;flex:0 0 auto;line-height:1;user-select:none}
+.rc .astgrid{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}
+.rc .astbox{display:flex;flex-direction:column;gap:6px}
+.rc .astcap{font-size:10.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em}
+.rc .astprev{border:1px dashed var(--line);border-radius:8px;background:var(--panel);
+  display:flex;align-items:center;justify-content:center;overflow:hidden;max-width:100%}
+.rc .astprev img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+.rc .astact{display:flex;gap:6px}
+.rc .mmtm .mmtlg img{width:100%;height:100%;object-fit:contain;border-radius:6px;display:block}
+.rc .hdteamlogo{width:16px;height:16px;object-fit:contain;border-radius:4px}
 .rc .tmmembers .tmmem2:nth-child(odd){background:rgba(255,255,255,.03)}
 .rc .tmm-badges{display:inline-flex;gap:4px;flex:0 0 auto}
 .rc .tmm-name{display:flex;align-items:center;gap:9px;min-width:0}
