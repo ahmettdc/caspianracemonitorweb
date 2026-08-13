@@ -169,13 +169,59 @@ export function watchMyTeams(uid, cb) {
    kalsın diye teams/$tid seviyesinde .read yok — bu yüzden çocuklar ayrı.) */
 export function watchTeam(tid, cb) {
   if (!db || !tid) { cb(null); return () => {}; }
-  const acc = { meta: null, members: null, badges: null, rooms: null, names: null };
+  const acc = { meta: null, members: null, badges: null, rooms: null, names: null, assets: null };
   const emit = () => cb({ ...acc });
   const sub = (key) => onValue(ref(db, `teams/${tid}/${key}`),
     (s) => { acc[key] = s.exists() ? s.val() : (key === "meta" ? null : {}); emit(); },
     () => { acc[key] = key === "meta" ? null : {}; emit(); });
-  const offs = ["meta", "members", "badges", "rooms", "names"].map(sub);
+  const offs = ["meta", "members", "badges", "rooms", "names", "assets"].map(sub);
   return () => offs.forEach((o) => o());
+}
+
+/* ---- takım görselleri (teams/{tid}/assets, v1.7.0) ----
+   assets = { logo: dataURI, cars: { "{cls}_{carId}": { top, side } } }.
+   watchTeam zaten "assets" çocuğunu dinler → teamData.assets reaktif gelir.
+   path: "logo" | "cars/{key}/{angle}". Yazma kuralı owner/editor (rules). */
+export async function saveTeamAsset(tid, path, dataUri) {
+  if (!db || !tid || !path || typeof dataUri !== "string" || !dataUri) return;
+  await set(ref(db, `teams/${tid}/assets/${path}`), dataUri);
+}
+export async function clearTeamAsset(tid, path) {
+  if (!db || !tid || !path) return;
+  await set(ref(db, `teams/${tid}/assets/${path}`), null);
+}
+
+/* ---- kullanıcı avatarı (userAvatars/{uid}, v1.7.0) ----
+   users/{uid} ALTINA KONMAZ: watchUserDoc tüm düğümü abone eder (her girişte blob
+   inerdi) ve watchAllUsers admin için tüm ağacı çeker. Ayrı üst düzey düğüm +
+   modül-içi Map cache: aynı uid bir oturumda BİR kez iner; kendi kaydet/kaldır
+   işlemi cache'i günceller → UI anında yenilenir. */
+const _avatarCache = new Map();          // uid → dataURI | "" (yok)
+const _avatarWaiters = new Map();        // uid → Promise (eşzamanlı istek birleştirme)
+export async function getUserAvatar(uid) {
+  if (!db || !uid) return "";
+  if (_avatarCache.has(uid)) return _avatarCache.get(uid);
+  if (_avatarWaiters.has(uid)) return _avatarWaiters.get(uid);
+  const p = get(ref(db, `userAvatars/${uid}`))
+    .then((s) => {
+      const v = s.exists() && typeof s.val() === "string" ? s.val() : "";
+      _avatarCache.set(uid, v);
+      return v;
+    })
+    .catch(() => "")                      // hata → cache'e yazma, sonra yeniden dener
+    .finally(() => _avatarWaiters.delete(uid));
+  _avatarWaiters.set(uid, p);
+  return p;
+}
+export async function saveUserAvatar(uid, dataUri) {
+  if (!db || !uid || typeof dataUri !== "string" || !dataUri) return;
+  await set(ref(db, `userAvatars/${uid}`), dataUri);
+  _avatarCache.set(uid, dataUri);
+}
+export async function clearUserAvatar(uid) {
+  if (!db || !uid) return;
+  await set(ref(db, `userAvatars/${uid}`), null);
+  _avatarCache.set(uid, "");
 }
 
 /* Takım adını değiştir — yalnız meta yazılır.

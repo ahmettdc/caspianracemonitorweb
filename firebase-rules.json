@@ -9,6 +9,14 @@
       }
     },
 
+    "userAvatars": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true",
+      "$uid": {
+        ".write": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && (auth.uid == $uid || root.child('users').child(auth.uid).child('admin').val() == true)",
+        ".validate": "newData.isString() && newData.val().length < 60000"
+      }
+    },
+
     "rooms": {
       ".read": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true",
       ".write": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true"
@@ -179,6 +187,29 @@
           "$trackKey": {
             ".write": "auth != null && (root.child('bridgeBots').child(auth.uid).val() == true || (root.child('users').child(auth.uid).child('allowed').val() == true && root.child('teams').child($tid).child('members').child(auth.uid).exists()))",
             ".validate": "newData.isString() && newData.val().length < 40"
+          }
+        },
+        "assets": {
+          ".read": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && root.child('teams').child($tid).child('members').child(auth.uid).exists()",
+          ".write": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && (root.child('teams').child($tid).child('members').child(auth.uid).val() == 'owner' || root.child('teams').child($tid).child('members').child(auth.uid).val() == 'editor')",
+          "logo": {
+            ".validate": "newData.isString() && newData.val().length < 100000"
+          },
+          "cars": {
+            "$carKey": {
+              "top": {
+                ".validate": "newData.isString() && newData.val().length < 200000"
+              },
+              "side": {
+                ".validate": "newData.isString() && newData.val().length < 200000"
+              },
+              "$other": {
+                ".validate": false
+              }
+            }
+          },
+          "$other": {
+            ".validate": false
           }
         },
         "chat": {

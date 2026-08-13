@@ -1,6 +1,7 @@
 import { fmtHMS, WX, wxId } from "../engine";
 import { WetIcon } from "../WetIcon";
-import { ASSET, AV, TRACK_ASSET, PIT_LANE_TIMES, CAR_CLASSES, trackName, carImg, carName } from "../constants";
+import { ASSET, AV, TRACK_ASSET, PIT_LANE_TIMES, CAR_CLASSES, trackName, carName } from "../constants";
+import { carImageSrc } from "../teamAssets";
 import { Tyre, Bolt } from "../components";
 
 /* Dashboard özet sekmesi — araç/pist kartları, yarış/lastik/son-stint KPI'ları,
@@ -8,7 +9,7 @@ import { Tyre, Bolt } from "../components";
    planLsf/driverPlan) ve handler'lar (exportPdf/setZoom/carriedAt) App'ten prop gelir. */
 export default function DashTab({
   t, st, zoom, setZoom, exportPdf, liveInfo, racePlan, tyreInfo,
-  planLsf, driverPlan, carriedAt, pitSoon, lmuData,
+  planLsf, driverPlan, carriedAt, pitSoon, lmuData, assets,
 }) {
   return (
     <>
@@ -24,7 +25,7 @@ export default function DashTab({
           <div className="card infocard clickable" onClick={() => setZoom("car")}
             title={t("Büyütmek için tıkla")}>
             <h2>🏎 {t("Araç")}</h2>
-            <img src={carImg(st.carClass, st.car)} alt=""
+            <img src={carImageSrc(assets, st.carClass, st.car, "side")} alt=""
               style={{ display: "block", width: "100%", maxHeight: 140,
                 objectFit: "contain", margin: "8px 0 10px",
                 filter: "drop-shadow(0 4px 12px rgba(0,0,0,.5))" }}
@@ -68,7 +69,7 @@ export default function DashTab({
           <div className="lightbox" onClick={() => setZoom(null)}>
             <button className="lbclose" onClick={() => setZoom(null)}>✕</button>
             <img src={zoom === "car"
-                ? carImg(st.carClass, st.car)
+                ? carImageSrc(assets, st.carClass, st.car, "side")
                 : `${ASSET}tracks/${TRACK_ASSET(st.track)}.png${AV}`}
               alt="" style={zoom === "car" ? { maxHeight: "40vh" } : undefined}
               onError={() => setZoom(null)} />

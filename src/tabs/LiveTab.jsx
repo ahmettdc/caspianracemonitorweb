@@ -312,7 +312,7 @@ function PedalBar({ label, val, color }) {
 /* Vites: -1=R, 0=N, 1+=n; veri yoksa "—". */
 const gearLabel = (g) => (g == null ? "—" : g === -1 ? "R" : g === 0 ? "N" : String(g));
 
-function OwnCar({ t, own, liveFuelObs }) {
+function OwnCar({ t, own, liveFuelObs, topSrc = "" }) {
   const cap = own.fuelCapacity > 0 ? own.fuelCapacity : 0;
   const frac = cap ? Math.max(0, Math.min(1, own.fuel / cap)) : 0;
   const veFrac = own.virtualEnergy != null
@@ -422,7 +422,7 @@ function OwnCar({ t, own, liveFuelObs }) {
       </div>
       {/* Araç üstten görseli + 4 köşede lastik verisi (sıcaklık/basınç/aşınma). */}
       <div style={{ position: "relative", height: 300, margin: "14px auto 0", maxWidth: 360 }}>
-        <img src={`${ASSET}cartop/default.png`} alt={t("Kendi Araç")}
+        <img src={topSrc || `${ASSET}cartop/default.png`} alt={t("Kendi Araç")}
           style={{ height: "100%", width: "auto", display: "block", margin: "0 auto" }} />
         {corners.map(([lbl, k]) => {
           const c = ty[k] || {};
@@ -540,7 +540,7 @@ function CopyBtn({ text, t }) {
 
 export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge = false,
   liveFuelObs, tid, rid,
-  tourDemo, onGuide, isAdmin = false }) {
+  tourDemo, onGuide, isAdmin = false, ownTopSrc = "" }) {
   const [myClassOnly, setMyClassOnly] = useState(false);
   const [big, setBig] = useState(false);
   const [lapsFor, setLapsFor] = useState(null);   // "+" ile açılan tur listesi satırı
@@ -802,7 +802,7 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
         )}
         {own && (
           <div style={{ flex: "1 1 420px", minWidth: 300 }}>
-            <OwnCar t={t} own={own} liveFuelObs={liveFuelObs} />
+            <OwnCar t={t} own={own} liveFuelObs={liveFuelObs} topSrc={ownTopSrc} />
           </div>
         )}
       </div>
