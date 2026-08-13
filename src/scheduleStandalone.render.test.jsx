@@ -3,9 +3,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import ScheduleStandalone from "./ScheduleStandalone.jsx";
 import ScheduleTab from "./tabs/ScheduleTab.jsx";
 
-/* Official Races = Ana Menü'den doğrudan erişilen, yarıştan BAĞIMSIZ takvim.
-   Bu testler navigation/state izolasyonunu doğrular: standalone kabuk hiçbir
-   race/team/tab prop'u olmadan render olur ve Race Solo çıpalarına referans vermez. */
+/* Official Races = Ana Menü'den doğrudan erişilen, yarıştan BAĞIMSIZ yarış merkezi.
+   Bu testler navigation/state izolasyonu + kart/empty/eksik-asset dayanıklılığını doğrular. */
 const t = (s) => s;
 
 const RACE = {
@@ -19,9 +18,7 @@ const RACE = {
 describe("ScheduleStandalone (Ana Menü → Resmi Yarışlar, bağımsız)", () => {
   const html = renderToStaticMarkup(
     <ScheduleStandalone t={t} lang="tr" switchLang={() => {}}
-      live={[]} upcoming={[RACE]} updatedAt={Date.now()} loading={false}
-      onExit={() => {}} />);
-
+      races={[RACE]} updatedAt={Date.now()} loading={false} onExit={() => {}} />);
   it("kabuk render olur: marka + Ana Menü + Resmi Yarışlar başlığı", () => {
     expect(html).toContain("RACE MONITOR");
     expect(html).toContain("Ana Menü");
@@ -37,17 +34,30 @@ describe("ScheduleStandalone (Ana Menü → Resmi Yarışlar, bağımsız)", () 
   });
 });
 
-describe("ScheduleTab — onPlan opsiyonel (race-coupling izolasyonu)", () => {
+describe("ScheduleTab — yarış merkezi UI", () => {
+  it("özet + filtre barı + yarış kartı render olur", () => {
+    const html = renderToStaticMarkup(
+      <ScheduleTab t={t} lang="tr" races={[RACE]} updatedAt={Date.now()} loading={false} />);
+    expect(html).toContain("2.4h Spa");                 // yarış adı
+    expect(html).toContain("Toplam");                   // özet
+    expect(html).toContain("Durum");                    // status filtresi (her zaman render)
+    expect(html).toContain("lmugarage.com");            // kaynak atfı
+  });
   it("onPlan YOKSA 'Planla' butonu görünmez (saf görüntüleyici)", () => {
     const html = renderToStaticMarkup(
-      <ScheduleTab t={t} live={[]} upcoming={[RACE]} updatedAt={Date.now()} loading={false} />);
-    expect(html).toContain("2.4h Spa");                  // yarış listelenir
-    expect(html).not.toContain("Bu yarışa planla");      // ama planlama butonu (race-coupled) yok
+      <ScheduleTab t={t} lang="tr" races={[RACE]} updatedAt={Date.now()} loading={false} />);
+    expect(html).not.toContain("Bu yarışa planla");
   });
-  it("onPlan VERİLİRSE 'Planla' butonu görünür (geriye dönük uyum)", () => {
+  it("eksik track/flag asset'i UI'ı KIRMAZ (graceful fallback)", () => {
+    const noTrack = { ...RACE, id: "x", trackId: "", trackRaw: "Unknown Circuit" };
     const html = renderToStaticMarkup(
-      <ScheduleTab t={t} live={[]} upcoming={[RACE]} updatedAt={Date.now()}
-        loading={false} onPlan={() => {}} />);
-    expect(html).toContain("Bu yarışa planla");
+      <ScheduleTab t={t} lang="tr" races={[noTrack]} updatedAt={Date.now()} loading={false} />);
+    expect(html).toContain("Unknown Circuit");          // fallback venue adı
+    expect(html.length).toBeGreaterThan(0);             // çökmedi
+  });
+  it("veri yüklenmediğinde bilgilendirici durum gösterir", () => {
+    const html = renderToStaticMarkup(
+      <ScheduleTab t={t} lang="tr" races={[]} updatedAt={null} loading={false} />);
+    expect(html).toContain("Takvim henüz yüklenmedi");
   });
 });

@@ -1,8 +1,16 @@
 /* İngilizce çeviri sözlüğü — anahtar = Türkçe kaynak metin.
    App.jsx: t = (str) => lang === "en" ? (EN[str] ?? str) : str */
 export const EN = {
-  // LMU Garage takvim entegrasyonu (Ana Menü → Resmi Yarışlar) — "Canlı"/"Yaklaşan"/"Şampiyona" zaten var
+  // LMU Garage takvim entegrasyonu (Ana Menü → Resmi Yarışlar) — "Canlı"/"Yaklaşan"/"Şampiyona"/"Tümü"/"Sınıf" zaten var
   "Resmi Yarışlar": "Official Races",
+  "Toplam": "Total", "Durum": "Status", "Pist": "Track",
+  "Sıradaki Resmi Yarış": "Next Official Race",
+  "Yarış, pist veya seri ara…": "Search race, track or series…",
+  "Filtreleri Temizle": "Clear Filters",
+  "Tamamlanan": "Completed", "Tamamlandı": "Completed",
+  "Filtrelere uyan yarış yok.": "No races match your filters.",
+  "Bugün": "Today", "Yarın": "Tomorrow", "Dün": "Yesterday",
+  "gün": "days", "gün önce": "days ago", "g": "d",
   "resmi yarış takvimi": "official race schedule",
   "Yarışlar": "Races",
   "Resmi Yarış Takvimi": "Official Race Schedule",

@@ -1550,7 +1550,7 @@ ${bottomBar}
   if (scheduleOnly) {
     return (
       <ScheduleStandalone t={t} lang={lang} switchLang={switchLang}
-        live={lmu.live} upcoming={lmu.upcoming} updatedAt={lmu.updatedAt}
+        races={lmu.races} updatedAt={lmu.updatedAt}
         loading={lmu.loading} onExit={() => setScheduleOnly(false)} />
     );
   }
