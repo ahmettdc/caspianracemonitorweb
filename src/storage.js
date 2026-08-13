@@ -289,6 +289,17 @@ export function watchSetups(cb, limit = 150) {
   }, () => cb([]));
 }
 
+/* ---------- lmugarage.com resmi LMU yarış takvimi (salt-okur) ----------
+   /lmuSchedule'a yalnız zamanlanmış GitHub Action yazar (admin token; bkz.
+   scripts/scrape-lmu-schedule.mjs + .github/workflows/lmu-schedule.yml).
+   cb(payload|null) — { updatedAt, source, count, races:[...] }. */
+export function watchLmuSchedule(cb) {
+  if (!db) { cb(null); return () => {}; }
+  return onValue(ref(db, "lmuSchedule"),
+    (snap) => cb(snap.exists() ? snap.val() : null),
+    () => cb(null));
+}
+
 export async function deleteSetup(id) {
   if (!db || !id) return;
   await remove(ref(db, `globalSetups/${id}`));

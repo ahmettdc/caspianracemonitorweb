@@ -53,6 +53,11 @@
       }
     },
 
+    "lmuSchedule": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true",
+      ".write": false
+    },
+
     "teams": {
       "$tid": {
         "meta": {
