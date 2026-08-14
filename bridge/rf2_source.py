@@ -36,8 +36,9 @@ tamponu); lapNums = bu sürelerin GERÇEK tur numaraları (log boşluklu olabili
 tur atlanır ya da lapsDone >1 atlar → ardışık varsaymak tur kaymasına yol açıyordu);
 lapsFrom = ilk elemanın tur numarası (eski sözleşme, geriye uyum); lapKey = ARACIN
 Firebase-güvenli anahtarı (carId/mID tabanlı — sürücü adı DEĞİL: pilot değişiminde
-aracın geçmişi bölünmesin diye). Köprü JS (liveBridge) bu turları kalıcı append-only düğüme (livelaps/{rid}/
-{lapKey}/{n}=sec) tur başına bir kez yazar; canlı kareden laps/lapsFrom çıkarılır ki kare
+aracın geçmişi bölünmesin diye). Bu turlar kalıcı append-only düğüme (livelaps/{rid}/
+{lapKey}/{n}=sec) tur başına bir kez yazılır — sidecar yolunda köprü JS (liveBridge),
+hafif köprüde harvest.py (v1.8.6) yazar; canlı kareden laps/lapsFrom çıkarılır ki kare
 küçük kalsın. Web "+" → o aracın tüm yarış geçmişini livelaps'ten talep üzerine okur.
 """
 import math

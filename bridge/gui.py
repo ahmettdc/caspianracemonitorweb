@@ -8,7 +8,7 @@ import tkinter as tk
 from tkinter import messagebox
 
 from fb import FirebaseClient
-from main import make_source, build_payload, lower_priority
+from main import make_source, build_payload, lower_priority, start_harvester, apply_harvest
 from logfile import get_logger, heartbeat_line, log_path, parent_app_path
 
 API_KEY = "AIzaSyB9hEH26etwvn9adAGNOpPAlpUym1qzpns"
@@ -481,6 +481,9 @@ class BridgeGUI:
             self._set_btn("Kaydet & Başlat")
             return
         self.set_status("● Canlı gönderiliyor", GOOD)
+        # v1.8.6 — tur geçmişi (livelaps/…) hafif köprüde de yazılır ("+" popup'ı dolsun).
+        harv = start_harvester(fb, tid, rid)
+        pend = []
         fails = 0
         sent = 0
         last_hb = 0.0
@@ -488,6 +491,9 @@ class BridgeGUI:
             t0 = time.time()
             try:
                 payload = build_payload(src, self._by())
+                pend, herr = apply_harvest(fb, tid, harv, payload, pend)
+                if herr:
+                    self.lg.warning("tur geçmişi yazılamadı (yeniden denenecek): %s", herr)
                 t1 = time.time()
                 fb.put_live(tid, rid, payload)
                 t2 = time.time()

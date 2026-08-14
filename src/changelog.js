@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.8.6",
+    date: "2026-08-14",
+    tr: [
+      "🏁 ASIL kök neden bulundu — hafif köprü (Caspian Live Bridge) tur geçmişini HİÇ yazmıyordu. Tur listesi \"+\" penceresi kalıcı livelaps düğümünden okur; bu düğümü bugüne dek yalnız masaüstü uygulamasının kendi köprü modu yazıyordu. Oyun donması düzeltmeleriyle sürüş PC'si hafif köprüye geçince canlı tablo çalışmaya devam etti ama tur geçmişi (turlar, sektörler, pilot değişimi, pit lastikleri, pist koşulu, pozisyon grafiği) hiç kaydedilmedi → popup her araçta boş kaldı. Hafif köprü artık tüm bu geçmişi masaüstüyle birebir aynı biçimde yazıyor.",
+      "📉 Bonus: hafif köprünün her karesi artık tur listelerini taşımıyor (geçmiş kalıcı düğüme taşınıp kareden çıkarılıyor) → Firebase trafiği belirgin azaldı. ⚠ Köprüyü çalıştıran PC'nin yeni sürümü kurması gerekir (masaüstü kurulumu hafif köprüyü de günceller).",
+    ],
+    en: [
+      "🏁 TRUE root cause found — the lightweight bridge (Caspian Live Bridge) never wrote lap history. The \"+\" lap-list popup reads from the persistent livelaps node, which until now only the desktop app's own bridge mode wrote. When driving PCs switched to the lightweight bridge (game-freeze fixes), the live table kept working but lap history (laps, sectors, driver swaps, pit tyres, track condition, position chart) was never recorded → the popup stayed empty for every car. The lightweight bridge now writes all of this history exactly like the desktop app.",
+      "📉 Bonus: lightweight-bridge frames no longer carry lap arrays (history moves to the persistent node and is stripped from the frame) → noticeably less Firebase traffic. ⚠ The PC running the bridge must install the new build (the desktop installer also updates the lightweight bridge).",
+    ],
+  },
+  {
     v: "v1.8.5",
     date: "2026-08-14",
     tr: [
