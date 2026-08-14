@@ -18,6 +18,7 @@ import { renameTeam, syncMyTeamName, createSeason, deleteRace,
 import { processImageFile, IMG_ACCEPT_TYPES } from "./imageUpload";
 import { carAssetKey, teamLogoSrc } from "./teamAssets";
 import { extHref } from "./tauriEnv";
+import { OFFICIAL_FORMATION_MIN } from "./lmuSchedule";
 
 /* ---- kullanıcı avatarı ----
    Sıra: userAvatars/{uid} (cache'li tek get) → photo prop (Google photoURL) →
@@ -1002,6 +1003,31 @@ export function RaceEditModal({ rForm, setRForm, t, seasons, onSave }) {
                 ))}
               </select></div>
           </div>
+          {/* Resmi yarıştan ön ayar (v1.7.5): listelenen saat SEANS (sıralama) başıdır;
+              gerçek yarış başı = seans + sıralama + 5 dk formasyon. Sıralama süresi
+              takvimde yok → kullanıcı girer, yarış başı canlı hesaplanır. */}
+          {rForm.sessionStartMs != null && (
+            <div className="hint" style={{ margin: "10px 0 4px", padding: "8px 10px",
+              border: "1px solid var(--line)", borderRadius: 8, background: "var(--panel)" }}>
+              🏁 {t("Resmi seans başı")}:{" "}
+              <b className="mono">{new Date(rForm.sessionStartMs)
+                .toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</b>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, margin: "6px 0" }}>
+                <span>{t("Sıralama süresi")}</span>
+                <input type="number" min={0} max={180} value={rForm.qualMin ?? 0}
+                  style={{ width: 64, margin: 0, textAlign: "right" }}
+                  onChange={(e) => {
+                    const q = Math.max(0, Math.min(180, Number(e.target.value) || 0));
+                    setRForm({ ...rForm, qualMin: q,
+                      startsAt: rForm.sessionStartMs + (q + OFFICIAL_FORMATION_MIN) * 60000 });
+                  }} />
+                <span>{t("dk")} + {OFFICIAL_FORMATION_MIN} {t("dk formasyon")}</span>
+              </div>
+              → {t("Yarış başı")}:{" "}
+              <b className="mono" style={{ color: "var(--teal)" }}>{new Date(rForm.startsAt)
+                .toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</b>
+            </div>
+          )}
           <label>{t("Başlangıç (yerel saat)")}</label>
           <input type="datetime-local" value={msToLocalInput(rForm.startsAt || Date.now())}
             onChange={(e) => {
