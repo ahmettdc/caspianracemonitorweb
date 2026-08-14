@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.7.4",
+    date: "2026-08-14",
+    tr: [
+      "🔗 Masaüstü uygulamasında dış bağlantılar artık çalışıyor: Resmi Yarışlar'daki ↗ (lmugarage'da aç) ve kaynak linki ile 'ℹ Neler değişti' penceresindeki GitHub linki, tıklayınca varsayılan sistem tarayıcısında açılır. Önceden masaüstünde (gömülü tarayıcı yeni sekme açmadığı için) tepki vermiyordu. Web tarafı zaten çalışıyordu; değişiklik masaüstüne yeni sürümle gelir.",
+    ],
+    en: [
+      "🔗 External links now work in the desktop app: the ↗ (open on lmugarage) and source link in Official Races, plus the GitHub link in the 'ℹ What's new' window, now open in your default system browser when clicked. Previously they did nothing on desktop (the embedded browser doesn't open new tabs). The web build already worked; the fix reaches desktop with the new version.",
+    ],
+  },
+  {
     v: "v1.7.3",
     date: "2026-08-14",
     tr: [
