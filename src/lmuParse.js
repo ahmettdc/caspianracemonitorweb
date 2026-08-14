@@ -77,6 +77,29 @@ const first = (re, s) => { const m = s.match(re); return m ? m[1] : ""; };
 const stripTags = (s) => String(s || "").replace(/<[^>]*>/g, "");
 const clean = (s) => stripTags(s).replace(/\s+/g, " ").trim();
 
+/* Yarış DETAY sayfası ("Race weekend" paneli) → { practiceSec, qualSec, raceSec }.
+   Yapı: <div class="ses"><span class="n">Qualifying</span> … <span class="d">8m</span></div>
+   (liste sayfasında YOK; scraper her yarışın detay sayfasını ayrıca çeker).
+   Süre parseLenSec ile ("8m"/"1h30m" → sn). Bulunmayan seans → null. Böylece resmi
+   ön ayarda sıralama süresi TAHMİN edilmez, siteden gelir; special/championship'in
+   eksik yarış süresi (raceSec) de buradan doldurulabilir. */
+export function parseRaceWeekend(html) {
+  const src = String(html || "");
+  const out = { practiceSec: null, qualSec: null, raceSec: null };
+  const sesRe = /<div\s+class="ses">([\s\S]*?)<\/div>/g;
+  let mm;
+  while ((mm = sesRe.exec(src)) !== null) {
+    const b = mm[1] || "";
+    const name = normLabel(first(/class="n">\s*([^<]+?)\s*</, b));
+    const sec = parseLenSec(first(/class="d">\s*([^<]+?)\s*</, b));
+    if (sec == null || !name) continue;
+    if (name.startsWith("practice")) out.practiceSec = sec;
+    else if (name.startsWith("quali")) out.qualSec = sec;
+    else if (name === "race") out.raceSec = sec;
+  }
+  return out;
+}
+
 /* HTML fragmanı → { source, races: [...] }. updatedAt scraper tarafından eklenir. */
 export function parseRacingToday(html) {
   const src = String(html || "");
