@@ -1277,13 +1277,15 @@ ${bottomBar}
     if (f.rid) {
       await updateRace(curTeam, f.rid, payload).catch(() => {});
     } else {
-      /* yarış verisi önceden hazırlanır: pist/araç/süre/başlangıç dolu gelir */
+      /* yarış verisi önceden hazırlanır: pist/araç/süre/başlangıç dolu gelir.
+         Resmi ön ayardan geldiyse lastik seti sınırı (f.tyreSets → st.tyreLimit). */
       const init = migrate({
         ...DEFAULT_STATE,
         track: payload.trackId, carClass: payload.carClass, car: payload.carId,
         raceTime: payload.raceTime || DEFAULT_STATE.raceTime,
         raceStartMs: payload.startsAt || Date.now(),
         pitLaneTime: PIT_LANE_TIMES[payload.trackId] ?? DEFAULT_STATE.pitLaneTime,
+        tyreLimit: f.tyreSets > 0 ? f.tyreSets : DEFAULT_STATE.tyreLimit,
       });
       await createRace(curTeam, payload, init, user?.uid).catch(() => {});
     }

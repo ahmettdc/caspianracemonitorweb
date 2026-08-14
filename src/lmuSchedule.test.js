@@ -137,10 +137,26 @@ describe("officialRaceToForm (Resmi Yarış → ön ayar, v1.7.3)", () => {
     expect(f.qualMin).toBe(20);
     expect(f.startsAt).toBe(start + 25 * 60000); // 20 + 5 = 25 dk → 14:25
   });
-  it("varsayılan sıralama (qualMin verilmezse) yine offset uygular", () => {
+  it("takvim detayından gerçek sıralama süresi (qualSec) kullanılır — tahmin değil", () => {
     const start = Date.parse("2026-08-18T14:00:00Z");
-    const f = officialRaceToForm(mk({ startMs: start }), { classId });
-    expect(f.qualMin).toBeGreaterThan(0);        // tahmini varsayılan
+    const r = mk({ startMs: start, qualSec: 480 });   // siteden 8 dk
+    const f = officialRaceToForm(r, { classId });
+    expect(f.qualMin).toBe(8);                          // 480 sn → 8 dk (varsayılan 15 değil)
+    expect(f.startsAt).toBe(start + 13 * 60000);        // 8 + 5 = 13 dk → 14:13
+  });
+  it("elle qualMin, takvim qualSec'ini geçersiz kılar (öncelik)", () => {
+    const r = mk({ qualSec: 480 });
+    expect(officialRaceToForm(r, { classId, qualMin: 20 }).qualMin).toBe(20);
+  });
+  it("lastik seti sınırı (tyreSets) forma taşınır; yoksa null", () => {
+    expect(officialRaceToForm(mk({ tyreSets: 8 }), { classId }).tyreSets).toBe(8);
+    expect(officialRaceToForm(mk({}), { classId }).tyreSets).toBe(null);
+    expect(officialRaceToForm(mk({ tyreSets: 0 }), { classId }).tyreSets).toBe(null);
+  });
+  it("qualSec yoksa son çare tahmine düşer (offset yine uygulanır)", () => {
+    const start = Date.parse("2026-08-18T14:00:00Z");
+    const f = officialRaceToForm(mk({ startMs: start }), { classId });   // qualSec yok
+    expect(f.qualMin).toBeGreaterThan(0);
     expect(f.startsAt).toBe(start + (f.qualMin + 5) * 60000);
   });
   it("çok sınıflı: ilk EŞLEŞEN sınıf ön-seçilir", () => {

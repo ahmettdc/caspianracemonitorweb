@@ -1039,6 +1039,16 @@ export function RaceEditModal({ rForm, setRForm, t, seasons, onSave }) {
               → {t("Yarış başı")}:{" "}
               <b className="mono" style={{ color: "var(--teal)" }}>{new Date(rForm.startsAt)
                 .toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</b>
+              {/* Lastik seti sınırı (siteden) → kaydedilince st.tyreLimit'e uygulanır */}
+              {rForm.tyreSets != null && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
+                  <span>🛞 {t("Lastik seti")}</span>
+                  <input type="number" min={0} max={99} value={rForm.tyreSets ?? 0}
+                    style={{ width: 64, margin: 0, textAlign: "right" }}
+                    onChange={(e) => setRForm({ ...rForm,
+                      tyreSets: Math.max(0, Math.min(99, Number(e.target.value) || 0)) })} />
+                </div>
+              )}
             </div>
           )}
           <label>{t("Başlangıç (yerel saat)")}</label>

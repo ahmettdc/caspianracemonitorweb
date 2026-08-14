@@ -21,8 +21,8 @@ const hmsOf = (sec) => {
 /* Seans sonrası formasyon/grid gap (dk) — LMU'da resmi listelenen saat SEANS
    (sıralama) başıdır; gerçek yarış (yeşil bayrak) sıralama + bu kadar sonra başlar. */
 export const OFFICIAL_FORMATION_MIN = 5;
-/* Varsayılan sıralama süresi tahmini (dk) — takvimde yer ALMAZ (lmugarage vermiyor);
-   kullanıcı formda kendi etkinliğine göre düzeltir. Tipik LMU sprint sıralaması ~15 dk. */
+/* Sıralama süresi bilinmediğinde (detay çekilememişse) son çare tahmini (dk).
+   Normalde r.qualSec detay sayfasından gelir → gerçek değer kullanılır. */
 export const OFFICIAL_QUAL_DEFAULT_MIN = 15;
 
 /* Resmi yarış kaydını "Yarış Ekle" formuna (rForm) çevir — SAF, ÖN AYAR.
@@ -33,16 +33,19 @@ export const OFFICIAL_QUAL_DEFAULT_MIN = 15;
    trackId eşleşmediyse boş kalır → kullanıcı formdaki pist listesinden seçer.
 
    ÖNEMLİ — YARIŞ BAŞI: resmi saat (startMs) SEANS başıdır; gerçek yarış başı =
-   seans + sıralama süresi + formasyon (5 dk). Sıralama süresi veride olmadığından
-   varsayılan (qualMin) tahmin edilir; sessionStartMs + qualMin form üzerinden
-   kullanıcıya gösterilir ve düzeltilebilir (RaceEditModal). Ör. seans 14:00, sıralama
-   20 dk → yarış başı 14:25. */
+   seans + sıralama süresi + formasyon (5 dk). Sıralama süresi artık takvim verisinden
+   gelir (r.qualSec — scraper detay sayfasından "Race weekend" panelini çeker); yoksa
+   son çare tahmine (OFFICIAL_QUAL_DEFAULT_MIN) düşülür. Değer form üzerinden gösterilir
+   ve düzeltilebilir (RaceEditModal). Ör. seans 14:00, sıralama 8 dk → yarış başı 14:13.
+   Çağıran `qualMin` verirse (test/elle) o önceliklidir. */
 export function officialRaceToForm(r, { seasonId = null, fallbackRaceTime = "2:24:00",
-  classId, qualMin = OFFICIAL_QUAL_DEFAULT_MIN, formationMin = OFFICIAL_FORMATION_MIN } = {}) {
+  classId, qualMin = null, formationMin = OFFICIAL_FORMATION_MIN } = {}) {
   const norm = typeof classId === "function" ? classId : (x) => x;
   const cls = (r?.classes || []).map(norm).find(Boolean) || "hypercar";
   const sessionStartMs = r?.startMs || Date.now();
-  const q = Math.max(0, Number(qualMin) || 0);
+  const qFromData = r?.qualSec > 0 ? Math.round(r.qualSec / 60) : null;   // takvim detayı
+  const qPick = qualMin != null ? qualMin : (qFromData != null ? qFromData : OFFICIAL_QUAL_DEFAULT_MIN);
+  const q = Math.max(0, Number(qPick) || 0);
   return {
     rid: null,
     seasonId: seasonId || null,
@@ -55,6 +58,7 @@ export function officialRaceToForm(r, { seasonId = null, fallbackRaceTime = "2:2
     sessionStartMs,                                          // resmi seans (sıralama) başı
     qualMin: q,                                             // kullanıcı düzeltebilir
     startsAt: sessionStartMs + (q + formationMin) * 60000,  // gerçek yarış başı (yeşil bayrak)
+    tyreSets: r?.tyreSets > 0 ? r.tyreSets : null,          // lastik seti sınırı → st.tyreLimit
   };
 }
 
