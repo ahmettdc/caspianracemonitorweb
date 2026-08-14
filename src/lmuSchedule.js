@@ -58,6 +58,7 @@ export function officialRaceToForm(r, { seasonId = null, fallbackRaceTime = "2:2
     sessionStartMs,                                          // resmi seans (sıralama) başı
     qualMin: q,                                             // kullanıcı düzeltebilir
     startsAt: sessionStartMs + (q + formationMin) * 60000,  // gerçek yarış başı (yeşil bayrak)
+    tyreSets: r?.tyreSets > 0 ? r.tyreSets : null,          // lastik seti sınırı → st.tyreLimit
   };
 }
 

@@ -20,7 +20,7 @@
    Kullanım: node scripts/scrape-lmu-schedule.mjs [cikti.json]
    ============================================================ */
 import { writeFileSync } from "node:fs";
-import { parseRacingToday, parseCardsPage, parseRaceWeekend } from "../src/lmuParse.js";
+import { parseRacingToday, parseCardsPage, parseRaceWeekend, parseTyreSets } from "../src/lmuParse.js";
 
 const BASE = "https://lmugarage.com";
 const OUT = process.argv[2] || "lmu-schedule.json";
@@ -78,10 +78,13 @@ async function main() {
   for (const r of need) {
     try {
       const path = r.url.replace(/^https?:\/\/[^/]+/, "");
-      const w = parseRaceWeekend(await fetchHtml(path));
+      const detail = await fetchHtml(path);
+      const w = parseRaceWeekend(detail);
+      const ts = parseTyreSets(detail);
       if (w.qualSec != null) r.qualSec = w.qualSec;
       if (r.lenSec == null && w.raceSec != null) r.lenSec = w.raceSec;   // special/champ süresini doldur
-      if (w.qualSec != null || w.raceSec != null) enriched++;
+      if (ts != null) r.tyreSets = ts;                                   // lastik seti sınırı
+      if (w.qualSec != null || w.raceSec != null || ts != null) enriched++;
     } catch (err) {
       log(`[lmu] UYARI detay atlandı ${r.id}: ${err.message}`);
     }

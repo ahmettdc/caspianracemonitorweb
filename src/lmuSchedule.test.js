@@ -148,6 +148,11 @@ describe("officialRaceToForm (Resmi Yarış → ön ayar, v1.7.3)", () => {
     const r = mk({ qualSec: 480 });
     expect(officialRaceToForm(r, { classId, qualMin: 20 }).qualMin).toBe(20);
   });
+  it("lastik seti sınırı (tyreSets) forma taşınır; yoksa null", () => {
+    expect(officialRaceToForm(mk({ tyreSets: 8 }), { classId }).tyreSets).toBe(8);
+    expect(officialRaceToForm(mk({}), { classId }).tyreSets).toBe(null);
+    expect(officialRaceToForm(mk({ tyreSets: 0 }), { classId }).tyreSets).toBe(null);
+  });
   it("qualSec yoksa son çare tahmine düşer (offset yine uygulanır)", () => {
     const start = Date.parse("2026-08-18T14:00:00Z");
     const f = officialRaceToForm(mk({ startMs: start }), { classId });   // qualSec yok

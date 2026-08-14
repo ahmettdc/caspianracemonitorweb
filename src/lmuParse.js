@@ -100,6 +100,16 @@ export function parseRaceWeekend(html) {
   return out;
 }
 
+/* Detay sayfası "Tyre sets" kutucuğu → lastik seti sınırı (int) ya da null.
+   Yapı: <span class="t-val">8</span><span class="t-lab">Tyre sets</span>. Bu değer
+   uygulamada st.tyreLimit'e (lastik bütçesi) karşılık gelir → resmi ön ayarda dolar. */
+export function parseTyreSets(html) {
+  const m = String(html || "").match(
+    /class="t-val">\s*(\d+)\s*<\/span>\s*<span\s+class="t-lab">\s*Tyre\s*sets/i);
+  const n = m ? parseInt(m[1], 10) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 /* HTML fragmanı → { source, races: [...] }. updatedAt scraper tarafından eklenir. */
 export function parseRacingToday(html) {
   const src = String(html || "");
