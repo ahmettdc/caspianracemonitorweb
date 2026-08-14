@@ -9,7 +9,7 @@
    Kaynak: lmugarage.com (resmi olmayan topluluk projesi) — atıf altta.
    ============================================================ */
 import { useState, useEffect, useMemo } from "react";
-import { TRACKS, TRACK_ASSET, trackFlag, ASSET, AV } from "../constants";
+import { TRACKS, TRACK_ASSET, ASSET, AV } from "../constants";
 import { extHref } from "../tauriEnv";
 import {
   groupByStatus, nextOfficialRace, deriveOptions, raceStatus,
@@ -47,7 +47,6 @@ const fmtDate = (ms, lang) => new Date(ms)
 function RaceCard({ r, now, t, lang, onPlan }) {
   const status = raceStatus(r, now);
   const tName = trackName(r.trackId) || r.trackRaw || "—";
-  const flag = trackFlag(r.trackId);
   return (
     <div className="sch-card" data-status={status}>
       <div className="sch-when">
@@ -78,7 +77,11 @@ function RaceCard({ r, now, t, lang, onPlan }) {
           ))}
         </div>
         <div className="sch-venue">
-          {flag ? `${flag} ` : "📍 "}{tName}
+          {r.trackId
+            ? <img className="sch-flag" src={`${ASSET}flags/${TRACK_ASSET(r.trackId)}.png${AV}`}
+                alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+            : <span aria-hidden="true">📍 </span>}
+          {tName}
           {r.lenLabel ? <span className="sch-len">· ⏱ {r.lenLabel}</span> : null}
         </div>
       </div>
@@ -157,7 +160,9 @@ export default function ScheduleTab({ t, lang = "tr", races = [], updatedAt, loa
             <span className="l">🏁 {t("Sıradaki Resmi Yarış")}</span>
             <span className="nm">{next.name}</span>
             <span className="mt">
-              {trackFlag(next.trackId)} {trackName(next.trackId) || next.trackRaw} · {fmtDate(next.startMs, lang)} {fmtClock(next.startMs, lang)}
+              {next.trackId && <img className="sch-flag" src={`${ASSET}flags/${TRACK_ASSET(next.trackId)}.png${AV}`}
+                alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} />}
+              {trackName(next.trackId) || next.trackRaw} · {fmtDate(next.startMs, lang)} {fmtClock(next.startMs, lang)}
               {" · "}⏳ {countdown(next.startMs, now, t)}
             </span>
           </div>
