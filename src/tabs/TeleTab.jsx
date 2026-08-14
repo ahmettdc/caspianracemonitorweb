@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ReferenceLine, ReferenceDot, ResponsiveContainer } from "recharts";
 import { fmtLap } from "../engine";
 import { SLOT_COLORS } from "../constants";
@@ -10,48 +10,81 @@ import { detectApexes, cornerStats } from "../corners";
 /* İz karşılaştırma renkleri (A/B tur) */
 const CA = "#ff5470", CB = "#4d9fff";
 
-/* Tek kanal iz satırı — recharts syncId ile hepsi ortak imleç + ortak mesafe ekseni. */
+/* TraceRow prop kimlikleri modül sabiti — her render'da taze dizi/fonksiyon
+   üretilirse aşağıdaki grafik memo'ları hiç tutmaz. */
+const K_DT = ["dt"], C_DT = ["#F5C84C"], C_AB = [CA, CB];
+const K_SP = ["spA", "spB"], K_TH = ["thA", "thB"], K_BR = ["brA", "brB"],
+  K_G = ["gA", "gB"], K_RPM = ["rpmA", "rpmB"], K_ST = ["stA", "stB"];
+const sp1 = (v) => (v == null ? "—" : v.toFixed(1));
+const pct = (v) => (v == null ? "—" : `${Math.round(v)}%`);
+const dlt = (v) => (v == null ? "—" : `${v >= 0 ? "+" : ""}${v.toFixed(3)}s`);
+const int0 = (v) => (v == null ? "—" : String(Math.round(v)));
+
+/* Eksen geometrisi bu dosyada sabittir (aşağıdaki playhead eşlemesi buna dayanır):
+   YAxis width=44, margin sağ=8/sol=0/üst=4/alt=0, XAxis yüksekliği=30 (recharts
+   varsayılanı). Lineer mesafe ekseni → yüzde eşlemesi kesindir. */
+const PLOT_L = 44, PLOT_R = 8, PLOT_T = 4, PLOT_B = 30;
+
+/* Tek kanal iz satırı — recharts syncId ile hepsi ortak imleç + ortak mesafe ekseni.
+   PLAYHEAD (cursorD) artık grafiğin İÇİNDE (ReferenceLine) değil, üstünde mutlak
+   konumlu ucuz bir div: oynatmada saniyede 25 kez değişen tek şey bu div olur;
+   600 noktalı Recharts ağacı useMemo ile SABİT kalır (eskiden 7 grafik × 25/sn
+   komple reconcile ediliyordu — ana yavaşlık buydu). Prop kimlikleri çağıran
+   tarafta sabitlendi (modül sabitleri + useCallback + useMemo). */
 function TraceRow({ data, title, unit, keys, colors, fmt, height = 132, zero, dashB, onCursor, onAnchor, xDomain, bounds, cursorD, dots }) {
-  const onMove = (onCursor || onAnchor) ? (s) => {
+  const onMove = useMemo(() => ((onCursor || onAnchor) ? (s) => {
     if (onCursor) onCursor(s && s.activeTooltipIndex != null ? s.activeTooltipIndex : null);
     if (onAnchor && s && s.activeLabel != null) onAnchor(s.activeLabel);
-  } : undefined;
+  } : undefined), [onCursor, onAnchor]);
+  const onLeave = useMemo(() => (onCursor ? () => onCursor(null) : undefined), [onCursor]);
+  const chart = useMemo(() => (
+    <ResponsiveContainer width="100%" height="100%">
+      <LineChart data={data} syncId="tele" margin={{ top: PLOT_T, right: PLOT_R, bottom: 0, left: 0 }}
+        onMouseMove={onMove}
+        onMouseLeave={onLeave}>
+        <CartesianGrid stroke="#2B3542" strokeDasharray="3 3" />
+        <XAxis dataKey="d" type="number" domain={xDomain || ["dataMin", "dataMax"]}
+          allowDataOverflow stroke="#8C97A5" fontSize={10} tickFormatter={(v) => Math.round(v)}
+          minTickGap={40} />
+        <YAxis stroke="#8C97A5" fontSize={10} width={PLOT_L}
+          domain={["auto", "auto"]} tickFormatter={fmt} />
+        <Tooltip contentStyle={{ background: "#1F2731", border: "1px solid #2B3542", fontSize: 12 }}
+          labelFormatter={(v) => `${Math.round(v)} ${unit}`}
+          formatter={(val, n) => [fmt ? fmt(val) : val, n]} />
+        {zero && <ReferenceLine y={0} stroke="#8C97A5" strokeDasharray="4 4" />}
+        {(dots || []).map((p, i) => (
+          <ReferenceDot key={`d${i}`} x={p.x} y={p.y} r={3} fill={p.c} stroke="#000"
+            strokeWidth={0.6} isFront />
+        ))}
+        {(bounds || []).map((b) => (
+          <ReferenceLine key={b.label} x={b.d} stroke="#6B7683" strokeDasharray="2 3"
+            label={{ value: `S${b.label.slice(-1)}`, position: "insideTopLeft",
+              fill: "#8C97A5", fontSize: 9 }} />
+        ))}
+        {keys.map((k, i) => (
+          <Line key={k} dataKey={k} name={k.endsWith("B") ? "B" : k.endsWith("A") ? "A" : k}
+            stroke={colors[i]} dot={false} strokeWidth={1.6} connectNulls
+            isAnimationActive={false}
+            strokeDasharray={dashB && k.endsWith("B") ? "5 3" : undefined} />
+        ))}
+      </LineChart>
+    </ResponsiveContainer>
+  ), [data, unit, keys, colors, fmt, zero, dashB, xDomain, bounds, dots, onMove, onLeave]);
+  /* playhead konumu: mesafe → görünür pencere kesri → CSS calc (ölçüm yok) */
+  const lo = xDomain ? xDomain[0] : (data?.length ? data[0].d : 0);
+  const hi = xDomain ? xDomain[1] : (data?.length ? data[data.length - 1].d : 0);
+  const frac = (cursorD != null && hi > lo)
+    ? Math.max(0, Math.min(1, (cursorD - lo) / (hi - lo))) : null;
   return (
     <div style={{ marginTop: 8 }}>
       <div className="hint" style={{ margin: "0 0 2px", fontWeight: 600 }}>{title}</div>
-      <div style={{ height }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} syncId="tele" margin={{ top: 4, right: 8, bottom: 0, left: 0 }}
-            onMouseMove={onMove}
-            onMouseLeave={onCursor ? () => onCursor(null) : undefined}>
-            <CartesianGrid stroke="#2B3542" strokeDasharray="3 3" />
-            <XAxis dataKey="d" type="number" domain={xDomain || ["dataMin", "dataMax"]}
-              allowDataOverflow stroke="#8C97A5" fontSize={10} tickFormatter={(v) => Math.round(v)}
-              minTickGap={40} />
-            <YAxis stroke="#8C97A5" fontSize={10} width={44}
-              domain={["auto", "auto"]} tickFormatter={fmt} />
-            <Tooltip contentStyle={{ background: "#1F2731", border: "1px solid #2B3542", fontSize: 12 }}
-              labelFormatter={(v) => `${Math.round(v)} ${unit}`}
-              formatter={(val, n) => [fmt ? fmt(val) : val, n]} />
-            {zero && <ReferenceLine y={0} stroke="#8C97A5" strokeDasharray="4 4" />}
-            {cursorD != null && <ReferenceLine x={cursorD} stroke="#3ad07a" strokeWidth={1.4} />}
-            {(dots || []).map((p, i) => (
-              <ReferenceDot key={`d${i}`} x={p.x} y={p.y} r={3} fill={p.c} stroke="#000"
-                strokeWidth={0.6} isFront />
-            ))}
-            {(bounds || []).map((b) => (
-              <ReferenceLine key={b.label} x={b.d} stroke="#6B7683" strokeDasharray="2 3"
-                label={{ value: `S${b.label.slice(-1)}`, position: "insideTopLeft",
-                  fill: "#8C97A5", fontSize: 9 }} />
-            ))}
-            {keys.map((k, i) => (
-              <Line key={k} dataKey={k} name={k.endsWith("B") ? "B" : k.endsWith("A") ? "A" : k}
-                stroke={colors[i]} dot={false} strokeWidth={1.6} connectNulls
-                isAnimationActive={false}
-                strokeDasharray={dashB && k.endsWith("B") ? "5 3" : undefined} />
-            ))}
-          </LineChart>
-        </ResponsiveContainer>
+      <div style={{ height, position: "relative" }}>
+        {chart}
+        {frac != null && (
+          <div aria-hidden style={{ position: "absolute", top: PLOT_T, bottom: PLOT_B,
+            left: `calc(${PLOT_L}px + (100% - ${PLOT_L + PLOT_R}px) * ${frac})`,
+            width: 1.4, background: "#3ad07a", pointerEvents: "none" }} />
+        )}
       </div>
     </div>
   );
@@ -66,66 +99,87 @@ function TrackMini({ t, data, cursor, src, big, marks, apex, onScrub }) {
   const S = 240, PAD = 16;
   const [view, setView] = useState({ vx: 0, vy: 0, vw: S, vh: S });
   const svgRef = useRef(null);
-  const drag = useRef(null);   // { x0, y0, view0 }
-  const xs = data.map((d) => d.mapX), ys = data.map((d) => d.mapY);
-  const minX = Math.min(...xs), maxX = Math.max(...xs);
-  const minY = Math.min(...ys), maxY = Math.max(...ys);
-  const spanX = (maxX - minX) || 1, spanY = (maxY - minY) || 1;
-  const sc = Math.min((S - 2 * PAD) / spanX, (S - 2 * PAD) / spanY);
-  const ox = (S - spanX * sc) / 2, oy = (S - spanY * sc) / 2;
-  const scr = (x, y) => [ox + (x - minX) * sc, S - (oy + (y - minY) * sc)];   // y yukarı → ekranda ters
-  const step = Math.max(1, Math.floor(data.length / 220));
-  const segs = [];
-  for (let k = 0; k + step < data.length; k += step) {
-    const [x1, y1] = scr(data[k].mapX, data[k].mapY);
-    const [x2, y2] = scr(data[k + step].mapX, data[k + step].mapY);
-    const dd = (data[k + step].dt ?? 0) - (data[k].dt ?? 0);   // +: B daha çok süre → A hızlı
-    const col = dd > 0.003 ? CA : dd < -0.003 ? CB : "#7a8797";
-    segs.push(<line key={k} x1={x1} y1={y1} x2={x2} y2={y2} stroke={col} strokeWidth={3.2}
-      strokeLinecap="round" vectorEffect="non-scaling-stroke" />);
-  }
+  const drag = useRef(null);   // { mode, x0, y0, v0, rect }
+  /* view'ın güncel değeri ref aynasıyla taşınır → native wheel dinleyicisi BİR KEZ
+     takılır (eskiden dependency'siz effect her render'da söküp takıyordu — oynatma
+     sırasında saniyede 25 kez addEventListener/removeEventListener). */
+  const viewRef = useRef(view);
+  viewRef.current = view;
+
+  /* Geometri memo (v1.8.0): nokta matematiği yalnız data değişince kurulur.
+     scrPts = ekran-uzayı nokta önbelleği — nearest() ve segment üretimi her
+     çağrıda 600 scr() hesabı yerine bunun üzerinde döner. */
+  const { scrPts, step } = useMemo(() => {
+    const xs = data.map((d) => d.mapX), ys = data.map((d) => d.mapY);
+    const minX = Math.min(...xs), maxX = Math.max(...xs);
+    const minY = Math.min(...ys), maxY = Math.max(...ys);
+    const spanX = (maxX - minX) || 1, spanY = (maxY - minY) || 1;
+    const sc = Math.min((S - 2 * PAD) / spanX, (S - 2 * PAD) / spanY);
+    const ox = (S - spanX * sc) / 2, oy = (S - spanY * sc) / 2;
+    const scr = (x, y) => [ox + (x - minX) * sc, S - (oy + (y - minY) * sc)];   // y yukarı → ekranda ters
+    const scrPts = data.map((d) => scr(d.mapX, d.mapY));
+    return { scrPts, step: Math.max(1, Math.floor(data.length / 220)) };
+  }, [data]);
+
+  /* ~220 renkli <line> segmenti — eskiden her render'da (oynatmada 25/sn) yeniden
+     üretiliyordu; artık yalnız data değişince. */
+  const segs = useMemo(() => {
+    const out = [];
+    for (let k = 0; k + step < data.length; k += step) {
+      const [x1, y1] = scrPts[k];
+      const [x2, y2] = scrPts[k + step];
+      const dd = (data[k + step].dt ?? 0) - (data[k].dt ?? 0);   // +: B daha çok süre → A hızlı
+      const col = dd > 0.003 ? CA : dd < -0.003 ? CB : "#7a8797";
+      out.push(<line key={k} x1={x1} y1={y1} x2={x2} y2={y2} stroke={col} strokeWidth={3.2}
+        strokeLinecap="round" vectorEffect="non-scaling-stroke" />);
+    }
+    return out;
+  }, [data, scrPts, step]);
+
   /* imleç dairesi — kesirli cursor (oynatma) iki nokta ARASINDA interpole edilir → akıcı */
   const cur = (() => {
     if (cursor == null || !data.length) return null;
     const i = Math.max(0, Math.min(Math.floor(cursor), data.length - 1));
     const f = cursor - i;
-    const a = data[i], b = data[Math.min(i + 1, data.length - 1)] || a;
-    if (!a) return null;
-    const [x1, y1] = scr(a.mapX, a.mapY);
-    const [x2, y2] = scr(b.mapX, b.mapY);
-    return [x1 + f * (x2 - x1), y1 + f * (y2 - y1)];
+    const p1 = scrPts[i], p2 = scrPts[Math.min(i + 1, data.length - 1)] || p1;
+    if (!p1) return null;
+    return [p1[0] + f * (p2[0] - p1[0]), p1[1] + f * (p2[1] - p1[1])];
   })();
   const zf = view.vw / S;   // daire yarıçapı ekranda sabit kalsın diye ölçek
   /* S/F + sektör sınırları: yolu KESEN kısa çizgi (teğete dik) + etiket — daire yok. */
   const TICK = 7;   // yarı-uzunluk (SVG birimi) → yol bandını keser, zoom'la ölçeklenir
-  const perpTick = (idx) => {
-    const i0 = Math.max(0, idx - step), i1 = Math.min(data.length - 1, idx + step);
-    const [ax, ay] = scr(data[i0].mapX, data[i0].mapY);
-    const [bx, by] = scr(data[i1].mapX, data[i1].mapY);
-    const dx = bx - ax, dy = by - ay, L = Math.hypot(dx, dy) || 1;
-    const px = -dy / L, py = dx / L;                     // teğete dik birim
-    const [cx, cy] = scr(data[idx].mapX, data[idx].mapY);
-    return { x1: cx - px * TICK, y1: cy - py * TICK, x2: cx + px * TICK, y2: cy + py * TICK, cx, cy };
-  };
-  const secDivs = [
-    { idx: 0, label: "S/F", col: "#fff" },
-    ...(marks || []).map((m) => ({ idx: m.idx, label: `S${m.label.slice(-1)}`, col: "#cbb" })),
-  ].filter((m) => data[m.idx]).map((m) => ({ ...m, ...perpTick(m.idx) }));
+  const secDivs = useMemo(() => {
+    const perpTick = (idx) => {
+      const i0 = Math.max(0, idx - step), i1 = Math.min(data.length - 1, idx + step);
+      const [ax, ay] = scrPts[i0];
+      const [bx, by] = scrPts[i1];
+      const dx = bx - ax, dy = by - ay, L = Math.hypot(dx, dy) || 1;
+      const px = -dy / L, py = dx / L;                     // teğete dik birim
+      const [cx, cy] = scrPts[idx];
+      return { x1: cx - px * TICK, y1: cy - py * TICK, x2: cx + px * TICK, y2: cy + py * TICK, cx, cy };
+    };
+    return [
+      { idx: 0, label: "S/F", col: "#fff" },
+      ...(marks || []).map((m) => ({ idx: m.idx, label: `S${m.label.slice(-1)}`, col: "#cbb" })),
+    ].filter((m) => data[m.idx]).map((m) => ({ ...m, ...perpTick(m.idx) }));
+  }, [data, marks, scrPts, step]);
   /* viraj (apex) işaretleri — numaralı küçük daireler */
-  const apexPts = (apex || []).map((idx, i) => {
-    const p = data[idx] ? scr(data[idx].mapX, data[idx].mapY) : null;
+  const apexPts = useMemo(() => (apex || []).map((idx, i) => {
+    const p = data[idx] ? scrPts[idx] : null;
     return p ? { no: i + 1, x: p[0], y: p[1] } : null;
-  }).filter(Boolean);
+  }).filter(Boolean), [data, apex, scrPts]);
   const zoomed = view.vw < S - 0.5;
 
-  /* SVG-koordinatına çevir (px → viewBox birimi) */
+  /* SVG-koordinatına çevir (px → viewBox birimi) — view ref'ten okunur (stale olmaz) */
   const toSvg = (clientX, clientY) => {
     const r = svgRef.current?.getBoundingClientRect();
     if (!r || !r.width) return null;
-    return [view.vx + ((clientX - r.left) / r.width) * view.vw,
-      view.vy + ((clientY - r.top) / r.height) * view.vh];
+    const v = viewRef.current;
+    return [v.vx + ((clientX - r.left) / r.width) * v.vw,
+      v.vy + ((clientY - r.top) / r.height) * v.vh];
   };
-  /* Tekerlek: React onWheel passive → native non-passive dinleyici (sayfa kaymasın) */
+  /* Tekerlek: React onWheel passive → native non-passive dinleyici (sayfa kaymasın).
+     [] deps: dinleyici yalnız ref'lere dokunur → bir kez tak, bir kez sök. */
   useEffect(() => {
     const el = svgRef.current;
     if (!el) return undefined;
@@ -137,28 +191,32 @@ function TrackMini({ t, data, cursor, src, big, marks, apex, onScrub }) {
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
-  });
-  /* pist çizgisine en yakın tur noktası (ekran-px) → { idx, dist } */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  /* pist çizgisine en yakın tur noktası (ekran-px) → { idx, dist }.
+     rect parametresi: sürükleme boyunca onDown'da ölçülen kutu yeniden kullanılır —
+     eskiden HER pointermove'da getBoundingClientRect (forced layout) vardı. */
   const GRAB_PX = 18;
-  const nearest = (clientX, clientY) => {
-    const r = svgRef.current?.getBoundingClientRect();
+  const nearest = (clientX, clientY, rect) => {
+    const r = rect || svgRef.current?.getBoundingClientRect();
     if (!r || !r.width || !data.length) return null;
+    const v = viewRef.current;
     let bi = -1, bd = Infinity;
-    for (let k = 0; k < data.length; k++) {
-      const [sx, sy] = scr(data[k].mapX, data[k].mapY);
-      const px = r.left + ((sx - view.vx) / view.vw) * r.width;
-      const py = r.top + ((sy - view.vy) / view.vh) * r.height;
+    for (let k = 0; k < scrPts.length; k++) {
+      const px = r.left + ((scrPts[k][0] - v.vx) / v.vw) * r.width;
+      const py = r.top + ((scrPts[k][1] - v.vy) / v.vh) * r.height;
       const d = (clientX - px) ** 2 + (clientY - py) ** 2;
       if (d < bd) { bd = d; bi = k; }
     }
     return { idx: bi, dist: Math.sqrt(bd) };
   };
   const onDown = (e) => {
-    const n = onScrub ? nearest(e.clientX, e.clientY) : null;
+    const rect = svgRef.current?.getBoundingClientRect() || null;
+    const n = onScrub ? nearest(e.clientX, e.clientY, rect) : null;
     if (n && n.dist <= GRAB_PX) {           // pist çizgisi/daire üstünde → scrub
-      drag.current = { mode: "scrub" }; onScrub(n.idx);
+      drag.current = { mode: "scrub", rect }; onScrub(n.idx);
     } else {                                 // boş alan → pan (v1.4.115)
-      drag.current = { mode: "pan", x0: e.clientX, y0: e.clientY, v0: view };
+      drag.current = { mode: "pan", x0: e.clientX, y0: e.clientY, v0: view, rect };
     }
     e.currentTarget.setPointerCapture?.(e.pointerId);
   };
@@ -166,11 +224,11 @@ function TrackMini({ t, data, cursor, src, big, marks, apex, onScrub }) {
     const d0 = drag.current;
     if (!d0) return;
     if (d0.mode === "scrub") {
-      const n = nearest(e.clientX, e.clientY);
+      const n = nearest(e.clientX, e.clientY, d0.rect);
       if (n && onScrub) onScrub(n.idx);
       return;
     }
-    const r = svgRef.current?.getBoundingClientRect();
+    const r = d0.rect;
     if (!r || !r.width) return;
     const dx = -((e.clientX - d0.x0) / r.width) * d0.v0.vw;
     const dy = -((e.clientY - d0.y0) / r.height) * d0.v0.vh;
@@ -264,7 +322,9 @@ function TraceCompareCard({ t, sources, fallbackMeta, cmpASrc, setCmpASrc, cmpBS
   const dLo = data?.length ? data[0].d : 0;
   const dHi = data?.length ? data[data.length - 1].d : 0;
   const unit = cmpData?.distUnit === "frac" ? "%" : "m";
-  const marks = data ? sectorMarks(data) : [];   // sektör sınırları (mesafe üçlüsü)
+  /* sektör sınırları (mesafe üçlüsü) — memo: taze dizi kimliği 7 grafiğin +
+     TrackMini'nin memo'larını her render'da kırıyordu */
+  const marks = useMemo(() => (data ? sectorMarks(data) : []), [data]);
   /* viraj tespiti: A'nın hız minimumları (apex) → apex hızları + fren mesafeleri (A/B) */
   const apexes = useMemo(() => (data?.length
     ? detectApexes(data.map((p) => p.spA), data.map((p) => p.d)) : []), [data]);
@@ -281,10 +341,20 @@ function TraceCompareCard({ t, sources, fallbackMeta, cmpASrc, setCmpASrc, cmpBS
     return a ? a.d + f * (((b?.d) ?? a.d) - a.d) : null;
   })();
   const lapSecA = lapsA[cmpA]?.sec;
-  /* haritada daireyi sürükleyince (scrub): oynatmayı durdur + imleci o noktaya taşı */
-  const onScrub = (i) => { setPlaying(false); playPosRef.current = i; setCursorF(null); setCursor(i); };
+  /* haritada daireyi sürükleyince (scrub): oynatmayı durdur + imleci o noktaya taşı.
+     useCallback: kimlikleri sabit → TraceRow/TrackMini memo'ları oynatma tick'inde
+     kırılmaz (state setter'lar zaten sabit). */
+  const onScrub = useCallback((i) => {
+    setPlaying(false); playPosRef.current = i; setCursorF(null); setCursor(i);
+  }, []);
   /* grafik üzerinde hover — kesirli oynatma konumunu bırak, tam index'e geç */
-  const hoverCursor = (i) => { setCursorF(null); setCursor(i); };
+  const hoverCursor = useCallback((i) => { setCursorF(null); setCursor(i); }, []);
+  /* tekerlek yakınlaştırma çapası — tüm grafikler için tek, sabit kimlikli */
+  const anchorD = useCallback((d) => { lastDRef.current = d; }, []);
+  /* hız grafiği apex noktaları — kimlik yalnız corners değişince yenilensin */
+  const speedDots = useMemo(() => corners.flatMap((c) => [
+    c.aMin != null ? { x: c.apexD, y: c.aMin, c: CA } : null,
+    c.bMin != null ? { x: c.apexD, y: c.bMin, c: CB } : null].filter(Boolean)), [corners]);
 
   /* Oynatma: setInterval (~40ms) imleci tur A süresi boyunca ilerletir; harita noktası +
      tüm kanallarda playhead (ReferenceLine) noktalar arası interpole edilerek AKICI kayar. */
@@ -321,9 +391,6 @@ function TraceCompareCard({ t, sources, fallbackMeta, cmpASrc, setCmpASrc, cmpBS
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
   }, [dLo, dHi]);
-  const sp1 = (v) => (v == null ? "—" : v.toFixed(1));
-  const pct = (v) => (v == null ? "—" : `${Math.round(v)}%`);
-  const dlt = (v) => (v == null ? "—" : `${v >= 0 ? "+" : ""}${v.toFixed(3)}s`);
   const lapOpt = (l, i) => (
     <option key={i} value={i}>Lap {l.lap} · {fmtLap(l.sec)}{l.partial ? " (kısmi)" : ""}</option>
   );
@@ -519,40 +586,38 @@ ${svgs}
         </div>
         <div ref={tracesRef}>
         <TraceRow data={cmpData.data} title={`⏱ ${t("Zaman-Delta (B−A)")}`} unit={unit}
-          keys={["dt"]} colors={["#F5C84C"]} fmt={dlt} height={140} zero
-          onCursor={hoverCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} bounds={marks} cursorD={cursorD} />
+          keys={K_DT} colors={C_DT} fmt={dlt} height={140} zero
+          onCursor={hoverCursor} onAnchor={anchorD} xDomain={xWin} bounds={marks} cursorD={cursorD} />
         {ch.speed && (
           <TraceRow data={cmpData.data} title={`🏁 ${t("Hız")} (km/h)`} unit={unit}
-            keys={["spA", "spB"]} colors={[CA, CB]} fmt={sp1}
-            onCursor={hoverCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} bounds={marks} cursorD={cursorD}
-            dots={corners.flatMap((c) => [
-              c.aMin != null ? { x: c.apexD, y: c.aMin, c: CA } : null,
-              c.bMin != null ? { x: c.apexD, y: c.bMin, c: CB } : null].filter(Boolean))} />
+            keys={K_SP} colors={C_AB} fmt={sp1}
+            onCursor={hoverCursor} onAnchor={anchorD} xDomain={xWin} bounds={marks} cursorD={cursorD}
+            dots={speedDots} />
         )}
         {ch.throttle && (
           <TraceRow data={cmpData.data} title={`🟢 ${t("Gaz")} %`} unit={unit}
-            keys={["thA", "thB"]} colors={[CA, CB]} fmt={pct} height={110} dashB
-            onCursor={hoverCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} bounds={marks} cursorD={cursorD} />
+            keys={K_TH} colors={C_AB} fmt={pct} height={110} dashB
+            onCursor={hoverCursor} onAnchor={anchorD} xDomain={xWin} bounds={marks} cursorD={cursorD} />
         )}
         {ch.brake && (
           <TraceRow data={cmpData.data} title={`🔴 ${t("Fren")} %`} unit={unit}
-            keys={["brA", "brB"]} colors={[CA, CB]} fmt={pct} height={110} dashB
-            onCursor={hoverCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} bounds={marks} cursorD={cursorD} />
+            keys={K_BR} colors={C_AB} fmt={pct} height={110} dashB
+            onCursor={hoverCursor} onAnchor={anchorD} xDomain={xWin} bounds={marks} cursorD={cursorD} />
         )}
         {ch.gear && (
           <TraceRow data={cmpData.data} title={`⚙ ${t("Vites")}`} unit={unit}
-            keys={["gA", "gB"]} colors={[CA, CB]} fmt={(v) => (v == null ? "—" : String(Math.round(v)))} height={100} dashB
-            onCursor={hoverCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} bounds={marks} cursorD={cursorD} />
+            keys={K_G} colors={C_AB} fmt={int0} height={100} dashB
+            onCursor={hoverCursor} onAnchor={anchorD} xDomain={xWin} bounds={marks} cursorD={cursorD} />
         )}
         {ch.rpm && (
           <TraceRow data={cmpData.data} title={`🔧 ${t("RPM")}`} unit={unit}
-            keys={["rpmA", "rpmB"]} colors={[CA, CB]} fmt={(v) => (v == null ? "—" : String(Math.round(v)))} height={100}
-            onCursor={hoverCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} bounds={marks} cursorD={cursorD} />
+            keys={K_RPM} colors={C_AB} fmt={int0} height={100}
+            onCursor={hoverCursor} onAnchor={anchorD} xDomain={xWin} bounds={marks} cursorD={cursorD} />
         )}
         {ch.steer && (
           <TraceRow data={cmpData.data} title={`🕹 ${t("Direksiyon")}`} unit={unit}
-            keys={["stA", "stB"]} colors={[CA, CB]} fmt={sp1} height={100}
-            onCursor={hoverCursor} onAnchor={(d) => { lastDRef.current = d; }} xDomain={xWin} bounds={marks} cursorD={cursorD} />
+            keys={K_ST} colors={C_AB} fmt={sp1} height={100}
+            onCursor={hoverCursor} onAnchor={anchorD} xDomain={xWin} bounds={marks} cursorD={cursorD} />
         )}
         </div>
 
@@ -645,6 +710,17 @@ export default function TeleTab({
   cmpSources, cmpASrc, setCmpASrc, cmpBSrc, setCmpBSrc, onSaveDuckSetup, standalone,
 }) {
   const fmtMs = (ms) => fmtLap(ms / 1000);
+  /* Yapıştırma alanı debounce'u: parseMotecLog tüm metni satır satır + karakter
+     karakter tarar (100 Hz × 200+ kanal log'unda büyük iş) — her tuş vuruşunda
+     değil, yazma durunca (300 ms) bir kez koşar. */
+  const parseTimerRef = useRef(null);
+  useEffect(() => () => clearTimeout(parseTimerRef.current), []);
+  const onRawChange = (e) => {
+    const v = e.target.value;
+    setRawTele(v);
+    clearTimeout(parseTimerRef.current);
+    parseTimerRef.current = setTimeout(() => doParse(v), 300);
+  };
   return (
     <div>
       <div className="card">
@@ -662,7 +738,7 @@ export default function TeleTab({
         </div>
         <label>{t("MoTeC tur istatistiklerini yapıştır veya dosya seç (CSV/TSV) — .ld ve .duckdb doğrudan çalışır")}</label>
         <textarea value={rawTele}
-          onChange={(e) => { setRawTele(e.target.value); doParse(e.target.value); }}
+          onChange={onRawChange}
           placeholder={"Out Lap\t310127\t-6.403 ...\nLap 1\t237350\t-6.36 ..."}
           style={{ width: "100%", height: 90, background: "var(--panel2)",
             border: "1px solid var(--line)", borderRadius: 6, color: "var(--txt)",
@@ -856,7 +932,7 @@ export default function TeleTab({
                 <Legend formatter={(v) => `Stint ${v}`} />
                 {loadedSlots.map((sl) => (
                   <Line key={sl} dataKey={sl} stroke={SLOT_COLORS[sl]}
-                    dot={false} strokeWidth={2} connectNulls />
+                    dot={false} strokeWidth={2} connectNulls isAnimationActive={false} />
                 ))}
               </LineChart>
             </ResponsiveContainer>
