@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.7.3",
+    date: "2026-08-14",
+    tr: [
+      "📋 Resmi Yarışlar → ön ayar: bir resmi yarış kartındaki 📋 düğmesine basınca o yarışın pisti, sınıfı, süresi ve başlangıç saati otomatik dolu bir 'Yarış Ekle' formu açılır — aracı seçip Kaydet dediğinde takım takviminde yarış + strateji verisi oluşur. Kaydetme adımı (pit yolu, yakıt vb.) mevcut yarış oluşturma akışıyla aynı.",
+      "ℹ️ Not: LMU takvimi belirli bir ARAÇ taşımaz (yalnız sınıf listesi) → aracı formdan sen seçersin; çok sınıflı etkinlikte ilk sınıf ön-seçilir, değiştirebilirsin. Süre yalnız günlük/haftalık yarışlarda gelir (özel/şampiyona kayıtlarında varsayılan süreye düşer). Bu düğme yalnız bir takımın varken görünür.",
+    ],
+    en: [
+      "📋 Official Races → preset: click the 📋 button on an official race card and an 'Add Race' form opens pre-filled with that race's track, class, duration and start time — pick a car, hit Save, and it creates the race + strategy data in the team calendar. Saving (pit lane, fuel, etc.) uses the same existing race-creation flow.",
+      "ℹ️ Note: the LMU schedule carries no specific CAR (only a class list) → you pick the car in the form; for multi-class events the first class is pre-selected and you can change it. Duration is only present for daily/weekly races (special/championship entries fall back to the default duration). The button only shows when you have a team.",
+    ],
+  },
+  {
     v: "v1.7.2",
     date: "2026-08-13",
     tr: [

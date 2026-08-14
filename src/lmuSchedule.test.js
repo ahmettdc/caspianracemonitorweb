@@ -2,7 +2,9 @@ import { describe, it, expect } from "vitest";
 import {
   raceStatus, matchesFilters, sortByStart, groupByStatus,
   nextOfficialRace, deriveOptions, filtersActive, EMPTY_FILTERS,
+  officialRaceToForm,
 } from "./lmuSchedule";
+import { classId } from "./constants";
 
 /* Sabit "now": 2026-08-13T09:00:00Z. Yarışlar bu ankere göre kurulur. */
 const NOW = Date.parse("2026-08-13T09:00:00Z");
@@ -110,5 +112,44 @@ describe("groupByStatus + nextOfficialRace + deriveOptions", () => {
     expect(o.classes.sort()).toEqual(["GT3", "HY", "LMP2", "LMP3"]);
     expect(o.srRanks.sort()).toEqual(["Bronze", "Gold", "Silver"]);
     expect(o).not.toHaveProperty("season");
+  });
+});
+
+describe("officialRaceToForm (Resmi Yarış → ön ayar, v1.7.3)", () => {
+  it("pist/başlangıç/süre/ad prefill; belirli araç YOK (carId boş); rid null", () => {
+    const r = mk({ name: "Le Mans 24h", trackId: "lemans", startMs: 1234567890000,
+      lenSec: 8640, classes: ["Hypercar"] });
+    const f = officialRaceToForm(r, { seasonId: "s1", classId });
+    expect(f.rid).toBe(null);
+    expect(f.name).toBe("Le Mans 24h");
+    expect(f.trackId).toBe("lemans");
+    expect(f.startsAt).toBe(1234567890000);
+    expect(f.raceTime).toBe("2:24:00");        // 8640 sn → H:MM:SS
+    expect(f.carClass).toBe("hypercar");        // classId normalizasyonu
+    expect(f.carId).toBe("");                   // takvimde araç yok → kullanıcı seçer
+    expect(f.seasonId).toBe("s1");
+    expect(f.round).toBe("");
+  });
+  it("çok sınıflı: ilk EŞLEŞEN sınıf ön-seçilir", () => {
+    const r = mk({ classes: ["Hypercar", "LMGT3"] });
+    expect(officialRaceToForm(r, { classId }).carClass).toBe("hypercar");
+  });
+  it("classId fn verilmezse ham sınıf metnini olduğu gibi kullanır (yedek)", () => {
+    expect(officialRaceToForm(mk({ classes: ["gt3"] })).carClass).toBe("gt3");
+  });
+  it("süre yok (special/championship) → fallbackRaceTime", () => {
+    const r = mk({ lenSec: null, classes: ["GT3"] });
+    expect(officialRaceToForm(r, { fallbackRaceTime: "6:00:00", classId }).raceTime)
+      .toBe("6:00:00");
+  });
+  it("eşleşmeyen/boş sınıf → hypercar varsayılanı; trackId eşleşmemişse boş kalır", () => {
+    const r = mk({ classes: [], trackId: "" });
+    const f = officialRaceToForm(r, { classId });
+    expect(f.carClass).toBe("hypercar");
+    expect(f.trackId).toBe("");
+  });
+  it("startMs yoksa startsAt bir zaman damgası olur (0 değil)", () => {
+    const f = officialRaceToForm(mk({ startMs: null }), { classId });
+    expect(f.startsAt).toBeGreaterThan(0);
   });
 });

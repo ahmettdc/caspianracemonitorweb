@@ -10,6 +10,36 @@
 /* lmenüde bulunmayan süre için varsayılan (canlı penceresi tahmini). */
 const DEFAULT_LEN_MS = 30 * 60 * 1000;
 
+/* Saniye → "H:MM:SS" (DEFAULT_STATE.raceTime stiliyle; parseHMS toleranslı okur). */
+const hmsOf = (sec) => {
+  let s = Math.max(0, Math.round(sec || 0));
+  const h = Math.floor(s / 3600); s -= h * 3600;
+  const m = Math.floor(s / 60); s -= m * 60;
+  return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+};
+
+/* Resmi yarış kaydını "Yarış Ekle" formuna (rForm) çevir — SAF, ÖN AYAR.
+   Kaynak (lmugarage) yalnız pist/başlangıç/süre/sınıf-listesi taşır → belirli ARAÇ
+   YOK: carId boş bırakılır (kullanıcı formda seçer). Çok sınıflı etkinlikte (ör.
+   Hypercar+LMGT3) ilk EŞLEŞEN sınıf ön-seçilir (kullanıcı değiştirebilir). Süre yalnız
+   günlük/haftalık kayıtlarda var (special/championship → null) → fallbackRaceTime.
+   trackId eşleşmediyse boş kalır → kullanıcı formdaki pist listesinden seçer. */
+export function officialRaceToForm(r, { seasonId = null, fallbackRaceTime = "2:24:00", classId } = {}) {
+  const norm = typeof classId === "function" ? classId : (x) => x;
+  const cls = (r?.classes || []).map(norm).find(Boolean) || "hypercar";
+  return {
+    rid: null,
+    seasonId: seasonId || null,
+    round: "",
+    name: r?.name || "",
+    trackId: r?.trackId || "",
+    carClass: cls,
+    carId: "",
+    raceTime: r?.lenSec > 0 ? hmsOf(r.lenSec) : fallbackRaceTime,
+    startsAt: r?.startMs || Date.now(),
+  };
+}
+
 /* Yarış durumu — mevcut saat (now, ms) ile başlangıç+süreye göre HESAPLANIR.
    "upcoming" | "live" | "completed". startMs yoksa güvenli varsayılan: upcoming. */
 export function raceStatus(r, now) {
