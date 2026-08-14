@@ -39,83 +39,130 @@ function resolve(names, regexes) {
   return null;
 }
 
-/* .duckdb (File/Blob) → dataset (duckParse/duckTrace sözleşmesi). Adaptör her şeyi
-   kapatır (conn/worker) — dataset düz veridir, bağlantı sızmaz. */
-export async function openDuck(file) {
-  const { db, worker } = await makeDB();
-  let conn;
+/* ---- Motor önbelleği (v1.8.0) ----
+   WASM instantiate pahalı (motor ~35 MB + worker kurulumu) ve eskiden HER .duckdb
+   açılışında sıfırdan yapılıp finally'de terminate ediliyordu — arka arkaya stint
+   dosyaları açan kullanıcı her seferinde saniyeler bekliyordu. Artık modül-seviyesi
+   singleton: ilk açılış kurar, sonrakiler anında; 5 dk boşta kalınca terminate
+   (bellek geri verilir). Her açılış BENZERSİZ dosya/katalog adı kullanır ve
+   finally'de DETACH + dropFile ile iz bırakmaz. Hata yolunda hard-reset: bozuk
+   motor sonraki açılışları zehirlemesin (eski davranışla aynı güvence). */
+let enginePromise = null;
+let idleTimer = null;
+let seq = 0;
+const IDLE_MS = 5 * 60 * 1000;
+
+function getEngine() {
+  if (!enginePromise) enginePromise = makeDB();
+  return enginePromise;
+}
+
+async function resetEngine() {
+  const p = enginePromise;
+  enginePromise = null;
+  clearTimeout(idleTimer); idleTimer = null;
+  if (!p) return;
   try {
-    const buf = new Uint8Array(await file.arrayBuffer());
-    await db.registerFileBuffer("t.duckdb", buf);
-    conn = await db.connect();
-    await conn.query("ATTACH 't.duckdb' AS tel (READ_ONLY);");
-    await conn.query("USE tel;");
-
-    const q = async (sql) => (await conn.query(sql)).toArray();
-    const col = async (table, cols) => {
-      const t = await conn.query(`SELECT ${cols} FROM "${table.replace(/"/g, '""')}"`);
-      return cols.split(",").map((c) => {
-        const child = t.getChild(c.trim());
-        return child ? Array.from(child.toArray(), numify) : [];
-      });
-    };
-
-    // kayıt tabloları
-    const meta = {};
-    for (const r of await q("SELECT key, value FROM metadata")) meta[r.key] = r.value;
-    const chList = await q("SELECT channelName, frequency FROM channelsList");
-    const hzOf = new Map(chList.map((r) => [r.channelName, Number(r.frequency)]));
-    const chNames = chList.map((r) => r.channelName);
-    const evNames = (await q("SELECT eventName FROM eventsList")).map((r) => r.eventName);
-
-    // ana saat → t0
-    const clockName = resolve(chNames, DUCK_CLOCK);
-    let t0 = 0, clockLen = 0, clockHz = 100;
-    if (clockName) {
-      const [cv] = await col(clockName, "value");
-      clockLen = cv.length; clockHz = hzOf.get(clockName) || 100;
-      if (cv.length) t0 = cv[0];
-    }
-
-    // sürekli kanallar (tek değer)
-    const cont = {};
-    let baseLen = 0, baseHz = 10;
-    for (const key of Object.keys(DUCK_CONT)) {
-      const name = resolve(chNames, DUCK_CONT[key]);
-      if (!name) continue;
-      const [v] = await col(name, "value");
-      const hz = hzOf.get(name) || 10;
-      cont[key] = { hz, v };
-      if (v.length > baseLen) { baseLen = v.length; baseHz = hz; }
-    }
-    // 4-köşe sürekli kanallar
-    const cont4 = {};
-    for (const key of Object.keys(DUCK_CONT4)) {
-      const name = resolve(chNames, DUCK_CONT4[key]);
-      if (!name) continue;
-      const v = await col(name, "value1,value2,value3,value4");
-      cont4[key] = { hz: hzOf.get(name) || 10, v };
-    }
-    // olay kanalları
-    const evt = {};
-    let minTs = Infinity;
-    for (const key of Object.keys(DUCK_EVT)) {
-      const name = resolve(evNames, DUCK_EVT[key]);
-      if (!name) continue;
-      const rows = await q(`SELECT ts, value FROM "${name.replace(/"/g, '""')}" ORDER BY ts`);
-      evt[key] = rows.map((r) => ({ ts: numify(r.ts), value: numify(r.value) }));
-      if (evt[key].length) minTs = Math.min(minTs, evt[key][0].ts);
-    }
-    if (!t0 && Number.isFinite(minTs)) t0 = minTs;   // saat yoksa en küçük olay ts'i
-
-    // veri sonu: saat ya da en uzun sürekli kanaldan
-    const dur = clockLen ? clockLen / clockHz : baseLen / baseHz;
-    const tEnd = t0 + dur;
-
-    return { meta, t0, tEnd, cont, cont4, evt };
-  } finally {
-    try { if (conn) await conn.close(); } catch { /* yut */ }
+    const { db, worker } = await p;
     try { await db.terminate(); } catch { /* yut */ }
     try { worker.terminate(); } catch { /* yut */ }
+  } catch { /* makeDB zaten patlamış — kapatılacak motor yok */ }
+}
+
+function armIdle() {
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(resetEngine, IDLE_MS);
+}
+
+/* .duckdb (File/Blob) → dataset (duckParse/duckTrace sözleşmesi). Bağlantı ve
+   geçici dosya açılış sonunda temizlenir — dataset düz veridir, bağlantı sızmaz. */
+export async function openDuck(file) {
+  clearTimeout(idleTimer);                      // açılış sürerken idle kapanmasın
+  const n = ++seq;
+  const fname = `t${n}.duckdb`, dbname = `tel${n}`;
+  try {
+    const { db } = await getEngine();
+    let conn;
+    try {
+      const buf = new Uint8Array(await file.arrayBuffer());
+      await db.registerFileBuffer(fname, buf);
+      conn = await db.connect();
+      await conn.query(`ATTACH '${fname}' AS ${dbname} (READ_ONLY);`);
+      await conn.query(`USE ${dbname};`);
+
+      const q = async (sql) => (await conn.query(sql)).toArray();
+      const col = async (table, cols) => {
+        const t = await conn.query(`SELECT ${cols} FROM "${table.replace(/"/g, '""')}"`);
+        return cols.split(",").map((c) => {
+          const child = t.getChild(c.trim());
+          return child ? Array.from(child.toArray(), numify) : [];
+        });
+      };
+
+      // kayıt tabloları
+      const meta = {};
+      for (const r of await q("SELECT key, value FROM metadata")) meta[r.key] = r.value;
+      const chList = await q("SELECT channelName, frequency FROM channelsList");
+      const hzOf = new Map(chList.map((r) => [r.channelName, Number(r.frequency)]));
+      const chNames = chList.map((r) => r.channelName);
+      const evNames = (await q("SELECT eventName FROM eventsList")).map((r) => r.eventName);
+
+      // ana saat → t0
+      const clockName = resolve(chNames, DUCK_CLOCK);
+      let t0 = 0, clockLen = 0, clockHz = 100;
+      if (clockName) {
+        const [cv] = await col(clockName, "value");
+        clockLen = cv.length; clockHz = hzOf.get(clockName) || 100;
+        if (cv.length) t0 = cv[0];
+      }
+
+      // sürekli kanallar (tek değer)
+      const cont = {};
+      let baseLen = 0, baseHz = 10;
+      for (const key of Object.keys(DUCK_CONT)) {
+        const name = resolve(chNames, DUCK_CONT[key]);
+        if (!name) continue;
+        const [v] = await col(name, "value");
+        const hz = hzOf.get(name) || 10;
+        cont[key] = { hz, v };
+        if (v.length > baseLen) { baseLen = v.length; baseHz = hz; }
+      }
+      // 4-köşe sürekli kanallar
+      const cont4 = {};
+      for (const key of Object.keys(DUCK_CONT4)) {
+        const name = resolve(chNames, DUCK_CONT4[key]);
+        if (!name) continue;
+        const v = await col(name, "value1,value2,value3,value4");
+        cont4[key] = { hz: hzOf.get(name) || 10, v };
+      }
+      // olay kanalları
+      const evt = {};
+      let minTs = Infinity;
+      for (const key of Object.keys(DUCK_EVT)) {
+        const name = resolve(evNames, DUCK_EVT[key]);
+        if (!name) continue;
+        const rows = await q(`SELECT ts, value FROM "${name.replace(/"/g, '""')}" ORDER BY ts`);
+        evt[key] = rows.map((r) => ({ ts: numify(r.ts), value: numify(r.value) }));
+        if (evt[key].length) minTs = Math.min(minTs, evt[key][0].ts);
+      }
+      if (!t0 && Number.isFinite(minTs)) t0 = minTs;   // saat yoksa en küçük olay ts'i
+
+      // veri sonu: saat ya da en uzun sürekli kanaldan
+      const dur = clockLen ? clockLen / clockHz : baseLen / baseHz;
+      const tEnd = t0 + dur;
+
+      return { meta, t0, tEnd, cont, cont4, evt };
+    } finally {
+      /* motoru DEĞİL, bu açılışın izlerini temizle: varsayılan kataloğa dön +
+         DETACH + geçici dosyayı bırak. Motor sıradaki açılış için sıcak kalır. */
+      try { if (conn) { await conn.query("USE memory;"); await conn.query(`DETACH ${dbname};`); } } catch { /* yut */ }
+      try { if (conn) await conn.close(); } catch { /* yut */ }
+      try { await db.dropFile(fname); } catch { /* yut */ }
+    }
+  } catch (e) {
+    await resetEngine();   // şüpheli motoru at — sonraki açılış temiz kurar
+    throw e;
+  } finally {
+    if (enginePromise) armIdle();
   }
 }
