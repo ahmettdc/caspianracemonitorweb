@@ -5,6 +5,20 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.8.0",
+    date: "2026-08-14",
+    tr: [
+      "⚡ Büyük performans sürümü — uygulama baştan sona hızlandırıldı. Açılış: başlangıçta indirilen kod yarıdan fazla küçüldü (sürüm notları, İngilizce sözlük, telemetri çözümleyicileri ve masaüstü köprü kodu artık yalnız gerektiğinde yüklenir); yazı tipleri sayfayla birlikte anında istenir; tema stilleri ekran geçişlerinde tekrar tekrar işlenmez. Girişten ana ekrana geçiş belirgin şekilde daha çabuk.",
+      "🏁 Canlı yarış akıcılığı: arayüz artık her saniye 8-10 kez değil, yalnız veri gerçekten değişince tazelenir. Pozisyon grafiği kare başına değil tur başına kurulur, zaman tablosu satırları geçişlerde sökülüp yeniden kurulmaz (görseller titremez), pist haritası hesapları önbelleklenir ve strateji hesabı tuş başına 3 yerine 1 kez koşar — uzun yarışlarda ısınma/yavaşlama hissi giderildi.",
+      "📈 Telemetri ekranı: oynatma (play) artık 7 grafiği saniyede 25 kez yeniden çizmiyor — yalnız oynatma çizgisi kayar, grafikler sabit durur; harita sürüklemeleri takılmaz, yapıştırılan MoTeC metni yazarken değil yazma bitince çözümlenir. .duckdb dosyalarında motor açılışlar arasında sıcak tutulur: ikinci ve sonraki dosyalar saniyeler yerine anında açılır.",
+    ],
+    en: [
+      "⚡ Big performance release — the app got faster end to end. Startup: the code downloaded at launch shrank by more than half (release notes, the English dictionary, telemetry parsers and the desktop bridge now load only when needed); fonts are requested with the page immediately; theme styles are no longer re-parsed on every screen transition. Login-to-app feels notably snappier.",
+      "🏁 Live race smoothness: the UI now refreshes only when data actually changes instead of 8-10 times per second. The position chart rebuilds once per lap rather than per frame, timing rows are no longer torn down on overtakes (no image flicker), track-map math is cached, and the strategy calculation runs once per keystroke instead of three times — the slow-down feel in long races is gone.",
+      "📈 Telemetry screen: playback no longer redraws all 7 charts 25 times a second — only the playhead moves while charts stay put; map dragging doesn't stutter, and pasted MoTeC text is parsed when you stop typing, not on every keystroke. For .duckdb files the engine stays warm between opens: the second and later files open instantly instead of taking seconds.",
+    ],
+  },
+  {
     v: "v1.7.5",
     date: "2026-08-14",
     tr: [
