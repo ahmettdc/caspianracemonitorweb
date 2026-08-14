@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.8.1",
+    date: "2026-08-14",
+    tr: [
+      "🗑 Ana menüden yarış silme: Takım Sahibi/Mühendis artık planlanan bir yarışı ana menüdeki kartından doğrudan silebilir (🗑 düğmesi) — önce Yönet penceresini açmaya gerek yok. Kazara silmeyi önlemek için 'Bu yarışı silmek istediğinize emin misiniz?' onayı çıkar. Görüntüleyicilerde düğme görünmez.",
+    ],
+    en: [
+      "🗑 Delete a race from the main menu: the Team Owner/Engineer can now delete a planned race straight from its card in the main menu (🗑 button) — no need to open the Manage panel first. A 'Are you sure you want to delete this race?' confirmation prevents accidental deletes. The button is hidden for viewers.",
+    ],
+  },
+  {
     v: "v1.8.0",
     date: "2026-08-14",
     tr: [

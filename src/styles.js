@@ -273,6 +273,13 @@ export const css = `
   margin-bottom:4px}
 .rc .racegrid .lseason{grid-column:1/-1;margin:6px 0 2px 2px}
 .rc .racegrid .lrace{margin-bottom:0;height:100%}
+/* yarış satırı + owner/editor sil düğmesi (kart butonunun kardeşi, iç içe değil) */
+.rc .lracewrap{display:flex;align-items:stretch;gap:6px}
+.rc .lracewrap .lrace{flex:1;min-width:0}
+.rc .lrdel{flex:0 0 auto;width:34px;border-radius:10px;background:transparent;
+  border:1px solid var(--line2);color:var(--dim);font-size:13px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center}
+.rc .lrdel:hover{border-color:#ff4d5e;color:#ff4d5e;background:var(--panel2)}
 .rc .lobbyfoot{max-width:520px;margin-left:auto;margin-right:auto}
 @media(max-width:720px){.rc .lobbygrid{grid-template-columns:1fr}}
 .rc .lrace{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;margin-bottom:6px;
@@ -360,6 +367,13 @@ export const css = `
 .rc .mmnext .mmncdd{font-family:var(--font-mono);font-weight:600;font-size:13px}
 .rc .mmnext .mmngo{background:var(--car);color:#fff;border-radius:8px;padding:6px 14px;
   font-family:var(--font-disp);font-weight:600;font-size:13px;white-space:nowrap}
+/* sıradaki yarış hero + owner/editor sil düğmesi (tam boy sağ sütun, kardeş) */
+.rc .mmnextwrap{display:flex;align-items:stretch;gap:8px}
+.rc .mmnextwrap .mmnext{flex:1;min-width:0}
+.rc .mmdel{flex:0 0 auto;width:46px;border-radius:13px;background:var(--panel);
+  border:1px solid var(--line2);color:var(--dim);font-size:17px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center}
+.rc .mmdel:hover{border-color:#ff4d5e;color:#ff4d5e;background:var(--panel2)}
 .rc .mmpasthd{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .rc .mmpasthd .mmsec{margin:18px 0 9px}
 .rc .mmsrch{margin-left:auto;background:var(--panel2);border:1px solid var(--line);
