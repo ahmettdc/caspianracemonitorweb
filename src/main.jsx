@@ -2,9 +2,17 @@ import { StrictMode, Component } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
 import { isTauri } from "./tauriEnv";
+import { css } from "./styles";
+
+/* Tema CSS'i boot'ta BİR KEZ <head>'e basılır. Eskiden her gate dalı kendi
+   <style>{css}</style>'ını taşıyordu → her ekran geçişinde ~80 KB CSS'in
+   CSSOM'da yeniden parse'ı + geçici stilsiz kare. Tek kalıcı düğümle ikisi de yok. */
+const themeStyle = document.createElement("style");
+themeStyle.textContent = css;
+document.head.appendChild(themeStyle);
 
 /* Hata sınırı: bir render hatası tüm uygulamayı karartmasın.
-   Tema CSS'i App içinde olduğundan fallback kendi stilini taşır. */
+   Fallback yine kendi inline stilini taşır — tema CSS'ine bağımlı kalmasın. */
 class ErrorBoundary extends Component {
   constructor(props) {
     super(props);

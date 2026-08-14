@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { classId, classAccent, CAR_CLASSES } from "../constants";
 import { wetnessLevel, rainLevel, WEATHER } from "../engine";
 import { WetIcon } from "../WetIcon";
@@ -150,9 +150,7 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
   }
 
   const bins = acc.current.bins;
-  const idx = Object.keys(bins).map(Number).sort((a, b) => a - b);
-  const pts = idx.map((i) => bins[i]);
-  const binCount = idx.length;
+  const binCount = Object.keys(bins).length;
 
   /* şekil olgunlaşınca (≈%90 kutu) takımca paylaş — owner/editor yazar, tur başına
      değil bir kez (yeni kutular geldikçe 2 sn debounce ile). Viewer yalnız okur. */
@@ -195,21 +193,31 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
     return () => clearTimeout(id);
   }, [canSave, tid, trackKey, pitStr]);
 
-  // iç şekil dönüşümü (dünya x/z → ekran), pist bbox'una göre ölçekli
-  let toScreen = null, outline = "";
-  if (pts.length >= NB * 0.45) {
-    const xs = pts.map((p) => p.x), zs = pts.map((p) => p.z);
-    const minX = Math.min(...xs), maxX = Math.max(...xs);
-    const minZ = Math.min(...zs), maxZ = Math.max(...zs);
-    const spanX = maxX - minX || 1, spanZ = maxZ - minZ || 1;
-    const sc = Math.min((PAD * 2) / spanX, (PAD * 2) / spanZ);
-    const mx = (minX + maxX) / 2, mz = (minZ + maxZ) / 2;
-    toScreen = (x, z) => [cx + (x - mx) * sc, cy - (z - mz) * sc];  // z yukarı
-    outline = pts.map((p, i) => {
-      const [sx, sy] = toScreen(p.x, p.z);
-      return `${i ? "L" : "M"}${sx.toFixed(1)} ${sy.toFixed(1)}`;
-    }).join(" ") + " Z";
-  }
+  /* iç şekil dönüşümü (dünya x/z → ekran), pist bbox'una göre ölçekli.
+     Geometri memo (v1.8.0): bins yalnız YENİ kutu kazanır (mevcut güncellenmez)
+     ve trackKey değişince sıfırlanır → binCount+trackKey doğru önbellek anahtarı.
+     240 kutuluk sort + minmax spread'leri + outline path string'i eskiden her
+     canlı karede yeniden kuruluyordu; artık yalnız şekil gerçekten büyüyünce. */
+  const { pts, toScreen, outline } = useMemo(() => {
+    const idx = Object.keys(bins).map(Number).sort((a, b) => a - b);
+    const pts = idx.map((i) => bins[i]);
+    let toScreen = null, outline = "";
+    if (pts.length >= NB * 0.45) {
+      const xs = pts.map((p) => p.x), zs = pts.map((p) => p.z);
+      const minX = Math.min(...xs), maxX = Math.max(...xs);
+      const minZ = Math.min(...zs), maxZ = Math.max(...zs);
+      const spanX = maxX - minX || 1, spanZ = maxZ - minZ || 1;
+      const sc = Math.min((PAD * 2) / spanX, (PAD * 2) / spanZ);
+      const mx = (minX + maxX) / 2, mz = (minZ + maxZ) / 2;
+      toScreen = (x, z) => [cx + (x - mx) * sc, cy - (z - mz) * sc];  // z yukarı
+      outline = pts.map((p, i) => {
+        const [sx, sy] = toScreen(p.x, p.z);
+        return `${i ? "L" : "M"}${sx.toFixed(1)} ${sy.toFixed(1)}`;
+      }).join(" ") + " Z";
+    }
+    return { pts, toScreen, outline };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [binCount, trackKey]);
 
   // dış halka açısı: lapDist oranı → tepeden saat yönünde
   const ringXY = (lapDist) => {
@@ -254,7 +262,7 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
   };
 
   const building = pts.length < NB * 0.45;
-  const count = building ? t("iç harita oluşturuluyor…") : `${idx.length}/${NB}`;
+  const count = building ? t("iç harita oluşturuluyor…") : `${binCount}/${NB}`;
 
   /* SEKTÖR AYIRICILARI — sınır oranı f için: dış halkada radyal tik + etiket, iç şekilde
      pisti dik kesen kısa çizgi. Tik yönü: dış = merkezden dışa; iç = teğete dik
@@ -470,8 +478,11 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
 
   return (<>
     <div className="card" data-tour="livemap" style={{ marginBottom: 12 }}>
-      {/* en üstte gömülü içerik (strateji şeridi) — ayrı kart yerine harita kutusunda */}
-      {topSlot}
+      {/* en üstte gömülü içerik (strateji şeridi) — ayrı kart yerine harita kutusunda.
+          Modal açıkken kart gövdesi (topSlot + svg) RENDER EDİLMEZ: modal kartı
+          zaten örtüyor; eskiden iki SVG ağacı + iki StrategyBar her canlı karede
+          birlikte güncelleniyordu (çift maliyet). */}
+      {!zoom && topSlot}
       <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
         🗺 {t("Pist Haritası")}
         <span className="hint" style={{ margin: 0, fontWeight: 400 }}>{count}</span>
@@ -479,11 +490,13 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
           title={t("Haritayı büyük pencerede aç")}
           onClick={() => setZoom(true)}>⛶ {t("Büyüt")}</button>
       </h2>
-      <div style={{ display: "flex", justifyContent: "center", position: "relative" }}>
-        {conditionBadge}
-        <svg viewBox="0 0 520 520" width="100%" style={{ maxWidth: 460 }}
-          role="img" aria-label={t("Canlı pist haritası")}>{svgKids}</svg>
-      </div>
+      {!zoom && (
+        <div style={{ display: "flex", justifyContent: "center", position: "relative" }}>
+          {conditionBadge}
+          <svg viewBox="0 0 520 520" width="100%" style={{ maxWidth: 460 }}
+            role="img" aria-label={t("Canlı pist haritası")}>{svgKids}</svg>
+        </div>
+      )}
     </div>
 
     {zoom && (

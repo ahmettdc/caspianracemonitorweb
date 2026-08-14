@@ -6,7 +6,6 @@ import {
   CAR_CLASSES, CARS, trackName, carImg, carName, brandLogo,
   APP_VERSION, REPO_URL, PIE_COLORS,
 } from "./constants";
-import { CHANGELOG } from "./changelog";
 import { msToLocalInput, parseLap, fmtLap } from "./engine";
 import { SETUP_LIMITS, poolEmptyReason, lapDeltas } from "./setupPool";
 import { trackOptions, classOptions, carOptions } from "./pickerOptions";
@@ -902,9 +901,22 @@ export function Tyre({ size = 16 }) {
   );
 }
 
-/* Sürüm notları penceresi — CHANGELOG'u listeler. App.jsx'ten çıkarıldı; durum
-   tutmaz, tüm veri prop ile gelir. open=false iken null döner. */
+/* Sürüm notları penceresi — CHANGELOG'u listeler. App.jsx'ten çıkarıldı.
+   changelog.js uygulamanın EN BÜYÜK modülü (~190 KB kaynak) ve yalnız bu modalda
+   gerekiyor → başlangıç paketine girmesin diye modal AÇILINCA dynamic import ile
+   yüklenir, modül-seviyesi cache ile sonraki açılışlar anında. */
+let CHANGELOG_CACHE = null;
 export function VersionModal({ open, onClose, t, lang, onStartGuide }) {
+  const [list, setList] = useState(CHANGELOG_CACHE);
+  useEffect(() => {
+    if (!open || CHANGELOG_CACHE) return undefined;
+    let on = true;
+    import("./changelog").then((m) => {
+      CHANGELOG_CACHE = m.CHANGELOG;
+      if (on) setList(m.CHANGELOG);
+    });
+    return () => { on = false; };
+  }, [open]);
   if (!open) return null;
   return (
     <div className="wxmodal" onClick={onClose}>
@@ -915,7 +927,8 @@ export function VersionModal({ open, onClose, t, lang, onStartGuide }) {
           <button className="lbclose" onClick={onClose}>✕</button>
         </div>
         <div className="wxmlist" style={{ padding: 0, maxHeight: "62vh" }}>
-          {CHANGELOG.map((c) => (
+          {!list && <div className="hint" style={{ padding: 16 }}>{t("Yükleniyor…")}</div>}
+          {(list || []).map((c) => (
             <div className="clgv" key={c.v}>
               <h4>{c.v}{c.v === APP_VERSION &&
                 <span className="cur">{t("ŞU AN")}</span>}</h4>

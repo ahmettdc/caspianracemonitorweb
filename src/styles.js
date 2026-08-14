@@ -1,6 +1,7 @@
-/* Global tema / CSS — App.jsx tarafindan bir kez <style> olarak enjekte edilir. */
+/* Global tema / CSS — main.jsx tarafından boot'ta bir kez <head>'e enjekte edilir.
+   Fontlar index.html'deki <link> ile gelir (@import buradan kaldırıldı — JS'ten
+   keşfedilen font isteği ilk boyamayı geciktiriyordu). */
 export const css = `
-@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
 :root{
   /* Pit Wall OS — #960018 merkezli, koyu + sıcak "pit-wall" kimliği (konseptten).
      Zemin sıcak yakın-siyah, paneller bürgündi; marka #960018, etkileşim lift'i

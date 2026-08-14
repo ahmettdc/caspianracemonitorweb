@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef, lazy, Suspense, Fragment } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback, lazy, Suspense, Fragment } from "react";
 import UpdateBanner from "./UpdateBanner";
 import { isTauri } from "./tauriEnv";
 import { useLiveBridge } from "./useLiveBridge";
@@ -34,8 +34,6 @@ import {
   WEATHER, wxLog, wxAtRel, WX, effCons, tyState,
   computePlan, migrate, lastStintFuel,
 } from "./engine";
-import { css } from "./styles";
-import { EN } from "./i18n";
 import {
   SLOT_COLORS, APP_VERSION, SEEN_VER_KEY, ASSET, AV,
   TRACKS, PIT_LANE_TIMES, TRACK_ASSET, trackFlag,
@@ -60,6 +58,19 @@ import {
   CommandPalette,
 } from "./components";
 import { WetIcon } from "./WetIcon";
+
+/* ---- i18n sözlüğü lazy (v1.8.0) ----
+   EN sözlüğü ~70 KB kaynak ve yalnız lang==="en" iken okunur; başlangıç
+   paketinden çıkarıldı. Varsayılan dil "en" olduğundan boot'ta (modül yüklenir
+   yüklenmez, React'ten önce) paralel import başlatılır → chunk neredeyse her
+   zaman Firebase auth round-trip'inden önce gelir. TR kullanıcı hiç indirmez.
+   Auth kapısındaki langReady, EN kullanıcının bir an bile Türkçe metin
+   görmemesini garanti eder. */
+let EN_CACHE = null;
+const wantsEN = (() => {
+  try { return (localStorage.getItem("crm-lang") || "en") === "en"; } catch { return true; }
+})();
+if (wantsEN) import("./i18n").then((m) => { EN_CACHE = m.EN; });
 
 /* Sekmeler talep üzerine yüklenir (kod bölme) — ilk bundle küçülür,
    recharts yalnız Telemetri açılınca gelir. */
@@ -159,7 +170,23 @@ export default function App() {
   const [lang, setLang] = useState(() => {
     try { return localStorage.getItem("crm-lang") || "en"; } catch { return "en"; }
   });
-  const t = (str) => (lang === "en" ? (EN[str] ?? str) : str);
+  /* EN sözlüğü lazy geldiğinden state'e bağlanır; boot'taki paralel import
+     çoğu zaman ilk render'dan önce bitmiştir (EN_CACHE dolu başlar). TR→EN
+     geçişinde effect chunk'ı yükler (modül cache'i sayesinde anında). */
+  const [dict, setDict] = useState(EN_CACHE);
+  useEffect(() => {
+    if (lang !== "en" || dict) return undefined;
+    if (EN_CACHE) { setDict(EN_CACHE); return undefined; }
+    let on = true;
+    import("./i18n").then((m) => { EN_CACHE = m.EN; if (on) setDict(m.EN); });
+    return () => { on = false; };
+  }, [lang, dict]);
+  /* t useCallback: kimliği yalnız dil/sözlük değişince değişir — alt ağaçlardaki
+     memo'ların (PosChart, TraceRow…) boşuna kırılmaması için ön şart. */
+  const t = useCallback(
+    (str) => (lang === "en" ? ((dict || EN_CACHE)?.[str] ?? str) : str),
+    [lang, dict]);
+  const langReady = lang !== "en" || !!(dict || EN_CACHE);
   const switchLang = (l) => {
     setLang(l);
     try { localStorage.setItem("crm-lang", l); } catch {}
@@ -282,9 +309,15 @@ export default function App() {
   const clearLaps = (i) => edit((s0) => applyClearLaps(s0, i));
 
   const mode = tab === "code80" ? "code80" : "race";
-  const plan = useMemo(() => computePlan(st, mode), [st, mode]);
+  /* computePlan pahalı (tur-tur yürüyüş × sabit-nokta döngüsü). Eskiden her st
+     değişiminde 3 kez koşuyordu (plan + racePlan + lsf içindeki üçüncü çağrı);
+     race modunda plan === racePlan ve lsf'nin ihtiyacı zaten racePlan.flagExtra →
+     tek çağrıya indirildi (code80 sekmesinde 2). */
   const racePlan = useMemo(() => computePlan(st, "race"), [st]);
-  const lsf = useMemo(() => lastStintFuel(st.lastStintCountdown, st, computePlan(st, "race").flagExtra), [st]);
+  const plan = useMemo(() => (mode === "race" ? racePlan : computePlan(st, mode)),
+    [st, mode, racePlan]);
+  const lsf = useMemo(() => lastStintFuel(st.lastStintCountdown, st, racePlan.flagExtra),
+    [st, racePlan]);
   const lsf80 = useMemo(() => lastStintFuel(st.code80LastStint, st), [st]);
   /* Toplam VE = satırların tur-tur (gerçek havayla) yürütülmüş toplamı + güvenlik turu.
      Eskiden `effCons × totalLaps` idi; effCons yalnız EN GÜNCEL havayı uygular →
@@ -403,13 +436,25 @@ export default function App() {
      tam-ağaç render'ı boşuna (kimse bakmıyor). pausedRef, paused hesaplandıktan sonra
      doldurulur (aşağıda); interval çalışır ama duraklıyken setNow atlanır. */
   const pausedRef = useRef(false);
+  /* Saat kapısı (v1.8.0): now'un tek tüketicisi liveInfo ve idle/done'da tüm
+     değerleri statik → geri sayım yokken saniyelik setNow (= tam-App render)
+     atlanır. pre/live'a dönüşte effect taze setNow ile yeniden tohumlar. */
+  const clockNeededRef = useRef(true);
   useEffect(() => {
-    const iv = setInterval(() => { if (!pausedRef.current) setNow(Date.now()); }, 1000);
+    const iv = setInterval(() => {
+      if (pausedRef.current || !clockNeededRef.current) return;
+      setNow(Date.now());
+    }, 1000);
     return () => clearInterval(iv);
   }, []);
 
   const liveInfo = useMemo(() => computeLiveInfo(st, racePlan, now),
     [now, st.raceStartMs, st.driverAssign, st.actualPits, st.pitRepairs, st.autoOvr, racePlan]);
+  useEffect(() => {
+    const needed = liveInfo.status === "pre" || liveInfo.status === "live";
+    if (needed && !clockNeededRef.current) setNow(Date.now());   // durmuş saati tazele
+    clockNeededRef.current = needed;
+  }, [liveInfo.status]);
 
   /* --- gerçek pit işaretleme (sadece düzenleyici) --- */
   const canEdit = !curRace || role === "editor";
@@ -1175,12 +1220,14 @@ ${bottomBar}
   const [wxPlanW, setWxPlanW] = useState("wet"); // planlı geçiş: hava
   const [wxPlanT, setWxPlanT] = useState("");    // planlı geçiş: yarış saati
   const [zoom, setZoom] = useState(null); // "car" | "track" | null — kart büyütme (lightbox)
-  /* LMU referans verisi (Ohne Speed tablosundan gömülü JSON) */
+  /* LMU referans verisi (Ohne Speed tablosundan gömülü JSON) — 47 KB; giriş/izin
+     ekranlarında gerekmez → yalnız erişim onaylanınca çekilir. */
   const [lmuData, setLmuData] = useState(null);
   useEffect(() => {
+    if (!access && authReady) return;   // authReady=false (yapılandırmasız dev) → kapı yok, hemen çek
     fetch(`${ASSET}lmu-data.json`).then((r) => (r.ok ? r.json() : null))
       .then((j) => setLmuData(j)).catch(() => {});
-  }, []);
+  }, [access]);
   const lmuSuggest = (() => {
     const d = lmuData?.data?.[st.track];
     if (!d) return null;
@@ -1215,7 +1262,7 @@ ${bottomBar}
   const upcomingIsLast = liveInfo.status === "live"
     && liveInfo.stintIdx >= racePlan.rows.length - 2;
 
-  const timeline = buildTimeline(plan);
+  const timeline = useMemo(() => buildTimeline(plan), [plan]);
 
   /* yarış ekleme / düzenleme penceresi → RaceEditModal (sunum); kaydetme iş
      mantığı burada (createRace/updateRace + init state hazırlığı). */
@@ -1447,11 +1494,14 @@ ${bottomBar}
     </div>
   </>);
 
-  /* ---------- giriş kapısı: oturum yoksa uygulama açılmaz ---------- */
-  if (authReady && (authLoading || !user)) {
+  /* ---------- giriş kapısı: oturum yoksa uygulama açılmaz ----------
+     langReady: EN sözlüğü lazy geldiğinden, EN kullanıcı sözlük inene dek
+     (auth beklemesiyle aynı görsel) yükleme durumunda tutulur — Türkçe metin
+     parlaması olmaz. Chunk aynı origin'den geldiği için bu bekleme pratikte
+     auth'tan önce biter. */
+  if (authReady && (authLoading || !langReady || !user)) {
     return (
       <div className="rc">
-        <style>{css}</style>
         <UpdateBanner t={t} />
         {teamModal}{createJoinModal}{raceForm}
         <div className="lobby">
@@ -1459,7 +1509,7 @@ ${bottomBar}
             <img className="logo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
             <h1><b>RACE</b> MONITOR</h1>
             <div className="sub">{APP_VERSION}</div>
-            {authLoading ? (
+            {(authLoading || !langReady) ? (
               <div className="hint" style={{ marginTop: 22 }}>{t("Yükleniyor…")}</div>
             ) : (<>
               <div className="hint" style={{ margin: "18px 0 14px" }}>
@@ -1492,7 +1542,6 @@ ${bottomBar}
   if (authReady && user && !access) {
     return (
       <div className="rc">
-        <style>{css}</style>
         <UpdateBanner t={t} />
         {teamModal}{createJoinModal}{raceForm}
         <div className="lobby">
@@ -1625,7 +1674,6 @@ ${bottomBar}
 
     return (
       <div className="rc">
-        <style>{css}</style>
         <UpdateBanner t={t} />
         {teamModal}{createJoinModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}{cmdPalette}
         <div className="lobby">
@@ -1868,7 +1916,6 @@ ${bottomBar}
     const cls = st.carClass || "hypercar";
     return (
       <div className="rc">
-        <style>{css}</style>
         <UpdateBanner t={t} />
         <div className="lobby" style={{ alignItems: "flex-start", paddingTop: 40 }}>
           <div className="box" style={{ maxWidth: 720 }}>
@@ -1947,7 +1994,6 @@ ${bottomBar}
   if (!setupDone) {
     return (
       <div className="rc">
-        <style>{css}</style>
         <UpdateBanner t={t} />
         <div className="lobby" style={{ alignItems: "flex-start", paddingTop: 40 }}>
           <div className="box" style={{ maxWidth: 560 }}>
@@ -1979,7 +2025,6 @@ ${bottomBar}
 
   return (
     <div className="rc">
-      <style>{css}</style>
       <UpdateBanner t={t} />
       {teamModal}{createJoinModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{streamPlayer}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}
       {denyToast}{cmdPalette}

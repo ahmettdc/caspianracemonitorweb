@@ -12,12 +12,12 @@
        setMapping, onTeleFile, doParse, apply105Slot, saveMotec, saveSlot, toggleLap,
        removeSlot, slotStats, chartData, loadedSlots, baseSlot }. */
 import { useState, useMemo, useEffect, useRef } from "react";
-import { msFromCell, parseMotecLog, parseTelemetryText, guessMapping } from "./parsers";
-import { parseLd } from "./ldParser";
-import { buildReaders, buildTrace, buildCompare } from "./ldTrace";
-import { duckLaps, duckMeta } from "./duckParse";        // saf — WASM'sız
-import { buildDuckReaders, buildDuckTrace } from "./duckTrace";
 import { computeSlotStats, computeChartData, apply105Rule } from "./state";
+
+/* Parser modülleri (parsers/ldParser/ldTrace/duckParse/duckTrace, ~48 KB kaynak)
+   başlangıç paketinden çıkarıldı — yalnız dosya/metin içe aktarılınca dynamic
+   import ile gelir, modül cache'i sonraki kullanımları anında yapar. TeleTab
+   zaten lazy'ydi; statik importlar bu kazanımı sızdırıyordu. */
 
 export function useTelemetry({ st, setSt }) {
   const [slot, setSlot] = useState("A");
@@ -47,11 +47,13 @@ export function useTelemetry({ st, setSt }) {
   const readersRef = useRef(new Map());   // File → readers (kimlikle önbellek; bayatlamaz)
 
   const doParse = (text) => {
-    const m = parseMotecLog(text);          // önce ham kanal log'u dene
-    if (m) { setParsed(m); setMapping(null); return; }
-    const p = parseTelemetryText(text);
-    setParsed(p);
-    if (p && !p.error) setMapping(guessMapping(p));
+    import("./parsers").then(({ parseMotecLog, parseTelemetryText, guessMapping }) => {
+      const m = parseMotecLog(text);          // önce ham kanal log'u dene
+      if (m) { setParsed(m); setMapping(null); return; }
+      const p = parseTelemetryText(text);
+      setParsed(p);
+      if (p && !p.error) setMapping(guessMapping(p));
+    });
   };
   const onTeleFile = (e) => {
     const f = e.target.files?.[0];
@@ -65,9 +67,9 @@ export function useTelemetry({ st, setSt }) {
       setParsed({ loading: true, duck: true });
       setCmpASrc("cur"); setCmpBSrc("cur");
       setCmpData(null); setCmpLaps(null); setCmpMeta(null); setTeleFile(null); setTeleHeader(null);
-      import("./duckdb")
-        .then(({ openDuck }) => openDuck(f))
-        .then((ds) => {
+      Promise.all([import("./duckdb"), import("./duckParse")])
+        .then(([{ openDuck }, dp]) => Promise.all([openDuck(f), dp]))
+        .then(([ds, { duckLaps, duckMeta }]) => {
           const laps = duckLaps(ds);
           const meta = duckMeta(ds);
           if (!laps.length) { setParsed({ error: "DuckDB: geçerli tur bulunamadı" }); return; }
@@ -95,7 +97,8 @@ export function useTelemetry({ st, setSt }) {
       setParsed({ loading: true });
       setCmpASrc("cur"); setCmpBSrc("cur");   // yeni yüklemede kaynak = güncel dosya
       setCmpData(null); setCmpLaps(null); setCmpMeta(null); setTeleFile(null); setTeleHeader(null);
-      parseLd(f)
+      import("./ldParser")
+        .then(({ parseLd }) => parseLd(f))
         .then((res) => {
           setParsed(res);
           if (res && res.motec) {
@@ -133,7 +136,9 @@ export function useTelemetry({ st, setSt }) {
     if (!m.has(file)) {
       /* .duckdb: okuyucular bellek-içi dataset'ten (senkron, ucuz) → promise'e sar.
          .ld: byte-slice okuyucular (async). Karışık kaynak (biri .ld biri .duckdb) desteklenir. */
-      m.set(file, header?.duck ? Promise.resolve(buildDuckReaders(header.duck)) : buildReaders(file, header));
+      m.set(file, header?.duck
+        ? import("./duckTrace").then(({ buildDuckReaders }) => buildDuckReaders(header.duck))
+        : import("./ldTrace").then(({ buildReaders }) => buildReaders(file, header)));
     }
     return m.get(file);
   };
@@ -148,11 +153,16 @@ export function useTelemetry({ st, setSt }) {
     setCmpBusy(true);
     (async () => {
       try {
+        const needDuck = sA.header?.duck || sB.header?.duck;
+        const [ld, dk] = await Promise.all([
+          import("./ldTrace"),                                  // buildTrace + buildCompare
+          needDuck ? import("./duckTrace") : null,
+        ]);
         const rA = await getReaders(sA.file, sA.header);
         const rB = (sA.file === sB.file) ? rA : await getReaders(sB.file, sB.header);
-        const tA = sA.header?.duck ? buildDuckTrace : buildTrace;   // kaynağa göre iz fonksiyonu
-        const tB = sB.header?.duck ? buildDuckTrace : buildTrace;
-        const cmp = buildCompare(tA(rA, sA.laps[cmpA]), tB(rB, sB.laps[cmpB]));
+        const tA = sA.header?.duck ? dk.buildDuckTrace : ld.buildTrace;   // kaynağa göre iz fonksiyonu
+        const tB = sB.header?.duck ? dk.buildDuckTrace : ld.buildTrace;
+        const cmp = ld.buildCompare(tA(rA, sA.laps[cmpA]), tB(rB, sB.laps[cmpB]));
         if (alive) setCmpData(cmp);
       } catch { if (alive) setCmpData(null); }
       finally { if (alive) setCmpBusy(false); }
@@ -198,8 +208,9 @@ export function useTelemetry({ st, setSt }) {
     setSavedMsg(slot);
   };
 
-  const saveSlot = () => {
+  const saveSlot = async () => {
     if (!parsed || parsed.error || !mapping || mapping.timeCol < 0) return;
+    const { msFromCell } = await import("./parsers");
     const laps = parsed.lapRows.map((r) => {
       const label = String(r[mapping.labelCol] || "").trim();
       const ms = msFromCell(r[mapping.timeCol]);

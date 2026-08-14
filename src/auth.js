@@ -9,7 +9,6 @@ import {
 } from "firebase/auth";
 import { firebaseConfig } from "./firebase-config";
 import { isTauri } from "./tauriEnv";
-import { signInGoogleNative } from "./tauriGoogleAuth";
 
 export const authReady =
   !!firebaseConfig?.apiKey && !String(firebaseConfig.apiKey).includes("XXXX");
@@ -33,6 +32,9 @@ provider.setCustomParameters({ prompt: "select_account" });
 export async function signInGoogle() {
   if (!auth) throw new Error("Firebase Auth yapılandırılmamış");
   if (isTauri) {
+    /* Dinamik import: tauriGoogleAuth (@tauri-apps/api ile birlikte) yalnız
+       masaüstünde, giriş tıklandığında yüklenir — web paketine girmez. */
+    const { signInGoogleNative } = await import("./tauriGoogleAuth");
     return await signInGoogleNative(auth);
   }
   try {

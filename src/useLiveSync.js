@@ -53,7 +53,7 @@ export function useLiveSync({ live, st, liveInfo, up, markPit, canEdit, user }) 
     const amWriter = !!live?.by && !!user?.email && live.by === user.email;
 
     const d = clockDriftSec(st, live?.session, now);
-    setDrift(d);
+    setDrift((p) => (p === d ? p : d));   // skaler/null — değişmediyse render tetikleme
 
     if (!canEdit || !amWriter || !isRace) return;
 
