@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.8.3",
+    date: "2026-08-14",
+    tr: [
+      "🏳️ Resmi Yarışlar: pist adının yanında emoji bayrak yerine bayrak görseli (PNG) gösteriliyor. Emoji bayraklar Windows'ta \"BE / ES / IT / FR\" gibi harf kısaltmalarına düşüyordu; artık ana menüdeki gibi gerçek bayrak resmi görünür (yarış kartları + \"Sıradaki Resmi Yarış\" özeti).",
+    ],
+    en: [
+      "🏳️ Official Races: the flag next to the track name is now a flag image (PNG) instead of an emoji flag. Emoji flags fell back to letter codes like \"BE / ES / IT / FR\" on Windows; now a real flag image shows, matching the main menu (race cards + the \"Next Official Race\" summary).",
+    ],
+  },
+  {
     v: "v1.8.2",
     date: "2026-08-14",
     tr: [

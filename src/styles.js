@@ -1168,6 +1168,9 @@ export const css = `
   background:var(--panel);border:1px solid var(--line2);color:var(--dim)}
 .rc .sch-venue{font-size:12px;color:var(--dim)}
 .rc .sch-venue .sch-len{color:var(--muted);margin-left:4px}
+/* pist bayrağı — emoji flag Windows'ta "BE/FR" harflerine düşüyordu → PNG asset */
+.rc .sch-flag{width:19px;height:13px;object-fit:cover;border-radius:2px;
+  border:1px solid var(--line);vertical-align:-2px;margin-right:5px}
 .rc .sch-side{display:flex;align-items:center;gap:8px;flex:none;margin-left:auto}
 .rc .sch-sr{font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:6px;
   border:1px solid var(--line);color:var(--dim);white-space:nowrap}
