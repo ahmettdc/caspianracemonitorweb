@@ -32,6 +32,7 @@ export const EN = {
   "Sıralama süresi": "Qualifying length",
   "dk formasyon": "min formation",
   "Yarış başı": "Race start",
+  "Lastik seti": "Tyre sets",
   "Günlük": "Daily",
   "Haftalık": "Weekly",
   "Özel": "Special",

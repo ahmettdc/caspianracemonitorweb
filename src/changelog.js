@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.7.7",
+    date: "2026-08-14",
+    tr: [
+      "🛞 Resmi Yarış ön ayarı lastik seti sınırını da otomatik dolduruyor: lmugarage yarış sayfasındaki 'Tyre sets' değeri (ör. 8) çekiliyor; 📋 formunda 'Lastik seti' alanı dolu gelir ve Kaydet'te lastik bütçesine (Lastik sekmesindeki set sınırı) uygulanır. Değer düzenlenebilir; site vermezse mevcut varsayılan kalır.",
+    ],
+    en: [
+      "🛞 Official-race preset now also auto-fills the tyre-set limit: the 'Tyre sets' value on the lmugarage race page (e.g. 8) is captured; the 📋 form's 'Tyre sets' field comes pre-filled and, on Save, is applied to the tyre budget (the set limit on the Tyres tab). Editable; if the site doesn't provide it, the existing default stays.",
+    ],
+  },
+  {
     v: "v1.7.6",
     date: "2026-08-14",
     tr: [

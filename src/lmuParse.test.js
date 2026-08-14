@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  parseRacingToday, parseCardsPage, parseRaceWeekend, mapTrackId, parseLenSec,
+  parseRacingToday, parseCardsPage, parseRaceWeekend, parseTyreSets, mapTrackId, parseLenSec,
   slugFromHref, normLabel,
 } from "./lmuParse";
 
@@ -192,5 +192,23 @@ describe("parseRaceWeekend — detay sayfası 'Race weekend' paneli (v1.7.6)", (
     expect(parseRaceWeekend("<div>no sessions</div>")).toEqual(
       { practiceSec: null, qualSec: null, raceSec: null });
     expect(parseRaceWeekend("")).toEqual({ practiceSec: null, qualSec: null, raceSec: null });
+  });
+});
+
+describe("parseTyreSets — detay 'Tyre sets' kutucuğu (v1.7.7)", () => {
+  it("değeri int olarak çıkarır", () => {
+    const h = `<div class="tile"><svg></svg><div class="t-txt">
+      <span class="t-val">8</span><span class="t-lab">Tyre sets</span></div></div>`;
+    expect(parseTyreSets(h)).toBe(8);
+  });
+  it("yok / 0 / bozuk → null", () => {
+    expect(parseTyreSets("<div>no tile</div>")).toBe(null);
+    expect(parseTyreSets("")).toBe(null);
+    expect(parseTyreSets(`<span class="t-val">0</span><span class="t-lab">Tyre sets</span>`)).toBe(null);
+  });
+  it("başka kutucuk (Grid) 'Tyre sets' ile karışmaz", () => {
+    const h = `<span class="t-val">38</span><span class="t-lab">Grid</span>
+      <span class="t-val">8</span><span class="t-lab">Tyre sets</span>`;
+    expect(parseTyreSets(h)).toBe(8);
   });
 });
