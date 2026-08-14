@@ -8,7 +8,9 @@
    curRace'e dokunmaz. Sayfa yenilense de doğrudan buraya girilebilir (race state gerekmez).
 
    SAF SUNUM: kendi hook'u YOK — App'teki useLmuSchedule çıktısı prop olarak verilir.
-   onPlan geçilmez → saf takvim görüntüleyici (race-state'e sıfır bağımlılık).
+   onPlan (v1.7.3): bir resmi yarışı ÖN AYAR olarak kullan → App bunu "Yarış Ekle"
+   formuna doldurup takvimi kapatır. Takım seçili değilse App onPlan geçmez →
+   kartlarda 📋 butonu görünmez (takımsız yarış oluşturulamaz).
    ============================================================ */
 import { lazy, Suspense } from "react";
 import { css } from "./styles";
@@ -18,7 +20,7 @@ import { Icon, Btn } from "./components";
 const ScheduleTab = lazy(() => import("./tabs/ScheduleTab"));
 
 export default function ScheduleStandalone({
-  t, lang, switchLang, races, updatedAt, loading, onExit,
+  t, lang, switchLang, races, updatedAt, loading, onExit, onPlan,
 }) {
   return (
     <div className="rc">
@@ -42,7 +44,7 @@ export default function ScheduleStandalone({
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "16px 20px 60px" }}>
         <Suspense fallback={<div className="hint" style={{ padding: 20 }}>⏳ {t("Yükleniyor…")}</div>}>
           <ScheduleTab t={t} lang={lang} races={races}
-            updatedAt={updatedAt} loading={loading} />
+            updatedAt={updatedAt} loading={loading} onPlan={onPlan} />
         </Suspense>
       </div>
     </div>

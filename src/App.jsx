@@ -11,6 +11,7 @@ import { useTeams } from "./useTeams";
 import { useChat } from "./useChat";
 import { useSetups } from "./useSetups";
 import { useLmuSchedule } from "./useLmuSchedule";
+import { officialRaceToForm } from "./lmuSchedule";
 import { useRaceSync } from "./useRaceSync";
 import { useTelemetry } from "./useTelemetry";
 import TelemetryStandalone from "./TelemetryStandalone";
@@ -808,6 +809,19 @@ ${bottomBar}
   /* ---- lmugarage.com resmi LMU yarış takvimi — Ana Menü → Resmi Yarışlar ----
      Yarıştan BAĞIMSIZ: yalnız scheduleOnly görünürken abone olur; race state gerekmez. */
   const lmu = useLmuSchedule({ user, udoc, active: scheduleOnly });
+  /* Resmi Yarışlar → ön ayar (v1.7.3): bir resmi yarışın 📋 butonu, o yarışın
+     pist/sınıf/süre/başlangıcıyla "Yarış Ekle" formunu doldurur ve takvimi kapatır
+     → kullanıcı (belirli aracı seçip) Kaydet der → takım yarışı + strateji state
+     oluşur (saveRaceForm/createRace). Takım yoksa buton hiç görünmez (curTeam gate). */
+  const planOfficialRace = (r) => {
+    if (!curTeam) return;
+    setRForm(officialRaceToForm(r, {
+      seasonId: curSeason || null,
+      fallbackRaceTime: DEFAULT_STATE.raceTime,
+      classId,
+    }));
+    setScheduleOnly(false);
+  };
 
   /* ---- yüzen mini oynatıcı → useMiniPlayer hook'u (konum/boyut/sürükle) ---- */
   const { streamCorner, streamMin, setStreamMin, streamW, streamDrag,
@@ -1556,7 +1570,8 @@ ${bottomBar}
     return (
       <ScheduleStandalone t={t} lang={lang} switchLang={switchLang}
         races={lmu.races} updatedAt={lmu.updatedAt}
-        loading={lmu.loading} onExit={() => setScheduleOnly(false)} />
+        loading={lmu.loading} onExit={() => setScheduleOnly(false)}
+        onPlan={curTeam ? planOfficialRace : undefined} />
     );
   }
 
