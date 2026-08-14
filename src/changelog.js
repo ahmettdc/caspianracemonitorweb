@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.7.5",
+    date: "2026-08-14",
+    tr: [
+      "⏱ Resmi Yarış ön ayarında yarış başı otomatik hesaplanıyor: LMU'da listelenen saat SEANS (sıralama) başıdır; gerçek yarış (yeşil bayrak) sıralama + 5 dk formasyon kadar sonra başlar. 📋 ile açılan formda 'Sıralama süresi (dk)' alanı çıkar — değeri girince 'Yarış başı' anında güncellenir (ör. seans 14:00, sıralama 20 dk → yarış 14:25) ve strateji geri sayımı buna göre kurulur.",
+      "ℹ️ Not: sıralama süresi LMU takviminde yer almadığından tahmini bir varsayılan (15 dk) gelir — kendi etkinliğine göre düzeltmen için alan görünür ve düzenlenebilir; istersen başlangıç saatini elle de değiştirebilirsin.",
+    ],
+    en: [
+      "⏱ Official-race preset now auto-computes the race start: the time listed on LMU is the SESSION (qualifying) start; the actual race (green flag) begins after qualifying + a 5-min formation. The 📋 form now shows a 'Qualifying length (min)' field — enter it and 'Race start' updates instantly (e.g. session 14:00, qualifying 20 min → race 14:25), and the strategy countdown anchors to that.",
+      "ℹ️ Note: qualifying length isn't in the LMU schedule, so an estimated default (15 min) is used — the field is visible and editable so you can set your event's value; you can also adjust the start time manually.",
+    ],
+  },
+  {
     v: "v1.7.4",
     date: "2026-08-14",
     tr: [

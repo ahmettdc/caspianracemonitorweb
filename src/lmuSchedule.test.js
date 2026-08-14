@@ -116,19 +116,32 @@ describe("groupByStatus + nextOfficialRace + deriveOptions", () => {
 });
 
 describe("officialRaceToForm (Resmi Yarış → ön ayar, v1.7.3)", () => {
-  it("pist/başlangıç/süre/ad prefill; belirli araç YOK (carId boş); rid null", () => {
+  it("pist/süre/ad prefill; belirli araç YOK (carId boş); rid null", () => {
     const r = mk({ name: "Le Mans 24h", trackId: "lemans", startMs: 1234567890000,
       lenSec: 8640, classes: ["Hypercar"] });
-    const f = officialRaceToForm(r, { seasonId: "s1", classId });
+    const f = officialRaceToForm(r, { seasonId: "s1", classId, qualMin: 20 });
     expect(f.rid).toBe(null);
     expect(f.name).toBe("Le Mans 24h");
     expect(f.trackId).toBe("lemans");
-    expect(f.startsAt).toBe(1234567890000);
     expect(f.raceTime).toBe("2:24:00");        // 8640 sn → H:MM:SS
     expect(f.carClass).toBe("hypercar");        // classId normalizasyonu
     expect(f.carId).toBe("");                   // takvimde araç yok → kullanıcı seçer
     expect(f.seasonId).toBe("s1");
     expect(f.round).toBe("");
+  });
+  it("yarış başı = seans + sıralama + 5 dk formasyon (14:00 seans, 20 dk sıralama → 14:25)", () => {
+    const start = Date.parse("2026-08-18T14:00:00Z");
+    const r = mk({ startMs: start, classes: ["GT3"] });
+    const f = officialRaceToForm(r, { classId, qualMin: 20 });
+    expect(f.sessionStartMs).toBe(start);       // resmi seans başı korunur
+    expect(f.qualMin).toBe(20);
+    expect(f.startsAt).toBe(start + 25 * 60000); // 20 + 5 = 25 dk → 14:25
+  });
+  it("varsayılan sıralama (qualMin verilmezse) yine offset uygular", () => {
+    const start = Date.parse("2026-08-18T14:00:00Z");
+    const f = officialRaceToForm(mk({ startMs: start }), { classId });
+    expect(f.qualMin).toBeGreaterThan(0);        // tahmini varsayılan
+    expect(f.startsAt).toBe(start + (f.qualMin + 5) * 60000);
   });
   it("çok sınıflı: ilk EŞLEŞEN sınıf ön-seçilir", () => {
     const r = mk({ classes: ["Hypercar", "LMGT3"] });
