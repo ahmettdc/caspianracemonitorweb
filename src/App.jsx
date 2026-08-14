@@ -34,7 +34,6 @@ import {
   WEATHER, wxLog, wxAtRel, WX, effCons, tyState,
   computePlan, migrate, lastStintFuel,
 } from "./engine";
-import { css } from "./styles";
 import { EN } from "./i18n";
 import {
   SLOT_COLORS, APP_VERSION, SEEN_VER_KEY, ASSET, AV,
@@ -1449,7 +1448,6 @@ ${bottomBar}
   if (authReady && (authLoading || !user)) {
     return (
       <div className="rc">
-        <style>{css}</style>
         <UpdateBanner t={t} />
         {teamModal}{createJoinModal}{raceForm}
         <div className="lobby">
@@ -1490,7 +1488,6 @@ ${bottomBar}
   if (authReady && user && !access) {
     return (
       <div className="rc">
-        <style>{css}</style>
         <UpdateBanner t={t} />
         {teamModal}{createJoinModal}{raceForm}
         <div className="lobby">
@@ -1623,7 +1620,6 @@ ${bottomBar}
 
     return (
       <div className="rc">
-        <style>{css}</style>
         <UpdateBanner t={t} />
         {teamModal}{createJoinModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}{cmdPalette}
         <div className="lobby">
@@ -1866,7 +1862,6 @@ ${bottomBar}
     const cls = st.carClass || "hypercar";
     return (
       <div className="rc">
-        <style>{css}</style>
         <UpdateBanner t={t} />
         <div className="lobby" style={{ alignItems: "flex-start", paddingTop: 40 }}>
           <div className="box" style={{ maxWidth: 720 }}>
@@ -1945,7 +1940,6 @@ ${bottomBar}
   if (!setupDone) {
     return (
       <div className="rc">
-        <style>{css}</style>
         <UpdateBanner t={t} />
         <div className="lobby" style={{ alignItems: "flex-start", paddingTop: 40 }}>
           <div className="box" style={{ maxWidth: 560 }}>
@@ -1977,7 +1971,6 @@ ${bottomBar}
 
   return (
     <div className="rc">
-      <style>{css}</style>
       <UpdateBanner t={t} />
       {teamModal}{createJoinModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{streamPlayer}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}
       {denyToast}{cmdPalette}

@@ -13,7 +13,6 @@
    teleOnly'yi kapatır; entered/curRace'e dokunmaz.
    ============================================================ */
 import { lazy, Suspense } from "react";
-import { css } from "./styles";
 import { ASSET, APP_VERSION } from "./constants";
 import { Icon, Btn } from "./components";
 
@@ -22,7 +21,6 @@ const TeleTab = lazy(() => import("./tabs/TeleTab"));
 export default function TelemetryStandalone({ t, lang, switchLang, st, up, onSaveDuckSetup, onExit, ...tel }) {
   return (
     <div className="rc">
-      <style>{css}</style>
       <header>
         <img className="hlogo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
         <h1 className="disp" style={{ fontSize: 20 }}>RACE MONITOR</h1>
