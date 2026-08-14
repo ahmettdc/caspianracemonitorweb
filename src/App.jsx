@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef, lazy, Suspense, Fragment } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback, lazy, Suspense, Fragment } from "react";
 import UpdateBanner from "./UpdateBanner";
 import { isTauri } from "./tauriEnv";
 import { useLiveBridge } from "./useLiveBridge";
@@ -34,7 +34,6 @@ import {
   WEATHER, wxLog, wxAtRel, WX, effCons, tyState,
   computePlan, migrate, lastStintFuel,
 } from "./engine";
-import { EN } from "./i18n";
 import {
   SLOT_COLORS, APP_VERSION, SEEN_VER_KEY, ASSET, AV,
   TRACKS, PIT_LANE_TIMES, TRACK_ASSET, trackFlag,
@@ -59,6 +58,19 @@ import {
   CommandPalette,
 } from "./components";
 import { WetIcon } from "./WetIcon";
+
+/* ---- i18n sözlüğü lazy (v1.8.0) ----
+   EN sözlüğü ~70 KB kaynak ve yalnız lang==="en" iken okunur; başlangıç
+   paketinden çıkarıldı. Varsayılan dil "en" olduğundan boot'ta (modül yüklenir
+   yüklenmez, React'ten önce) paralel import başlatılır → chunk neredeyse her
+   zaman Firebase auth round-trip'inden önce gelir. TR kullanıcı hiç indirmez.
+   Auth kapısındaki langReady, EN kullanıcının bir an bile Türkçe metin
+   görmemesini garanti eder. */
+let EN_CACHE = null;
+const wantsEN = (() => {
+  try { return (localStorage.getItem("crm-lang") || "en") === "en"; } catch { return true; }
+})();
+if (wantsEN) import("./i18n").then((m) => { EN_CACHE = m.EN; });
 
 /* Sekmeler talep üzerine yüklenir (kod bölme) — ilk bundle küçülür,
    recharts yalnız Telemetri açılınca gelir. */
@@ -158,7 +170,23 @@ export default function App() {
   const [lang, setLang] = useState(() => {
     try { return localStorage.getItem("crm-lang") || "en"; } catch { return "en"; }
   });
-  const t = (str) => (lang === "en" ? (EN[str] ?? str) : str);
+  /* EN sözlüğü lazy geldiğinden state'e bağlanır; boot'taki paralel import
+     çoğu zaman ilk render'dan önce bitmiştir (EN_CACHE dolu başlar). TR→EN
+     geçişinde effect chunk'ı yükler (modül cache'i sayesinde anında). */
+  const [dict, setDict] = useState(EN_CACHE);
+  useEffect(() => {
+    if (lang !== "en" || dict) return undefined;
+    if (EN_CACHE) { setDict(EN_CACHE); return undefined; }
+    let on = true;
+    import("./i18n").then((m) => { EN_CACHE = m.EN; if (on) setDict(m.EN); });
+    return () => { on = false; };
+  }, [lang, dict]);
+  /* t useCallback: kimliği yalnız dil/sözlük değişince değişir — alt ağaçlardaki
+     memo'ların (PosChart, TraceRow…) boşuna kırılmaması için ön şart. */
+  const t = useCallback(
+    (str) => (lang === "en" ? ((dict || EN_CACHE)?.[str] ?? str) : str),
+    [lang, dict]);
+  const langReady = lang !== "en" || !!(dict || EN_CACHE);
   const switchLang = (l) => {
     setLang(l);
     try { localStorage.setItem("crm-lang", l); } catch {}
@@ -1174,12 +1202,14 @@ ${bottomBar}
   const [wxPlanW, setWxPlanW] = useState("wet"); // planlı geçiş: hava
   const [wxPlanT, setWxPlanT] = useState("");    // planlı geçiş: yarış saati
   const [zoom, setZoom] = useState(null); // "car" | "track" | null — kart büyütme (lightbox)
-  /* LMU referans verisi (Ohne Speed tablosundan gömülü JSON) */
+  /* LMU referans verisi (Ohne Speed tablosundan gömülü JSON) — 47 KB; giriş/izin
+     ekranlarında gerekmez → yalnız erişim onaylanınca çekilir. */
   const [lmuData, setLmuData] = useState(null);
   useEffect(() => {
+    if (!access && authReady) return;   // authReady=false (yapılandırmasız dev) → kapı yok, hemen çek
     fetch(`${ASSET}lmu-data.json`).then((r) => (r.ok ? r.json() : null))
       .then((j) => setLmuData(j)).catch(() => {});
-  }, []);
+  }, [access]);
   const lmuSuggest = (() => {
     const d = lmuData?.data?.[st.track];
     if (!d) return null;
@@ -1444,8 +1474,12 @@ ${bottomBar}
     </div>
   </>);
 
-  /* ---------- giriş kapısı: oturum yoksa uygulama açılmaz ---------- */
-  if (authReady && (authLoading || !user)) {
+  /* ---------- giriş kapısı: oturum yoksa uygulama açılmaz ----------
+     langReady: EN sözlüğü lazy geldiğinden, EN kullanıcı sözlük inene dek
+     (auth beklemesiyle aynı görsel) yükleme durumunda tutulur — Türkçe metin
+     parlaması olmaz. Chunk aynı origin'den geldiği için bu bekleme pratikte
+     auth'tan önce biter. */
+  if (authReady && (authLoading || !langReady || !user)) {
     return (
       <div className="rc">
         <UpdateBanner t={t} />
@@ -1455,7 +1489,7 @@ ${bottomBar}
             <img className="logo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
             <h1><b>RACE</b> MONITOR</h1>
             <div className="sub">{APP_VERSION}</div>
-            {authLoading ? (
+            {(authLoading || !langReady) ? (
               <div className="hint" style={{ marginTop: 22 }}>{t("Yükleniyor…")}</div>
             ) : (<>
               <div className="hint" style={{ margin: "18px 0 14px" }}>

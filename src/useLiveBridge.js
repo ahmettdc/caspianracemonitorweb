@@ -12,22 +12,35 @@
    LiveTab'e prop olarak geçirilir. */
 import { useState, useEffect } from "react";
 import { isTauri } from "./tauriEnv";
-import { startBridge, stopBridge, bridgeRunning } from "./liveBridge";
 
+/* liveBridge.js (~22 KB, sidecar sürücüsü) yalnız masaüstünde işe yarar →
+   web paketinden çıkarıldı; Tauri'de effect ilk koştuğunda dynamic import ile
+   gelir (yerel asset, anında). api modül-seviyesi cache: bir kez yüklenince
+   defansif stopBridge çağrıları eski (senkron) semantikle çalışır; modül hiç
+   yüklenmediyse çalışan köprü de olamaz → durduracak şey yok. */
+let api = null;
 export function useLiveBridge({ isMember, curTeam, curRace, user }) {
   const [bridge, setBridge] = useState({ supported: isTauri, running: false, phase: "idle", msg: "" });
   useEffect(() => {
     if (!isTauri) return undefined;
-    if (!isMember || !curTeam || !curRace || !user) { stopBridge(setBridge); return undefined; }
+    if (!isMember || !curTeam || !curRace || !user) {
+      if (api) api.stopBridge(setBridge);
+      return undefined;
+    }
     let stopped = false, timer = null;
     const by = user?.email || "masaüstü";
     const tick = () => {
       if (stopped) return;
-      if (!bridgeRunning()) startBridge({ tid: curTeam, rid: curRace, hz: 2, by, uid: user.uid }, setBridge);
+      if (!api.bridgeRunning()) api.startBridge({ tid: curTeam, rid: curRace, hz: 2, by, uid: user.uid }, setBridge);
       timer = setTimeout(tick, 4000);
     };
-    tick();
-    return () => { stopped = true; if (timer) clearTimeout(timer); stopBridge(setBridge); };
+    if (api) tick();
+    else import("./liveBridge").then((m) => { api = m; if (!stopped) tick(); });
+    return () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+      if (api) api.stopBridge(setBridge);
+    };
   }, [isMember, curTeam, curRace, user]);
   return bridge;
 }
