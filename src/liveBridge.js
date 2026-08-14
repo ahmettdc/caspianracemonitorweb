@@ -42,7 +42,7 @@ let leaseCtx = null;       // { tid, rid, uid } — durdururken kirayı bırakma
 let unsubLease = null;     // livewriter aboneliğini kaldıran fonksiyon
 
 /* Köprüyü başlat. opts: { tid, rid, hz, mock, by }. onStatus(state) çağrılır:
-   { running, phase: "starting|running|error|stopped", msg, lastTs, cars } */
+   { running, phase: "starting|running|error|stopped", msg, cars } */
 export async function startBridge(opts, onStatus) {
   const { tid, rid, hz = 2, mock = false, by = "", uid = "", noRest = false } = opts || {};
   const say = (s) => { try { if (onStatus) onStatus(s); } catch { /* yoksay */ } };
@@ -289,7 +289,10 @@ export async function startBridge(opts, onStatus) {
       /* ts SERVER-hizalı olmalı: izleyen taraf tazeliği kendi saatiyle ölçüyor;
          yazan PC'nin saati kayıksa veri akarken bile "bağlantı koptu" görünüyordu. */
       await liveTimingSet(tid, rid, { ts: serverNow(), by, ...frame });
-      say({ running: true, phase: "running", msg: "Gönderiliyor", lastTs: lastWrite, cars, writerBy: by, diag });
+      /* lastTs kaldırıldı (v1.8.0): hiç tüketicisi yoktu ve her karede farklı
+         değer taşıdığı için durum objesi asla eşit çıkmıyor, App her karede
+         boşuna render oluyordu. */
+      say({ running: true, phase: "running", msg: "Gönderiliyor", cars, writerBy: by, diag });
     } catch (e) {
       say({ running: true, phase: "error", msg: "Firebase yazma hatası: " + (e?.message || e) });
     } finally {

@@ -38,7 +38,15 @@ export function useLive({ curRace, curTeamRef, stRef }) {
     const own = live?.own;
     if (!own || typeof own.fuel !== "number") return;
     const obs = fuelObserve(fuelObsRef.current, own, stRef.current?.fuelRatio);
-    setLiveFuelObs(obs);
+    /* Eşitlik guard'ı (v1.8.0): öneri çoğu karede değişmez — 5 skaler alan
+       aynıysa önceki referans korunur, App'e frame-başı ekstra render binmez. */
+    setLiveFuelObs((prev) => {
+      if (prev === obs) return prev;
+      if (!prev || !obs) return obs;
+      return (prev.litersPerLap === obs.litersPerLap && prev.samples === obs.samples
+        && prev.fuelCap === obs.fuelCap && prev.obsRatio === obs.obsRatio
+        && prev.obsCons === obs.obsCons) ? prev : obs;
+    });
   }, [live, stRef]);
 
   return { live, liveFuelObs };

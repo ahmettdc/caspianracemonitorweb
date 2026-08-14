@@ -844,7 +844,12 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
                   const acc = classAccent(c.carClass);
                   const fl = flash[carKey(c)];   // "purple" | "green" | undefined
                   return (
-                    <tr key={c.pos ?? i}
+                    /* key = STABİL araç kimliği (carKey), pozisyon DEĞİL: pozisyon
+                       key'i her geçişte satırları söküp yeniden kuruyordu (görsel
+                       hata state'leri sıfırlanıyor, img yeniden decode, flash
+                       animasyonu yeniden başlıyordu). Stabil key ile React satırı
+                       taşır. */
+                    <tr key={carKey(c) ?? (c.pos ?? i)}
                       className={[c.isPlayer ? "live" : "",
                         fl === "purple" ? "flashpurple" : fl === "green" ? "flashgreen" : ""]
                         .filter(Boolean).join(" ")}

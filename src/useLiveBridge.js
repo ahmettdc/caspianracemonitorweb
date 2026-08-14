@@ -19,8 +19,20 @@ import { isTauri } from "./tauriEnv";
    defansif stopBridge çağrıları eski (senkron) semantikle çalışır; modül hiç
    yüklenmediyse çalışan köprü de olamaz → durduracak şey yok. */
 let api = null;
+
+/* Durum objesi çoğu karede içerikçe aynı gelir (phase/msg sabit) — alan bazlı
+   eşitlik guard'ı aynı içerikte önceki referansı korur, App'e frame-başı render
+   binmez. diag her karede yeni obje ama alanları skaler → alan bazlı kıyas. */
+const diagEq = (x, y) => x === y || (!!x && !!y && x.shm === y.shm && x.lmu === y.lmu
+  && x.cars === y.cars && x.ve === y.ve && x.wait === y.wait);
+const bridgeEq = (a, b) => a === b || (!!a && !!b
+  && a.supported === b.supported && a.running === b.running && a.phase === b.phase
+  && a.msg === b.msg && a.writerBy === b.writerBy && a.cars === b.cars
+  && diagEq(a.diag, b.diag));
+
 export function useLiveBridge({ isMember, curTeam, curRace, user }) {
-  const [bridge, setBridge] = useState({ supported: isTauri, running: false, phase: "idle", msg: "" });
+  const [bridge, setBridgeRaw] = useState({ supported: isTauri, running: false, phase: "idle", msg: "" });
+  const setBridge = (s) => setBridgeRaw((prev) => (bridgeEq(prev, s) ? prev : s));
   useEffect(() => {
     if (!isTauri) return undefined;
     if (!isMember || !curTeam || !curRace || !user) {

@@ -309,9 +309,15 @@ export default function App() {
   const clearLaps = (i) => edit((s0) => applyClearLaps(s0, i));
 
   const mode = tab === "code80" ? "code80" : "race";
-  const plan = useMemo(() => computePlan(st, mode), [st, mode]);
+  /* computePlan pahalı (tur-tur yürüyüş × sabit-nokta döngüsü). Eskiden her st
+     değişiminde 3 kez koşuyordu (plan + racePlan + lsf içindeki üçüncü çağrı);
+     race modunda plan === racePlan ve lsf'nin ihtiyacı zaten racePlan.flagExtra →
+     tek çağrıya indirildi (code80 sekmesinde 2). */
   const racePlan = useMemo(() => computePlan(st, "race"), [st]);
-  const lsf = useMemo(() => lastStintFuel(st.lastStintCountdown, st, computePlan(st, "race").flagExtra), [st]);
+  const plan = useMemo(() => (mode === "race" ? racePlan : computePlan(st, mode)),
+    [st, mode, racePlan]);
+  const lsf = useMemo(() => lastStintFuel(st.lastStintCountdown, st, racePlan.flagExtra),
+    [st, racePlan]);
   const lsf80 = useMemo(() => lastStintFuel(st.code80LastStint, st), [st]);
   /* Toplam VE = satırların tur-tur (gerçek havayla) yürütülmüş toplamı + güvenlik turu.
      Eskiden `effCons × totalLaps` idi; effCons yalnız EN GÜNCEL havayı uygular →
@@ -430,13 +436,25 @@ export default function App() {
      tam-ağaç render'ı boşuna (kimse bakmıyor). pausedRef, paused hesaplandıktan sonra
      doldurulur (aşağıda); interval çalışır ama duraklıyken setNow atlanır. */
   const pausedRef = useRef(false);
+  /* Saat kapısı (v1.8.0): now'un tek tüketicisi liveInfo ve idle/done'da tüm
+     değerleri statik → geri sayım yokken saniyelik setNow (= tam-App render)
+     atlanır. pre/live'a dönüşte effect taze setNow ile yeniden tohumlar. */
+  const clockNeededRef = useRef(true);
   useEffect(() => {
-    const iv = setInterval(() => { if (!pausedRef.current) setNow(Date.now()); }, 1000);
+    const iv = setInterval(() => {
+      if (pausedRef.current || !clockNeededRef.current) return;
+      setNow(Date.now());
+    }, 1000);
     return () => clearInterval(iv);
   }, []);
 
   const liveInfo = useMemo(() => computeLiveInfo(st, racePlan, now),
     [now, st.raceStartMs, st.driverAssign, st.actualPits, st.pitRepairs, st.autoOvr, racePlan]);
+  useEffect(() => {
+    const needed = liveInfo.status === "pre" || liveInfo.status === "live";
+    if (needed && !clockNeededRef.current) setNow(Date.now());   // durmuş saati tazele
+    clockNeededRef.current = needed;
+  }, [liveInfo.status]);
 
   /* --- gerçek pit işaretleme (sadece düzenleyici) --- */
   const canEdit = !curRace || role === "editor";
@@ -1244,7 +1262,7 @@ ${bottomBar}
   const upcomingIsLast = liveInfo.status === "live"
     && liveInfo.stintIdx >= racePlan.rows.length - 2;
 
-  const timeline = buildTimeline(plan);
+  const timeline = useMemo(() => buildTimeline(plan), [plan]);
 
   /* yarış ekleme / düzenleme penceresi → RaceEditModal (sunum); kaydetme iş
      mantığı burada (createRace/updateRace + init state hazırlığı). */

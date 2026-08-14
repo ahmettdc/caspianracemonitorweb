@@ -26,7 +26,14 @@ export default function PosChart({ t, tid, rid, field }) {
     return livePosSubscribe(tid, rid, setPosMap);
   }, [tid, rid]);
 
-  // lapKey → {driver, code, color, isPlayer} (canlı kareden)
+  /* lapKey → {driver, code, color, isPlayer} (canlı kareden).
+     `field` Firebase'den HER karede yeni dizi kimliğiyle gelir → doğrudan dep
+     yapılırsa memo hiç tutmaz ve aşağıdaki buildPosData + ~16k noktalı grafik
+     2 Hz'de yeniden kurulurdu. metaKey = içerik parmak izi (ucuz string):
+     yalnız sürücü/sınıf/oyuncu GERÇEKTEN değişince meta yenilenir. */
+  const metaKey = (Array.isArray(field) ? field : [])
+    .map((c) => `${c.lapKey ?? ""}|${c.driver ?? ""}|${c.carClass ?? ""}|${c.isPlayer ? 1 : 0}`)
+    .join(",");
   const meta = useMemo(() => {
     const m = {};
     for (const c of (Array.isArray(field) ? field : [])) {
@@ -36,7 +43,8 @@ export default function PosChart({ t, tid, rid, field }) {
       };
     }
     return m;
-  }, [field]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [metaKey]);
 
   /* grafik verisi: her tur için { lap, [lapKey]: pos } + pit noktaları.
      Mantık saf modülde (posData.js) — bayat anahtarlar (sahada olmayan araçlar)
@@ -44,66 +52,74 @@ export default function PosChart({ t, tid, rid, field }) {
   const { data, keys, maxPos, pitSet } = useMemo(
     () => buildPosData(posMap, meta), [posMap, meta]);
 
-  if (!data.length) return null;
-
-  // pit turu için özel nokta (kapanış içinde lapKey bilinir)
-  const pitDot = (k) => (props) => {
-    const { cx, cy, payload } = props;
-    if (cx == null || cy == null || !pitSet.has(`${k}|${payload.lap}`)) return null;
+  /* Grafik bloğu memo (v1.8.0): data/keys/meta/pitSet yalnız gerçek livepos
+     yazımlarında (tur başına ~1) değişir → aynı element kimliği korunur ve React
+     ~16k noktalı Recharts alt ağacını canlı kareler arasında hiç dolaşmaz.
+     pitDot/tip memo içinde tanımlı — taze fonksiyon kimlikleri de tur başına.
+     `t` bilinçli olarak deps dışında: dil değişimi bir sonraki tur güncellemesinde
+     yansır (etiketler statike yakın — kabul edilen ödünleşim). */
+  const chart = useMemo(() => {
+    if (!data.length) return null;
+    // pit turu için özel nokta (kapanış içinde lapKey bilinir)
+    const pitDot = (k) => (props) => {
+      const { cx, cy, payload } = props;
+      if (cx == null || cy == null || !pitSet.has(`${k}|${payload.lap}`)) return null;
+      return (
+        <g key={`${k}-${payload.lap}`}>
+          <circle cx={cx} cy={cy} r={6} fill="var(--panel)"
+            stroke={meta[k]?.color || "#8A7176"} strokeWidth={1.6} />
+          <text x={cx} y={cy + 3} fontSize="8" fontWeight="700" textAnchor="middle"
+            fill="var(--txt)">P</text>
+        </g>
+      );
+    };
+    const tip = ({ active, payload, label }) => {
+      if (!active || !payload?.length) return null;
+      const rows = payload.filter((p) => p.value != null)
+        .sort((a, b) => a.value - b.value).slice(0, 8);
+      return (
+        <div style={{ background: "var(--panel)", border: "1px solid var(--line)",
+          borderRadius: 8, padding: "6px 9px", fontSize: 12 }}>
+          <div style={{ color: "var(--dim)", marginBottom: 3 }}>{t("Tur")} {label}</div>
+          {rows.map((p) => (
+            <div key={p.dataKey} style={{ color: p.stroke, whiteSpace: "nowrap" }}>
+              P{p.value} · {meta[p.dataKey]?.code || "—"}
+            </div>
+          ))}
+        </div>
+      );
+    };
     return (
-      <g key={`${k}-${payload.lap}`}>
-        <circle cx={cx} cy={cy} r={6} fill="var(--panel)"
-          stroke={meta[k]?.color || "#8A7176"} strokeWidth={1.6} />
-        <text x={cx} y={cy + 3} fontSize="8" fontWeight="700" textAnchor="middle"
-          fill="var(--txt)">P</text>
-      </g>
-    );
-  };
-
-  const tip = ({ active, payload, label }) => {
-    if (!active || !payload?.length) return null;
-    const rows = payload.filter((p) => p.value != null)
-      .sort((a, b) => a.value - b.value).slice(0, 8);
-    return (
-      <div style={{ background: "var(--panel)", border: "1px solid var(--line)",
-        borderRadius: 8, padding: "6px 9px", fontSize: 12 }}>
-        <div style={{ color: "var(--dim)", marginBottom: 3 }}>{t("Tur")} {label}</div>
-        {rows.map((p) => (
-          <div key={p.dataKey} style={{ color: p.stroke, whiteSpace: "nowrap" }}>
-            P{p.value} · {meta[p.dataKey]?.code || "—"}
-          </div>
-        ))}
+      <div className="card" data-tour="livepos" style={{ marginBottom: 12 }}>
+        <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          📈 {t("Pozisyon Grafiği")}
+          <span className="hint" style={{ margin: 0, fontWeight: 400 }}>
+            {t("tur")} {data[0].lap}–{data[data.length - 1].lap} · {keys.length} {t("araç")}</span>
+        </h2>
+        <div style={{ width: "100%", height: 360 }}>
+          <ResponsiveContainer>
+            <LineChart data={data} margin={{ top: 8, right: 12, bottom: 4, left: -18 }}>
+              <XAxis dataKey="lap" tick={{ fontSize: 11, fill: "var(--dim)" }}
+                stroke="var(--line)" />
+              <YAxis reversed domain={[1, Math.max(maxPos, 1)]} allowDecimals={false}
+                tick={{ fontSize: 11, fill: "var(--dim)" }} stroke="var(--line)" width={34} />
+              <Tooltip content={tip} />
+              {keys.map((k) => {
+                const mm = meta[k] || {};
+                return (
+                  <Line key={k} type="monotone" dataKey={k}
+                    stroke={mm.isPlayer ? BRAND : mm.color} connectNulls
+                    strokeWidth={mm.isPlayer ? 3 : 1.5}
+                    dot={pitDot(k)} activeDot={{ r: 3 }} isAnimationActive={false} />
+                );
+              })}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       </div>
     );
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, keys, meta, pitSet, maxPos]);
 
-  return (
-    <div className="card" data-tour="livepos" style={{ marginBottom: 12 }}>
-      <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        📈 {t("Pozisyon Grafiği")}
-        <span className="hint" style={{ margin: 0, fontWeight: 400 }}>
-          {t("tur")} {data[0].lap}–{data[data.length - 1].lap} · {keys.length} {t("araç")}</span>
-      </h2>
-      <div style={{ width: "100%", height: 360 }}>
-        <ResponsiveContainer>
-          <LineChart data={data} margin={{ top: 8, right: 12, bottom: 4, left: -18 }}>
-            <XAxis dataKey="lap" tick={{ fontSize: 11, fill: "var(--dim)" }}
-              stroke="var(--line)" />
-            <YAxis reversed domain={[1, Math.max(maxPos, 1)]} allowDecimals={false}
-              tick={{ fontSize: 11, fill: "var(--dim)" }} stroke="var(--line)" width={34} />
-            <Tooltip content={tip} />
-            {keys.map((k) => {
-              const mm = meta[k] || {};
-              return (
-                <Line key={k} type="monotone" dataKey={k}
-                  stroke={mm.isPlayer ? BRAND : mm.color} connectNulls
-                  strokeWidth={mm.isPlayer ? 3 : 1.5}
-                  dot={pitDot(k)} activeDot={{ r: 3 }} isAnimationActive={false} />
-              );
-            })}
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  );
+  return chart;
 }
