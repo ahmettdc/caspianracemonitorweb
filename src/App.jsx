@@ -21,7 +21,7 @@ import { firebaseReady,
   setTeamRole, toggleTeamBadge, setTeamMemberName,
   deleteChat, syncMyTeamName,
   deleteSetup, addSetup,
-  createRace, updateRace,
+  createRace, updateRace, deleteRace,
   raceStateGet,
   getUserAvatar, saveUserAvatar, clearUserAvatar } from "./storage";
 import { processImageFile, IMG_ACCEPT_TYPES } from "./imageUpload";
@@ -1647,29 +1647,45 @@ ${bottomBar}
       || trackName(r.trackId).toLowerCase().includes(q);
     const pastAll = allPast.filter(inFilter).filter(matchQ);   // §1.3 ara + süz
     const pastShown = pastAll.slice(0, pastLimit);             // §1.3 sayfalama
+    /* Ana menüden yarış sil (owner/editor). Kart butonunun KARDEŞİ olan ayrı bir
+       düğme çağırır (iç içe <button> olmasın) → onaydan sonra deleteRace. Firebase
+       kuralı da write'ı owner/editor'e sınırlar (ikinci savunma). */
+    const askDeleteRace = (rid, r) => {
+      if (!curTeam || !rid) return;
+      const label = r?.name || trackName(r?.trackId) || "—";
+      if (window.confirm(`${t("Bu yarışı silmek istediğinize emin misiniz?")}\n\n${label}`))
+        deleteRace(curTeam, rid).catch(() => setSyncMsg(t("Yarış silinemedi.")));
+    };
+
     const RaceRow = ([rid, r], isNext) => (
-      <button key={rid} className={`lrace ${isNext ? "next" : ""}`}
-        onClick={() => openRace(rid)}>
-        {r.trackId && (
-          <img className="lrtrack" src={`${ASSET}tracks/${TRACK_ASSET(r.trackId)}.png${AV}`}
-            alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} />
-        )}
-        <span className="lrinfo">
-          <b>{r.round ? `R${r.round} · ` : ""}{r.name || trackName(r.trackId) || "—"}</b>
-          <span className="lrmeta">
-            {r.trackId ? trackName(r.trackId) : ""}
-            {r.raceTime ? ` · ${r.raceTime}` : ""}
-            {r.carId ? ` · ${carName(r.carClass, r.carId)}` : ""}
+      <div key={rid} className="lracewrap">
+        <button className={`lrace ${isNext ? "next" : ""}`}
+          onClick={() => openRace(rid)}>
+          {r.trackId && (
+            <img className="lrtrack" src={`${ASSET}tracks/${TRACK_ASSET(r.trackId)}.png${AV}`}
+              alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} />
+          )}
+          <span className="lrinfo">
+            <b>{r.round ? `R${r.round} · ` : ""}{r.name || trackName(r.trackId) || "—"}</b>
+            <span className="lrmeta">
+              {r.trackId ? trackName(r.trackId) : ""}
+              {r.raceTime ? ` · ${r.raceTime}` : ""}
+              {r.carId ? ` · ${carName(r.carClass, r.carId)}` : ""}
+            </span>
+            {r.startsAt ? (
+              <span className="lrdate">{new Date(r.startsAt)
+                .toLocaleString(lang === "en" ? "en-GB" : "tr-TR",
+                  { weekday: "short", day: "2-digit", month: "short",
+                    hour: "2-digit", minute: "2-digit" })}</span>
+            ) : null}
           </span>
-          {r.startsAt ? (
-            <span className="lrdate">{new Date(r.startsAt)
-              .toLocaleString(lang === "en" ? "en-GB" : "tr-TR",
-                { weekday: "short", day: "2-digit", month: "short",
-                  hour: "2-digit", minute: "2-digit" })}</span>
-          ) : null}
-        </span>
-        <span className="rgo">→</span>
-      </button>
+          <span className="rgo">→</span>
+        </button>
+        {canEditTeam && (
+          <button className="lrdel" title={t("Yarışı sil")}
+            onClick={() => askDeleteRace(rid, r)}>🗑</button>
+        )}
+      </div>
     );
 
     return (
@@ -1775,6 +1791,7 @@ ${bottomBar}
                     const [rid, r] = nextEntry;
                     return (<>
                       <div className="mmsec">🏁 {t("Sıradaki Yarış")}</div>
+                      <div className="mmnextwrap">
                       <button className="mmnext" onClick={() => openRace(rid)}>
                         {/* bayrak + pist görseli — mevcut asset sistemi (flags/ + tracks/,
                             TRACK_ASSET ile). Emoji bayrak bazı OS'lerde "FR" harfine düşüyordu. */}
@@ -1807,6 +1824,11 @@ ${bottomBar}
                           <span className="mmngo">{t("Aç")} →</span>
                         </span>
                       </button>
+                      {canEditTeam && (
+                        <button className="mmdel" title={t("Yarışı sil")}
+                          onClick={() => askDeleteRace(rid, r)}>🗑</button>
+                      )}
+                      </div>
                     </>);
                   })() : (
                     <div className="hint">{t("Takvimde yaklaşan yarış yok.")}</div>
