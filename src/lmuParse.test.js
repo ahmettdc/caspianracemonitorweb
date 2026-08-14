@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
-  parseRacingToday, parseCardsPage, mapTrackId, parseLenSec, slugFromHref, normLabel,
+  parseRacingToday, parseCardsPage, parseRaceWeekend, mapTrackId, parseLenSec,
+  slugFromHref, normLabel,
 } from "./lmuParse";
 
 /* lmugarage.com /racing-today fragmanından alınmış gerçek yapıya dayalı fixture
@@ -163,5 +164,33 @@ describe("parseCardsPage — /special ve /championships (article.race-card)", ()
       srRank: "Silver", trackId: "monza", classes: ["GT3"],
     });
     expect(out.races[0].name).not.toContain("Driver X");  // standings sızmadı
+  });
+});
+
+describe("parseRaceWeekend — detay sayfası 'Race weekend' paneli (v1.7.6)", () => {
+  /* Gerçek lmugarage detay yapısı: .ses > .n (isim) + .weather + .d (süre). */
+  const DETAIL = `
+    <div class="panel"><h3>Race weekend</h3>
+    <div class="sessions">
+      <div class="ses"><span class="n">Practice</span>
+        <span class="weather"><span class="wx-sun">x</span></span><span class="d">2m</span></div>
+      <div class="ses"><span class="n">Qualifying</span>
+        <span class="weather"><span class="wx-cloud">y</span></span><span class="d">8m</span></div>
+      <div class="ses"><span class="n">Race</span>
+        <span class="weather"><span class="wx-sun">z</span></span><span class="d">30m</span></div>
+    </div></div>`;
+  it("Practice/Qualifying/Race sürelerini saniye olarak çıkarır", () => {
+    expect(parseRaceWeekend(DETAIL)).toEqual({ practiceSec: 120, qualSec: 480, raceSec: 1800 });
+  });
+  it("saatli süre (2h) + eksik seans → null; bilinmeyen seans yok sayılır", () => {
+    const h = `<div class="ses"><span class="n">Qualifying</span><span class="d">15m</span></div>
+      <div class="ses"><span class="n">Race</span><span class="d">2h24m</span></div>
+      <div class="ses"><span class="n">Warmup</span><span class="d">5m</span></div>`;
+    expect(parseRaceWeekend(h)).toEqual({ practiceSec: null, qualSec: 900, raceSec: 8640 });
+  });
+  it("panel yoksa hepsi null (çökmez)", () => {
+    expect(parseRaceWeekend("<div>no sessions</div>")).toEqual(
+      { practiceSec: null, qualSec: null, raceSec: null });
+    expect(parseRaceWeekend("")).toEqual({ practiceSec: null, qualSec: null, raceSec: null });
   });
 });

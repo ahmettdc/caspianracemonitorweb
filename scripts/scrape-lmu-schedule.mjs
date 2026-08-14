@@ -20,7 +20,7 @@
    Kullanım: node scripts/scrape-lmu-schedule.mjs [cikti.json]
    ============================================================ */
 import { writeFileSync } from "node:fs";
-import { parseRacingToday, parseCardsPage } from "../src/lmuParse.js";
+import { parseRacingToday, parseCardsPage, parseRaceWeekend } from "../src/lmuParse.js";
 
 const BASE = "https://lmugarage.com";
 const OUT = process.argv[2] || "lmu-schedule.json";
@@ -65,6 +65,29 @@ async function main() {
     if (!byId.has(r.id)) byId.set(r.id, r);
   }
   const races = [...byId.values()];
+
+  // 3) Detay sayfalarından seans kırılımı (Qualifying süresi + eksik Race süresi).
+  //    Liste sayfaları sıralama süresini VERMEZ; her yarışın kendi detay sayfasında
+  //    "Race weekend" paneli var. Yalnız GELECEK/CANLI yarışlar zenginleştirilir
+  //    (preset bunlar için; geçmiş yarışlara gerek yok → yük sınırlı). Her fetch
+  //    try/catch (başarısız → qualSec yok, form tahmine düşer). Nazik: ~150 ms ara.
+  const nowMs = Date.now();
+  const need = races.filter((r) => r.url
+    && (r.startMs == null || r.startMs > nowMs - 3 * 3600e3)).slice(0, 80);
+  let enriched = 0;
+  for (const r of need) {
+    try {
+      const path = r.url.replace(/^https?:\/\/[^/]+/, "");
+      const w = parseRaceWeekend(await fetchHtml(path));
+      if (w.qualSec != null) r.qualSec = w.qualSec;
+      if (r.lenSec == null && w.raceSec != null) r.lenSec = w.raceSec;   // special/champ süresini doldur
+      if (w.qualSec != null || w.raceSec != null) enriched++;
+    } catch (err) {
+      log(`[lmu] UYARI detay atlandı ${r.id}: ${err.message}`);
+    }
+    await new Promise((res) => setTimeout(res, 150));
+  }
+  log(`[lmu] detay zenginleştirme: ${enriched}/${need.length} (qualSec/raceSec)`);
 
   const payload = {
     updatedAt: Date.now(),
