@@ -102,6 +102,23 @@ def test_ardisik_normal_durum():
     assert len(r["lapNums"]) == len(r["laps"])
 
 
+def test_tur_suresi_bir_kare_gec_gelir_kaydeder():
+    """S/F'de oyun tur SAYACINI, son-tur SÜRESİNDEN (mLastLapTime) bir kare önce
+    günceller: lap 1 tamamlanır ama süre henüz 0; sonraki karede AYNI turda süre gelir
+    → tur KAYBOLMAMALI (v1.8.5 pending mekanizması)."""
+    r = _run([(0, -1), (1, -1), (1, 101.0), (2, 100.5)])
+    assert r["lapNums"] == [1, 2], r["lapNums"]
+    assert r["laps"] == [101.0, 100.5], r["laps"]
+    # eski davranış (pending yok) lap 1'i kalıcı kaybederdi → [2]
+
+
+def test_bekleyen_turun_suresi_gelmeden_yeni_tur_gelirse_atlanir():
+    """Süre gelmeden ARADA yeni tur tamamlanırsa bayat pending atılır (yeni turun
+    süresini eski tura yazıp mislabel etme)."""
+    r = _run([(0, -1), (1, -1), (2, 102.0), (3, 100.5)])
+    assert r["lapNums"] == [2, 3], r["lapNums"]      # lap 1'in süresi hiç gelmedi → atlanır
+
+
 def test_yeni_seans_sifirlar():
     """lapsDone KALICI gerilerse (≥REGRESS_FRAMES ardışık kare) → yeni seans, geçmiş
     sıfırlanır. Tek karelik gerileme artık sıfırlamaz (yırtık okuma filtresi) —
