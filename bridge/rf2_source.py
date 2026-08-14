@@ -803,6 +803,7 @@ class Aggregator:
         self.hist = {}          # sürücü → deque(son ~30 geçerli lastSec) — avg için
         self.lap_log = {}       # sürücü → deque((lapNo, sec)) — tam tur listesi (popup)
         self.prev_laps = {}     # sürücü → son görülen lapsDone
+        self.pending = {}       # sürücü → süresi henüz gelmemiş tamamlanmış tur no (bkz. read)
         self.prev_pits = {}     # sürücü → son görülen inPits
         self.stint_start = {}   # sürücü → stint başlangıcı (time.time())
         self.regress = {}       # sürücü → ardışık gerileme sayacı (yırtık kare filtresi)
@@ -882,6 +883,7 @@ class Aggregator:
                 self.stint_start[key] = now
                 self.prev_pits[key] = in_pits
                 self.prev_laps[key] = laps
+                self.pending.pop(key, None)
                 self.regress[key] = 0
                 self.pit_tyres.pop(key, None)
                 self.last_change.pop(key, None)
@@ -897,6 +899,13 @@ class Aggregator:
                     self.hist[key].append(round(last, 3))       # avg (filtreli)
                 if last and last > 0:                            # tam liste (her tur)
                     self.lap_log[key].append((laps, round(last, 3)))
+                    self.pending.pop(key, None)
+                else:
+                    # Oyun S/F'de tur SAYACINI, son-tur SÜRESİNDEN (mLastLapTime) birkaç
+                    # kare önce günceller (ya da yırtık kare süreyi 0 okur). prev_laps yine
+                    # ilerlediğinden bu tur BİR DAHA "elif" dalına girmez → süre gelince
+                    # kaybolmasın diye numarayı beklemeye al, aşağıda süre gelince yaz.
+                    self.pending[key] = laps
                 # tur-başı VE tüketimi: tur sınırında prev−cur (yalnız LMU REST açıkken
                 # virtualEnergy dolu; dolum/anomali >50% ele). REST yoksa vePerLap None kalır.
                 cur_ve = r.get("virtualEnergy")
@@ -906,6 +915,21 @@ class Aggregator:
                         self.ve_per_lap[key] = round(pv - cur_ve, 1)
                     self.prev_ve[key] = cur_ve
                 self.prev_laps[key] = laps
+
+            # BEKLEYEN TUR: yukarıda süresi 0 gelen tur, süre geldiğinde yazılır. Arada
+            # YENİ tur tamamlandıysa (pending != güncel laps) süre artık o yeni tura ait →
+            # bayat pending atılır. Aynı tur numarasını iki kez yazmayı da engelle.
+            pend = self.pending.get(key)
+            if pend is not None:
+                if pend != laps:
+                    self.pending.pop(key, None)
+                elif last and last > 0:
+                    lg = self.lap_log.setdefault(key, deque(maxlen=LAP_LOG_MAX))
+                    if not lg or lg[-1][0] != pend:
+                        lg.append((pend, round(last, 3)))
+                        if self._valid_lap(last, best):
+                            self.hist.setdefault(key, deque(maxlen=30)).append(round(last, 3))
+                    self.pending.pop(key, None)
 
             # stint + lastik değişimi: pit giriş/çıkış kenarları
             was_pits = self.prev_pits.get(key)

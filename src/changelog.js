@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.8.5",
+    date: "2026-08-14",
+    tr: [
+      "🏁 Canlı Timing tur geçmişi düzeltmesi: bir pilot turunu tamamladığı halde \"+\" penceresinde tur kaydedilmiyordu. Sebep — oyun bitiş çizgisinde tur SAYACINI, o turun SÜRESİNDEN birkaç kare önce güncelliyor; süre henüz 0 iken tur kaydı atlanıyor ve bir daha yazılmıyordu. Artık tur bir kenara alınıp süresi geldiğinde kaydediliyor; hiçbir tur kaybolmuyor. (Köprüyü çalıştıran PC'nin yeni masaüstü sürümünü kurması gerekir.)",
+    ],
+    en: [
+      "🏁 Live Timing lap-history fix: a driver could complete a lap yet nothing appeared in the \"+\" popup. Cause — at the finish line the game bumps the lap COUNTER a few frames before that lap's TIME; while the time was still 0 the lap was skipped and never written afterward. Laps are now held and recorded once their time arrives, so none are lost. (The PC running the bridge needs the new desktop build.)",
+    ],
+  },
+  {
     v: "v1.8.4",
     date: "2026-08-14",
     tr: [
