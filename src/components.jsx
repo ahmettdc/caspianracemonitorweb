@@ -17,6 +17,7 @@ import { renameTeam, syncMyTeamName, createSeason, deleteRace,
   getUserAvatar, saveTeamAsset, clearTeamAsset } from "./storage";
 import { processImageFile, IMG_ACCEPT_TYPES } from "./imageUpload";
 import { carAssetKey, teamLogoSrc } from "./teamAssets";
+import { extHref } from "./tauriEnv";
 
 /* ---- kullanıcı avatarı ----
    Sıra: userAvatars/{uid} (cache'li tek get) → photo prop (Google photoURL) →
@@ -925,8 +926,7 @@ export function VersionModal({ open, onClose, t, lang, onStartGuide }) {
         </div>
         <div className="wxmfoot" style={{ justifyContent: "space-between" }}>
           <span style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <a className="hint" href={`${REPO_URL}/commits/main`}
-              target="_blank" rel="noreferrer"
+            <a className="hint" {...extHref(`${REPO_URL}/commits/main`)}
               style={{ color: "var(--muted)" }}>{t("GitHub'da tüm değişiklikler ↗")}</a>
             <button className="hint" style={{ background: "none", border: 0,
               color: "var(--teal)", cursor: "pointer", padding: 0,

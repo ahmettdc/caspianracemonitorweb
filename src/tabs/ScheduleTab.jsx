@@ -10,6 +10,7 @@
    ============================================================ */
 import { useState, useEffect, useMemo } from "react";
 import { TRACKS, TRACK_ASSET, trackFlag, ASSET, AV } from "../constants";
+import { extHref } from "../tauriEnv";
 import {
   groupByStatus, nextOfficialRace, deriveOptions, raceStatus,
   filtersActive, EMPTY_FILTERS,
@@ -90,7 +91,7 @@ function RaceCard({ r, now, t, lang, onPlan }) {
         )}
         <div className="sch-actions">
           {r.url && (
-            <a className="sch-open" href={r.url} target="_blank" rel="noopener noreferrer"
+            <a className="sch-open" {...extHref(r.url)}
               title={t("lmugarage'da aç")}>↗</a>
           )}
           {onPlan && (
@@ -243,7 +244,7 @@ export default function ScheduleTab({ t, lang = "tr", races = [], updatedAt, loa
 
       <div className="hint sch-src">
         {t("Kaynak")}:{" "}
-        <a href="https://lmugarage.com" target="_blank" rel="noopener noreferrer">lmugarage.com</a>{" "}
+        <a {...extHref("https://lmugarage.com")}>lmugarage.com</a>{" "}
         — {t("resmi olmayan topluluk projesi.")}
       </div>
     </div>
