@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.8.4",
+    date: "2026-08-14",
+    tr: [
+      "🟣🟢 Canlı Timing: bir pilot en iyi turunu geçtiğinde satırda yanan renk (mor = sınıf rekoru, yeşil = kişisel rekor) artık ~1,5 sn yerine 5 saniye kalıyor — vurgu ~3,5 sn tam parlar, son 1,5 sn'de söner. (Hareket azaltma açık kullanıcılarda yanıp sönme yine devre dışı.)",
+    ],
+    en: [
+      "🟣🟢 Live Timing: when a driver beats their best lap, the row highlight (purple = class record, green = personal best) now lasts 5 seconds instead of ~1.5s — it holds full color for ~3.5s and fades over the last 1.5s. (Still disabled for reduced-motion users.)",
+    ],
+  },
+  {
     v: "v1.8.3",
     date: "2026-08-14",
     tr: [

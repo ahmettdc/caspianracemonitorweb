@@ -493,10 +493,11 @@ export const css = `
 /* Canlı timing satır flash: MOR = sınıf rekoru, YEŞİL = kişisel rekor (timing-tower
    konvansiyonu). Renkli zeminden şeffafa 1.5 sn'de söner; td'lere uygulanır (tr bg
    animasyonu bazı tarayıcılarda güvenilmez). */
-@keyframes rowflashpurple{0%{background:rgba(181,139,255,.60)}100%{background:transparent}}
-@keyframes rowflashgreen{0%{background:rgba(55,214,122,.55)}100%{background:transparent}}
-.rc tr.flashpurple>td{animation:rowflashpurple 1.5s ease-out}
-.rc tr.flashgreen>td{animation:rowflashgreen 1.5s ease-out}
+/* Rengi ~3.5 sn tam tut, son ~1.5 sn'de sön → toplam 5 sn belirgin vurgu. */
+@keyframes rowflashpurple{0%,70%{background:rgba(181,139,255,.60)}100%{background:transparent}}
+@keyframes rowflashgreen{0%,70%{background:rgba(55,214,122,.55)}100%{background:transparent}}
+.rc tr.flashpurple>td{animation:rowflashpurple 5s ease-out}
+.rc tr.flashgreen>td{animation:rowflashgreen 5s ease-out}
 @media (prefers-reduced-motion:reduce){
   .rc tr.flashpurple>td,.rc tr.flashgreen>td{animation-duration:.01ms}}
 .rc .wxmodal{position:fixed;inset:0;z-index:1000;background:rgba(10,6,10,.72);

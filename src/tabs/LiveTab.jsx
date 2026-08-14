@@ -611,7 +611,7 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
       flashTimers.current[k] = setTimeout(() => {
         setFlash((f) => { const n = { ...f }; delete n[k]; return n; });
         delete flashTimers.current[k];
-      }, 1600);   // CSS animasyonu (~1.5 sn) + küçük tampon
+      }, 5100);   // CSS animasyonu (5 sn) + küçük tampon
     }
   }, [live?.ts]);
   useEffect(() => () => {   // unmount: bekleyen timer'ları temizle
