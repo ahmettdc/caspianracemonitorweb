@@ -1,0 +1,42 @@
+name: LMU Laptimes Sync
+
+# "Ohne Speed's LMU laptimes" tablosundaki güncel referans tur zamanlarını periyodik
+# çekip public/assets/lmu-data.json'u yeniden üretir ve değişiklik varsa repoya commit
+# eder. Web uygulaması bu dosyayı fetch ile okur (Dashboard → araç kutusu penceresi).
+# RTDB/secret gerekmez — çıktı statik bir asset.
+
+on:
+  schedule:
+    - cron: "17 4 * * *"     # günde 1 (04:17 UTC)
+  workflow_dispatch:          # elle tetikleme
+
+concurrency:
+  group: lmu-laptimes
+  cancel-in-progress: true
+
+permissions:
+  contents: write             # üretilen JSON'u commit'lemek için
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Fetch spreadsheet → lmu-data.json
+        run: node scripts/fetch-lmu-laptimes.mjs public/assets/lmu-data.json
+
+      - name: Commit if changed
+        run: |
+          if git diff --quiet -- public/assets/lmu-data.json; then
+            echo "Değişiklik yok — commit atlanıyor."
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/assets/lmu-data.json
+          git commit -m "chore(data): LMU referans tur zamanlarını tazele"
+          git push
