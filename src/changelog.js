@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.8.2",
+    date: "2026-08-14",
+    tr: [
+      "🎨 Lastik sekmesi ikonu artık diğer sekmelerle uyumlu — renkli lastik görseli yerine, çubuktaki diğer ikonlarla aynı ince çizgi stilinde (tread halkası + jant) monokrom bir ikon kullanılıyor. Sekme çubuğu ikon boyutları da eşitlendi.",
+    ],
+    en: [
+      "🎨 The Tyres tab icon now matches the rest — instead of a colored tyre image it uses a thin monochrome line icon (tread ring + rim) in the same style as the other tab icons. Tab-bar icon sizes were also evened out.",
+    ],
+  },
+  {
     v: "v1.8.1",
     date: "2026-08-14",
     tr: [

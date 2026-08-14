@@ -252,6 +252,9 @@ const ICON_PATHS = {
   sun:      <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>,
   moon:     <path d="M20 14.5A8 8 0 0 1 9.5 4a7 7 0 1 0 10.5 10.5Z" />,
   search:   <><circle cx="11" cy="11" r="7" /><path d="m20 20-3.2-3.2" /></>,
+  /* lastik — çizgi-ikon (tread halkası + jant + 4 diş); sekme çubuğundaki diğer
+     ikonlarla aynı stil (Wheel/Icon: strokeWidth 2, currentColor). */
+  tyre:     <><circle cx="12" cy="12" r="9.2" /><circle cx="12" cy="12" r="4" /><path d="M12 2.8v2.6M12 18.6v2.6M2.8 12h2.6M18.6 12h2.6" /></>,
 };
 export function Icon({ name, size = 16, style }) {
   const p = ICON_PATHS[name];

@@ -1201,7 +1201,7 @@ ${bottomBar}
     { id: "stint", label: t("Stint"), keywords: "stint", icon: <Icon name="cap" size={15} />, run: () => setTab("stint") },
     { id: "fuel", label: t("Son Stint Yakıtı"), keywords: "fuel yakıt", icon: <Icon name="zap" size={15} />, run: () => setTab("fuel") },
     { id: "live", label: t("Canlı"), keywords: "live canlı timing", icon: <Icon name="live" size={15} />, run: () => setTab("live") },
-    { id: "tyre", label: t("Lastik"), keywords: "tyre lastik", icon: <Tyre size={13} />, run: () => setTab("tyre") },
+    { id: "tyre", label: t("Lastik"), keywords: "tyre lastik", icon: <Icon name="tyre" size={15} />, run: () => setTab("tyre") },
     { id: "drivers", label: t("Pilotlar"), keywords: "drivers pilot", icon: <Wheel size={13} />, run: () => setTab("drivers") },
     { id: "tele", label: t("Telemetri"), keywords: "telemetry telemetri", icon: <Icon name="chart" size={15} />, run: () => setTab("tele") },
     { id: "setup", label: t("Setup"), keywords: "setup", icon: <Icon name="wrench" size={15} />, run: () => setTab("setup") },
@@ -2644,8 +2644,8 @@ ${bottomBar}
               ["fuel", t("Son Stint Yakıtı"), <Icon name="zap" size={15} />],
               /* Canlı timing tüm kullanıcılara açık (v1.4.79) — test aşaması bitti. */
               ["live", t("Canlı"), <Icon name="live" size={15} />],
-              ["tyre", t("Lastik"), <Tyre size={12} />],
-              ["drivers", t("Pilotlar"), <Wheel size={12} />],
+              ["tyre", t("Lastik"), <Icon name="tyre" size={15} />],
+              ["drivers", t("Pilotlar"), <Wheel size={15} />],
               ["tele", t("Telemetri"), <Icon name="chart" size={15} />],
               ["setup", t("Setup"), <Icon name="wrench" size={15} />],
               ...(raceChan ? [["rchat", t("Yarış Sohbeti"), <Icon name="chat" size={15} />]] : [])]
