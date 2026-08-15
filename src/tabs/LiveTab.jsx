@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { fmtLap, fmtHMS, fmtGap, WEATHER, wetnessLevel, rainLevel, rubberPct } from "../engine";
 import { WetIcon } from "../WetIcon";
+import { GripIcon, gripColor } from "../GripIcon";
 import { Ring } from "../components";
 import { DESKTOP_RELEASE_URL, BRIDGE_EXE_URL, ASSET, classId, classAccent, brandKey, manufacturerKey } from "../constants";
 import { isTauri } from "../tauriEnv";
@@ -256,7 +257,9 @@ function LapsModal({ t, tid, rid, row, canEdit, onClose }) {
                     color: "var(--dim)", display: "flex", alignItems: "center", gap: 10,
                     flexWrap: "wrap" }}>
                     {cond.temp != null && <span title={t("Asfalt sıcaklığı")}>🛣 {cond.temp}°</span>}
-                    {cond.grip != null && <span title={t("Yol tutuş")}>🛞 %{cond.grip}</span>}
+                    {cond.grip != null && <span title={t("Yol tutuş")} style={{ display: "inline-flex",
+                      alignItems: "center", gap: 3, color: gripColor(cond.grip) }}>
+                      <GripIcon pct={cond.grip} size={14} /> %{cond.grip}</span>}
                     {cond.wet != null && (condWx
                       ? <span title={t("Zemin ıslaklığı")} style={{ display: "inline-flex",
                           alignItems: "center", gap: 3, color: WEATHER[condWx].col }}>
@@ -778,8 +781,12 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
               okuma değil (title'da "tahmini"). Sahadaki tüm araçların tur toplamı. */}
           <div className="kpi"><div className="v">
             {fieldAll.length > 0
-              ? <span title={t("Turlardan modellenmiş tahmin (gerçek okuma değil)")}>
-                  🛞 %{rubberPct(s.sessionType, fieldAll.reduce((a, c) => a + (c.lapsDone || 0), 0))}</span>
+              ? (() => {
+                  const g = rubberPct(s.sessionType, fieldAll.reduce((a, c) => a + (c.lapsDone || 0), 0));
+                  return <span title={t("Turlardan modellenmiş tahmin (gerçek okuma değil)")}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 7, color: gripColor(g) }}>
+                    <GripIcon pct={g} size={30} title={t("Tutuş")} />%{g}</span>;
+                })()
               : "—"}</div>
             <div className="l">{t("Tutuş")}</div></div>
         </div>
