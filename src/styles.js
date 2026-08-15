@@ -688,7 +688,7 @@ export const css = `
 .rc .wxrow .wxat{margin-left:auto;color:var(--muted);font-size:12px}
 /* v1.8.15 — tur geçmişi (LapsModal) satırı: TEK SATIR kompakt (dikey padding 8→3,
    satırlar arası küçük boşluk, dar ekranda doğal sar). .wxrow geneli DEĞİŞMEZ. */
-.rc .wxrow.laprow{padding:3px 10px;gap:8px;row-gap:2px;flex-wrap:wrap}
+.rc .wxrow.laprow{padding:6px 10px;gap:8px;row-gap:3px;flex-wrap:wrap}
 .rc .wxmfoot{padding:10px 16px;border-top:1px solid var(--line);display:flex;
   justify-content:flex-end}
 .rc .wxsrc{font-size:9px;text-transform:uppercase;letter-spacing:.06em;padding:1px 6px;
