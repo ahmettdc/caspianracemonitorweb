@@ -494,6 +494,9 @@ class BridgeGUI:
                 pend, herr = apply_harvest(fb, tid, harv, payload, pend)
                 if herr:
                     self.lg.warning("tur geçmişi yazılamadı (yeniden denenecek): %s", herr)
+                elif harv.frame_written:
+                    self.lg.info("tur geçmişi: +%d tur (toplam %d)",
+                                 harv.frame_written, harv.total_written)
                 t1 = time.time()
                 fb.put_live(tid, rid, payload)
                 t2 = time.time()
@@ -505,7 +508,8 @@ class BridgeGUI:
                     self.root.after(0, self._hide_to_tray)
                 fuel = (payload["own"] or {}).get("fuel")
                 self.set_status(f"● {len(payload['field'])} araç · yakıt "
-                                f"{fuel if fuel is not None else '—'}", GOOD)
+                                f"{fuel if fuel is not None else '—'}"
+                                f" · 📼 {harv.total_written} tur", GOOD)
                 if t2 - last_hb >= 10:  # dosyaya ~10 sn'de bir (şişmesin)
                     last_hb = t2
                     self.lg.info(heartbeat_line(sent, len(payload["field"]), fuel,

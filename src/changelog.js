@@ -5,6 +5,20 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.8.13",
+    date: "2026-08-15",
+    tr: [
+      "🛰 Köprü kaydı artık GÖRÜNÜR: Canlı ekranda köprünün sürümü ve kaç tur kaydettiği yazıyor ('Köprü v1.8.13 · N tur kaydetti'). Köprü, web açık olsun olmasın kendi başına kaydeder — bu satır onu gözle doğrular. Köprü sürümü eskiyse (bu alanı yazamayan) ekranda 'Köprü eski sürüm — güncelle' uyarısı çıkar; 5 sürümdür göremediğimiz 'sürüş PC'sinde eski köprü' durumu artık anında belli olur.",
+      "📼 Köprü artık kaydettiği her turu log dosyasına yazıyor ('tur geçmişi: +N tur (toplam M)') ve köprü penceresinin durum satırında toplam kaydedilen tur sayısı görünüyor.",
+      "Not: köprü sürüm/tur göstergesi için sürüş PC'sinin güncel köprüyü (v1.8.13) kurması gerekir; kurulunca kalıcı olarak görünür. Web tarafı kayıt (v1.8.12) köprü eski olsa da çalışmaya devam eder.",
+    ],
+    en: [
+      "🛰 Bridge recording is now VISIBLE: the live screen shows the bridge version and how many laps it has recorded ('Bridge v1.8.13 · N laps recorded'). The bridge records on its own whether or not the web is open — this line confirms it at a glance. If the bridge is out of date (can't report this), the screen shows 'Bridge out of date — update it'; the 'stale bridge on the driving PC' condition we couldn't see for 5 versions is now revealed instantly.",
+      "📼 The bridge now logs each recorded lap to its log file ('lap history: +N laps (total M)') and shows the total recorded-lap count in the bridge window's status line.",
+      "Note: the bridge version/lap indicator needs the driving PC to install the current bridge (v1.8.13); once installed it stays visible. Web-side recording (v1.8.12) keeps working even if the bridge is old.",
+    ],
+  },
+  {
     v: "v1.8.12",
     date: "2026-08-15",
     tr: [

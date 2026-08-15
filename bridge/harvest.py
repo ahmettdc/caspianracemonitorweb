@@ -79,6 +79,8 @@ class Harvester:
         self.last_pit = {}    # lapKey → son görülen pit durak sayısı
         self.last_drv = {}    # lapKey → son yazılan pilot adı (yalnız DEĞİŞİNCE yazılır)
         self.last_tyre = {}   # lapKey → son yazılan pit-lastik-değişimi turu
+        self.total_written = 0   # bu seansta yazılan tur sayısı (web'de "N tur kaydetti")
+        self.frame_written = 0   # SON process() çağrısında yazılan tur (log için)
 
     def _clear_all(self):
         return {f"{n}/{self.rid}": None for n in LAP_NODES}
@@ -91,9 +93,11 @@ class Harvester:
         self.last_pit = {}
         self.last_drv = {}
         self.last_tyre = {}
+        self.total_written = 0   # tam temizlik (yeni seans/restart) → sayaç sıfırlanır
 
     def process(self, payload):
         patches = []
+        self.frame_written = 0
         had_history = self.known_session_id is not None
         sess = (payload or {}).get("session") or {}
 
@@ -178,6 +182,8 @@ class Harvester:
                 for n, s in zip(nums, laps):
                     if n > prev and _num(s) and s > 0:
                         upd[f"livelaps/{self.rid}/{key}/{int(n)}"] = s
+                        self.total_written += 1   # web "N tur kaydetti" + log
+                        self.frame_written += 1
                     if n > prev and pos > 0:  # pozisyon geçmişi (pit turu → negatif)
                         upd[f"livepos/{self.rid}/{key}/{int(n)}"] = (
                             -pos if (n == max_n and pitted) else pos)
