@@ -553,6 +553,8 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
   const [big, setBig] = useState(false);
   const [lapsFor, setLapsFor] = useState(null);   // "+" ile açılan tur listesi satırı
   const [showTeam, setShowTeam] = useState(false); // Pilot ↔ Takım sütun geçişi
+  const [lapMode, setLapMode] = useState(false);   // Son ↔ En İyi tek sütun geçişi
+  const [avgMode, setAvgMode] = useState(false);   // AVG5 ↔ AVG tek sütun geçişi
   // DEMO: yerel sahte veri (oyun/köprü/Firebase gerekmez) — UI düzenlemek için
   const [demo, setDemo] = useState(false);
   const [demoData, setDemoData] = useState(null);
@@ -720,12 +722,14 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
     const lapsDown = c.lapsBehind != null
       ? Math.max(0, c.lapsBehind) : Math.max(0, leaderLaps - (c.lapsDone ?? 0));
     const lapsDownNext = c.lapsBehindNext != null ? Math.max(0, c.lapsBehindNext) : 0;
-    const delta = (c.lastSec > 0 && c.bestSec > 0) ? c.lastSec - c.bestSec : null;
-    return { c, i, id, classPos: classCounts[id], interval, lapsDown, lapsDownNext, delta,
+    return { c, i, id, classPos: classCounts[id], interval, lapsDown, lapsDownNext,
       isFastest: c.bestSec > 0 && c.bestSec === fastestBest };
   });
   const shown = myClassOnly && playerClass
     ? rows.filter((r) => r.id === playerClass) : rows;
+  /* Tıklanabilir sütun başlığı stili (Pilot↔Takım, Sınıf süzgeci, Son↔En İyi, AVG5↔AVG). */
+  const thBtn = { background: "none", border: 0, color: "inherit", font: "inherit",
+    cursor: "pointer", padding: 0, textDecoration: "underline dotted" };
 
   return (
     <div data-tour="livecard" ref={rootRef} className={big ? "bigboard" : ""}>
@@ -844,12 +848,8 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
       <div className="card" data-tour="livefield">
         <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           🏁 {t("Saha")} ({shown.length})
-          {playerClass && (
-            <button className={`act${myClassOnly ? " on" : ""}`}
-              style={{ fontSize: 11, padding: "3px 10px",
-                ...(myClassOnly && { borderColor: "var(--teal)", color: "var(--teal)" }) }}
-              onClick={() => setMyClassOnly((v) => !v)}>
-              {myClassOnly ? t("Tüm saha") : t("Kendi sınıfım")}</button>
+          {myClassOnly && playerClass && (
+            <span style={{ fontSize: 11, color: "var(--teal)" }}>· {t("Kendi sınıfım")}</span>
           )}
         </h2>
         {!shown.length && <div className="hint">{t("Henüz araç verisi yok.")}</div>}
@@ -859,22 +859,31 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
               <thead><tr>
                 <th>#</th>
                 <th><button onClick={() => setShowTeam((v) => !v)}
-                  title={t("Pilot / Takım değiştir")}
-                  style={{ background: "none", border: 0, color: "inherit", font: "inherit",
-                    cursor: "pointer", padding: 0, textDecoration: "underline dotted" }}>
+                  title={t("Pilot / Takım değiştir")} style={thBtn}>
                   {showTeam ? t("Takım") : t("Pilot")}</button></th>
-                <th>{t("Sınıf")}</th><th>{t("Tur")}</th>
-                <th>{t("Son")}</th><th>{t("En İyi")}</th><th>{t("Sektör")}</th>
-                <th>AVG5</th><th>AVG</th>
+                <th>{playerClass ? (
+                  <button onClick={() => setMyClassOnly((v) => !v)}
+                    title={t("Kendi sınıfım süzgeci")}
+                    style={{ ...thBtn, ...(myClassOnly && { color: "var(--teal)", fontWeight: 700 }) }}>
+                    {t("Sınıf")}</button>
+                ) : t("Sınıf")}</th>
+                <th>{t("Tur")}</th>
+                <th>Gap</th><th>{t("Aralık")}</th>
+                <th><button onClick={() => setLapMode((v) => !v)}
+                  title={t("Son / En İyi değiştir")} style={thBtn}>
+                  {lapMode ? t("En İyi") : t("Son")}</button></th>
+                <th>{t("Sektör")}</th>
+                <th><button onClick={() => setAvgMode((v) => !v)}
+                  title={t("AVG5 / AVG değiştir")} style={thBtn}>
+                  {avgMode ? "AVG" : "AVG5"}</button></th>
                 <th>VE</th><th>{t("VE/tur")}</th>
-                <th>Δ</th><th>Gap</th><th>{t("Aralık")}</th>
                 <th>Stint</th><th>{t("Lastik")}</th>
                 <th>{t("Hasar")}</th><th>Pit</th><th>{t("Ceza")}</th>
                 <th aria-label={t("Turlar")}></th>
               </tr></thead>
               <tbody>
                 {shown.map(({ c, i, id, classPos, interval, lapsDown, lapsDownNext,
-                  delta, isFastest }) => {
+                  isFastest }) => {
                   const acc = classAccent(c.carClass);
                   const fl = flash[carKey(c)];   // "purple" | "green" | undefined
                   return (
@@ -907,25 +916,24 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
                           fontWeight: classPos === 1 ? 700 : 400 }}>P{classPos}</span>}
                       </td>
                       <td>{c.lapsDone ?? "—"}</td>
-                      <td>{lap(c.lastSec)}</td>
-                      <td style={{ color: isFastest ? "var(--purple)" : "var(--dim)",
-                        fontWeight: isFastest ? 700 : 400 }}>{lap(c.bestSec)}</td>
+                      {/* Gap + Aralık: sütun sırasında 5. ve 6. (Tur'dan hemen sonra). */}
+                      <td>{i === 0 ? t("Lider") : lapsDown >= 1 ? `+${lapsDown} ${t("Tur")}` : gap(c.gapSec)}</td>
+                      <td style={{ color: "var(--dim)" }}>
+                        {lapsDownNext >= 1 ? `+${lapsDownNext} ${t("Tur")}`
+                          : interval != null ? gap(interval) : "—"}</td>
+                      {/* Son/En İyi tek sütun (başlıktan geçiş); En İyi'de sınıf en hızlısı mor. */}
+                      <td style={{ color: lapMode ? (isFastest ? "var(--purple)" : "var(--dim)") : undefined,
+                        fontWeight: lapMode && isFastest ? 700 : 400 }}>
+                        {lap(lapMode ? c.bestSec : c.lastSec)}</td>
                       <td className="mono" style={{ color: "var(--dim)", fontSize: 11 }}
                         title={t("Son turun S1·S2·S3 sektör süreleri")}>{secStr(c.lastSectors)}</td>
-                      <td style={{ color: "var(--dim)" }}>{lap(c.avg5Sec)}</td>
-                      <td style={{ color: "var(--dim)" }}>{lap(c.avgSec)}</td>
+                      {/* AVG5/AVG tek sütun (başlıktan geçiş). */}
+                      <td style={{ color: "var(--dim)" }}>{lap(avgMode ? c.avgSec : c.avg5Sec)}</td>
                       <td style={{ color: veColor(c.virtualEnergy), fontSize: 12 }}>
                         {c.virtualEnergy != null ? `${Math.round(c.virtualEnergy)}%` : "—"}</td>
                       <td style={{ color: "var(--dim)", fontSize: 12 }}
                         title={t("Tur başına VE tüketimi")}>
                         {c.vePerLap != null ? `${c.vePerLap.toFixed(1)}%` : "—"}</td>
-                      <td style={{ color: delta == null ? "var(--dim)"
-                        : delta <= 0 ? "var(--green)" : "var(--red)", fontSize: 12 }}>
-                        {delta == null ? "—" : `${delta > 0 ? "+" : ""}${delta.toFixed(2)}`}</td>
-                      <td>{i === 0 ? t("Lider") : lapsDown >= 1 ? `+${lapsDown} ${t("Tur")}` : gap(c.gapSec)}</td>
-                      <td style={{ color: "var(--dim)" }}>
-                        {lapsDownNext >= 1 ? `+${lapsDownNext} ${t("Tur")}`
-                          : interval != null ? gap(interval) : "—"}</td>
                       <td className="mono" style={{ color: "var(--dim)", fontSize: 12 }}>
                         {c.stintSec > 0 ? fmtHMS(c.stintSec) : "—"}</td>
                       {/* Lastik (birleşik): hamur ikonu + en kötü aşınma %. Renkli nokta

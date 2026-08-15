@@ -552,8 +552,8 @@ export const EN = {
   "Araçlar sınıf renginde, içlerinde sınıf-içi sıraları yazılı akar. Pist şekli turlar döndükçe oluşur ve takımca kaydedilir — sonraki girişte hazır gelir. Üstteki strateji şeridi önündeki/arkandaki aracı ve temiz hava penceresini söyler. ⛶ Büyüt ile harita tam ekran açılır.":
     "Cars move in their class colour with their in-class position written inside. The track shape builds up as laps are run and is saved for the whole team — next time it is there instantly. The strategy strip on top tells you the car ahead/behind and your clear-air window. ⛶ Expand opens the map full screen.",
   "Saha tablosu": "Field table",
-  "Her araç için sınıf-içi pozisyon, lidere Gap ve öndekine Aralık, tur-altı durumu, son/en iyi tur, lastik (hamur ikonu + en kötü aşınma) ve VE. 'Kendi sınıfım' ile yalnız kendi sınıfını süzersin; Pilot başlığına tıklayınca sütun takım adına döner.":
-    "For every car: in-class position, Gap to the leader and Interval to the car ahead, laps-down status, last/best lap, tyres (compound icon + worst wear) and VE. 'My class' filters down to your own class; clicking the Driver header switches the column to team names.",
+  "Her araç için sınıf-içi pozisyon, lidere Gap ve öndekine Aralık, tur-altı durumu, son/en iyi tur, lastik (hamur ikonu + en kötü aşınma) ve VE. Sütun başlıklarına tıkla: Pilot↔Takım, Sınıf (yalnız kendi sınıfını süz), Son↔En İyi, AVG5↔AVG kendi içinde değişir.":
+    "For every car: in-class position, Gap to the leader and Interval to the car ahead, laps-down status, last/best lap, tyres (compound icon + worst wear) and VE. Click the column headers: Driver↔Team, Class (filter to your own class), Last↔Best and AVG5↔AVG each toggle in place.",
   "Tur geçmişi — satırdaki +": "Lap history — the + on a row",
   "Bir aracın o ana kadarki tüm turları: süre, S1/S2/S3 sektörleri, o turu kimin sürdüğü (pilot değişimi vurgulanır), o turdaki pist koşulları (asfalt sıcaklığı · tutuş · ıslaklık) ve pit'te alınan lastikler. Yarış boyunca kalıcı birikir.":
     "Every lap a car has run so far: the time, S1/S2/S3 sectors, who was driving it (driver changes are highlighted), the track conditions at that lap (track temp · grip · wetness) and the tyres taken in the pits. It accumulates and persists through the race.",
@@ -760,6 +760,9 @@ export const EN = {
   "Pit çıkışı": "Pit exit",
   "PIT KAYBI": "PIT LOSS",
   "Pilot / Takım değiştir": "Toggle driver / team",
+  "Kendi sınıfım süzgeci": "My-class filter",
+  "Son / En İyi değiştir": "Toggle Last / Best",
+  "AVG5 / AVG değiştir": "Toggle AVG5 / AVG",
   "Temiz hava": "Clean air",
   "Trafik": "Traffic",
   "Yağmur": "Rain",
