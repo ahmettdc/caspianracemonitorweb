@@ -71,7 +71,11 @@ export function lapObserve(state, frame, opts = {}) {
   if (scope.livecond) {
     const temp = isNum(ses.trackTemp) ? ses.trackTemp : "";
     const wet = isNum(ses.wetness) ? ses.wetness : "";
-    const grip = rubberPct(ses.sessionType, max);   // rubberPct engine.js'ten (köprü portuyla aynı)
+    // grip: rubberPct TÜM araçların tur TOPLAMI'nı ister (TinyPedal module_vehicles —
+    // harvest.py `total_laps=sum(...)` ve LiveTab canlı "Tutuş" KPI'sı ile AYNI). Eskiden
+    // yanlışlıkla `max` (tek araç) veriliyordu → grip fazla düşük çıkıyordu (ör. %52 vs %75).
+    const totalLaps = rows.reduce((a, r) => a + (isNum(r?.lapsDone) ? r.lapsDone : 0), 0);
+    const grip = rubberPct(ses.sessionType, totalLaps);
     condStr = `${temp},${wet},${grip}`;
   }
 
