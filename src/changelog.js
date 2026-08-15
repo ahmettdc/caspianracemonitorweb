@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.8.20",
+    date: "2026-08-15",
+    tr: [
+      "🏁 Canlı Timing saha tablosunda Gap ve Aralık sütunları tek sütunda birleşti; başlığa tıklayarak (diğer başlık geçişleri gibi) lidere Gap ile öndekine Aralık arasında geçersin. Tablo bir sütun daha sadeleşti.",
+    ],
+    en: [
+      "🏁 In the Live Timing field table, Gap and Interval merged into one column; click the header (like the other header toggles) to switch between Gap to the leader and Interval to the car ahead. One less column, cleaner table.",
+    ],
+  },
+  {
     v: "v1.8.19",
     date: "2026-08-15",
     tr: [
