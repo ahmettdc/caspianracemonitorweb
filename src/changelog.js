@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.8.18",
+    date: "2026-08-15",
+    tr: [
+      "➕ Tur geçmişi ('+') penceresindeki satırlar biraz daha ferah: v1.8.15'teki tek satır kompakt tasarım çok sıkışıktı, satır yüksekliği azıcık artırıldı (yine tek satır, ekrana hâlâ çok tur sığıyor).",
+    ],
+    en: [
+      "➕ Lap history ('+') popup rows are a bit roomier: the single-line compact layout from v1.8.15 was too tight, so the row height was nudged up slightly (still single-line, and plenty of laps still fit on screen).",
+    ],
+  },
+  {
     v: "v1.8.17",
     date: "2026-08-15",
     tr: [
