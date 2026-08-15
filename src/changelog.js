@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.8.8",
+    date: "2026-08-14",
+    tr: [
+      "📡 Çift-yazıcı düzeltmesi: takım arkadaşın hafif köprüyle yayın yaparken, uygulaması açık başka bir üyenin oto-köprüsü de kendini yayıncı sanıp aynı anda yazabiliyordu (hafif köprü yazıcı-kira seçimine katılmadığı için görünmezdi; aynı hesabın iki penceresi de kirayı ikisi birden 'benim' sayıyordu) → Canlı ekran kare kare yanıp sönüyor, 'Canlı kaynak' yanlış kişiyi gösteriyordu. Artık başka bir yazıcının taze karesi varken uygulama otomatik olarak '⏸ Beklemede — X yayınlıyor' moduna geçer; yayıncı susarsa ~7 sn içinde otomatik devralır.",
+    ],
+    en: [
+      "📡 Dual-writer fix: while a teammate broadcast via the lightweight bridge, another member's auto-bridge (app merely open) could also think it was the broadcaster and write at the same time (the lightweight bridge doesn't join the writer-lease election so it was invisible to it; two windows of the same account also both counted the lease as 'mine') → the Live screen flickered frame by frame and 'Live source' showed the wrong person. The app now automatically drops to '⏸ Standby — X broadcasting' whenever another writer's fresh frame exists; if the broadcaster goes silent it takes over within ~7s.",
+    ],
+  },
+  {
     v: "v1.8.7",
     date: "2026-08-14",
     tr: [
