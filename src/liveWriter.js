@@ -28,6 +28,22 @@ export function shouldClaim(lease, uid, driving, now, staleMs = LIVE_WRITER_STAL
   return mine || stale || preempt;
 }
 
+/* BAŞKA bir yazıcının taze karesi varken bu uygulama yazmaya HİÇ kalkışmamalı.
+   Neden: hafif köprü (CaspianLiveBridge) kira seçimine KATILMAZ — doğrudan yazar.
+   Kira-temelli seçim onu göremediğinden, uygulaması açık herhangi bir üyenin
+   oto-köprüsü kirayı boş sanıp yazmaya başlıyor → iki yazıcı → tüm Canlı ekran
+   kare kare yanıp sönüyor ve "Canlı kaynak" yanlış kişiyi gösteriyordu. Ayrıca
+   AYNI hesabın iki penceresi kirayı ikisi de "benim" sayıyordu (uid eşit).
+   Çözüm: her yazıcı kareye rastgele bir pencere kimliği (wid) koyar; bu pencereye
+   ait OLMAYAN bir kare son YIELD penceresi içinde yazılmışsa boyun eğ (standby).
+   Hafif köprünün karelerinde wid yok → "başkasının karesi" sayılır → hafif köprü
+   her zaman kazanır. Yazıcı susarsa kare bayatlar → otomatik devralma sürer. */
+export const LIVE_YIELD_MS = 7000;   // ~2.5 Hz yazıcıda 3+ kare kaçana dek bekle
+
+export function shouldYield(remote, now, yieldMs = LIVE_YIELD_MS) {
+  return !!(remote && typeof remote.ts === "number" && now - remote.ts < yieldMs);
+}
+
 /* Saha (field) boşken köprü kartında NE söylenmeli? Sidecar'ın _diag.wait'i üç
    durumu ayırır — en kritiği "noplugin": Windows mmap eksik mapping'i sıfırlarla
    kendisi oluşturduğundan eklenti DLL'i kurulu/etkin değilken köprü "çalışıyor"

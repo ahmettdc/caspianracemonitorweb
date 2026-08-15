@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { shouldClaim, LIVE_WRITER_STALE_MS, bridgeWaitInfo } from "./liveWriter.js";
+import { shouldClaim, LIVE_WRITER_STALE_MS, shouldYield, LIVE_YIELD_MS, bridgeWaitInfo } from "./liveWriter.js";
 
 /* Tek-yazıcı seçimi (livewriter lease) saf kararı. now = server-hizalı ms.
    Kira: { uid, by, driving, ts }. STALE = LIVE_WRITER_STALE_MS. */
@@ -69,5 +69,27 @@ describe("bridgeWaitInfo — bekleme nedeni mesaj seçimi", () => {
     expect(bridgeWaitInfo(null).key).toBe("generic");
     expect(bridgeWaitInfo(undefined).key).toBe("generic");
     expect(bridgeWaitInfo({ wait: null }).key).toBe("generic");
+  });
+});
+
+/* Başka yazıcıya boyun eğme (v1.8.8) — hafif köprü kiraya katılmaz, aynı hesabın
+   iki penceresi kirayı ikisi de "benim" sayar → kira tek başına yetmiyordu (iki
+   yazıcı, ekran kare kare yanıp sönüyordu). Bize ait olmayan TAZE bir kare varsa
+   bu uygulama yazmaz; kare bayatlarsa devralır (failover). */
+describe("shouldYield — başka yazıcının taze karesine boyun eğ", () => {
+  const NOW = 5_000_000;
+  it("taze yabancı kare → boyun eğ (hafif köprü / diğer pencere kazanır)", () => {
+    expect(shouldYield({ ts: NOW - 1000, by: "savas" }, NOW)).toBe(true);
+    expect(shouldYield({ ts: NOW - (LIVE_YIELD_MS - 1), by: "x" }, NOW)).toBe(true);
+  });
+  it("bayat kare → devral (yazıcı sustu, failover)", () => {
+    expect(shouldYield({ ts: NOW - LIVE_YIELD_MS, by: "savas" }, NOW)).toBe(false);
+    expect(shouldYield({ ts: NOW - 60_000, by: "savas" }, NOW)).toBe(false);
+  });
+  it("yabancı kare hiç yok / ts bozuk → yaz", () => {
+    expect(shouldYield(null, NOW)).toBe(false);
+    expect(shouldYield(undefined, NOW)).toBe(false);
+    expect(shouldYield({ by: "x" }, NOW)).toBe(false);
+    expect(shouldYield({ ts: "abc", by: "x" }, NOW)).toBe(false);
   });
 });

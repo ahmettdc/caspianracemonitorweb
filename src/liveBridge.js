@@ -18,8 +18,9 @@ import { liveTimingSet, liveLapsAppend, liveLapsClear,
   livePosAppend, livePosClear, liveSecAppend, liveSecClear,
   liveDrvAppend, liveDrvClear, liveTyreAppend, liveTyreClear,
   liveCondAppend, liveCondClear, liveSessionIdGet, liveHistoryClearAll,
-  liveWriterClaim, liveWriterRelease, liveWriterSubscribe, serverNow } from "./storage";
-import { shouldClaim, bridgeWaitInfo } from "./liveWriter";
+  liveWriterClaim, liveWriterRelease, liveWriterSubscribe,
+  liveTimingSubscribe, serverNow } from "./storage";
+import { shouldClaim, shouldYield, bridgeWaitInfo } from "./liveWriter";
 
 /* Saha boşken kartta gösterilecek mesaj — anahtar sidecar'ın _diag.wait alanından
    (bkz. liveWriter.bridgeWaitInfo). "noplugin" en kritik durum: Windows mmap eksik
@@ -40,6 +41,7 @@ let stopping = false;
 let starting = false;      // spawn sürerken tekrar başlatmayı engelle (oto-yeniden dene)
 let leaseCtx = null;       // { tid, rid, uid } — durdururken kirayı bırakmak için
 let unsubLease = null;     // livewriter aboneliğini kaldıran fonksiyon
+let unsubRemote = null;    // canlı kare aboneliği (başka yazıcıya boyun eğme — shouldYield)
 
 /* Köprüyü başlat. opts: { tid, rid, hz, mock, by }. onStatus(state) çağrılır:
    { running, phase: "starting|running|error|stopped", msg, cars } */
@@ -97,6 +99,17 @@ export async function startBridge(opts, onStatus) {
   leaseCtx = { tid, rid, uid };
   if (unsubLease) { try { unsubLease(); } catch { /* yoksay */ } unsubLease = null; }
   if (electing) unsubLease = liveWriterSubscribe(tid, rid, (v) => { lease = v; });
+  /* BAŞKA yazıcıya boyun eğme (v1.8.8): hafif köprü kiraya katılmadığından kira
+     seçimi onu GÖREMİYOR; aynı hesabın iki penceresi de kirayı ikisi de "benim"
+     sayıyordu → iki yazıcı, ekran kare kare yanıp sönüyordu. Her karemize rastgele
+     bir pencere kimliği (wid) koyarız; bize ait OLMAYAN taze bir kare varsa flush
+     yazmaz (standby). Hafif köprü karelerinde wid yok → hep "başkası" → o kazanır. */
+  const myWid = Math.random().toString(36).slice(2, 10);
+  let remote = null;   // { ts, by } — başka bir yazıcının en taze karesi
+  if (unsubRemote) { try { unsubRemote(); } catch { /* yoksay */ } unsubRemote = null; }
+  unsubRemote = liveTimingSubscribe(tid, rid, (v) => {
+    if (v && typeof v.ts === "number" && v.wid !== myWid) remote = { ts: v.ts, by: v.by || "" };
+  });
 
   /* Kareyi yazmadan önce tur geçmişini kalıcı livelaps düğümüne taşı:
      her satırın laps[]/lapsFrom'undan yeni turları (n > lastLap) topla, tek update
@@ -271,6 +284,14 @@ export async function startBridge(opts, onStatus) {
     inFlight = true;
     lastWrite = Date.now();
     try {
+      // Başka bir yazıcının (hafif köprü / başka pencere-PC) taze karesi varsa YAZMA:
+      // tek yazıcı kalır, ekran yanıp sönmez, "Canlı kaynak" gerçek yayıncıyı gösterir.
+      // Yazıcı susarsa kare bayatlar (>7 sn) → otomatik devralırız (failover korunur).
+      if (shouldYield(remote, serverNow())) {
+        say({ running: true, phase: "standby", msg: "Beklemede",
+          writerBy: remote?.by || "", cars, diag });
+        return;
+      }
       // tek-yazıcı seçimi: yalnız kira sahibi / aktif sürücü yazar (iki köprü çakışmasın).
       // Karar mantığı saf fonksiyonda (liveWriter.shouldClaim) → birim testlerle kilitli.
       if (electing) {
@@ -288,7 +309,7 @@ export async function startBridge(opts, onStatus) {
       await harvestLaps(frame);   // laps'i livelaps'e taşı + kareden çıkar
       /* ts SERVER-hizalı olmalı: izleyen taraf tazeliği kendi saatiyle ölçüyor;
          yazan PC'nin saati kayıksa veri akarken bile "bağlantı koptu" görünüyordu. */
-      await liveTimingSet(tid, rid, { ts: serverNow(), by, ...frame });
+      await liveTimingSet(tid, rid, { ts: serverNow(), by, wid: myWid, ...frame });
       /* lastTs kaldırıldı (v1.8.0): hiç tüketicisi yoktu ve her karede farklı
          değer taşıdığı için durum objesi asla eşit çıkmıyor, App her karede
          boşuna render oluyordu. */
@@ -360,6 +381,7 @@ export async function startBridge(opts, onStatus) {
     if (writeTimer) { clearTimeout(writeTimer); writeTimer = null; }
     child = null;
     if (unsubLease) { try { unsubLease(); } catch { /* yoksay */ } unsubLease = null; }
+    if (unsubRemote) { try { unsubRemote(); } catch { /* yoksay */ } unsubRemote = null; }
     if (electing && uid) liveWriterRelease(tid, rid, uid);   // kirayı bırak → devir hızlı
     say({ running: false, phase: "stopped",
       msg: stopping ? "Durduruldu" : `Köprü kapandı (kod ${data?.code ?? "?"})` });
@@ -387,6 +409,7 @@ export async function stopBridge(onStatus) {
   const c = child;
   child = null;
   if (unsubLease) { try { unsubLease(); } catch { /* yoksay */ } unsubLease = null; }
+  if (unsubRemote) { try { unsubRemote(); } catch { /* yoksay */ } unsubRemote = null; }
   if (leaseCtx?.uid) { liveWriterRelease(leaseCtx.tid, leaseCtx.rid, leaseCtx.uid); leaseCtx = null; }
   if (c) {
     try { await c.kill(); } catch { /* zaten kapanmış olabilir */ }
