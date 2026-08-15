@@ -821,6 +821,7 @@ export const EN = {
   "en yakın": "nearest",
   "içinde": "within",
   "araç": "cars",
+  "Tur geçmişi kaydediliyor": "Recording lap history",
   "otomatik": "auto",
   "pist": "track",
   "Demo": "Demo",
