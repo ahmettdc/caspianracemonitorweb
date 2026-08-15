@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { newLapObs, lapObserve, hasWrites } from "./lapObs.js";
+import { rubberPct } from "./engine.js";
 
 /* Bir kare kurucu: alan başına lapKey/lapsDone/lastSec/lastSectors + session. */
 const frame = (rows, session = { sessionId: "10", sessionType: "Yarış", trackTemp: 30, wetness: 5 }) =>
@@ -56,6 +57,21 @@ describe("lapObserve — okuyucu-tarafı tur hasadı", () => {
     expect(writes.livesec).toEqual({ "c5/19": "39.5,61.5,39.8" });
     // livecond = "trackTemp,wetness,grip" (grip rubberPct'ten; sayısal, formatı doğrula)
     expect(writes.livecond["c5/19"]).toMatch(/^30,5,\d+$/);
+  });
+
+  it("livecond grip TÜM araçların tur TOPLAMI'nı kullanır (max DEĞİL)", () => {
+    // 14 araç ~48 turda; biri (c0) 18→19. Toplam=643, max=48. grip TOPLAMDAN (~%74),
+    // max'tan (%52) DEĞİL — kullanıcı bug'ı: canlı KPI %75 derken kayıt %52 yazıyordu.
+    const s = newLapObs();
+    const rows0 = Array.from({ length: 14 }, (_, i) =>
+      car(`c${i}`, i === 0 ? 18 : 48, 140, [40, 62, 39]));
+    lapObserve(s, frame(rows0));                          // ilk görüş
+    const rows1 = rows0.map((r, i) => (i === 0 ? car("c0", 19, 140.8, [40, 62, 39]) : r));
+    const { writes } = lapObserve(s, frame(rows1));       // c0 yeni tur
+    const total = rows1.reduce((a, r) => a + r.lapsDone, 0);   // 19 + 13·48 = 643
+    const grip = Number(writes.livecond["c0/19"].split(",")[2]);
+    expect(grip).toBe(rubberPct("Yarış", total));         // toplam
+    expect(grip).toBeGreaterThan(rubberPct("Yarış", 48)); // max'tan belirgin büyük
   });
 
   it("eksik/geçersiz sektör → livesec yazılmaz, livelaps yine yazılır", () => {

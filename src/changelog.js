@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.8.14",
+    date: "2026-08-15",
+    tr: [
+      "🛞 Tur geçmişindeki ('+' popup) tutuş (grip) yüzdesi düzeltildi: web tarafı kayıt, tutuşu yanlışlıkla TEK aracın tur sayısından hesaplıyordu (ör. %52) — oysa canlı ekrandaki 'Tutuş' göstergesi bunu SAHADAKİ TÜM araçların tur toplamından okuyor. Kayıt artık o göstergeyle AYNI parametreyi kullanıyor → '+' popup'ındaki tutuş, üstteki canlı 'Tutuş' değeriyle birebir eşleşir. (Not: bu düzeltmeden ÖNCE kaydedilmiş turlar eski değeri gösterir; yeni turlar doğru.)",
+    ],
+    en: [
+      "🛞 Fixed the grip percentage in lap history (the '+' popup): the web-side recorder was computing grip from a SINGLE car's lap count (e.g. 52%) — but the live 'Grip' indicator reads it from the total laps of ALL cars on track. The record now uses the SAME parameter as that indicator → the grip in the '+' popup matches the live 'Grip' value at the top exactly. (Note: laps recorded BEFORE this fix keep the old value; new laps are correct.)",
+    ],
+  },
+  {
     v: "v1.8.13",
     date: "2026-08-15",
     tr: [
