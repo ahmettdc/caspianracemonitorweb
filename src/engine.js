@@ -14,11 +14,17 @@ export const parseHMS = (s) => {
   return p[0] || 0;
 };
 export const parseLap = (s) => {
-  // "3:59.50" veya "3:59,50" → saniye
+  // "3:59.50", "3:59,50" veya Avrupa nokta yazımı "3.59.50" → saniye
   if (!s) return 0;
-  const t = String(s).trim().replace(",", ".");
+  const t = String(s).trim().replaceAll(",", ".");
   const p = t.split(":");
   if (p.length === 2) return (parseFloat(p[0]) || 0) * 60 + (parseFloat(p[1]) || 0);
+  /* "2.21.0" (dakika.saniye.salise — MoTeC/Avrupa yazımı) ':' içermediğinden
+     parseFloat'a düşüp 2.21 SANİYE sanılıyordu → 21 turluk stint 46 sn çıkıp
+     plan daha 1. stint bitmeden 2.'ye atlıyordu. İki noktalı biçimi dakika
+     olarak tanı (orta grup 00-59 → tur süresi; değilse eski davranış). */
+  const m = t.match(/^(\d+)\.([0-5]\d)\.(\d+)$/);
+  if (m) return Number(m[1]) * 60 + Number(m[2]) + Number(`0.${m[3]}`);
   return parseFloat(t) || 0;
 };
 export const fmtHMS = (sec) => {
@@ -202,9 +208,15 @@ export const effCons = (st) => st.consumption * WX(st).fuel;
    · 4 eski kuru tekrar (siyah). Eski odalarda boolean olabilir → tyState normalize eder. */
 export const tyState = (v) => (v === true ? 1 : v === false ? 0 : Number(v) || 0);
 
+/* Makul en kısa tur (sn) — LMU'da 30 sn'nin altında tur atılabilen pist yok.
+   Altındaki "tur süresi" yazım hatasıdır (ör. "2.21" → 2.21 sn sanılıp 21 turluk
+   stinti 46 saniyeye indiriyor, plan daha 1. stint bitmeden 2.'ye atlıyordu). */
+export const MIN_LAP_SEC = 30;
+
 export function computePlan(st, mode /* "race" | "code80" */) {
   const raceSec = mode === "race" ? parseHMS(st.raceTime) : parseHMS(st.code80TimeLeft);
-  const baseLap = parseLap(st.avgLap);
+  const rawLap = parseLap(st.avgLap);
+  const baseLap = rawLap >= MIN_LAP_SEC ? rawLap : 0;   // makul değilse plan üretme (invalid)
   const baseCons = st.consumption;
   const log = wxLog(st);
   const wxAt = (rel) => wxAtRel(log, rel);
@@ -247,7 +259,9 @@ export function computePlan(st, mode /* "race" | "code80" */) {
     let cum = 0;
     for (let i = 0; i < MAX_STINTS; i++) {
       const ovr = parseHMS(st.overrides[i] || "");
-      const fixLap = parseLap(st.stintLaps?.[i] || "") || 0;  // stinte özel tur süresi
+      // stinte özel tur süresi — makul değilse (yazım hatası) YOK SAY → yarış ort. kullanılır
+      const fixRaw = parseLap(st.stintLaps?.[i] || "") || 0;
+      const fixLap = fixRaw >= MIN_LAP_SEC ? fixRaw : 0;
       const startLeft = raceSec - cum;                     // stint başında kalan süre
       if (startLeft <= 0) break;
       let stintSec, lapsInStint, fuelUnits, isLast;

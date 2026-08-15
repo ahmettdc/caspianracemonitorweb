@@ -37,6 +37,13 @@ describe("zaman/tur ayrıştırma", () => {
     expect(parseLap("95.5")).toBeCloseTo(95.5, 6);
     expect(parseLap("")).toBe(0);
   });
+  it("parseLap: Avrupa nokta yazımı 'm.ss.d' DAKİKA sayılır (v1.8.11 bug: 2.21 sn sanılıyordu)", () => {
+    expect(parseLap("2.21.0")).toBeCloseTo(141.0, 6);      // 2:21.0
+    expect(parseLap("1.58.234")).toBeCloseTo(118.234, 6);  // 1:58.234
+    expect(parseLap("2,21,0")).toBeCloseTo(141.0, 6);      // virgül varyantı
+    expect(parseLap("2.75.3")).toBeCloseTo(2.75, 6);       // orta grup 00-59 değil → eski davranış
+    expect(parseLap("95.5")).toBeCloseTo(95.5, 6);         // tek nokta = saniye (değişmedi)
+  });
   it("fmtHMS: pozitif/negatif/sıfır", () => {
     expect(fmtHMS(8640)).toBe("02:24:00");
     expect(fmtHMS(0)).toBe("00:00:00");
@@ -253,6 +260,41 @@ describe("computePlan — yozlaşmış girdi (hayalet stint koruması)", () => {
     expect(plan.rows[63].isLast).toBe(false);
     expect(plan.truncated).toBe(true);
     expect(plan.invalid).toBe(false);
+  });
+
+  it("makul olmayan Avg Lap (< 30 sn — yazım hatası) plan ÜRETMEZ (invalid)", () => {
+    // "2.21" → 2.21 sn: gerçek tur olamaz → 64 hayalet stint yerine invalid uyarısı
+    const plan = computePlan(baseState({ avgLap: "2.21" }), "race");
+    expect(plan.rows.length).toBe(0);
+    expect(plan.invalid).toBe(true);
+  });
+});
+
+describe("computePlan — stinte özel tur süresi (v1.8.11 bug: 2.21.0 → 46 sn'lik stint)", () => {
+  const withStintLap = (i, v, over = {}) => {
+    const stintLaps = Array(14).fill("");
+    stintLaps[i] = v;
+    return computePlan(baseState({ stintLaps, ...over }), "race");
+  };
+
+  it("'2.21.0' artık 2:21.0 sayılır — stint 46 sn'ye ÇÖKMEZ (regresyon)", () => {
+    // Eski davranış: parseLap("2.21.0")=2.21 sn → 10 tur × 2.21 = 22 sn'lik stint →
+    // plan daha 1. stint bitmeden 2.'ye atlıyordu. Şimdi 141 sn/tur → 1410 sn stint.
+    const plan = withStintLap(0, "2.21.0");
+    expect(plan.rows[0].fixLap).toBeCloseTo(141.0, 6);
+    expect(plan.rows[0].stintSec).toBeCloseTo(1410, 1);    // 10 tur × 2:21.0
+  });
+
+  it("makul olmayan override ('2.21' → 2.21 sn) YOK SAYILIR, yarış ortalaması kullanılır", () => {
+    const plan = withStintLap(0, "2.21");
+    expect(plan.rows[0].fixLap).toBe(0);                   // yok sayıldı → UI kırmızı gösterir
+    expect(plan.rows[0].stintSec).toBeCloseTo(2400, 1);    // 10 tur × 4:00 (yarış ort.)
+  });
+
+  it("geçerli override (ör. '3:30.00') aynen uygulanır", () => {
+    const plan = withStintLap(0, "3:30.00");
+    expect(plan.rows[0].fixLap).toBeCloseTo(210, 6);
+    expect(plan.rows[0].stintSec).toBeCloseTo(2100, 1);
   });
 });
 

@@ -309,11 +309,19 @@ class LmuApi:
                 ve = round(vf, 1)                    # yüzde olarak gelmiş
             if ve is None:
                 ve = _energy_of(c)                   # toleranslı yedek
+            # Ceza sayısı: LMU'nun cut/puan cezaları paylaşımlı bellekteki
+            # mNumPenalties'e YANSIMIYOR — oyunun kendi standings ekranını besleyen
+            # bu alan yetkili kaynak. Eksik/geçersizse None (shmem değeri kalır).
+            try:
+                pen = int(float(c.get("penalties")))
+            except (TypeError, ValueError):
+                pen = None
             info = {
                 "ve": ve,
                 "team": str(c.get("fullTeamName") or c.get("teamName") or "").strip(),
                 "number": (str(c.get("carNumber")).strip()
                            if c.get("carNumber") not in (None, "") else None),
+                "penalties": pen if (pen is not None and pen >= 0) else None,
             }
             if isinstance(nm, str) and nm.strip():
                 by_driver[nm.strip().lower()] = info

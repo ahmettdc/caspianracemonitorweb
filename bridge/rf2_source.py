@@ -741,6 +741,11 @@ class RF2Source:
                     rec["team"] = st["team"]
                 if st.get("number"):
                     rec["number"] = st["number"]
+                if st.get("penalties") is not None:
+                    # cut/puan cezaları yalnız REST'te görünür (mNumPenalties saymıyor);
+                    # iki kaynağın BÜYÜĞÜ gösterilir (drive-through shmem'de de var)
+                    rec["penalties"] = max(int(rec.get("penalties") or 0),
+                                           int(st["penalties"]))
                 # marka: araç kataloğundan (vehicleName ile); takım/numara yedek
                 cat = self.lmu.lookup(rec.get("vehicleName"), drv)
                 if cat.get("manufacturer"):

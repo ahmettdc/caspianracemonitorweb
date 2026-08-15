@@ -913,7 +913,8 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
                           color: "var(--yellow)", borderColor: "var(--yellow)" }}>PIT</span>}
                         <span style={{ color: "var(--dim)" }}>{c.pitStops ?? "—"}</span>
                       </td>
-                      <td style={{ textAlign: "center" }} title={t("Bekleyen ceza")}>
+                      <td style={{ textAlign: "center" }}
+                        title={t("Ceza sayısı (cut/puan cezaları dahil)")}>
                         {c.penalties > 0
                           ? <span className="chip" style={{ color: "var(--red)",
                               borderColor: "var(--red)", fontWeight: 700 }}>⚠ {c.penalties}</span>
