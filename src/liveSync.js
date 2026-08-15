@@ -26,7 +26,12 @@ export function detectPitEntry(prevOwn, own) {
    değilse null. Oyun `timeLeftSec`i otorite kabul edilir. */
 export function clockDriftSec(st, session, now) {
   if (!session || session.sessionType !== "Yarış") return null;
-  if (session.flag !== "Green" && session.phase !== "Yeşil") return null;
+  /* YALNIZ gerçek yeşil FAZI'nda hizala. flag "Green" YETMEZ: köprü _flag_of yalnız
+     FCY'yi ayırdığından Grid/Formasyon/GERİ SAYIM fazlarında da flag="Green" gelir;
+     o sırada timeLeftSec yarış süresi değil geri sayım/formasyon süresidir (ör. 1:30)
+     → hizalama yarışı "bitmiş" sanıp raceStartMs'i geçmişe atıyordu (kullanıcı bug'ı).
+     Yeşil FAZI (mGamePhase 5 = ışıklar sönmüş, yarış saati işliyor) yetkili sinyaldir. */
+  if (session.phase !== "Yeşil") return null;
   if (!(session.timeLeftSec > 0)) return null;
   const raceSec = parseHMS(st.raceTime);
   const startMs = st.raceStartMs;

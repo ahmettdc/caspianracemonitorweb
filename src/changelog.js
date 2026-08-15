@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.8.9",
+    date: "2026-08-14",
+    tr: [
+      "⏱ Yarış öncesi geri sayım artık planı bozmuyor: yarış başlamadan önceki grid/formasyon/geri sayım (ör. 1:30) sırasında otomatik saat hizalama, bu kısa süreyi 'yarış bitişine kalan süre' sanıp Stint planını yarış bitmiş gibi geçmişe kaydırıyordu. Sebep — köprü bayrağı bu fazlarda da 'Green' gösteriyordu (yalnız FCY'yi ayırıyor); hizalama artık yalnız gerçek YEŞİL FAZI'nda (ışıklar sönüp yarış saati işlerken) çalışıyor. Grid/formasyon/geri sayım/ısınmada saat senkronu tetiklenmez.",
+    ],
+    en: [
+      "⏱ Pre-race countdown no longer breaks the plan: during the grid/formation/countdown before the race (e.g. 1:30), auto clock-alignment mistook that short timer for 'time left until race end' and shifted the Stint plan into the past as if the race were over. Cause — the bridge flag reads 'Green' in those phases too (it only distinguishes FCY); alignment now runs only during the actual GREEN phase (lights out, race clock running). No clock sync fires during grid/formation/countdown/warmup.",
+    ],
+  },
+  {
     v: "v1.8.8",
     date: "2026-08-14",
     tr: [
