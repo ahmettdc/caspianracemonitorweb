@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.8.19",
+    date: "2026-08-15",
+    tr: [
+      "🏁 Canlı Timing saha tablosu sadeleştirildi: (1) 'Kendi sınıfım' düğmesi kalktı — artık Sınıf sütun başlığına tıklayınca kendi sınıfını süzersin (aktifken başlık teal olur), Pilot↔Takım başlığı gibi. (2) Son ve En İyi tek sütunda birleşti; başlığa tıklayarak aralarında geçersin. (3) AVG5 ve AVG de tek sütunda birleşti, başlığa tıklayarak değişir. (4) Δ (delta) sütunu kaldırıldı. (5) Gap ve Aralık sütunları öne alındı (Tur'dan hemen sonra, soldan 5. ve 6. sıra).",
+    ],
+    en: [
+      "🏁 Live Timing field table streamlined: (1) the 'My class' button is gone — click the Class column header to filter to your own class (header turns teal when active), like the Driver↔Team header. (2) Last and Best merged into one column; click the header to toggle between them. (3) AVG5 and AVG also merged into one column, toggled from the header. (4) The Δ (delta) column was removed. (5) Gap and Interval moved forward (right after Laps — 5th and 6th columns from the left).",
+    ],
+  },
+  {
     v: "v1.8.18",
     date: "2026-08-15",
     tr: [

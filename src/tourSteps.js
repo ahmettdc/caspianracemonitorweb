@@ -126,7 +126,7 @@ export function liveSteps(t, { setTab, setTourDemo }) {
       body: t("Araçlar sınıf renginde, içlerinde sınıf-içi sıraları yazılı akar. Pist şekli turlar döndükçe oluşur ve takımca kaydedilir — sonraki girişte hazır gelir. Üstteki strateji şeridi önündeki/arkandaki aracı ve temiz hava penceresini söyler. ⛶ Büyüt ile harita tam ekran açılır.") },
     { sel: "[data-tour='livefield']", act: live,
       title: t("Saha tablosu"),
-      body: t("Her araç için sınıf-içi pozisyon, lidere Gap ve öndekine Aralık, tur-altı durumu, son/en iyi tur, lastik (hamur ikonu + en kötü aşınma) ve VE. 'Kendi sınıfım' ile yalnız kendi sınıfını süzersin; Pilot başlığına tıklayınca sütun takım adına döner.") },
+      body: t("Her araç için sınıf-içi pozisyon, lidere Gap ve öndekine Aralık, tur-altı durumu, son/en iyi tur, lastik (hamur ikonu + en kötü aşınma) ve VE. Sütun başlıklarına tıkla: Pilot↔Takım, Sınıf (yalnız kendi sınıfını süz), Son↔En İyi, AVG5↔AVG kendi içinde değişir.") },
     { sel: "[data-tour='livelapsbtn']", act: live,
       title: t("Tur geçmişi — satırdaki +"),
       body: t("Bir aracın o ana kadarki tüm turları: süre, S1/S2/S3 sektörleri, o turu kimin sürdüğü (pilot değişimi vurgulanır), o turdaki pist koşulları (asfalt sıcaklığı · tutuş · ıslaklık) ve pit'te alınan lastikler. Yarış boyunca kalıcı birikir.") },
