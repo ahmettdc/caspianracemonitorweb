@@ -3,7 +3,7 @@
 export const SLOT_COLORS = { A: "#40D68C", B: "#F0604D", C: "#F2A33C", D: "#6694FF" };
 
 /* ---------- pist & araç seçimi ---------- */
-export const APP_VERSION = "v1.8.15";   // tek kaynak — sürüm yazısı buradan
+export const APP_VERSION = "v1.8.16";   // tek kaynak — sürüm yazısı buradan
 export const REPO_URL = "https://github.com/ahmettdc/caspianracemonitorweb";
 export const SEEN_VER_KEY = "rm_seen_version";
 export const ASSET = import.meta.env.BASE_URL + "assets/";
@@ -185,6 +185,12 @@ export const carImg = (cls, id) => {
    BADGES/teamBadgesOf/hasBadge JSX (<Wheel/>) içerdiği için ./components.jsx'te. */
 export const PIE_COLORS = ["#2DD4BF", "#F2C94C", "#960018", "#9B6DFF", "#4C9AFF",
   "#FF8A3D", "#59C36A", "#EC5CA6", "#00B8D9", "#C0CA33"];
+/* Takım renk paleti (pozisyon grafiği çizgileri) — CVD-güvenli kategorik 7'li
+   (dataviz validator: dark yüzeyde TÜM kontroller PASS; light'ta CVD PASS, kontrast
+   WARN → uç pilot-kodu etiketleri "relief" sağlar). #960018 OYUNCUYA ayrıldığı için
+   palette YOK. 7'den fazla takımda döner (renk tekrarı) → çizgiler uç etiketten ayrılır. */
+export const TEAM_COLORS = ["#3987e5", "#d95926", "#199e70", "#c98500",
+  "#d55181", "#008300", "#9085e9"];
 export const quantile = (sorted, q) => {
   const pos = (sorted.length - 1) * q;
   const lo = Math.floor(pos), hi = Math.ceil(pos);

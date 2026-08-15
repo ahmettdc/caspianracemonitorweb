@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.8.16",
+    date: "2026-08-15",
+    tr: [
+      "📈 Pozisyon Grafiği daha okunur: (1) Saha tablosunda 'Kendi sınıfım' açıkken grafik de yalnız kendi sınıfını gösterir ve Y ekseni sınıf-içi pozisyona (1, 2, 3…) döner — kalabalık grid dağılmaz. (2) Çizgiler artık SINIF yerine TAKIM rengiyle çizilir (aynı sınıftaki araçlar artık ayırt edilir; kendi aracın kalın bordo kalır). (3) Her çizginin sağ ucunda pilot kodu (ör. HAR) — bir sınıfta 7'den fazla araç olduğunda renkler tekrar etse bile araç net ayırt edilir. Takım rengi araca sabittir (bir araç çekilse/süzgeçlense diğerlerinin rengi değişmez).",
+    ],
+    en: [
+      "📈 Position Chart is more readable: (1) when 'My class' is on in the standings table, the chart also shows only your class and the Y axis switches to class position (1, 2, 3…) — a crowded grid no longer overwhelms it. (2) Lines are now colored by TEAM instead of class (cars in the same class are now distinguishable; your own car stays the thick maroon line). (3) A driver code (e.g. HAR) sits at the right end of each line — so even when a class has more than 7 cars and colors repeat, each car stays identifiable. A team's color is fixed to the car (a car retiring or being filtered never repaints the others).",
+    ],
+  },
+  {
     v: "v1.8.15",
     date: "2026-08-15",
     tr: [
