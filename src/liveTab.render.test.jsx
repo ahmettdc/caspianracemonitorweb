@@ -33,9 +33,10 @@ describe("LiveTab render (v1.4.74)", () => {
     expect(html).not.toContain("width .15s linear");
   });
 
-  it("#3 'Tutuş' (rubber) KPI'sı 🛞 %NN olarak görünür", () => {
+  it("#3 'Tutuş' (rubber) KPI'sı GripIcon + %NN olarak görünür (v1.8.10: emoji değil SVG)", () => {
     expect(html).toContain("Tutuş");
-    expect(html).toMatch(/🛞\s*%\d+/);
+    expect(html).toMatch(/%\d+/);
+    expect(html).toMatch(/clip-path="url\(#gc/);      // GripIcon seviye-dolgu SVG'si (🛞 değil)
   });
 
   it("boş saha ile çökmez", () => {

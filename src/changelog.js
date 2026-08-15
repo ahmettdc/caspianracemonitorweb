@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.8.10",
+    date: "2026-08-15",
+    tr: [
+      "🛞 Tutuş (GRIP) göstergesi artık emoji değil, temaya uygun bir SVG ikonu: lastik alttan grip yüzdesine kadar dolar ve seviyeye göre renklenir (düşük=kırmızı → orta=amber → yüksek=yeşil). Canlı 'Tutuş' KPI'sında ve '+' tur geçmişi pist-koşulu satırında kullanılıyor; her boyutta net, çevrimdışı (Tauri) da çalışır.",
+    ],
+    en: [
+      "🛞 The Grip indicator is no longer an emoji but a theme-matched SVG icon: the tyre fills from the bottom up to the grip percentage and is colour-coded by level (low=red → medium=amber → high=green). Used in the live 'Grip' KPI and the '+' lap-history track-condition row; crisp at any size and works offline (Tauri) too.",
+    ],
+  },
+  {
     v: "v1.8.9",
     date: "2026-08-14",
     tr: [
