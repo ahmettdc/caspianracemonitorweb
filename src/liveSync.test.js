@@ -43,6 +43,14 @@ describe("clockDriftSec / alignedStartMs — oyun saati otorite", () => {
     expect(clockDriftSec(st(), raceSes({ timeLeftSec: null }), 2_000_000)).toBeNull();
     expect(clockDriftSec(st({ raceStartMs: NaN }), raceSes(), 2_000_000)).toBeNull();
   });
+  it("YARIŞ ÖNCESİ geri sayım/formasyon → null (flag=Green ama faz Yeşil DEĞİL)", () => {
+    // v1.8.9 bug: köprü _flag_of Grid/Formasyon/Geri Sayım'da da flag='Green' verir;
+    // o sırada timeLeftSec = geri sayım (ör. 90 sn) → hizalama yarışı "bitmiş" sanıyordu.
+    for (const phase of ["Geri Sayım", "Formasyon", "Grid", "Isınma"]) {
+      expect(clockDriftSec(st(), raceSes({ flag: "Green", phase, timeLeftSec: 90 }),
+        1_000_000 + 3_500_000)).toBeNull();
+    }
+  });
   it("hizalamadan sonra kayma ~0 (round-trip)", () => {
     const now = 1_000_000 + 3_500_000;
     const ses = raceSes({ timeLeftSec: 3600 });
