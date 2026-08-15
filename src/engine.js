@@ -13,6 +13,19 @@ export const parseHMS = (s) => {
   if (p.length === 2) return p[0] * 60 + p[1];
   return p[0] || 0;
 };
+/* Yarışın "Geçmiş Yarışlar"a düşeceği an (ms). Lobi partition'u bunu kullanır.
+   ESKİDEN sabit 6h başlangıçtan ölçülüyordu (yarış SÜRESİ yok sayılıyordu) → 4 saatlik
+   yarış bittikten ~2h sonra hâlâ "Sonraki Yarış"ta kalıyor, 24h yarış ise başlangıçtan
+   6h sonra (hâlâ sürerken) yanlışlıkla Geçmiş'e düşüyordu. Artık gerçek bitişe (başlangıç +
+   yarış süresi) küçük bir tampon eklenir; raceTime yoksa eski 6h davranışına düşer. */
+export const RACE_PAST_BUFFER_MS = 30 * 60e3;   // planlı bitişten sonra 30 dk pay
+export function raceEndsBy(r) {
+  const start = r?.startsAt || 0;
+  const durMs = parseHMS(r?.raceTime || "") * 1000;
+  return durMs > 0 ? start + durMs + RACE_PAST_BUFFER_MS : start + 6 * 3600e3;
+}
+export const isRacePast = (r, now) => raceEndsBy(r) < now;
+
 export const parseLap = (s) => {
   // "3:59.50", "3:59,50" veya Avrupa nokta yazımı "3.59.50" → saniye
   if (!s) return 0;

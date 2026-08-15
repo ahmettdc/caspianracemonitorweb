@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.8.17",
+    date: "2026-08-15",
+    tr: [
+      "🏁 'Sonraki Yarış' artık bitmiş yarışı takılıp göstermiyor. Eskiden bir yarış, gerçek uzunluğu ne olursa olsun, BAŞLANGICINDAN 6 saat geçene kadar 'Sonraki/Yaklaşan'da kalıyordu → 4 saatlik bir yarış bittikten ~2 saat sonra hâlâ orada duruyordu (24 saatlik bir yarış ise sürerken yanlışlıkla 'Geçmiş'e düşüyordu). Artık eşik yarışın SÜRESİNE bağlı: bir yarış, planlı bitişinden ~30 dk sonra otomatik olarak 'Geçmiş Yarışlar'a geçer; süren uzun yarışlar da yanlışlıkla kaybolmaz.",
+    ],
+    en: [
+      "🏁 'Next Race' no longer keeps showing a race that has already finished. Previously a race stayed in 'Next/Upcoming' until 6 hours after its START — regardless of its actual length — so a 4-hour race lingered there for ~2 hours after it ended (and a 24-hour race wrongly dropped to 'Past' while still running). The threshold is now based on the race's DURATION: a race moves to 'Past Races' automatically ~30 min after its scheduled finish, and long ongoing races no longer disappear by mistake.",
+    ],
+  },
+  {
     v: "v1.8.16",
     date: "2026-08-15",
     tr: [
