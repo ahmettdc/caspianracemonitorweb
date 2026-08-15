@@ -555,6 +555,7 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
   const [showTeam, setShowTeam] = useState(false); // Pilot ↔ Takım sütun geçişi
   const [lapMode, setLapMode] = useState(false);   // Son ↔ En İyi tek sütun geçişi
   const [avgMode, setAvgMode] = useState(false);   // AVG5 ↔ AVG tek sütun geçişi
+  const [gapMode, setGapMode] = useState(false);   // Gap ↔ Aralık tek sütun geçişi
   // DEMO: yerel sahte veri (oyun/köprü/Firebase gerekmez) — UI düzenlemek için
   const [demo, setDemo] = useState(false);
   const [demoData, setDemoData] = useState(null);
@@ -868,7 +869,9 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
                     {t("Sınıf")}</button>
                 ) : t("Sınıf")}</th>
                 <th>{t("Tur")}</th>
-                <th>Gap</th><th>{t("Aralık")}</th>
+                <th><button onClick={() => setGapMode((v) => !v)}
+                  title={t("Gap / Aralık değiştir")} style={thBtn}>
+                  {gapMode ? t("Aralık") : "Gap"}</button></th>
                 <th><button onClick={() => setLapMode((v) => !v)}
                   title={t("Son / En İyi değiştir")} style={thBtn}>
                   {lapMode ? t("En İyi") : t("Son")}</button></th>
@@ -916,11 +919,13 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
                           fontWeight: classPos === 1 ? 700 : 400 }}>P{classPos}</span>}
                       </td>
                       <td>{c.lapsDone ?? "—"}</td>
-                      {/* Gap + Aralık: sütun sırasında 5. ve 6. (Tur'dan hemen sonra). */}
-                      <td>{i === 0 ? t("Lider") : lapsDown >= 1 ? `+${lapsDown} ${t("Tur")}` : gap(c.gapSec)}</td>
-                      <td style={{ color: "var(--dim)" }}>
-                        {lapsDownNext >= 1 ? `+${lapsDownNext} ${t("Tur")}`
-                          : interval != null ? gap(interval) : "—"}</td>
+                      {/* Gap/Aralık tek sütun (başlıktan geçiş); Tur'dan hemen sonra 5. sıra. */}
+                      <td style={gapMode ? { color: "var(--dim)" } : undefined}>
+                        {gapMode
+                          ? (lapsDownNext >= 1 ? `+${lapsDownNext} ${t("Tur")}`
+                              : interval != null ? gap(interval) : "—")
+                          : (i === 0 ? t("Lider") : lapsDown >= 1 ? `+${lapsDown} ${t("Tur")}`
+                              : gap(c.gapSec))}</td>
                       {/* Son/En İyi tek sütun (başlıktan geçiş); En İyi'de sınıf en hızlısı mor. */}
                       <td style={{ color: lapMode ? (isFastest ? "var(--purple)" : "var(--dim)") : undefined,
                         fontWeight: lapMode && isFastest ? 700 : 400 }}>

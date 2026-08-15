@@ -763,6 +763,7 @@ export const EN = {
   "Kendi sınıfım süzgeci": "My-class filter",
   "Son / En İyi değiştir": "Toggle Last / Best",
   "AVG5 / AVG değiştir": "Toggle AVG5 / AVG",
+  "Gap / Aralık değiştir": "Toggle Gap / Interval",
   "Temiz hava": "Clean air",
   "Trafik": "Traffic",
   "Yağmur": "Rain",
