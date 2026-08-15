@@ -3,6 +3,7 @@ import {
   parseHMS, parseLap, fmtHMS, fmtLap, fmtGap, fmtDur, msToLocalInput,
   DEFAULT_STATE, WEATHER, wxLog, wxAtRel, WX, effLapSec, effCons, tyState,
   computePlan, migrate, lastStintFuel, wetnessLevel, rainLevel, rubberPct,
+  isRacePast, raceEndsBy,
 } from "./engine.js";
 
 /* Temiz, deterministik bir durum kur — testler bunun üstünden yürür. */
@@ -267,6 +268,35 @@ describe("computePlan — yozlaşmış girdi (hayalet stint koruması)", () => {
     const plan = computePlan(baseState({ avgLap: "2.21" }), "race");
     expect(plan.rows.length).toBe(0);
     expect(plan.invalid).toBe(true);
+  });
+});
+
+describe("isRacePast / raceEndsBy — 'Sonraki Yarış' geçmiş eşiği yarış SÜRESİNE göre", () => {
+  const NOW = 1_700_000_000_000;
+  const H = 3600e3;
+  it("4h yarış: bitişten ~1h sonra → past", () => {
+    const r = { startsAt: NOW - 5 * H, raceTime: "4:00:00" };   // bitiş NOW-1h
+    expect(isRacePast(r, NOW)).toBe(true);
+  });
+  it("4h yarış: hâlâ sürüyor (start 3h önce) → not past", () => {
+    const r = { startsAt: NOW - 3 * H, raceTime: "4:00:00" };
+    expect(isRacePast(r, NOW)).toBe(false);
+  });
+  it("tampon: bitişten 20 dk sonra → not past, 40 dk sonra → past", () => {
+    const in20 = { startsAt: NOW - (4 * H + 20 * 60e3), raceTime: "4:00:00" };
+    const in40 = { startsAt: NOW - (4 * H + 40 * 60e3), raceTime: "4:00:00" };
+    expect(isRacePast(in20, NOW)).toBe(false);   // 30 dk pay içinde
+    expect(isRacePast(in40, NOW)).toBe(true);
+  });
+  it("raceTime yoksa eski 6h-başlangıç eşiğine düşer", () => {
+    expect(isRacePast({ startsAt: NOW - 5 * H }, NOW)).toBe(false);   // 6h dolmadı
+    expect(isRacePast({ startsAt: NOW - 7 * H }, NOW)).toBe(true);    // 6h geçti
+  });
+  it("REGRESYON: 24h yarış start'tan 8h sonra (hâlâ sürerken) → NOT past", () => {
+    // eski sabit-6h kuralı bunu yanlışlıkla Geçmiş'e düşürüyordu
+    const r = { startsAt: NOW - 8 * H, raceTime: "24:00:00" };
+    expect(isRacePast(r, NOW)).toBe(false);
+    expect(raceEndsBy(r)).toBe(NOW - 8 * H + 24 * H + 30 * 60e3);
   });
 });
 

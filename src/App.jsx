@@ -28,7 +28,7 @@ import { carImageSrc, teamLogoSrc } from "./teamAssets";
 import { duckSetupToSvm, textToB64 } from "./setupParse";
 import { signInGoogle, signOut, authReady } from "./auth";
 import {
-  parseHMS, fmtHMS, fmtLap, parseLap, msToLocalInput,
+  parseHMS, fmtHMS, fmtLap, parseLap, msToLocalInput, isRacePast,
   DEFAULT_STATE, EMPTY_PIT, TYRE_2_SEC, TYRE_4_SEC,
   WEATHER, wxLog, wxAtRel, WX, effCons, tyState,
   computePlan, migrate, lastStintFuel,
@@ -1626,8 +1626,11 @@ ${bottomBar}
     const now = Date.now();
     const list = Object.entries(races)
       .sort(([, a], [, b]) => (a.startsAt || 0) - (b.startsAt || 0));
-    const allUp = list.filter(([, r]) => (r.startsAt || 0) >= now - 6 * 3600e3);
-    const allPast = list.filter(([, r]) => (r.startsAt || 0) < now - 6 * 3600e3).reverse();
+    /* Geçmiş eşiği yarışın SÜRESİNE göre (isRacePast): planlı bitiş + 30 dk. Eski sabit
+       6h-başlangıçtan kuralı, 4h yarışı bitince 2h daha "Sonraki"de tutuyor, 24h yarışı ise
+       sürerken Geçmiş'e düşürüyordu. */
+    const allUp = list.filter(([, r]) => !isRacePast(r, now));
+    const allPast = list.filter(([, r]) => isRacePast(r, now)).reverse();
     /* Şampiyonalar karışmasın: sezona göre grupla, istenirse süz. */
     const sidOf = ([, r]) => r.seasonId || "";
     const sName = (sid) => (sid ? (seasons[sid]?.name || t("Sezon")) : t("Takvim dışı"));
