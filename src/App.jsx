@@ -254,6 +254,10 @@ export default function App() {
      sonra aşağıda çağrılır); syncMsg / lastSync / sync oradan gelir. */
   const stRef = useRef(st);
   stRef.current = st;
+  /* canEditRef: canEditTeam'in ref aynası — useLive (tur geçmişi hasadı) yazımı yalnız
+     editörde yapsın diye. useLive satır ~801'de, canEditTeam satır ~885'te tanımlanıyor
+     (sonra) → curTeamRef/stRef gibi ref hilesi (render'da güncel tutulur). */
+  const canEditRef = useRef(false);
 
   /* ---------- YARIŞ AÇ / KAPAT (oda kodu ve PIN yok) ---------- */
   const openRace = async (rid) => {
@@ -798,7 +802,7 @@ ${bottomBar}
   const { syncMsg, setSyncMsg, lastSync, setLastSync, sync } = useRaceSync({
     st, setSt, curRace, curTeamRef, role, userName, stRef, t });
   /* canlı timing aboneliği + yakıt öğrenici (App.jsx'ten çıkarıldı) */
-  const { live, liveFuelObs } = useLive({ curRace, curTeamRef, stRef });
+  const { live, liveFuelObs, lapCapture } = useLive({ curRace, curTeamRef, stRef, canEditRef });
   /* stint ↔ canlı senkron: oto-PIT + saat hizalama (yalnız canlı yazıcı PC yazar),
      hava/avg-lap ÖNERİ çipleri (tek tık, otomatik yazmaz) */
   const { sync: liveSyncOpt, setSyncOpt, drift, lastAuto, wxSug, avgSug, pitMismatch } =
@@ -883,6 +887,7 @@ ${bottomBar}
 
   const myRole = teamData?.members?.[user?.uid] || "";
   const canEditTeam = myRole === "owner" || myRole === "editor";
+  canEditRef.current = canEditTeam;   // useLive tur-geçmişi yazımı için güncel tut
   /* Canlı köprüyü ÇALIŞTIRMA yetkisi: takımın HERHANGİ bir üyesi (owner/editor/viewer).
      Strateji düzenlemeden (canEditTeam) AYRI: endurance'ta koltuğa geçecek co-sürücü
      "viewer" rolünde olsa da kendi PC'sinden canlıyı yayınlayabilmeli. Tek-yazıcı kirası
@@ -2750,6 +2755,7 @@ ${bottomBar}
           </>)}
 
           {tab === "live" && <LiveTab t={t} live={live} liveFuelObs={liveFuelObs}
+            lapCapture={lapCapture}
             bridge={bridge} canEdit={canEditTeam} canBridge={isMember} tid={curTeam} rid={curRace}
             tourDemo={tourDemo} onGuide={() => setTour("live")} isAdmin={isAdmin}
             ownTopSrc={carImageSrc(teamData?.assets, st.carClass, st.car, "top")} />}

@@ -75,18 +75,19 @@ describe("driverAtLap", () => {
 });
 
 /* ---- capLapEntries: "+" popup'ında bayat (önceki koşudan kalan) turları gizle ----
-   v1.6.3 regresyonu: araç 0 turdayken popup önceki koşunun 8 turunu ("Vanthoor")
-   gösteriyordu — okuyucu tarafı artık n > lapsDone girişlerini süzer. */
+   v1.6.3: araç düşük turdayken popup önceki koşunun turlarını göstermesin diye
+   n > lapsDone girişleri süzülür.  v1.8.12: cap-sıfırlama hatası düzeltildi — ANLIK
+   lapsDone=0 (yırtık kare) gerçek turları GİZLEMEMELİ; yalnız lapsDone > 0 iken cap. */
 describe("capLapEntries", () => {
   const stale = { 1: 227.4, 2: 212.3, 7: 209.8, 8: 219.1 };
-  it("lapsDone=0 → hepsi bayat, boş döner (ekran görüntüsündeki durum)", () => {
-    expect(capLapEntries(stale, 0)).toEqual({});
+  it("lapsDone=0 → DOKUNMA (v1.8.12: anlık 0 karesi 18 turu gizlemesin)", () => {
+    expect(capLapEntries(stale, 0)).toBe(stale);
   });
-  it("n > lapsDone girişleri atılır, n <= lapsDone kalır (sınır dahil)", () => {
+  it("n > lapsDone girişleri atılır, n <= lapsDone kalır (sınır dahil, lapsDone>0)", () => {
     expect(capLapEntries(stale, 2)).toEqual({ 1: 227.4, 2: 212.3 });
     expect(capLapEntries(stale, 7)).toEqual({ 1: 227.4, 2: 212.3, 7: 209.8 });
   });
-  it("lapsDone yok/geçersiz → dokunulmaz (geriye uyum: eski kare/kayıt)", () => {
+  it("lapsDone yok/geçersiz/≤0 → dokunulmaz (geriye uyum + anlık-0 koruması)", () => {
     expect(capLapEntries(stale, undefined)).toBe(stale);
     expect(capLapEntries(stale, null)).toBe(stale);
     expect(capLapEntries(stale, "x")).toBe(stale);

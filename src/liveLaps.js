@@ -38,7 +38,12 @@ export function capLapEntries(lapMap, lapsDone) {
   if (!lapMap || typeof lapMap !== "object") return lapMap;
   if (lapsDone == null) return lapMap;         // Number(null)===0 tuzağı: null = "cap yok"
   const cap = Number(lapsDone);
-  if (!Number.isFinite(cap) || cap < 0) return lapMap;
+  /* v1.8.12 — cap-sıfırlama hatası: ANLIK lapsDone=0 (yırtık kare / araç sahaya yeni
+     girdi / lobi geçişi) 18 gerçek turu GİZLİYORDU (cap=0 → n<=0 hiçbiri geçmez → boş).
+     Artık yalnız lapsDone SONLU ve > 0 iken cap uygula (0/negatif = null gibi "cap yok").
+     Gerçek "0 tur" durumunda zaten gizlenecek veri yok; reused-mID phantom verisi ise
+     OKUYUCU-tarafı sessionId clear-all (lapObs.js) + manuel "temizle" düğmesiyle kapanır. */
+  if (!Number.isFinite(cap) || cap <= 0) return lapMap;
   const out = {};
   for (const k of Object.keys(lapMap)) {
     const n = Number(k);

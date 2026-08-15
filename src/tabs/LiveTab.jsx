@@ -542,7 +542,7 @@ function CopyBtn({ text, t }) {
 }
 
 export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge = false,
-  liveFuelObs, tid, rid,
+  liveFuelObs, lapCapture, tid, rid,
   tourDemo, onGuide, isAdmin = false, ownTopSrc = "" }) {
   const [myClassOnly, setMyClassOnly] = useState(false);
   const [big, setBig] = useState(false);
@@ -740,6 +740,14 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
             )}
           </span>
         </h2>
+        {/* Tur geçmişi OKUYUCU-tarafı hasat göstergesi (v1.8.12): kayıt artık bu tarayıcıda
+            yapılıyor → köprü sürümünden bağımsız, HER ZAMAN görünür. Eski köprü bunu
+            bastıramaz. Yalnız editör yazar; demo modunda gösterilmez (Firebase'e yazmaz). */}
+        {!demoOn && lapCapture?.writing && (
+          <div className="hint" style={{ marginTop: 6, color: "var(--green)" }}>
+            🔴 {t("Tur geçmişi kaydediliyor")} · {lapCapture.cars} {t("araç")} · {lapCapture.laps} {t("tur")}
+          </div>
+        )}
         <div className="kpis" data-tour="livesession" style={{ marginBottom: 0 }}>
           <div className="kpi"><div className="v disp">{s.sessionType ? t(s.sessionType) : "—"}</div>
             <div className="l">{t("Seans")}</div></div>

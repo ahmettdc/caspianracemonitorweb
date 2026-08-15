@@ -5,6 +5,22 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.8.12",
+    date: "2026-08-15",
+    tr: [
+      "📼 Tur geçmişi ('+' popup) artık WEB tarafında kaydediliyor — köprü sürümünden BAĞIMSIZ. Sorunun kökü: kayıt yalnız köprü tarafında yapılıyordu; sürüş PC'sindeki köprü eskiyse (hafif köprüde sürüm göstergesi/otomatik güncelleme yok) hiçbir tur kaydolmuyor, üstelik bunu kimse göremiyordu. Artık canlı ekranı izleyen editör tarayıcısı, her aracın tur sayısı artınca o turun süresini/sektörlerini/koşulunu doğrudan yazıyor. Köprü kaydı idempotent YEDEK olarak kalır (aynı veri, çakışma yok).",
+      "🔴 Yeni görünür gösterge: Canlı ekranda tur kaydı çalışırken 'Tur geçmişi kaydediliyor · N araç · N tur' satırı çıkar — kaydın gerçekten yürüdüğü artık gözle doğrulanır (eski köprü bunu bastıramaz).",
+      "🐞 '+' popup 'anlık 0 tur' hatası: bir aracın tur sayısı bir kare için 0 geldiğinde (yırtık kare / araç sahaya yeni girdi) gerçek 18 tur gizleniyordu — artık yalnız geçerli pozitif tur sayısında filtre uygulanır.",
+      "Dürüst kısıt: turlar yalnız bir editör tarayıcısı (ya da köprü) yarışı izlerken tamamlandıkça kaydolur; izlemeye başlamadan önceki turlar (paylaşımlı bellek geçmiş vermez) kaydedilemez. Yarış başından web'i açık tutmak en sağlamı.",
+    ],
+    en: [
+      "📼 Lap history (the '+' popup) is now recorded on the WEB side — INDEPENDENT of the bridge version. Root cause: recording only happened bridge-side; if the driving PC's bridge was old (the lightweight bridge has no version display or auto-update) no laps were ever recorded, and nobody could tell. Now the editor's browser watching the live screen writes each lap's time/sectors/conditions the moment a car's lap count increments. The bridge recording stays as an idempotent BACKUP (same data, no conflict).",
+      "🔴 New visible indicator: while lap recording is active the live screen shows 'Recording lap history · N cars · N laps' — you can now confirm at a glance that recording actually runs (an old bridge can't suppress it).",
+      "🐞 '+' popup 'transient 0 laps' bug: when a car's lap count arrived as 0 for a single frame (torn frame / car just entered) the real 18 laps were hidden — the filter now only applies for a valid positive lap count.",
+      "Honest limit: laps are only recorded as they complete while an editor browser (or the bridge) is watching; laps completed before watching started (shared memory has no history) cannot be recovered. Keeping the web open from the green flag is most reliable.",
+    ],
+  },
+  {
     v: "v1.8.11",
     date: "2026-08-15",
     tr: [
