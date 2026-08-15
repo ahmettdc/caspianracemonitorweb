@@ -218,21 +218,46 @@ function LapsModal({ t, tid, rid, row, canEdit, onClose }) {
             /* PİST KOŞULU (livecond): o turdaki asfalt sıcaklığı · yol tutuş · zemin ıslaklığı */
             const cond = condMap ? parseLapCond(condMap[n]) : null;
             const condWx = cond && cond.wet != null ? wetnessLevel(cond.wet) : null;
+            /* v1.8.15 — TEK SATIR kompakt: tüm alanlar inline (zorunlu satır kırması yok);
+               dar ekranda yalnız doğal sarar. Sektör/koşul küçük punto, etiketler title'da. */
             return (
-              <div key={n} className="wxrow" style={{ flexWrap: "wrap",
-                ...(swap && { borderTop: "1px solid var(--teal)" }) }}>
-                <span className="wxnm" style={{ minWidth: 56, color: "var(--dim)" }}>
+              <div key={n} className="wxrow laprow"
+                style={swap ? { borderTop: "1px solid var(--teal)" } : undefined}>
+                <span className="wxnm" style={{ minWidth: 46, color: "var(--dim)" }}>
                   {t("Tur")} {n}</span>
-                <span title={drv || undefined} style={{ minWidth: 76, fontSize: 12,
-                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                  color: swap ? "var(--teal)" : "var(--dim)",
-                  fontWeight: swap ? 700 : 400 }}>
-                  {shortDrv || "—"}</span>
-                <span className="mono" style={{ fontSize: 15, fontWeight: isBest ? 700 : 500,
+                {/* pilot YALNIZ değişim turunda (yer kazan) */}
+                {swap && (
+                  <span title={drv || undefined} style={{ maxWidth: 90, fontSize: 11,
+                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                    color: "var(--teal)", fontWeight: 700 }}>
+                    {shortDrv}</span>
+                )}
+                <span className="mono" style={{ minWidth: 62, fontSize: 14,
+                  fontWeight: isBest ? 700 : 500,
                   color: isBest ? "var(--purple)" : isOut ? "var(--yellow)" : "var(--txt)" }}>
                   {fmtLap(sec)}</span>
-                <span className="wxat mono">
+                <span className="mono" style={{ minWidth: 42, fontSize: 11, color: "var(--dim)" }}>
                   {isBest ? "★" : best > 0 ? `+${(sec - best).toFixed(2)}` : ""}</span>
+                {sc && sc.length === 3 && sc.every((v) => v > 0) && (
+                  <span className="mono"
+                    title={`S1 ${sc[0].toFixed(1)} · S2 ${sc[1].toFixed(1)} · S3 ${sc[2].toFixed(1)}`}
+                    style={{ fontSize: 10.5, color: "var(--dim)" }}>
+                    {sc[0].toFixed(1)}·{sc[1].toFixed(1)}·{sc[2].toFixed(1)}</span>
+                )}
+                {cond && (
+                  <span style={{ fontSize: 10.5, color: "var(--dim)", display: "inline-flex",
+                    alignItems: "center", gap: 8 }}>
+                    {cond.temp != null && <span title={t("Asfalt sıcaklığı")}>🛣 {cond.temp}°</span>}
+                    {cond.grip != null && <span title={t("Yol tutuş")} style={{ display: "inline-flex",
+                      alignItems: "center", gap: 2, color: gripColor(cond.grip) }}>
+                      <GripIcon pct={cond.grip} size={12} /> %{cond.grip}</span>}
+                    {cond.wet != null && (condWx
+                      ? <span title={t("Zemin ıslaklığı")} style={{ display: "inline-flex",
+                          alignItems: "center", gap: 2, color: WEATHER[condWx].col }}>
+                          <WetIcon id={condWx} size={12} /> {t(WEATHER[condWx].lbl)}</span>
+                      : <span title={t("Zemin ıslaklığı")}>💧 %{cond.wet}</span>)}
+                  </span>
+                )}
                 {pit && (
                   <span title={pit.n > 0
                     ? `${t("Pit")}: ${pit.n} ${t("lastik")}${pit.comp ? ` · ${pit.comp}` : ""}`
@@ -242,29 +267,9 @@ function LapsModal({ t, tid, rid, row, canEdit, onClose }) {
                     {pit.n > 0 ? <>
                       {pit.n}×
                       {(() => { const info = compoundInfo(pit.comp);
-                        return info ? <CompoundIcon info={info} size={16} /> : null; })()}
+                        return info ? <CompoundIcon info={info} size={14} /> : null; })()}
                     </> : <span className="chip" style={{ fontSize: 10,
                       color: "var(--yellow)", borderColor: "var(--yellow)" }}>PIT</span>}
-                  </span>
-                )}
-                {sc && sc.length === 3 && sc.every((v) => v > 0) && (
-                  <span className="mono" style={{ flexBasis: "100%", paddingLeft: 56,
-                    fontSize: 11, color: "var(--dim)" }}>
-                    S1 {sc[0].toFixed(1)} · S2 {sc[1].toFixed(1)} · S3 {sc[2].toFixed(1)}</span>
-                )}
-                {cond && (
-                  <span style={{ flexBasis: "100%", paddingLeft: 56, fontSize: 11,
-                    color: "var(--dim)", display: "flex", alignItems: "center", gap: 10,
-                    flexWrap: "wrap" }}>
-                    {cond.temp != null && <span title={t("Asfalt sıcaklığı")}>🛣 {cond.temp}°</span>}
-                    {cond.grip != null && <span title={t("Yol tutuş")} style={{ display: "inline-flex",
-                      alignItems: "center", gap: 3, color: gripColor(cond.grip) }}>
-                      <GripIcon pct={cond.grip} size={14} /> %{cond.grip}</span>}
-                    {cond.wet != null && (condWx
-                      ? <span title={t("Zemin ıslaklığı")} style={{ display: "inline-flex",
-                          alignItems: "center", gap: 3, color: WEATHER[condWx].col }}>
-                          <WetIcon id={condWx} size={14} /> {t(WEATHER[condWx].lbl)}</span>
-                      : <span title={t("Zemin ıslaklığı")}>💧 %{cond.wet}</span>)}
                   </span>
                 )}
               </div>

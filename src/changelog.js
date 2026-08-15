@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.8.15",
+    date: "2026-08-15",
+    tr: [
+      "📋 Tur geçmişi ('+' popup) satırları artık TEK SATIR, daha kompakt bir tasarımda: her tur için süre, fark, sektörler (S1·S2·S3) ve pist koşulu (asfalt sıcaklığı · tutuş · zemin) yan yana tek satırda görünür — böylece ekrana belirgin biçimde daha fazla tur sığar. Bilgi kaybı yok: sektör/koşul etiketleri fare ile üzerine gelince ipucunda görünür; en hızlı tur mor, out/pit turu sarı, pilot değişimi teal kalır. Pilot adı yalnız değişim turunda gösterilir (yer kazanır).",
+    ],
+    en: [
+      "📋 Lap-history rows (the '+' popup) are now a SINGLE-LINE, more compact design: each lap's time, delta, sectors (S1·S2·S3) and track conditions (asphalt temp · grip · wetness) sit inline on one row — so noticeably more laps fit on screen. No information lost: sector/condition labels appear in the tooltip on hover; the fastest lap stays purple, out/pit laps yellow, driver changes teal. The driver name is shown only on the change lap (saves space).",
+    ],
+  },
+  {
     v: "v1.8.14",
     date: "2026-08-15",
     tr: [
