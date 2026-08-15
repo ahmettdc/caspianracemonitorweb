@@ -822,6 +822,9 @@ export const EN = {
   "içinde": "within",
   "araç": "cars",
   "Tur geçmişi kaydediliyor": "Recording lap history",
+  "Köprü": "Bridge", "tur kaydetti": "laps recorded",
+  "Köprü eski sürüm — sürüş PC'sinde köprüyü güncelle (kayıt yine web'den yapılıyor)":
+    "Bridge is out of date — update it on the driving PC (recording still happens from the web)",
   "otomatik": "auto",
   "pist": "track",
   "Demo": "Demo",

@@ -748,6 +748,20 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
             🔴 {t("Tur geçmişi kaydediliyor")} · {lapCapture.cars} {t("araç")} · {lapCapture.laps} {t("tur")}
           </div>
         )}
+        {/* Köprü kaydı görünürlüğü (v1.8.13): köprü web'den BAĞIMSIZ kaydediyor →
+            frame.bridgeVer + frame.lapsWritten. bridgeVer yoksa köprü ESKİ sürüm
+            (kablo üzerinde artık sürüm var) → güncelleme uyarısı. */}
+        {!demoOn && (live.bridgeVer ? (
+          <div className="hint" style={{ marginTop: 6, color: "var(--dim)" }}>
+            🛰 {t("Köprü")} v{live.bridgeVer}
+            {typeof live.lapsWritten === "number"
+              ? <> · 📼 {live.lapsWritten} {t("tur kaydetti")}</> : null}
+          </div>
+        ) : (
+          <div className="hint warn" style={{ marginTop: 6 }}>
+            ⚠ {t("Köprü eski sürüm — sürüş PC'sinde köprüyü güncelle (kayıt yine web'den yapılıyor)")}
+          </div>
+        ))}
         <div className="kpis" data-tour="livesession" style={{ marginBottom: 0 }}>
           <div className="kpi"><div className="v disp">{s.sessionType ? t(s.sessionType) : "—"}</div>
             <div className="l">{t("Seans")}</div></div>

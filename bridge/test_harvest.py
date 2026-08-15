@@ -48,6 +48,26 @@ def test_idempotent_ayni_kare_ikinci_kez_yazmaz():
     assert p2 == [], p2
 
 
+def test_total_written_sayaci():
+    # v1.8.13: web "N tur kaydetti" için yazılan tur sayacı
+    h = Harvester("r1")
+    assert h.total_written == 0
+    h.process(_frame([_row(laps=[101.0, 100.5], nums=[1, 2])]))
+    assert h.total_written == 2 and h.frame_written == 2
+    h.process(_frame([_row(laps=[100.5], nums=[2])]))         # aynı tur → yazmaz
+    assert h.total_written == 2 and h.frame_written == 0
+    h.process(_frame([_row(laps=[99.8], nums=[3])]))          # yeni tur
+    assert h.total_written == 3 and h.frame_written == 1
+
+
+def test_seans_degisince_sayac_sifirlanir():
+    h = Harvester("r1", known_session_id="10")
+    h.process(_frame([_row(laps=[101.0], nums=[1])], sid="10"))
+    assert h.total_written == 1
+    h.process(_frame([_row(key="c9", laps=[95.0], nums=[1])], sid="20"))  # yeni seans → temizle+sıfırla
+    assert h.total_written == 1                                # temizlik sonrası bu karede 1 yeni
+
+
 def test_pilot_yalniz_degisince_yazilir():
     h = Harvester("r1")
     h.process(_frame([_row(laps=[101.0], nums=[1])]))

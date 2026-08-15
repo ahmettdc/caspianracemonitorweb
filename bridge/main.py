@@ -127,8 +127,10 @@ def _rest_interval_of(cp):
 
 
 def build_payload(src, by):
+    from version import BRIDGE_VERSION
     data = src.read()
     return {"ts": int(time.time() * 1000), "by": by,
+            "bridgeVer": BRIDGE_VERSION,   # web: "Köprü vX" — eski köprü bu alanı yazmaz
             "session": data.get("session") or {},
             "own": data.get("own"), "field": data.get("field") or []}
 
@@ -151,6 +153,9 @@ def apply_harvest(fb, tid, harv, payload, pending):
     Dönen: (kalan_patchler, hata) — geçici ağ hatasında kalanlar sonraki turda
     yeniden denenir (tur geçmişi kaybolmasın); kuyruk ~20 patch ile sınırlı."""
     patches = pending + harv.process(payload)
+    # web: "Köprü N tur kaydetti" — köprünün web'den bağımsız kaydettiğinin kanıtı
+    if isinstance(payload, dict):
+        payload["lapsWritten"] = harv.total_written
     for i, p in enumerate(patches):
         try:
             fb.patch_team(tid, p)
@@ -330,6 +335,9 @@ def cmd_emit(mock, hz, no_rest=False):
                 data = src.read()
             except Exception as e:  # noqa: BLE001  (oyun kapalı/okuma hatası → satır bas, devam)
                 data = {"error": str(e)}
+            if isinstance(data, dict) and "error" not in data:
+                from version import BRIDGE_VERSION
+                data["bridgeVer"] = BRIDGE_VERSION   # masaüstü de "Köprü vX" göstersin
             # tek satır JSON (JS satır satır ayrıştırır); flush şart (pipe tamponu).
             # ensure_ascii=True → Türkçe \uXXXX olarak kaçışlanır; reconfigure başarısız
             # olsa bile stdout saf ASCII (her zaman geçerli UTF-8). JS JSON.parse çözer.
@@ -422,6 +430,8 @@ def run_loop(cp, mock, once, no_rest=None):
             pend, herr = apply_harvest(fb, tid, harv, payload, pend)
             if herr:
                 lg.warning("tur geçmişi yazılamadı (yeniden denenecek): %s", herr)
+            elif harv.frame_written:
+                lg.info("tur geçmişi: +%d tur (toplam %d)", harv.frame_written, harv.total_written)
             t1 = time.time()
             fb.put_live(tid, rid, payload)
             t2 = time.time()
