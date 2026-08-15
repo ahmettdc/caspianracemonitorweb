@@ -43,10 +43,6 @@ export const EN = {
     "Is the stutter from REST? Turn it off, drive a few laps; if the stutter stops even in the tray, REST is the cause.",
   "REST kapalı: VE/gerçek takım adı/numara/yetkili bayrak gelmez; oyunun sunucusuna istek atılmaz.":
     "REST off: no Virtual Energy / real team name / number / authoritative flags; no requests to the game's server.",
-  // Sürüş Modu (v1.4.99)
-  "Sürüş Modu": "Driving Mode",
-  "Arayüz duraklatıldı — veri akıyor. Pencereyi öne getirince geri döner.":
-    "Interface paused — data still flowing. Bring the window to front to resume.",
   // lobi
   "Adın": "Your Name", "örn. Ahmet": "e.g. John",
   "🏁 Yeni Oda Kur": "🏁 Create New Room",

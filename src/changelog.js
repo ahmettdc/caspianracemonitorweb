@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.8.7",
+    date: "2026-08-14",
+    tr: [
+      "🅿 Sürüş Modu kaldırıldı: masaüstü pencere arka planda/gizliyken arayüzü duraklatıp \"Driving Mode\" ekranı gösteren özellik (v1.4.99) devreden çıkarıldı. Sürüş PC'si artık tarayıcısız hafif köprüyü kullandığından bu koruma amacını yitirmişti — izleyen mühendisin pencereye dönmesinde gereksiz duraklama ekranı çıkarıyordu. Uygulama arka planda da normal render etmeye devam eder.",
+    ],
+    en: [
+      "🅿 Driving Mode removed: the feature (v1.4.99) that paused the interface and showed a \"Driving Mode\" screen while the desktop window was hidden/in the background has been retired. Driving PCs now use the browserless lightweight bridge, so this safeguard had lost its purpose — it only produced an unnecessary pause screen for engineers switching back to the window. The app now keeps rendering normally in the background.",
+    ],
+  },
+  {
     v: "v1.8.6",
     date: "2026-08-14",
     tr: [
