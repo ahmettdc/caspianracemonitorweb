@@ -42,13 +42,31 @@ def test_alan_hic_yoksa_yedek_ve_hicbiri_yoksa_none():
     assert _ve({"driverName": "A"}) is None
 
 
+def _pen(car):
+    by, _ = parse([car])
+    return by[str(car["driverName"]).lower()]["penalties"]
+
+
+def test_ceza_standings_ten_okunur():
+    # LMU cut/puan cezaları shmem mNumPenalties'e yansımıyor — REST yetkili kaynak
+    assert _pen({"driverName": "A", "penalties": 1}) == 1
+    assert _pen({"driverName": "A", "penalties": 2.0}) == 2      # float da gelebilir
+    assert _pen({"driverName": "A", "penalties": 0}) == 0
+
+
+def test_ceza_eksik_gecersizde_none():
+    assert _pen({"driverName": "A"}) is None                     # alan yok → shmem kalır
+    assert _pen({"driverName": "A", "penalties": "abc"}) is None
+    assert _pen({"driverName": "A", "penalties": -1}) is None    # negatif saçma → None
+
+
 def test_takim_numara_ve_oyuncu_ve_si():
     by, own = parse([
         {"driverName": "X", "veFraction": 0.5, "fullTeamName": "Caspian",
          "carNumber": 34, "player": True},
         {"driverName": "Y", "veFraction": 0.9, "teamName": "Iron Lynx", "carNumber": ""},
     ])
-    assert by["x"] == {"ve": 50.0, "team": "Caspian", "number": "34"}
+    assert by["x"] == {"ve": 50.0, "team": "Caspian", "number": "34", "penalties": None}
     assert by["y"]["team"] == "Iron Lynx"
     assert by["y"]["number"] is None
     assert own == 50.0

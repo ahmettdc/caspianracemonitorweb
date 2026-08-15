@@ -109,8 +109,8 @@ export const EN = {
   "Code 80 Kalan": "Code 80 Remaining", "Yarış Süresi": "Race Time",
   "Strateji": "Strategy", "Stint Sayısı": "Stint Count",
   "Tahmini Toplam Tur": "Est. Total Laps",
-  "⚠ Plan hesaplanamıyor — süre, \"Avg Lap\" ve seçili stratejinin tur sayısı dolu olmalı.":
-    "⚠ Plan cannot be computed — duration, \"Avg Lap\" and the selected strategy's lap count must all be filled in.",
+  "⚠ Plan hesaplanamıyor — süre, \"Avg Lap\" ve seçili stratejinin tur sayısı dolu ve geçerli olmalı (tur ≥ 0:30).":
+    "⚠ Plan cannot be computed — duration, \"Avg Lap\" and the selected strategy's lap count must all be filled in and valid (lap ≥ 0:30).",
   "⚠ Plan tamamlanamadı": "⚠ Plan incomplete", "planlanmadı": "unplanned",
   "stint sınırı": "stint limit",
   "S1 START LASTİKLERİ": "S1 STARTING TYRES",
@@ -192,6 +192,8 @@ export const EN = {
     "Empty: uses the average lap from Race Data",
   "Bu stint girilen tur süresiyle hesaplanıyor — hava çarpanı uygulanmaz":
     "This stint uses the lap time you entered — no weather multiplier applied",
+  "Geçersiz tur süresi — 'm:ss.00' biçiminde yaz (örn. 2:21.0); bu stint yarış ortalamasıyla hesaplanıyor":
+    "Invalid lap time — use 'm:ss.00' format (e.g. 2:21.0); this stint falls back to the race average",
   "Otomatiğe dön": "Back to automatic",
   "Toplam VE": "Total VE", "yakıt": "fuel",
   // dashboard
@@ -771,6 +773,7 @@ export const EN = {
   "Son turun S1·S2·S3 sektör süreleri": "Last lap S1·S2·S3 sector times",
   "Tur başına VE tüketimi": "Virtual Energy used per lap",
   "Bekleyen ceza": "Outstanding penalties",
+  "Ceza sayısı (cut/puan cezaları dahil)": "Penalty count (incl. cut/points penalties)",
   // tur geçmişi pist koşulları (v1.4.83)
   "Asfalt sıcaklığı": "Track temp", "Yol tutuş": "Grip",
   "Turlardan modellenmiş tahmin (gerçek okuma değil)":

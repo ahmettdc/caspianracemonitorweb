@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v1.8.11",
+    date: "2026-08-15",
+    tr: [
+      "🛠 Stint kendi kendine atlama düzeltildi: stint tablosundaki AVG LAP alanına Avrupa nokta yazımıyla girilen süre (ör. '2.21.0') 2.21 SANİYE sanılıyor, 21 turluk 1. stint 46 saniyeye inip plan daha yarışın başında 2. stinte geçiyordu. Artık 'd.ss.s' biçimi dakika olarak tanınıyor (2.21.0 = 2:21.0); ayrıca 30 saniyenin altındaki imkânsız tur süreleri (yazım hatası) yok sayılıyor — geçersiz giriş alanda kırmızı gösterilir, stint yarış ortalamasıyla hesaplanmaya devam eder.",
+      "⚠ Cut/puan cezaları artık Ceza sütununda görünüyor: LMU'nun pist-limiti (cut) cezaları paylaşımlı bellekteki sayaca yansımıyordu — köprü artık oyunun kendi standings verisindeki (REST) yetkili ceza sayısını okuyup gösteriyor. Not: bu düzeltme köprü tarafında — sürüş PC'sinin yeni köprü/masaüstü sürümünü kurması gerekir.",
+    ],
+    en: [
+      "🛠 Fixed self-jumping stints: a lap time typed into the stint table's AVG LAP field in European dot notation (e.g. '2.21.0') was read as 2.21 SECONDS, shrinking a 21-lap stint to 46 seconds so the plan skipped to stint 2 right after the start. 'm.ss.f' is now recognised as minutes (2.21.0 = 2:21.0); additionally, impossible lap times under 30 seconds (typos) are ignored — invalid input shows in red and the stint keeps using the race average.",
+      "⚠ Cut/points penalties now show in the Penalty column: LMU's track-limit (cut) penalties never reached the shared-memory counter — the bridge now reads the authoritative penalty count from the game's own standings (REST) data. Note: this fix is bridge-side — the driving PC must install the new bridge/desktop build.",
+    ],
+  },
+  {
     v: "v1.8.10",
     date: "2026-08-15",
     tr: [

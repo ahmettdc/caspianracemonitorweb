@@ -30,7 +30,7 @@ export default function StintTab({
       {(plan.truncated || !plan.rows.length) && (
         <div className="hint warn" style={{ marginTop: 0, marginBottom: 10 }}>
           {plan.invalid
-            ? t("⚠ Plan hesaplanamıyor — süre, \"Avg Lap\" ve seçili stratejinin tur sayısı dolu olmalı.")
+            ? t("⚠ Plan hesaplanamıyor — süre, \"Avg Lap\" ve seçili stratejinin tur sayısı dolu ve geçerli olmalı (tur ≥ 0:30).")
             : `${t("⚠ Plan tamamlanamadı")} — ${fmtHMS(plan.rows.length
                 ? plan.rows[plan.rows.length - 1].timeLeft : plan.raceSec)} ${t("planlanmadı")} (${t("stint sınırı")}: ${MAX_STINTS}).`}
         </div>
@@ -206,18 +206,28 @@ export default function StintTab({
                 title={`≈ ${(r.fuelNeed * st.fuelRatio).toFixed(1)} L`}>
                 {r.fuelNeed.toFixed(1)}%</td>
               <td>
-                <input className="ovr" type="text" style={{ width: 78 }}
-                  placeholder={st.avgLap || "m:ss.00"}
-                  title={r.fixLap > 0
-                    ? t("Bu stint girilen tur süresiyle hesaplanıyor — hava çarpanı uygulanmaz")
-                    : t("Boş: yarış datasındaki ortalama tur kullanılır")}
-                  value={(st.stintLaps || [])[i] || ""}
-                  onChange={(e) => upStintLap(i, e.target.value)} />
-                {r.fixLap > 0 && (
-                  <button className="minibtn" title={t("Otomatiğe dön")}
-                    style={{ marginLeft: 4 }}
-                    onClick={() => upStintLap(i, "")}>✕</button>
-                )}
+                {(() => {
+                  const ovrTxt = (st.stintLaps || [])[i] || "";
+                  const ovrBad = !!ovrTxt && !(r.fixLap > 0);  // yazıldı ama geçersiz → yok sayılıyor
+                  return (<>
+                    <input className="ovr" type="text"
+                      style={{ width: 78,
+                        ...(ovrBad ? { borderColor: "var(--red)", color: "var(--red)" } : {}) }}
+                      placeholder={st.avgLap || "m:ss.00"}
+                      title={ovrBad
+                        ? t("Geçersiz tur süresi — 'm:ss.00' biçiminde yaz (örn. 2:21.0); bu stint yarış ortalamasıyla hesaplanıyor")
+                        : r.fixLap > 0
+                          ? t("Bu stint girilen tur süresiyle hesaplanıyor — hava çarpanı uygulanmaz")
+                          : t("Boş: yarış datasındaki ortalama tur kullanılır")}
+                      value={ovrTxt}
+                      onChange={(e) => upStintLap(i, e.target.value)} />
+                    {(r.fixLap > 0 || ovrBad) && (
+                      <button className="minibtn" title={t("Otomatiğe dön")}
+                        style={{ marginLeft: 4 }}
+                        onClick={() => upStintLap(i, "")}>✕</button>
+                    )}
+                  </>);
+                })()}
               </td>
               <td>
                 {r.isLast ? <span className="chip">FINISH 🏁</span> : (<>
