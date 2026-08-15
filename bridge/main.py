@@ -133,6 +133,32 @@ def build_payload(src, by):
             "own": data.get("own"), "field": data.get("field") or []}
 
 
+def start_harvester(fb, tid, rid):
+    """v1.8.6 — tur geçmişi biriktirici (bkz. harvest.py). Başlamadan önce kayıtlı
+    seans belirtecini okur → yarış-ortası köprü yeniden başlatmada yanlış temizleme
+    olmaz (JS liveBridge ile aynı desen). Okuma başarısızsa belirteçsiz başlar."""
+    from harvest import Harvester
+    known = None
+    try:
+        known = fb.get_path(f"teams/{tid}/live/{rid}/session/sessionId")
+    except Exception:  # noqa: BLE001 — ağ hatası: fresh-start temizliği atlanır, akış sürer
+        pass
+    return Harvester(rid, known)
+
+
+def apply_harvest(fb, tid, harv, payload, pending):
+    """Kareden tur geçmişini çıkar (payload YERİNDE kırpılır) ve teams/{tid}'e yaz.
+    Dönen: (kalan_patchler, hata) — geçici ağ hatasında kalanlar sonraki turda
+    yeniden denenir (tur geçmişi kaybolmasın); kuyruk ~20 patch ile sınırlı."""
+    patches = pending + harv.process(payload)
+    for i, p in enumerate(patches):
+        try:
+            fb.patch_team(tid, p)
+        except Exception as e:  # noqa: BLE001
+            return patches[i:][:20], e
+    return [], None
+
+
 def fb_from_cfg(cp):
     """(FirebaseClient, by) — config'te refresh_token varsa Google (kendi hesap) modu,
     yoksa bot (e-posta/parola). GUI 'Google ile Giriş' refresh_token'ı yazar."""
@@ -382,6 +408,10 @@ def run_loop(cp, mock, once, no_rest=None):
           f"{'kapalı' if no_rest else f'açık (arka plan {rest_iv:g}s)'}"
           f"  (durdurmak için Ctrl+C)")
     src = make_source(mock, no_rest, rest_iv)
+    # v1.8.6 — tur geçmişi (livelaps/livepos/…) artık hafif köprüde de yazılır.
+    # Bugüne dek yalnız masaüstü JS'i yazıyordu → hafif köprüyle "+" popup'ı hep boştu.
+    harv = start_harvester(fb, tid, rid)
+    pend = []
     fails = 0
     sent = 0
     last_hb = 0.0
@@ -389,6 +419,9 @@ def run_loop(cp, mock, once, no_rest=None):
         t0 = time.time()
         try:
             payload = build_payload(src, by)
+            pend, herr = apply_harvest(fb, tid, harv, payload, pend)
+            if herr:
+                lg.warning("tur geçmişi yazılamadı (yeniden denenecek): %s", herr)
             t1 = time.time()
             fb.put_live(tid, rid, payload)
             t2 = time.time()

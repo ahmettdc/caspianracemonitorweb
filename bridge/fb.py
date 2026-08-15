@@ -91,6 +91,21 @@ class FirebaseClient:
             raise RuntimeError(f"Yazma hatası: {r.status_code} {r.text[:200]}")
         return r
 
+    def patch_team(self, tid, updates):
+        """teams/{tid} altına çok-yollu PATCH (JS update() karşılığı) — tur geçmişi
+        düğümleri (livelaps/livepos/…) için. Anahtarlar 'livelaps/{rid}/{key}/{n}'
+        biçiminde göreli yol taşır; None değeri o yolu siler."""
+        self._ensure_token()
+        url = f"{self.db}/teams/{tid}.json?auth={self._id}"
+        r = requests.patch(url, json=updates, timeout=15)
+        if r.status_code == 401:
+            self.sign_in()
+            url = f"{self.db}/teams/{tid}.json?auth={self._id}"
+            r = requests.patch(url, json=updates, timeout=15)
+        if r.status_code >= 400:
+            raise RuntimeError(f"Geçmiş yazma hatası: {r.status_code} {r.text[:200]}")
+        return r
+
     def get_live(self, tid, rid):
         """teams/{tid}/live/{rid} düğümünü okur (REST GET) — selftest için."""
         return self.get_path(f"teams/{tid}/live/{rid}")
