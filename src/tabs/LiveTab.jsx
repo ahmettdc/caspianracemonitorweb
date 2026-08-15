@@ -965,7 +965,8 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
           </div>
         )}
       </div>
-      {!big && isRace && <PosChart t={t} tid={tid} rid={rid} field={fieldAll} />}
+      {!big && isRace && <PosChart t={t} tid={tid} rid={rid} field={fieldAll}
+        myClassOnly={myClassOnly} playerClass={playerClass} />}
 
       {/* v1.6.3 — satırı TAZE kareden bul: modal açıkken lapsDone canlı güncellenir →
           bayat-veri cap'i (capLapEntries) yeni turları anında gösterir, snapshot'ta
