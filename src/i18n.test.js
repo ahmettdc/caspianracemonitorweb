@@ -45,6 +45,11 @@ const FROM_HANDOFF = {
   "İzleyici modu": "Viewer mode",
   "Yarış raporu": "Race report",
   "Set envanteri": "Set inventory",
+  // yama 2.0.2 giriş ekranı
+  "Google ile devam et": "Continue with Google",
+  "Bağlanılıyor…": "Connecting…",
+  "Giriş yap": "Sign in",
+  " kabul edersin.": ".",
 };
 
 describe("i18n — v2.0 kapsamı", () => {

@@ -60,13 +60,12 @@ ve §1–§8'in tamamı.
 `Yakıt`, `Lastik`, `Pilot`, `Pilotlar`, `Oto PIT`, `Takım`, `Stint`, `Canlı`,
 `Setup`, `Kapat`, `Telemetri` sözlükte zaten vardı; yeniden eklenmedi.
 
-## Yama 2.0.2 — giriş ekranı (onay bekliyor)
+## Yama 2.0.2 — giriş ekranı (GİRİLDİ)
 
-Yeni giriş (login) ekranının metinleri `i18n-EN.md`'de yok. Kural gereği çeviri
-ÜRETİLMEDİ; karşılıklar onaylanınca `src/i18n.js`'e girilecek. Şu an İngilizce
-arayüzde bu satırlar Türkçe görünüyor (işlevsel sorun değil).
+Yeni giriş (login) ekranının metinleri `i18n-EN.md`'de yoktu. Karşılıklar
+önerildi, **onaylandı** ve `src/i18n.js`'e girildi (kapsam `src/i18n.test.js`).
 
-| # | TR metin | Önerilen EN (onay bekliyor) |
+| # | TR metin | EN (girildi) |
 | --- | --- | --- |
 | 21 | Race | Race |
 | 22 | Monitor | Monitor |
@@ -85,6 +84,7 @@ arayüzde bu satırlar Türkçe görünüyor (işlevsel sorun değil).
 | 35 | kabul edersin. | accept. |
 | 36 | Caspian Motorsport · pit wall aracı — resmi olmayan topluluk projesi | Caspian Motorsport · pit-wall tool — unofficial community project |
 
-> 33–35 tek cümlenin parçaları ("Devam ederek [kullanım koşullarını] kabul
-> edersin"); EN'de kelime sırası değişeceği için birleşik cümle olarak da
-> girilebilir — nasıl istersen. "Race"/"Monitor" (21–22) marka adı, çevrilmiyor.
+> 33–35: EN kelime sırası için düzeltilerek girildi — "Devam ederek" →
+> "By continuing you accept", link sonda okunur, üçüncü parça (leading-space
+> anahtar " kabul edersin.") "." olur → "By continuing you accept the terms of
+> use." "Race"/"Monitor" (21–22) marka adı, çevrilmedi (aynı bırakıldı).

@@ -1781,8 +1781,9 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
               </div>
               <div className="authfoot">
                 <span className="terms">
-                  {t("Devam ederek")} <a href="#" onClick={(e) => e.preventDefault()}>
-                    {t("kullanım koşullarını")}</a> {t("kabul edersin.")}</span>
+                  {t("Devam ederek")}{" "}
+                  <a href="#" onClick={(e) => e.preventDefault()}>
+                    {t("kullanım koşullarını")}</a>{t(" kabul edersin.")}</span>
                 <span className="ver">{APP_VERSION}</span>
               </div>
             </div>

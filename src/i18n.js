@@ -160,6 +160,31 @@ export const EN = {
   /* PDF önizleme */
   "Yazdır": "Print",
 
+  /* ── Giriş ekranı (yama 2.0.2) — kullanıcı onayladı ──────────────────────────
+     "Race"/"Monitor" marka adı → çevrilmez. Kullanım-koşulları cümlesi İngilizce
+     kelime sırası için parçalara bölündü (link sonda okunur). */
+  "Race": "Race",
+  "Monitor": "Monitor",
+  "Giriş yap": "Sign in",
+  "Google ile devam et": "Continue with Google",
+  "Bağlanılıyor…": "Connecting…",
+  "Caspian Motorsport pit wall aracı. Canlı zamanlama, stint planı, yakıt hesabı ve telemetri tek ekranda.":
+    "Caspian Motorsport pit-wall tool. Live timing, stint plan, fuel calc and telemetry on one screen.",
+  "Yarış boyunca takımla ortak ekran": "A shared screen with your team throughout the race",
+  "Le Mans Ultimate köprüsüyle canlı veri": "Live data via the Le Mans Ultimate bridge",
+  "Setup havuzu ve stint geçmişi": "Setup pool and stint history",
+  "Google hesabınla devam et. Hesabın yoksa ilk girişte oluşturulur.":
+    "Continue with your Google account. If you don't have one, it's created on first sign-in.",
+  "Girişten sonra takım kurabilir ya da davet koduyla katılabilirsin.":
+    "After signing in you can create a team or join with an invite code.",
+  "Yarış verisi için masaüstü köprüsünü kurman gerekir.":
+    "For race data you need to install the desktop bridge.",
+  "Devam ederek": "By continuing you accept",
+  "kullanım koşullarını": "the terms of use",
+  " kabul edersin.": ".",
+  "Caspian Motorsport · pit wall aracı — resmi olmayan topluluk projesi":
+    "Caspian Motorsport · pit-wall tool — unofficial community project",
+
   /* §8 Stint · lastik */
   "Pistte": "On track",
   "Set envanteri": "Set inventory",
