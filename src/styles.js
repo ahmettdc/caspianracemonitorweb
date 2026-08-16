@@ -1225,10 +1225,13 @@ export const css = `
 .rc .screen{animation:rcin .26s ease-out}
 
 /* --- sol ray --- */
+/* not: kısa ekranda öğeler flex-shrink ile ezilip etiketleri kırpıyordu →
+   düğmeler sabit boy (flex:0 0 auto), ray gerekirse dikey kayar. */
 .rc .rail{border-right:1px solid var(--line);background:var(--rail-bg);display:flex;
   flex-direction:column;align-items:center;gap:4px;padding:12px 0;position:sticky;top:0;
-  height:100vh;width:var(--rail-w);overflow:hidden;
+  height:100vh;width:var(--rail-w);overflow-y:auto;overflow-x:hidden;scrollbar-width:none;
   transition:transform .32s cubic-bezier(.4,0,.2,1),opacity .24s ease}
+.rc .rail::-webkit-scrollbar{width:0;height:0}
 .rc .shell.railhidden .rail{transform:translateX(-100%);opacity:0;pointer-events:none}
 .rc .rail-toggle{width:26px;height:26px;border-radius:8px;margin:0 10px 6px auto;cursor:pointer;
   border:1px solid var(--line);background:var(--panel2);color:var(--muted);font-size:12px;line-height:1}
@@ -1238,9 +1241,10 @@ export const css = `
   backdrop-filter:blur(6px);color:var(--txt);font-size:15px;box-shadow:0 6px 20px rgba(0,0,0,.45);
   transform:translateX(0);opacity:1;transition:transform .32s cubic-bezier(.4,0,.2,1),opacity .2s ease}
 .rc .shell:not(.railhidden) .rail-open{transform:translateX(-140%);opacity:0;pointer-events:none}
-.rc .rail-btn{width:60px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 0;
-  border-radius:10px;cursor:pointer;overflow:hidden;border:1px solid transparent;background:transparent;
-  color:var(--muted);transition:background .18s ease,color .18s ease,border-color .18s ease}
+.rc .rail-btn{width:60px;flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:3px;
+  padding:9px 0;border-radius:10px;cursor:pointer;overflow:hidden;border:1px solid transparent;
+  background:transparent;color:var(--muted);
+  transition:background .18s ease,color .18s ease,border-color .18s ease}
 .rc .rail-btn.home{gap:4px}
 .rc .rail-btn:hover{color:var(--dim)}
 .rc .rail-btn.on{border-color:var(--accent);background:rgba(150,0,24,.28);color:var(--txt)}
@@ -1249,8 +1253,9 @@ export const css = `
   font-family:var(--font-disp);font-weight:600}
 .rc .rail-btn.ro{color:var(--muted)}
 .rc .rail-btn.ro.on{border-color:var(--yellow);background:rgba(245,178,61,.14);color:var(--yellow)}
-.rc .rail-sep{width:40px;height:1px;background:var(--line);margin:6px 0 8px}
-.rc .rail-bottom{margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:8px;width:100%}
+.rc .rail-sep{width:40px;height:1px;flex:0 0 auto;background:var(--line);margin:6px 0 8px}
+.rc .rail-bottom{margin-top:auto;flex:0 0 auto;display:flex;flex-direction:column;
+  align-items:center;gap:8px;width:100%;padding-top:8px}
 .rc .rail-chat-wrap{position:relative;display:inline-flex}
 .rc .rail-badge{position:absolute;top:-5px;right:-8px;background:var(--accent-soft);color:#fff;
   border-radius:9px;font-size:9px;padding:0 5px;font-family:var(--font-ui);line-height:1.5}
