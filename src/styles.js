@@ -684,13 +684,13 @@ export const css = `
 .rc .drvbig .v{font-family:var(--font-disp);font-weight:700;font-size:20px;color:var(--c);
   font-variant-numeric:tabular-nums;letter-spacing:.01em}
 .rc .drvbig .l{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
-.rc .drvbar{height:6px;border-radius:4px;background:var(--panel3);margin:12px 0 7px;overflow:hidden}
+.rc .drvbar{height:6px;border-radius:4px;background:var(--panel2);margin:12px 0 7px;overflow:hidden}
 .rc .drvbar i{display:block;height:100%;background:var(--c);border-radius:4px}
 .rc .drvmeta{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dim)}
 .rc .drvmeta .pct{margin-left:auto;font-family:var(--font-disp);font-weight:700;color:var(--txt);
   font-variant-numeric:tabular-nums}
 .rc .drvstints{display:flex;gap:4px;flex-wrap:wrap;margin-top:9px}
-.rc .drvstints .st{font-family:var(--font-disp);font-weight:600;font-size:11px;background:var(--panel3);
+.rc .drvstints .st{font-family:var(--font-disp);font-weight:600;font-size:11px;background:var(--panel2);
   border:1px solid var(--line2);border-radius:5px;padding:1px 6px;color:var(--dim);
   font-variant-numeric:tabular-nums}
 .rc .drvsched{border:1px solid var(--line);border-radius:10px;overflow:hidden}

@@ -31,3 +31,28 @@ describe("styles.js — template literal bütünlüğü", () => {
     }
   });
 });
+
+/* Tanımsız token sessizce "hiç" olarak çözümlenir: kural yazılmış görünür ama
+   eleman zeminsiz/renksiz kalır. Bu PR'da iki tanesi bulundu (--panel3 hiç
+   tanımlı değildi, --text ise --txt'nin yazım hatasıydı). */
+describe("styles.js — kullanılan her --token tanımlı", () => {
+  const src = readFileSync(new URL("./styles.js", import.meta.url), "utf8");
+
+  /* Eleman düzeyinde (inline style ile) atanan tokenlar — :root'ta OLMAMALI,
+     çünkü değerleri veriye bağlı. Listeye ekleme yaparken atandığı yeri yaz. */
+  const ELEMENT_SCOPED = new Set([
+    "--c",   // src/tabs/DriversTab.jsx — pilot rengi, satır bazında atanır
+  ]);
+
+  it("var(--x) ile çağrılan her token :root'ta ya da eleman düzeyinde tanımlı", () => {
+    const used = new Set([...css.matchAll(/var\((--[\w-]+)/g)].map((m) => m[1]));
+    const defined = new Set([...css.matchAll(/(--[\w-]+)\s*:/g)].map((m) => m[1]));
+    const missing = [...used]
+      .filter((v) => !defined.has(v) && !ELEMENT_SCOPED.has(v)).sort();
+    expect(missing, `tanımsız token: ${missing.join(", ")}`).toEqual([]);
+  });
+
+  it("stylesheet'te var(--text) yazım hatası yok (doğrusu --txt)", () => {
+    expect(src).not.toContain("var(--text)");
+  });
+});

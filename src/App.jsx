@@ -2726,7 +2726,7 @@ ${bottomBar}
                           placeholder="0"
                           onChange={(e) => setRepair(i, e.target.value)}
                           style={{ width: 64, padding: "3px 6px", borderRadius: 6,
-                            background: "var(--panel2)", color: "var(--text)",
+                            background: "var(--panel2)", color: "var(--txt)",
                             border: "1px solid var(--line)", fontSize: 13,
                             textAlign: "right" }} />
                         {(Number((st.pitRepairs || [])[i]) || 0) > 0 && (
