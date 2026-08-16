@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="crossorigin" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" />
+<style>
+body{margin:0;background:#0B0708}
+a{color:#D24357;text-decoration:none}
+a:hover{color:#F3EAEC}
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:#0B0708;color:#F3EAEC;font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:13px">
+  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:radial-gradient(ellipse at 50% 0%,#2A0D14 0%,#0B0708 60%)">
+    <div style="width:100%;max-width:900px;background:#150E10;border:1px solid #34232A;border-radius:14px;padding:30px 28px">
+
+      <div style="display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-bottom:6px">
+        <button style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:6px;border:1px solid #34232A;background:#1E1418;color:#A88C93;font-size:11.5px;cursor:pointer">🎓 Rehber</button>
+        <button style="padding:3px 9px;border-radius:5px;border:1px solid #D24357;background:#1E1418;color:#D24357;font-size:11px;cursor:pointer;font-weight:600">TR</button>
+        <button style="padding:3px 9px;border-radius:5px;border:1px solid #34232A;background:#1E1418;color:#C9B3B9;font-size:11px;cursor:pointer;font-weight:600">EN</button>
+        <button style="padding:3px 10px;border-radius:6px;border:1px solid #34232A;background:#1E1418;color:#A88C93;font-size:11.5px;cursor:pointer">ℹ</button>
+      </div>
+
+      <img src="public/assets/logo.png" alt="Caspian Motorsport" style="display:block;margin:0 auto 14px;max-width:280px;width:70%;height:auto;filter:drop-shadow(0 6px 18px rgba(0,0,0,.5))" />
+      <h1 style="margin:0;font-size:30px;font-weight:700;text-transform:uppercase;text-align:center;font-family:'Rajdhani',sans-serif;letter-spacing:.04em"><b style="color:#D24357">RACE</b> MONITOR</h1>
+      <div style="text-align:center;color:#C9B3B9;font-size:12px;margin:4px 0 22px">v1.8.18</div>
+      <div style="color:#C9B3B9;font-size:11px;margin-bottom:10px;line-height:1.5">👤 Ahmet Demirci</div>
+
+      <div style="font-family:'Rajdhani',sans-serif;text-transform:uppercase;letter-spacing:.1em;font-size:11px;color:#A88C93;margin:8px 0;text-align:left">Takım</div>
+      <div style="display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px;text-align:left">
+        <button style="flex:none;display:flex;align-items:center;gap:8px;background:#1E1418;border:1px solid #D24357;border-radius:10px;padding:7px 14px 7px 8px;cursor:pointer;min-width:140px;color:#F3EAEC">
+          <span style="width:26px;height:26px;border-radius:7px;background:#150E10;border:1px solid #4A2F38;display:grid;place-items:center;font-size:14px;flex:none;overflow:hidden"><img src="public/assets/logo.png" alt="" style="width:100%;height:100%;object-fit:contain;border-radius:6px;display:block" /></span>
+          <span style="font-family:'Rajdhani',sans-serif;font-weight:600;font-size:14px;white-space:nowrap">Caspian Motorsport</span>
+        </button>
+        <button style="flex:none;display:flex;align-items:center;gap:8px;background:#1E1418;border:1px solid #34232A;border-radius:10px;padding:7px 14px 7px 8px;cursor:pointer;min-width:140px;color:#F3EAEC">
+          <span style="width:26px;height:26px;border-radius:7px;background:#150E10;border:1px solid #4A2F38;display:grid;place-items:center;font-size:14px;flex:none">🏁</span>
+          <span style="font-family:'Rajdhani',sans-serif;font-weight:600;font-size:14px;white-space:nowrap">Caspian Junior</span>
+        </button>
+        <button style="flex:none;display:flex;align-items:center;gap:8px;background:#1E1418;border:1px solid #34232A;border-radius:10px;padding:7px 14px 7px 8px;cursor:pointer;min-width:0;color:#C9B3B9">
+          <span style="width:26px;height:26px;border-radius:7px;background:#150E10;border:1px solid #4A2F38;display:grid;place-items:center;font-size:14px;flex:none">＋</span>
+          <span style="font-family:'Rajdhani',sans-serif;font-weight:600;font-size:14px;white-space:nowrap">Kur &amp; Katıl</span>
+        </button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:6px 0 4px;text-align:left">
+        <button style="display:flex;flex-direction:column;gap:3px;align-items:flex-start;background:#1E1418;border:1px solid #34232A;border-radius:11px;padding:11px 13px;cursor:pointer;color:#F3EAEC">
+          <span style="font-size:19px">🏁</span><span style="font-family:'Rajdhani',sans-serif;font-weight:600;font-size:14px;display:inline-flex;align-items:center;gap:6px">Resmi Yarışlar</span><span style="font-size:10.5px;color:#A88C93">resmi yarış takvimi</span>
+        </button>
+        <button style="display:flex;flex-direction:column;gap:3px;align-items:flex-start;background:#1E1418;border:1px solid #34232A;border-radius:11px;padding:11px 13px;cursor:pointer;color:#F3EAEC">
+          <span style="font-size:19px">📊</span><span style="font-family:'Rajdhani',sans-serif;font-weight:600;font-size:14px;display:inline-flex;align-items:center;gap:6px">Telemetri</span><span style="font-size:10.5px;color:#A88C93">.ld yükle · analiz</span>
+        </button>
+        <button style="display:flex;flex-direction:column;gap:3px;align-items:flex-start;background:#1E1418;border:1px solid #34232A;border-radius:11px;padding:11px 13px;cursor:pointer;color:#F3EAEC">
+          <span style="font-size:19px">🔧</span><span style="font-family:'Rajdhani',sans-serif;font-weight:600;font-size:14px;display:inline-flex;align-items:center;gap:6px">Setup Havuzu<span style="background:#C51E38;color:#fff;border-radius:9px;font-size:10px;padding:0 6px;font-weight:600;font-family:'Inter',sans-serif">34</span></span><span style="font-size:10.5px;color:#A88C93">paylaşımlı setuplar</span>
+        </button>
+        <button style="display:flex;flex-direction:column;gap:3px;align-items:flex-start;background:#1E1418;border:1px solid #34232A;border-radius:11px;padding:11px 13px;cursor:pointer;color:#F3EAEC">
+          <span style="font-size:19px">💬</span><span style="font-family:'Rajdhani',sans-serif;font-weight:600;font-size:14px;display:inline-flex;align-items:center;gap:6px">Sohbet<span style="background:#C51E38;color:#fff;border-radius:9px;font-size:10px;padding:0 6px;font-weight:600;font-family:'Inter',sans-serif">3</span></span><span style="font-size:10.5px;color:#A88C93">takım kanalları</span>
+        </button>
+        <button style="display:flex;flex-direction:column;gap:3px;align-items:flex-start;background:#1E1418;border:1px solid #34232A;border-radius:11px;padding:11px 13px;cursor:pointer;color:#F3EAEC">
+          <span style="font-size:19px">⚙</span><span style="font-family:'Rajdhani',sans-serif;font-weight:600;font-size:14px;display:inline-flex;align-items:center;gap:6px">Yönet</span><span style="font-size:10.5px;color:#A88C93">takvim &amp; takım</span>
+        </button>
+      </div>
+
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 4px">
+        <button style="background:#1E1418;border:1px solid #D24357;color:#D24357;border-radius:20px;font-size:11.5px;padding:4px 11px;cursor:pointer">Tümü</button>
+        <button style="background:#1E1418;border:1px solid #34232A;color:#C9B3B9;border-radius:20px;font-size:11.5px;padding:4px 11px;cursor:pointer">2026 WEC</button>
+        <button style="background:#1E1418;border:1px solid #34232A;color:#C9B3B9;border-radius:20px;font-size:11.5px;padding:4px 11px;cursor:pointer">2025 WEC</button>
+      </div>
+
+      <div style="text-align:left">
+        <div style="font-family:'Rajdhani',sans-serif;text-transform:uppercase;letter-spacing:.05em;font-size:14px;color:#F3EAEC;margin:18px 0 9px;display:flex;align-items:center;gap:8px">🏁 Sıradaki Yarış</div>
+        <div style="display:flex;align-items:stretch;gap:8px">
+          <button style="flex:1;min-width:0;display:flex;align-items:center;gap:14px;width:100%;text-align:left;border:1px solid #C51E38;border-radius:13px;padding:14px;cursor:pointer;color:#F3EAEC;background:radial-gradient(120% 160% at 100% 0,rgba(150,0,24,.22),#1E1418 60%)">
+            <span style="height:52px;border-radius:9px;background:#150E10;border:1px solid #4A2F38;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 10px;font-size:26px;flex:none">
+              <img src="public/assets/flags/spa.png" alt="" style="width:30px;height:20px;object-fit:cover;border-radius:3px;border:1px solid #34232A;flex:0 0 auto" />
+              <img src="public/assets/tracks/spa.png" alt="" style="width:58px;height:40px;object-fit:contain;flex:0 0 auto" />
+            </span>
+            <span style="display:flex;flex-direction:column;min-width:0;flex:1;gap:2px">
+              <span style="font-size:11px;color:#D24357;font-weight:600;letter-spacing:.04em">2026 WEC · R3</span>
+              <span style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:20px;line-height:1.05;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">6H Spa</span>
+              <span style="font-size:12px;color:#C9B3B9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Spa-Francorchamps · 6:00:00 · Ferrari 296 GT3</span>
+            </span>
+            <span style="margin-left:auto;text-align:right;flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+              <span style="font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:13px">15 Ağu 14:00</span>
+              <span style="background:#960018;color:#fff;border-radius:8px;padding:6px 14px;font-family:'Rajdhani',sans-serif;font-weight:600;font-size:13px;white-space:nowrap">Aç →</span>
+            </span>
+          </button>
+          <button style="flex:0 0 auto;width:46px;border-radius:13px;background:#150E10;border:1px solid #4A2F38;color:#C9B3B9;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center">🗑</button>
+        </div>
+
+        <div style="font-family:'Rajdhani',sans-serif;text-transform:uppercase;letter-spacing:.05em;font-size:12px;color:#A88C93;margin:14px 0 8px">Yaklaşan (2)</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:4px">
+          <sc-for list="{{ upcoming }}" as="r" hint-placeholder-count="2">
+            <div style="display:flex;align-items:stretch;gap:6px">
+              <button style="flex:1;min-width:0;height:100%;display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border:1px solid #34232A;border-radius:10px;background:#1E1418;cursor:pointer;text-align:left;color:#F3EAEC">
+                <img src="{{ r.track }}" alt="" style="width:54px;height:34px;object-fit:contain;opacity:.85;flex:0 0 auto" />
+                <span style="display:flex;flex-direction:column;flex:1;min-width:0;gap:1px">
+                  <b style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.title }}</b>
+                  <span style="font-size:11px;color:#C9B3B9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.meta }}</span>
+                  <span style="font-size:10.5px;color:#D24357;letter-spacing:.03em">{{ r.date }}</span>
+                </span>
+                <span style="color:#C9B3B9;font-size:15px">→</span>
+              </button>
+              <button style="flex:0 0 auto;width:34px;border-radius:10px;background:transparent;border:1px solid #4A2F38;color:#C9B3B9;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center">🗑</button>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div style="font-family:'Rajdhani',sans-serif;text-transform:uppercase;letter-spacing:.05em;font-size:14px;color:#F3EAEC;margin:18px 0 9px;display:flex;align-items:center;gap:8px">📅 Geçmiş Yarışlar</div>
+          <input type="text" placeholder="ara: pist, yarış adı…" style="margin-left:auto;background:#1E1418;border:1px solid #34232A;border-radius:8px;color:#F3EAEC;font-size:12.5px;padding:6px 10px;width:200px;max-width:44vw" />
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">
+          <sc-for list="{{ past }}" as="r" hint-placeholder-count="4">
+            <div style="display:flex;align-items:stretch;gap:6px">
+              <button style="flex:1;min-width:0;height:100%;display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border:1px solid #34232A;border-radius:10px;background:#1E1418;cursor:pointer;text-align:left;color:#F3EAEC">
+                <img src="{{ r.track }}" alt="" style="width:54px;height:34px;object-fit:contain;opacity:.85;flex:0 0 auto" />
+                <span style="display:flex;flex-direction:column;flex:1;min-width:0;gap:1px">
+                  <b style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.title }}</b>
+                  <span style="font-size:11px;color:#C9B3B9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.meta }}</span>
+                  <span style="font-size:10.5px;color:#D24357;letter-spacing:.03em">{{ r.date }}</span>
+                </span>
+                <span style="color:#C9B3B9;font-size:15px">→</span>
+              </button>
+              <button style="flex:0 0 auto;width:34px;border-radius:10px;background:transparent;border:1px solid #4A2F38;color:#C9B3B9;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center">🗑</button>
+            </div>
+          </sc-for>
+        </div>
+        <button style="margin:12px auto 0;display:block;background:#1E1418;border:1px solid #34232A;color:#C9B3B9;border-radius:8px;padding:8px 18px;font-size:12.5px;cursor:pointer">↓ Daha fazla göster (4 / 9)</button>
+      </div>
+
+      <div style="margin-top:12px;color:#F5B23D;font-size:12px;text-align:center;min-height:16px"></div>
+
+      <div style="max-width:520px;margin-left:auto;margin-right:auto">
+        <button style="display:block;width:100%;margin-top:22px;background:none;border:none;color:#C9B3B9;cursor:pointer;font-size:12px;text-decoration:underline;text-underline-offset:3px">Takımsız solo devam et →</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const UP = [
+  { title: "R4 · 6H Fuji", meta: "Fuji · 6:00:00 · Ferrari 296 GT3", date: "Cts, 13 Eyl 07:00", track: "fuji" },
+  { title: "R5 · 8H Bahrain", meta: "Bahrain · 8:00:00 · Ferrari 296 GT3", date: "Cts, 08 Kas 14:00", track: "bahrain" },
+];
+const PAST = [
+  { title: "R2 · 6H Imola", meta: "Imola · 6:00:00 · Ferrari 296 GT3", date: "Paz, 20 Nis 13:00", track: "imola" },
+  { title: "R1 · 1812 km Qatar", meta: "Lusail · 10:00:00 · Ferrari 296 GT3", date: "Cum, 28 Şub 14:00", track: "bahrain" },
+  { title: "Test · Monza", meta: "Monza · 2:00:00 · BMW M4 GT3", date: "Sal, 14 Oca 19:00", track: "monza" },
+  { title: "24H Le Mans", meta: "Le Mans · 24:00:00 · Ferrari 499P", date: "Cts, 14 Haz 16:00", track: "lemans" },
+];
+
+class Component extends DCLogic {
+  renderVals() {
+    const map = (a) => a.map((r) => ({ ...r, track: `public/assets/tracks/${r.track}.png` }));
+    return { upcoming: map(UP), past: map(PAST) };
+  }
+}
+</script>
+</body>
+</html>

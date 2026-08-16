@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body { margin:0; background:#0B0708; color:#F3EAEC; font-family:'Inter',system-ui,sans-serif; }
+    a { color:#D24357; }
+    a:hover { color:#FF8A99; }
+    ::selection { background:rgba(210,67,87,.35); }
+  </style>
+</helmet>
+
+<div style="min-height:100vh;background:#0B0708;color:#F3EAEC;font-family:'Inter',system-ui,sans-serif">
+
+  <header style="position:sticky;top:0;z-index:10;display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;padding:26px 40px 18px;border-bottom:1px solid #34232A;background:linear-gradient(180deg,#1A1013,#120C0E)">
+    <div style="display:flex;flex-direction:column;gap:5px;min-width:0">
+      <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#A88C93;font-family:'Rajdhani',sans-serif;font-weight:600">Caspian Race Monitor · v2.0 teslim paketi</span>
+      <h1 style="margin:0;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:38px;line-height:1;letter-spacing:.01em">EN Sözlüğü</h1>
+      <span style="font-size:13px;color:#C9B3B9;max-width:640px;line-height:1.6">Yeni ve değişen tüm metinlerin İngilizce karşılıkları. Mühendis bunları <b style="color:#F3EAEC">src/i18n.js</b> EN sözlüğüne girer — listede olmayan bir metin çıkarsa çeviri üretmez, sorar.</span>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+      <span style="display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:99px;border:1px solid #34232A;background:#1E1418;font-size:12px;color:#C9B3B9">
+        <i style="width:7px;height:7px;border-radius:50%;background:#37D67A;box-shadow:0 0 7px #37D67A"></i>{{ pairCount }} dize
+      </span>
+      <button onClick="{{ toggleOnly }}" style="{{ onlyBtn }}">{{ onlyLabel }}</button>
+    </div>
+  </header>
+
+  <nav style="display:flex;gap:7px;flex-wrap:wrap;padding:14px 40px;border-bottom:1px solid #241519;background:#120C0E;position:sticky;top:0;z-index:9">
+    <sc-for list="{{ navItems }}" as="n" hint-placeholder-count="10">
+      <a href="{{ n.href }}" style="{{ n.style }}">{{ n.label }}</a>
+    </sc-for>
+  </nav>
+
+  <main style="padding:28px 40px 80px;display:flex;flex-direction:column;gap:34px;max-width:1180px">
+    <sc-for list="{{ sections }}" as="s" hint-placeholder-count="10">
+      <section id="{{ s.id }}" style="scroll-margin-top:130px">
+        <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+          <span style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:15px;color:#960018;letter-spacing:.06em">{{ s.num }}</span>
+          <h2 style="margin:0;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:26px;letter-spacing:.01em">{{ s.title }}</h2>
+          <span style="font-size:12px;color:#A88C93">{{ s.note }}</span>
+          <span style="flex:1;height:1px;background:#241519;min-width:40px"></span>
+          <span style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#4A2F38">{{ s.count }}</span>
+        </div>
+
+        <div style="border:1px solid #34232A;border-radius:12px;background:#120C0E;overflow:hidden">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;padding:9px 16px;border-bottom:1px solid #34232A;background:#150E10">
+            <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#A88C93;font-family:'Rajdhani',sans-serif;font-weight:600">Türkçe</span>
+            <span style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#A88C93;font-family:'Rajdhani',sans-serif;font-weight:600">English</span>
+          </div>
+          <sc-for list="{{ s.rows }}" as="r" hint-placeholder-count="6">
+            <div style="{{ r.rowStyle }}">
+              <span style="display:flex;flex-direction:column;gap:4px;min-width:0;padding-right:18px">
+                <span style="{{ r.ctxStyle }}">{{ r.ctx }}</span>
+                <span style="font-size:13.5px;line-height:1.6;color:#C9B3B9">{{ r.tr }}</span>
+              </span>
+              <span style="font-size:13.5px;line-height:1.6;color:#F3EAEC;min-width:0">{{ r.en }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+    </sc-for>
+
+    <section id="kararlar" style="scroll-margin-top:130px">
+      <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+        <span style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:15px;color:#960018;letter-spacing:.06em">◆</span>
+        <h2 style="margin:0;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:26px">Çeviri kararları</h2>
+        <span style="font-size:12px;color:#A88C93">terimler her ekranda aynı karşılığı alır</span>
+        <span style="flex:1;height:1px;background:#241519;min-width:40px"></span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:10px">
+        <sc-for list="{{ terms }}" as="t" hint-placeholder-count="9">
+          <span style="display:flex;flex-direction:column;gap:3px;padding:11px 15px;border:1px solid #34232A;border-radius:11px;background:#150E10;min-width:170px">
+            <span style="display:flex;align-items:center;gap:8px">
+              <b style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#C9B3B9">{{ t.tr }}</b>
+              <span style="color:#4A2F38">→</span>
+              <b style="font-family:'Rajdhani',sans-serif;font-size:16px;color:#F3EAEC">{{ t.en }}</b>
+            </span>
+            <span style="font-size:11px;color:#A88C93">{{ t.note }}</span>
+          </span>
+        </sc-for>
+      </div>
+    </section>
+  </main>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1180,&quot;height&quot;:900}}">
+const SECTIONS = [
+  { id: "rehber", num: "01", title: "Rehber kutuları", note: "GUIDES sözlüğü · 12 ekran", rows: [
+    ["home", "Ana menü", "Main menu"],
+    ["home", "Sıradaki yarışı buradan aç, hızlı eylemlerle setup havuzuna, telemetriye ve takım takvimine geç.", "Open your next race here, and jump to the setup pool, telemetry and team calendar from the quick actions."],
+    ["dash", "Dashboard", "Dashboard"],
+    ["dash", "Yarışın özeti: pozisyon, enerji, lastik ve stint dağılımı. Araç ve pist görseline tıklayınca tempo referansı açılır.", "The race at a glance: position, energy, tyres and stint split. Click the car or track image to open the pace reference."],
+    ["stint", "Stint planı", "Stint plan"],
+    ["stint", "Stintleri süre ve pilotla planla; pit satırında lastik seçimini işaretle. PIT düğmesi gerçek pit anını kaydeder.", "Plan stints by duration and driver, and mark the tyre choice on the pit row. The PIT button records the actual stop."],
+    ["fuel", "Son stint yakıtı", "Final stint fuel"],
+    ["fuel", "Kalan süreye göre gereken enerji yüzdesi. 📋 Plan açıkken geri sayım stint planından gelir; canlı veriyle tüketimi güncelleyebilirsin.", "The energy percentage you need for the time remaining. With 📋 Plan on, the countdown comes from the stint plan; you can refresh consumption from live data."],
+    ["live", "Canlı timing", "Live timing"],
+    ["live", "Sütun başlıklarına tıklayınca değer değişir (Gap ⇄ Aralık, Son ⇄ En iyi). Bir rakip satırına tıkla, altta karşılaştırma açılır.", "Click a column header to switch what it shows (Gap ⇄ Interval, Last ⇄ Best). Click a rival's row and a comparison opens below."],
+    ["tyre", "Lastik stratejisi", "Tyre strategy"],
+    ["tyre", "Her hücreye tıklayarak set ata; bir lastik ilk takıldığı köşeye kilitlenir. Hızlı atama penceresi tüm kombinasyonları verir.", "Click a cell to assign a set; a tyre locks to the corner it was first fitted on. The quick-assign window lists every combination."],
+    ["drivers", "Pilotlar", "Drivers"],
+    ["drivers", "Stintlere pilot ata, sürüş süresi dağılımını izle. Uygunluk penceresinde kapattığın saatlere atama yapılamaz.", "Assign drivers to stints and watch the driving-time split. Hours you close in the availability window can't be assigned."],
+    ["tele", "Telemetri", "Telemetry"],
+    ["tele", "Stint yuvalarına dosya yükle, iki turu A/B karşılaştır. Grafiklerde imleçle gez, tekerlekle yakınlaştır, Space ile oynat.", "Load a file into a stint slot and compare two laps A/B. Scrub the charts with the cursor, zoom with the wheel, play with Space."],
+    ["setup", "Setup havuzu", "Setup pool"],
+    ["setup", "Setupları pist bazında gör, ⚖ ile iki tanesini karşılaştır. Yıldızladıkların listenin başında durur.", "Browse setups by track and compare two with ⚖. The ones you star stay at the top of the list."],
+    ["team", "Takım", "Team"],
+    ["team", "Üye yetkilerini, sezon takvimini ve takım kimliğini buradan yönet. Katılım kodunu paylaşarak yeni üye davet edebilirsin.", "Manage member permissions, the season calendar and team identity here. Share the join code to invite new members."],
+    ["chat", "Sohbet", "Chat"],
+    ["chat", "Genel, takım ve yarışa özel kanallar. Yarış kanalı yalnız o yarışın katılımcılarına açıktır.", "General, team and race-specific channels. A race channel is open only to that race's participants."],
+    ["official", "Resmi yarışlar", "Official races"],
+    ["official", "lmugarage listesinden günlük ve haftalık yarışlar. Planla düğmesiyle takvimine ekleyebilirsin.", "Daily and weekly races from the lmugarage listing. Use Plan to add one to your calendar."],
+    ["kontrol", "Gizle", "Hide"],
+    ["kontrol", "Rehberi başlat", "Start the tour"],
+  ] },
+  { id: "bos", num: "02", title: "Boş durumlar", note: "6 ekran", rows: [
+    ["saha", "Canlı veri gelmiyor", "No live data"],
+    ["saha", "Köprü çalışmıyor ya da oyun seansta değil. Sürüş PC'sinde köprüyü başlat; bağlanınca saha tablosu kendiliğinden dolar.", "The bridge isn't running, or the game isn't in a session. Start the bridge on the driving PC; the field table fills by itself once it connects."],
+    ["saha", "Yeniden bağlan", "Reconnect"],
+    ["saha", "Köprü durumu", "Bridge status"],
+    ["saha", "son paket · 3 dk önce", "last packet · 3 min ago"],
+    ["takvim", "Bu sezonda yarış yok", "No races this season"],
+    ["takvim", "Takvime yarış ekle ya da resmi yarışlar listesinden planla — eklediğin yarışlar takımdaki herkeste görünür.", "Add a race to the calendar or plan one from the official races list — races you add appear for everyone in the team."],
+    ["takvim", "＋ Yarış ekle", "＋ Add race"],
+    ["kadro", "Kadroda pilot yok", "No drivers in the roster"],
+    ["kadro", "Takım üyelerini kadroya ekle ya da yeni üye davet et; stint ataması için en az bir pilot gerekir.", "Add team members to the roster or invite someone new; stint assignment needs at least one driver."],
+    ["kadro", "＋ Üye davet et", "＋ Invite member"],
+    ["telemetri", "Henüz telemetri yok", "No telemetry yet"],
+    ["telemetri", "Stint yuvalarına .ld veya .duckdb dosyası yükle; iki turu karşılaştırmak için en az bir dosya gerekir.", "Load an .ld or .duckdb file into a stint slot; comparing two laps needs at least one file."],
+    ["telemetri", "⬆ Telemetri yükle", "⬆ Load telemetry"],
+    ["sohbet", "Henüz mesaj yok", "No messages yet"],
+    ["sohbet", "İlk yazan sen ol — bu kanaldaki mesajlar yarış boyunca takımda kalır.", "Be the first to write — messages in this channel stay with the team for the whole race."],
+    ["sohbet", "Bugün", "Today"],
+    ["setup", "Yağmur setupu yok", "No wet setups"],
+    ["setup", "Senin yüklediğin setup yok", "You haven't uploaded a setup"],
+    ["setup", "Bu filtreyle eşleşen setup bulunamadı. Islak zemin için bir setup yükle — takımdaki herkes görebilir.", "No setup matches this filter. Upload one for wet conditions — everyone in the team can see it."],
+    ["setup", "Havuza henüz setup eklemedin. Yüklediğin dosyalar takımdaki herkese açık olur.", "You haven't added a setup to the pool yet. Files you upload are visible to everyone in the team."],
+    ["setup", "⬆ İlk setupu yükle", "⬆ Upload your first setup"],
+  ] },
+  { id: "uygunluk", num: "03", title: "Pilot uygunluk ızgarası", note: "yeni özellik", rows: [
+    ["", "Pilot uygunluğu", "Driver availability"],
+    ["", "Stinte tıkla · o pilot o saatte uygun değil işaretlenir", "Click a stint to mark that driver unavailable for that slot"],
+    ["", "Uygunluk", "Availability"],
+    ["", "uygun · uygun değil", "available · unavailable"],
+    ["", "Varsayılan tüm stintlerde uygun", "Available for every stint by default"],
+    ["", "Uygun değil işaretlenen pilot o stinte atanamaz", "A driver marked unavailable can't be assigned to that stint"],
+    ["", "Tümünü sıfırla", "Reset all"],
+    ["uyarı", "⚠ {n} stint atanmadı", "⚠ {n} stints unassigned"],
+    ["uyarı", "⚠ Bu stint için uygun pilot kalmadı", "⚠ No available driver left for this stint"],
+    ["uyarı", "Atama kaldırıldı — pilot bu stintte uygun değil", "Assignment removed — the driver is unavailable for this stint"],
+  ] },
+  { id: "yarisdata", num: "04", title: "Yarış datası paneli", note: "sahnele + uygula", rows: [
+    ["", "Yarış datası", "Race data"],
+    ["", "Bu değişiklik neyi etkiler", "What this change affects"],
+    ["", "📋 Stint planı süreleri ve pit pencereleri", "📋 Stint plan durations and pit windows"],
+    ["", "⛽ Son stint yakıtı hesabı", "⛽ Final-stint fuel calculation"],
+    ["", "🛞 Lastik limiti uyarıları", "🛞 Tyre limit warnings"],
+    ["", "{n} alan değişti", "{n} fields changed"],
+    ["", "Değişiklik yok", "No changes"],
+    ["", "Uygula · Geri al", "Apply · Discard"],
+    ["onay", "Kaydedilmemiş değişiklikler var — kapatılsın mı?", "You have unsaved changes — close anyway?"],
+    ["alan", "Yakıt oranı (L / %1)", "Fuel ratio (L per 1%)"],
+    ["alan", "⛽ %100 = taşınan yakıt", "⛽ 100% = fuel carried"],
+    ["alan", "Ortalama tur · m:ss.00", "Average lap · m:ss.00"],
+    ["alan", "Canlıdan al", "Take from live"],
+    ["alan", "Yakıt modeline uygula", "Apply to fuel model"],
+  ] },
+  { id: "karsilastirma", num: "05", title: "Rakip karşılaştırma tepsisi", note: "yeni özellik", rows: [
+    ["", "Karşılaştırma", "Comparison"],
+    ["", "Sen · Rakip", "You · Rival"],
+    ["", "Son tur", "Last lap"],
+    ["", "Fark", "Delta"],
+    ["", "daha hızlı · daha yavaş", "faster · slower"],
+    ["", "Karşılaştırmayı kapat", "Close comparison"],
+    ["", "Kendi satırın karşılaştırılamaz", "You can't compare your own row"],
+  ] },
+  { id: "izleyici", num: "06", title: "İzleyici modu", note: "rol pasifleştirme", rows: [
+    ["", "İzleyici modu", "Viewer mode"],
+    ["", "İzleyici · Mühendis", "Viewer · Engineer"],
+    ["", "👁 İzleyici modu · düzenleme kapalı", "👁 Viewer mode · editing disabled"],
+    ["", "👁 İzleyici modunda pasif", "👁 Disabled in viewer mode"],
+    ["", "Bu işlem için düzenleme yetkisi gerekir", "This action needs edit permission"],
+  ] },
+  { id: "canli", num: "07", title: "Canlı timing — sütun ve süzgeç", note: "v1.8.19/20 uyumlu", rows: [
+    ["başlık", "Poz · Sınıf", "Pos · Class"],
+    ["başlık", "Kendi sınıfım süzgeci", "My class filter"],
+    ["başlık", "· kendi sınıfım", "· my class"],
+    ["başlık", "Lidere Gap ↔ öndekine Aralık", "Gap to leader ↔ Interval to car ahead"],
+    ["başlık", "Son ↔ En iyi · AVG5 ↔ AVG", "Last ↔ Best · AVG5 ↔ AVG"],
+    ["sektör", "Sektör sütununu gizle", "Hide the sector column"],
+    ["sektör", "👁 Sektör sütununu göster", "👁 Show the sector column"],
+    ["yoğunluk", "◱ Pit duvarı · ◰ Mühendis", "◱ Pit wall · ◰ Engineer"],
+    ["demo", "Veri kesildi (önizleme) · Veriyi geri getir", "Feed cut (preview) · Restore the feed"],
+    ["demo", "Oyun/köprü olmadan sahte veriyle doldur", "Fill with mock data, no game or bridge needed"],
+  ] },
+  { id: "stint", num: "08", title: "Stint · lastik · yakıt", note: "", rows: [
+    ["", "⚠ Başlangıç lastiği seçilmedi — önce buradan başla, pit seçimleri buna zincirlenir", "⚠ No starting tyre selected — start here; pit choices chain from it"],
+    ["", "Temizle", "Clear"],
+    ["", "Hızlı atama", "Quick assign"],
+    ["", "Köşe kilidi ihlali", "Corner lock violation"],
+    ["", "Set envanteri", "Set inventory"],
+    ["", "Data'ya uygula · %105 filtre · Stinti sil", "Apply to data · 105% filter · Delete stint"],
+  ] },
+  { id: "takim", num: "09", title: "Takım · tam sayfa geçişi", note: "", rows: [
+    ["", "Takımı sil", "Delete team"],
+    ["", "Sezonlar, yarışlar ve takım setupları kalıcı olarak silinir. Geri alınamaz.", "Seasons, races and team setups are deleted permanently. This can't be undone."],
+    ["", "Katılım kodu · Kur & katıl", "Join code · Create & join"],
+    ["", "Masaüstü uygulaması", "Desktop app"],
+    ["", "Tarayıcısız, kendi penceresinde açılır — canlı timing köprüsü dahil. Sonraki sürümler uygulama içinden gelir.", "Runs in its own window without a browser — live timing bridge included. Future updates arrive inside the app."],
+    ["", "İndir", "Download"],
+  ] },
+  { id: "pdf", num: "10", title: "PDF raporu", note: "DashTab tetikler", rows: [
+    ["", "Yarış raporu", "Race report"],
+    ["", "Pist koşulları", "Track conditions"],
+    ["", "Pilot dağılımı", "Driver split"],
+    ["", "Mühendis notu", "Engineer's note"],
+    ["", "PDF olarak indir", "Download as PDF"],
+    ["", "{tarih} tarihinde oluşturuldu", "Generated on {date}"],
+  ] },
+];
+
+const TERMS = [
+  ["stint", "stint", "çevrilmez"],
+  ["saha tablosu", "field table", "standings değil"],
+  ["Aralık", "Interval", "v1.8.19 ile aynı"],
+  ["Tutuş", "Grip", "GripIcon"],
+  ["Zemin ıslaklığı", "Wetness", "mevcut"],
+  ["Sanal Enerji · VE", "Virtual Energy · VE", "kısaltma sabit"],
+  ["köprü", "bridge", "mevcut"],
+  ["kadro", "roster", "mevcut"],
+  ["uygunluk", "availability", "yeni"],
+  ["sahnele · uygula", "stage · apply", "buton: Apply"],
+  ["izleyici", "viewer", "rol adı"],
+];
+
+class Component extends DCLogic {
+  state = { only: false, active: "rehber" };
+
+  renderVals() {
+    const only = this.state.only;
+    const pairCount = SECTIONS.reduce((a, s) => a + s.rows.length, 0) + TERMS.length;
+
+    return {
+      pairCount,
+      onlyLabel: only ? "Türkçeyi göster" : "Yalnız yeni metinler",
+      onlyBtn: {
+        padding: "7px 13px", borderRadius: 99, cursor: "pointer", fontSize: 12,
+        border: `1px solid ${only ? "#D24357" : "#34232A"}`,
+        background: only ? "rgba(150,0,24,.22)" : "#1E1418", color: "#F3EAEC",
+        fontFamily: "'Inter',sans-serif",
+      },
+      toggleOnly: () => this.setState((s) => ({ only: !s.only })),
+      navItems: SECTIONS.map((s) => ({
+        href: `#${s.id}`,
+        label: `${s.num} ${s.title}`,
+        style: {
+          padding: "6px 12px", borderRadius: 99, border: "1px solid #34232A",
+          background: "#1E1418", color: "#C9B3B9", fontSize: 12, textDecoration: "none",
+          whiteSpace: "nowrap",
+        },
+      })).concat([{
+        href: "#kararlar", label: "◆ Çeviri kararları",
+        style: {
+          padding: "6px 12px", borderRadius: 99, border: "1px dashed #4A2F38",
+          background: "transparent", color: "#A88C93", fontSize: 12, textDecoration: "none",
+          whiteSpace: "nowrap",
+        },
+      }]),
+      sections: SECTIONS.map((s) => ({
+        id: s.id, num: s.num, title: s.title, note: s.note,
+        count: `${s.rows.length} dize`,
+        rows: s.rows.map(([ctx, tr, en], i) => ({
+          ctx: ctx || "",
+          tr: only ? "—" : tr,
+          en,
+          ctxStyle: ctx
+            ? {
+                display: "inline-block", alignSelf: "flex-start", fontSize: 10,
+                letterSpacing: ".1em", textTransform: "uppercase", color: "#A88C93",
+                fontFamily: "'Rajdhani',sans-serif", fontWeight: 600,
+                border: "1px solid #34232A", borderRadius: 6, padding: "1px 7px",
+                background: "#1E1418",
+              }
+            : { display: "none" },
+          rowStyle: {
+            display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0,
+            padding: "12px 16px", alignItems: "start",
+            borderTop: i === 0 ? "0" : "1px solid #241519",
+            background: i % 2 ? "rgba(255,255,255,.014)" : "transparent",
+          },
+        })),
+      })),
+      terms: TERMS.map(([tr, en, note]) => ({ tr, en, note })),
+    };
+  }
+}
+
+</script>
+</body>
+</html>
