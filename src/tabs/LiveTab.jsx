@@ -126,7 +126,7 @@ function TyreCell({ c, t }) {
 
 /* Araç markası logosu (assets/brands/<key>.png). Önce LMU katalog manufacturer'ı
    (temiz: "Cadillac"), yoksa vehicleName parser'ı denenir; dosya yoksa gizlenir. */
-function Brand({ manufacturer, vehicleName }) {
+function Brand({ manufacturer, vehicleName, className = "" }) {
   const [i, setI] = useState(0);
   const cands = [];
   const push = (k) => { if (k) { const u = `${ASSET}brands/${k}.png`; if (!cands.includes(u)) cands.push(u); } };
@@ -139,9 +139,52 @@ function Brand({ manufacturer, vehicleName }) {
   push(brandKey(vehicleName));
   const url = cands[i];
   if (!url) return null;
-  return <img src={url} alt="" title={manufacturer || vehicleName || ""}
-    style={{ height: 16, width: 16, objectFit: "contain", verticalAlign: "middle",
-      marginRight: 6 }} onError={() => setI((x) => x + 1)} />;
+  /* boyut sınıftan gelir (.brandimg varsayılan; saha tablosunda .fbrand yoğunluğa
+     göre 26/20px ile ezer) — inline stil YOK. */
+  return <img className={`brandimg ${className}`} src={url} alt=""
+    title={manufacturer || vehicleName || ""} onError={() => setI((x) => x + 1)} />;
+}
+
+/* Rakip karşılaştırma tepsisi (v2.0) — saha satırına tıklayınca alttan kayar.
+   Son tur · AVG5 · S1–S3 · enerji; fark renkli (yeşil = sen daha hızlısın).
+   Kendi satırın tıklanamaz (LiveTab satır onClick'i player'da undefined). */
+function CompareTray({ t, own, rival, onClose }) {
+  if (!rival) return null;
+  const secs = (x) => String(x || "").split(",").map((v) => Number(v) || null);
+  const oS = secs(own?.lastSectors), rS = secs(rival.lastSectors);
+  const delta = (mine, his) =>
+    (mine == null || his == null || !Number.isFinite(mine) || !Number.isFinite(his))
+      ? null : mine - his;
+  const cell = (label, mine, his, fmt) => {
+    const d = delta(mine, his);
+    return (
+      <span className="cmpcell" key={label}>
+        <span className="cmpk">{label}</span>
+        <b className="cmpv">{fmt(his)}</b>
+        {d != null && (
+          <span className={`cmpd ${d < 0 ? "up" : d > 0 ? "down" : ""}`}>
+            {d > 0 ? "+" : ""}{d.toFixed(3)}
+          </span>
+        )}
+      </span>
+    );
+  };
+  return (
+    <div className="cmptray open" role="region" aria-label={t("Karşılaştırma")}>
+      <span className="cmphead">
+        <b>{rival.driver || "—"}</b>
+        <span className="fsub">{t("Rakip")}</span>
+      </span>
+      {cell(t("Son tur"), own?.lastSec, rival.lastSec, lap)}
+      {cell("AVG5", own?.avg5Sec, rival.avg5Sec, lap)}
+      {[0, 1, 2].map((k) => cell(`S${k + 1}`, oS[k], rS[k],
+        (v) => (v == null ? "—" : v.toFixed(3))))}
+      {cell(t("Enerji"), own?.virtualEnergy, rival.virtualEnergy,
+        (v) => (v == null ? "—" : `${Math.round(v)}%`))}
+      <button className="rbbtn" onClick={onClose}
+        aria-label={t("Karşılaştırmayı kapat")}>✕</button>
+    </div>
+  );
 }
 
 /* Bir aracın tüm yarış boyunca attığı turların zaman listesi (satırdaki "+" ile açılır).
@@ -556,6 +599,20 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
   const [lapMode, setLapMode] = useState(false);   // Son ↔ En İyi tek sütun geçişi
   const [avgMode, setAvgMode] = useState(false);   // AVG5 ↔ AVG tek sütun geçişi
   const [gapMode, setGapMode] = useState(false);   // Gap ↔ Aralık tek sütun geçişi
+  /* v2.0 — yoğunluk YALNIZ bu ekranda (global anahtar kaldırıldı):
+     "Pit duvarı" (seyrek satır, büyük sayı) ↔ "Mühendis" (sık satır, 12.5px).
+     Sütunlar iki modda da görünür, yalnız ölçek değişir. */
+  const [density, setDensity] = useState(() => {
+    try { return localStorage.getItem("crm-live-density") || "wall"; } catch { return "wall"; }
+  });
+  const wall = density === "wall";
+  const toggleDensity = () => setDensity((d) => {
+    const nx = d === "wall" ? "eng" : "wall";
+    try { localStorage.setItem("crm-live-density", nx); } catch { /* özel mod */ }
+    return nx;
+  });
+  const [secOn, setSecOn] = useState(true);        // Sektör sütunu gizlenebilir (👁)
+  const [cmpCar, setCmpCar] = useState(null);      // rakip karşılaştırma tepsisi
   // DEMO: yerel sahte veri (oyun/köprü/Firebase gerekmez) — UI düzenlemek için
   const [demo, setDemo] = useState(false);
   const [demoData, setDemoData] = useState(null);
@@ -847,41 +904,55 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
       </div>
 
       <div className="card" data-tour="livefield">
-        <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <h2 className="fieldhead">
           🏁 {t("Saha")} ({shown.length})
           {myClassOnly && playerClass && (
-            <span style={{ fontSize: 11, color: "var(--teal)" }}>· {t("Kendi sınıfım")}</span>
+            <span style={{ fontSize: 11, color: "var(--accent)" }}>· {t("kendi sınıfım")}</span>
           )}
+          <span className="spacer" />
+          {/* Yoğunluk YALNIZ burada (v2.0: global anahtar kaldırıldı). */}
+          <button className={`denbtn${wall ? " on" : ""}`} onClick={toggleDensity}
+            title={t("Satır yoğunluğu")} aria-pressed={wall}>
+            {wall ? t("◱ Pit duvarı") : t("◰ Mühendis")}</button>
+          <button className="secbtn" onClick={() => setSecOn((v) => !v)}
+            title={secOn ? t("Sektör sütununu gizle") : t("👁 Sektör sütununu göster")}
+            aria-pressed={!secOn}>{secOn ? "👁 S" : "👁"}</button>
         </h2>
         {!shown.length && <div className="hint">{t("Henüz araç verisi yok.")}</div>}
         {shown.length > 0 && (
-          <div style={{ overflowX: "auto" }}>
-            <table aria-label={t("Canlı timing tablosu")}>
+          <div className="fieldwrap">
+            <table className={`fieldtbl ${wall ? "wall" : "eng"}`}
+              aria-label={t("Canlı timing tablosu")}>
               <thead><tr>
-                <th>#</th>
-                <th><button onClick={() => setShowTeam((v) => !v)}
-                  title={t("Pilot / Takım değiştir")} style={thBtn}>
-                  {showTeam ? t("Takım") : t("Pilot")}</button></th>
-                <th>{playerClass ? (
-                  <button onClick={() => setMyClassOnly((v) => !v)}
-                    title={t("Kendi sınıfım süzgeci")}
-                    style={{ ...thBtn, ...(myClassOnly && { color: "var(--teal)", fontWeight: 700 }) }}>
-                    {t("Sınıf")}</button>
-                ) : t("Sınıf")}</th>
+                {/* SÜZGEÇ TEK NOKTADA: "Poz · Sınıf" başlığı. Tıkla → yalnız kendi
+                    sınıfın (başlık kalın), tekrar tıkla → tüm saha. Tasarımdaki
+                    sınıf çip şeridi KALDIRILDI (ARAYUZ-YENILEME-PROMPT-v2). */}
+                <th className="l">{playerClass ? (
+                  <button className={myClassOnly ? "on" : ""}
+                    onClick={() => setMyClassOnly((v) => !v)}
+                    title={t("Kendi sınıfım süzgeci")} aria-pressed={myClassOnly}>
+                    {t("Poz · Sınıf")}</button>
+                ) : t("Poz · Sınıf")}</th>
+                <th className="l"><button onClick={() => setShowTeam((v) => !v)}
+                  title={t("Pilot / Takım değiştir")}>
+                  {showTeam ? t("Takım") : t("Pilot")} ⇄</button></th>
                 <th>{t("Tur")}</th>
                 <th><button onClick={() => setGapMode((v) => !v)}
-                  title={t("Gap / Aralık değiştir")} style={thBtn}>
-                  {gapMode ? t("Aralık") : "Gap"}</button></th>
+                  title={t("Lidere Gap ↔ öndekine Aralık")}>
+                  {gapMode ? t("Aralık") : "Gap"} ⇄</button></th>
                 <th><button onClick={() => setLapMode((v) => !v)}
-                  title={t("Son / En İyi değiştir")} style={thBtn}>
-                  {lapMode ? t("En İyi") : t("Son")}</button></th>
-                <th>{t("Sektör")}</th>
+                  title={t("Son ↔ En iyi")}>
+                  {lapMode ? t("En İyi") : t("Son tur")} ⇄</button></th>
+                {secOn && <th>{t("Sektör")}</th>}
                 <th><button onClick={() => setAvgMode((v) => !v)}
-                  title={t("AVG5 / AVG değiştir")} style={thBtn}>
-                  {avgMode ? "AVG" : "AVG5"}</button></th>
-                <th>VE</th><th>{t("VE/tur")}</th>
-                <th>Stint</th><th>{t("Lastik")}</th>
-                <th>{t("Hasar")}</th><th>Pit</th><th>{t("Ceza")}</th>
+                  title={t("AVG5 ↔ AVG")}>{avgMode ? "AVG" : "AVG5"} ⇄</button></th>
+                <th>{t("Enerji")}</th>
+                <th>{t("VE/tur")}</th>
+                <th>{t("Lastik")}</th>
+                <th>Stint</th>
+                <th>{t("Hasar")}</th>
+                <th>Incident</th>
+                <th>Pit</th>
                 <th aria-label={t("Turlar")}></th>
               </tr></thead>
               <tbody>
@@ -896,78 +967,84 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
                        animasyonu yeniden başlıyordu). Stabil key ile React satırı
                        taşır. */
                     <tr key={carKey(c) ?? (c.pos ?? i)}
-                      className={[c.isPlayer ? "live" : "",
-                        fl === "purple" ? "flashpurple" : fl === "green" ? "flashgreen" : ""]
+                      className={[c.isPlayer ? "me" : "pick",
+                        fl === "purple" ? "pbc" : fl === "green" ? "pb" : ""]
                         .filter(Boolean).join(" ")}
-                      style={!c.isPlayer && acc ? { borderLeft: `3px solid ${acc}` } : undefined}>
-                      <td className="disp" style={{ fontSize: 15, whiteSpace: "nowrap" }}>
-                        {c.pos ?? i + 1}
+                      /* Satıra tıkla → alt karşılaştırma tepsisi. Kendi satırın
+                         tıklanamaz (i18n-EN.md §5). */
+                      onClick={c.isPlayer ? undefined : () => setCmpCar(
+                        (v) => (carKey(v) === carKey(c) ? null : c))}>
+                      {/* Poz · sınıf-içi pozisyon: sınıf rengi, YALNIZ rakam, çerçevesiz.
+                          Sol kenar 4px sınıf rengi — renk veriye bağlı → inline. */}
+                      <td className="l" style={acc ? { borderLeftColor: acc } : undefined}>
+                        <span className="fpos">{c.pos ?? i + 1}</span>
                         {dirRef.current[c.lapKey || c.driver] === "up" && <span
                           style={{ color: "var(--green)", fontSize: 10, marginLeft: 3 }}>▲</span>}
                         {dirRef.current[c.lapKey || c.driver] === "down" && <span
                           style={{ color: "var(--red)", fontSize: 10, marginLeft: 3 }}>▼</span>}
+                        {id && <span className="fclspos" style={acc ? { color: acc } : undefined}>
+                          {classPos}</span>}
                       </td>
-                      <td style={{ fontFamily: "var(--font-ui)", whiteSpace: "nowrap" }}>
-                        <Brand manufacturer={c.manufacturer} vehicleName={c.vehicleName} />
-                        {c.number != null && <span style={{ color: "var(--dim)", fontSize: 11,
-                          marginRight: 5 }}>#{c.number}</span>}
-                        {showTeam ? (c.team || c.driver || "—") : (c.driver || "—")}</td>
-                      <td style={{ whiteSpace: "nowrap" }}>
-                        <ClassBadge raw={c.carClass} />
-                        {id && <span style={{ fontSize: 10, marginLeft: 5,
-                          color: classPos === 1 ? "var(--yellow)" : "var(--dim)",
-                          fontWeight: classPos === 1 ? 700 : 400 }}>P{classPos}</span>}
+                      {/* Pilot: marka logosu + ad, alt satır #num · takım · SINIF Pn */}
+                      <td className="l">
+                        <span className="fdrvcell">
+                          <Brand manufacturer={c.manufacturer} vehicleName={c.vehicleName}
+                            className="fbrand" />
+                          <span>
+                            <span className="fdrv">
+                              {showTeam ? (c.team || c.driver || "—") : (c.driver || "—")}</span>
+                            <span className="fsub">
+                              {c.number != null && <>#{c.number} · </>}
+                              {showTeam ? (c.driver || "") : (c.team || "")}
+                              {id && <> · {String(c.carClass || "").toUpperCase()} P{classPos}</>}
+                            </span>
+                          </span>
+                        </span>
                       </td>
                       <td>{c.lapsDone ?? "—"}</td>
-                      {/* Gap/Aralık tek sütun (başlıktan geçiş); Tur'dan hemen sonra 5. sıra. */}
-                      <td style={gapMode ? { color: "var(--dim)" } : undefined}>
+                      {/* Gap/Aralık tek sütun (başlıktan geçiş). */}
+                      <td className={gapMode ? "fdim" : undefined}>
                         {gapMode
                           ? (lapsDownNext >= 1 ? `+${lapsDownNext} ${t("Tur")}`
                               : interval != null ? gap(interval) : "—")
                           : (i === 0 ? t("Lider") : lapsDown >= 1 ? `+${lapsDown} ${t("Tur")}`
                               : gap(c.gapSec))}</td>
-                      {/* Son/En İyi tek sütun (başlıktan geçiş); En İyi'de sınıf en hızlısı mor. */}
-                      <td style={{ color: lapMode ? (isFastest ? "var(--purple)" : "var(--dim)") : undefined,
-                        fontWeight: lapMode && isFastest ? 700 : 400 }}>
+                      {/* Son tur / En iyi tek sütun; En iyi'de sınıf en hızlısı mor. */}
+                      <td className={lapMode ? (isFastest ? "fbest" : "fdim") : undefined}>
                         {lap(lapMode ? c.bestSec : c.lastSec)}</td>
-                      <td className="mono" style={{ color: "var(--dim)", fontSize: 11 }}
-                        title={t("Son turun S1·S2·S3 sektör süreleri")}>{secStr(c.lastSectors)}</td>
-                      {/* AVG5/AVG tek sütun (başlıktan geçiş). */}
-                      <td style={{ color: "var(--dim)" }}>{lap(avgMode ? c.avgSec : c.avg5Sec)}</td>
-                      <td style={{ color: veColor(c.virtualEnergy), fontSize: 12 }}>
+                      {secOn && (
+                        <td className="fsec" title={t("Son turun S1·S2·S3 sektör süreleri")}>
+                          {secStr(c.lastSectors)}</td>
+                      )}
+                      <td className="fdim">{lap(avgMode ? c.avgSec : c.avg5Sec)}</td>
+                      <td style={{ color: veColor(c.virtualEnergy) }}>
                         {c.virtualEnergy != null ? `${Math.round(c.virtualEnergy)}%` : "—"}</td>
-                      <td style={{ color: "var(--dim)", fontSize: 12 }}
-                        title={t("Tur başına VE tüketimi")}>
+                      <td className="fdim" title={t("Tur başına VE tüketimi")}>
                         {c.vePerLap != null ? `${c.vePerLap.toFixed(1)}%` : "—"}</td>
-                      <td className="mono" style={{ color: "var(--dim)", fontSize: 12 }}>
-                        {c.stintSec > 0 ? fmtHMS(c.stintSec) : "—"}</td>
-                      {/* Lastik (birleşik): hamur ikonu + en kötü aşınma %. Renkli nokta
-                          yok. Pit lastik değişimi artık "+" tur geçmişinde. Tooltip'te
-                          hamur (ön/arka) + köşe-köşe aşınma; bayat telemetride soluk. */}
+                      {/* v2.0 sütun sırası: Lastik, Stint (README §6). */}
                       <td><TyreCell c={c} t={t} /></td>
-                      <td style={{ fontSize: 12, color: (c.damage || 0) > 0.15 ? "var(--red)"
+                      <td className="fdim mono">
+                        {c.stintSec > 0 ? fmtHMS(c.stintSec) : "—"}</td>
+                      <td style={{ color: (c.damage || 0) > 0.15 ? "var(--red)"
                         : (c.damage || 0) > 0.02 ? "var(--yellow)" : "var(--dim)" }}>
                         {c.damage != null ? `${Math.round(c.damage * 100)}%` : "—"}</td>
-                      <td style={{ whiteSpace: "nowrap" }}>
+                      {/* Incident: ÇARPAN olarak yazılır (rozet yok) — README §6. */}
+                      <td title={t("Ceza sayısı (cut/puan cezaları dahil)")}>
+                        {c.penalties > 0
+                          ? <span className="finc">{c.penalties}x</span>
+                          : <span className="fdim">—</span>}
+                      </td>
+                      <td>
                         {c.inPits && <span className="chip" style={{ marginRight: 4,
                           color: "var(--yellow)", borderColor: "var(--yellow)" }}>PIT</span>}
-                        <span style={{ color: "var(--dim)" }}>{c.pitStops ?? "—"}</span>
+                        <span className="fdim">{c.pitStops ?? "—"}</span>
                       </td>
-                      <td style={{ textAlign: "center" }}
-                        title={t("Ceza sayısı (cut/puan cezaları dahil)")}>
-                        {c.penalties > 0
-                          ? <span className="chip" style={{ color: "var(--red)",
-                              borderColor: "var(--red)", fontWeight: 700 }}>⚠ {c.penalties}</span>
-                          : <span style={{ color: "var(--dim)" }}>—</span>}
-                      </td>
-                      <td style={{ textAlign: "center" }}>
+                      <td>
                         {c.lapsDone > 0 && c.lapKey && (
-                          <button className="act" title={t("Tur zamanları")}
+                          <button className="flapsbtn" title={t("Tur zamanları")}
                             aria-label={t("Tur zamanları")}
-                            /* rehber turu ilk satırın "+"ını vurgular */
                             data-tour={shown[0]?.c === c ? "livelapsbtn" : undefined}
-                            style={{ fontSize: 14, lineHeight: 1, padding: "1px 8px" }}
-                            onClick={() => setLapsFor(c)}>+</button>
+                            onClick={(e) => { e.stopPropagation(); setLapsFor(c); }}>+</button>
                         )}
                       </td>
                     </tr>
@@ -980,6 +1057,16 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
       </div>
       {!big && isRace && <PosChart t={t} tid={tid} rid={rid} field={fieldAll}
         myClassOnly={myClassOnly} playerClass={playerClass} />}
+
+      {/* Rakip karşılaştırma tepsisi — satır tıklamasıyla açılır. Araç sahadan
+          düşerse taze kareden yeniden bulunur, yoksa tepsi kapanır. */}
+      {cmpCar && (() => {
+        const ck = carKey(cmpCar);
+        const fresh = fieldAll.find((c) => carKey(c) === ck);
+        return fresh
+          ? <CompareTray t={t} own={own} rival={fresh} onClose={() => setCmpCar(null)} />
+          : null;
+      })()}
 
       {/* v1.6.3 — satırı TAZE kareden bul: modal açıkken lapsDone canlı güncellenir →
           bayat-veri cap'i (capLapEntries) yeni turları anında gösterir, snapshot'ta

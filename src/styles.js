@@ -1427,4 +1427,83 @@ export const css = `
 /* --- Yükleme göstergesi --- */
 .rc .spin{width:16px;height:16px;border-radius:50%;border:2px solid var(--line-strong);
   border-top-color:var(--accent);animation:rcspin .8s linear infinite;flex:0 0 auto}
+
+/* ── v2.0 CANLI TIMING — saha tablosu (README §6) ─────────────────────────────
+   Yoğunluk YALNIZ bu ekranda: .wall = Pit duvarı (seyrek satır, büyük sayı),
+   .eng = Mühendis (sık satır, 12.5px). Sütunlar İKİ MODDA DA görünür — yalnız
+   ölçek değişir. Global yoğunluk anahtarı v2.0'da kaldırıldı. */
+/* rakip karşılaştırma tepsisi içeriği */
+.rc .cmptray .cmphead{display:flex;flex-direction:column;padding-right:var(--sp-3);
+  border-right:1px solid var(--line);margin-right:var(--sp-2)}
+.rc .cmptray .cmphead b{font-family:var(--font-disp);font-size:15px;font-weight:700}
+.rc .cmpcell{display:flex;flex-direction:column;align-items:flex-end;gap:1px;min-width:64px}
+.rc .cmpk{font-size:var(--fs-label);text-transform:uppercase;letter-spacing:var(--ls-label);
+  color:var(--muted)}
+.rc .cmpv{font-family:var(--font-disp);font-size:15px;font-weight:700;
+  font-variant-numeric:tabular-nums}
+.rc .cmpd{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.rc .cmpd.up{color:var(--green)}
+.rc .cmpd.down{color:var(--red)}
+.rc .brandimg{height:16px;width:16px;object-fit:contain;vertical-align:middle;margin-right:6px}
+.rc .fieldtbl .brandimg{margin-right:0}
+.rc .fieldwrap{overflow-x:auto;overflow-y:visible}
+.rc .fieldtbl{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.rc .fieldtbl th{position:sticky;top:0;z-index:2;background:var(--panel);
+  color:var(--muted);font-size:var(--fs-label);font-weight:600;text-transform:uppercase;
+  letter-spacing:var(--ls-label);text-align:right;padding:10px var(--sp-5);
+  border-bottom:1px solid var(--line);white-space:nowrap}
+.rc .fieldtbl th.l{text-align:left}
+/* başlık geçişleri: --accent + kesikli alt çizgi + ⇄ */
+.rc .fieldtbl th button{all:unset;cursor:pointer;color:var(--accent);
+  border-bottom:1px dashed currentColor;white-space:nowrap}
+.rc .fieldtbl th button:hover{color:var(--txt)}
+.rc .fieldtbl th button.on{font-weight:700}
+.rc .fieldtbl td{text-align:right;border-bottom:1px solid var(--line-soft);
+  color:var(--txt);white-space:nowrap}
+.rc .fieldtbl td.l{text-align:left}
+.rc .fieldtbl tbody tr{transition:background var(--t-fast)}
+.rc .fieldtbl tbody tr:hover{background:var(--hover-row)}
+/* satır sol kenarı 4px sınıf rengi — renk inline (hesaplanan/veriye bağlı) */
+.rc .fieldtbl tbody td:first-child{border-left:4px solid transparent}
+.rc .fieldtbl tr.me td{background:var(--sel-strong)}
+.rc .fieldtbl tr.me{cursor:default}
+.rc .fieldtbl tbody tr.pick{cursor:pointer}
+/* kişisel en iyi (yeşil) / sınıf en iyi (mor) tur parlaması — 5 sn */
+.rc .fieldtbl tr.pb>td{animation:rcpb 5s ease-out}
+.rc .fieldtbl tr.pbc>td{animation:rcpbc 5s ease-out}
+
+/* --- Pit duvarı yoğunluğu --- */
+.rc .fieldtbl.wall td{padding:13px var(--sp-5);font-size:16px}
+.rc .fieldtbl.wall .fpos{font-family:var(--font-disp);font-weight:700;font-size:26px;line-height:1}
+.rc .fieldtbl.wall .fdrv{font-family:var(--font-disp);font-weight:700;font-size:21px;line-height:1.1}
+.rc .fieldtbl.wall .fbrand{width:26px;height:26px}
+/* --- Mühendis yoğunluğu --- */
+.rc .fieldtbl.eng td{padding:7px var(--sp-5);font-size:12.5px}
+.rc .fieldtbl.eng .fpos{font-family:var(--font-disp);font-weight:700;font-size:18px;line-height:1}
+.rc .fieldtbl.eng .fdrv{font-family:var(--font-disp);font-weight:700;font-size:15px;line-height:1.1}
+.rc .fieldtbl.eng .fbrand{width:20px;height:20px}
+
+/* sınıf-içi pozisyon: yalnız rakam, sınıf renginde, ÇERÇEVESİZ */
+.rc .fieldtbl .fclspos{font-family:var(--font-disp);font-weight:700;margin-left:6px}
+.rc .fieldtbl .fdrvcell{display:flex;align-items:center;gap:var(--sp-3)}
+.rc .fieldtbl .fbrand{object-fit:contain;flex:0 0 auto}
+.rc .fieldtbl .fsub{display:block;font-size:11px;color:var(--muted);font-family:var(--font-ui)}
+.rc .fieldtbl .fsec{font-size:11px;color:var(--dim)}
+.rc .fieldtbl .fbest{color:var(--purple);font-weight:700}
+.rc .fieldtbl .fdim{color:var(--dim)}
+/* Incident — çarpan olarak yazılır (rozet YOK) */
+.rc .fieldtbl .finc{color:var(--red);font-weight:600}
+.rc .fieldtbl .flapsbtn{all:unset;cursor:pointer;padding:1px 8px;border-radius:var(--r-xs);
+  border:1px solid var(--line);color:var(--dim);font-size:14px;line-height:1.4}
+.rc .fieldtbl .flapsbtn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* saha başlığı: yoğunluk + sektör görünürlüğü anahtarları */
+.rc .fieldhead{display:flex;align-items:center;gap:var(--sp-4);flex-wrap:wrap}
+.rc .fieldhead .spacer{margin-left:auto}
+.rc .denbtn,.rc .secbtn{padding:5px var(--sp-5);border-radius:var(--r-sm);cursor:pointer;
+  font-size:12px;white-space:nowrap;border:1px solid var(--line);background:var(--panel2);
+  color:var(--txt)}
+.rc .denbtn.on{border-color:var(--accent);background:var(--sel-bg)}
+.rc .secbtn{color:var(--muted)}
+.rc .secbtn:hover{border-color:var(--line-strong);color:var(--txt)}
 `;
