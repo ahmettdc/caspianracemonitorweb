@@ -35,9 +35,9 @@ import {
   computePlan, migrate, lastStintFuel,
 } from "./engine";
 import {
-  normalizeScreen, pushScreen, popScreen, hashForScreen, screenFromHash,
+  normalizeScreen, pushScreen, popScreen, hashForScreen, screenFromHash, showsRaceBar,
 } from "./nav";
-import { Rail } from "./shell";
+import { Rail, RaceBar } from "./shell";
 import { pruneAssignments } from "./avail";
 import {
   SLOT_COLORS, APP_VERSION, SEEN_VER_KEY, ASSET, AV,
@@ -1406,61 +1406,68 @@ ${bottomBar}
   );
 
   /* ---------- ortak data kartları (setup + ana arayüz sol kolon) ---------- */
-  const dataCards = (<>
+  /* Yarış datası kartları — SAHNELE + UYGULA için parametreli.
+   `dst` okunacak state (yarış datası panelinde taslak birleşimi), `dup` yazma
+   fonksiyonu. Kurulum adımında dataCardsWith(dst, up) ile ANINDA KAYDETME yolu
+   korunur; yarış datası panelinde dataCardsWith(rdSt, rdSet) ile değişiklikler
+   yerel taslakta birikir ve yalnız "Uygula" ile state'e/Firebase'e geçer
+   (ARAYUZ-YENILEME-PROMPT-v2: "Mevcut anında kaydetme yolu BU EKRAN için devre
+   dışı bırakılır; diğer ekranlarda dokunulmaz"). */
+  const dataCardsWith = (dst, dup) => (<>
     <div className="card" data-tour="data">
       <h2>{t("Yarış · Data")}</h2>
       <div className="row2">
         <div><label>Race Time (h:mm:ss)</label>
-          <input type="text" value={st.raceTime} onChange={(e) => up({ raceTime: e.target.value })} /></div>
+          <input type="text" value={dst.raceTime} onChange={(e) => dup({ raceTime: e.target.value })} /></div>
         <div><label>Avg Lap (m:ss.00)</label>
-          <input type="text" value={st.avgLap} onChange={(e) => up({ avgLap: e.target.value })} />
+          <input type="text" value={dst.avgLap} onChange={(e) => dup({ avgLap: e.target.value })} />
           {avgSug && canEdit && (
             <button className="act" style={{ marginTop: 4, fontSize: 11, padding: "3px 8px" }}
               title={t("Canlı son 5 turun ortalaması — tıkla, plana uygula")}
-              onClick={() => up({ avgLap: avgSug.txt })}>
+              onClick={() => dup({ avgLap: avgSug.txt })}>
               ⚡ {t("Canlı AVG5")}: <b className="mono">{avgSug.txt}</b> — {t("uygula")}</button>
           )}</div>
       </div>
       <div className="row4">
         {["A", "B", "C", "D"].map((k) => (
-          <Num key={k} v={st.strategies[k]} step={1}
-            onC={(v) => up({ strategies: { ...st.strategies, [k]: v } })} />
+          <Num key={k} v={dst.strategies[k]} step={1}
+            onC={(v) => dup({ strategies: { ...dst.strategies, [k]: v } })} />
         ))}
       </div>
       <label>{t("Seçili Strateji")}</label>
       <div className="strat">
         {["A", "B", "C", "D"].map((k) => (
-          <button key={k} className={st.chosen === k ? "on" : ""}
-            onClick={() => up({ chosen: k })}>{k} · {st.strategies[k]}</button>
+          <button key={k} className={dst.chosen === k ? "on" : ""}
+            onClick={() => dup({ chosen: k })}>{k} · {dst.strategies[k]}</button>
         ))}
       </div>
       <div className="row2">
         <div>
           <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
-            <input type="checkbox" checked={st.multiclass} style={{ width: "auto", margin: 0 }}
-              onChange={(e) => up({ multiclass: e.target.checked })} />
+            <input type="checkbox" checked={dst.multiclass} style={{ width: "auto", margin: 0 }}
+              onChange={(e) => dup({ multiclass: e.target.checked })} />
             {t("Multiclass Yarış")}
           </label>
-          <select value={st.leaderClass} disabled={!st.multiclass}
-            style={!st.multiclass ? { opacity: .45 } : undefined}
-            onChange={(e) => up({ leaderClass: e.target.value })}>
+          <select value={dst.leaderClass} disabled={!dst.multiclass}
+            style={!dst.multiclass ? { opacity: .45 } : undefined}
+            onChange={(e) => dup({ leaderClass: e.target.value })}>
             {CAR_CLASSES.map(([id, name]) => (
               <option key={id} value={id}>{name}</option>
             ))}
           </select>
         </div>
         <div><label>Extra Lap</label>
-          <Num v={st.extraLap} step={1} onC={(v) => up({ extraLap: v })} /></div>
+          <Num v={dst.extraLap} step={1} onC={(v) => dup({ extraLap: v })} /></div>
       </div>
-      {st.multiclass && (
+      {dst.multiclass && (
         <div className="row2">
           <div><label>🏁 {t("Lider Tur (m:ss.00)")}</label>
-            <input type="text" value={st.leaderLap} placeholder={st.avgLap}
-              onChange={(e) => up({ leaderLap: e.target.value })} /></div>
+            <input type="text" value={dst.leaderLap} placeholder={dst.avgLap}
+              onChange={(e) => dup({ leaderLap: e.target.value })} /></div>
           <div />
         </div>
       )}
-      {st.multiclass && racePlan.flagExtra > 0.5 && (
+      {dst.multiclass && racePlan.flagExtra > 0.5 && (
         <div className="hint">🏁 {t("Lider bayrağı")}: +{racePlan.flagExtra.toFixed(0)}s → {t("son tur otomatik eklenir")}</div>
       )}
     </div>
@@ -1468,9 +1475,9 @@ ${bottomBar}
     <div className="card" data-tour="rstart" style={{ marginTop: 12 }}>
       <h2>{t("Yarış Başlangıcı")}</h2>
       <label>{t("Start Tarih & Saat")}</label>
-      <input type="datetime-local" value={msToLocalInput(st.raceStartMs)}
+      <input type="datetime-local" value={msToLocalInput(dst.raceStartMs)}
         onChange={(e) => { const t = new Date(e.target.value).getTime();
-          if (!isNaN(t)) up({ raceStartMs: t }); }} />
+          if (!isNaN(t)) dup({ raceStartMs: t }); }} />
       <div style={{ marginTop: 10, background: "var(--panel2)",
         border: "1px solid var(--line)", borderRadius: 8, padding: "8px 12px",
         display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
@@ -1490,12 +1497,12 @@ ${bottomBar}
           onClick={() => {
             const el = liveInfo.status === "live"
               ? Math.max(0, Math.round(liveInfo.elapsed / 1000)) : 0;
-            let past = (st.weatherLog || []).filter((e) => e.t < el - 0.5);
-            const future = (st.weatherLog || []).filter((e) => e.t > el + 0.5);
+            let past = (dst.weatherLog || []).filter((e) => e.t < el - 0.5);
+            const future = (dst.weatherLog || []).filter((e) => e.t > el + 0.5);
             if (el < 1) past = [];
             const log = [...past, { t: el, w: wxSug.id, src: "live" }, ...future]
               .sort((a, b) => a.t - b.t);
-            up({ weather: wxSug.id, weatherLog: log });
+            dup({ weather: wxSug.id, weatherLog: log });
           }}>
           <WetIcon id={wxSug.id} size={15} /> {t("Canlı")}: 🌧 {t(wxSug.rainLbl)} ·{" "}
           <b>{t(wxSug.label)}</b> → {t("geçişi ekle")}
@@ -1503,18 +1510,18 @@ ${bottomBar}
       )}
       <div className="wxsel">
         {Object.entries(WEATHER).map(([id, w]) => (
-          <button key={id} className={st.weather === id ? "on" : ""}
-            style={st.weather === id ? { borderColor: w.col, color: w.col } : undefined}
+          <button key={id} className={dst.weather === id ? "on" : ""}
+            style={dst.weather === id ? { borderColor: w.col, color: w.col } : undefined}
             onClick={() => {
               const el = liveInfo.status === "live"
                 ? Math.max(0, Math.round(liveInfo.elapsed / 1000)) : 0;
-              let past = (st.weatherLog || []).filter((e) => e.t < el - 0.5);
-              const future = (st.weatherLog || []).filter((e) => e.t > el + 0.5);
+              let past = (dst.weatherLog || []).filter((e) => e.t < el - 0.5);
+              const future = (dst.weatherLog || []).filter((e) => e.t > el + 0.5);
               if (el < 1) past = [];
               const log = [...past, { t: el, w: id, src: "live" }, ...future]
                 .sort((a, b) => a.t - b.t);
               const cur = wxAtRel(log, el);
-              up({ weather: Object.keys(WEATHER).find((k) => WEATHER[k] === cur) || id,
+              dup({ weather: Object.keys(WEATHER).find((k) => WEATHER[k] === cur) || id,
                 weatherLog: log });
             }}>
             <WetIcon id={id} size={20} /> {t(w.lbl)}<br /><small>×{w.lap.toFixed(2)}</small>
@@ -1523,13 +1530,13 @@ ${bottomBar}
       </div>
       {(() => {
         /* "Efektif tur (şu an)": vurgulu hava düğmesiyle AYNI kaynağı kullan (şimdiki
-           hava = st.weather). WX(st) log'un EN İLERİ kaydını verir → ileride planlı bir
+           hava = dst.weather). WX(dst) log'un EN İLERİ kaydını verir → ileride planlı bir
            ıslak geçiş varsa gelecekteki çarpanı gösterirdi (etiket "şu an" ile çelişir). */
-        const wxNow = WEATHER[st.weather] || WEATHER.dry;
+        const wxNow = WEATHER[dst.weather] || WEATHER.dry;
         return wxNow.lap > 1 && (
           <div className="hint">
-            {t("Efektif tur")} ({t("şu an")}): <b className="mono">{st.avgLap}</b> ×{wxNow.lap.toFixed(2)} ={" "}
-            <b className="mono" style={{ color: wxNow.col }}>{fmtLap(parseLap(st.avgLap) * wxNow.lap)}</b>
+            {t("Efektif tur")} ({t("şu an")}): <b className="mono">{dst.avgLap}</b> ×{wxNow.lap.toFixed(2)} ={" "}
+            <b className="mono" style={{ color: wxNow.col }}>{fmtLap(parseLap(dst.avgLap) * wxNow.lap)}</b>
             {wxNow.fuel < 1 && <> · ⚡ {t("yakıt")} −{((1 - wxNow.fuel) * 100).toFixed(0)}%</>}
           </div>
         );
@@ -1537,24 +1544,24 @@ ${bottomBar}
       <div className="hint" style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
         <button className="histbtn" onClick={() => setWxHist(true)}>
           🕒 {t("Geçmiş / Planlı geçişler")}
-          {(st.weatherLog || []).length > 0 ? ` (${st.weatherLog.length})` : ""}</button>
+          {(dst.weatherLog || []).length > 0 ? ` (${dst.weatherLog.length})` : ""}</button>
       </div>
     </div>
 
     <div className="card" data-tour="pittimes" style={{ marginTop: 12 }}>
       <h2>{t("Pit · Süreler (s)")}</h2>
       <div className="row2">
-        <div><label>Pit Line</label><Num v={st.pitLaneTime} onC={(v) => up({ pitLaneTime: v })} />
-          {st.track && PIT_LANE_TIMES[st.track] != null && (
-            <div className="hint">{t("Pist verisi")}: {PIT_LANE_TIMES[st.track]}s · {trackName(st.track)}</div>
+        <div><label>Pit Line</label><Num v={dst.pitLaneTime} onC={(v) => dup({ pitLaneTime: v })} />
+          {dst.track && PIT_LANE_TIMES[dst.track] != null && (
+            <div className="hint">{t("Pist verisi")}: {PIT_LANE_TIMES[dst.track]}s · {trackName(dst.track)}</div>
           )}</div>
         <div><label style={{ display: "flex", alignItems: "center", gap: 5 }}>
           ⛽ Fuel &amp; <Bolt size={13} /> VE</label>
-          <Num v={st.fuelTime} onC={(v) => up({ fuelTime: v })} /></div>
+          <Num v={dst.fuelTime} onC={(v) => dup({ fuelTime: v })} /></div>
       </div>
       <div className="row2">
         <div><label style={{ display: "flex", alignItems: "center", gap: 5 }}><Tyre size={15} /> {t("Lastik Limiti (adet)")}</label>
-          <Num v={st.tyreLimit} step={1} onC={(v) => up({ tyreLimit: v })} /></div>
+          <Num v={dst.tyreLimit} step={1} onC={(v) => dup({ tyreLimit: v })} /></div>
         <div />
       </div>
     </div>
@@ -1562,8 +1569,8 @@ ${bottomBar}
     <div className="card" data-tour="ve" style={{ marginTop: 12 }}>
       <h2>⚡ Virtual Energy · Data</h2>
       <div className="row2">
-        <div><label>⚡ {t("VE Tüketim (%/tur)")}</label><Num v={st.consumption} onC={(v) => up({ consumption: v })} /></div>
-        <div><label>Fuel Ratio (L / %1)</label><Num v={st.fuelRatio} onC={(v) => up({ fuelRatio: v })} /></div>
+        <div><label>⚡ {t("VE Tüketim (%/tur)")}</label><Num v={dst.consumption} onC={(v) => dup({ consumption: v })} /></div>
+        <div><label>Fuel Ratio (L / %1)</label><Num v={dst.fuelRatio} onC={(v) => dup({ fuelRatio: v })} /></div>
       </div>
       <div className="row2">
         <div><label>⛽ {t("%100 = Taşınan Yakıt")}</label>
@@ -1575,15 +1582,68 @@ ${bottomBar}
     <div className="card" data-tour="stream" style={{ marginTop: 12 }}>
       <h2>📺 {t("Canlı Yayın")}</h2>
       <label>{t("YouTube linki")}</label>
-      <input type="text" value={st.streamUrl} placeholder="https://youtube.com/watch?v=..."
-        onChange={(e) => up({ streamUrl: e.target.value })} />
+      <input type="text" value={dst.streamUrl} placeholder="https://youtube.com/watch?v=..."
+        onChange={(e) => dup({ streamUrl: e.target.value })} />
       <div className="hint">
-        {ytId(st.streamUrl)
+        {ytId(dst.streamUrl)
           ? <>✅ {t("Yayın köşedeki mini oynatıcıda gösteriliyor.")}</>
           : t("Geçerli bir YouTube linki yapıştırın; köşede mini oynatıcı açılır.")}
       </div>
     </div>
   </>);
+  const dataCards = dataCardsWith(st, up);
+
+  /* ---------- YARIŞ DATASI PANELİ — SAHNELE + UYGULA (v2.0) ----------
+     Alan değişiklikleri YEREL TASLAKTA tutulur, Firebase'e yazılmaz. "Uygula"ya
+     basılmadan hiçbir şey kaydedilmez; panel kapatılırken bekleyen değişiklik
+     varsa onay sorulur. Mevcut anında kaydetme yolu YALNIZ bu ekran için devre
+     dışı — kurulum adımı dataCardsWith(st, up) ile eskisi gibi çalışır. */
+  const [rdOpen, setRdOpen] = useState(false);
+  const [rdDraft, setRdDraft] = useState(null);
+  const rdN = rdDraft ? Object.keys(rdDraft).length : 0;
+  const rdSt = rdDraft ? { ...st, ...rdDraft } : st;
+  const rdSet = (patch) => {
+    if (blocked()) { showDeny(); return; }
+    setRdDraft((d) => ({ ...(d || {}), ...patch }));
+  };
+  const rdApply = () => { if (rdDraft) up(rdDraft); setRdDraft(null); };
+  const rdDiscard = () => setRdDraft(null);
+  const rdClose = () => {
+    if (rdN > 0 && !window.confirm(
+      t("Kaydedilmemiş değişiklikler var — kapatılsın mı?"))) return;
+    setRdDraft(null); setRdOpen(false);
+  };
+  /* Sağdan kayan panel. Gövde izleyici modunda pasifleşir (README §18). */
+  const raceDataPanel = (
+    <>
+      {rdOpen && <div className="rdscrim" onClick={rdClose} />}
+      <aside className={`rdpanel${rdOpen ? " open" : ""}`}
+        aria-hidden={!rdOpen} aria-label={t("Yarış datası")}>
+        <div className="rdhead">
+          <span className="ttl disp">⚙ {t("Yarış datası")}</span>
+          <button className="lbclose" onClick={rdClose} aria-label={t("Kapat")}>✕</button>
+        </div>
+        <div className={`rdbody${curRace && role !== "editor" ? " ro-off" : ""}`}>
+          {dataCardsWith(rdSt, rdSet)}
+          <div className="rdaffect">
+            <b>{t("Bu değişiklik neyi etkiler")}</b>
+            <span>📋 {t("Stint planı süreleri ve pit pencereleri")}</span>
+            <span>⛽ {t("Son stint yakıtı hesabı")}</span>
+            <span>🛞 {t("Lastik limiti uyarıları")}</span>
+          </div>
+        </div>
+        <div className="rdfoot">
+          <span className={rdN ? "dirty" : "clean"}>
+            {rdN ? `${rdN} ${t("alan değişti")}` : t("Değişiklik yok")}</span>
+          <span className="spacer" />
+          <button className="rbbtn" onClick={rdDiscard} disabled={!rdN}>
+            {t("Geri al")}</button>
+          <button className="rbbtn apply" onClick={rdApply} disabled={!rdN}>
+            {t("Uygula")}</button>
+        </div>
+      </aside>
+    </>
+  );
 
   /* ---------- giriş kapısı: oturum yoksa uygulama açılmaz ----------
      langReady: EN sözlüğü lazy geldiğinden, EN kullanıcı sözlük inene dek
@@ -2149,7 +2209,7 @@ ${bottomBar}
       <div className="v2main">
       <UpdateBanner t={t} />
       {teamModal}{createJoinModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{streamPlayer}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}
-      {denyToast}{cmdPalette}
+      {denyToast}{cmdPalette}{raceDataPanel}
       {profOpen && user && (
         <div className="wxmodal" onClick={() => setProfOpen(false)}>
           <div className="wxmbox" style={{ width: "min(420px,94vw)" }}
@@ -2459,62 +2519,50 @@ ${bottomBar}
         </>)}
       </div>
 
-      {liveInfo.status === "live" && (() => {
+      {/* v2.0 BİRLEŞİK STICKY YARIŞ ÇUBUĞU (README §2) — v1'deki .hudstrip ve
+          .livestrip şeritlerinin yerini aldı. Aynı bilgiler tek çubukta:
+          bayrak + yarış adı (+ izleyici rozeti) · bayrağa kalan · sıradaki pit ·
+          pozisyon · enerji · sağ blok (canlı durum + Yarış datası + Pit Board). */}
+      {showsRaceBar(screen) && (() => {
+        const raceFrac = liveInfo.raceMs > 0
+          ? Math.min(100, Math.max(0, (liveInfo.elapsed / liveInfo.raceMs) * 100)) : 0;
         const pitTotal = liveInfo.phaseEnd - liveInfo.stintStartMs;
         const pitFrac = pitTotal > 0
-          ? Math.min(1, Math.max(0, (pitTotal - liveInfo.nextPitIn) / pitTotal)) : 0;
-        const raceFrac = liveInfo.raceMs > 0
-          ? Math.min(1, Math.max(0, liveInfo.elapsed / liveInfo.raceMs)) : 0;
+          ? Math.min(100, Math.max(0, ((pitTotal - liveInfo.nextPitIn) / pitTotal) * 100)) : 0;
+        const isLive = liveInfo.status === "live";
+        const own = live?.own || null;
+        const r = races[curRace];
         return (
-          <div className="hudstrip">
-            <div className="hcell hhero">
-              <span className="lbl">{t("Bayrağa Kalan")}</span>
-              <span className="hclock">{fmtHMS(liveInfo.remaining / 1000)}</span>
-              <div className="hbar"><i style={{ width: `${raceFrac * 100}%` }} /></div>
-              <span className="lbl">%{Math.round(raceFrac * 100)} {t("tamam")}</span>
-            </div>
-            <div className="hcell">
-              <span className="lbl">{t("Şu An")}</span>
-              <span className="hstint">S{liveInfo.stintIdx + 1}
-                <span style={{ color: "var(--muted)", fontSize: ".6em" }}>/{racePlan.fullStints}</span>
-                {liveInfo.phase === "pit" &&
-                  <span style={{ color: "var(--yellow)", fontSize: ".5em" }}> · PIT</span>}
-              </span>
-              {liveInfo.driver && <span className="hdrv">{liveInfo.driver}</span>}
-            </div>
-            <div className="hcell hgauge">
-              <span className="lbl">{liveInfo.phase === "pit" ? t("Pit Çıkışı") : onLastStint ? t("Bayrağa") : t("Sıradaki Pit")}</span>
-              <Ring value={pitFrac} size={78} fs={16} glow
-                color={pitSoon ? "var(--yellow)" : "var(--teal)"}
-                big={fmtHMS(liveInfo.nextPitIn / 1000)} />
-            </div>
-            <div className="hcell hgauge">
-              <span className="lbl">{t("Tamamlanan")}</span>
-              <Ring value={raceFrac} size={78} fs={19} color="var(--car)"
-                big={`%${Math.round(raceFrac * 100)}`} />
-            </div>
-            <button className="act hudpit" data-tour="pitboard"
-              onClick={() => setPitboard(true)}>📟 Pit Board</button>
-          </div>
+          <RaceBar t={t}
+            flagSrc={st.track ? `${ASSET}flags/${st.track}.png` : ""}
+            name={r?.name || trackName(st.track) || t("Solo")}
+            meta={[r?.round ? `R${r.round}` : "", trackName(st.track),
+              carName(st.carClass, st.car)].filter(Boolean).join(" · ")}
+            viewer={!!curRace && role !== "editor"}
+            remain={isLive ? fmtHMS(liveInfo.remaining / 1000)
+              : liveInfo.status === "pre" ? startCountdown(liveInfo)
+              : liveInfo.status === "done" ? t("🏁") : fmtHMS(racePlan.raceSec)}
+            remainLabel={isLive ? undefined
+              : liveInfo.status === "pre" ? t("Start'a")
+              : liveInfo.status === "done" ? t("Durum") : t("Yarış Süresi")}
+            remainPct={isLive ? raceFrac : 0}
+            nextPit={isLive ? fmtHMS(liveInfo.nextPitIn / 1000) : null}
+            nextPitSub={isLive
+              ? `S${liveInfo.stintIdx + 1}${liveInfo.driver ? ` · ${liveInfo.driver}` : ""}`
+              : null}
+            pitAlert={!!pitSoon}
+            pos={own?.pos != null ? `P${own.pos}` : null}
+            posSub={pitFrac > 0 ? `%${Math.round(pitFrac)} ${t("stint")}` : null}
+            energy={own?.virtualEnergy != null ? `%${Math.round(own.virtualEnergy)}` : null}
+            energyPct={own?.virtualEnergy ?? 0}
+            liveOn={live?.ts ? true : false}
+            liveLabel={live?.ts ? t("canlı") : t("bağlı değil")}
+            onBridge={() => go("live")}
+            onRaceData={() => setRdOpen(true)} dirtyN={rdN}
+            onPitBoard={() => setPitboard(true)} />
         );
       })()}
 
-      {(liveInfo.status === "pre" || liveInfo.status === "done") && (
-        <div className="livestrip">
-          {liveInfo.status === "pre" && (
-            <div><span className="lbl">{t("Start'a")}</span>
-              <span className={`big ${liveInfo.toStart < 86400000 ? "mono" : ""}`}
-                style={{ color: "var(--yellow)" }}>
-                {startCountdown(liveInfo)}</span></div>
-          )}
-          {liveInfo.status === "done" && (
-            <div><span className="lbl">{t("Durum")}</span>
-              <span className="big" style={{ color: "var(--green)" }}>{t("🏁 YARIŞ BİTTİ")}</span></div>
-          )}
-          <button className="act" style={{ marginLeft: "auto" }}
-            data-tour="pitboard" onClick={() => setPitboard(true)}>📟 Pit Board</button>
-        </div>
-      )}
 
       {pitboard && (
         <div className="pitboard" onClick={() => setPitboard(false)}>
@@ -2707,18 +2755,11 @@ ${bottomBar}
         </div>
       )}
 
-      <div className={`grid ${sideOpen ? "" : "noside"} ${role === "viewer" && curRace ? "viewonly" : ""}`}>
-        <button className={`sidetoggle ${sideOpen ? "" : "closed"}`}
-          onClick={() => setSideOpen(!sideOpen)}
-          title={sideOpen ? t("Paneli gizle") : t("Paneli göster")}>
-          {sideOpen ? "◀" : "▶"}</button>
-        {/* ================= SOL: DATA ================= */}
-        <div className="sidecol">
-          <div className="sideinner">{dataCards}</div>
-        </div>
-
-        {/* ================= SAĞ: SEKMELER ================= */}
-        <div>
+      {/* v2.0: SOL DATA KOLONU KALKTI — yarış datası artık sağdan kayan panelde
+          (SAHNELE + UYGULA). Ekranlar tam genişlikte; kabukta yalnız 76px sol ray
+          var. `.grid` sınıfı viewonly pasifleştirmesi için korundu. */}
+      <div className={`grid noside v2grid ${role === "viewer" && curRace ? "viewonly" : ""}`}>
+        <div className="v2screen">
           {/* v2.0: sekme çubuğu KALKTI — gezinme 76px sol raydan (shell.jsx Rail).
               tabpanel ARIA kimliği ray düğmesine bağlanır. */}
           <div id="tabpanel-main" role="region" aria-label={t("Ana içerik")} tabIndex={-1}>

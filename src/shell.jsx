@@ -105,7 +105,7 @@ export function EmptyState({ icon, title, text, children }) {
    (e) enerji · (f) sağ blok: canlı durum + Yarış datası + Pit Board. */
 export function RaceBar({
   t, flagSrc, name, meta, viewer = false,
-  remain, remainPct = 0,
+  remain, remainPct = 0, remainLabel,
   nextPit, nextPitSub, pitAlert = false,
   pos, posCls, posClsColor, posSub,
   energy, energyPct = 0, energySub,
@@ -129,7 +129,7 @@ export function RaceBar({
 
       {remain != null && (
         <div className="rbblock">
-          <span className="rblabel">{t("Bayrağa kalan")}</span>
+          <span className="rblabel">{remainLabel || t("Bayrağa kalan")}</span>
           <span className="rbnum lg">{remain}</span>
           {/* hesaplanan değer → inline genişlik (token'a çevrilemez) */}
           <div className="rbbar"><i style={{ width: `${Math.max(0, Math.min(100, remainPct))}%` }} /></div>

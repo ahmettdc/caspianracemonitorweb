@@ -1432,6 +1432,33 @@ export const css = `
    Yoğunluk YALNIZ bu ekranda: .wall = Pit duvarı (seyrek satır, büyük sayı),
    .eng = Mühendis (sık satır, 12.5px). Sütunlar İKİ MODDA DA görünür — yalnız
    ölçek değişir. Global yoğunluk anahtarı v2.0'da kaldırıldı. */
+/* v2 ekran alanı: sol data kolonu kalktığı için grid tek kolon, tam genişlik */
+.rc .grid.v2grid{display:block;padding:0}
+.rc .grid.v2grid>.v2screen{padding:var(--sp-7) var(--sp-8) 40px}
+
+/* ── v2.0 YARIŞ DATASI PANELİ — sahnele + uygula (README §14) ────────────────*/
+.rc .rdhead{display:flex;align-items:center;gap:var(--sp-4);flex:0 0 auto;
+  padding:var(--sp-5) var(--sp-6);border-bottom:1px solid var(--line)}
+.rc .rdhead .ttl{flex:1 1 auto;font-size:16px;font-weight:700;text-transform:uppercase;
+  letter-spacing:var(--ls-card)}
+.rc .rdbody{flex:1 1 auto;overflow-y:auto;padding:var(--sp-5) var(--sp-6)}
+.rc .rdaffect{display:flex;flex-direction:column;gap:5px;margin-top:var(--sp-6);
+  padding:var(--sp-5);border-radius:var(--r-lg);border:1px solid var(--line-strong);
+  background:var(--panel-alt)}
+.rc .rdaffect b{font-family:var(--font-disp);font-size:13px;font-weight:700;
+  text-transform:uppercase;letter-spacing:var(--ls-card);color:var(--muted)}
+.rc .rdaffect span{font-size:12px;color:var(--dim)}
+.rc .rdfoot{flex:0 0 auto;display:flex;align-items:center;gap:var(--sp-3);
+  padding:var(--sp-4) var(--sp-6);border-top:1px solid var(--line);background:var(--panel-alt)}
+.rc .rdfoot .spacer{margin-left:auto}
+.rc .rdfoot .dirty{font-size:11.5px;color:var(--yellow);font-weight:600}
+.rc .rdfoot .clean{font-size:11.5px;color:var(--muted)}
+.rc .rbbtn.apply{border-color:var(--accent);background:var(--car);color:var(--on-car);
+  font-weight:600}
+.rc .rbbtn:disabled{opacity:.5;cursor:default}
+.rc .rbbtn.apply:disabled{background:var(--panel2);color:var(--muted);
+  border-color:var(--line)}
+
 /* ── v2.0 PİLOT UYGUNLUĞU (README §8) ────────────────────────────────────────
    Izgara varsayılan olarak tüm hücreler uygun (yeşil ✓); tıklayınca kırmızı ✕. */
 .rc .drvcaprow{display:flex;align-items:center;gap:var(--sp-4)}
