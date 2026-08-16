@@ -17,6 +17,20 @@ export const EN = {
   "Son stint yakıtı": "Final stint fuel",
   "Kalan süreye göre gereken enerji yüzdesi. 📋 Plan açıkken geri sayım stint planından gelir; canlı veriyle tüketimi güncelleyebilirsin.":
     "The energy percentage you need for the time remaining. With 📋 Plan on, the countdown comes from the stint plan; you can refresh consumption from live data.",
+  /* Yakıt ekranı mikro etiketleri (05-yakit.md) — i18n-EN.md'de olmayanlar standart çeviriyle. */
+  "Kalan süreye göre gereken enerji": "Energy needed for the remaining time",
+  "İzleyici modu · düzenleme kapalı": "Viewer mode · editing disabled",
+  "Yarış sonu": "Race end",
+  "Seans geri sayımı (h:mm:ss)": "Session countdown (h:mm:ss)",
+  "Kalan tur": "Laps left",
+  "Tüketim": "Consumption",
+  "Extra lap": "Extra lap",
+  "Canlıdan öğren": "Learn from live",
+  "Tüketim/tur": "Consumption/lap",
+  "Stint planından otomatik": "Automatic from stint plan",
+  "elle girildi": "entered manually",
+  "örnek": "sample",
+  "veri yok": "no data",
   "Canlı timing": "Live timing",
   "Sütun başlıklarına tıklayınca değer değişir (Gap ⇄ Aralık, Son ⇄ En iyi). Bir rakip satırına tıkla, altta karşılaştırma açılır.":
     "Click a column header to switch what it shows (Gap ⇄ Interval, Last ⇄ Best). Click a rival's row and a comparison opens below.",
