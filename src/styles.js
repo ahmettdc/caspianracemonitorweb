@@ -1873,62 +1873,65 @@ export const css = `
    İki kolon: solda marka bloğu, sağda giriş kartı. Kabuğun tamamını kaplar
    (early-return, sol ray çizilmez). Dar ekranda kolonlar alt alta iner.
    ══════════════════════════════════════════════════════════════════════════════ */
+/* Giriş ekranı — handoff-spec/ekranlar/15-giris.md (birebir); renkler --rc-*. */
 .rc .auth{position:fixed;inset:0;z-index:2000;overflow:auto;display:flex;
   align-items:center;justify-content:center;padding:40px 28px;
-  background-color:var(--bg);
+  background-color:var(--rc-bg);
   background-image:radial-gradient(120% 95% at 50% -12%,rgba(150,0,24,.24),rgba(11,7,8,0) 62%);
-  font-family:var(--font-ui);color:var(--txt);animation:rcfade .3s ease-out}
+  font-family:var(--rc-font-ui);color:var(--rc-text);animation:rcfade .22s ease}
 .rc .authlang{position:absolute;top:22px;right:26px;display:inline-flex;
-  border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden}
+  border:1px solid var(--rc-border);border-radius:var(--r-sm);overflow:hidden}
 .rc .authlang button{padding:5px 12px;border:none;background:transparent;cursor:pointer;
-  font-family:var(--font-disp);font-weight:600;font-size:12px;letter-spacing:.06em;
-  color:var(--muted)}
-.rc .authlang button.on{background:var(--sel-bg);color:var(--on-car)}
+  font-family:var(--rc-font-display);font-weight:600;font-size:12px;letter-spacing:.06em;
+  color:var(--rc-text-3)}
+.rc .authlang button.on{background:var(--rc-glow-brand);color:var(--rc-on-brand)}
 .rc .authgrid{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;
   gap:56px;max-width:960px;width:100%}
 /* --- sol: marka bloğu --- */
 .rc .authbrand{flex:1 1 380px;min-width:280px;display:flex;flex-direction:column;gap:18px}
 .rc .authbrand>img{width:112px;height:auto;object-fit:contain}
-.rc .authttl{margin:0;font-family:var(--font-disp);font-weight:700;
+.rc .authttl{margin:0;font-family:var(--rc-font-display);font-weight:700;
   font-size:clamp(38px,5vw,54px);line-height:.98;letter-spacing:.02em;text-transform:uppercase}
-.rc .authttl b{color:var(--accent);font-weight:700}
-.rc .authlede{margin:0;max-width:34ch;font-size:14px;line-height:1.65;color:var(--dim)}
+.rc .authttl b{color:var(--rc-brand-bright);font-weight:700}
+.rc .authlede{margin:0;max-width:34ch;font-size:14px;line-height:1.65;color:var(--rc-text-2);
+  text-wrap:pretty}
 .rc .authpts{display:flex;flex-direction:column;gap:9px;margin-top:2px}
-.rc .authpts span{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--muted)}
-.rc .authpts i{width:4px;height:14px;border-radius:2px;background:var(--car);flex:0 0 auto}
+.rc .authpts span{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--rc-text-3)}
+.rc .authpts i{width:4px;height:14px;border-radius:2px;background:var(--rc-brand);flex:0 0 auto}
 /* --- sağ: giriş kartı --- */
-.rc .authcard{flex:0 1 372px;min-width:288px;border:1px solid var(--line-strong);
-  border-radius:var(--r-modal-lg);background:var(--panel);
+.rc .authcard{flex:0 1 372px;min-width:288px;border:1px solid var(--rc-border-strong);
+  border-radius:var(--r-modal-lg);background:var(--rc-surface);
   box-shadow:0 24px 60px rgba(0,0,0,.55);overflow:hidden}
 .rc .authcard .body{padding:26px 26px 22px;display:flex;flex-direction:column;gap:18px}
-.rc .authcard h2{margin:0;font-family:var(--font-disp);font-weight:700;font-size:22px;
+.rc .authcard h2{margin:0;font-family:var(--rc-font-display);font-weight:700;font-size:22px;
   letter-spacing:.06em;text-transform:uppercase}
-.rc .authcard .lede{font-size:12.5px;color:var(--muted);line-height:1.6}
+.rc .authcard .lede{font-size:12.5px;color:var(--rc-text-3);line-height:1.6}
 /* Google düğmesi — MARKA rengi (açık zemin), tema token'ı değil (bilinçli). */
 .rc .gbtn2{display:flex;align-items:center;justify-content:center;gap:11px;width:100%;
   padding:13px 16px;border-radius:11px;border:1px solid #E6DDE0;background:#F5F1F2;
   color:#160D10;cursor:pointer;transition:background .15s ease}
 .rc .gbtn2:hover{background:#FFFFFF}
 .rc .gbtn2[aria-busy="true"]{background:#E3D9DC;cursor:progress}
-.rc .gbtn2 span{font-family:var(--font-disp);font-weight:700;font-size:15px;
+.rc .gbtn2 span{font-family:var(--rc-font-display);font-weight:700;font-size:15px;
   letter-spacing:.06em;text-transform:uppercase}
 .rc .gbtn2 .gspin{width:16px;height:16px;border-radius:50%;
-  border:2px solid rgba(22,13,16,.25);border-top-color:var(--car);
+  border:2px solid rgba(22,13,16,.25);border-top-color:var(--rc-brand);
   animation:rcspin .7s linear infinite;flex:0 0 auto}
-.rc .authsteps{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line-soft)}
-.rc .authsteps span{display:flex;gap:9px;font-size:11.5px;color:var(--muted);line-height:1.6}
+.rc .authsteps{display:flex;flex-direction:column;gap:8px;padding-top:2px;
+  border-top:1px solid var(--rc-line-soft)}
+.rc .authsteps span{display:flex;gap:9px;font-size:11.5px;color:var(--rc-text-3);line-height:1.6}
 .rc .authsteps span:first-child{padding-top:14px}
-.rc .authsteps b{color:var(--dim);font-family:var(--font-disp);font-size:13px;flex:0 0 auto}
-.rc .autherr{margin:0;font-size:11.5px;color:var(--red);line-height:1.6;
-  border:1px solid var(--line-strong);border-radius:var(--r-sm);padding:8px 10px}
-.rc .authfoot{padding:13px 26px;border-top:1px solid var(--line);background:#0F090B;
+.rc .authsteps b{color:var(--rc-text-2);font-family:var(--rc-font-display);font-size:13px;flex:0 0 auto}
+.rc .autherr{margin:0;font-size:11.5px;color:var(--rc-danger);line-height:1.6;
+  border:1px solid var(--rc-border-strong);border-radius:var(--r-sm);padding:8px 10px}
+.rc .authfoot{padding:13px 26px;border-top:1px solid var(--rc-border);background:#0F090B;
   display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.rc .authfoot .terms{font-size:10.5px;color:var(--faint);line-height:1.5}
-.rc .authfoot .terms a{color:var(--accent)}
-.rc .authfoot .ver{margin-left:auto;font-family:var(--font-disp);font-size:11px;
-  color:var(--muted);letter-spacing:.04em}
+.rc .authfoot .terms{font-size:10.5px;color:var(--rc-text-4);line-height:1.5}
+.rc .authfoot .terms a{color:var(--rc-brand-bright)}
+.rc .authfoot .ver{margin-left:auto;font-family:var(--rc-font-display);font-size:11px;
+  color:var(--rc-text-3);letter-spacing:.04em}
 .rc .authcap{position:absolute;bottom:20px;left:0;right:0;text-align:center;
-  font-size:10.5px;color:var(--faint)}
+  font-size:10.5px;color:var(--rc-text-5)}
 @media(max-width:560px){.rc .authgrid{gap:32px}}
 
 /* ══════════════════════════════════════════════════════════════════════════════
