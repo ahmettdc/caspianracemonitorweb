@@ -1,7 +1,7 @@
 /* Sunum komponentleri — durum tutmayan görsel parçalar.
    App.jsx içe aktarır. */
 import { useState, useEffect, useRef, Fragment } from "react";
-import { Sheet, EmptyState } from "./shell";
+import { Sheet } from "./shell";
 import {
   ASSET, quantile, TRACKS, TRACK_ASSET,
   CAR_CLASSES, CARS, trackName, carImg, carName, brandLogo,
@@ -74,14 +74,36 @@ export function ChatPanel({
   msgs, h, t, lang, user, teamData, fmtClock, canManage,
   chatText, setChatText, onSend, onDelete, endRef,
 }) {
+  const disp = "var(--rc-font-display)";
+  /* Gün ayracı çipi — fiş 11-sohbet.md `chatDay` stil objesi (birebir). */
+  const dayChip = { alignSelf: "center", fontSize: 10, color: "var(--rc-text-3)",
+    border: "1px solid var(--rc-border)", borderRadius: 10, padding: "2px 12px",
+    textTransform: "uppercase", letterSpacing: ".1em" };
+  const today = new Date().toDateString();
+  const dayLabel = (ts) => new Date(ts).toDateString() === today
+    ? t("Bugün")
+    : new Date(ts).toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR",
+        { day: "2-digit", month: "long" });
   return (
-    <div className="chatwrap" style={h ? { height: h } : undefined}>
-      <div className="chatlist">
+    /* Sağ panelin iç gövdesi: mesaj listesi (flex:1, scroll) + giriş çubuğu.
+       `h` verildiyse (yarış sekmesi gömülü) sabit yükseklik; yoksa kapsayıcıyı doldurur
+       (ChatModal sağ panosunun başlığının altında flex:1). */
+    <div style={h
+      ? { height: h, display: "flex", flexDirection: "column" }
+      : { flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "16px 18px",
+        display: "flex", flexDirection: "column", gap: 10 }}>
         {!msgs.length && (
-          /* v2.0 sistematik boş durum (README + i18n-EN.md §2) */
-          <div style={{ margin: "auto" }}>
-            <EmptyState icon="💬" title={t("Henüz mesaj yok")}
-              text={t("İlk yazan sen ol — bu kanaldaki mesajlar yarış boyunca takımda kalır.")} />
+          /* fiş 11-sohbet.md boş durum bloğu (SVG + başlık + açıklama), birebir */
+          <div style={{ margin: "auto", textAlign: "center", display: "flex",
+            flexDirection: "column", alignItems: "center", gap: 9, padding: 24 }}>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none"
+              stroke="var(--rc-border-strong)" strokeWidth="1.6" strokeLinecap="round"
+              strokeLinejoin="round"><path d="M20 4H4a1.5 1.5 0 0 0-1.5 1.5V16A1.5 1.5 0 0 0 4 17.5h3V21l4-3.5h9A1.5 1.5 0 0 0 21.5 16V5.5A1.5 1.5 0 0 0 20 4Z" /></svg>
+            <div style={{ fontFamily: disp, fontWeight: 700, fontSize: 18 }}>
+              {t("Henüz mesaj yok")}</div>
+            <div style={{ fontSize: 12, color: "var(--rc-text-3)", lineHeight: 1.7, maxWidth: 320 }}>
+              {t("İlk yazan sen ol — bu kanaldaki mesajlar yarış boyunca takımda kalır.")}</div>
           </div>
         )}
         {msgs.map((m, i) => {
@@ -89,39 +111,54 @@ export function ChatPanel({
           const prev = msgs[i - 1];
           const newDay = !prev || new Date(prev.at || 0).toDateString()
             !== new Date(m.at || 0).toDateString();
+          const nm = teamData?.names?.[m.uid] || m.name || t("isimsiz");
           return (
             <Fragment key={m.id}>
-              {newDay && <div className="chatday">
-                {new Date(m.at || 0).toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR",
-                  { day: "2-digit", month: "long" })}</div>}
-              <div className={`cmsg ${me ? "me" : ""}`}>
-                <div className="who">
-                  {!me && <Avatar uid={m.uid}
-                    name={teamData?.names?.[m.uid] || m.name} size={18} />}
-                  {!me && <b>{teamData?.names?.[m.uid] || m.name || t("isimsiz")}</b>}
-                  <span>{fmtClock(m.at || 0)}</span>
+              {newDay && <span style={dayChip}>{dayLabel(m.at || 0)}</span>}
+              <div style={{ display: "flex", flexDirection: "column", gap: 3, maxWidth: "78%",
+                alignSelf: me ? "flex-end" : "flex-start" }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 10.5,
+                  color: "var(--rc-text-3)", justifyContent: me ? "flex-end" : "flex-start" }}>
+                  {!me && <Avatar uid={m.uid} name={nm} size={18} />}
+                  {!me && <b style={{ fontSize: 12, color: "var(--rc-text-2)" }}>{nm}</b>}
+                  <span style={{ fontFamily: disp, fontSize: 10.5, color: "var(--rc-text-3)" }}>
+                    {fmtClock(m.at || 0)}</span>
                   {(me || canManage) && (
-                    <button className="del" title={t("Sil")}
-                      onClick={() => onDelete(m.id)}>✕</button>
+                    <button title={t("Sil")} onClick={() => onDelete(m.id)}
+                      style={{ background: "none", border: 0, color: "var(--rc-text-3)",
+                        cursor: "pointer", fontSize: 10, padding: "0 2px", lineHeight: 1 }}>✕</button>
                   )}
-                </div>
-                <div className="bub">{m.text}</div>
+                </span>
+                <span style={{ padding: "8px 12px", borderRadius: 10, fontSize: 14, lineHeight: 1.5,
+                  whiteSpace: "pre-wrap", wordBreak: "break-word", color: "var(--rc-text)",
+                  background: me ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)",
+                  border: `1px solid ${me ? "rgba(150,0,24,.55)" : "var(--rc-border)"}` }}>
+                  {m.text}</span>
               </div>
             </Fragment>
           );
         })}
         <div ref={endRef} />
       </div>
-      <div className="chatbar">
+      <div style={{ padding: "12px 18px", borderTop: "1px solid var(--rc-border)",
+        display: "flex", gap: 10, alignItems: "center" }}>
         <input type="text" value={chatText} maxLength={500}
-          placeholder={t("Mesaj yaz…")}
+          placeholder={t("Mesaj yaz…  (Enter gönderir)")}
           onChange={(e) => setChatText(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); }
-          }} />
-        <button className="gbtn ubtn" disabled={!chatText.trim()}
-          style={{ opacity: chatText.trim() ? 1 : .45 }}
-          onClick={onSend}>{t("Gönder")}</button>
+          }}
+          style={{ flex: 1, background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)",
+            borderRadius: 10, color: "var(--rc-text)", padding: "11px 14px", fontSize: 14,
+            margin: 0, textTransform: "none", letterSpacing: 0 }} />
+        <span style={{ fontSize: 10.5, color: "var(--rc-text-3)", fontFamily: disp }}>
+          {chatText.length}/500</span>
+        <button disabled={!chatText.trim()} onClick={onSend}
+          style={{ padding: "11px 22px", borderRadius: 10, border: "1px solid var(--rc-brand-bright)",
+            background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer",
+            fontFamily: disp, fontSize: 15, fontWeight: 700, letterSpacing: ".04em",
+            textTransform: "uppercase", opacity: chatText.trim() ? 1 : .45 }}>
+          {t("Gönder")}</button>
       </div>
     </div>
   );
@@ -1086,30 +1123,106 @@ export function RaceEditModal({ rForm, setRForm, t, seasons, onSave }) {
    gelir. open=false → null döner. */
 /* v2.0: `page` ile modal kabuğu yerine TAM SAYFA çizilir (sol raydan erişilir).
    Gövde tek yerde kalsın diye kabuk Sheet'ten seçilir. */
+/* Sohbet — fiş 11-sohbet.md: iki pano. Sol 280px kanal listesi + sağ sohbet panosu
+   (başlık + mesaj akışı [ChatPanel] + giriş çubuğu). Modal/tam-sayfa kabuğu Sheet ile
+   korunur (App.jsx çağrısı değişmesin). className="chattabs" render testinin çıpası
+   olarak sol panoda kalır. */
 export function ChatModal({ open, onClose, page = false, t, chatSound, toggleChatSound,
   chatChans, unreadOf, chatChan, setChatChan, teamData, curChan, chatBody }) {
   if (!open) return null;
+  const disp = "var(--rc-font-display)";
+  const chanName = (c) => (c && c.id === "team"
+    ? (teamData?.meta?.name || t(c.lbl)) : (c ? t(c.lbl) : ""));
+  const memCount = teamData?.members ? Object.keys(teamData.members).length : null;
+  const curName = curChan ? chanName(curChan) : "";
+  const curMeta = curChan?.id === "race"
+    ? `${memCount ? `${memCount} ${t("üye")} · ` : ""}${t("yarışa özel kanal")}`
+    : (memCount ? `${memCount} ${t("üye")}` : "");
+  /* fiş renk→token: #1E1418→surface-3, #34232A→border, #A88C93→text-3,
+     #C9B3B9→text-2, #960018→brand, #FFE9ED→on-brand, #D24357→brand-bright */
   return (
-    <Sheet page={page} onClose={onClose} width="min(560px,94vw)"
-      title={<>💬 {t("Sohbet")}</>}
-      headExtra={
-        <button className="lbclose" style={{ marginLeft: "auto", marginRight: 4 }}
-          title={chatSound ? t("Bildirim sesini kapat") : t("Bildirim sesini aç")}
-          onClick={toggleChatSound}>{chatSound ? "🔔" : "🔕"}</button>
-      }>
-        <div className="chattabs">
-          {chatChans.map((c) => {
-            const u2 = unreadOf(c);
-            return (
-              <button key={c.id} className={`ctab ${c.id === chatChan ? "on" : ""}`}
-                onClick={() => setChatChan(c.id)}>
-                {c.ico} {c.id === "team" ? (teamData?.meta?.name || t(c.lbl)) : t(c.lbl)}
-                {u2 > 0 && c.id !== chatChan && <b className="cdot">{u2 > 9 ? "9+" : u2}</b>}
-              </button>
-            );
-          })}
+    <Sheet page={page} onClose={onClose} width="min(920px,96vw)"
+      title={<>💬 {t("Sohbet")}</>}>
+      <div style={{ padding: "18px 20px", display: "flex", flexWrap: "wrap", gap: 16,
+        alignItems: "stretch", boxSizing: "border-box", animation: "rcin .26s ease-out",
+        ...(page ? { minHeight: "calc(100vh - 120px)" } : { flex: 1, minHeight: 0 }) }}>
+
+        {/* ── sol: kanallar ── */}
+        <div style={{ flex: "0 0 280px", minWidth: 240, border: "1px solid var(--rc-border)",
+          borderRadius: 12, background: "var(--rc-surface)", display: "flex",
+          flexDirection: "column", overflow: "hidden" }}>
+          <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--rc-border)",
+            display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontFamily: disp, textTransform: "uppercase", letterSpacing: ".08em",
+              fontSize: 15, fontWeight: 700 }}>{t("Kanallar")}</span>
+            <button onClick={toggleChatSound}
+              title={chatSound ? t("Bildirim sesini kapat") : t("Bildirim sesini aç")}
+              style={{ marginLeft: "auto", background: "none", border: "none",
+                color: "var(--rc-text-3)", cursor: "pointer", fontSize: 15 }}>
+              {chatSound ? "🔔" : "🔕"}</button>
+          </div>
+          <div className="chattabs" style={{ overflowY: "auto", padding: 8, display: "flex",
+            flexDirection: "column", gap: 0, border: 0 }}>
+            {chatChans.map((c) => {
+              const on = c.id === chatChan;
+              const u2 = unreadOf(c);
+              return (
+                <button key={c.id} onClick={() => setChatChan(c.id)}
+                  style={{ display: "flex", gap: 10, alignItems: "center", width: "100%",
+                    textAlign: "left", cursor: "pointer", padding: "9px 10px", borderRadius: 10,
+                    marginBottom: 2, color: "var(--rc-text)",
+                    border: `1px solid ${on ? "var(--rc-brand-bright)" : "transparent"}`,
+                    background: on ? "rgba(150,0,24,.14)" : "transparent" }}>
+                  <span style={{ width: 34, height: 34, borderRadius: 9, flex: "0 0 auto",
+                    background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)",
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 16 }}>{c.ico}</span>
+                  <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0,
+                    flex: 1, textAlign: "left" }}>
+                    <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <b style={{ fontFamily: disp, fontSize: 15, fontWeight: 700,
+                        whiteSpace: "nowrap" }}>{chanName(c)}</b>
+                      {u2 > 0 && (
+                        <span style={{ background: "var(--rc-brand)", color: "var(--rc-on-brand)",
+                          fontSize: 10, fontWeight: 700, borderRadius: 99, padding: "0 6px",
+                          minWidth: 16, textAlign: "center", lineHeight: "16px" }}>
+                          {u2 > 9 ? "9+" : u2}</span>
+                      )}
+                      <span style={{ marginLeft: "auto", fontSize: 10.5, color: "var(--rc-text-3)",
+                        fontFamily: disp }}></span>
+                    </span>
+                    <span style={{ fontSize: 11.5, color: "var(--rc-text-3)", overflow: "hidden",
+                      textOverflow: "ellipsis", whiteSpace: "nowrap" }}></span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
-        {chatBody(curChan)}
+
+        {/* ── sağ: sohbet panosu ── */}
+        <div style={{ flex: "1 1 520px", minWidth: 0, minHeight: 540,
+          border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)",
+          display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--rc-border)",
+            display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <span style={{ fontFamily: disp, textTransform: "uppercase", letterSpacing: ".06em",
+              fontSize: 17, fontWeight: 700 }}>{curName}</span>
+            <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{curMeta}</span>
+            <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+              <button onClick={toggleChatSound}
+                style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--rc-border)",
+                  background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer",
+                  fontSize: 12 }}>🔕 {t("Sessize al")}</button>
+              <button
+                style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--rc-border)",
+                  background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer",
+                  fontSize: 12 }}>{t("Ara")}</button>
+            </span>
+          </div>
+          {chatBody(curChan)}
+        </div>
+      </div>
     </Sheet>
   );
 }
@@ -1623,318 +1736,537 @@ export function CreateJoinModal({ open, onClose, user, t, userName,
    Kur/Katıl ARTIK burada değil (CreateJoinModal'a taşındı) → yönetim penceresi
    sade ve kompakt kalır. Tüm mevcut işlevler (ad düzenle, sezon/yarış CRUD,
    rol rozetleri, join code, ayrıl) korunur. */
-/* Görsel yükleme kutusu (v1.7.0) — sabit-aspect önizleme + Yükle/Değiştir/Kaldır.
-   current = takımın özel görseli; fallback = statik asset (varsa önizlemede görünür,
-   Kaldır yalnız özel görsel varken çıkar). Doğrulama/normalize processImageFile'da;
-   hata (tür/boyut/bozuk/kural reddi) kutunun altında hint warn ile gösterilir. */
-function AssetUpload({ label, current, fallback = "", specKey, aspect, w,
-  canEdit, t, onSave, onClear }) {
-  const [err, setErr] = useState("");
-  const [busy, setBusy] = useState(false);
-  const inpRef = useRef(null);
-  const pick = async (f) => {
-    if (!f) return;
-    setErr(""); setBusy(true);
-    try {
-      const uri = await processImageFile(f, specKey);
-      await onSave(uri);
-    } catch (e) {
-      setErr(t(e?.message || "Görsel işlenemedi — dosya bozuk olabilir."));
-    } finally {
-      setBusy(false);
-      if (inpRef.current) inpRef.current.value = "";
-    }
-  };
-  const shown = current || fallback;
-  return (
-    <div className="astbox">
-      <div className="astcap">{label}</div>
-      <div className="astprev" style={{ width: w, aspectRatio: aspect }}>
-        {shown
-          ? <img src={shown} alt=""
-              onError={(e) => { e.currentTarget.style.display = "none"; }} />
-          : <span className="hint" style={{ margin: 0 }}>{t("Görsel yok")}</span>}
-      </div>
-      {canEdit && (
-        <div className="astact">
-          <input ref={inpRef} type="file" accept={IMG_ACCEPT_TYPES.join(",")}
-            style={{ display: "none" }}
-            onChange={(e) => pick(e.target.files?.[0])} />
-          <button className="minibtn" style={{ width: "auto", padding: "0 10px" }}
-            disabled={busy} onClick={() => inpRef.current?.click()}>
-            {busy ? t("Yükleniyor…") : current ? t("Değiştir") : `⬆ ${t("Yükle")}`}
-          </button>
-          {current && (
-            <button className="minibtn" style={{ width: "auto", padding: "0 10px" }}
-              disabled={busy} title={t("Kaldır")}
-              onClick={() => { setErr(""); onClear(); }}>✕ {t("Kaldır")}</button>
-          )}
-        </div>
-      )}
-      {err && <div className="hint warn" style={{ margin: "4px 0 0" }}>{err}</div>}
-    </div>
-  );
-}
+/* FLAG: canlı takım-hareketleri akışı için veri kaynağı YOK. Fiş 10-takim.md
+   `feed` renderVals'ı örnek (statik) içerik olarak tanımlar; birebir kural gereği
+   aynen üretilir. Gerçek akış bağlanana dek bu örnek kullanılır. */
+const TEAM_FEED_SAMPLE = [
+  { icon: "🔧", who: "Kerem Y.", text: "spa_296_quali.svm setupunu havuza yükledi", at: "bugün 18:31", col: "#EF8A2B" },
+  { icon: "🛞", who: "Deniz K.", text: "6H Spa · S3 stintine atandı", at: "bugün 17:04", col: "#4C9AFF" },
+  { icon: "🏁", who: "Ahmet D.", text: "6H Fuji yarışını takvime ekledi", at: "dün 21:12", col: "#D24357" },
+  { icon: "📊", who: "Kerem Y.", text: "Stint B telemetrisini yükledi (16 tur)", at: "dün 19:48", col: "#B58BFF" },
+  { icon: "🎧", who: "Ahmet D.", text: "Deniz K.'ya mühendis yetkisi verdi", at: "14 Ağu 12:26", col: "#37D67A" },
+  { icon: "👤", who: "Selin A.", text: "katılım koduyla takıma katıldı", at: "12 Ağu 09:03", col: "#A88C93" },
+];
 
-/* v2.0: `page` ile modal kabuğu yerine TAM SAYFA çizilir (sol raydan erişilir). */
+/* v2.0: `page` ile modal kabuğu yerine TAM SAYFA çizilir (sol raydan erişilir).
+   v3 (fiş 10-takim.md): iki kolon — sol kimlik + araç görselleri kartı; sağ üyeler
+   tablosu, sezon takvimi, takım hareketleri, tehlikeli işlemler. Sheet kabuğu App.jsx
+   çağrısı bozulmasın diye korunur. */
 export function TeamModal({ open, onClose, page = false, user, t, lang, myTeams, curTeam,
   setCurTeam, teamData, tnEdit, setTnEdit, canManageTeam, canEditTeam, curSeason, setCurSeason,
   seasons, races, st, myRole,
   openRace, setRForm, setBadge, roleLabel, onCreateJoin }) {
-  /* Araç Görselleri kartı seçimi — hook'lar erken return'den ÖNCE (React kuralı). */
+  /* Hook'lar erken return'den ÖNCE (React kuralı). */
   const [astCls, setAstCls] = useState("hypercar");
   const [astCar, setAstCar] = useState("");
+  const [openMenu, setOpenMenu] = useState(null);   // ⋯ menüsü açık üye uid
+  const [busy, setBusy] = useState("");             // yüklenen asset: logo/side/top
+  const [copied, setCopied] = useState(false);
+  const logoRef = useRef(null);
+  const sideRef = useRef(null);
+  const topRef = useRef(null);
   if (!open || !user) return null;
   const astKey = astCar ? carAssetKey(astCls, astCar) : "";
   const astCustom = (angle) => teamData?.assets?.cars?.[astKey]?.[angle] || "";
+  /* ── türetilen değerler + stil yardımcıları (fiş 10-takim.md) ── */
+  const disp = "var(--rc-font-display)";
+  const memberEntries = Object.entries(teamData?.members || {});
+  const memCount = memberEntries.length;
+  const raceEntries = Object.entries(races || {})
+    .filter(([, r]) => !curSeason || r.seasonId === curSeason)
+    .sort(([, a], [, b]) => (a.startsAt || 0) - (b.startsAt || 0));
+  const raceCount = Object.keys(races || {}).length;
+  const seasonLbl = (curSeason && seasons?.[curSeason]?.name)
+    || Object.values(seasons || {})[0]?.name || `${Object.keys(seasons || {}).length} ${t("sezon")}`;
+  const logoSrc = teamLogoSrc(teamData?.assets);
+  const joinCode = teamData?.meta?.joinCode || "—";
+  const initialsOf = (n) => String(n || "").trim().split(/\s+/)
+    .map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+  const now = Date.now();
+  /* FLAG: yarış "durum" alanı veri katmanında yok — startsAt'ten türetildi (gerçek veri). */
+  const raceState = (r) => {
+    if (!r.startsAt) return { label: t("Planlı"), col: "var(--rc-text-3)" };
+    const d = r.startsAt - now;
+    if (d < -6 * 3600e3) return { label: t("Bitti"), col: "var(--rc-text-3)" };
+    if (d < 24 * 3600e3) return { label: t("Yakın"), col: "var(--rc-warn)" };
+    return { label: t("Yaklaşan"), col: "var(--rc-brand-bright)" };
+  };
+  const pickAsset = async (file, keyPath, specKey, which) => {
+    if (!file) return;
+    setBusy(which);
+    try {
+      const uri = await processImageFile(file, specKey);
+      await saveTeamAsset(curTeam, keyPath, uri);
+    } catch (e) { console.warn("görsel işlenemedi:", e?.message); }
+    finally { setBusy(""); }
+  };
+  const copyCode = () => {
+    try {
+      navigator.clipboard?.writeText(joinCode);
+      setCopied(true); setTimeout(() => setCopied(false), 1400);
+    } catch { /* yoksay */ }
+  };
+  const doLeave = () => { leaveTeam(curTeam, user.uid).catch(() => {}); setCurTeam(""); };
+  const newRace = () => setRForm({
+    rid: null, seasonId: curSeason || null, round: "", name: "",
+    trackId: st.track || "", carClass: st.carClass || "hypercar",
+    carId: st.car || "", raceTime: st.raceTime || "6:00:00", startsAt: Date.now(),
+  });
+  const card = { border: "1px solid var(--rc-border)", borderRadius: 12,
+    background: "var(--rc-surface)", overflow: "hidden" };
+  const cardHead = { display: "flex", alignItems: "center", gap: 10, padding: "14px 16px",
+    borderBottom: "1px solid var(--rc-border)", flexWrap: "wrap" };
+  const sectTtl = { fontFamily: disp, textTransform: "uppercase", letterSpacing: ".08em",
+    fontSize: 16, fontWeight: 700 };
+  const subBtn = { padding: "7px 14px", borderRadius: 9, border: "1px solid var(--rc-border)",
+    background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer", fontSize: 12 };
+  const miniBtn = { width: 26, height: 26, borderRadius: 7, border: "1px solid var(--rc-border)",
+    background: "var(--rc-surface-3)", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 11 };
+  const selStyle = { flex: 1, background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)",
+    borderRadius: 8, color: "var(--rc-text)", padding: "7px 9px", fontSize: 12 };
+  const tileCap = { position: "absolute", left: 0, right: 0, bottom: 0, padding: "3px 0",
+    textAlign: "center", background: "rgba(11,7,8,.8)", fontSize: 9, textTransform: "uppercase",
+    letterSpacing: ".08em", color: "var(--rc-text-3)" };
+  const mItem = { textAlign: "left", padding: "7px 10px", borderRadius: 7, border: "none",
+    background: "none", color: "var(--rc-text)", cursor: "pointer", fontSize: 12.5, whiteSpace: "nowrap" };
+  const mDanger = { ...mItem, color: "var(--rc-danger)" };
+  /* FLAG: th/thLeft renderVals'ta yok — DashTab gibi veri katmanıyla uyumlu türetildi. */
+  const th = { padding: "10px 12px", borderBottom: "1px solid var(--rc-border)", textAlign: "center",
+    color: "var(--rc-text-3)", fontSize: 10, fontWeight: 600, textTransform: "uppercase",
+    letterSpacing: ".08em" };
+  const thLeft = { ...th, textAlign: "left" };
+  const bd = BADGES.driver, be = BADGES.engineer;
+
   return (
-        <Sheet page={page} onClose={onClose} width="min(680px,95vw)"
-          title={<>⚙ {t("Yönet")} · {t("Takımlar")}</>}>
+    <Sheet page={page} onClose={onClose} width="min(1000px,96vw)"
+      title={<>⚙ {t("Yönet")} · {t("Takımlar")}</>}>
+      <div style={{ overflowY: "auto", ...(page ? {} : { flex: 1, minHeight: 0 }) }}>
 
-            {/* takım seçici (birden çok takım) */}
-            {Object.keys(myTeams).length > 1 && (
-              <div className="tmtabs">
-                {Object.entries(myTeams).map(([tid, nm]) => (
-                  <button key={tid} className={curTeam === tid ? "on" : ""}
-                    onClick={() => setCurTeam(tid)}>{nm}</button>
-                ))}
-              </div>
+        {/* takım seçici (birden çok takım) */}
+        {Object.keys(myTeams || {}).length > 1 && (
+          <div className="tmtabs" style={{ padding: "12px 20px 0" }}>
+            {Object.entries(myTeams).map(([tid, nm]) => (
+              <button key={tid} className={curTeam === tid ? "on" : ""}
+                onClick={() => setCurTeam(tid)}>{nm}</button>
+            ))}
+          </div>
+        )}
+
+        {!curTeam && (
+          <div className="hint" style={{ padding: "16px 20px" }}>
+            {t("Henüz bir takımın yok. Yeni takım kur ya da katılım kodu ile katıl.")}
+            {onCreateJoin && (
+              <><br /><button className="gbtn ubtn" style={{ marginTop: 8 }}
+                onClick={onCreateJoin}>🏢 {t("Kur & Katıl")}</button></>
             )}
+          </div>
+        )}
 
-            <div className="wxmlist tmbody">
-              {!curTeam && (
-                <div className="hint" style={{ marginBottom: 4 }}>
-                  {t("Henüz bir takımın yok. Yeni takım kur ya da katılım kodu ile katıl.")}
-                  {onCreateJoin && (
-                    <><br /><button className="gbtn ubtn" style={{ marginTop: 8 }}
-                      onClick={onCreateJoin}>🏢 {t("Kur & Katıl")}</button></>
-                  )}
+        {curTeam && teamData && (
+          <div style={{ padding: "16px 20px", display: "flex", flexWrap: "wrap", gap: 16,
+            alignItems: "flex-start", animation: "rcin .26s ease-out" }}>
+
+            {/* ══════════ SOL: kimlik + araç görselleri ══════════ */}
+            <div style={{ flex: "1 1 300px", maxWidth: 360, display: "flex",
+              flexDirection: "column", gap: 12 }}>
+
+              {/* kimlik kartı (aria-label render testinin "Takım Kimliği" çıpası) */}
+              <section aria-label={t("Takım Kimliği")}
+                style={{ border: "1px solid var(--rc-border)", borderRadius: 12,
+                  background: "var(--rc-surface)", padding: 18, textAlign: "center" }}>
+                <div onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => { e.preventDefault();
+                    if (canEditTeam) pickAsset(e.dataTransfer.files?.[0], "logo", "logo", "logo"); }}
+                  style={{ position: "relative", width: 140, height: 140, margin: "0 auto 12px",
+                    border: "1.5px dashed var(--rc-border-strong)", borderRadius: 14,
+                    background: "var(--rc-surface-2)", display: "grid", placeItems: "center",
+                    overflow: "hidden" }}>
+                  {logoSrc
+                    ? <img src={logoSrc} alt=""
+                        onError={(e) => { e.currentTarget.style.display = "none"; }}
+                        style={{ maxWidth: "78%", maxHeight: "78%", objectFit: "contain", display: "block" }} />
+                    : <span style={{ fontFamily: disp, fontWeight: 700, fontSize: 34,
+                        color: "var(--rc-text-3)" }}>{initialsOf(teamData?.meta?.name)}</span>}
+                  <span style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "5px 0",
+                    background: "rgba(11,7,8,.82)", fontSize: 10, textTransform: "uppercase",
+                    letterSpacing: ".09em", color: "var(--rc-text-2)" }}>{t("sürükle-bırak")}</span>
                 </div>
-              )}
 
-              {curTeam && teamData && (<>
-                {/* ── Takım Kimliği ── */}
-                <section className="tmcard">
-                  <div className="tmcard-h">🏷 {t("Takım Kimliği")}</div>
-                  {tnEdit === null ? (
-                    <div className="tmid">
-                      <b className="tmid-name">{teamData?.meta?.name || "—"}</b>
-                      {canManageTeam && (
-                        <button className="minibtn" style={{ width: "auto", padding: "0 10px" }}
-                          onClick={() => setTnEdit(teamData?.meta?.name || "")}>
-                          {t("Düzenle")}</button>
-                      )}
-                    </div>
-                  ) : (
-                    <>
-                      <div style={{ display: "flex", gap: 8, maxWidth: 420 }}>
-                        <input type="text" value={tnEdit} maxLength={40} autoFocus
-                          style={{ textTransform: "none", margin: 0 }}
-                          onChange={(e) => setTnEdit(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === "Escape") setTnEdit(null); }} />
-                        <button className="gbtn ubtn" disabled={!tnEdit.trim()}
-                          style={{ opacity: tnEdit.trim() ? 1 : .45 }}
-                          onClick={async () => {
-                            const nm = tnEdit.trim();
-                            setTnEdit(null);
-                            try {
-                              await renameTeam(curTeam, nm);
-                              await syncMyTeamName(user.uid, curTeam, nm);
-                            } catch (e) { console.warn("ad değiştirilemedi:", e?.message); }
-                          }}>{t("Kaydet")}</button>
-                        <button className="histbtn"
-                          onClick={() => setTnEdit(null)}>{t("Vazgeç")}</button>
-                      </div>
-                      <div className="hint" style={{ marginBottom: 0 }}>
-                        {t("Yeni ad diğer üyelerde uygulamayı açtıklarında güncellenir.")}</div>
-                    </>
-                  )}
-                  {/* Takım logosu — ana menü kartı, başlık ve teambar'da görünür */}
-                  <div style={{ marginTop: 12 }}>
-                    <AssetUpload label={t("Takım Logosu")} specKey="logo"
-                      current={teamLogoSrc(teamData?.assets)} aspect="1 / 1" w={110}
-                      canEdit={canEditTeam} t={t}
-                      onSave={(uri) => saveTeamAsset(curTeam, "logo", uri)}
-                      onClear={() => clearTeamAsset(curTeam, "logo").catch(() => {})} />
-                  </div>
-                </section>
-
-                {/* ── Araç Görselleri (v1.7.0) ── */}
                 {canEditTeam && (
-                  <section className="tmcard">
-                    <div className="tmcard-h">🖼 {t("Araç Görselleri")}</div>
-                    <div className="hint">
-                      {t("Sınıf ve araç seç — yüklenen SIDE/TOP görseller o araç için tüm takım ekranlarında kullanılır. Yüklenmeyen araçlar varsayılan görselle kalır.")}
-                    </div>
-                    <div style={{ display: "flex", gap: 8, maxWidth: 460, marginBottom: 12 }}>
-                      <ImgSelect value={astCls} options={classOptions()} t={t}
-                        placeholder={t("Sınıf")}
-                        onChange={(v) => { setAstCls(v); setAstCar(""); }} />
-                      <ImgSelect value={astCar} options={carOptions(astCls)} t={t}
-                        placeholder={t("Araç")} disabled={!astCls}
-                        onChange={(v) => setAstCar(v)} />
-                    </div>
-                    {astCar ? (
-                      <div className="astgrid">
-                        <AssetUpload label={`${t("Yandan")} (SIDE · 1000×400)`}
-                          specKey="carSide" aspect="1000 / 400" w={300}
-                          current={astCustom("side")} fallback={carImg(astCls, astCar)}
-                          canEdit={canEditTeam} t={t}
-                          onSave={(uri) => saveTeamAsset(curTeam, `cars/${astKey}/side`, uri)}
-                          onClear={() => clearTeamAsset(curTeam, `cars/${astKey}/side`)
-                            .catch(() => {})} />
-                        <AssetUpload label={`${t("Üstten")} (TOP · 400×1000)`}
-                          specKey="carTop" aspect="400 / 1000" w={110}
-                          current={astCustom("top")}
-                          fallback={`${ASSET}cartop/default.png`}
-                          canEdit={canEditTeam} t={t}
-                          onSave={(uri) => saveTeamAsset(curTeam, `cars/${astKey}/top`, uri)}
-                          onClear={() => clearTeamAsset(curTeam, `cars/${astKey}/top`)
-                            .catch(() => {})} />
-                      </div>
-                    ) : (
-                      <div className="hint" style={{ marginBottom: 0 }}>
-                        {t("Görsel yüklemek için önce araç seç.")}</div>
-                    )}
-                  </section>
-                )}
-
-                {/* ── Sezonlar & Takvim ── */}
-                <section className="tmcard">
-                  <div className="tmcard-h">🏁 {t("Sezonlar & Takvim")}</div>
-                  <div className="tmtabs" style={{ padding: "0 0 10px" }}>
-                    <button className={curSeason === "" ? "on" : ""}
-                      onClick={() => setCurSeason("")}>{t("Tümü")}</button>
-                    {Object.entries(seasons).map(([sid, se]) => (
-                      <button key={sid} className={curSeason === sid ? "on" : ""}
-                        onClick={() => setCurSeason(sid)}>{se.name}</button>
-                    ))}
-                    {canEditTeam && (
-                      <button onClick={async () => {
-                        const nm = window.prompt(t("Sezon adı"), `${new Date().getFullYear()} WEC`);
-                        if (nm) await createSeason(curTeam, nm, new Date().getFullYear())
-                          .catch(() => {});
-                      }}>+ {t("Sezon")}</button>
+                  <div style={{ display: "flex", gap: 8, justifyContent: "center", marginBottom: 12 }}>
+                    <input ref={logoRef} type="file" accept={IMG_ACCEPT_TYPES.join(",")}
+                      style={{ display: "none" }}
+                      onChange={(e) => pickAsset(e.target.files?.[0], "logo", "logo", "logo")} />
+                    <button onClick={() => logoRef.current?.click()} disabled={busy === "logo"}
+                      style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid var(--rc-border)",
+                        background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer",
+                        fontSize: 12 }}>
+                      {busy === "logo" ? t("Yükleniyor…") : t("Logo değiştir")}</button>
+                    {logoSrc && (
+                      <button onClick={() => clearTeamAsset(curTeam, "logo").catch(() => {})}
+                        style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid var(--rc-border)",
+                          background: "var(--rc-surface-3)", color: "var(--rc-text-3)", cursor: "pointer",
+                          fontSize: 12 }}>{t("Kaldır")}</button>
                     )}
                   </div>
-                  {Object.entries(races)
-                    .filter(([, r]) => !curSeason || r.seasonId === curSeason)
-                    .sort(([, a], [, b]) => (a.startsAt || 0) - (b.startsAt || 0))
-                    .map(([rid, r]) => (
-                      <div key={rid} className="tmroom">
-                        {r.round ? <span className="rcode">R{r.round}</span> : null}
-                        <span className="rlabel">
-                          <b>{r.name || trackName(r.trackId) || "—"}</b>
-                          <span className="rmeta">
-                            {r.trackId ? trackName(r.trackId) : ""}
-                            {r.raceTime ? ` · ${r.raceTime}` : ""}
-                            {r.startsAt ? ` · ${new Date(r.startsAt)
-                              .toLocaleString(lang === "en" ? "en-GB" : "tr-TR",
-                                { day: "2-digit", month: "2-digit", hour: "2-digit",
-                                  minute: "2-digit" })}` : ""}
-                          </span>
-                        </span>
-                        <button className="gbtn ubtn" onClick={() => openRace(rid)}>
-                          {t("Aç")}</button>
+                )}
+                <div style={{ color: "var(--rc-text-3)", fontSize: 10.5, margin: "-6px 0 12px",
+                  lineHeight: 1.5 }}>{t("PNG veya SVG · en az 256×256 · şeffaf zemin önerilir")}</div>
+
+                {tnEdit === null ? (
+                  <div onClick={() => canManageTeam && setTnEdit(teamData?.meta?.name || "")}
+                    title={canManageTeam ? t("Düzenle") : undefined}
+                    style={{ fontFamily: disp, fontWeight: 700, fontSize: 22, letterSpacing: ".02em",
+                      cursor: canManageTeam ? "pointer" : "default" }}>
+                    {teamData?.meta?.name || "—"}</div>
+                ) : (
+                  <div style={{ display: "flex", gap: 6, maxWidth: 300, margin: "0 auto" }}>
+                    <input type="text" value={tnEdit} maxLength={40} autoFocus
+                      onChange={(e) => setTnEdit(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Escape") setTnEdit(null); }}
+                      style={{ flex: 1, background: "var(--rc-surface-3)",
+                        border: "1px solid var(--rc-border-strong)", borderRadius: 8,
+                        color: "var(--rc-text)", padding: "6px 10px", fontSize: 14, textTransform: "none" }} />
+                    <button disabled={!tnEdit.trim()} style={{ ...subBtn, opacity: tnEdit.trim() ? 1 : .45 }}
+                      onClick={async () => {
+                        const nm = tnEdit.trim();
+                        setTnEdit(null);
+                        try {
+                          await renameTeam(curTeam, nm);
+                          await syncMyTeamName(user.uid, curTeam, nm);
+                        } catch (e) { console.warn("ad değiştirilemedi:", e?.message); }
+                      }}>{t("Kaydet")}</button>
+                    <button style={subBtn} onClick={() => setTnEdit(null)}>{t("Vazgeç")}</button>
+                  </div>
+                )}
+                <div style={{ color: "var(--rc-text-3)", fontSize: 12, marginTop: 2 }}>
+                  {`${seasonLbl} · ${memCount} ${t("üye")} · ${raceCount} ${t("yarış")}`}</div>
+
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12,
+                  background: "var(--rc-surface-3)", border: "1px solid var(--rc-border-strong)",
+                  borderRadius: 10, padding: "9px 14px", marginTop: 14 }}>
+                  <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".08em",
+                    color: "var(--rc-text-3)" }}>{t("Katılım kodu")}</span>
+                  <b style={{ fontFamily: disp, fontWeight: 700, letterSpacing: ".16em",
+                    fontSize: 18 }}>{joinCode}</b>
+                </div>
+                <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                  <button onClick={copyCode}
+                    style={{ flex: 1, padding: "8px 12px", borderRadius: 9, border: "1px solid var(--rc-border)",
+                      background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer",
+                      fontSize: 12 }}>{copied ? t("Kopyalandı") : t("Kodu kopyala")}</button>
+                  {/* FLAG: katılım kodu yenileme handler'ı yok → no-op */}
+                  <button
+                    style={{ flex: 1, padding: "8px 12px", borderRadius: 9, border: "1px solid var(--rc-border)",
+                      background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer",
+                      fontSize: 12 }}>{t("Yenile")}</button>
+                </div>
+              </section>
+
+              {/* araç görselleri kartı */}
+              <section style={{ ...card, padding: 16 }}>
+                <div style={{ fontFamily: disp, textTransform: "uppercase", letterSpacing: ".08em",
+                  fontSize: 14, fontWeight: 700, marginBottom: 12 }}>{t("Araç görselleri")}</div>
+                <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                  <select value={astCls} style={selStyle}
+                    onChange={(e) => { setAstCls(e.target.value); setAstCar(""); }}>
+                    {classOptions().map((o) => (
+                      <option key={o.value} value={o.value}>{t(o.label)}</option>
+                    ))}
+                  </select>
+                  <select value={astCar} disabled={!astCls} style={selStyle}
+                    onChange={(e) => setAstCar(e.target.value)}>
+                    <option value="">{t("Araç seç")}</option>
+                    {carOptions(astCls).map((o) => (
+                      <option key={o.value} value={o.value}>{t(o.label)}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <div onClick={() => astCar && canEditTeam && sideRef.current?.click()}
+                    title={astCar && canEditTeam ? t("Değiştir") : undefined}
+                    style={{ flex: 1, position: "relative", border: "1px solid var(--rc-border)",
+                      borderRadius: 9, background: "var(--rc-surface-2)", height: 92, display: "flex",
+                      alignItems: "center", justifyContent: "center", overflow: "hidden",
+                      cursor: astCar && canEditTeam ? "pointer" : "default" }}>
+                    {astCar
+                      ? <img src={astCustom("side") || carImg(astCls, astCar)} alt=""
+                          onError={(e) => { e.currentTarget.style.display = "none"; }}
+                          style={{ maxWidth: "94%", maxHeight: "74%", objectFit: "contain" }} />
+                      : <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{t("Araç seç")}</span>}
+                    <span style={tileCap}>{astCustom("side") ? t("özel") : t("varsayılan")} · side</span>
+                  </div>
+                  <div onClick={() => astCar && canEditTeam && topRef.current?.click()}
+                    title={astCar && canEditTeam ? t("Değiştir") : undefined}
+                    style={{ width: 92, position: "relative", border: "1px solid var(--rc-border)",
+                      borderRadius: 9, background: "var(--rc-surface-2)", height: 92, display: "flex",
+                      alignItems: "center", justifyContent: "center", overflow: "hidden",
+                      cursor: astCar && canEditTeam ? "pointer" : "default" }}>
+                    {astCar
+                      ? <img src={astCustom("top") || `${ASSET}cartop/default.png`} alt=""
+                          onError={(e) => { e.currentTarget.style.display = "none"; }}
+                          style={{ maxWidth: "92%", maxHeight: "66%", objectFit: "contain" }} />
+                      : <span style={{ fontSize: 9, color: "var(--rc-text-3)" }}>—</span>}
+                    <span style={tileCap}>top</span>
+                  </div>
+                </div>
+                {/* FLAG: fişte açık yükle/kaldır butonu yok; yükleme işlevini korumak için
+                    kutucuklar tıklanabilir yapıldı (canEditTeam). */}
+                {canEditTeam && astCar && (<>
+                  <input ref={sideRef} type="file" accept={IMG_ACCEPT_TYPES.join(",")}
+                    style={{ display: "none" }}
+                    onChange={(e) => pickAsset(e.target.files?.[0], `cars/${astKey}/side`, "carSide", "side")} />
+                  <input ref={topRef} type="file" accept={IMG_ACCEPT_TYPES.join(",")}
+                    style={{ display: "none" }}
+                    onChange={(e) => pickAsset(e.target.files?.[0], `cars/${astKey}/top`, "carTop", "top")} />
+                </>)}
+              </section>
+            </div>
+
+            {/* ══════════ SAĞ: üyeler · takvim · hareketler · tehlikeli ══════════ */}
+            <div style={{ flex: "1 1 560px", minWidth: 0, display: "flex",
+              flexDirection: "column", gap: 16 }}>
+
+              {/* ── Üyeler & yetkiler ── */}
+              <section style={card}>
+                <div style={cardHead}>
+                  <span style={sectTtl}>{t("Üyeler & yetkiler")}</span>
+                  <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>{memCount} {t("kişi")}</span>
+                  {/* FLAG: davet modalı handler'ı yok → no-op */}
+                  <button style={{ ...subBtn, marginLeft: "auto" }} onClick={() => {}}>
+                    ＋ {t("Üye davet et")}</button>
+                </div>
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 600 }}>
+                    <thead><tr>
+                      <th style={thLeft}>{t("Üye")}</th>
+                      <th style={thLeft}>{t("Rol")}</th>
+                      <th style={th}>🛞 {t("Sürücü")}</th>
+                      <th style={th}>🎧 {t("Mühendis")}</th>
+                      <th style={th}>{t("Son görülme")}</th>
+                      <th style={th}></th>
+                    </tr></thead>
+                    <tbody>
+                      {memberEntries.map(([uid, role]) => {
+                        const nm = teamData?.names?.[uid]
+                          || (uid === user.uid ? t("(sen)") : uid.slice(0, 10) + "…");
+                        const drvOn = hasBadge(teamData, uid, "driver");
+                        const engOn = hasBadge(teamData, uid, "engineer");
+                        const menuOpen = openMenu === uid;
+                        return (
+                          <tr key={uid} style={{ borderBottom: "1px solid var(--rc-line-soft)" }}>
+                            <td style={{ padding: "11px 14px", textAlign: "left" }}>
+                              <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                <Avatar uid={uid} name={teamData?.names?.[uid]} size={32} />
+                                <span style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                                  <b style={{ fontSize: 14 }}>{nm}</b>
+                                  <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>
+                                    {uid === user.uid ? t("sen") : ""}</span>
+                                </span>
+                              </span>
+                            </td>
+                            <td style={{ padding: "11px 14px" }}>
+                              <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 99,
+                                border: "1px solid var(--rc-border)", color: "var(--rc-text-2)",
+                                background: "var(--rc-surface-3)", whiteSpace: "nowrap" }}>
+                                {t(roleLabel(role))}</span>
+                            </td>
+                            <td style={{ padding: "11px 14px", textAlign: "center" }}>
+                              <button title={t(bd.lbl)}
+                                onClick={() => canManageTeam && setBadge(uid, "driver", !drvOn)}
+                                style={{ width: 34, height: 28, borderRadius: 8, fontSize: 14,
+                                  cursor: canManageTeam ? "pointer" : "default",
+                                  border: `1px solid ${drvOn ? bd.col : "var(--rc-border)"}`,
+                                  background: drvOn ? bd.bg : "var(--rc-surface-3)",
+                                  color: drvOn ? bd.col : "var(--rc-text)",
+                                  opacity: drvOn ? 1 : .5 }}>🛞</button>
+                            </td>
+                            <td style={{ padding: "11px 14px", textAlign: "center" }}>
+                              <button title={t(be.lbl)}
+                                onClick={() => canManageTeam && setBadge(uid, "engineer", !engOn)}
+                                style={{ width: 34, height: 28, borderRadius: 8, fontSize: 14,
+                                  cursor: canManageTeam ? "pointer" : "default",
+                                  border: `1px solid ${engOn ? be.col : "var(--rc-border)"}`,
+                                  background: engOn ? be.bg : "var(--rc-surface-3)",
+                                  color: engOn ? be.col : "var(--rc-text)",
+                                  opacity: engOn ? 1 : .5 }}>🎧</button>
+                            </td>
+                            {/* FLAG: "son görülme" verisi yok → — */}
+                            <td style={{ padding: "11px 14px", textAlign: "center",
+                              color: "var(--rc-text-3)", fontSize: 12 }}>—</td>
+                            <td style={{ padding: "11px 14px", textAlign: "center" }}>
+                              <span style={{ position: "relative", display: "inline-flex" }}>
+                                <button onClick={() => setOpenMenu(menuOpen ? null : uid)}
+                                  style={{ width: 28, height: 26, borderRadius: 7,
+                                    border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)",
+                                    color: "var(--rc-text-3)", cursor: "pointer", fontSize: 13,
+                                    lineHeight: 1 }}>⋯</button>
+                                {/* FLAG: devret/yeniden davet/çıkar handler'ları yok → menüyü kapatır */}
+                                <span style={{ position: "absolute", top: "100%", right: 0, marginTop: 4,
+                                  zIndex: 5, minWidth: 180, display: menuOpen ? "flex" : "none",
+                                  flexDirection: "column", background: "var(--rc-surface-4)",
+                                  border: "1px solid var(--rc-border-strong)", borderRadius: 10,
+                                  padding: 6, boxShadow: "0 8px 24px rgba(0,0,0,.4)" }}>
+                                  <button style={mItem} onClick={() => setOpenMenu(null)}>
+                                    👑 {t("Sahipliği devret")}</button>
+                                  <button style={mItem} onClick={() => setOpenMenu(null)}>
+                                    ✉ {t("Yeniden davet et")}</button>
+                                  <button style={mDanger} onClick={() => setOpenMenu(null)}>
+                                    ✕ {t("Takımdan çıkar")}</button>
+                                </span>
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+
+              {/* ── Sezon takvimi ── */}
+              <section style={card}>
+                <div style={cardHead}>
+                  <span style={sectTtl}>{t("Sezon takvimi")}</span>
+                  <span style={{ display: "flex", gap: 6, marginLeft: 12, flexWrap: "wrap" }}>
+                    {Object.entries(seasons || {}).map(([sid, se]) => {
+                      const on = curSeason === sid;
+                      return (
+                        <button key={sid} onClick={() => setCurSeason(sid)}
+                          style={{ padding: "5px 12px", borderRadius: 99, cursor: "pointer", fontSize: 12,
+                            border: `1px solid ${on ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
+                            background: on ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)",
+                            color: on ? "var(--rc-text)" : "var(--rc-text-2)" }}>{se.name}</button>
+                      );
+                    })}
+                    {canEditTeam && (
+                      <button style={{ padding: "5px 11px", borderRadius: 99,
+                        border: "1px dashed var(--rc-border-strong)", background: "transparent",
+                        color: "var(--rc-text-3)", cursor: "pointer", fontSize: 12 }}
+                        onClick={async () => {
+                          const nm = window.prompt(t("Sezon adı"), `${new Date().getFullYear()} WEC`);
+                          if (nm) await createSeason(curTeam, nm, new Date().getFullYear()).catch(() => {});
+                        }}>＋ {t("Sezon")}</button>
+                    )}
+                  </span>
+                  <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+                    {/* FLAG: sezon düzenleme modalı handler'ı yok → no-op */}
+                    <button style={{ padding: "7px 12px", borderRadius: 9, border: "1px solid var(--rc-border)",
+                      background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer",
+                      fontSize: 12 }} onClick={() => {}}>✎ {t("Sezonu düzenle")}</button>
+                    {canEditTeam && (
+                      <button style={subBtn} onClick={newRace}>＋ {t("Yarış ekle")}</button>
+                    )}
+                  </span>
+                </div>
+                {raceEntries.map(([rid, r]) => {
+                  const rst = raceState(r);
+                  return (
+                    <div key={rid} style={{ display: "flex", alignItems: "center", gap: 11,
+                      padding: "11px 16px", borderBottom: "1px solid var(--rc-surface-5)" }}>
+                      <span style={{ fontFamily: disp, fontWeight: 700, fontSize: 15,
+                        color: "var(--rc-text-3)", width: 34 }}>{r.round ? `R${r.round}` : "—"}</span>
+                      {r.trackId && (
+                        <img src={`${ASSET}flags/${r.trackId}.png`} alt=""
+                          onError={(e) => { e.currentTarget.style.display = "none"; }}
+                          style={{ width: 26, borderRadius: 3, border: "1px solid var(--rc-border)" }} />
+                      )}
+                      <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0, flex: 1 }}>
+                        <b style={{ fontSize: 14 }}>{r.name || trackName(r.trackId) || "—"}</b>
+                        <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>
+                          {r.trackId ? trackName(r.trackId) : ""}
+                          {r.raceTime ? ` · ${r.raceTime}` : ""}
+                          {r.startsAt ? ` · ${new Date(r.startsAt)
+                            .toLocaleString(lang === "en" ? "en-GB" : "tr-TR",
+                              { day: "2-digit", month: "2-digit", hour: "2-digit",
+                                minute: "2-digit" })}` : ""}</span>
+                      </span>
+                      <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 99,
+                        whiteSpace: "nowrap", border: `1px solid ${rst.col}`, color: rst.col }}>
+                        {rst.label}</span>
+                      <span style={{ display: "flex", gap: 5, flex: "0 0 auto" }}>
+                        {/* FLAG: sıralama (yukarı/aşağı) handler'ı yok → no-op */}
+                        <button title={t("Yukarı taşı")} style={miniBtn}>▲</button>
+                        <button title={t("Aşağı taşı")} style={miniBtn}>▼</button>
                         {canEditTeam && (<>
-                          <button className="minibtn" title={t("Düzenle")}
+                          <button title={t("Düzenle")} style={miniBtn}
                             onClick={() => setRForm({ rid, ...r })}>✎</button>
-                          <button className="minibtn" title={t("Sil")}
+                          <button title={t("Sil")} style={miniBtn}
                             onClick={() => { if (window.confirm(t("Yarış silinsin mi?")))
                               deleteRace(curTeam, rid).catch(() => {}); }}>✕</button>
                         </>)}
-                      </div>
-                    ))}
-                  {Object.keys(races).length === 0 && (
-                    <div className="hint" style={{ marginBottom: 0 }}>{t("Takvimde yarış yok.")}</div>
-                  )}
-                  {canEditTeam && (
-                    <button className="gbtn ubtn" style={{ width: "100%", marginTop: 10 }}
-                      onClick={() => setRForm({
-                        rid: null, seasonId: curSeason || null, round: "", name: "",
-                        trackId: st.track || "", carClass: st.carClass || "hypercar",
-                        carId: st.car || "", raceTime: st.raceTime || "6:00:00",
-                        startsAt: Date.now(),
-                      })}>
-                      ➕ {t("Yarış Ekle")}
-                    </button>
-                  )}
-                </section>
-
-                {/* ── Üyeler & Yetkiler ── */}
-                <section className="tmcard">
-                  <div className="tmcard-h">👥 {t("Üyeler & Yetkiler")}</div>
-                  {canManageTeam && (
-                    <div className="tmlegend">
-                      <span>🎧 {t("Yarış Mühendisi")} — {t("yarış datasını değiştirebilir, üyelere dokunamaz")}</span>
-                      <span><span style={{ verticalAlign: -2 }}><Wheel size={12} /></span> {t("Sürücü")} — {t("her şeyi görür, hiçbir şeyi değiştiremez")}</span>
-                      <span>👑 {t("Takım Sahibi")} — {t("rozetleri ve yetkileri yönetir")}</span>
+                      </span>
+                      <button style={subBtn} onClick={() => openRace(rid)}>{t("Aç")}</button>
                     </div>
-                  )}
-                  <div className="tmmembers">
-                    {Object.entries(teamData.members || {}).map(([uid, role]) => {
-                      const mbs = teamBadgesOf(teamData, uid, null);
-                      return (
-                        <div key={uid} className="tmmem2">
-                          <Avatar uid={uid} name={teamData?.names?.[uid]} size={24} />
-                          <span className="tmm-badges">
-                            {mbs.length ? mbs.map((b) => (
-                              <span key={b.lbl} className="ubadge" title={t(b.lbl)}
-                                style={{ color: b.col, background: b.bg, borderColor: b.col }}>
-                                {b.ico}</span>
-                            )) : <span className="ubadge" style={{ opacity: .25 }}>·</span>}
-                          </span>
-                          <span className="tmm-name">
-                            <b>{teamData?.names?.[uid]
-                              ? teamData.names[uid]
-                              : (uid === user.uid ? t("(sen)") : uid.slice(0, 10) + "…")}
-                              {teamData?.names?.[uid] && uid === user.uid ? ` ${t("(sen)")}` : ""}</b>
-                            <span className="tmm-role" title={t("Yetki")}>{t(roleLabel(role))}</span>
-                          </span>
-                          {canManageTeam && (
-                            <span className="tmm-act">
-                              {["driver", "engineer"].map((id) => {
-                                const on = hasBadge(teamData, uid, id);
-                                const b = BADGES[id];
-                                return (
-                                  <button key={id} className={`btgl ${on ? "on" : ""}`}
-                                    title={`${t(b.lbl)} — ${t(id === "engineer"
-                                      ? "datayı değiştirebilir" : "sadece görür")}`}
-                                    style={on ? { color: b.col, borderColor: b.col,
-                                      background: b.bg } : undefined}
-                                    onClick={() => setBadge(uid, id, !on)}>
-                                    {b.ico}
-                                  </button>
-                                );
-                              })}
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </section>
+                  );
+                })}
+                {raceEntries.length === 0 && (
+                  <div style={{ padding: "14px 16px", fontSize: 12, color: "var(--rc-text-3)" }}>
+                    {t("Takvimde yarış yok.")}</div>
+                )}
+              </section>
 
-                {/* ── Takım Erişimi ── */}
-                <section className="tmcard">
-                  <div className="tmcard-h">🔑 {t("Takım Erişimi")}</div>
-                  <div className="tmcode">
-                    <span className="tmcode-k">{t("Katılım kodu")}</span>
-                    <b className="tmcode-v">{teamData?.meta?.joinCode || "—"}</b>
+              {/* ── Takım hareketleri (fiş örnek akışı) ── */}
+              <section style={card}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 16px",
+                  borderBottom: "1px solid var(--rc-border)" }}>
+                  <span style={sectTtl}>{t("Takım hareketleri")}</span>
+                  <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>{t("son 7 gün")}</span>
+                </div>
+                {TEAM_FEED_SAMPLE.map((f, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 11,
+                    padding: "11px 16px", borderBottom: "1px solid var(--rc-surface-5)" }}>
+                    <span style={{ width: 28, height: 28, borderRadius: 9, flex: "0 0 auto",
+                      background: "var(--rc-surface-3)", border: `1px solid ${f.col}55`,
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 13 }}>{f.icon}</span>
+                    <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, flex: 1 }}>
+                      <span style={{ fontSize: 12.5, lineHeight: 1.5 }}>
+                        <b>{f.who}</b> {t(f.text)}</span>
+                      <span style={{ fontSize: 10.5, color: "var(--rc-text-3)" }}>{t(f.at)}</span>
+                    </span>
                   </div>
-                  <div className="hint" style={{ marginBottom: myRole !== "owner" ? 10 : 0 }}>
-                    {t("Bu kodu paylaş — üyeler katılırken girer.")}
-                    {" "}{t("PIN'leri yalnız düzenleyiciler görür.")}
-                  </div>
-                  {myRole !== "owner" && (
-                    <button className="histbtn" onClick={() => {
-                      leaveTeam(curTeam, user.uid).catch(() => {}); setCurTeam("");
-                    }}>{t("Takımdan ayrıl")}</button>
-                  )}
-                </section>
-              </>)}
+                ))}
+              </section>
+
+              {/* ── Tehlikeli işlemler ── */}
+              <section style={{ border: "1px solid var(--rc-border-strong)", borderRadius: 12,
+                background: "var(--rc-surface)", overflow: "hidden" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 16px",
+                  borderBottom: "1px solid var(--rc-border)" }}>
+                  <span style={{ ...sectTtl, color: "var(--rc-danger)" }}>{t("Tehlikeli işlemler")}</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 16px",
+                  borderBottom: "1px solid var(--rc-surface-5)", flexWrap: "wrap" }}>
+                  <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, flex: 1 }}>
+                    <b style={{ fontSize: 13 }}>{t("Takımdan ayrıl")}</b>
+                    <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>
+                      {t("Yarış verilerine ve havuza erişimin kalkar. Sahipsen önce sahipliği devret.")}</span>
+                  </span>
+                  <button onClick={doLeave}
+                    style={{ padding: "8px 15px", borderRadius: 9, border: "1px solid var(--rc-warn)",
+                      background: "transparent", color: "var(--rc-warn)", cursor: "pointer",
+                      fontSize: 12.5, whiteSpace: "nowrap" }}>{t("Ayrıl")}</button>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 16px",
+                  flexWrap: "wrap" }}>
+                  <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, flex: 1 }}>
+                    <b style={{ fontSize: 13 }}>{t("Takımı sil")}</b>
+                    <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>
+                      {t("Sezonlar, yarışlar ve takım setupları kalıcı olarak silinir. Geri alınamaz.")}</span>
+                  </span>
+                  {/* FLAG: takım silme handler'ı/depo fonksiyonu yok → no-op */}
+                  <button
+                    style={{ padding: "8px 15px", borderRadius: 9, border: "1px solid var(--rc-danger)",
+                      background: "rgba(255,77,94,.10)", color: "var(--rc-danger)", cursor: "pointer",
+                      fontSize: 12.5, fontWeight: 600, whiteSpace: "nowrap" }}>{t("Takımı sil")}</button>
+                </div>
+              </section>
             </div>
-        </Sheet>
+          </div>
+        )}
+      </div>
+    </Sheet>
   );
 }
 
