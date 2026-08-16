@@ -127,6 +127,39 @@ export const EN = {
   "Bayrağa kalan": "To the flag",
   "Sıradaki pit": "Next pit",
 
+  /* ── Onaylanmış ek karşılıklar (i18n-EN.md'de yoktu, kullanıcı onayladı) ──
+     Terim kararları i18n-EN.md sonundaki tabloya uyduruldu. Süreç ve gerekçeler
+     docs/i18n-gaps.md'de. */
+  /* Yakıt — senaryolar */
+  "Senaryolar": "Scenarios",
+  "Planlanan": "Planned",
+  "Tasarruflu": "Saving",
+  "Agresif": "Aggressive",
+  "Senaryolar yalnız gösterim — plan verisine yazılmaz.":
+    "Scenarios are preview only — nothing is written to the plan.",
+  /* Canlı timing */
+  "Satır yoğunluğu": "Row density",
+  "Pist ve araç paneli": "Track & car panel",
+  "Köprü durumu ve kaydı": "Bridge status and recording",
+  /* Kabuk — sol ray. "Dash" ve "Tele" BİLEREK aynı bırakıldı: ikisi de kısaltma
+     ve İngilizcede de aynı okunuyor. Kayıtlar, ileride "çevrilmemiş boşluk"
+     sanılmasın diye açıkça duruyor. */
+  "Menü": "Menu",
+  "Menüyü aç": "Show menu",
+  "Menüyü gizle": "Hide menu",
+  "Dash": "Dash",
+  "Tele": "Tele",
+  "Ana içerik": "Main content",
+  /* Stint alt şeridi */
+  "Canlı senkron": "Live sync",
+  "Oto saat": "Auto clock",
+  "PIT YOLUNDA": "PITTING",
+  /* Lastik — set envanteri */
+  "Kullanım": "Uses",
+  "kilitli köşe": "locked corner",
+  /* PDF önizleme */
+  "Yazdır": "Print",
+
   /* §8 Stint · lastik */
   "Pistte": "On track",
   "Set envanteri": "Set inventory",
