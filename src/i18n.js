@@ -46,6 +46,11 @@ export const EN = {
   "Köprü durumu": "Bridge status",
   "Bu sezonda yarış yok": "No races this season",
   "Yarış ekle": "Add race",
+  "Yarış raporu": "Race report",
+  "PDF olarak indir": "Download as PDF",
+  "Pist koşulları": "Track conditions",
+  "Pilot dağılımı": "Driver split",
+  "Mühendis notu": "Engineer's note",
   "Takvime yarış ekle ya da resmi yarışlar listesinden planla — eklediğin yarışlar takımdaki herkeste görünür.":
     "Add a race to the calendar or plan one from the official races list — races you add appear for everyone in the team.",
   "Kadroda pilot yok": "No drivers in the roster",

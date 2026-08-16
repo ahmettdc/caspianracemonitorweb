@@ -37,6 +37,7 @@ Karşılıkları doldurulunca `src/i18n.js`'e girilecek.
 | Lastik | Set envanteri | Set inventory ✔ |
 | Lastik | Kullanım | |
 | Lastik | kilitli köşe | |
+| PDF | Yazdır | |
 | Genel | Kapat | |
 
 > ✔ işaretliler `i18n-EN.md`'den türetilebildi ve zaten girildi; kalanlar için

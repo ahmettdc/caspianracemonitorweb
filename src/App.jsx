@@ -546,7 +546,10 @@ export default function App() {
     return `${m}:${String(sec).padStart(2, "0")} ${ms >= 0 ? t("geç") : t("erken")}`;
   };
   /* --- PDF çıktısı: yazdırma penceresi açar, tarayıcının "PDF olarak kaydet"i kullanılır --- */
-  const exportPdf = (kind) => {
+  /* Rapor belgesini KURAR (yazdırmaz) — böylece aynı HTML hem gizli iframe ile
+     doğrudan yazdırılabilir hem de A4 önizleme penceresinde gösterilebilir
+     (README §16: önizleme + araç çubuğu). autoPrint=false önizleme içindir. */
+  const buildReportDoc = (kind, { autoPrint = true } = {}) => {
     const esc = (x) => String(x ?? "").replace(/[&<>]/g,
       (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
     /* PDF başlığı: seçili yarıştan otomatik — Sezon · Round N · Yarış Adı */
@@ -669,18 +672,7 @@ export default function App() {
  ${trackUrl ? `<div class="trackcard"><img src="${trackUrl}" alt="">
   <div class="tcap">${esc(trackName(st.track))}</div></div>` : ""}
 </div>`;
-    /* Yeni pencere yerine GİZLİ iframe: WebView2 (masaüstü) popup'ları engelliyor →
-       window.open null dönüyordu → PDF alınamıyordu. iframe'e yazınca içindeki
-       window.onload→print() iframe'i yazdırır (tarayıcı + WebView2 print diyaloğu). */
-    document.getElementById("pdfframe")?.remove();
-    const ifr = document.createElement("iframe");
-    ifr.id = "pdfframe";
-    ifr.setAttribute("aria-hidden", "true");
-    ifr.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
-    document.body.appendChild(ifr);
-    const doc = ifr.contentWindow.document;
-    doc.open();
-    doc.write(`<!doctype html><html><head><meta charset="utf-8">
+    return `<!doctype html><html><head><meta charset="utf-8">
 <title>${esc(docTitle || title)}</title>
 <style>
  *{box-sizing:border-box}
@@ -765,9 +757,54 @@ export default function App() {
 </div>
 ${html}
 ${bottomBar}
-<script>window.onload=function(){window.print()}<\/script></body></html>`);
+${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
+</body></html>`;
+  };
+
+  /* Doğrudan yazdırma yolu (KORUNDU): yeni pencere yerine GİZLİ iframe —
+     WebView2 (masaüstü) popup'ları engelliyor, window.open null dönüyordu.
+     iframe'e yazınca içindeki window.onload→print() iframe'i yazdırır. */
+  const exportPdf = (kind) => {
+    document.getElementById("pdfframe")?.remove();
+    const ifr = document.createElement("iframe");
+    ifr.id = "pdfframe";
+    ifr.setAttribute("aria-hidden", "true");
+    ifr.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
+    document.body.appendChild(ifr);
+    const doc = ifr.contentWindow.document;
+    doc.open();
+    doc.write(buildReportDoc(kind));
     doc.close();
   };
+
+  /* A4 önizleme penceresi (README §16) — Dashboard'daki 🖨 PDF bunu açar.
+     Yazdır/PDF indir, önizlemedeki iframe'i yazdırır (tarayıcı diyaloğundan
+     "PDF olarak kaydet" seçilir; ayrı bir PDF kütüphanesi eklenmedi). */
+  const [pdfDoc, setPdfDoc] = useState(null);
+  const openPdfPreview = (kind) =>
+    setPdfDoc({ kind, html: buildReportDoc(kind, { autoPrint: false }) });
+  const printPreview = () => {
+    const f = document.getElementById("pdfpreviewframe");
+    try { f?.contentWindow?.focus(); f?.contentWindow?.print(); } catch { /* yoksay */ }
+  };
+  const pdfPreview = pdfDoc && (
+    <div className="wxmodal pdfwrap" onClick={() => setPdfDoc(null)}>
+      <div className="pdfbox" onClick={(e) => e.stopPropagation()}>
+        <div className="pdftoolbar">
+          <span className="ttl disp">🖨 {t("Yarış raporu")}</span>
+          <span className="spacer" />
+          <button className="rbbtn" onClick={printPreview}>{t("Yazdır")}</button>
+          <button className="rbbtn apply" onClick={printPreview}>
+            {t("PDF olarak indir")}</button>
+          <button className="lbclose" onClick={() => setPdfDoc(null)}>✕</button>
+        </div>
+        <div className="pdfscroll">
+          <iframe id="pdfpreviewframe" className="pdfpage" title={t("Yarış raporu")}
+            srcDoc={pdfDoc.html} />
+        </div>
+      </div>
+    </div>
+  );
   /* Son stintte pit YOK: phaseEnd = yarış bitişi olduğu için nextPitIn aslında
      bayrağa kalan süredir. "Sıradaki Pit" etiketi + son 5 dk'daki sarı pit alarmı
      olmayan bir pit için uyarı veriyordu → son stintte ikisi de kapalı. */
@@ -2225,7 +2262,7 @@ ${bottomBar}
       <div className="v2main">
       <UpdateBanner t={t} />
       {teamModal}{createJoinModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{streamPlayer}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}
-      {denyToast}{cmdPalette}{raceDataPanel}
+      {denyToast}{cmdPalette}{raceDataPanel}{pdfPreview}
       {profOpen && user && (
         <div className="wxmodal" onClick={() => setProfOpen(false)}>
           <div className="wxmbox" style={{ width: "min(420px,94vw)" }}
@@ -2804,7 +2841,7 @@ ${bottomBar}
           )}
 
           {tab === "dash" && (
-            <DashTab t={t} st={st} zoom={zoom} setZoom={setZoom} exportPdf={exportPdf}
+            <DashTab t={t} st={st} zoom={zoom} setZoom={setZoom} exportPdf={openPdfPreview}
               liveInfo={liveInfo} racePlan={racePlan} tyreInfo={tyreInfo} planLsf={planLsf}
               driverPlan={driverPlan} carriedAt={carriedAt} pitSoon={pitSoon} lmuData={lmuData}
               assets={teamData?.assets} />

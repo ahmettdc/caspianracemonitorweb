@@ -1509,6 +1509,25 @@ export const css = `
 /* uygun olmayan pilot seçim listesinde soluk + üstü çizili */
 .rc option.unavail,.rc option:disabled{color:var(--faint);text-decoration:line-through}
 
+/* ── v2.0 PDF RAPORU — A4 önizleme + araç çubuğu (README §16) ────────────────
+   Sayfa 794px (A4 @96dpi). İçerik iframe'de kendi print CSS'iyle çizilir;
+   buradaki kurallar yalnız önizleme kabuğu. */
+.rc .pdfwrap{z-index:var(--z-pdf)}
+.rc .pdfbox{display:flex;flex-direction:column;width:min(860px,96vw);height:min(92vh,1200px);
+  border-radius:var(--r-modal);overflow:hidden;background:var(--panel);
+  border:1px solid var(--line-strong);box-shadow:var(--sh-modal)}
+.rc .pdftoolbar{flex:0 0 auto;display:flex;align-items:center;gap:var(--sp-3);
+  padding:var(--sp-4) var(--sp-6);border-bottom:1px solid var(--line);
+  background:var(--panel-alt)}
+.rc .pdftoolbar .ttl{font-size:15px;font-weight:700;text-transform:uppercase;
+  letter-spacing:var(--ls-card)}
+.rc .pdftoolbar .spacer{margin-left:auto}
+.rc .pdfscroll{flex:1 1 auto;overflow:auto;padding:var(--sp-6);
+  background:repeating-linear-gradient(45deg,#0E090B,#0E090B 12px,#120C0E 12px,#120C0E 24px);
+  display:flex;justify-content:center}
+.rc .pdfpage{width:794px;min-width:794px;height:1123px;border:0;border-radius:2px;
+  background:#fff;box-shadow:0 10px 40px rgba(0,0,0,.55)}
+
 /* ── v2.0 RESMİ YARIŞLAR — güne göre gruplama (README §13) ───────────────────*/
 .rc .sch-sec.sch-day{display:flex;align-items:baseline;gap:var(--sp-3)}
 .rc .sch-daydate{font-family:var(--font-ui);font-size:11.5px;font-weight:400;
