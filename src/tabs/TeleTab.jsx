@@ -895,7 +895,7 @@ export default function TeleTab({
           const col = SLOT_COLORS[sl];
           const meta = st.telemetry[sl]?.src;
           const median = has ? fmtLapSec(stt.medMs / 1000) : "—";
-          const metaText = meta ? [meta.venue, meta.vehicle].filter(Boolean).join(" · ") : t("boş yuva");
+          const metaText = meta ? [meta.venue, meta.vehicle].filter(Boolean).join(" · ") : t("dosya bekleniyor");
           const brand = meta?.vehicle ? brandLogo(meta.vehicle) : "";
           return (
             <button key={sl} onClick={() => setSlot(sl)} style={{ flex: "1 1 240px", minWidth: 0,

@@ -43,6 +43,9 @@ export const EN = {
   "Kullanılan": "Used",
   "Sıradaki stint lastikleri": "Next stint tyres",
   "Son stint VE": "Last stint FE",
+  /* Görsel denetim düzeltmeleri (09/08). */
+  "Şu anki pist": "Current track",
+  "dosya bekleniyor": "waiting for file",
   /* Setup havuzu (09-setup-havuzu.md) etiketleri. */
   "Dosya, araç, not ara…": "Search file, car, note…",
   "Setup yükle": "Upload setup",

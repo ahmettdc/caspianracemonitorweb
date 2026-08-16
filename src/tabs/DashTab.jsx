@@ -111,12 +111,11 @@ export default function DashTab({
                   {PIT_LANE_TIMES[st.track] != null && (
                     <span>{t("Pit lane")} {PIT_LANE_TIMES[st.track]}s</span>
                   )}
-                  {PIT_LANE_TIMES[st.track] != null && WX(st).lap > 1 && (
+                  {PIT_LANE_TIMES[st.track] != null && (
                     <span style={{ color: "var(--rc-border-strong)" }}>·</span>
                   )}
-                  {WX(st).lap > 1 && (
-                    <><WetIcon id={wxId(WX(st))} size={14} /> {t(WX(st).lbl)} ×{WX(st).lap.toFixed(2)}</>
-                  )}
+                  {/* Fiş (03-dashboard.md): tutuş çipi kuru (×1.00) dahil her zaman görünür. */}
+                  <><WetIcon id={wxId(WX(st))} size={14} /> {t(WX(st).lbl)} ×{WX(st).lap.toFixed(2)}</>
                 </div>
               </div>
             )}

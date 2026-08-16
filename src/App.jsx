@@ -962,8 +962,8 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
   });
   /* Havuz görünümü (tablo/kart) — cihaz tercihi, odaya senkron edilmez. */
   const [suView, setSuView] = useState(() => {
-    try { return localStorage.getItem("rm_setup_view") || "table"; }
-    catch { return "table"; }
+    try { return localStorage.getItem("rm_setup_view") || "cards"; }
+    catch { return "cards"; }
   });
   const toggleSuView = () => setSuView((v) => {
     const next = v === "cards" ? "table" : "cards";
@@ -1186,17 +1186,20 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
 
     /* Süzgeç çipleri — mevcut süzgeç state'ine (cond/sess/mine) bağlı; fişteki
        tekil poolFilter yerine çok boyutlu süzgeç korunur. */
+    /* Fiş (09-setup-havuzu.png) çip sırası: Tüm pistler · Şu anki pist · Kuru ·
+       Wet · Yarış · Benim setuplarım. "Şu anki pist" yalnız yüklü yarışın pisti
+       varken görünür (o piste süzer). */
     const filterChips = [
-      { label: t("Tümü"), active: !suFCond && !suFSess && !suMine,
-        pick: () => { setSuFCond(""); setSuFSess(""); setSuMine(false); } },
+      { label: t("Tüm pistler"), active: !suFCond && !suFSess && !suMine && !suFTrack,
+        pick: () => { setSuFCond(""); setSuFSess(""); setSuMine(false); setSuFTrack(""); } },
+      ...(st.track ? [{ label: t("Şu anki pist"), active: suFTrack === st.track,
+        pick: () => setSuFTrack((v) => (v === st.track ? "" : st.track)) }] : []),
       { label: `☀️ ${t("Kuru")}`, active: suFCond === "dry",
         pick: () => setSuFCond((v) => (v === "dry" ? "" : "dry")) },
-      { label: `🌧 ${t("Islak")}`, active: suFCond === "wet",
+      { label: `🌧 ${t("Wet")}`, active: suFCond === "wet",
         pick: () => setSuFCond((v) => (v === "wet" ? "" : "wet")) },
       { label: t("Yarış"), active: suFSess === "R",
         pick: () => setSuFSess((v) => (v === "R" ? "" : "R")) },
-      { label: t("Sıralama"), active: suFSess === "Q",
-        pick: () => setSuFSess((v) => (v === "Q" ? "" : "Q")) },
       { label: `👤 ${t("Benim setuplarım")}`, active: suMine,
         pick: () => setSuMine((v) => !v) },
     ];
@@ -1430,7 +1433,7 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
               <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>
                 {items.length} {t("setup")}</span>
               {track && track === st.track && (
-                <span style={{ padding: "2px 9px", borderRadius: 99, fontSize: 10,
+                <span style={{ marginLeft: "auto", padding: "2px 9px", borderRadius: 99, fontSize: 10,
                   textTransform: "uppercase", letterSpacing: ".08em",
                   border: "1px solid var(--rc-brand-bright)", color: "var(--rc-brand-bright)" }}>
                   {t("şu anki pist")}</span>
@@ -2330,8 +2333,11 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
     const cdM = Math.floor((cdMs % 3600000) / 60000);
     const pad2 = (n) => String(n).padStart(2, "0");
     const heroLocal = heroR?.startsAt
-      ? new Date(heroR.startsAt).toLocaleString(lang === "en" ? "en-GB" : "tr-TR",
-          { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
+      ? (() => {
+          const d = new Date(heroR.startsAt); const loc = lang === "en" ? "en-GB" : "tr-TR";
+          return `${d.toLocaleDateString(loc, { day: "2-digit", month: "short" })} · ${
+            d.toLocaleTimeString(loc, { hour: "2-digit", minute: "2-digit" })}`;
+        })()
       : "";
     /* Takvim segmenti: Yaklaşan / Geçmiş. Arama iki segmentte de çalışır. */
     const upSearched = upF.filter(matchQ);
@@ -3697,7 +3703,7 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
             pitAlert={!!pitSoon}
             pos={own?.pos != null ? `P${own.pos}` : null}
             posSub={pitFrac > 0 ? `%${Math.round(pitFrac)} ${t("stint")}` : null}
-            energy={own?.virtualEnergy != null ? `%${Math.round(own.virtualEnergy)}` : null}
+            energy={own?.virtualEnergy != null ? `${Math.round(own.virtualEnergy)}%` : null}
             energyPct={own?.virtualEnergy ?? 0}
             liveOn={live?.ts ? true : false}
             liveLabel={live?.ts ? t("canlı") : t("bağlı değil")}
