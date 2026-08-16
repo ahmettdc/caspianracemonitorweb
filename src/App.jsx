@@ -36,6 +36,7 @@ import {
 import {
   normalizeScreen, pushScreen, popScreen, hashForScreen, screenFromHash,
 } from "./nav";
+import { Rail } from "./shell";
 import {
   SLOT_COLORS, APP_VERSION, SEEN_VER_KEY, ASSET, AV,
   TRACKS, PIT_LANE_TIMES, TRACK_ASSET, trackFlag,
@@ -236,6 +237,13 @@ export default function App() {
   useEffect(() => {
     document.documentElement.lang = lang === "en" ? "en" : "tr";
   }, [lang]);
+  /* Sol ray açık/kapalı — tıklamayla kayarak gizlenir (README "Interactions"). */
+  const [railOpen, setRailOpen] = useState(() => {
+    try { return localStorage.getItem("crm-rail") !== "0"; } catch { return true; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("crm-rail", railOpen ? "1" : "0"); } catch { /* özel mod */ }
+  }, [railOpen]);
   /* Yoğunluk modu — varsayılan "compact" (yoğun pit-duvarı); "comfort" biraz daha
      nefes alan boşluk/tipografi. data-density html'de → tüm .rc köklerini kapsar. */
   const [density, setDensity] = useState(() => {
@@ -1246,8 +1254,8 @@ ${bottomBar}
     { id: "tele", label: t("Telemetri"), keywords: "telemetry telemetri", icon: <Icon name="chart" size={15} />, run: () => setTab("tele") },
     { id: "setup", label: t("Setup"), keywords: "setup", icon: <Icon name="wrench" size={15} />, run: () => setTab("setup") },
     ...(raceChan ? [{ id: "rchat", label: t("Yarış Sohbeti"), keywords: "chat sohbet", icon: <Icon name="chat" size={15} />, run: () => setTab("rchat") }] : []),
-    { id: "theme", label: theme === "light" ? t("Koyu temaya geç") : t("Açık temaya geç"), keywords: "theme tema dark light", icon: <Icon name={theme === "light" ? "moon" : "sun"} size={15} />, run: toggleTheme },
-    { id: "density", label: t("Yoğunluğu değiştir"), keywords: "density yoğunluk", icon: <Icon name="rows" size={15} />, run: toggleDensity },
+    /* v2.0: tema ve yoğunluk komutları paletten de gizlendi (yukarıdaki
+       KALDIRILANLAR ile aynı karar). */
     { id: "lang", label: lang === "en" ? "Türkçe" : "English", keywords: "language dil", run: () => switchLang(lang === "en" ? "tr" : "en") },
     ...(user ? [{ id: "chat", label: t("Sohbet"), keywords: "chat sohbet team", icon: <Icon name="chat" size={15} />, run: () => setChatOpen(true) }] : []),
     ...(curRace ? [{ id: "home", label: t("Ana Menü"), keywords: "home ana menü lobby", icon: <Icon name="home" size={15} />, run: leaveRace }] : []),
@@ -2089,7 +2097,14 @@ ${bottomBar}
   }
 
   return (
-    <div className="rc">
+    <div className="rc v2">
+      {/* v2.0 kabuk: 76px sol ray tüm yarış ekranlarında sabit; sekme çubuğunun
+          yerini aldı. Ray tıklamayla kayarak gizlenir (‹ / açma tırnağı). */}
+      <Rail t={t} screen={screen} go={go} onHome={leaveRace}
+        open={railOpen} onToggle={() => setRailOpen((v) => !v)}
+        version={APP_VERSION} chatScreen="rchat" hideChat={!raceChan}
+        unread={raceUnread} />
+      <div className="v2main">
       <UpdateBanner t={t} />
       {teamModal}{createJoinModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{streamPlayer}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}
       {denyToast}{cmdPalette}
@@ -2307,16 +2322,11 @@ ${bottomBar}
             {t("Ana Menü")}
           </Btn>
         )}
-        <button className="adminbtn" onClick={toggleTheme}
-          title={theme === "light" ? t("Koyu temaya geç") : t("Açık temaya geç")}
-          aria-label={t("Temayı değiştir")} aria-pressed={theme === "light"}>
-          <Icon name={theme === "light" ? "moon" : "sun"} size={14} />
-        </button>
-        <button className="adminbtn" onClick={toggleDensity}
-          title={density === "comfort" ? t("Yoğunluk: Rahat") : t("Yoğunluk: Kompakt")}
-          aria-label={t("Yoğunluğu değiştir")} aria-pressed={density === "comfort"}>
-          <Icon name="rows" size={14} />
-        </button>
+        {/* v2.0 KALDIRILANLAR (ARAYUZ-YENILEME-PROMPT-v2):
+            · Açık tema kapsam dışı → ☀/🌙 anahtarı GİZLENDİ (toggleTheme ve
+              tema token'ları SİLİNMEDİ; açık palet sonraki turda üretilecek).
+            · Global yoğunluk anahtarı KALKTI → yoğunluk yalnız Canlı Timing'de
+              ("Pit duvarı ↔ Mühendis"); toggleDensity orada kullanılır. */}
         <span className="langsw">
           {["tr", "en"].map((l) => (
             <button key={l} className={lang === l ? "on" : ""}
@@ -2667,45 +2677,9 @@ ${bottomBar}
 
         {/* ================= SAĞ: SEKMELER ================= */}
         <div>
-          {/* ARIA: role=tablist/tab + aria-selected; ok/Home/End ile gezinme (roving tabindex).
-              Erişilebilir ad = etiket metni (ikon span'i aria-hidden). */}
-          <div className="tabs" data-tour="tabs" role="tablist" aria-label={t("Ana sekmeler")}
-            onKeyDown={(e) => {
-              const keys = ["ArrowRight", "ArrowLeft", "Home", "End"];
-              if (!keys.includes(e.key)) return;
-              const btns = [...e.currentTarget.querySelectorAll('[role="tab"]')];
-              const i = btns.indexOf(document.activeElement);
-              if (i < 0) return;
-              e.preventDefault();
-              const n = e.key === "ArrowRight" ? (i + 1) % btns.length
-                : e.key === "ArrowLeft" ? (i - 1 + btns.length) % btns.length
-                : e.key === "Home" ? 0 : btns.length - 1;
-              btns[n].focus(); btns[n].click();
-            }}>
-            {[["dash", "Dashboard", <Icon name="chart" size={15} />], ["stint", "Stint", <Icon name="cap" size={15} />],
-              /* ["code80", "Code 80"], — şimdilik arayüzden gizli, kod korunuyor */
-              ["fuel", t("Son Stint Yakıtı"), <Icon name="zap" size={15} />],
-              /* Canlı timing tüm kullanıcılara açık (v1.4.79) — test aşaması bitti. */
-              ["live", t("Canlı"), <Icon name="live" size={15} />],
-              ["tyre", t("Lastik"), <Icon name="tyre" size={15} />],
-              ["drivers", t("Pilotlar"), <Wheel size={15} />],
-              ["tele", t("Telemetri"), <Icon name="chart" size={15} />],
-              ["setup", t("Setup"), <Icon name="wrench" size={15} />],
-              ...(raceChan ? [["rchat", t("Yarış Sohbeti"), <Icon name="chat" size={15} />]] : [])]
-              .map(([k, l, ico]) => (
-              <button key={k} id={`tab-${k}`} role="tab" aria-selected={tab === k}
-                aria-controls="tabpanel-main" tabIndex={tab === k ? 0 : -1}
-                className={`${tab === k ? "on" : ""} ${k === "code80" && tab === k ? "c80t" : ""}`}
-                onClick={() => setTab(k)} style={{ position: "relative" }}>
-                <span style={{ marginRight: 6 }} aria-hidden="true">{ico}</span>{l}
-                {k === "rchat" && raceUnread > 0 && tab !== "rchat" &&
-                  <b className="cdot" style={{ position: "absolute", top: 2, right: 3 }}>
-                    {raceUnread > 9 ? "9+" : raceUnread}</b>}
-              </button>
-            ))}
-          </div>
-
-          <div id="tabpanel-main" role="tabpanel" aria-labelledby={`tab-${tab}`} tabIndex={-1}>
+          {/* v2.0: sekme çubuğu KALKTI — gezinme 76px sol raydan (shell.jsx Rail).
+              tabpanel ARIA kimliği ray düğmesine bağlanır. */}
+          <div id="tabpanel-main" role="region" aria-label={t("Ana içerik")} tabIndex={-1}>
           <Suspense fallback={
             <div className="skelwrap" aria-busy="true" aria-label={t("Yükleniyor…")}>
               {[0, 1, 2, 3].map((i) => (
@@ -2863,6 +2837,7 @@ ${bottomBar}
           </div>{/* /tabpanel-main */}
         </div>
       </div>
+      </div>{/* /v2main */}
     </div>
   );
 }

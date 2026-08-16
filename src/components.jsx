@@ -255,6 +255,13 @@ const ICON_PATHS = {
   /* lastik — çizgi-ikon (tread halkası + jant + 4 diş); sekme çubuğundaki diğer
      ikonlarla aynı stil (Wheel/Icon: strokeWidth 2, currentColor). */
   tyre:     <><circle cx="12" cy="12" r="9.2" /><circle cx="12" cy="12" r="4" /><path d="M12 2.8v2.6M12 18.6v2.6M2.8 12h2.6M18.6 12h2.6" /></>,
+  /* v2.0 sol ray ikonları — docs/design-handoff/Yeni Tasarım.dc.html <nav> bloğundan
+     birebir alındı (yeni asset değil; aynı Lucide çizgi diliyle SVG path'leri). */
+  gauge:    <><path d="M4 13a8 8 0 0 1 16 0" /><path d="M4 13v3.2M20 13v3.2" /><path d="m12 13 4.2-3.4" /><circle cx="12" cy="13" r="1.6" fill="currentColor" stroke="none" /></>,
+  stopwatch: <><circle cx="12" cy="13.6" r="7.6" /><path d="M12 13.6V9.4" /><path d="M9.6 2.6h4.8" /><path d="M12 2.6V6" /><path d="m18.6 7.4 1.4-1.4" /></>,
+  steering: <><circle cx="12" cy="12" r="9.3" /><circle cx="12" cy="12" r="2.8" fill="currentColor" stroke="none" /><path d="M2.9 12h6.3M14.8 12h6.3M12 14.8v6.3" /></>,
+  cog:      <><path d="M10.4 2.6h3.2l.35 2.3a7.4 7.4 0 0 1 1.72 1l2.1-.98 1.6 2.77-1.75 1.53a7.4 7.4 0 0 1 0 1.98l1.75 1.53-1.6 2.77-2.1-.98a7.4 7.4 0 0 1-1.72 1l-.35 2.3h-3.2l-.35-2.3a7.4 7.4 0 0 1-1.72-1l-2.1.98-1.6-2.77 1.75-1.53a7.4 7.4 0 0 1 0-1.98L4.23 7.69l1.6-2.77 2.1.98a7.4 7.4 0 0 1 1.72-1l.35-2.3Z" /><circle cx="12" cy="12" r="3" /></>,
+  eye:      <><path d="M2.5 12S6 5.8 12 5.8 21.5 12 21.5 12 18 18.2 12 18.2 2.5 12 2.5 12Z" /><circle cx="12" cy="12" r="2.7" /></>,
 };
 export function Icon({ name, size = 16, style }) {
   const p = ICON_PATHS[name];

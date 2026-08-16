@@ -1337,15 +1337,19 @@ export const css = `
 .rc .railbtnwrap{position:relative;display:flex}
 
 /* --- Birleşik sticky yarış çubuğu --- */
+/* NOT: v1'deki '.rc header' kuralı (flex-wrap:wrap, gap:12px, padding:14px 20px)
+   aynı elemana uyduğu için burada AÇIKÇA sıfırlanır — aksi halde sağ blok alt
+   satıra sarıyor. */
 .rc .racebar{position:sticky;top:0;z-index:var(--z-racebar);display:flex;align-items:stretch;
-  gap:0;padding:0;background:linear-gradient(180deg,#1A1013,var(--panel));
+  flex-wrap:nowrap;gap:0;padding:0;background:linear-gradient(180deg,#1A1013,var(--panel));
   border-bottom:1px solid var(--line)}
 .rc .rbblock{display:flex;flex-direction:column;justify-content:center;gap:2px;
   padding:9px var(--sp-6);border-left:1px solid var(--line);min-width:0}
 .rc .rbblock:first-child{border-left:none}
 .rc .rblabel{font-size:var(--fs-label);text-transform:uppercase;letter-spacing:var(--ls-label);
   color:var(--muted);font-weight:600;white-space:nowrap}
-.rc .rbrace{flex:1 1 auto;flex-direction:row;align-items:center;gap:var(--sp-4)}
+.rc .rbrace{flex:1 1 auto;flex-direction:row;align-items:center;gap:var(--sp-4);min-width:0}
+.rc .rbrace>div{display:flex;flex-direction:column;min-width:0}
 .rc .rbflag{width:34px;height:auto;border-radius:3px;flex:0 0 auto}
 .rc .rbname{font-family:var(--font-disp);font-size:var(--fs-page);font-weight:700;
   letter-spacing:.02em;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -1363,8 +1367,8 @@ export const css = `
 .rc .rbpitring{border-radius:var(--r-lg);animation:rcalert 2.6s infinite}
 .rc .rbenergy .rbnum{color:var(--green)}
 .rc .rbcls{font-family:var(--font-disp);font-weight:700;font-size:16px}
-.rc .rbside{margin-left:auto;display:flex;flex-direction:column;gap:6px;justify-content:center;
-  padding:9px var(--sp-6);border-left:1px solid var(--line)}
+.rc .rbside{margin-left:auto;flex:0 0 auto;display:flex;flex-direction:column;gap:6px;
+  justify-content:center;padding:9px var(--sp-6);border-left:1px solid var(--line)}
 .rc .rbsiderow{display:flex;gap:6px}
 .rc .rbsiderow>*{flex:1 1 0;min-width:0}
 .rc .rblive{display:flex;align-items:center;justify-content:center;gap:7px;padding:6px 12px;
