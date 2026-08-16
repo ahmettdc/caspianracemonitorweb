@@ -43,6 +43,7 @@ export const EN = {
   "Kullanılan": "Used",
   "Sıradaki stint lastikleri": "Next stint tyres",
   "Son stint VE": "Last stint FE",
+  "sn önce": "s ago",
   /* Takım yönetimi onay metinleri (10-takim). */
   "Sahipliği bu üyeye devret?": "Transfer ownership to this member?",
   "Sen düzenleyici (editör) olursun.": "You become an editor.",

@@ -3707,6 +3707,12 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
             energyPct={own?.virtualEnergy ?? 0}
             liveOn={live?.ts ? true : false}
             liveLabel={live?.ts ? t("canlı") : t("bağlı değil")}
+            bridge={live?.ts ? {
+              cars: live.cars != null ? live.cars : null,
+              laps: live.laps != null ? live.laps : null,
+              lastFrame: `${Math.max(0, (now - live.ts) / 1000).toFixed(1)} sn ${t("önce")}`,
+              fresh: (now - live.ts) < 5000,
+            } : null}
             onBridge={() => go("live")}
             onRaceData={() => setRdOpen(true)} dirtyN={rdN}
             onPitBoard={() => setPitboard(true)} />

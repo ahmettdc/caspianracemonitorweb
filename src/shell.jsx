@@ -10,7 +10,7 @@
    için kullanılır (ilerleme çubuğu genişliği).
    ============================================================ */
 import { useState, useEffect, useRef } from "react";
-import { ASSET } from "./constants";
+import { ASSET, APP_VERSION } from "./constants";
 import { Icon } from "./components";
 
 /* Ray sırası README "Interactions & Behavior"tan: Menü / Takım / Dash / Stint /
@@ -119,7 +119,7 @@ export function RaceBar({
   nextPit, nextPitSub, pitAlert = false,
   pos, posCls, posClsColor, posSub,
   energy, energyPct = 0, energySub,
-  liveOn = false, liveLabel, onBridge,
+  liveOn = false, liveLabel, onBridge, bridge = null,
   onRaceData, dirtyN = 0, onPitBoard,
 }) {
   /* Köprü durum pop-up'ı açık/kapalı — lokal (fişte this.state.bridge). */
@@ -217,13 +217,16 @@ export function RaceBar({
       fontFamily: "var(--rc-font-ui)" }
     : { display: "none" };
 
-  /* MOCK — köprü durum satırları: gerçek prop yok (App.jsx'ten beslenmeli). */
+  /* Köprü durum satırları — gerçek veri App.jsx'ten `bridge` prop'uyla gelir;
+     yoksa "—". (Tampon-maskesi/eklenti-uyarısı satırı uygulamanın gizlediği
+     tanılama → aşağıda statik/örnek kalır — kullanıcı kararı.) */
+  const bg = bridge || {};
   const bridgeRows = [
-    { k: t("Canlı kaynak"), v: "Kerem Yılmaz", col: "var(--rc-text)" },
-    { k: t("Kare hızı"), v: "2.5 Hz · 0.4 sn", col: "var(--rc-text)" },
-    { k: t("Son kare"), v: "0.3 sn önce", col: "var(--rc-ok)" },
-    { k: t("Kaydedilen tur"), v: "412", col: "var(--rc-text)" },
-    { k: t("Sahadaki araç"), v: "34", col: "var(--rc-text)" },
+    { k: t("Canlı kaynak"), v: bg.source || "—", col: "var(--rc-text)" },
+    { k: t("Kare hızı"), v: bg.fps || "—", col: "var(--rc-text)" },
+    { k: t("Son kare"), v: bg.lastFrame || "—", col: bg.fresh ? "var(--rc-ok)" : "var(--rc-text-3)" },
+    { k: t("Kaydedilen tur"), v: bg.laps != null ? String(bg.laps) : "—", col: "var(--rc-text)" },
+    { k: t("Sahadaki araç"), v: bg.cars != null ? String(bg.cars) : "—", col: "var(--rc-text)" },
   ].map((b) => ({ ...b, vStyle: { fontFamily: disp, fontSize: 11.5, color: b.col } }));
 
   const cellBorder = "1px solid var(--rc-border)";
@@ -344,9 +347,8 @@ export function RaceBar({
               <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
                 <b style={{ fontFamily: disp, fontSize: 15, letterSpacing: ".03em" }}>
                   {t("Canlı köprü")}</b>
-                {/* MOCK: sürüm — gerçek kaynak yok */}
                 <span style={{ fontSize: 10.5, color: "var(--rc-text-3)" }}>
-                  {t("otomatik")} · v1.8.18</span>
+                  {t("otomatik")} · {APP_VERSION}</span>
               </span>
               <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center",
                 gap: 6, fontSize: 10, textTransform: "uppercase", letterSpacing: ".09em",
@@ -373,8 +375,7 @@ export function RaceBar({
                 color: "var(--rc-ok)" }}>
                 <i style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--rc-danger)",
                   boxShadow: "0 0 7px var(--rc-danger)", flex: "0 0 auto" }} />
-                {/* MOCK: 34 araç · 412 tur */}
-                {t("Tur geçmişi kaydediliyor")} · 34 {t("araç")} · 412 {t("tur")}
+                {t("Tur geçmişi kaydediliyor")} · {bg.cars != null ? bg.cars : "—"} {t("araç")} · {bg.laps != null ? bg.laps : "—"} {t("tur")}
               </span>
               <span style={{ display: "block", fontSize: 11, color: "var(--rc-text-3)",
                 marginTop: 6, lineHeight: 1.5 }}>
