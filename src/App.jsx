@@ -312,41 +312,6 @@ export default function App() {
      (sonra) → curTeamRef/stRef gibi ref hilesi (render'da güncel tutulur). */
   const canEditRef = useRef(false);
 
-  /* ---------- PİLOT MÜSAİTLİĞİ (v2.0) ----------
-     teams/{tid}/races/{rid}/avail/{driverId} = [uygun OLMAYAN stintNo…]
-     "Yeni veri katmanı yok" kuralının bilinçli tek istisnası. Yarışsız (solo)
-     modda yalnız yerel tutulur — yazacak yarış düğümü yok. */
-  const [avail, setAvailState] = useState(null);
-  useEffect(() => {
-    if (!curTeam || !curRace) { setAvailState(null); return undefined; }
-    return availSubscribe(curTeam, curRace, setAvailState);
-  }, [curTeam, curRace]);
-
-  /* Uygunluk değişince: (a) yalnız DEĞİŞEN pilotu Firebase'e yaz, (b) artık
-     geçersiz kalan atamaları temizle (README §8: "mevcut atama otomatik kalkar"). */
-  const setAvail = (next) => {
-    if (blocked()) { showDeny(); return; }
-    const prev = avail || {};
-    setAvailState(next);
-    if (curTeam && curRace) {
-      const keys = new Set([...Object.keys(prev), ...Object.keys(next || {})]);
-      keys.forEach((k) => {
-        const a = JSON.stringify(prev[k] ?? null);
-        const b = JSON.stringify((next || {})[k] ?? null);
-        if (a !== b) availSet(curTeam, curRace, k, (next || {})[k] || []).catch(() => {});
-      });
-    }
-    setSt((s0) => {
-      const pruned = pruneAssignments(next, s0.driverAssign);
-      return pruned === s0.driverAssign ? s0 : { ...s0, driverAssign: pruned };
-    });
-  };
-  const resetAvail = () => {
-    if (blocked()) { showDeny(); return; }
-    setAvailState(null);
-    if (curTeam && curRace) availClear(curTeam, curRace).catch(() => {});
-  };
-
   /* ---------- YARIŞ AÇ / KAPAT (oda kodu ve PIN yok) ---------- */
   const openRace = async (rid) => {
     if (!curTeam || !rid) return;
@@ -843,6 +808,42 @@ ${bottomBar}
   const [createJoinOpen, setCreateJoinOpen] = useState(false); // v1.6 — sade Kur & Katıl ekranı (yönetimden ayrı)
   /* ---- takım/sezon/yarış abonelikleri → useTeams hook'u ---- */
   const { myTeams, curTeam, setCurTeam, teamData, seasons, races } = useTeams({ user, access });
+
+  /* ---------- PİLOT MÜSAİTLİĞİ (v2.0) ----------
+     teams/{tid}/races/{rid}/avail/{driverId} = [uygun OLMAYAN stintNo…]
+     "Yeni veri katmanı yok" kuralının bilinçli tek istisnası. Yarışsız (solo)
+     modda yalnız yerel tutulur — yazacak yarış düğümü yok. */
+  const [avail, setAvailState] = useState(null);
+  useEffect(() => {
+    if (!curTeam || !curRace) { setAvailState(null); return undefined; }
+    return availSubscribe(curTeam, curRace, setAvailState);
+  }, [curTeam, curRace]);
+
+  /* Uygunluk değişince: (a) yalnız DEĞİŞEN pilotu Firebase'e yaz, (b) artık
+     geçersiz kalan atamaları temizle (README §8: "mevcut atama otomatik kalkar"). */
+  const setAvail = (next) => {
+    if (blocked()) { showDeny(); return; }
+    const prev = avail || {};
+    setAvailState(next);
+    if (curTeam && curRace) {
+      const keys = new Set([...Object.keys(prev), ...Object.keys(next || {})]);
+      keys.forEach((k) => {
+        const a = JSON.stringify(prev[k] ?? null);
+        const b = JSON.stringify((next || {})[k] ?? null);
+        if (a !== b) availSet(curTeam, curRace, k, (next || {})[k] || []).catch(() => {});
+      });
+    }
+    setSt((s0) => {
+      const pruned = pruneAssignments(next, s0.driverAssign);
+      return pruned === s0.driverAssign ? s0 : { ...s0, driverAssign: pruned };
+    });
+  };
+  const resetAvail = () => {
+    if (blocked()) { showDeny(); return; }
+    setAvailState(null);
+    if (curTeam && curRace) availClear(curTeam, curRace).catch(() => {});
+  };
+
   /* .duckdb telemetrisine gömülü setup'ı Setup Havuzuna kaydet (v1.5.2): VM_/WM_ JSON'u
      .svm metnine çevir → mevcut addSetup borusuna ver (havuz bu formatı okur). Pist/sınıf
      telemetri meta'sından en iyi çaba etiketlenir. */
