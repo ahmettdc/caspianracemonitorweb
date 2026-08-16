@@ -1936,39 +1936,104 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
                   </button>
                 </div>
 
-                {/* §1.2 — hızlı eylemler: 📊 Telemetri belirgin */}
-                {/* §1.2 — 2×2 hızlı eylem ızgarası; "Resmi Yarışlar" tasarımda
-                    ızgaranın altında TAM GENİŞLİK satır olarak duruyor. */}
-                <div className="mmquick q4">
-                  <button className="mmqa"
-                    onClick={() => go("tele")}>
-                    <span className="mmqi">📊</span>
-                    <span className="mmql">{t("Telemetri")}</span>
-                    <span className="mmqs">{t(".ld yükle · analiz")}</span>
+                {/* §1 — iki kolonlu üst blok: solda sıradaki yarış hero'su
+                    (flex 1 1 620px), sağda 2×2 hızlı eylem ızgarası
+                    (flex 1 1 280px) + tam genişlik "Resmi Yarışlar" satırı. */}
+                <div className="mmtop">
+                  <div className="mmherocol">
+                      {/* sıradaki yarış — vurgulu hero */}
+                      {nextEntry ? (() => {
+                        const [rid, r] = nextEntry;
+                        return (<>
+                          <div className="mmsec">🏁 {t("Sıradaki Yarış")}</div>
+                          <div className="mmnextwrap">
+                          <button className="mmnext" onClick={() => openRace(rid)}>
+                            {/* bayrak + pist görseli — mevcut asset sistemi (flags/ + tracks/,
+                                TRACK_ASSET ile). Emoji bayrak bazı OS'lerde "FR" harfine düşüyordu. */}
+                            <span className="mmntrk">
+                              {r.trackId ? (<>
+                                <img className="mmnflag"
+                                  src={`${ASSET}flags/${TRACK_ASSET(r.trackId)}.png${AV}`} alt=""
+                                  onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                                <img className="mmntrkimg"
+                                  src={`${ASSET}tracks/${TRACK_ASSET(r.trackId)}.png${AV}`} alt=""
+                                  onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                              </>) : "🏁"}
+                            </span>
+                            <span className="mmninfo">
+                              <span className="mmnrnd">
+                                {sName(sidOf(nextEntry))}{r.round ? ` · R${r.round}` : ""}</span>
+                              <span className="mmnttl">{r.name || trackName(r.trackId) || "—"}</span>
+                              <span className="mmnmt">
+                                {r.trackId ? trackName(r.trackId) : ""}
+                                {r.raceTime ? ` · ${r.raceTime}` : ""}
+                                {r.carId ? ` · ${carName(r.carClass, r.carId)}` : ""}</span>
+                            </span>
+                            <span className="mmncd">
+                              {r.startsAt ? (
+                                <span className="mmncdd">{new Date(r.startsAt)
+                                  .toLocaleString(lang === "en" ? "en-GB" : "tr-TR",
+                                    { day: "2-digit", month: "short",
+                                      hour: "2-digit", minute: "2-digit" })}</span>
+                              ) : null}
+                              <span className="mmngo">{t("Aç")} →</span>
+                            </span>
+                          </button>
+                          {canEditTeam && (
+                            <button className="mmdel" title={t("Yarışı sil")}
+                              onClick={() => askDeleteRace(rid, r)}>🗑</button>
+                          )}
+                          </div>
+                        </>);
+                      })() : (
+                        /* Takvim boş durumu (README §1 + i18n-EN.md §2): kesikli
+                           çerçeveli blok — takvim ikonu, başlık, açıklama ve iki
+                           eylem. Düz "hint" satırının yerini aldı. */
+                        <EmptyState icon="🗓" title={t("Bu sezonda yarış yok")}
+                          text={t("Takvime yarış ekle ya da resmi yarışlar listesinden planla — eklediğin yarışlar takımdaki herkeste görünür.")}>
+                          {canEditTeam && curTeam && (
+                            <button className="rbbtn" onClick={() => setRForm({})}>
+                              ＋ {t("Yarış ekle")}</button>
+                          )}
+                          <button className="rbbtn" onClick={() => go("official")}>
+                            {t("Resmi yarışlar")}</button>
+                        </EmptyState>
+                      )}
+                  </div>
+                  <div className="mmsidecol">
+                  <div className="mmquick q4">
+                    <button className="mmqa"
+                      onClick={() => go("tele")}>
+                      <span className="mmqi">📊</span>
+                      <span className="mmql">{t("Telemetri")}</span>
+                      <span className="mmqs">{t(".ld yükle · analiz")}</span>
+                    </button>
+                    <button className="mmqa" onClick={() => setSuOpen(true)}>
+                      <span className="mmqi">🔧</span>
+                      <span className="mmql">{t("Setup Havuzu")}
+                        {setups.length > 0 && <span className="mmbadge">{setups.length}</span>}</span>
+                      <span className="mmqs">{t("paylaşımlı setuplar")}</span>
+                    </button>
+                    <button className="mmqa" data-tour="chat" onClick={() => setChatOpen(true)}>
+                      <span className="mmqi">💬</span>
+                      <span className="mmql">{t("Sohbet")}
+                        {chatUnread > 0 && <span className="mmbadge">{chatUnread}</span>}</span>
+                      <span className="mmqs">{t("takım kanalları")}</span>
+                    </button>
+                    <button className="mmqa" data-tour="manage" onClick={() => setTeamOpen(true)}>
+                      <span className="mmqi">⚙</span>
+                      <span className="mmql">{canEditTeam ? t("Yönet") : t("Görüntüle")}</span>
+                      <span className="mmqs">{t("takvim & takım")}</span>
+                    </button>
+                  </div>
+                  <button className="mmqa mmofficial" onClick={() => go("official")}>
+                    <span className="mmqi">🏁</span>
+                    <span className="mmql">{t("Resmi Yarışlar")}</span>
+                    <span className="mmqs">{t("resmi yarış takvimi")}</span>
                   </button>
-                  <button className="mmqa" onClick={() => setSuOpen(true)}>
-                    <span className="mmqi">🔧</span>
-                    <span className="mmql">{t("Setup Havuzu")}
-                      {setups.length > 0 && <span className="mmbadge">{setups.length}</span>}</span>
-                    <span className="mmqs">{t("paylaşımlı setuplar")}</span>
-                  </button>
-                  <button className="mmqa" data-tour="chat" onClick={() => setChatOpen(true)}>
-                    <span className="mmqi">💬</span>
-                    <span className="mmql">{t("Sohbet")}
-                      {chatUnread > 0 && <span className="mmbadge">{chatUnread}</span>}</span>
-                    <span className="mmqs">{t("takım kanalları")}</span>
-                  </button>
-                  <button className="mmqa" data-tour="manage" onClick={() => setTeamOpen(true)}>
-                    <span className="mmqi">⚙</span>
-                    <span className="mmql">{canEditTeam ? t("Yönet") : t("Görüntüle")}</span>
-                    <span className="mmqs">{t("takvim & takım")}</span>
-                  </button>
+                  </div>
                 </div>
-                <button className="mmqa mmofficial" onClick={() => go("official")}>
-                  <span className="mmqi">🏁</span>
-                  <span className="mmql">{t("Resmi Yarışlar")}</span>
-                  <span className="mmqs">{t("resmi yarış takvimi")}</span>
-                </button>
+
 
                 {/* sezon süzgeci (çok sezon) — yaklaşanı ve geçmişi süzer */}
                 {seasonIds.length > 1 && (
@@ -1982,64 +2047,6 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
                 )}
 
                 <div className="mmraces" data-tour="races">
-                  {/* sıradaki yarış — vurgulu hero */}
-                  {nextEntry ? (() => {
-                    const [rid, r] = nextEntry;
-                    return (<>
-                      <div className="mmsec">🏁 {t("Sıradaki Yarış")}</div>
-                      <div className="mmnextwrap">
-                      <button className="mmnext" onClick={() => openRace(rid)}>
-                        {/* bayrak + pist görseli — mevcut asset sistemi (flags/ + tracks/,
-                            TRACK_ASSET ile). Emoji bayrak bazı OS'lerde "FR" harfine düşüyordu. */}
-                        <span className="mmntrk">
-                          {r.trackId ? (<>
-                            <img className="mmnflag"
-                              src={`${ASSET}flags/${TRACK_ASSET(r.trackId)}.png${AV}`} alt=""
-                              onError={(e) => { e.currentTarget.style.display = "none"; }} />
-                            <img className="mmntrkimg"
-                              src={`${ASSET}tracks/${TRACK_ASSET(r.trackId)}.png${AV}`} alt=""
-                              onError={(e) => { e.currentTarget.style.display = "none"; }} />
-                          </>) : "🏁"}
-                        </span>
-                        <span className="mmninfo">
-                          <span className="mmnrnd">
-                            {sName(sidOf(nextEntry))}{r.round ? ` · R${r.round}` : ""}</span>
-                          <span className="mmnttl">{r.name || trackName(r.trackId) || "—"}</span>
-                          <span className="mmnmt">
-                            {r.trackId ? trackName(r.trackId) : ""}
-                            {r.raceTime ? ` · ${r.raceTime}` : ""}
-                            {r.carId ? ` · ${carName(r.carClass, r.carId)}` : ""}</span>
-                        </span>
-                        <span className="mmncd">
-                          {r.startsAt ? (
-                            <span className="mmncdd">{new Date(r.startsAt)
-                              .toLocaleString(lang === "en" ? "en-GB" : "tr-TR",
-                                { day: "2-digit", month: "short",
-                                  hour: "2-digit", minute: "2-digit" })}</span>
-                          ) : null}
-                          <span className="mmngo">{t("Aç")} →</span>
-                        </span>
-                      </button>
-                      {canEditTeam && (
-                        <button className="mmdel" title={t("Yarışı sil")}
-                          onClick={() => askDeleteRace(rid, r)}>🗑</button>
-                      )}
-                      </div>
-                    </>);
-                  })() : (
-                    /* Takvim boş durumu (README §1 + i18n-EN.md §2): kesikli
-                       çerçeveli blok — takvim ikonu, başlık, açıklama ve iki
-                       eylem. Düz "hint" satırının yerini aldı. */
-                    <EmptyState icon="🗓" title={t("Bu sezonda yarış yok")}
-                      text={t("Takvime yarış ekle ya da resmi yarışlar listesinden planla — eklediğin yarışlar takımdaki herkeste görünür.")}>
-                      {canEditTeam && curTeam && (
-                        <button className="rbbtn" onClick={() => setRForm({})}>
-                          ＋ {t("Yarış ekle")}</button>
-                      )}
-                      <button className="rbbtn" onClick={() => go("official")}>
-                        {t("Resmi yarışlar")}</button>
-                    </EmptyState>
-                  )}
 
                   {/* kalan yaklaşanlar */}
                   {restUp.length > 0 && (<>

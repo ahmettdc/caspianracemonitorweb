@@ -1533,7 +1533,14 @@ export const css = `
 .rc .sch-daydate{font-family:var(--font-ui);font-size:11.5px;font-weight:400;
   color:var(--muted);text-transform:none;letter-spacing:0}
 
-/* ── v2.0 ANA MENÜ — 2x2 hızlı eylem + tam genişlik Resmi Yarışlar (README §1) */
+/* ── v2.0 ANA MENÜ (README §1) — iki kolonlu üst blok ────────────────────────
+   Solda sıradaki yarış hero'su, sağda 2x2 hızlı eylem ızgarası + tam genişlik
+   "Resmi Yarışlar" satırı. Dar ekranda alt alta iner. */
+.rc .mmtop{display:flex;gap:var(--sp-5);align-items:flex-start;flex-wrap:wrap;
+  margin:var(--sp-4) 0}
+.rc .mmherocol{flex:1 1 620px;min-width:0}
+.rc .mmsidecol{flex:1 1 280px;min-width:0;display:flex;flex-direction:column}
+
 .rc .mmquick.q4{grid-template-columns:repeat(2,minmax(0,1fr))}
 .rc .mmofficial{width:100%;margin-top:var(--sp-4);flex-direction:row;align-items:center;
   gap:var(--sp-4);text-align:left}
