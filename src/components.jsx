@@ -1141,9 +1141,7 @@ export function ChatModal({ open, onClose, page = false, t, chatSound, toggleCha
     : (memCount ? `${memCount} ${t("üye")}` : "");
   /* fiş renk→token: #1E1418→surface-3, #34232A→border, #A88C93→text-3,
      #C9B3B9→text-2, #960018→brand, #FFE9ED→on-brand, #D24357→brand-bright */
-  return (
-    <Sheet page={page} onClose={onClose} width="min(920px,96vw)"
-      title={<>💬 {t("Sohbet")}</>}>
+  const body = (
       <div style={{ padding: "18px 20px", display: "flex", flexWrap: "wrap", gap: 16,
         alignItems: "stretch", boxSizing: "border-box", animation: "rcin .26s ease-out",
         ...(page ? { minHeight: "calc(100vh - 120px)" } : { flex: 1, minHeight: 0 }) }}>
@@ -1224,6 +1222,15 @@ export function ChatModal({ open, onClose, page = false, t, chatSound, toggleCha
           {chatBody(curChan)}
         </div>
       </div>
+  );
+  /* v2.0: TAM SAYFA modda Sheet kabuğu YOK — fiş 11-sohbet.md kök div'i doğrudan
+     çizilir (gezinme 76px sol raydan; ✕/← yok). Modalda Sheet ile sarılır (üst
+     çubuktan açıldığında ✕ kapatma korunur). */
+  if (page) return body;
+  return (
+    <Sheet page={false} onClose={onClose} width="min(920px,96vw)"
+      title={<>💬 {t("Sohbet")}</>}>
+      {body}
     </Sheet>
   );
 }
@@ -1838,9 +1845,7 @@ export function TeamModal({ open, onClose, page = false, user, t, lang, myTeams,
   const thLeft = { ...th, textAlign: "left" };
   const bd = BADGES.driver, be = BADGES.engineer;
 
-  return (
-    <Sheet page={page} onClose={onClose} width="min(1000px,96vw)"
-      title={<>⚙ {t("Yönet")} · {t("Takımlar")}</>}>
+  const body = (
       <div style={{ overflowY: "auto", ...(page ? {} : { flex: 1, minHeight: 0 }) }}>
 
         {/* takım seçici (birden çok takım) */}
@@ -2293,6 +2298,14 @@ export function TeamModal({ open, onClose, page = false, user, t, lang, myTeams,
           </div>
         )}
       </div>
+  );
+  /* v2.0: TAM SAYFA modda Sheet kabuğu YOK — fiş 10-takim.md kök div'i doğrudan
+     çizilir (gezinme 76px sol raydan; ✕/← yok). Modalda Sheet ile sarılır. */
+  if (page) return body;
+  return (
+    <Sheet page={false} onClose={onClose} width="min(1000px,96vw)"
+      title={<>⚙ {t("Yönet")} · {t("Takımlar")}</>}>
+      {body}
     </Sheet>
   );
 }
