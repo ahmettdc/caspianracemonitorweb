@@ -43,6 +43,18 @@ export const EN = {
   "Kullanılan": "Used",
   "Sıradaki stint lastikleri": "Next stint tyres",
   "Son stint VE": "Last stint FE",
+  /* Setup havuzu (09-setup-havuzu.md) etiketleri. */
+  "Dosya, araç, not ara…": "Search file, car, note…",
+  "Setup yükle": "Upload setup",
+  "Islak": "Wet",
+  "Sırala": "Sort",
+  "İşlem": "Action",
+  "şu anki pist": "current track",
+  "Favori": "Favorite",
+  "İlk setupu yükle": "Upload first setup",
+  "Filtreleri temizle": "Clear filters",
+  "setup seçili": "setups selected",
+  "bir tane daha seç": "select one more",
   /* v2 birebir ekran yenilemesi — yeni TR metinlerin EN karşılıkları (mikro etiketler). */
   "Canlı köprü": "Live bridge",
   "çalışıyor": "running",

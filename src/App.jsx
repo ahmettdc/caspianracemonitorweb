@@ -42,8 +42,8 @@ import { guideFor } from "./guides";
 import { pruneAssignments } from "./avail";
 import {
   SLOT_COLORS, APP_VERSION, APP_VERSION_SUMMARY, SEEN_VER_KEY, ASSET, AV,
-  TRACKS, PIT_LANE_TIMES, TRACK_ASSET, trackFlag,
-  CARS, CAR_CLASSES, trackName, carName, classId, venueToTrackId,
+  TRACKS, PIT_LANE_TIMES, TRACK_ASSET,
+  CARS, CAR_CLASSES, trackName, carName, carImg, brandLogo, classId, venueToTrackId,
   PIE_COLORS, DESKTOP_RELEASE_URL, BRIDGE_EXE_URL,
 } from "./constants";
 import {
@@ -55,7 +55,7 @@ import {
   applyMarkPit, applyUnmarkPit, applyResetPits,
 } from "./state";
 import { buildTourSteps } from "./tourSteps";
-import { poolEmptyReason } from "./setupPool";
+import { lapDeltas } from "./setupPool";
 import {
   TourOverlay, Wheel, Num, Bolt, Tyre, Ring, Icon, Btn, Avatar,
   BADGES, teamBadgesOf, hasBadge, ChatPanel, SetupForm, SetupTable, SetupCards,
@@ -970,6 +970,8 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
     try { localStorage.setItem("rm_setup_view", next); } catch { /* özel mod */ }
     return next;
   });
+  /* ⬆ Setup yükle → satır-içi yükleme paneli aç/kapa (fiş: openSu). */
+  const [poolUp, setPoolUp] = useState(false);
   const { setups, suFile, suMeta, setSuMeta, suErr, suMsg, suBusy,
     suUpOpen, setSuUpOpen, suFTrack, setSuFTrack,
     suFCond, setSuFCond, suFSess, setSuFSess,
@@ -1109,20 +1111,368 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
         sort={suSort} onSort={toggleSort} cmpSel={cmpSel} onCmpToggle={cmpToggle}
         onDownload={downloadSetup} onView={setViewSu} onDelete={onDeleteSetup} />;
 
-  /* ⚖ alt-sabit karşılaştırma çubuğu — seçim varken görünür; 2 seçilince aç. */
+  /* ⚖ alt-sabit karşılaştırma tepsisi (fiş 09: trayStyle/trayText) — seçim varken
+     görünür; 2 seçilince ⚖ Karşılaştır aktif. Konum sabit olduğundan kabuk
+     seviyesinde durması davranışı korur (tüm ekranlarda çalışır). */
   const cmpA = setups.find((x) => x.id === cmpSel[0]) || null;
   const cmpB = setups.find((x) => x.id === cmpSel[1]) || null;
+  const cmpReady = !!(cmpA && cmpB);
   const cmpBar = cmpSel.length > 0 && !cmpOpen && (
-    <div className="cmpbar">
-      <span>⚖ {cmpSel.length}/2</span>
-      {[cmpA, cmpB].filter(Boolean).map((s) => (
-        <span key={s.id} className="chip mono" style={{ fontSize: 11 }}>{s.name}</span>
-      ))}
-      <button className="act" disabled={!(cmpA && cmpB)}
-        onClick={() => setCmpOpen(true)}>{t("Karşılaştır")}</button>
-      <button className="act" onClick={() => setCmpSel([])}>✕ {t("Temizle")}</button>
+    <div style={{ position: "fixed", left: "50%", bottom: 20, transform: "translateX(-50%)",
+      zIndex: 40, display: "flex", alignItems: "center", gap: 12, padding: "10px 16px",
+      borderRadius: 12, background: "var(--rc-surface-2)", border: "1px solid var(--rc-brand-bright)",
+      boxShadow: "0 8px 30px rgba(0,0,0,.45)" }}>
+      <span style={{ fontSize: 12, color: "var(--rc-text-2)" }}>
+        {cmpSel.length} {t("setup seçili")}
+        {cmpSel.length === 1 ? " · " + t("bir tane daha seç") : ""}</span>
+      <button disabled={!cmpReady} onClick={() => setCmpOpen(true)}
+        style={{ padding: "7px 16px", borderRadius: 9, border: "1px solid var(--rc-brand-bright)",
+          background: "var(--rc-brand)", color: "var(--rc-on-brand)",
+          cursor: cmpReady ? "pointer" : "default", fontSize: 13, fontWeight: 600,
+          opacity: cmpReady ? 1 : 0.5 }}>⚖ {t("Karşılaştır")}</button>
+      <button onClick={() => setCmpSel([])}
+        style={{ padding: "7px 12px", borderRadius: 9, border: "1px solid var(--rc-border)",
+          background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer",
+          fontSize: 13 }}>{t("Temizle")}</button>
     </div>
   );
+
+  /* ── Setup havuzu ekranı (fiş 09-setup-havuzu.md) — birebir markup. Kabuk +
+     süzgeç çipleri + görünüm/sıralama + pist bazlı gruplar (liste & kart) + boş
+     durum. Satır/kart sunumu burada satır-içi; SetupTable/SetupCards (lobi
+     penceresi + render testleri) el değmeden korunur. Veri/handler'lar aynı
+     (useSetups + cmp seçimi). */
+  const setupScreen = () => {
+    const disp = "var(--rc-font-display)";
+    const hideImg = (e) => { e.currentTarget.style.display = "none"; };
+    const hasFile = (su) => !!(su?.data || su?.hasBlob);
+    const stop = (e) => e.stopPropagation();
+    const poolCards = suView === "cards";
+    const gridCols = "26px minmax(120px,1.2fr) 96px 1fr 92px 88px 168px";
+    const colLbl = { color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase",
+      letterSpacing: ".09em" };
+    const actBtn = { padding: "4px 10px", borderRadius: 7, border: "1px solid var(--rc-border)",
+      background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer", fontSize: 11 };
+    const upBtn = { border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)",
+      color: "var(--rc-on-brand)", cursor: "pointer", fontWeight: 600 };
+    const chipStyle = (active) => ({ padding: "6px 12px", borderRadius: 99, cursor: "pointer",
+      fontSize: 11.5, border: `1px solid ${active ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
+      background: active ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)",
+      color: active ? "var(--rc-text)" : "var(--rc-text-3)" });
+    const starBtn = { border: "none", background: "transparent", cursor: "pointer",
+      color: "var(--rc-text-3)", fontSize: 13, padding: 0, lineHeight: 1 };
+    const verChip = { fontSize: 10, padding: "1px 6px", borderRadius: 6, flex: "0 0 auto",
+      border: "1px solid var(--rc-border)", color: "var(--rc-text-3)",
+      fontFamily: "var(--rc-font-mono)", whiteSpace: "nowrap" };
+    const cmpChip = { display: "inline-flex", alignItems: "center", fontSize: 11, padding: "3px 8px",
+      borderRadius: 99, border: "1px solid var(--rc-brand-bright)", color: "var(--rc-brand-bright)",
+      whiteSpace: "nowrap" };
+    const condChip = { display: "inline-flex", alignItems: "center", fontSize: 11, padding: "3px 9px",
+      borderRadius: 99, border: "1px solid var(--rc-border)", color: "var(--rc-text-2)",
+      whiteSpace: "nowrap" };
+    /* Görünüm segmenti (fiş: viewCardsBtn/viewListBtn). */
+    const viewCardsBtn = { width: 34, height: 30, border: "none", cursor: "pointer", fontSize: 13,
+      background: poolCards ? "rgba(150,0,24,.28)" : "var(--rc-surface-3)",
+      color: poolCards ? "var(--rc-text)" : "var(--rc-text-3)" };
+    const viewListBtn = { width: 34, height: 30, border: "none", cursor: "pointer", fontSize: 13,
+      borderLeft: "1px solid var(--rc-border)",
+      background: poolCards ? "var(--rc-surface-3)" : "rgba(150,0,24,.28)",
+      color: poolCards ? "var(--rc-text-3)" : "var(--rc-text)" };
+    const setPoolView = (mode) => setSuView((v) => {
+      if (v === mode) return v;
+      try { localStorage.setItem("rm_setup_view", mode); } catch { /* özel mod */ }
+      return mode;
+    });
+
+    /* Süzgeç çipleri — mevcut süzgeç state'ine (cond/sess/mine) bağlı; fişteki
+       tekil poolFilter yerine çok boyutlu süzgeç korunur. */
+    const filterChips = [
+      { label: t("Tümü"), active: !suFCond && !suFSess && !suMine,
+        pick: () => { setSuFCond(""); setSuFSess(""); setSuMine(false); } },
+      { label: `☀️ ${t("Kuru")}`, active: suFCond === "dry",
+        pick: () => setSuFCond((v) => (v === "dry" ? "" : "dry")) },
+      { label: `🌧 ${t("Islak")}`, active: suFCond === "wet",
+        pick: () => setSuFCond((v) => (v === "wet" ? "" : "wet")) },
+      { label: t("Yarış"), active: suFSess === "R",
+        pick: () => setSuFSess((v) => (v === "R" ? "" : "R")) },
+      { label: t("Sıralama"), active: suFSess === "Q",
+        pick: () => setSuFSess((v) => (v === "Q" ? "" : "Q")) },
+      { label: `👤 ${t("Benim setuplarım")}`, active: suMine,
+        pick: () => setSuMine((v) => !v) },
+    ];
+    /* Sıralama çipleri (fiş: sortChips) — mevcut toggleSort'a bağlı. "by"
+       (Yükleyen) veri katmanında yok → tarih sırasına düşer (bkz. rapor). */
+    const sortDefs = [
+      { id: "lap", label: t("Tur") },
+      { id: "date", label: t("Tarih") },
+      { id: "by", label: t("Yükleyen") },
+    ];
+
+    const deltas = lapDeltas(suList);
+    const groupMap = new Map();
+    for (const s of suList) {
+      const k = s.track || "";
+      if (!groupMap.has(k)) groupMap.set(k, []);
+      groupMap.get(k).push(s);
+    }
+    const groups = [...groupMap.entries()];
+    const poolEmpty = suList.length === 0;
+    const trackCount = new Set(suList.map((s) => s.track).filter(Boolean)).size;
+
+    const fmtDate = (at) => new Date(at || 0).toLocaleDateString(
+      lang === "en" ? "en-GB" : "tr-TR", { day: "2-digit", month: "2-digit", year: "2-digit" });
+    const lapText = (su) => {
+      if (!su.lap) return "—";
+      const sec = parseLap(su.lap);
+      return sec > 0 ? fmtLap(sec) : su.lap;
+    };
+    const lapColor = (su) => (!su.lap ? "var(--rc-text-3)"
+      : deltas.get(su.id)?.fastest ? "var(--rc-ok)" : "var(--rc-text)");
+    const condLabel = (su) => `${su.cond === "wet" ? "🌧" : "☀️"} ${su.sess === "Q" ? "Q" : "R"}`;
+    const metaLine = (su) => [su.champ, su.note].filter(Boolean).join(" · ");
+
+    const listRow = (su) => {
+      const file = hasFile(su);
+      const selected = cmpSel.includes(su.id);
+      const here = su.track === st.track;
+      return (
+        <div key={su.id} onClick={file ? () => cmpToggle(su) : undefined}
+          style={{ display: "grid", gridTemplateColumns: gridCols, gap: 10, alignItems: "center",
+            padding: "8px 12px", borderBottom: "1px solid var(--rc-border)",
+            cursor: file ? "pointer" : "default",
+            background: selected ? "rgba(150,0,24,.22)" : here ? "rgba(150,0,24,.08)" : "transparent" }}>
+          <button onClick={stop} style={starBtn} title={t("Favori")}>★</button>
+          <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+              <b style={{ fontFamily: disp, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden",
+                textOverflow: "ellipsis" }}>{su.name}</b>
+              {su.ver && <span style={verChip}>{su.ver}</span>}
+            </span>
+            {metaLine(su) && <span style={{ fontSize: 10.5, color: "var(--rc-text-3)",
+              whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{metaLine(su)}</span>}
+          </span>
+          <span style={{ display: "flex", justifyContent: "flex-start" }}>
+            <span style={condChip}>{condLabel(su)}</span></span>
+          <span style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+            {su.car && brandLogo(carName(su.cls, su.car)) && (
+              <img src={brandLogo(carName(su.cls, su.car))} alt="" onError={hideImg}
+                style={{ height: 17, width: 17, objectFit: "contain", flex: "0 0 auto" }} />)}
+            {su.cls && <img src={`${ASSET}class/${su.cls}.png`} alt="" onError={hideImg}
+              style={{ height: 14, flex: "0 0 auto" }} />}
+            <span style={{ fontSize: 12, whiteSpace: "nowrap", overflow: "hidden",
+              textOverflow: "ellipsis" }}>{carName(su.cls, su.car) || "—"}</span>
+          </span>
+          <b style={{ fontFamily: disp, fontSize: 17, fontWeight: 700, textAlign: "right",
+            color: lapColor(su) }}>{lapText(su)}</b>
+          <span style={{ fontSize: 11, color: "var(--rc-text-3)", whiteSpace: "nowrap",
+            overflow: "hidden", textOverflow: "ellipsis" }}>{su.uname || "—"} · {fmtDate(su.at)}</span>
+          <span style={{ display: "flex", gap: 6, justifyContent: "flex-end", width: 168 }}>
+            {selected && <span style={cmpChip}>⚖</span>}
+            {file && <button onClick={(e) => { stop(e); setViewSu(su); }} style={actBtn}>
+              {t("İçerik")}</button>}
+            <button onClick={(e) => { stop(e); downloadSetup(su); }} style={actBtn}>{t("İndir")}</button>
+            {isAdmin && <button onClick={(e) => { stop(e); onDeleteSetup(su); }}
+              style={{ ...actBtn, color: "var(--rc-danger)" }} title={t("Sil")}>✕</button>}
+          </span>
+        </div>
+      );
+    };
+
+    const card = (su) => {
+      const file = hasFile(su);
+      const selected = cmpSel.includes(su.id);
+      const carPng = carImg(su.cls, su.car);
+      return (
+        <div key={su.id} onClick={file ? () => cmpToggle(su) : undefined}
+          style={{ position: "relative", overflow: "hidden", borderRadius: 14,
+            border: `1px solid ${selected ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
+            background: "var(--rc-surface-2)", padding: "16px 18px",
+            cursor: file ? "pointer" : "default" }}>
+          {su.track && <img src={`${ASSET}tracks/${TRACK_ASSET(su.track)}.png`} alt="" onError={hideImg}
+            style={{ position: "absolute", right: -10, top: -10, width: 150, opacity: 0.06,
+              pointerEvents: "none", filter: "grayscale(1)" }} />}
+          {carPng && <img src={carPng} alt="" onError={hideImg}
+            style={{ position: "absolute", right: 8, bottom: 8, height: 44, opacity: 0.16,
+              pointerEvents: "none" }} />}
+          <div style={{ position: "relative", display: "flex", alignItems: "flex-start", gap: 12 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, flex: 1 }}>
+              <span style={{ fontFamily: disp, fontWeight: 700, fontSize: 36, lineHeight: 0.95,
+                color: lapColor(su), fontVariantNumeric: "tabular-nums" }}>{lapText(su)}</span>
+              {metaLine(su) && <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>
+                {metaLine(su)}</span>}
+            </div>
+            <span style={condChip}>{condLabel(su)}</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, minWidth: 0 }}>
+            {su.car && brandLogo(carName(su.cls, su.car)) && (
+              <img src={brandLogo(carName(su.cls, su.car))} alt="" onError={hideImg}
+                style={{ height: 20, width: 20, objectFit: "contain" }} />)}
+            {su.cls && <img src={`${ASSET}class/${su.cls}.png`} alt="" onError={hideImg}
+              style={{ height: 16 }} />}
+            <span style={{ fontSize: 13, overflow: "hidden", textOverflow: "ellipsis",
+              whiteSpace: "nowrap" }}>{carName(su.cls, su.car) || "—"}</span>
+          </div>
+          <div style={{ fontFamily: disp, fontSize: 11, color: "var(--rc-text-2)", marginTop: 8,
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{su.name}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, paddingTop: 10,
+            borderTop: "1px solid var(--rc-border)" }}>
+            <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>
+              {su.uname || "—"} · {fmtDate(su.at)}</span>
+            <span style={{ marginLeft: "auto", display: "flex", gap: 6, alignItems: "center" }}>
+              <button onClick={stop} style={starBtn} title={t("Favori")}>★</button>
+              {su.ver && <span style={verChip}>{su.ver}</span>}
+              {selected && <span style={cmpChip}>⚖ {t("seçili")}</span>}
+              {file && <button onClick={(e) => { stop(e); setViewSu(su); }} style={actBtn}>
+                {t("İçerik")}</button>}
+              <button onClick={(e) => { stop(e); downloadSetup(su); }} style={actBtn}>{t("İndir")}</button>
+              {isAdmin && <button onClick={(e) => { stop(e); onDeleteSetup(su); }}
+                style={{ ...actBtn, color: "var(--rc-danger)" }} title={t("Sil")}>✕</button>}
+            </span>
+          </div>
+        </div>
+      );
+    };
+
+    return (
+      <div data-tour="setuptab" style={{ padding: "16px 20px 90px", animation: "rcin .26s ease-out" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
+          marginBottom: 16 }}>
+          <h2 style={{ margin: 0, fontFamily: disp, textTransform: "uppercase", letterSpacing: ".06em",
+            fontSize: 22, fontWeight: 700 }}>{t("Setup havuzu")}</h2>
+          <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>
+            {suList.length} {t("dosya")} · {trackCount} {t("pist")}</span>
+          <span style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <input type="text" value={suQuery} placeholder={t("Dosya, araç, not ara…")}
+              onChange={(e) => setSuQuery(e.target.value)}
+              style={{ background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)",
+                borderRadius: 9, color: "var(--rc-text)", fontSize: 13, padding: "8px 12px",
+                width: 220 }} />
+            <button onClick={() => setPoolUp((v) => !v)}
+              style={{ ...upBtn, padding: "8px 14px", borderRadius: 9, fontSize: 13 }}>
+              ⬆ {t("Setup yükle")}</button>
+          </span>
+        </div>
+
+        {poolUp && (
+          <div style={{ border: "1px solid var(--rc-border)", borderRadius: 12,
+            background: "var(--rc-surface)", padding: "14px 16px", marginBottom: 18 }}>
+            {setupForm()}
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center",
+          marginBottom: 18 }}>
+          {filterChips.map((c) => (
+            <button key={c.label} onClick={c.pick} style={chipStyle(c.active)}>{c.label}</button>
+          ))}
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 7, marginLeft: "auto" }}>
+            <span style={{ display: "inline-flex", border: "1px solid var(--rc-border)",
+              borderRadius: 9, overflow: "hidden", marginRight: 5 }}>
+              <button onClick={() => setPoolView("cards")} style={viewCardsBtn}
+                title={t("Kart görünümü")}>⊞</button>
+              <button onClick={() => setPoolView("table")} style={viewListBtn}
+                title={t("Liste görünümü")}>☰</button>
+            </span>
+            <span style={{ fontSize: 10.5, color: "var(--rc-text-3)", textTransform: "uppercase",
+              letterSpacing: ".09em" }}>{t("Sırala")}</span>
+            {sortDefs.map((s) => {
+              const active = suSort.key === s.id;
+              const arrow = active ? (suSort.dir === "asc" ? " ▲" : " ▼") : "";
+              return (
+                <button key={s.id} onClick={() => toggleSort(s.id)} style={chipStyle(active)}>
+                  {s.label}{arrow}</button>
+              );
+            })}
+          </span>
+        </div>
+
+        {suDelErr && (
+          <div style={{ marginBottom: 14, fontSize: 12, color: "var(--rc-danger)" }}>⚠ {suDelErr}</div>
+        )}
+
+        {poolEmpty && (
+          <div style={{ border: "1.5px dashed var(--rc-border-strong)", borderRadius: 14,
+            background: "var(--rc-surface-2)", padding: "46px 24px", textAlign: "center",
+            display: "flex", flexDirection: "column", alignItems: "center", gap: 11 }}>
+            <svg width="44" height="44" viewBox="0 0 24 24" fill="none"
+              stroke="var(--rc-border-strong)" strokeWidth="1.6" strokeLinecap="round"
+              strokeLinejoin="round">
+              <path d="M15.5 4a4.5 4.5 0 0 0-4 6.6L4 18.1 5.9 20l7.5-7.5A4.5 4.5 0 1 0 15.5 4Z" />
+            </svg>
+            <div style={{ fontFamily: disp, fontWeight: 700, fontSize: 20 }}>
+              {suFCond === "wet" ? t("Yağmur setupu yok") : t("Senin yüklediğin setup yok")}</div>
+            <div style={{ fontSize: 12.5, color: "var(--rc-text-3)", lineHeight: 1.7, maxWidth: 420 }}>
+              {suFCond === "wet"
+                ? t("Bu filtreyle eşleşen setup bulunamadı. Islak zemin için bir setup yükle — takımdaki herkes görebilir.")
+                : t("Havuza henüz setup eklemedin. Yüklediğin dosyalar takımdaki herkese açık olur.")}</div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center",
+              marginTop: 4 }}>
+              <button onClick={() => setPoolUp(true)}
+                style={{ ...upBtn, padding: "9px 18px", borderRadius: 10, fontSize: 13 }}>
+                ⬆ {t("İlk setupu yükle")}</button>
+              <button onClick={() => { setSuFTrack(""); setSuFCond(""); setSuFSess("");
+                setSuQuery(""); setSuMine(false); }}
+                style={{ padding: "9px 16px", borderRadius: 10, cursor: "pointer", fontSize: 13,
+                  border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)",
+                  color: "var(--rc-text-2)" }}>{t("Filtreleri temizle")}</button>
+            </div>
+          </div>
+        )}
+
+        {groups.map(([track, items]) => (
+          <div key={track || "—"} style={{ marginBottom: 24 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10,
+              paddingBottom: 8, borderBottom: "1px solid var(--rc-border)" }}>
+              {track && <img src={`${ASSET}flags/${TRACK_ASSET(track)}.png`} alt="" onError={hideImg}
+                style={{ width: 24, borderRadius: 3, border: "1px solid var(--rc-border)" }} />}
+              <span style={{ fontFamily: disp, textTransform: "uppercase", letterSpacing: ".06em",
+                fontSize: 16, fontWeight: 700 }}>{trackName(track) || track || "—"}</span>
+              <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>
+                {items.length} {t("setup")}</span>
+              {track && track === st.track && (
+                <span style={{ padding: "2px 9px", borderRadius: 99, fontSize: 10,
+                  textTransform: "uppercase", letterSpacing: ".08em",
+                  border: "1px solid var(--rc-brand-bright)", color: "var(--rc-brand-bright)" }}>
+                  {t("şu anki pist")}</span>
+              )}
+            </div>
+
+            <div style={poolCards ? { display: "none" }
+              : { border: "1px solid var(--rc-border)", borderRadius: 12,
+                background: "var(--rc-surface)", overflow: "hidden" }}>
+              <div style={{ display: "grid", gridTemplateColumns: gridCols, gap: 10,
+                alignItems: "center", padding: "8px 12px", borderBottom: "1px solid var(--rc-border)",
+                background: "var(--rc-surface-2)" }}>
+                <span />
+                <span style={colLbl}>{t("Dosya")}</span>
+                <span style={{ ...colLbl, textAlign: "left" }}>{t("Koşul")}</span>
+                <span style={colLbl}>{t("Araç")}</span>
+                <span style={{ ...colLbl, textAlign: "right" }}>{t("Tur")}</span>
+                <span style={colLbl}>{t("Yükleyen")}</span>
+                <span style={{ ...colLbl, textAlign: "right" }}>{t("İşlem")}</span>
+              </div>
+              {items.map(listRow)}
+            </div>
+
+            <div style={poolCards
+              ? { display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 12 }
+              : { display: "none" }}>
+              {items.map(card)}
+            </div>
+          </div>
+        ))}
+
+        {suHasMore && (
+          <div style={{ textAlign: "center", marginTop: 10 }}>
+            <button onClick={loadMoreSetups}
+              style={{ padding: "8px 16px", borderRadius: 9, border: "1px solid var(--rc-border)",
+                background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer",
+                fontSize: 13 }}>⬇ {t("Daha fazla yükle")}</button>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const setupCompareModal = (
     <SetupCompareModal open={cmpOpen && !!cmpA && !!cmpB} a={cmpA} b={cmpB}
@@ -3588,78 +3938,7 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
               assets={teamData?.assets} />
           )}
 
-          {tab === "setup" && (<>
-            <div className="card" data-tour="setuptab">
-              <h2>🔧 {t("Setup Yükle")}</h2>
-              {setupForm()}
-            </div>
-
-            <div className="card" style={{ marginTop: 12 }}>
-              <h2>📚 {t("Setup Havuzu")} ({suList.length}/{setups.length})</h2>
-              {/* araç çubuğu: solda filtreler, sağda aksiyonlar — eşit yükseklik, sarınca da düzenli */}
-              <div className="toolbar">
-                <div className="tb-group">
-                  <select value={suFTrack} onChange={(e) => setSuFTrack(e.target.value)}>
-                    <option value="">{t("Tüm pistler")}</option>
-                    {TRACKS.filter((tr) => setups.some((x) => x.track === tr.id))
-                      .map((tr) =>
-                        <option key={tr.id} value={tr.id}>{trackFlag(tr.id)} {tr.name}</option>)}
-                  </select>
-                  <select value={suFCond} onChange={(e) => setSuFCond(e.target.value)}>
-                    <option value="">{t("Kuru + Wet")}</option>
-                    <option value="dry">☀️ {t("Kuru")}</option>
-                    <option value="wet">🌧 Wet</option>
-                  </select>
-                  <select value={suFSess} onChange={(e) => setSuFSess(e.target.value)}>
-                    <option value="">{t("Yarış + Sıralama")}</option>
-                    <option value="R">{t("Yarış")}</option>
-                    <option value="Q">{t("Sıralama")}</option>
-                  </select>
-                  <input type="text" value={suQuery} placeholder={`🔎 ${t("ara")}…`}
-                    style={{ textTransform: "none", minWidth: 150 }}
-                    onChange={(e) => setSuQuery(e.target.value)} />
-                </div>
-                <div className="tb-group">
-                  {st.track && setups.some((x) => x.track === st.track) && (
-                    <button className="act" style={{ fontSize: 11 }}
-                      onClick={() => setSuFTrack(st.track)}>
-                      📍 {trackName(st.track)}</button>
-                  )}
-                  <button className="act" style={{ fontSize: 11,
-                      ...(suMine ? { borderColor: "var(--green)", color: "var(--green)" } : {}) }}
-                    title={t("Yalnız senin yüklediklerin")}
-                    onClick={() => setSuMine((v) => !v)}>
-                    👤 {t("Benim setuplarım")}</button>
-                  <span className="tb-sep" />
-                  <button className="act" style={{ fontSize: 11 }}
-                    title={suView === "cards" ? t("Tablo") : t("Kartlar")}
-                    onClick={toggleSuView}>
-                    {suView === "cards" ? <>☰ {t("Tablo")}</> : <>⊞ {t("Kartlar")}</>}</button>
-                </div>
-              </div>
-              {suDelErr && <div className="hint warn">⚠ {suDelErr}</div>}
-              {/* Havuz doluyken süzgeç hiçbir şeyi tutmuyorsa "Henüz setup yok" demek
-                  yanıltıcıydı (başlıktaki 0/N ile çelişiyordu) → sebebe göre mesaj. */}
-              {!suList.length && (
-                <div className="hint">
-                  {poolEmptyReason(setups.length, suList.length) === "filtered"
-                    ? <>{t("Bu süzgeçle setup yok.")}{" "}
-                      <button className="act" style={{ fontSize: 11 }}
-                        onClick={() => { setSuFTrack(""); setSuFCond(""); setSuFSess("");
-                          setSuQuery(""); setSuMine(false); }}>
-                        ✕ {t("Süzgeçleri temizle")}</button></>
-                    : t("Henüz setup yok — ilk dosyayı yukarıdan yükle.")}
-                </div>
-              )}
-              {suList.length > 0 && setupTable(suList)}
-              {suHasMore && (
-                <div style={{ textAlign: "center", marginTop: 10 }}>
-                  <button className="act" onClick={loadMoreSetups}>
-                    ⬇ {t("Daha fazla yükle")}</button>
-                </div>
-              )}
-            </div>
-          </>)}
+          {tab === "setup" && setupScreen()}
 
           {tab === "live" && <LiveTab t={t} live={live} liveFuelObs={liveFuelObs}
             lapCapture={lapCapture}
