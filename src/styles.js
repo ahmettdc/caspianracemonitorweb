@@ -1432,6 +1432,38 @@ export const css = `
    Yoğunluk YALNIZ bu ekranda: .wall = Pit duvarı (seyrek satır, büyük sayı),
    .eng = Mühendis (sık satır, 12.5px). Sütunlar İKİ MODDA DA görünür — yalnız
    ölçek değişir. Global yoğunluk anahtarı v2.0'da kaldırıldı. */
+/* ── v2.0 DASHBOARD (README §3) — iki kolon ──────────────────────────────────
+   Sol: araç + pist görsel kartı (tıkla → büyütme penceresi), altında stint
+   programı. Sağ: 4 KPI, canlı durum satırı, lastik, son stint VE, pilot dağılımı. */
+.rc .dashgrid{display:flex;gap:var(--sp-5);align-items:flex-start;flex-wrap:wrap}
+.rc .dashcol{display:flex;flex-direction:column;gap:var(--sp-5);min-width:0}
+.rc .dashcol.left{flex:1 1 520px}
+.rc .dashcol.right{flex:1 1 380px}
+.rc .dashvis{display:flex;gap:var(--sp-5);flex-wrap:wrap}
+.rc .dashvis>*{flex:1 1 240px;min-width:0}
+.rc .dashhead{display:flex;align-items:center;gap:var(--sp-4);margin-bottom:var(--sp-4)}
+.rc .dashhead .spacer{margin-left:auto}
+.rc .pdfbtn{padding:5px var(--sp-7);border-radius:var(--r-xs);cursor:pointer;font-size:12px;
+  background:var(--panel2);color:var(--txt);border:1px solid var(--line)}
+.rc .pdfbtn:hover{border-color:var(--accent);color:var(--accent)}
+/* son stint VE — 36px yeşil yüzde */
+.rc .vebig{font-family:var(--font-disp);font-weight:700;font-size:var(--fs-kpi-lg);
+  color:var(--green);line-height:1.05;font-variant-numeric:tabular-nums}
+.rc .vebig .sub{font-size:18px;color:var(--dim);margin-left:8px;font-weight:600}
+/* pilot dağılımı — pilot renkli çubuklar (renk veriye bağlı → inline) */
+.rc .drvsplit{display:flex;flex-direction:column;gap:6px;margin-top:var(--sp-3)}
+.rc .drvsplit .row{display:flex;flex-direction:column;gap:3px}
+.rc .drvsplit .top{display:flex;justify-content:space-between;font-size:12px;gap:var(--sp-3)}
+.rc .drvsplit .top .nm{display:flex;align-items:center;gap:6px;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rc .drvsplit .dot{width:9px;height:9px;border-radius:3px;flex:0 0 auto}
+.rc .drvsplit .bar{height:5px;border-radius:3px;background:var(--panel2);overflow:hidden}
+.rc .drvsplit .bar i{display:block;height:100%;border-radius:3px}
+/* araç / pist görselleri */
+.rc .infoimg{display:block;width:100%;max-height:140px;object-fit:contain;
+  margin:var(--sp-3) 0 var(--sp-4);filter:drop-shadow(0 4px 12px rgba(0,0,0,.5))}
+.rc .infoimg.track{max-height:160px}
+
 /* Canlı Timing iki kolon: saha tablosu + 320px sağ panel (kayarak kapanır) */
 .rc .livegrid{display:flex;gap:var(--sp-5);align-items:flex-start}
 .rc .livemain{flex:1 1 auto;min-width:0}
