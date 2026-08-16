@@ -4,7 +4,7 @@ import { Donut, Avatar } from "../components";
 import { useState } from "react";
 import { isAvailable, toggleAvail, availableDrivers, stintsWithoutDriver,
   buildAvailGrid } from "../avail";
-import { Sheet } from "../shell";
+import { Sheet, EmptyState } from "../shell";
 
 /* Ad → baş harf(ler) rozeti (en çok 2). "A. Demircan" → "AD", "Savaş" → "SA". */
 function initials(name) {
@@ -79,8 +79,10 @@ export default function DriversTab({
             {driverPlan && driverPlan.totals[n] && av(n, 20)}{n}
             <b onClick={() => removeDriver(n)} title={t("Kadrodan çıkar")}>×</b></span>
         ))}
-        {st.roster.length === 0 &&
-          <span className="hint">{t("Henüz pilot yok — aşağıdan ekle.")}</span>}
+        {st.roster.length === 0 && (
+          <EmptyState icon="🧑‍✈️" title={t("Kadroda pilot yok")}
+            text={t("Takım üyelerini kadroya ekle ya da yeni üye davet et; stint ataması için en az bir pilot gerekir.")} />
+        )}
       </div>
       <div style={{ display: "flex", gap: 8, maxWidth: 340, marginBottom: 8 }}>
         <input type="text" placeholder={t("Pilot adı")} value={newDriver}

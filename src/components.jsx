@@ -1,7 +1,7 @@
 /* Sunum komponentleri — durum tutmayan görsel parçalar.
    App.jsx içe aktarır. */
 import { useState, useEffect, useRef, Fragment } from "react";
-import { Sheet } from "./shell";
+import { Sheet, EmptyState } from "./shell";
 import {
   ASSET, quantile, TRACKS, TRACK_ASSET,
   CAR_CLASSES, CARS, trackName, carImg, carName, brandLogo,
@@ -78,8 +78,11 @@ export function ChatPanel({
     <div className="chatwrap" style={h ? { height: h } : undefined}>
       <div className="chatlist">
         {!msgs.length && (
-          <div className="hint" style={{ margin: "auto", textAlign: "center" }}>
-            {t("Henüz mesaj yok — ilk yazan sen ol.")}</div>
+          /* v2.0 sistematik boş durum (README + i18n-EN.md §2) */
+          <div style={{ margin: "auto" }}>
+            <EmptyState icon="💬" title={t("Henüz mesaj yok")}
+              text={t("İlk yazan sen ol — bu kanaldaki mesajlar yarış boyunca takımda kalır.")} />
+          </div>
         )}
         {msgs.map((m, i) => {
           const me = m.uid === user?.uid;

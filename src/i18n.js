@@ -44,6 +44,27 @@ export const EN = {
     "The bridge isn't running, or the game isn't in a session. Start the bridge on the driving PC; the field table fills by itself once it connects.",
   "Yeniden bağlan": "Reconnect",
   "Köprü durumu": "Bridge status",
+  "Bu sezonda yarış yok": "No races this season",
+  "Takvime yarış ekle ya da resmi yarışlar listesinden planla — eklediğin yarışlar takımdaki herkeste görünür.":
+    "Add a race to the calendar or plan one from the official races list — races you add appear for everyone in the team.",
+  "Kadroda pilot yok": "No drivers in the roster",
+  "Takım üyelerini kadroya ekle ya da yeni üye davet et; stint ataması için en az bir pilot gerekir.":
+    "Add team members to the roster or invite someone new; stint assignment needs at least one driver.",
+  "＋ Üye davet et": "＋ Invite member",
+  "Henüz telemetri yok": "No telemetry yet",
+  "Stint yuvalarına .ld veya .duckdb dosyası yükle; iki turu karşılaştırmak için en az bir dosya gerekir.":
+    "Load an .ld or .duckdb file into a stint slot; comparing two laps needs at least one file.",
+  "⬆ Telemetri yükle": "⬆ Load telemetry",
+  "Henüz mesaj yok": "No messages yet",
+  "İlk yazan sen ol — bu kanaldaki mesajlar yarış boyunca takımda kalır.":
+    "Be the first to write — messages in this channel stay with the team for the whole race.",
+  "Yağmur setupu yok": "No wet setups",
+  "Senin yüklediğin setup yok": "You haven't uploaded a setup",
+  "Bu filtreyle eşleşen setup bulunamadı. Islak zemin için bir setup yükle — takımdaki herkes görebilir.":
+    "No setup matches this filter. Upload one for wet conditions — everyone in the team can see it.",
+  "Havuza henüz setup eklemedin. Yüklediğin dosyalar takımdaki herkese açık olur.":
+    "You haven't added a setup to the pool yet. Files you upload are visible to everyone in the team.",
+  "⬆ İlk setupu yükle": "⬆ Upload your first setup",
   "son paket": "last packet",
   "dk önce": "min ago",
 
