@@ -37,7 +37,8 @@ import {
 import {
   normalizeScreen, pushScreen, popScreen, hashForScreen, screenFromHash, showsRaceBar,
 } from "./nav";
-import { Rail, RaceBar } from "./shell";
+import { Rail, RaceBar, Guide } from "./shell";
+import { guideFor } from "./guides";
 import { pruneAssignments } from "./avail";
 import {
   SLOT_COLORS, APP_VERSION, SEEN_VER_KEY, ASSET, AV,
@@ -2761,6 +2762,12 @@ ${bottomBar}
           var. `.grid` sınıfı viewonly pasifleştirmesi için korundu. */}
       <div className={`grid noside v2grid ${role === "viewer" && curRace ? "viewonly" : ""}`}>
         <div className="v2screen">
+          {/* Rehber kutuları (README §17) — her ekranın üstünde tek satır ipucu.
+              İkon ve kapatma düğmesi yok; metinler src/guides.js'te ekran
+              kimliğine göre. Statik ipuçları HEP AÇIK, opsiyonel interaktif tur
+              (tourSteps.js) ayrı durur. */}
+          {(() => { const g = guideFor(screen, t); return g
+            ? <Guide title={g.title} text={g.text} /> : null; })()}
           {/* v2.0: sekme çubuğu KALKTI — gezinme 76px sol raydan (shell.jsx Rail).
               tabpanel ARIA kimliği ray düğmesine bağlanır. */}
           <div id="tabpanel-main" role="region" aria-label={t("Ana içerik")} tabIndex={-1}>

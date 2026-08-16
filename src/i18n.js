@@ -1,6 +1,107 @@
 /* İngilizce çeviri sözlüğü — anahtar = Türkçe kaynak metin.
    App.jsx: t = (str) => lang === "en" ? (EN[str] ?? str) : str */
 export const EN = {
+  /* ═══ v2.0.0 — arayüz yenilemesi ═══════════════════════════════════════════
+     Karşılıklar docs/design-handoff/i18n-EN.md'den BİREBİR alındı; çeviri
+     üretilmedi. Sözlükte olmayan metinler için mühendis soruyor. */
+
+  /* §1 Rehber kutuları (src/guides.js) */
+  "Ana menü": "Main menu",
+  "Sıradaki yarışı buradan aç, hızlı eylemlerle setup havuzuna, telemetriye ve takım takvimine geç.":
+    "Open your next race here, and jump to the setup pool, telemetry and team calendar from the quick actions.",
+  "Yarışın özeti: pozisyon, enerji, lastik ve stint dağılımı. Araç ve pist görseline tıklayınca tempo referansı açılır.":
+    "The race at a glance: position, energy, tyres and stint split. Click the car or track image to open the pace reference.",
+  "Stint planı": "Stint plan",
+  "Stintleri süre ve pilotla planla; pit satırında lastik seçimini işaretle. PIT düğmesi gerçek pit anını kaydeder.":
+    "Plan stints by duration and driver, and mark the tyre choice on the pit row. The PIT button records the actual stop.",
+  "Son stint yakıtı": "Final stint fuel",
+  "Kalan süreye göre gereken enerji yüzdesi. 📋 Plan açıkken geri sayım stint planından gelir; canlı veriyle tüketimi güncelleyebilirsin.":
+    "The energy percentage you need for the time remaining. With 📋 Plan on, the countdown comes from the stint plan; you can refresh consumption from live data.",
+  "Canlı timing": "Live timing",
+  "Sütun başlıklarına tıklayınca değer değişir (Gap ⇄ Aralık, Son ⇄ En iyi). Bir rakip satırına tıkla, altta karşılaştırma açılır.":
+    "Click a column header to switch what it shows (Gap ⇄ Interval, Last ⇄ Best). Click a rival's row and a comparison opens below.",
+  "Lastik stratejisi": "Tyre strategy",
+  "Her hücreye tıklayarak set ata; bir lastik ilk takıldığı köşeye kilitlenir. Hızlı atama penceresi tüm kombinasyonları verir.":
+    "Click a cell to assign a set; a tyre locks to the corner it was first fitted on. The quick-assign window lists every combination.",
+  "Stintlere pilot ata, sürüş süresi dağılımını izle. Uygunluk penceresinde kapattığın saatlere atama yapılamaz.":
+    "Assign drivers to stints and watch the driving-time split. Hours you close in the availability window can't be assigned.",
+  "Stint yuvalarına dosya yükle, iki turu A/B karşılaştır. Grafiklerde imleçle gez, tekerlekle yakınlaştır, Space ile oynat.":
+    "Load a file into a stint slot and compare two laps A/B. Scrub the charts with the cursor, zoom with the wheel, play with Space.",
+  "Setup havuzu": "Setup pool",
+  "Setupları pist bazında gör, ⚖ ile iki tanesini karşılaştır. Yıldızladıkların listenin başında durur.":
+    "Browse setups by track and compare two with ⚖. The ones you star stay at the top of the list.",
+  "Üye yetkilerini, sezon takvimini ve takım kimliğini buradan yönet. Katılım kodunu paylaşarak yeni üye davet edebilirsin.":
+    "Manage member permissions, the season calendar and team identity here. Share the join code to invite new members.",
+  "Genel, takım ve yarışa özel kanallar. Yarış kanalı yalnız o yarışın katılımcılarına açıktır.":
+    "General, team and race-specific channels. A race channel is open only to that race's participants.",
+  "Resmi yarışlar": "Official races",
+  "lmugarage listesinden günlük ve haftalık yarışlar. Planla düğmesiyle takvimine ekleyebilirsin.":
+    "Daily and weekly races from the lmugarage listing. Use Plan to add one to your calendar.",
+
+  /* §2 Boş durumlar */
+  "Canlı veri gelmiyor": "No live data",
+  "Köprü çalışmıyor ya da oyun seansta değil. Sürüş PC'sinde köprüyü başlat; bağlanınca saha tablosu kendiliğinden dolar.":
+    "The bridge isn't running, or the game isn't in a session. Start the bridge on the driving PC; the field table fills by itself once it connects.",
+  "Yeniden bağlan": "Reconnect",
+  "Köprü durumu": "Bridge status",
+  "son paket": "last packet",
+  "dk önce": "min ago",
+
+  /* §3 Pilot uygunluk ızgarası */
+  "Pilot uygunluğu": "Driver availability",
+  "Stinte tıkla · o pilot o saatte uygun değil işaretlenir":
+    "Click a stint to mark that driver unavailable for that slot",
+  "Uygunluk": "Availability",
+  "uygun": "available",
+  "uygun değil": "unavailable",
+  "stint uygun değil": "stints unavailable",
+  "Varsayılan tüm stintlerde uygun": "Available for every stint by default",
+  "Uygun değil işaretlenen pilot o stinte atanamaz":
+    "A driver marked unavailable can't be assigned to that stint",
+  "Tümünü sıfırla": "Reset all",
+  "🕑 Uygunluk": "🕑 Availability",
+  "Bu stint için uygun pilot kalmadı": "No available driver left for this stint",
+  "⚠ Bu stint için uygun pilot kalmadı": "⚠ No available driver left for this stint",
+
+  /* §4 Yarış datası paneli (sahnele + uygula) */
+  "Yarış datası": "Race data",
+  "Bu değişiklik neyi etkiler": "What this change affects",
+  "📋 Stint planı süreleri ve pit pencereleri": "📋 Stint plan durations and pit windows",
+  "⛽ Son stint yakıtı hesabı": "⛽ Final-stint fuel calculation",
+  "🛞 Lastik limiti uyarıları": "🛞 Tyre limit warnings",
+  "alan değişti": "fields changed",
+  "Değişiklik yok": "No changes",
+  "Uygula": "Apply",
+  "Geri al": "Discard",
+  "Kaydedilmemiş değişiklikler var — kapatılsın mı?": "You have unsaved changes — close anyway?",
+
+  /* §5 Rakip karşılaştırma tepsisi */
+  "Karşılaştırma": "Comparison",
+  "Rakip": "Rival",
+  "Son tur": "Last lap",
+  "Karşılaştırmayı kapat": "Close comparison",
+
+  /* §6 İzleyici modu */
+  "İzleyici modu": "Viewer mode",
+
+  /* §7 Canlı timing — sütun ve süzgeç */
+  "Poz · Sınıf": "Pos · Class",
+  "Kendi sınıfım süzgeci": "My class filter",
+  "· kendi sınıfım": "· my class",
+  "Lidere Gap ↔ öndekine Aralık": "Gap to leader ↔ Interval to car ahead",
+  "Son ↔ En iyi": "Last ↔ Best",
+  "AVG5 ↔ AVG": "AVG5 ↔ AVG",
+  "Sektör sütununu gizle": "Hide the sector column",
+  "👁 Sektör sütununu göster": "👁 Show the sector column",
+  "◱ Pit duvarı": "◱ Pit wall",
+  "◰ Mühendis": "◰ Engineer",
+  "Enerji": "Energy",
+  "Bayrağa kalan": "To the flag",
+  "Sıradaki pit": "Next pit",
+
+  /* §8 Stint · lastik */
+  "Pistte": "On track",
+
   // LMU Garage takvim entegrasyonu (Ana Menü → Resmi Yarışlar) — "Canlı"/"Yaklaşan"/"Şampiyona"/"Tümü"/"Sınıf" zaten var
   "Resmi Yarışlar": "Official Races",
   "Toplam": "Total", "Durum": "Status", "Pist": "Track",

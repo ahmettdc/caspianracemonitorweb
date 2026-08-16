@@ -4,7 +4,6 @@ import { ASSET, AV, TRACK_ASSET, PIT_LANE_TIMES, CAR_CLASSES, driverColorOf,
   trackName, carName } from "../constants";
 import { carImageSrc } from "../teamAssets";
 import { Tyre, Bolt } from "../components";
-import { Guide } from "../shell";
 
 /* Dashboard özet sekmesi (v2.0 — README §3): İKİ KOLON.
    Sol: araç + pist görsel kartı (tıkla → büyütme penceresi; araçta LMU tempo
@@ -18,7 +17,7 @@ import { Guide } from "../shell";
    (exportPdf/setZoom/carriedAt) App'ten prop gelir. */
 export default function DashTab({
   t, st, zoom, setZoom, exportPdf, liveInfo, racePlan, tyreInfo,
-  planLsf, driverPlan, carriedAt, pitSoon, lmuData, assets, guide,
+  planLsf, driverPlan, carriedAt, pitSoon, lmuData, assets,
 }) {
   /* pilot renkleri DriversTab'deki colorOf ile BİREBİR aynı sıralamadan gelir →
      iki ekranda aynı pilot aynı renkte görünür. */
@@ -28,7 +27,6 @@ export default function DashTab({
 
   return (
     <>
-      {guide && <Guide title={guide.title} text={guide.text} />}
       <div className="dashhead">
         <span className="spacer" />
         <button className="pdfbtn" onClick={() => exportPdf("stint")} data-tour="pdf">

@@ -929,7 +929,7 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
         <h2 className="fieldhead">
           🏁 {t("Saha")} ({shown.length})
           {myClassOnly && playerClass && (
-            <span style={{ fontSize: 11, color: "var(--accent)" }}>· {t("kendi sınıfım")}</span>
+            <span style={{ fontSize: 11, color: "var(--accent)" }}>{t("· kendi sınıfım")}</span>
           )}
           <span className="spacer" />
           {/* Yoğunluk YALNIZ burada (v2.0: global anahtar kaldırıldı). */}
