@@ -2785,7 +2785,9 @@ ${bottomBar}
               totalFuelL={totalFuelL} timeline={timeline} liveInfo={liveInfo} pitSoon={pitSoon}
               tyreInfo={tyreInfo} quickTyre={quickTyre} bumpLaps={bumpLaps} clearLaps={clearLaps}
               upStintLap={upStintLap} upTyre={upTyre} upPit={upPit} assignDriver={assignDriver}
-              upOvr={upOvr} setRepair={setRepair} driverPlan={driverPlan} />
+              upOvr={upOvr} setRepair={setRepair} driverPlan={driverPlan}
+              markPit={markPit} unmarkPit={unmarkPit} drift={drift}
+              liveSyncOpt={liveSyncOpt} canEdit={canEdit} />
           )}
 
           {tab === "dash" && (

@@ -123,6 +123,10 @@ export const EN = {
 
   /* §8 Stint · lastik */
   "Pistte": "On track",
+  "Set envanteri": "Set inventory",
+  "Hızlı atama": "Quick assign",
+  "Temizle": "Clear",
+  "Köşe kilidi ihlali": "Corner lock violation",
 
   // LMU Garage takvim entegrasyonu (Ana Menü → Resmi Yarışlar) — "Canlı"/"Yaklaşan"/"Şampiyona"/"Tümü"/"Sınıf" zaten var
   "Resmi Yarışlar": "Official Races",

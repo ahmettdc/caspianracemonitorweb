@@ -30,6 +30,13 @@ Karşılıkları doldurulunca `src/i18n.js`'e girilecek.
 | Kabuk | Takım · Dash · Stint · Yakıt · Canlı · Lastik · Pilot · Tele · Setup *(ray etiketleri)* | |
 | Kabuk | Ana içerik | |
 | Pilotlar | stint uygun değil *(çoğul sayaç)* | stints unavailable ✔ |
+| Stint | Canlı senkron | |
+| Stint | Oto PIT | |
+| Stint | Oto saat | |
+| Stint | PIT YOLUNDA | |
+| Lastik | Set envanteri | Set inventory ✔ |
+| Lastik | Kullanım | |
+| Lastik | kilitli köşe | |
 | Genel | Kapat | |
 
 > ✔ işaretliler `i18n-EN.md`'den türetilebildi ve zaten girildi; kalanlar için

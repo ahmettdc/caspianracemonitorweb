@@ -24,6 +24,7 @@ export default function StintTab({
   tab, mode, t, st, plan, totalVE, totalFuelL, timeline, liveInfo, pitSoon,
   tyreInfo, quickTyre, bumpLaps, clearLaps, upStintLap, upTyre, upPit,
   assignDriver, upOvr, setRepair, driverPlan,
+  markPit, unmarkPit, drift, liveSyncOpt, canEdit = true,
 }) {
   const TY = ["FL", "FR", "RL", "RR"];
   /* pilot renkleri Dashboard ve Pilotlar ile AYNI kaynaktan (constants.js). */
@@ -309,6 +310,33 @@ export default function StintTab({
         </tbody>
       </table>
       </div>
+      {/* --- Alt şerit (README §4): canlı senkron durumu · ↩ Geri al · ✔ PIT ---
+          PIT düğmesi v1'de yalnız tam ekran Pit Board'daydı; tasarım onu stint
+          ekranının altına alıyor. Mantık DEĞİŞMEDİ — App.jsx markPit/unmarkPit
+          (state.js applyMarkPit/applyUnmarkPit) aynen kullanılıyor. */}
+      {markPit && liveInfo?.status === "live" && (
+        <div className="stintfoot">
+          <span className="sync">
+            🔗 {t("Canlı senkron")}
+            <i className={liveSyncOpt?.autoPit ? "on" : ""}>{t("Oto PIT")}</i>
+            <i className={liveSyncOpt?.autoClock ? "on" : ""}>{t("Oto saat")}</i>
+          </span>
+          {drift != null && Math.abs(drift) > 1 && (
+            <span className={`driftchip${Math.abs(drift) > 5 ? " warn" : ""}`}>
+              ⏱ {drift > 0 ? "+" : ""}{drift}s</span>
+          )}
+          <span className="spacer" />
+          <button className="rbbtn" onClick={unmarkPit}
+            disabled={!canEdit || !(st.actualPits || []).some(Number.isFinite)}>
+            ↩ {t("Geri al")}</button>
+          <button className="pitbig" onClick={markPit}
+            disabled={!canEdit || liveInfo.phase === "pit"}>
+            {liveInfo.phase === "pit"
+              ? <>⛽ {t("PIT YOLUNDA")}</>
+              : <>✔ PIT — S{liveInfo.stintIdx + 1}</>}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -1509,6 +1509,27 @@ export const css = `
 /* uygun olmayan pilot seçim listesinde soluk + üstü çizili */
 .rc option.unavail,.rc option:disabled{color:var(--faint);text-decoration:line-through}
 
+/* ── v2.0 STINT alt şeridi (README §4) ───────────────────────────────────────*/
+.rc .stintfoot{display:flex;align-items:center;gap:var(--sp-4);flex-wrap:wrap;
+  margin-top:var(--sp-6);padding-top:var(--sp-5);border-top:1px solid var(--line)}
+.rc .stintfoot .spacer{margin-left:auto}
+.rc .stintfoot .sync{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;
+  color:var(--muted)}
+.rc .stintfoot .sync i{font-style:normal;padding:2px 8px;border-radius:var(--r-pill);
+  border:1px solid var(--line);color:var(--faint);font-size:10.5px}
+.rc .stintfoot .sync i.on{border-color:var(--green);color:var(--green);
+  background:rgba(55,214,122,.12)}
+.rc .driftchip{padding:2px 9px;border-radius:var(--r-pill);border:1px solid var(--line);
+  color:var(--dim);font-size:11.5px;font-variant-numeric:tabular-nums}
+.rc .driftchip.warn{border-color:var(--yellow);color:var(--yellow)}
+.rc .pitbig{padding:8px 22px;border-radius:var(--r-lg);cursor:pointer;
+  font-family:var(--font-disp);font-weight:700;letter-spacing:.04em;
+  font-size:clamp(20px,2.6vw,30px);line-height:1.05;
+  border:1px solid var(--accent);background:var(--car);color:var(--on-car)}
+.rc .pitbig:hover:not(:disabled){background:var(--accent-soft)}
+.rc .pitbig:disabled{cursor:default;opacity:.6;background:var(--panel2);
+  color:var(--muted);border-color:var(--line)}
+
 /* ── v2.0 LASTİK — set envanteri (README §7) ─────────────────────────────────*/
 .rc .setinv{display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap;
   margin:var(--sp-4) 0 var(--sp-2)}

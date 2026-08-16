@@ -55,3 +55,66 @@ describe("StintTab — plan uyarıları", () => {
     expect(html).toContain("stint sınırı");
   });
 });
+
+/* v2.0 — alt şerit (README §4). PIT düğmesi v1'de yalnız tam ekran Pit
+   Board'daydı; tasarım onu stint ekranının altına aldı. Mantık değişmedi. */
+describe("StintTab — v2.0 alt şeridi (canlı senkron · geri al · PIT)", () => {
+  const live = (over = {}) => {
+    const st = mk({});
+    const plan = computePlan(st, "race");
+    return renderToStaticMarkup(
+      <StintTab tab="stint" mode="race" t={(x) => x} st={st} plan={plan}
+        totalVE={0} totalFuelL={10} timeline={buildTimeline(plan)}
+        liveInfo={{ status: "live", stintIdx: 1, phase: "run", ...over.liveInfo }}
+        pitSoon={false} tyreInfo={{ available: 22 }} quickTyre={noop}
+        bumpLaps={noop} clearLaps={noop} upStintLap={noop} upTyre={noop}
+        upPit={noop} assignDriver={noop} upOvr={noop} setRepair={noop}
+        markPit={noop} unmarkPit={noop} canEdit
+        drift={over.drift} liveSyncOpt={over.liveSyncOpt} />);
+  };
+
+  it("canlı yarışta şerit çizilir: PIT düğmesi stint numarasıyla", () => {
+    const html = live();
+    expect(html).toContain("stintfoot");
+    expect(html).toContain("PIT — S2");
+    expect(html).toContain("Geri al");
+  });
+
+  it("pit yolundayken düğme PIT YOLUNDA olur ve pasifleşir", () => {
+    const html = live({ liveInfo: { phase: "pit" } });
+    expect(html).toContain("PIT YOLUNDA");
+    expect(html).toMatch(/class="pitbig"[^>]*disabled/);
+  });
+
+  it("canlı değilken şerit hiç çizilmez", () => {
+    const { html } = draw(mk({}));
+    expect(html).not.toContain("stintfoot");
+  });
+
+  it("sapma çipi yalnız 1 sn'yi aşınca, 5 sn üstünde amber", () => {
+    expect(live({ drift: 0 })).not.toContain("driftchip");
+    expect(live({ drift: 3 })).toMatch(/class="driftchip"/);
+    expect(live({ drift: 9 })).toContain("driftchip warn");
+    expect(live({ drift: 9 })).toContain("+9s");
+  });
+
+  it("oto senkron rozetleri açık/kapalı durumu gösterir", () => {
+    expect(live({ liveSyncOpt: { autoPit: true, autoClock: false } }))
+      .toMatch(/<i class="on">Oto PIT<\/i>/);
+    expect(live({ liveSyncOpt: { autoPit: false, autoClock: false } }))
+      .not.toMatch(/<i class="on">Oto PIT/);
+  });
+
+  it("markPit verilmezse (bağlanmamışsa) şerit çizilmez", () => {
+    const st = mk({});
+    const plan = computePlan(st, "race");
+    const html = renderToStaticMarkup(
+      <StintTab tab="stint" mode="race" t={(x) => x} st={st} plan={plan}
+        totalVE={0} totalFuelL={10} timeline={buildTimeline(plan)}
+        liveInfo={{ status: "live", stintIdx: 0, phase: "run" }} pitSoon={false}
+        tyreInfo={{ available: 22 }} quickTyre={noop} bumpLaps={noop}
+        clearLaps={noop} upStintLap={noop} upTyre={noop} upPit={noop}
+        assignDriver={noop} upOvr={noop} setRepair={noop} />);
+    expect(html).not.toContain("stintfoot");
+  });
+});
