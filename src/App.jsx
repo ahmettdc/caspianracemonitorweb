@@ -2397,93 +2397,94 @@ ${bottomBar}
         )}
       </header>
 
-      <div className={`teambar ${barOpen ? "" : "collapsed"}`}>
-        <span className={`dot ${curRace ? "on" : "off"}`} title={curRace ? t("Bağlı") : t("Solo mod")} />
-        {!barOpen && !curRace && <span className="syncinfo" style={{ marginLeft: 0 }}>
-          {t("Solo mod")}</span>}
-        <button className="bartoggle"
-          onClick={() => setBarOpen(!barOpen)}
-          title={barOpen ? t("Katılım çubuğunu gizle") : t("Katılım çubuğunu göster")}>
-          {barOpen ? "▲" : "▼"}</button>
-        {barOpen && (<>
-        {!curRace ? (
-          <span className="syncinfo" style={{ marginLeft: 0 }}>
-            {t("Solo mod — takım takvimi için lobiye dön.")}
-          </span>
-        ) : (<>
-          <span>{t("YARIŞ")}: <span className="roomcode">
-            {races[curRace]?.name || trackName(races[curRace]?.trackId) || curRace}</span></span>
-          {/* rol rozeti yok — yetki takım rozetlerinden (🛞 sürücü / 🎧 mühendis) belli */}
-          {teamData?.meta?.name && (
-            <span className="syncinfo" style={{ marginLeft: 0, display: "inline-flex",
-              alignItems: "center", gap: 5 }}>
-              {teamLogoSrc(teamData?.assets)
-                ? <img className="hdteamlogo" src={teamLogoSrc(teamData.assets)} alt="" />
-                : "🏢"} {teamData.meta.name}</span>
-          )}
-          <button className="leave" onClick={leaveRace}>{t("Takvime Dön")}</button>
-          <span className="syncinfo">
-            {lastSync ? `${t("Son güncelleme: ")}${lastSync.by} · ${new Date(lastSync.at).toLocaleTimeString(lang === "en" ? "en-GB" : "tr-TR")}` : t("Senkronize")}
-          </span>
-        </>)}
-        {syncMsg && <span style={{ color: "var(--yellow)" }}>{syncMsg}</span>}
-        </>)}
-      </div>
-
-      {liveInfo.status === "live" && (() => {
-        const pitTotal = liveInfo.phaseEnd - liveInfo.stintStartMs;
-        const pitFrac = pitTotal > 0
-          ? Math.min(1, Math.max(0, (pitTotal - liveInfo.nextPitIn) / pitTotal)) : 0;
+      {/* ===== v2.0 birleşik sticky yarış çubuğu (teambar+hudstrip+livestrip) =====
+          Tasarım: Yeni Tasarım.dc.html 100-142. Canlı pozisyon/enerji live.own'dan. */}
+      {curRace ? (() => {
+        const own = live?.own || null;
+        const isLive = liveInfo.status === "live";
         const raceFrac = liveInfo.raceMs > 0
           ? Math.min(1, Math.max(0, liveInfo.elapsed / liveInfo.raceMs)) : 0;
+        const r = races[curRace] || {};
+        const raceName = r.name || trackName(r.trackId) || t("Yarış");
+        const meta = [r.round ? `R${r.round}` : null, trackName(st.track || r.trackId),
+          st.car ? carName(st.carClass, st.car) : null].filter(Boolean).join(" · ");
+        const ve = own?.virtualEnergy;
         return (
-          <div className="hudstrip">
-            <div className="hcell hhero">
-              <span className="lbl">{t("Bayrağa Kalan")}</span>
-              <span className="hclock">{fmtHMS(liveInfo.remaining / 1000)}</span>
-              <div className="hbar"><i style={{ width: `${raceFrac * 100}%` }} /></div>
-              <span className="lbl">%{Math.round(raceFrac * 100)} {t("tamam")}</span>
+          <div className="racebar" data-tour="pitboard">
+            <div className="rb-id">
+              {st.track && <img className="rb-flag" src={`${ASSET}flags/${st.track}.png`} alt="" />}
+              <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+                <span className="rb-name">{raceName}</span>
+                {meta && <span className="rb-meta">{meta}</span>}
+                {role === "viewer" && curRace && (
+                  <span className="rb-ro-tag">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"
+                      style={{ flex: "0 0 auto" }}>
+                      <path d="M2.5 12S6 5.8 12 5.8 21.5 12 21.5 12 18 18.2 12 18.2 2.5 12 2.5 12Z" />
+                      <circle cx="12" cy="12" r="2.7" /></svg>
+                    {t("İzleyici modu")}
+                  </span>
+                )}
+              </div>
             </div>
-            <div className="hcell">
-              <span className="lbl">{t("Şu An")}</span>
-              <span className="hstint">S{liveInfo.stintIdx + 1}
-                <span style={{ color: "var(--muted)", fontSize: ".6em" }}>/{racePlan.fullStints}</span>
-                {liveInfo.phase === "pit" &&
-                  <span style={{ color: "var(--yellow)", fontSize: ".5em" }}> · PIT</span>}
-              </span>
-              {liveInfo.driver && <span className="hdrv">{liveInfo.driver}</span>}
+            <div className="rb-cells">
+              <div className="rb-cell flex14">
+                <span className="rb-lbl">{isLive ? t("Bayrağa Kalan")
+                  : liveInfo.status === "pre" ? t("Start'a")
+                  : liveInfo.status === "done" ? t("Durum") : t("Bayrağa Kalan")}</span>
+                <span className="rb-big" style={{
+                  color: liveInfo.status === "pre" ? "var(--yellow)"
+                    : liveInfo.status === "done" ? "var(--green)" : "var(--txt)" }}>
+                  {isLive ? fmtHMS(liveInfo.remaining / 1000)
+                    : liveInfo.status === "pre" ? startCountdown(liveInfo)
+                    : liveInfo.status === "done" ? "🏁" : "—"}</span>
+                {isLive && <div className="rb-prog"><i style={{ width: `${raceFrac * 100}%` }} /></div>}
+              </div>
+              <div className="rb-cell flex1 pit">
+                <span className="rb-lbl">{liveInfo.phase === "pit" ? t("Pit Çıkışı")
+                  : onLastStint ? t("Bayrağa") : t("Sıradaki Pit")}</span>
+                <span className="rb-pit" style={!isLive
+                  ? { animation: "none", color: "var(--faint)" } : undefined}>
+                  {isLive ? fmtHMS(liveInfo.nextPitIn / 1000) : "—"}</span>
+                {isLive && <span className="rb-sub">S{liveInfo.stintIdx + 1}/{racePlan.fullStints}
+                  {liveInfo.driver ? ` · ${liveInfo.driver}` : ""}</span>}
+              </div>
+              <div className="rb-cell flex1">
+                <span className="rb-lbl">{t("Pozisyon")}</span>
+                <span className="rb-big" style={{ fontSize: "clamp(24px,2.4vw,34px)" }}>
+                  {own?.position ? `P${own.position}` : "—"}</span>
+              </div>
+              <div className="rb-cell flex1">
+                <span className="rb-lbl">{t("Enerji")}</span>
+                <span className="rb-big" style={{ fontSize: "clamp(24px,2.4vw,34px)",
+                  color: "var(--green)" }}>
+                  {ve != null ? `%${Math.round(ve)}` : "—"}</span>
+                {ve != null && <div className="rb-prog">
+                  <i style={{ width: `${Math.max(0, Math.min(100, ve))}%`,
+                    background: "var(--green)" }} /></div>}
+              </div>
             </div>
-            <div className="hcell hgauge">
-              <span className="lbl">{liveInfo.phase === "pit" ? t("Pit Çıkışı") : onLastStint ? t("Bayrağa") : t("Sıradaki Pit")}</span>
-              <Ring value={pitFrac} size={78} fs={16} glow
-                color={pitSoon ? "var(--yellow)" : "var(--teal)"}
-                big={fmtHMS(liveInfo.nextPitIn / 1000)} />
+            <div className="rb-right">
+              <button className="rb-live" onClick={() => setTab("live")}
+                style={!isLive ? { borderColor: "var(--line)", color: "var(--muted)" } : undefined}
+                title={t("Canlı timing")}>
+                {isLive ? <><i /> {t("canlı")}</> : t("veri yok")}
+              </button>
+              <div className="rb-actions">
+                <button onClick={() => setSideOpen((v) => !v)} title={t("Yarış datası")}>
+                  ⚙ {t("Yarış datası")}</button>
+                <button onClick={() => setPitboard(true)} title="Pit Board">📟 Pit Board</button>
+              </div>
+              {syncMsg && <span className="rb-meta" style={{ color: "var(--yellow)" }}>{syncMsg}</span>}
             </div>
-            <div className="hcell hgauge">
-              <span className="lbl">{t("Tamamlanan")}</span>
-              <Ring value={raceFrac} size={78} fs={19} color="var(--car)"
-                big={`%${Math.round(raceFrac * 100)}`} />
-            </div>
-            <button className="act hudpit" data-tour="pitboard"
-              onClick={() => setPitboard(true)}>📟 Pit Board</button>
           </div>
         );
-      })()}
-
-      {(liveInfo.status === "pre" || liveInfo.status === "done") && (
-        <div className="livestrip">
-          {liveInfo.status === "pre" && (
-            <div><span className="lbl">{t("Start'a")}</span>
-              <span className={`big ${liveInfo.toStart < 86400000 ? "mono" : ""}`}
-                style={{ color: "var(--yellow)" }}>
-                {startCountdown(liveInfo)}</span></div>
-          )}
-          {liveInfo.status === "done" && (
-            <div><span className="lbl">{t("Durum")}</span>
-              <span className="big" style={{ color: "var(--green)" }}>{t("🏁 YARIŞ BİTTİ")}</span></div>
-          )}
-          <button className="act" style={{ marginLeft: "auto" }}
-            data-tour="pitboard" onClick={() => setPitboard(true)}>📟 Pit Board</button>
+      })() : (
+        <div className="teambar">
+          <span className="dot off" title={t("Solo mod")} />
+          <span className="syncinfo" style={{ marginLeft: 0 }}>
+            {t("Solo mod — takım takvimi için lobiye dön.")}</span>
         </div>
       )}
 

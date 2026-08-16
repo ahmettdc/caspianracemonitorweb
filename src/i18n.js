@@ -971,4 +971,9 @@ export const EN = {
   "Mühendis": "Engineer",
   /* masaüstü (info/lobi) */
   "Masaüstü uygulaması": "Desktop app",
+  /* birleşik yarış çubuğu */
+  "Bayrağa Kalan": "To flag",
+  "Enerji": "Energy",
+  "veri yok": "no data",
+  "Yarış datası": "Race data",
 };
