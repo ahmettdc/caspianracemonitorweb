@@ -1536,7 +1536,7 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
   );
 
   const chatBtn = user && (
-    <button className="adminbtn" data-tour="hchat" onClick={() => setChatOpen(true)}
+    <button className="adminbtn" data-tour="hchat" onClick={() => go("chat")}
       title={t("Takım Sohbeti")}>
       <Icon name="chat" size={14} /> {t("Sohbet")}
       {chatUnread > 0 && <b className="badge">{chatUnread > 99 ? "99+" : chatUnread}</b>}
@@ -1704,7 +1704,7 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
     /* v2.0: tema ve yoğunluk komutları paletten de gizlendi (yukarıdaki
        KALDIRILANLAR ile aynı karar). */
     { id: "lang", label: lang === "en" ? "Türkçe" : "English", keywords: "language dil", run: () => switchLang(lang === "en" ? "tr" : "en") },
-    ...(user ? [{ id: "chat", label: t("Sohbet"), keywords: "chat sohbet team", icon: <Icon name="chat" size={15} />, run: () => setChatOpen(true) }] : []),
+    ...(user ? [{ id: "chat", label: t("Sohbet"), keywords: "chat sohbet team", icon: <Icon name="chat" size={15} />, run: () => go("chat") }] : []),
     ...(curRace ? [{ id: "home", label: t("Ana Menü"), keywords: "home ana menü lobby", icon: <Icon name="home" size={15} />, run: leaveRace }] : []),
   ];
   const cmdPalette = (
@@ -2318,8 +2318,8 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
     /* Ray'de yarış ekranları bir yarış açık olmasını ister; menüde sıradaki
        yarışı açar. Yarış-dışı ekranlar kendi eylemine gider. */
     const homeGo = (id) => {
-      if (id === "team") return setTeamOpen(true);
-      if (id === "chat") return setChatOpen(true);
+      if (id === "team") return go("team");
+      if (id === "chat") return go("chat");
       if (id === "setup") return setSuOpen(true);
       if (id === "tele") return go("tele");
       if (nextEntry) return openRace(nextEntry[0]);
@@ -2384,12 +2384,26 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
     return (
       <div className="rc v2">
         {teamModal}{createJoinModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}{cmdPalette}
-        <Rail t={t} screen="home" go={homeGo} onHome={() => {}}
+        <Rail t={t} screen={screen} go={homeGo} onHome={() => go("home")}
           open={railOpen} onToggle={() => setRailOpen((v) => !v)}
           version={APP_VERSION} chatScreen="chat" unread={chatUnread}
-          onChat={() => setChatOpen(true)} />
+          onChat={() => go("chat")} />
         <div className="v2main">
         <UpdateBanner t={t} />
+        {/* v2.0: Takım/Sohbet ana menüden de TAM SAYFA (modal değil) — sol raydan
+            gezinir; Ana Menü'ye ray 🏠 ile dönülür. Yarış-içi kabuktaki
+            .v2grid > .v2screen yerleşimiyle birebir. */}
+        {(screen === "team" || screen === "chat") ? (
+        <div className="grid noside v2grid">
+          <div className="v2screen">
+            {(() => { const g = guideFor(screen, t); return g
+              ? <Guide title={g.title} text={g.text} /> : null; })()}
+            <div id="tabpanel-main" role="region" aria-label={t("Ana içerik")} tabIndex={-1}>
+              {screen === "team" ? teamSheet(true) : chatSheet(true)}
+            </div>
+          </div>
+        </div>
+        ) : (
         <div className="hm">
 
           {/* ── üst şerit: takım kimliği + kontroller ── */}
@@ -2549,12 +2563,12 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--rc-brand-bright)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4v16h16" /><path d="m7 14 3-3 3 2 4-5" /></svg>
                 <b>{t("Telemetri")}</b><span>{t(".ld yükle · analiz")}</span>
               </button>
-              <button className="tile" data-tour="chat" onClick={() => setChatOpen(true)}>
+              <button className="tile" data-tour="chat" onClick={() => go("chat")}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--rc-brand-bright)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 4H4a1.5 1.5 0 0 0-1.5 1.5V16A1.5 1.5 0 0 0 4 17.5h3V21l4-3.5h9A1.5 1.5 0 0 0 21.5 16V5.5A1.5 1.5 0 0 0 20 4Z" /></svg>
                 <b>{t("Sohbet")}{chatUnread > 0 && <span className="cnt">{chatUnread}</span>}</b>
                 <span>{t("takım kanalları")}</span>
               </button>
-              <button className="tile" data-tour="manage" onClick={() => setTeamOpen(true)}>
+              <button className="tile" data-tour="manage" onClick={() => go("team")}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--rc-brand-bright)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="3" width="16" height="18" rx="1.4" /><path d="M9 8h1M14 8h1M9 12h1M14 12h1M9 16h2v5" /></svg>
                 <b>{t("Takım & takvim")}</b>
                 <span>{memberCount} {t("üye")} · {raceCount} {t("yarış")}</span>
@@ -2640,6 +2654,7 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
           </div>
 
         </div>
+        )}
         </div>{/* /v2main */}
       </div>
     );
@@ -3597,7 +3612,7 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
         )}
         {access && (
           <Btn variant="subtle" size="sm" data-tour="hteam"
-            onClick={() => setTeamOpen(true)} title={t("Takımlarım")}
+            onClick={() => go("team")} title={t("Takımlarım")}
             iconLeft={teamLogoSrc(teamData?.assets)
               ? <img className="hdteamlogo" src={teamLogoSrc(teamData.assets)} alt="" />
               : <Icon name="building" size={14} />}>
