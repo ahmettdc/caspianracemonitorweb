@@ -20,7 +20,7 @@ describe("modal bileşenleri: açık halde çökmeden render olur", () => {
   it("VersionModal", () => {
     const html = render(
       <VersionModal open onClose={noop} t={t} lang="tr" onStartGuide={noop} />);
-    expect(html).toContain("wxmodal");
+    expect(html).toContain("Neler değişti");
   });
 
   it("RaceEditModal (ekleme)", () => {

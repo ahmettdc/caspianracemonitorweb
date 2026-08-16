@@ -958,8 +958,19 @@ export function Tyre({ size = 16 }) {
    gerekiyor → başlangıç paketine girmesin diye modal AÇILINCA dynamic import ile
    yüklenir, modül-seviyesi cache ile sonraki açılışlar anında. */
 let CHANGELOG_CACHE = null;
+/* Baştaki emojiyi ikon olarak ayır (fiş wnOpen: her not satırı ikon + metin
+   kartı). Emoji yoksa nötr bir madde imi kullanılır. */
+function splitNoteIcon(s) {
+  const m = /^(\p{Extended_Pictographic}(?:️|‍\p{Extended_Pictographic})*)\s+([\s\S]+)$/u.exec(s || "");
+  return m ? { ico: m[1], text: m[2] } : { ico: "•", text: s || "" };
+}
+
+/* Neler değişti — fiş wnOpen (Yeni Tasarım.dc.html). Tam ekran katman:
+   sol 132px sürüm rayı + sağ seçili sürümün ikon/metin not kartları. Eski
+   .wxmodal/.clgv liste tasarımının yerine geçti. */
 export function VersionModal({ open, onClose, t, lang, onStartGuide }) {
   const [list, setList] = useState(CHANGELOG_CACHE);
+  const [sel, setSel] = useState(null);
   useEffect(() => {
     if (!open || CHANGELOG_CACHE) return undefined;
     let on = true;
@@ -970,37 +981,101 @@ export function VersionModal({ open, onClose, t, lang, onStartGuide }) {
     return () => { on = false; };
   }, [open]);
   if (!open) return null;
+  const disp = "var(--rc-font-display)";
+  const versions = list || [];
+  const selV = sel || versions[0]?.v;
+  const cur = versions.find((c) => c.v === selV) || versions[0];
+  const curItems = cur ? ((lang === "en" ? cur.en : cur.tr) || cur.tr || cur.en || []) : [];
+  const tagStyle = { fontSize: 9.5, fontWeight: 700, textTransform: "uppercase",
+    letterSpacing: ".06em", padding: "1px 6px", borderRadius: 999,
+    background: "rgba(55,214,122,.14)", color: "var(--rc-ok)",
+    border: "1px solid rgba(55,214,122,.35)", whiteSpace: "nowrap" };
   return (
-    <div className="wxmodal" onClick={onClose}>
-      <div className="wxmbox" style={{ width: "min(560px,94vw)" }}
-        onClick={(e) => e.stopPropagation()}>
-        <div className="wxmhead">
-          <span>ℹ {t("Neler değişti")}</span>
-          <button className="lbclose" onClick={onClose}>✕</button>
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 1000,
+      background: "rgba(10,6,10,.74)", backdropFilter: "blur(5px)", display: "flex",
+      alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: "min(860px,96vw)",
+        height: "min(680px,86vh)", background: "var(--rc-surface)",
+        border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden",
+        display: "flex", flexDirection: "column", boxShadow: "0 24px 70px rgba(0,0,0,.6)",
+        animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
+
+        {/* başlık */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 20px",
+          borderBottom: "1px solid var(--rc-border)" }}>
+          <span style={{ fontFamily: disp, textTransform: "uppercase", letterSpacing: ".07em",
+            fontSize: 19, fontWeight: 700 }}>{t("Neler değişti")}</span>
+          <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>
+            {t("Kurulu sürüm")} v{APP_VERSION}</span>
+          <button onClick={onClose} style={{ marginLeft: "auto", width: 32, height: 32,
+            borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)",
+            color: "var(--rc-text-2)", cursor: "pointer", fontSize: 15, lineHeight: 1 }}>✕</button>
         </div>
-        <div className="wxmlist" style={{ padding: 0, maxHeight: "62vh" }}>
-          {!list && <div className="hint" style={{ padding: 16 }}>{t("Yükleniyor…")}</div>}
-          {(list || []).map((c) => (
-            <div className="clgv" key={c.v}>
-              <h4>{c.v}{c.v === APP_VERSION &&
-                <span className="cur">{t("ŞU AN")}</span>}</h4>
-              <div className="cdate">{c.date}</div>
-              <ul>{((lang === "en" ? c.en : c.tr) || c.tr || c.en || []).map((x, i) =>
-                <li key={i}>{x}</li>)}</ul>
-            </div>
-          ))}
+
+        {/* gövde: sol sürüm rayı + sağ notlar */}
+        <div style={{ flex: 1, minHeight: 0, display: "flex" }}>
+          <div style={{ flex: "0 0 132px", borderRight: "1px solid var(--rc-border)",
+            overflowY: "auto", padding: "10px 8px", background: "var(--rc-surface-2)" }}>
+            {!list && <div style={{ padding: 12, fontSize: 12, color: "var(--rc-text-3)" }}>
+              {t("Yükleniyor…")}</div>}
+            {versions.map((c) => {
+              const on = c.v === selV;
+              return (
+                <button key={c.v} onClick={() => setSel(c.v)} style={{ display: "flex",
+                  flexDirection: "column", gap: 2, alignItems: "flex-start", width: "100%",
+                  textAlign: "left", cursor: "pointer", padding: "8px 9px", borderRadius: 9,
+                  marginBottom: 3, color: "var(--rc-text)",
+                  border: `1px solid ${on ? "var(--rc-brand-bright)" : "transparent"}`,
+                  background: on ? "rgba(150,0,24,.14)" : "transparent" }}>
+                  <b style={{ fontFamily: disp, fontSize: 12.5 }}>{c.v}</b>
+                  <span style={{ fontSize: 10, color: "var(--rc-text-3)" }}>{c.date}</span>
+                  {c.v === APP_VERSION && <span style={tagStyle}>{t("ŞU AN")}</span>}
+                </button>
+              );
+            })}
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0, overflowY: "auto", padding: "18px 22px 24px" }}>
+            {cur && (
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                  <span style={{ fontFamily: disp, fontWeight: 700, fontSize: 21,
+                    letterSpacing: ".02em" }}>{cur.v}</span>
+                  {cur.v === APP_VERSION && <span style={tagStyle}>{t("ŞU AN")}</span>}
+                  <span style={{ marginLeft: "auto", fontFamily: disp, fontSize: 11.5,
+                    color: "var(--rc-text-3)" }}>{cur.date}</span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {curItems.map((raw, i) => {
+                    const it = splitNoteIcon(raw);
+                    return (
+                      <div key={i} style={{ display: "flex", gap: 11, alignItems: "flex-start",
+                        border: "1px solid var(--rc-border)", borderRadius: 11,
+                        background: "var(--rc-surface-2)", padding: "12px 14px" }}>
+                        <span style={{ fontSize: 16, lineHeight: 1.35, flex: "0 0 auto" }}>{it.ico}</span>
+                        <span style={{ fontSize: 13, lineHeight: 1.65, color: "var(--rc-text-2)",
+                          textWrap: "pretty" }}>{it.text}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-        <div className="wxmfoot" style={{ justifyContent: "space-between" }}>
-          <span style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <a className="hint" {...extHref(`${REPO_URL}/commits/main`)}
-              style={{ color: "var(--muted)" }}>{t("GitHub'da tüm değişiklikler ↗")}</a>
-            <button className="hint" style={{ background: "none", border: 0,
-              color: "var(--teal)", cursor: "pointer", padding: 0,
-              textDecoration: "underline" }}
-              onClick={onStartGuide}>
-              🎓 {t("Rehberi başlat")}</button>
-          </span>
-          <button className="histbtn" onClick={onClose}>{t("Kapat")}</button>
+
+        {/* alt çubuk */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 20px",
+          borderTop: "1px solid var(--rc-border)", background: "var(--rc-surface-2)", flexWrap: "wrap" }}>
+          <a {...extHref(`${REPO_URL}/commits/main`)}
+            style={{ fontSize: 12, color: "var(--rc-text-3)" }}>{t("GitHub'da tüm değişiklikler ↗")}</a>
+          <button onClick={onStartGuide} style={{ background: "none", border: "none",
+            color: "var(--rc-brand-bright)", cursor: "pointer", fontSize: 12, padding: 0,
+            textDecoration: "underline", textUnderlineOffset: 3 }}>
+            🎓 {t("Rehberi başlat")}</button>
+          <button onClick={onClose} style={{ marginLeft: "auto", padding: "9px 20px",
+            borderRadius: 10, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)",
+            color: "var(--rc-text)", cursor: "pointer", fontSize: 13 }}>{t("Kapat")}</button>
         </div>
       </div>
     </div>
