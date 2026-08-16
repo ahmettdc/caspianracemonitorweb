@@ -43,6 +43,14 @@ export const EN = {
   "Kullanılan": "Used",
   "Sıradaki stint lastikleri": "Next stint tyres",
   "Son stint VE": "Last stint FE",
+  /* Pilotlar ekranı etiketleri (07-pilotlar.md). */
+  "Atamaları temizle": "Clear assignments",
+  "pilot · takım havuzundan ekleyebilirsin": "drivers · you can add from the team pool",
+  "Pilot adı ekle…": "Add driver name…",
+  "planlanan": "planned",
+  "— pilot seç —": "— select driver —",
+  "saatler yarış saatine göre": "times relative to race clock",
+  "stint atanmadı": "stints unassigned",
   /* Stint planı etiketleri (04-stint-plani.md). */
   "Yarış süresi": "Race time",
   "Tahmini tur": "Est. laps",
