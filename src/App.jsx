@@ -22,7 +22,8 @@ import { firebaseReady,
   deleteSetup, addSetup,
   createRace, updateRace, deleteRace,
   raceStateGet,
-  getUserAvatar, saveUserAvatar, clearUserAvatar } from "./storage";
+  getUserAvatar, saveUserAvatar, clearUserAvatar,
+  availSet, availClear, availSubscribe } from "./storage";
 import { processImageFile, IMG_ACCEPT_TYPES } from "./imageUpload";
 import { carImageSrc, teamLogoSrc } from "./teamAssets";
 import { duckSetupToSvm, textToB64 } from "./setupParse";
@@ -37,6 +38,7 @@ import {
   normalizeScreen, pushScreen, popScreen, hashForScreen, screenFromHash,
 } from "./nav";
 import { Rail } from "./shell";
+import { pruneAssignments } from "./avail";
 import {
   SLOT_COLORS, APP_VERSION, SEEN_VER_KEY, ASSET, AV,
   TRACKS, PIT_LANE_TIMES, TRACK_ASSET, trackFlag,
@@ -309,6 +311,41 @@ export default function App() {
      editörde yapsın diye. useLive satır ~801'de, canEditTeam satır ~885'te tanımlanıyor
      (sonra) → curTeamRef/stRef gibi ref hilesi (render'da güncel tutulur). */
   const canEditRef = useRef(false);
+
+  /* ---------- PİLOT MÜSAİTLİĞİ (v2.0) ----------
+     teams/{tid}/races/{rid}/avail/{driverId} = [uygun OLMAYAN stintNo…]
+     "Yeni veri katmanı yok" kuralının bilinçli tek istisnası. Yarışsız (solo)
+     modda yalnız yerel tutulur — yazacak yarış düğümü yok. */
+  const [avail, setAvailState] = useState(null);
+  useEffect(() => {
+    if (!curTeam || !curRace) { setAvailState(null); return undefined; }
+    return availSubscribe(curTeam, curRace, setAvailState);
+  }, [curTeam, curRace]);
+
+  /* Uygunluk değişince: (a) yalnız DEĞİŞEN pilotu Firebase'e yaz, (b) artık
+     geçersiz kalan atamaları temizle (README §8: "mevcut atama otomatik kalkar"). */
+  const setAvail = (next) => {
+    if (blocked()) { showDeny(); return; }
+    const prev = avail || {};
+    setAvailState(next);
+    if (curTeam && curRace) {
+      const keys = new Set([...Object.keys(prev), ...Object.keys(next || {})]);
+      keys.forEach((k) => {
+        const a = JSON.stringify(prev[k] ?? null);
+        const b = JSON.stringify((next || {})[k] ?? null);
+        if (a !== b) availSet(curTeam, curRace, k, (next || {})[k] || []).catch(() => {});
+      });
+    }
+    setSt((s0) => {
+      const pruned = pruneAssignments(next, s0.driverAssign);
+      return pruned === s0.driverAssign ? s0 : { ...s0, driverAssign: pruned };
+    });
+  };
+  const resetAvail = () => {
+    if (blocked()) { showDeny(); return; }
+    setAvailState(null);
+    if (curTeam && curRace) availClear(curTeam, curRace).catch(() => {});
+  };
 
   /* ---------- YARIŞ AÇ / KAPAT (oda kodu ve PIN yok) ---------- */
   const openRace = async (rid) => {
@@ -2798,7 +2835,8 @@ ${bottomBar}
               fmtClock={fmtClock} removeDriver={removeDriver} newDriver={newDriver}
               setNewDriver={setNewDriver} addDriver={addDriver} teamDrivers={teamDrivers}
               setSt={setSt} assignDriver={assignDriver} teamData={teamData}
-              clearAssign={clearAssign} />
+              clearAssign={clearAssign} avail={avail} setAvail={setAvail}
+              resetAvail={resetAvail} canEdit={canEdit} />
           )}
 
           {/* v2.0 TAM SAYFA (modal kabuğu kalktı) — sol raydan erişilir. */}

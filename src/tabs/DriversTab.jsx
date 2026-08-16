@@ -1,6 +1,10 @@
 import { fmtHMS, msToLocalInput } from "../engine";
 import { PIE_COLORS, driverColorOf } from "../constants";
 import { Donut, Avatar } from "../components";
+import { useState } from "react";
+import { isAvailable, toggleAvail, availableDrivers, stintsWithoutDriver,
+  buildAvailGrid } from "../avail";
+import { Sheet } from "../shell";
 
 /* Ad → baş harf(ler) rozeti (en çok 2). "A. Demircan" → "AD", "Savaş" → "SA". */
 function initials(name) {
@@ -16,7 +20,9 @@ function initials(name) {
 export default function DriversTab({
   t, st, up, driverPlan, fmtClock, removeDriver, newDriver, setNewDriver,
   addDriver, teamDrivers, setSt, assignDriver, teamData, clearAssign,
+  avail, setAvail, resetAvail, canEdit = true,
 }) {
+  const [availOpen, setAvailOpen] = useState(false);
   const poolExtra = teamDrivers.filter((n) => !st.roster.includes(n));
   /* süre-dağılımı adları (Donut ile AYNI) + renk + atanan stint numaraları */
   const names = driverPlan ? st.roster.filter((n) => driverPlan.totals[n]) : [];
@@ -132,7 +138,22 @@ export default function DriversTab({
         )}
 
         {/* --- stint programı: pilot ataması (asıl işlev korunur) --- */}
-        <div className="drvcap">{t("Stint programı")}</div>
+        <div className="drvcap drvcaprow">
+          {t("Stint programı")}
+          <span className="spacer" />
+          {setAvail && (
+            <button className="rbbtn" onClick={() => setAvailOpen(true)}
+              disabled={!canEdit || !st.roster.length}>🕑 {t("Uygunluk")}</button>
+          )}
+        </div>
+        {(() => {
+          const bad = stintsWithoutDriver(avail, st.roster, driverPlan.rows.length);
+          return bad.length && st.roster.length ? (
+            <div className="hint warn">
+              ⚠ {t("Bu stint için uygun pilot kalmadı")}: {bad.map((i) => `S${i + 1}`).join(", ")}
+            </div>
+          ) : null;
+        })()}
         <div className="drvsched">
           {driverPlan.rows.map((r, i) => {
             const cur = st.driverAssign[i] || "";
@@ -144,24 +165,100 @@ export default function DriversTab({
                   {" · "}{fmtHMS(r.dur / 1000)}</span>
                 <span className="sasg">
                   {cur && driverPlan.totals[cur] && av(cur, 20)}
+                  {/* Uygun değil işaretlenen pilot bu stintte SOLUK, ÜSTÜ ÇİZİLİ ve
+                      seçilemez (README §8). */}
                   <select value={cur} onChange={(e) => assignDriver(i, e.target.value)}>
                     <option value="">{t("— seç —")}</option>
                     {st.roster.length > 0 && (
                       <optgroup label={t("Kadro")}>
-                        {st.roster.map((n) => <option key={n} value={n}>{n}</option>)}
+                        {st.roster.map((n) => (
+                          <option key={n} value={n} disabled={!isAvailable(avail, n, i)}
+                            className={isAvailable(avail, n, i) ? "" : "unavail"}>
+                            {isAvailable(avail, n, i) ? n : `${n} · ${t("uygun değil")}`}
+                          </option>
+                        ))}
                       </optgroup>
                     )}
                     {poolExtra.length > 0 && (
                       <optgroup label={teamData?.meta?.name || t("Takım")}>
-                        {poolExtra.map((n) => <option key={n} value={n}>{n}</option>)}
+                        {poolExtra.map((n) => (
+                          <option key={n} value={n} disabled={!isAvailable(avail, n, i)}>
+                            {isAvailable(avail, n, i) ? n : `${n} · ${t("uygun değil")}`}
+                          </option>
+                        ))}
                       </optgroup>
                     )}
                   </select>
+                  {!availableDrivers(avail, st.roster, i).length && st.roster.length > 0 && (
+                    <span className="availwarn" title={t("⚠ Bu stint için uygun pilot kalmadı")}>⚠</span>
+                  )}
                 </span>
               </div>
             );
           })}
         </div>
+
+        {/* --- Uygunluk penceresi (v2.0 · README §8) ---
+            Izgara varsayılan olarak TÜM hücreler uygun (yeşil ✓); tıklayınca
+            kırmızı ✕. Kalıcılık yarış başına Firebase'de:
+            teams/{tid}/races/{rid}/avail/{driverId} = [stintNo…] */}
+        {availOpen && setAvail && (
+          <Sheet onClose={() => setAvailOpen(false)} width="min(880px,96vw)"
+            title={<>🕑 {t("Pilot uygunluğu")}</>}>
+            <div className="availhint">
+              {t("Stinte tıkla · o pilot o saatte uygun değil işaretlenir")}
+            </div>
+            <div className="availwrap">
+              <table className="availgrid">
+                <thead><tr>
+                  <th className="l">{t("Pilot")}</th>
+                  {driverPlan.rows.map((r, i) => (
+                    <th key={i} title={fmtClock(r.start, driverPlan.startMs)}>
+                      S{r.idx}<span className="tm">{fmtClock(r.start, driverPlan.startMs)}</span>
+                    </th>
+                  ))}
+                </tr></thead>
+                <tbody>
+                  {buildAvailGrid(avail, st.roster, driverPlan.rows.length).map((row) => (
+                    <tr key={row.name}>
+                      <td className="l">
+                        <span className="availnm">
+                          {av(row.name, 20)}
+                          <b>{row.name}</b>
+                          <span className="fsub">{row.offCount
+                            ? `${row.offCount} ${t("stint uygun değil")}`
+                            : t("Varsayılan tüm stintlerde uygun")}</span>
+                        </span>
+                      </td>
+                      {row.cells.map((c) => (
+                        <td key={c.stint}>
+                          <button className={`availcell${c.ok ? " ok" : " no"}`}
+                            disabled={!canEdit} title={t("Uygunluk")}
+                            aria-pressed={!c.ok}
+                            onClick={() => setAvail(toggleAvail(avail, row.name, c.stint))}>
+                            {c.ok ? "✓" : "✕"}</button>
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="availfoot">
+              <span className="lg"><i className="ok" />{t("uygun")}</span>
+              <span className="lg"><i className="no" />{t("uygun değil")}</span>
+              <span className="fsub">
+                {t("Uygun değil işaretlenen pilot o stinte atanamaz")}</span>
+              <span className="spacer" />
+              {resetAvail && (
+                <button className="rbbtn" onClick={resetAvail} disabled={!canEdit}>
+                  {t("Tümünü sıfırla")}</button>
+              )}
+              <button className="rbbtn" onClick={() => setAvailOpen(false)}>
+                {t("Kapat")}</button>
+            </div>
+          </Sheet>
+        )}
 
         {names.length > 0 && (
           <div style={{ display: "flex", gap: 22, marginTop: 16, flexWrap: "wrap",

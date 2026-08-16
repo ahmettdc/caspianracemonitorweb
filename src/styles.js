@@ -1432,6 +1432,42 @@ export const css = `
    Yoğunluk YALNIZ bu ekranda: .wall = Pit duvarı (seyrek satır, büyük sayı),
    .eng = Mühendis (sık satır, 12.5px). Sütunlar İKİ MODDA DA görünür — yalnız
    ölçek değişir. Global yoğunluk anahtarı v2.0'da kaldırıldı. */
+/* ── v2.0 PİLOT UYGUNLUĞU (README §8) ────────────────────────────────────────
+   Izgara varsayılan olarak tüm hücreler uygun (yeşil ✓); tıklayınca kırmızı ✕. */
+.rc .drvcaprow{display:flex;align-items:center;gap:var(--sp-4)}
+.rc .drvcaprow .spacer{margin-left:auto}
+.rc .availhint{font-size:11.5px;color:var(--muted);margin-bottom:var(--sp-4)}
+.rc .availwrap{overflow-x:auto}
+.rc .availgrid{border-collapse:collapse;width:100%}
+.rc .availgrid th{padding:6px var(--sp-2);font-size:var(--fs-label);text-transform:uppercase;
+  letter-spacing:var(--ls-label);color:var(--muted);text-align:center;white-space:nowrap;
+  border-bottom:1px solid var(--line)}
+.rc .availgrid th.l{text-align:left}
+.rc .availgrid th .tm{display:block;font-size:9.5px;color:var(--faint);font-weight:400}
+.rc .availgrid td{padding:4px var(--sp-2);text-align:center;
+  border-bottom:1px solid var(--line-softer)}
+.rc .availgrid td.l{text-align:left}
+.rc .availnm{display:flex;align-items:center;gap:var(--sp-3);white-space:nowrap}
+.rc .availnm b{font-family:var(--font-disp);font-size:14px;font-weight:700}
+.rc .availnm .fsub{font-size:10.5px;color:var(--muted)}
+.rc .availcell{width:30px;height:26px;border-radius:var(--r-xs);cursor:pointer;
+  font-size:12px;line-height:1;border:1px solid var(--line);background:var(--panel2);
+  color:var(--dim);transition:border-color var(--t-fast),background var(--t-fast)}
+.rc .availcell.ok{border-color:var(--green);background:rgba(55,214,122,.14);color:var(--green)}
+.rc .availcell.no{border-color:var(--red);background:rgba(255,77,94,.16);color:var(--red)}
+.rc .availcell:disabled{cursor:default;opacity:.5}
+.rc .availfoot{display:flex;align-items:center;gap:var(--sp-4);flex-wrap:wrap;
+  margin-top:var(--sp-5);padding-top:var(--sp-4);border-top:1px solid var(--line)}
+.rc .availfoot .spacer{margin-left:auto}
+.rc .availfoot .lg{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;
+  color:var(--dim)}
+.rc .availfoot .lg i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.rc .availfoot .lg i.ok{background:var(--green)}
+.rc .availfoot .lg i.no{background:var(--red)}
+.rc .availwarn{color:var(--yellow);font-size:13px;margin-left:4px}
+/* uygun olmayan pilot seçim listesinde soluk + üstü çizili */
+.rc option.unavail,.rc option:disabled{color:var(--faint);text-decoration:line-through}
+
 /* Tam sayfa kabuğu — modalden çıkarılan ekranlar (Takım · Sohbet · …) */
 .rc .v2page{display:block;animation:rcin var(--t-screen)}
 .rc .v2pagehead{display:flex;align-items:center;gap:var(--sp-4);margin-bottom:var(--sp-6);
