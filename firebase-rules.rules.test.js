@@ -283,11 +283,21 @@ describe("teams/races/avail (pilot müsaitliği — v2.0.0)", () => {
     await assertFails(set(ref(db("mallory"), `${P}/drv1`), [3]));
   });
 
-  it("sayı olmayan / aralık dışı stint numarası reddedilir", async () => {
+  it("sayı olmayan stint numarası reddedilir", async () => {
     await assertFails(set(ref(db("bob"), `${P}/drv1`), ["2"]));
+    await assertFails(set(ref(db("bob"), `${P}/drv1`), [true]));
+  });
+
+  it("aralık dışı stint numarası reddedilir (0 ≤ n < 200)", async () => {
     await assertFails(set(ref(db("bob"), `${P}/drv1`), [-1]));
     await assertFails(set(ref(db("bob"), `${P}/drv1`), [200]));
-    await assertFails(set(ref(db("bob"), `${P}/drv1`), [1.5, {}]));
+  });
+
+  it("ondalık stint numarası reddedilir (yalnız tam sayı)", async () => {
+    /* Aralık kontrolü tek başına yetmiyordu: 1.5 hem sayı hem 0..200 arasında.
+       Kuralda `val % 1 == 0` tam sayı koşulu bunun için var. */
+    await assertFails(set(ref(db("bob"), `${P}/drv1`), [1.5]));
+    await assertFails(set(ref(db("bob"), `${P}/drv1`), [0.1]));
   });
 
   it("düğüm silinebilir (tüm stintlerde uygun = varsayılan)", async () => {

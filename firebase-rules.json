@@ -100,7 +100,7 @@
               "$driverId": {
                 ".validate": "!newData.exists() || newData.hasChildren()",
                 "$i": {
-                  ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() < 200"
+                  ".validate": "newData.isNumber() && newData.val() % 1 == 0 && newData.val() >= 0 && newData.val() < 200"
                 }
               }
             }
