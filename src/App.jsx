@@ -34,6 +34,9 @@ import {
   computePlan, migrate, lastStintFuel,
 } from "./engine";
 import {
+  normalizeScreen, pushScreen, popScreen, hashForScreen, screenFromHash,
+} from "./nav";
+import {
   SLOT_COLORS, APP_VERSION, SEEN_VER_KEY, ASSET, AV,
   TRACKS, PIT_LANE_TIMES, TRACK_ASSET, trackFlag,
   CARS, CAR_CLASSES, trackName, carName, classId, venueToTrackId,
@@ -163,7 +166,45 @@ function ytId(url) {
 
 export default function App() {
   const [st, setSt] = useState(DEFAULT_STATE);
-  const [tab, setTab] = useState("dash");
+  /* ---------- v2.0 EKRAN YÖNLENDİRMESİ — TEK NOKTA ----------
+     v1'de gezinme ikiye bölünmüştü: erken-return zinciri (entered/pickDone/
+     setupDone/teleOnly/scheduleOnly) + ayrı bir `tab` state'i. Takım · Sohbet ·
+     Telemetri · Setup havuzu modal kabuğundan çıkıp tam sayfa olunca tek bir
+     yönlendirme şart oldu.
+
+     `screen` tek kaynak; `go()` history'ye de yazar → tarayıcı geri tuşu ve
+     masaüstü (Tauri) AYNI davranır: açık ekranı kapatmak yerine öncekine dönülür.
+     Tauri file:// altında pathname değiştirilemediği için hash kullanılır.
+     `tab`/`setTab` geri-uyum alias'ı — mevcut çağrı yerleri bozulmaz. */
+  const [screen, setScreen] = useState(() =>
+    screenFromHash(typeof window === "undefined" ? "" : window.location.hash, "home"));
+  const navStack = useRef([screen]);
+  const go = useCallback((next) => {
+    const s = normalizeScreen(next, "home");
+    if (navStack.current[navStack.current.length - 1] === s) return;
+    navStack.current = pushScreen(navStack.current, s);
+    try { window.history.pushState({ screen: s }, "", hashForScreen(s)); } catch { /* file:// */ }
+    setScreen(s);
+  }, []);
+  const back = useCallback(() => {
+    if (navStack.current.length > 1) { try { window.history.back(); return; } catch { /* ignore */ } }
+    go("home");
+  }, [go]);
+  useEffect(() => {
+    try { window.history.replaceState({ screen }, "", hashForScreen(screen)); } catch { /* file:// */ }
+    const onPop = (e) => {
+      const s = normalizeScreen(
+        e.state?.screen ?? screenFromHash(window.location.hash), "home");
+      navStack.current = popScreen(navStack.current).stack;
+      setScreen(s);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+    /* yalnız mount — screen'i bağımlılığa koymak her geçişte replaceState eder. */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const tab = screen;
+  const setTab = go;
 
   /* ---------- Faz 2: takım senkronizasyonu + yetki ---------- */
   const [lang, setLang] = useState(() => {
@@ -240,8 +281,10 @@ export default function App() {
     return () => window.removeEventListener("keydown", h);
   }, []);
   const [entered, setEntered] = useState(false); // lobi geçildi mi (solo/oda)
-  const [teleOnly, setTeleOnly] = useState(false); // bağımsız telemetri ekranı (Race Solo'dan AYRI)
-  const [scheduleOnly, setScheduleOnly] = useState(false); // bağımsız Resmi Yarışlar takvimi (yarıştan AYRI)
+  /* Bağımsız üst-düzey ekranlar artık ayrı bayrak değil, `screen`den türer —
+     böylece geri tuşu ve URL bunlarda da çalışır. */
+  const teleOnly = screen === "tele" && !entered;   // Race Solo'dan AYRI telemetri
+  const scheduleOnly = screen === "official";        // yarıştan AYRI resmi takvim
   const [pickDone, setPickDone] = useState(false); // pist/araç seçimi tamamlandı mı
   const [setupDone, setSetupDone] = useState(false); // data giriş adımı tamamlandı mı
   const [userName, setUserName] = useState("");
@@ -278,6 +321,7 @@ export default function App() {
       setCurRace(rid);
       setRole(canEditTeam ? "editor" : "viewer");
       setEntered(true); setPickDone(true); setSetupDone(true);
+      go("dash");
       setTeamOpen(false); setSyncMsg("");
       setTimeout(() => { sync.current.applying = false; }, 60);
     } catch (e) { setSyncMsg(t("Bağlantı hatası: ") + e.message); }
@@ -286,6 +330,7 @@ export default function App() {
   const leaveRace = () => {
     setCurRace(""); setRole("editor"); setLastSync(null); setSyncMsg("");
     setEntered(false); setPickDone(false); setSetupDone(false);
+    go("home");
   };
 
   /* Yetki muhafızı: viewer bir yarışta düzenleme denerse "yetkiniz yok" kutucuğu göster
@@ -864,7 +909,7 @@ ${bottomBar}
       fallbackRaceTime: DEFAULT_STATE.raceTime,
       classId,
     }));
-    setScheduleOnly(false);
+    back();
   };
 
   /* ---- yüzen mini oynatıcı → useMiniPlayer hook'u (konum/boyut/sürükle) ---- */
@@ -1192,7 +1237,7 @@ ${bottomBar}
   /* Komut paleti aksiyonları — sekmeler + hızlı ayarlar. */
   const cmdActions = [
     { id: "dash", label: t("Dashboard"), keywords: "dash panel", icon: <Icon name="chart" size={15} />, run: () => setTab("dash") },
-    { id: "schedule", label: t("Resmi Yarışlar"), keywords: "schedule takvim race yarış lmugarage resmi official", icon: "🏁", run: () => setScheduleOnly(true) },
+    { id: "schedule", label: t("Resmi Yarışlar"), keywords: "schedule takvim race yarış lmugarage resmi official", icon: "🏁", run: () => go("official") },
     { id: "stint", label: t("Stint"), keywords: "stint", icon: <Icon name="cap" size={15} />, run: () => setTab("stint") },
     { id: "fuel", label: t("Son Stint Yakıtı"), keywords: "fuel yakıt", icon: <Icon name="zap" size={15} />, run: () => setTab("fuel") },
     { id: "live", label: t("Canlı"), keywords: "live canlı timing", icon: <Icon name="live" size={15} />, run: () => setTab("live") },
@@ -1604,7 +1649,7 @@ ${bottomBar}
     return (
       <TelemetryStandalone t={t} lang={lang} switchLang={switchLang} st={teleSt} up={() => {}}
         onSaveDuckSetup={user ? saveTeleSetup : null}
-        onExit={() => setTeleOnly(false)} {...teleHook} />
+        onExit={back} {...teleHook} />
     );
   }
 
@@ -1616,7 +1661,7 @@ ${bottomBar}
     return (
       <ScheduleStandalone t={t} lang={lang} switchLang={switchLang}
         races={lmu.races} updatedAt={lmu.updatedAt}
-        loading={lmu.loading} onExit={() => setScheduleOnly(false)}
+        loading={lmu.loading} onExit={back}
         onPlan={curTeam ? planOfficialRace : undefined} />
     );
   }
@@ -1715,7 +1760,7 @@ ${bottomBar}
                   <button className="bigbtn ghost" onClick={() => setCreateJoinOpen(true)}>
                     🏢 {t("Kur & Katıl")}
                   </button>
-                  <button className="bigbtn ghost" onClick={() => setScheduleOnly(true)}>
+                  <button className="bigbtn ghost" onClick={() => go("official")}>
                     🏁 {t("Resmi Yarışlar")}
                   </button>
                 </div>
@@ -1742,13 +1787,13 @@ ${bottomBar}
 
                 {/* §1.2 — hızlı eylemler: 📊 Telemetri belirgin */}
                 <div className="mmquick">
-                  <button className="mmqa" onClick={() => setScheduleOnly(true)}>
+                  <button className="mmqa" onClick={() => go("official")}>
                     <span className="mmqi">🏁</span>
                     <span className="mmql">{t("Resmi Yarışlar")}</span>
                     <span className="mmqs">{t("resmi yarış takvimi")}</span>
                   </button>
                   <button className="mmqa"
-                    onClick={() => setTeleOnly(true)}>
+                    onClick={() => go("tele")}>
                     <span className="mmqi">📊</span>
                     <span className="mmql">{t("Telemetri")}</span>
                     <span className="mmqs">{t(".ld yükle · analiz")}</span>
@@ -1883,7 +1928,7 @@ ${bottomBar}
             )}
 
             <div className="lobbyfoot">
-            <button className="solo" onClick={() => setEntered(true)}>
+            <button className="solo" onClick={() => { setEntered(true); go("pick"); }}>
               {t("Takımsız solo devam et →")}
             </button>
 
@@ -1995,13 +2040,13 @@ ${bottomBar}
 
             <button className="bigbtn" style={{ marginTop: 20 }}
               disabled={!st.track || !st.car}
-              onClick={() => setPickDone(true)}>
+              onClick={() => { setPickDone(true); go("data"); }}>
               {t("✓ Devam Et — Yarış Dataları")}
             </button>
             <div className="lmsg">
               {(!st.track || !st.car) && t("Devam etmek için pist ve araç seç")}
             </div>
-            <button className="solo" onClick={() => setPickDone(true)}>
+            <button className="solo" onClick={() => { setPickDone(true); go("data"); }}>
               {t("Seçim yapmadan geç →")}
             </button>
           </div>
@@ -2031,7 +2076,7 @@ ${bottomBar}
             {dataCards}
 
             <button className="bigbtn" style={{ marginTop: 18 }}
-              onClick={() => setSetupDone(true)}>
+              onClick={() => { setSetupDone(true); go("dash"); }}>
               {t("✓ Devam Et — Arayüze Geç")}
             </button>
             <div className="hint" style={{ textAlign: "center", marginTop: 8 }}>
