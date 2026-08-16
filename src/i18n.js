@@ -1106,6 +1106,8 @@ export const EN = {
   "Neler değişti": "What's new",
   "Kurulu sürüm": "Installed version",
   "Hata bildir": "Report a bug",
+  "Sıradaki": "Next",
+  "sa": "h",
   "hazır": "ready",
   "Güncelle": "Update",
   "Arayüz baştan tasarlandı — 76px sol ray, birleşik yarış çubuğu ve tam sayfa ekranlar.":

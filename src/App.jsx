@@ -984,7 +984,9 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
 
   /* ---- lmugarage.com resmi LMU yarış takvimi — Ana Menü → Resmi Yarışlar ----
      Yarıştan BAĞIMSIZ: yalnız scheduleOnly görünürken abone olur; race state gerekmez. */
-  const lmu = useLmuSchedule({ user, udoc, active: scheduleOnly });
+  /* Ana menüde de resmi takvimi yükle → "Resmi yarışlar" fişi gerçek sıradaki
+     yarışı + geri sayımı gösterir (kullanıcı onayı). Yarışa girilince kapanır. */
+  const lmu = useLmuSchedule({ user, udoc, active: scheduleOnly || (!curRace && !entered) });
   /* Resmi Yarışlar → ön ayar (v1.7.3): bir resmi yarışın 📋 butonu, o yarışın
      pist/sınıf/süre/başlangıcıyla "Yarış Ekle" formunu doldurur ve takvimi kapatır
      → kullanıcı (belirli aracı seçip) Kaydet der → takım yarışı + strateji state
@@ -2314,6 +2316,20 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
     const raceCount = Object.keys(races).length;
     /* fiş 01-menu: Setup havuzu fişi "N dosya · M pist" gösterir. */
     const suTrackCount = new Set(setups.map((s) => s.track).filter(Boolean)).size;
+    /* fiş 01-menu: "Resmi yarışlar" fişi sıradaki resmi yarışı + geri sayımı gösterir. */
+    const nextOfficial = lmu.upcoming?.[0] || null;
+    const nextOfficialTrack = nextOfficial
+      ? (trackName(nextOfficial.trackId) || nextOfficial.trackRaw || "") : "";
+    const nextOfficialCd = (() => {
+      if (!nextOfficial) return "";
+      const ms = (nextOfficial.startMs || 0) - now;
+      if (ms <= 0) return t("canlı");
+      const m = Math.floor(ms / 60000);
+      if (m < 60) return `${m} ${t("dk")}`;
+      const h = Math.floor(m / 60);
+      if (h < 24) return `${h} ${t("sa")}`;
+      return `${Math.floor(h / 24)} ${t("gün")}`;
+    })();
     const initials = (userName || user?.displayName || user?.email || "?")
       .split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "?";
     const otherTeams = Object.entries(myTeams).filter(([tid]) => tid !== curTeam);
@@ -2588,7 +2604,11 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
               <button className="tile official" onClick={() => go("official")}>
                 <span className="ic">🏁</span>
                 <span className="tx"><b>{t("Resmi yarışlar")}</b>
-                  <span>{t("lmugarage günlük/haftalık")}</span></span>
+                  <span>{nextOfficial
+                    ? `${t("Sıradaki")}: ${nextOfficial.name}${
+                        nextOfficialTrack ? ` · ${nextOfficialTrack}` : ""}`
+                    : t("lmugarage günlük/haftalık")}</span></span>
+                {nextOfficialCd && <span className="cd">{nextOfficialCd}</span>}
               </button>
             </div>
           </div>
