@@ -185,6 +185,12 @@ export const carImg = (cls, id) => {
    BADGES/teamBadgesOf/hasBadge JSX (<Wheel/>) içerdiği için ./components.jsx'te. */
 export const PIE_COLORS = ["#2DD4BF", "#F2C94C", "#960018", "#9B6DFF", "#4C9AFF",
   "#FF8A3D", "#59C36A", "#EC5CA6", "#00B8D9", "#C0CA33"];
+
+/* Pilot rengi — TEK KAYNAK. Dashboard, Stint ve Pilotlar ekranları aynı pilotu
+   aynı renkte göstersin diye üçü de bunu çağırır. `names` = süre dağılımına
+   giren pilotlar (driverPlan.totals'ta karşılığı olanlar), sırası korunur. */
+export const driverColorOf = (names, n) =>
+  PIE_COLORS[Math.max(0, names.indexOf(n)) % PIE_COLORS.length];
 /* Takım renk paleti (pozisyon grafiği çizgileri) — CVD-güvenli kategorik 7'li
    (dataviz validator: dark yüzeyde TÜM kontroller PASS; light'ta CVD PASS, kontrast
    WARN → uç pilot-kodu etiketleri "relief" sağlar). #960018 OYUNCUYA ayrıldığı için

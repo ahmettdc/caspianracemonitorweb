@@ -1432,6 +1432,33 @@ export const css = `
    Yoğunluk YALNIZ bu ekranda: .wall = Pit duvarı (seyrek satır, büyük sayı),
    .eng = Mühendis (sık satır, 12.5px). Sütunlar İKİ MODDA DA görünür — yalnız
    ölçek değişir. Global yoğunluk anahtarı v2.0'da kaldırıldı. */
+/* ── v2.0 STINT — S1 / pit lastik ışıkları (README §4) ───────────────────────
+   Tek düğme, tıklandıkça durum döner; düğme köşe adını (FL/FR/RL/RR) ve durum
+   etiketini birlikte gösterir. Renkler README'deki TY_STATE tablosundan.
+
+   NOT — durum modeli: tasarımdaki beşli (U/W/N/✕/→) ile uygulamanın mevcut
+   beşli döngüsü (state.js applyUpTyre: taşı · yeni kuru · Qual'a dön · wet ·
+   eski kuru) birebir örtüşmüyor. "Yeni veri katmanı yok" kuralı gereği MEVCUT
+   MANTIK korundu; tasarımın görsel dili uygulamanın durumlarına eşlendi.
+   Qual (LMU'ya özgü, tasarımda yok) --ty-qual rengiyle "Q" olarak kaldı. */
+.rc .tylight{display:inline-flex;align-items:baseline;gap:5px;padding:5px 10px;
+  border-radius:var(--r-sm);cursor:pointer;font-family:var(--font-disp);font-weight:700;
+  font-size:13px;line-height:1;border:1px solid var(--line);background:var(--panel2);
+  color:var(--dim);transition:border-color var(--t-fast),background var(--t-fast)}
+.rc .tylight .tag{font-size:11px;opacity:.95}
+.rc .tylight.carry{border-style:dashed;border-color:var(--line-strong);
+  background:transparent;color:var(--line-dim);opacity:.6}
+.rc .tylight.new{border-color:var(--green);background:rgba(55,214,122,.16);color:var(--green)}
+.rc .tylight.qual{border-color:var(--ty-qual);background:rgba(102,148,255,.16);color:var(--ty-qual)}
+.rc .tylight.wet{border-color:var(--blue);background:rgba(76,154,255,.16);color:var(--blue)}
+.rc .tylight.used{border-color:var(--yellow);background:rgba(245,178,61,.16);color:var(--yellow)}
+.rc .tylight:hover{border-color:var(--accent)}
+/* pistteki pilot çipi */
+.rc .ontrack{display:inline-flex;align-items:center;gap:4px;padding:1px 7px;
+  border-radius:var(--r-pill);border:1px solid var(--green);color:var(--green);
+  background:rgba(55,214,122,.12);font-size:10px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.06em}
+
 /* ── v2.0 DASHBOARD (README §3) — iki kolon ──────────────────────────────────
    Sol: araç + pist görsel kartı (tıkla → büyütme penceresi), altında stint
    programı. Sağ: 4 KPI, canlı durum satırı, lastik, son stint VE, pilot dağılımı. */

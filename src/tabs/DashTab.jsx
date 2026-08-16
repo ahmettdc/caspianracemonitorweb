@@ -1,6 +1,6 @@
 import { fmtHMS, WX, wxId } from "../engine";
 import { WetIcon } from "../WetIcon";
-import { ASSET, AV, TRACK_ASSET, PIT_LANE_TIMES, CAR_CLASSES, PIE_COLORS,
+import { ASSET, AV, TRACK_ASSET, PIT_LANE_TIMES, CAR_CLASSES, driverColorOf,
   trackName, carName } from "../constants";
 import { carImageSrc } from "../teamAssets";
 import { Tyre, Bolt } from "../components";
@@ -23,7 +23,7 @@ export default function DashTab({
   /* pilot renkleri DriversTab'deki colorOf ile BİREBİR aynı sıralamadan gelir →
      iki ekranda aynı pilot aynı renkte görünür. */
   const names = driverPlan ? st.roster.filter((n) => driverPlan.totals[n]) : [];
-  const colorOf = (n) => PIE_COLORS[names.indexOf(n) % PIE_COLORS.length];
+  const colorOf = (n) => driverColorOf(names, n);
   const live = liveInfo.status === "live";
 
   return (

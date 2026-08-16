@@ -1,5 +1,5 @@
 import { fmtHMS, msToLocalInput } from "../engine";
-import { PIE_COLORS } from "../constants";
+import { PIE_COLORS, driverColorOf } from "../constants";
 import { Donut, Avatar } from "../components";
 
 /* Ad → baş harf(ler) rozeti (en çok 2). "A. Demircan" → "AD", "Savaş" → "SA". */
@@ -20,7 +20,7 @@ export default function DriversTab({
   const poolExtra = teamDrivers.filter((n) => !st.roster.includes(n));
   /* süre-dağılımı adları (Donut ile AYNI) + renk + atanan stint numaraları */
   const names = driverPlan ? st.roster.filter((n) => driverPlan.totals[n]) : [];
-  const colorOf = (n) => PIE_COLORS[names.indexOf(n) % PIE_COLORS.length];
+  const colorOf = (n) => driverColorOf(names, n);
   const stintsOf = {};
   if (driverPlan) {
     driverPlan.rows.forEach((r, i) => {

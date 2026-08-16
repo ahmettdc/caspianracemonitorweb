@@ -1,16 +1,33 @@
 import { fmtHMS, parseHMS, wxLog, wxAtRel, wxId, tyState, EMPTY_PIT, MAX_STINTS } from "../engine";
 import { WetIcon } from "../WetIcon";
 import { Tyre } from "../components";
+import { driverColorOf } from "../constants";
 
 /* Stint plan sekmesi (stint + code80) — KPI'lar, S1 lastik kısayolları, stint/hava
    zaman çizelgeleri, plan tablosu (tur/VE/pit/override) ve pit formülü.
    Mode-aware plan, timeline, liveInfo ve tüm handler'lar App'ten prop gelir. */
+/* Lastik ışığı durumları (README §4 TY_STATE) — uygulamanın state.js
+   applyUpTyre döngüsüne eşlenmiş: 0 taşı · 1 yeni kuru · 2 Qual'a dön · 3 wet ·
+   4 eski kuru tekrar. Tasarımın "✕ değişim yok" durumu uygulamada "taşı" ile
+   aynı anlama geldiği için ayrı bir durum eklenmedi (yeni veri katmanı yok). */
+const TY_CLS = ["carry", "new", "qual", "wet", "used"];
+const TY_TAG = ["→", "N", "Q", "W", "U"];
+const TY_TITLE = [
+  "Taşı — tıkla: yeni kuru",
+  "Yeni kuru — tıkla: Qual'a dön",
+  "Qual lastiği — tıkla: wet",
+  "Wet (sınırsız) — tıkla: eski kuru",
+  "Eski kuru tekrar — tıkla: taşı",
+];
+
 export default function StintTab({
   tab, mode, t, st, plan, totalVE, totalFuelL, timeline, liveInfo, pitSoon,
   tyreInfo, quickTyre, bumpLaps, clearLaps, upStintLap, upTyre, upPit,
-  assignDriver, upOvr, setRepair,
+  assignDriver, upOvr, setRepair, driverPlan,
 }) {
   const TY = ["FL", "FR", "RL", "RR"];
+  /* pilot renkleri Dashboard ve Pilotlar ile AYNI kaynaktan (constants.js). */
+  const drvNames = driverPlan ? st.roster.filter((n) => driverPlan.totals[n]) : (st.roster || []);
   return (
     <div className={`card ${tab === "code80" ? "c80" : ""}`}>
       <div className="kpis">
@@ -236,13 +253,11 @@ export default function StintTab({
                       const stv = tyState((st.pits[i] || EMPTY_PIT).tyres[ti]);
                       return (
                         <button key={corner}
-                          className={["", "on", "qual", "wet", "used"][stv]}
-                          title={[t("Taşı — tıkla: yeni kuru"),
-                            t("Yeni kuru — tıkla: Qual'a dön"),
-                            t("Qual lastiği — tıkla: wet"),
-                            t("Wet (sınırsız) — tıkla: eski kuru"),
-                            t("Eski kuru tekrar — tıkla: taşı")][stv]}
-                          onClick={() => upTyre(i, ti)}>{corner}</button>
+                          className={`tylight ${TY_CLS[stv]}`}
+                          title={t(TY_TITLE[stv])}
+                          onClick={() => upTyre(i, ti)}>
+                          {corner}<span className="tag">{TY_TAG[stv]}</span>
+                        </button>
                       );
                     })}
                   </span>
@@ -260,11 +275,22 @@ export default function StintTab({
                 </>)}
               </td>
               <td>
-                <select className="drvsel" value={st.driverAssign[i] || ""}
-                  onChange={(e) => assignDriver(i, e.target.value)}>
-                  <option value="">—</option>
-                  {(st.roster || []).map((n) => <option key={n} value={n}>{n}</option>)}
-                </select>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  {st.driverAssign[i] && (
+                    /* renk veriye bağlı → inline; pilot renkleri constants.js'te tek kaynak */
+                    <i className="dot" style={{ width: 9, height: 9, borderRadius: 3,
+                      flex: "0 0 auto",
+                      background: driverColorOf(drvNames, st.driverAssign[i]) }} />
+                  )}
+                  <select className="drvsel" value={st.driverAssign[i] || ""}
+                    onChange={(e) => assignDriver(i, e.target.value)}>
+                    <option value="">—</option>
+                    {(st.roster || []).map((n) => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                  {liveInfo?.status === "live" && i === liveInfo.stintIdx && st.driverAssign[i] && (
+                    <span className="ontrack">{t("Pistte")}</span>
+                  )}
+                </span>
               </td>
               <td>{r.isLast ? "—" : (<>
                 {fmtHMS(r.pitSec)}
