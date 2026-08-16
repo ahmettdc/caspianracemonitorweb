@@ -20,7 +20,13 @@ export default function FuelTab({ t, st, up, lsf, autoCd, setAutoCd, planLastCd,
         return ([title, eff, setVal, rr, isAuto, canAuto]);
       }).map(([title, val, setVal, r, isAuto, canAuto]) => (
         <div className={`card ${title.includes("CODE 80") ? "c80" : ""}`} key={title}>
-          <h2>⛽ {t("Son Stint Yakıtı")} · {title}</h2>
+          <h2>⛽ {t("Son Stint Yakıtı")} · {title}
+            {/* README §18: izleyici modunda AÇIKLAMA METNİ yalnız burada. */}
+            {!canEdit && (
+              <span className="ro-note" style={{ marginLeft: "auto" }}>
+                👁 {t("İzleyici modunda pasif")}</span>
+            )}
+          </h2>
           <label>{t("Session Countdown (h:mm:ss)")}{" "}
             {canAuto && (
               <button className={autoCd ? "chip" : ""}

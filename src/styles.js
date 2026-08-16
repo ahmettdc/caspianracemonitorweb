@@ -1436,6 +1436,20 @@ export const css = `
 .rc .grid.v2grid{display:block;padding:0}
 .rc .grid.v2grid>.v2screen{padding:var(--sp-7) var(--sp-8) 40px}
 
+/* ── v2.0 İZLEYİCİ MODU görsel sistemi (README §18) ──────────────────────────
+   Rol 'viewer' olduğunda düzenleme yolları TUTARLI biçimde pasifleşir. İşlevsel
+   engel zaten App.jsx blocked()/edit() zincirinde (DenyToast) — buradaki kurallar
+   görsel karşılığı. Yarış çubuğundaki amber "İZLEYİCİ MODU" rozeti dışında
+   BAŞKA HİÇBİR YERDE açıklama metni yok; tek istisna Yakıt ekranındaki
+   "👁 İzleyici modunda pasif" notu. */
+.rc .viewonly .tylight,.rc .viewonly .availcell,.rc .viewonly .denbtn,
+.rc .viewonly .rbbtn.apply,.rc .viewonly .pdfbtn{pointer-events:none;opacity:.5}
+/* gezinme, süzgeç ve görünüm anahtarları izleyicide de ÇALIŞIR (salt-okur
+   inceleme bozulmasın): ray, başlık geçişleri, yoğunluk-dışı düğmeler. */
+.rc .viewonly .railbtn,.rc .viewonly .fieldtbl th button,
+.rc .viewonly .secbtn,.rc .viewonly .sideflip,
+.rc .viewonly .flapsbtn{pointer-events:auto;opacity:1}
+
 /* ── v2.0 YARIŞ DATASI PANELİ — sahnele + uygula (README §14) ────────────────*/
 .rc .rdhead{display:flex;align-items:center;gap:var(--sp-4);flex:0 0 auto;
   padding:var(--sp-5) var(--sp-6);border-bottom:1px solid var(--line)}

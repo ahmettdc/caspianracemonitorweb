@@ -83,6 +83,7 @@ export const EN = {
 
   /* §6 İzleyici modu */
   "İzleyici modu": "Viewer mode",
+  "İzleyici modunda pasif": "Disabled in viewer mode",
 
   /* §7 Canlı timing — sütun ve süzgeç */
   "Poz · Sınıf": "Pos · Class",
