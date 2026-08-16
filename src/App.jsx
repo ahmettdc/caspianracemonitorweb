@@ -41,7 +41,7 @@ import { Rail, RaceBar, Guide, EmptyState } from "./shell";
 import { guideFor } from "./guides";
 import { pruneAssignments } from "./avail";
 import {
-  SLOT_COLORS, APP_VERSION, SEEN_VER_KEY, ASSET, AV,
+  SLOT_COLORS, APP_VERSION, APP_VERSION_SUMMARY, SEEN_VER_KEY, ASSET, AV,
   TRACKS, PIT_LANE_TIMES, TRACK_ASSET, trackFlag,
   CARS, CAR_CLASSES, trackName, carName, classId, venueToTrackId,
   PIE_COLORS, DESKTOP_RELEASE_URL, BRIDGE_EXE_URL,
@@ -1012,6 +1012,9 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
   const [lobSeason, setLobSeason] = useState("all"); // lobide şampiyona süzgeci
   const [lobQuery, setLobQuery] = useState("");      // geçmiş yarış araması (§1.3)
   const [pastLimit, setPastLimit] = useState(12);    // geçmiş yarış sayfalama (§1.3)
+  const [lobCal, setLobCal] = useState("up");        // menü takvim segmenti: Yaklaşan/Geçmiş
+  const [homeInfo, setHomeInfo] = useState(false);   // menü top bar: ℹ bilgi açılırı
+  const [homeAcct, setHomeAcct] = useState(false);   // menü top bar: hesap açılırı
   const [tnEdit, setTnEdit] = useState(null);        // takım adı düzenleme metni
 
   const myRole = teamData?.members?.[user?.uid] || "";
@@ -1949,272 +1952,343 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
       </div>
     );
 
+    /* Menü ekranı — handoff-spec/ekranlar/01-menu.md (birebir). Sol ray + tam
+       genişlik içerik; ortalanmış dar kutu YOK. */
+    const teamName = teamData?.meta?.name || t("Takım");
+    const seasonTag = (curSeason && seasons[curSeason]?.name) || "";
+    const memberCount = teamData?.members ? Object.keys(teamData.members).length : 0;
+    const raceCount = Object.keys(races).length;
+    const initials = (userName || user?.displayName || user?.email || "?")
+      .split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "?";
+    const otherTeams = Object.entries(myTeams).filter(([tid]) => tid !== curTeam);
+    /* Ray'de yarış ekranları bir yarış açık olmasını ister; menüde sıradaki
+       yarışı açar. Yarış-dışı ekranlar kendi eylemine gider. */
+    const homeGo = (id) => {
+      if (id === "team") return setTeamOpen(true);
+      if (id === "chat") return setChatOpen(true);
+      if (id === "setup") return setSuOpen(true);
+      if (id === "tele") return go("tele");
+      if (nextEntry) return openRace(nextEntry[0]);
+      return undefined;
+    };
+    /* Geri sayım — sıradaki yarışın başlangıcına. */
+    const heroR = nextEntry ? nextEntry[1] : null;
+    const cdMs = heroR?.startsAt ? Math.max(0, heroR.startsAt - now) : 0;
+    const cdD = Math.floor(cdMs / 86400000);
+    const cdH = Math.floor((cdMs % 86400000) / 3600000);
+    const cdM = Math.floor((cdMs % 3600000) / 60000);
+    const pad2 = (n) => String(n).padStart(2, "0");
+    const heroLocal = heroR?.startsAt
+      ? new Date(heroR.startsAt).toLocaleString(lang === "en" ? "en-GB" : "tr-TR",
+          { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
+      : "";
+    /* Takvim segmenti: Yaklaşan / Geçmiş. Arama iki segmentte de çalışır. */
+    const upSearched = upF.filter(matchQ);
+    const calList = lobCal === "up" ? upSearched : pastShown;
+    const calEmpty = calList.length === 0;
+    const seasonChips = [["all", t("Tümü")], ...seasonIds.filter(Boolean).map((sid) => [sid, sName(sid)])];
+    const CalRow = ([rid, r]) => {
+      const isNext = nextEntry && nextEntry[0] === rid;
+      const past = isRacePast(r, now);
+      return (
+        <div key={rid} className={`hmrow${isNext ? " next" : ""}`}>
+          <span className="rnd">{r.round ? `R${r.round}` : "—"}</span>
+          {r.trackId
+            ? <img className="flag" src={`${ASSET}flags/${TRACK_ASSET(r.trackId)}.png${AV}`} alt=""
+                onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
+            : <span className="flag" />}
+          {r.trackId
+            ? <img className="trk" src={`${ASSET}tracks/${TRACK_ASSET(r.trackId)}.png${AV}`} alt=""
+                onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
+            : <span className="trk" />}
+          <span className="info">
+            <b>{r.name || trackName(r.trackId) || "—"}</b>
+            <span>{[r.trackId ? trackName(r.trackId) : "", r.raceTime,
+              r.carId ? carName(r.carClass, r.carId) : ""].filter(Boolean).join(" · ")}</span>
+          </span>
+          <span className="date">{r.startsAt
+            ? new Date(r.startsAt).toLocaleString(lang === "en" ? "en-GB" : "tr-TR",
+                { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
+            : "—"}</span>
+          <span className="state">{isNext ? t("sıradaki") : past ? t("bitti") : t("planlı")}</span>
+          <button className="open" onClick={() => openRace(rid)}>{t("Aç")}</button>
+          {canEditTeam && (
+            <button className="icon" title={t("Düzenle")}
+              onClick={() => setRForm({ rid, ...r })}>✎</button>
+          )}
+          {canEditTeam && (
+            <button className="icon del mut" title={t("Sil")}
+              onClick={() => askDeleteRace(rid, r)}>🗑</button>
+          )}
+        </div>
+      );
+    };
+
     return (
-      <div className="rc">
-        <UpdateBanner t={t} />
+      <div className="rc v2">
         {teamModal}{createJoinModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}{cmdPalette}
-        <div className="lobby">
-          <div className="box" style={{ maxWidth: 900 }}>
-            <div className="langsw" style={{ display: "flex", justifyContent: "flex-end",
-              alignItems: "center", gap: 6, marginBottom: 6 }}>
-              <button className="tourbtn" onClick={() => setTour("lobby")}
-                title={t("Rehberi başlat")}>🎓 {t("Rehber")}</button>
-              {["tr", "en"].map((l) => (
-                <button key={l} className={lang === l ? "on" : ""}
-                  onClick={() => switchLang(l)}>{l.toUpperCase()}</button>
-              ))}
-              {infoBtn}
-            </div>
-            <img className="logo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
-            <h1><b>RACE</b> MONITOR</h1>
-            <div className="sub">{APP_VERSION}</div>
+        <Rail t={t} screen="home" go={homeGo} onHome={() => {}}
+          open={railOpen} onToggle={() => setRailOpen((v) => !v)}
+          version={APP_VERSION} chatScreen="chat" unread={chatUnread}
+          onChat={() => setChatOpen(true)} />
+        <div className="v2main">
+        <UpdateBanner t={t} />
+        <div className="hm">
 
-            {firebaseReady ? (<>
-              <div className="hint" style={{ marginBottom: 10 }}>
-                👤 {userName || t("isimsiz")}</div>
+          {/* ── üst şerit: takım kimliği + kontroller ── */}
+          <div className="hmbar">
+            <span className="hmteam">
+              <img src={curTeam ? (teamLogoSrc(teamData?.assets) || `${ASSET}logo.png`) : `${ASSET}logo.png`}
+                alt="" onError={(e) => { e.currentTarget.src = `${ASSET}logo.png`; }} />
+              <b>{teamName}</b>
+              {seasonTag && <span>{seasonTag}</span>}
+            </span>
+            {otherTeams.map(([tid, nm]) => (
+              <button key={tid} className="hmteam2" onClick={() => setCurTeam(tid)}>{nm}</button>
+            ))}
+            <button className="hmcj" onClick={() => setCreateJoinOpen(true)}>＋ {t("Kur & Katıl")}</button>
 
-              {Object.keys(myTeams).length === 0 ? (
-                <div className="lobbyfoot">
-                  <button className="bigbtn ghost" onClick={() => setCreateJoinOpen(true)}>
-                    🏢 {t("Kur & Katıl")}
-                  </button>
-                  <button className="bigbtn ghost" onClick={() => go("official")}>
-                    🏁 {t("Resmi Yarışlar")}
-                  </button>
-                </div>
-              ) : (<>
-                {/* §1 — takım seçici: yatay kaydırılan kartlar (10+ ölçeklenir) */}
-                <div className="mmcap">{t("Takım")}</div>
-                <div className="mmteams">
-                  {Object.entries(myTeams).map(([tid, nm]) => (
-                    <button key={tid} className={`mmtm ${curTeam === tid ? "on" : ""}`}
-                      onClick={() => setCurTeam(tid)}>
-                      <span className="mmtlg">
-                        {tid === curTeam && teamLogoSrc(teamData?.assets)
-                          ? <img src={teamLogoSrc(teamData.assets)} alt="" />
-                          : "🏁"}
+            <span className="hmctl">
+              <span className="hmlang">
+                {["tr", "en"].map((l) => (
+                  <button key={l} className={lang === l ? "on" : ""}
+                    onClick={() => switchLang(l)}>{l.toUpperCase()}</button>
+                ))}
+              </span>
+              <button className="hmbtn" onClick={() => setTour("lobby")}>🎓 {t("Rehber")}</button>
+              <button className="hmbtn mut" title={t("Komut paleti · Ctrl/Cmd+K")}
+                onClick={() => setCmdOpen(true)}>🔎 {t("Ara")} <b>⌘K</b></button>
+              {isAdmin && (
+                <button className="hmbtn" title={t("Üye yönetimi")}
+                  onClick={() => setAdminOpen(true)}>🛡 {t("Üyeler")}</button>
+              )}
+              <span className="hmpop-wrap">
+                <button className={`hminfo${homeInfo ? " on" : ""}`} title={t("Sürüm ve bilgi")}
+                  onClick={() => { setHomeInfo((v) => !v); setHomeAcct(false); }}>ℹ</button>
+                {homeInfo && (
+                  <span className="hminfopop">
+                    <span className="hd">
+                      <img src={`${ASSET}logo.png`} alt="" />
+                      <span style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                        <b>Race Monitor</b>
+                        <span>{t("Sürüm")} {APP_VERSION} · Caspian Motorsport</span>
                       </span>
-                      <span className="mmtnm">{nm}</span>
-                    </button>
-                  ))}
-                  <button className="mmtm add" onClick={() => setCreateJoinOpen(true)}>
-                    <span className="mmtlg">＋</span>
-                    <span className="mmtnm">{t("Kur & Katıl")}</span>
-                  </button>
-                </div>
-
-                {/* §1 — iki kolonlu üst blok: solda sıradaki yarış hero'su
-                    (flex 1 1 620px), sağda 2×2 hızlı eylem ızgarası
-                    (flex 1 1 280px) + tam genişlik "Resmi Yarışlar" satırı. */}
-                <div className="mmtop">
-                  <div className="mmherocol">
-                      {/* sıradaki yarış — vurgulu hero */}
-                      {nextEntry ? (() => {
-                        const [rid, r] = nextEntry;
-                        return (<>
-                          <div className="mmsec">🏁 {t("Sıradaki Yarış")}</div>
-                          <div className="mmnextwrap">
-                          <button className="mmnext" onClick={() => openRace(rid)}>
-                            {/* bayrak + pist görseli — mevcut asset sistemi (flags/ + tracks/,
-                                TRACK_ASSET ile). Emoji bayrak bazı OS'lerde "FR" harfine düşüyordu. */}
-                            <span className="mmntrk">
-                              {r.trackId ? (<>
-                                <img className="mmnflag"
-                                  src={`${ASSET}flags/${TRACK_ASSET(r.trackId)}.png${AV}`} alt=""
-                                  onError={(e) => { e.currentTarget.style.display = "none"; }} />
-                                <img className="mmntrkimg"
-                                  src={`${ASSET}tracks/${TRACK_ASSET(r.trackId)}.png${AV}`} alt=""
-                                  onError={(e) => { e.currentTarget.style.display = "none"; }} />
-                              </>) : "🏁"}
-                            </span>
-                            <span className="mmninfo">
-                              <span className="mmnrnd">
-                                {sName(sidOf(nextEntry))}{r.round ? ` · R${r.round}` : ""}</span>
-                              <span className="mmnttl">{r.name || trackName(r.trackId) || "—"}</span>
-                              <span className="mmnmt">
-                                {r.trackId ? trackName(r.trackId) : ""}
-                                {r.raceTime ? ` · ${r.raceTime}` : ""}
-                                {r.carId ? ` · ${carName(r.carClass, r.carId)}` : ""}</span>
-                            </span>
-                            <span className="mmncd">
-                              {r.startsAt ? (
-                                <span className="mmncdd">{new Date(r.startsAt)
-                                  .toLocaleString(lang === "en" ? "en-GB" : "tr-TR",
-                                    { day: "2-digit", month: "short",
-                                      hour: "2-digit", minute: "2-digit" })}</span>
-                              ) : null}
-                              <span className="mmngo">{t("Aç")} →</span>
-                            </span>
-                          </button>
-                          {canEditTeam && (
-                            <button className="mmdel" title={t("Yarışı sil")}
-                              onClick={() => askDeleteRace(rid, r)}>🗑</button>
-                          )}
-                          </div>
-                        </>);
-                      })() : (
-                        /* Takvim boş durumu (README §1 + i18n-EN.md §2): kesikli
-                           çerçeveli blok — takvim ikonu, başlık, açıklama ve iki
-                           eylem. Düz "hint" satırının yerini aldı. */
-                        <EmptyState icon="🗓" title={t("Bu sezonda yarış yok")}
-                          text={t("Takvime yarış ekle ya da resmi yarışlar listesinden planla — eklediğin yarışlar takımdaki herkeste görünür.")}>
-                          {canEditTeam && curTeam && (
-                            <button className="rbbtn" onClick={() => setRForm({})}>
-                              ＋ {t("Yarış ekle")}</button>
-                          )}
-                          <button className="rbbtn" onClick={() => go("official")}>
-                            {t("Resmi yarışlar")}</button>
-                        </EmptyState>
-                      )}
-                  </div>
-                  <div className="mmsidecol">
-                  <div className="mmquick q4">
-                    <button className="mmqa"
-                      onClick={() => go("tele")}>
-                      <span className="mmqi">📊</span>
-                      <span className="mmql">{t("Telemetri")}</span>
-                      <span className="mmqs">{t(".ld yükle · analiz")}</span>
-                    </button>
-                    <button className="mmqa" onClick={() => setSuOpen(true)}>
-                      <span className="mmqi">🔧</span>
-                      <span className="mmql">{t("Setup Havuzu")}
-                        {setups.length > 0 && <span className="mmbadge">{setups.length}</span>}</span>
-                      <span className="mmqs">{t("paylaşımlı setuplar")}</span>
-                    </button>
-                    <button className="mmqa" data-tour="chat" onClick={() => setChatOpen(true)}>
-                      <span className="mmqi">💬</span>
-                      <span className="mmql">{t("Sohbet")}
-                        {chatUnread > 0 && <span className="mmbadge">{chatUnread}</span>}</span>
-                      <span className="mmqs">{t("takım kanalları")}</span>
-                    </button>
-                    <button className="mmqa" data-tour="manage" onClick={() => setTeamOpen(true)}>
-                      <span className="mmqi">⚙</span>
-                      <span className="mmql">{canEditTeam ? t("Yönet") : t("Görüntüle")}</span>
-                      <span className="mmqs">{t("takvim & takım")}</span>
-                    </button>
-                  </div>
-                  <button className="mmqa mmofficial" onClick={() => go("official")}>
-                    <span className="mmqi">🏁</span>
-                    <span className="mmql">{t("Resmi Yarışlar")}</span>
-                    <span className="mmqs">{t("resmi yarış takvimi")}</span>
-                  </button>
-                  </div>
-                </div>
-
-
-                {/* sezon süzgeci (çok sezon) — yaklaşanı ve geçmişi süzer */}
-                {seasonIds.length > 1 && (
-                  <div className="mmchips">
-                    {[["all", t("Tümü")], ...seasonIds.map((sid) => [sid, sName(sid)])]
-                      .map(([v, l]) => (
-                        <button key={v} className={`mmchip ${lobSeason === v ? "on" : ""}`}
-                          onClick={() => setLobSeason(v)}>{l}</button>
-                      ))}
-                  </div>
+                    </span>
+                    <span className="st">
+                      <span className="r"><span>{t("Köprü")}</span>
+                        <b style={{ color: live?.ts ? "var(--rc-ok)" : undefined }}>
+                          {live?.ts ? t("bağlı") : t("bağlı değil")}</b></span>
+                      <span className="r"><span>{t("Takvim verisi")}</span>
+                        <b>{lmu?.updatedAt
+                          ? new Date(lmu.updatedAt).toLocaleTimeString(lang === "en" ? "en-GB" : "tr-TR",
+                              { hour: "2-digit", minute: "2-digit" }) : "—"}</b></span>
+                      <span className="r"><span>{t("Oyun")}</span><b>Le Mans Ultimate</b></span>
+                    </span>
+                    <span className="act">
+                      <button onClick={() => { setHomeInfo(false); openVersions(); }}>
+                        {t("Yenilikler · neler değişti")}</button>
+                    </span>
+                    <span className="ft">{t("Takvim kaynağı")}{" "}
+                      <a href="https://lmugarage.com" target="_blank" rel="noopener noreferrer">lmugarage.com</a>{" "}
+                      — {t("resmi olmayan topluluk projesi.")}</span>
+                  </span>
                 )}
+              </span>
+              <span className="hmpop-wrap">
+                <button className={`hmacct${homeAcct ? " on" : ""}`}
+                  onClick={() => { setHomeAcct((v) => !v); setHomeInfo(false); }}>
+                  <span className="av">{user?.photoURL
+                    ? <img src={user.photoURL} alt="" referrerPolicy="no-referrer" /> : initials}</span>
+                  <span className="nm">
+                    <b>{userName || user?.displayName || t("Kullanıcı")}</b>
+                    <span>{roleLabel(role)}</span>
+                  </span>
+                  <span className="ca">▾</span>
+                </button>
+                {homeAcct && (
+                  <span className="hmacctpop">
+                    <button onClick={() => { setHomeAcct(false); setProfOpen(true); }}>
+                      {t("Profil ve rozetler")}</button>
+                    <span className="sep" />
+                    <button className="danger" onClick={() => { setHomeAcct(false); signOut(); }}>
+                      {t("Çıkış yap")}</button>
+                  </span>
+                )}
+              </span>
+            </span>
+          </div>
 
-                <div className="mmraces" data-tour="races">
+          {/* ── sürüm banner ── */}
+          {verNew && (
+            <div className="hmver">
+              <span className="i">⬆</span>
+              <span className="t">{t("Sürüm")} <b>{APP_VERSION}</b> {t("hazır")} — {t(APP_VERSION_SUMMARY)}</span>
+              <span className="btns">
+                <button onClick={openVersions}>{t("Neler değişti")}</button>
+                <button className="go" onClick={() => window.location.reload()}>{t("Güncelle")}</button>
+                <button className="later" onClick={() => { try { localStorage.setItem(SEEN_VER_KEY, APP_VERSION); } catch {} setSeenVer(APP_VERSION); }}>
+                  {t("Sonra")}</button>
+              </span>
+            </div>
+          )}
 
-                  {/* kalan yaklaşanlar */}
-                  {restUp.length > 0 && (<>
-                    <div className="mmsec sub">{t("Yaklaşan")} ({restUp.length})</div>
-                    <div className="racegrid">
-                      {restUp.map((e) => (
-                        <Fragment key={e[0]}>
-                          {seasonIds.length > 1 && lobSeason === "all" && (
-                            <div className="lseason">{sName(sidOf(e))}</div>
-                          )}
-                          {RaceRow(e, false)}
-                        </Fragment>
-                      ))}
-                    </div>
-                  </>)}
-
-                  {/* §1.3 — geçmiş: ara + sayfalama */}
-                  {allPast.length > 0 && (<>
-                    <div className="mmpasthd">
-                      <div className="mmsec">📅 {t("Geçmiş Yarışlar")}</div>
-                      <input className="mmsrch" value={lobQuery}
-                        placeholder={t("ara: pist, yarış adı…")}
-                        onChange={(e) => { setLobQuery(e.target.value); setPastLimit(12); }} />
-                    </div>
-                    {pastShown.length === 0
-                      ? <div className="hint">{t("Aramayla eşleşen geçmiş yarış yok.")}</div>
-                      : <div className="racegrid">
-                        {pastShown.map((e) => (
-                          <Fragment key={e[0]}>
-                            {seasonIds.length > 1 && lobSeason === "all" && (
-                              <div className="lseason">{sName(sidOf(e))}</div>
-                            )}
-                            {RaceRow(e, false)}
-                          </Fragment>
-                        ))}
-                      </div>}
-                    {pastAll.length > pastLimit && (
-                      <button className="mmmore" onClick={() => setPastLimit((n) => n + 12)}>
-                        ↓ {t("Daha fazla göster")} ({pastShown.length} / {pastAll.length})</button>
-                    )}
-                  </>)}
+          {/* ── hero + kısayollar ── */}
+          <div className="hmhero-row">
+            {heroR ? (
+              <div className="hmhero">
+                <div className="body">
+                  <span className="eyebrow">{t("Sıradaki yarış")}{heroR.round ? ` · R${heroR.round}` : ""}</span>
+                  <div className="ttl">
+                    <b>{heroR.name || trackName(heroR.trackId) || "—"}</b>
+                    <span>{[heroR.trackId ? trackName(heroR.trackId) : "", heroR.raceTime,
+                      heroR.carId ? carName(heroR.carClass, heroR.carId) : ""].filter(Boolean).join(" · ")}</span>
+                  </div>
+                  <div className="hmcd">
+                    <div className="box"><div className="n">{pad2(cdD)}</div><div className="l">{t("gün")}</div></div>
+                    <div className="box"><div className="n">{pad2(cdH)}</div><div className="l">{t("saat")}</div></div>
+                    <div className="box"><div className="n">{pad2(cdM)}</div><div className="l">{t("dakika")}</div></div>
+                    <div className="box wide"><div className="n sm">{heroLocal || "—"}</div>
+                      <div className="l">{t("yerel saat")}</div></div>
+                  </div>
+                  <div className="acts">
+                    <button className="open" onClick={() => openRace(nextEntry[0])}>{t("Yarışı aç")} →</button>
+                    <button className="setup" onClick={() => setSuOpen(true)}>
+                      {t("Setuplar")} ({setups.length})</button>
+                  </div>
                 </div>
-              </>)}
-
-              <div className="lmsg">{syncMsg}</div>
-            </>) : (
-              <div className="hint" style={{ textAlign: "center", marginBottom: 8 }}>
-                {t("Takım senkronizasyonu kapalı — ")}<b>src/firebase-config.js</b>{t(" dosyasını doldur.")}
+                <div className="vis">
+                  <div className="in">
+                    {heroR.trackId && (
+                      <img className="flag" src={`${ASSET}flags/${TRACK_ASSET(heroR.trackId)}.png${AV}`} alt=""
+                        onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                    )}
+                    {heroR.trackId && (
+                      <img className="trk" src={`${ASSET}tracks/${TRACK_ASSET(heroR.trackId)}.png${AV}`} alt=""
+                        onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="hmhero">
+                <div className="body">
+                  <span className="eyebrow">{t("Sıradaki yarış")}</span>
+                  <div className="ttl"><b>{t("Yarış yok")}</b>
+                    <span>{t("Takvime yarış ekle ya da resmi yarışlardan planla.")}</span></div>
+                  <div className="acts">
+                    <button className="setup" onClick={() => setRForm({})}>＋ {t("Yarış ekle")}</button>
+                    <button className="setup" onClick={() => go("official")}>{t("Resmi yarışlar")}</button>
+                  </div>
+                </div>
               </div>
             )}
 
-            <div className="lobbyfoot">
-            <button className="solo" onClick={() => { setEntered(true); go("pick"); }}>
-              {t("Takımsız solo devam et →")}
-            </button>
-
-            {!isTauri && (<>
-              <div className="divider">{t("masaüstü uygulaması")}</div>
-              <a className="bigbtn ghost" href={DESKTOP_RELEASE_URL}
-                target="_blank" rel="noopener noreferrer"
-                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center",
-                  gap: 8, textDecoration: "none" }}>
-                🖥 {t("Masaüstü Uygulamasını İndir")}</a>
-              <div className="hint" style={{ textAlign: "center", marginTop: 6 }}>
-                {t("Tarayıcısız, kendi penceresinde açılır — canlı timing köprüsü dahil (oyunun PC'sinde 'Canlı Köprü Başlat'). Sonraki sürümler uygulama içinden otomatik gelir.")}</div>
-
-              <div className="divider">{t("sürüş PC'si için hafif köprü")}</div>
-              <a className="bigbtn ghost" href={BRIDGE_EXE_URL}
-                target="_blank" rel="noopener noreferrer"
-                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center",
-                  gap: 8, textDecoration: "none" }}>
-                🪶 {t("Hafif Köprüyü İndir (.exe)")}</a>
-              <div className="hint" style={{ textAlign: "center", marginTop: 6 }}>
-                {t("Oyunun çalıştığı PC için: tarayıcı motoru yok → oyunu yormaz. Paylaşımlı belleği okuyup canlı timing'i yayınlar; mühendisler web'den izler. (Kendi Google hesabınla giriş — bot gerekmez.)")}</div>
-            </>)}
-
-            {isTauri && (<>
-              <div className="divider">{t("sürüş PC'si için hafif köprü")}</div>
-              <button className="bigbtn ghost"
-                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8 }}
-                onClick={async () => {
-                  if (!window.confirm(t("Race Monitor kapanacak ve tarayıcısız Hafif Köprü açılacak (oyunun donmasını önler). Devam edilsin mi?"))) return;
-                  try {
-                    const { invoke } = await import("@tauri-apps/api/core");
-                    await invoke("launch_bridge_and_quit");
-                  } catch (e) {
-                    window.alert(t("Hafif köprü açılamadı: ") + e);
-                  }
-                }}>
-                🏎 {t("Driver Moduna Geç")}</button>
-              <div className="hint" style={{ textAlign: "center", marginTop: 6 }}>
-                {t("Oyunun PC'sinde: ağır arayüzü kapatıp yalnız tarayıcısız köprüyü çalıştırır → oyun donmaz. Köprü tepside çalışır; mühendisler canlıyı web'den izler.")}</div>
-            </>)}
+            <div className="hmqa">
+              <button className="tile" onClick={() => setSuOpen(true)}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--rc-brand-bright)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15.5 4a4.5 4.5 0 0 0-4 6.6L4 18.1 5.9 20l7.5-7.5A4.5 4.5 0 1 0 15.5 4Z" /></svg>
+                <b>{t("Setup havuzu")}</b><span>{setups.length} {t("dosya")}</span>
+              </button>
+              <button className="tile" onClick={() => go("tele")}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--rc-brand-bright)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4v16h16" /><path d="m7 14 3-3 3 2 4-5" /></svg>
+                <b>{t("Telemetri")}</b><span>{t(".ld yükle · analiz")}</span>
+              </button>
+              <button className="tile" data-tour="chat" onClick={() => setChatOpen(true)}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--rc-brand-bright)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 4H4a1.5 1.5 0 0 0-1.5 1.5V16A1.5 1.5 0 0 0 4 17.5h3V21l4-3.5h9A1.5 1.5 0 0 0 21.5 16V5.5A1.5 1.5 0 0 0 20 4Z" /></svg>
+                <b>{t("Sohbet")}{chatUnread > 0 && <span className="cnt">{chatUnread}</span>}</b>
+                <span>{t("takım kanalları")}</span>
+              </button>
+              <button className="tile" data-tour="manage" onClick={() => setTeamOpen(true)}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--rc-brand-bright)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="3" width="16" height="18" rx="1.4" /><path d="M9 8h1M14 8h1M9 12h1M14 12h1M9 16h2v5" /></svg>
+                <b>{t("Takım & takvim")}</b>
+                <span>{memberCount} {t("üye")} · {raceCount} {t("yarış")}</span>
+              </button>
+              <button className="tile official" onClick={() => go("official")}>
+                <span className="ic">🏁</span>
+                <span className="tx"><b>{t("Resmi yarışlar")}</b>
+                  <span>{t("lmugarage günlük/haftalık")}</span></span>
+              </button>
             </div>
           </div>
+
+          {/* ── takvim ── */}
+          <div className="hmcalhd" data-tour="races">
+            <span className="cap">{t("Takvim")}</span>
+            <span className="seg">
+              <button className={`hmchip${lobCal === "up" ? " on" : ""}`}
+                onClick={() => setLobCal("up")}>{t("Yaklaşan")} ({allUp.filter(inFilter).length})</button>
+              <button className={`hmchip${lobCal === "past" ? " on" : ""}`}
+                onClick={() => setLobCal("past")}>{t("Geçmiş")} ({allPast.filter(inFilter).length})</button>
+            </span>
+            {seasonChips.length > 1 && <span className="vsep" />}
+            {seasonChips.length > 1 && (
+              <span className="seasons">
+                {seasonChips.map(([v, l]) => (
+                  <button key={v} className={`hmchip${lobSeason === v ? " on" : ""}`}
+                    onClick={() => setLobSeason(v)}>{l}</button>
+                ))}
+              </span>
+            )}
+            <input type="text" placeholder={t("ara: pist, yarış adı…")} value={lobQuery}
+              onChange={(e) => { setLobQuery(e.target.value); setPastLimit(12); }} />
+            {canEditTeam && curTeam && (
+              <button className="add" onClick={() => setRForm({})}>＋ {t("Yarış ekle")}</button>
+            )}
+          </div>
+
+          <div className="hmcal">
+            {calEmpty ? (
+              <div className="empty">
+                <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="var(--rc-border-strong)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></svg>
+                <div className="t">{t("Bu sezonda yarış yok")}</div>
+                <div className="d">{t("Takvime yarış ekle ya da resmi yarışlar listesinden planla — eklediğin yarışlar takımdaki herkeste görünür.")}</div>
+                <span className="b">
+                  {canEditTeam && curTeam && (
+                    <button className="hmrow-cta" style={{ padding: "8px 16px", borderRadius: 9, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontSize: 12.5, fontWeight: 600 }}
+                      onClick={() => setRForm({})}>＋ {t("Yarış ekle")}</button>
+                  )}
+                  <button style={{ padding: "8px 15px", borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12.5 }}
+                    onClick={() => go("official")}>{t("Resmi yarışlar")}</button>
+                </span>
+              </div>
+            ) : calList.map((e) => CalRow(e))}
+          </div>
+          {lobCal === "past" && pastAll.length > pastShown.length && (
+            <button className="hmmore" onClick={() => setPastLimit((n) => n + 12)}>
+              ↓ {t("Daha fazla göster")}</button>
+          )}
+
+          {/* ── solo + indirmeler ── */}
+          <div className="hmsolo">
+            <span className="tx">
+              <b>{t("Takım olmadan devam et")}</b>
+              <span>{t("Yarışlarını yerel olarak kur, stint planla ve canlı timing kullan. Setup havuzu ve sohbet takım gerektirir; sonradan katılabilirsin.")}</span>
+            </span>
+            <button className="go" onClick={() => { setEntered(true); go("pick"); }}>
+              {t("Solo devam et")} →</button>
+          </div>
+
+          <div className="hmdl">
+            <div className="card">
+              <span className="ic">🖥</span>
+              <span className="tx"><b>{t("Masaüstü uygulaması")}</b>
+                <span>{t("Tarayıcısız, kendi penceresinde açılır — canlı timing köprüsü dahil. Sonraki sürümler uygulama içinden gelir.")}</span></span>
+              <a href={DESKTOP_RELEASE_URL} target="_blank" rel="noopener noreferrer">{t("İndir")}</a>
+            </div>
+            <div className="card">
+              <span className="ic">🪶</span>
+              <span className="tx"><b>{t("Hafif köprü · .exe")}</b>
+                <span>{t("Oyunun çalıştığı PC için: tarayıcı motoru yok, oyunu yormaz. Paylaşımlı belleği okuyup canlı timing'i yayınlar.")}</span></span>
+              <a href={BRIDGE_EXE_URL} target="_blank" rel="noopener noreferrer">{t("İndir")}</a>
+            </div>
+          </div>
+
         </div>
+        </div>{/* /v2main */}
       </div>
     );
   }
 
-  /* ---------- setup 1: pist & araç seçimi ---------- */
+  /* ---------- setup 1: pist & araç seçimi ---------- */  /* ---------- setup 1: pist & araç seçimi ---------- */
   if (!pickDone) {
     const cls = st.carClass || "hypercar";
     return (

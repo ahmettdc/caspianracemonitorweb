@@ -4,6 +4,9 @@ export const SLOT_COLORS = { A: "#40D68C", B: "#F0604D", C: "#F2A33C", D: "#6694
 
 /* ---------- pist & araç seçimi ---------- */
 export const APP_VERSION = "v2.0.0";   // tek kaynak — sürüm yazısı buradan
+/* Menü sürüm şeridindeki tek satırlık özet (en yeni sürüm). CHANGELOG'un ilk
+   kaydıyla elle senkron — büyük changelog.js'i erken yüklememek için ayrı. */
+export const APP_VERSION_SUMMARY = "Arayüz baştan tasarlandı — 76px sol ray, birleşik yarış çubuğu ve tam sayfa ekranlar.";
 export const REPO_URL = "https://github.com/ahmettdc/caspianracemonitorweb";
 export const SEEN_VER_KEY = "rm_seen_version";
 export const ASSET = import.meta.env.BASE_URL + "assets/";

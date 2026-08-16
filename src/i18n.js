@@ -893,6 +893,10 @@ export const EN = {
   "DuckDB: geçerli tur bulunamadı": "DuckDB: no valid laps found",
   "DuckDB dosyası okunamadı": "Could not read the DuckDB file",
   "Neler değişti": "What's new",
+  "hazır": "ready",
+  "Güncelle": "Update",
+  "Arayüz baştan tasarlandı — 76px sol ray, birleşik yarış çubuğu ve tam sayfa ekranlar.":
+    "The interface has been redesigned — a 76px side rail, a unified race bar and full-page screens.",
   "ŞU AN": "CURRENT",
   "GitHub'da tüm değişiklikler ↗": "All changes on GitHub ↗",
   "Kapat": "Close",
