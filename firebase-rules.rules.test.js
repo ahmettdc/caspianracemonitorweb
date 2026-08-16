@@ -257,6 +257,50 @@ describe("teams/livetrackpit (paylaşımlı pit giriş/çıkış — v1.4.96)", 
   });
 });
 
+describe("teams/races/avail (pilot müsaitliği — v2.0.0)", () => {
+  /* teams/{tid}/races/{rid}/avail/{driverId} = [stintNo…]
+     Listedeki stintler pilotun UYGUN OLMADIĞI stintler; düğüm yoksa hepsinde uygun.
+     races/{rid} altında durduğu için izin Tier A'dan gelir: owner/editor yazar,
+     üye (izleyici dahil) okur. Tip/boyut doğrulaması avail/$driverId altında. */
+  const P = "teams/team1/races/r1/avail";
+
+  it("owner ve editor yazar; izleyici okur", async () => {
+    await assertSucceeds(set(ref(db("alice"), `${P}/drv1`), [0, 2, 5]));
+    await assertSucceeds(set(ref(db("bob"), `${P}/drv2`), [1]));
+    await assertSucceeds(get(ref(db("carol"), P)));
+  });
+
+  it("izleyici YAZAMAZ (salt-okur)", async () => {
+    await assertFails(set(ref(db("carol"), `${P}/drv1`), [3]));
+  });
+
+  it("başka takımın üyesi ne okur ne yazar", async () => {
+    await assertFails(set(ref(db("dave"), `${P}/drv1`), [3]));
+    await assertFails(get(ref(db("dave"), P)));
+  });
+
+  it("erişimi kapalı kullanıcı yazamaz", async () => {
+    await assertFails(set(ref(db("mallory"), `${P}/drv1`), [3]));
+  });
+
+  it("sayı olmayan / aralık dışı stint numarası reddedilir", async () => {
+    await assertFails(set(ref(db("bob"), `${P}/drv1`), ["2"]));
+    await assertFails(set(ref(db("bob"), `${P}/drv1`), [-1]));
+    await assertFails(set(ref(db("bob"), `${P}/drv1`), [200]));
+    await assertFails(set(ref(db("bob"), `${P}/drv1`), [1.5, {}]));
+  });
+
+  it("düğüm silinebilir (tüm stintlerde uygun = varsayılan)", async () => {
+    await assertSucceeds(set(ref(db("bob"), `${P}/drv1`), [4]));
+    await assertSucceeds(set(ref(db("bob"), `${P}/drv1`), null));
+  });
+
+  it("yarış silinince müsaitlik de gider (races/{rid} altında)", async () => {
+    await assertSucceeds(set(ref(db("alice"), `${P}/drv1`), [1]));
+    await assertSucceeds(set(ref(db("alice"), "teams/team1/races/r1"), null));
+  });
+});
+
 describe("userAvatars (v1.7.0 — kullanıcı avatarı)", () => {
   const URI = "data:image/webp;base64,AAAA";
   it("kişi kendi avatarını yazar ve DEĞİŞTİREBİLİR (create-only değil)", async () => {

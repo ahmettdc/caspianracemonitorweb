@@ -548,6 +548,42 @@ export function liveCondSubscribe(tid, rid, lapKey, cb) {
     (err) => { console.warn("livecond read failed:", err?.message); cb(null); });
 }
 
+/* ---- pilot müsaitliği (avail) — YARIŞ BAŞINA KALICI ----------------------
+   teams/{tid}/races/{rid}/avail/{driverId} = [stintNo, …]
+   Listede bulunan stint numaraları o pilotun UYGUN OLMADIĞI stintlerdir;
+   varsayılan (düğüm yok) = tüm stintlerde uygun.
+
+   Bu, ARAYUZ-YENILEME-PROMPT-v2'deki "yeni veri katmanı yok" kuralının
+   BİLİNÇLİ TEK İSTİSNASIDIR. races/{rid} altında durduğu için yazma izni
+   mevcut Tier A kuralından gelir (owner/editor yazar, üye okur); yarış
+   silinince müsaitlik de silinir (deleteRace races/{rid}'yi kaldırır).
+   Tip/boyut doğrulaması firebase-rules.json → races/$rid/avail/$driverId.
+
+   NOT: stint ve pilot ATAMALARI raceState/{rid}.stateJson blob'unun içinde
+   durur; races/{rid} altında per-stint düğüm deseni YOKTUR. Ayrı düğüm
+   kullanılmasının nedeni budur — müsaitlik, plan blob'undan bağımsız yazılıp
+   okunabilsin diye. */
+export async function availSet(tid, rid, driverId, stintNos) {
+  if (!db || !tid || !rid || !driverId) return;
+  const list = Array.isArray(stintNos)
+    ? [...new Set(stintNos.filter((n) => Number.isInteger(n) && n >= 0 && n < 200))]
+      .sort((a, b) => a - b)
+    : [];
+  await set(ref(db, `teams/${tid}/races/${rid}/avail/${driverId}`),
+    list.length ? list : null);
+}
+export async function availClear(tid, rid) {
+  if (!db || !tid || !rid) return;
+  await set(ref(db, `teams/${tid}/races/${rid}/avail`), null);
+}
+/* cb({driverId: [stintNo…]} | null). İzleyici de okur (Tier A .read = üye). */
+export function availSubscribe(tid, rid, cb) {
+  if (!db || !tid || !rid) { cb(null); return () => {}; }
+  return onValue(ref(db, `teams/${tid}/races/${rid}/avail`),
+    (s2) => cb(s2.exists() ? s2.val() : null),
+    (err) => { console.warn("avail read failed:", err?.message); cb(null); });
+}
+
 /* ---- tur → pilot eşlemesi (livedrv) — endurance driver swap ----
    teams/{tid}/livedrv/{rid}/{lapKey}/{n} = "Pilot Adı". SEYREK: yalnız pilotun
    DEĞİŞTİĞİ tur yazılır (stint boyunca sabit); okuma tarafı ileri doldurur
