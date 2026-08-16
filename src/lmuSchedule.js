@@ -117,6 +117,40 @@ export function groupByStatus(races, filters, now, trackName) {
   return { live, upcoming, completed, matchedCount: matched.length };
 }
 
+/* v2.0 — GÜNE GÖRE gruplama (README §13). Tasarım listeyi duruma göre değil
+   güne göre bölüyor: Bugün / Yarın / tarih. Canlı yarışlar günlerinin başında
+   durur (o gün içinde canlı → yaklaşan → biten sırası).
+
+   Dönen şekil: [{ dayKey, dayMs, races: [...] }, …] — en yakın gün önce.
+   Geçmiş günler (bugünden önce) en yeniden eskiye eklenir; böylece "bugün ve
+   sonrası" listenin başında kalır. groupByStatus KALDIRILMADI: özet
+   sayaçları (toplam/yaklaşan/canlı) hâlâ onu kullanıyor. */
+export function groupByDay(races, filters, now, trackName) {
+  const matched = (races || []).filter((r) => matchesFilters(r, filters, now, trackName));
+  /* Gün anahtarı YEREL tarihe göre (kullanıcı kendi gününü görür). */
+  const dayStart = (ms) => { const d = new Date(ms); d.setHours(0, 0, 0, 0); return d.getTime(); };
+  const rank = { live: 0, upcoming: 1, completed: 2 };
+  const byDay = new Map();
+  for (const r of matched) {
+    if (!Number.isFinite(r.startMs)) continue;
+    const k = dayStart(r.startMs);
+    if (!byDay.has(k)) byDay.set(k, []);
+    byDay.get(k).push(r);
+  }
+  const today = dayStart(now);
+  const days = [...byDay.keys()];
+  const future = days.filter((k) => k >= today).sort((a, b) => a - b);
+  const past = days.filter((k) => k < today).sort((a, b) => b - a);
+  return [...future, ...past].map((dayMs) => ({
+    dayMs,
+    dayKey: String(dayMs),
+    races: byDay.get(dayMs).sort((a, b) => {
+      const d = rank[raceStatus(a, now)] - rank[raceStatus(b, now)];
+      return d !== 0 ? d : a.startMs - b.startMs;
+    }),
+  }));
+}
+
 /* Sıradaki resmi yarış — en yakın gelecekteki (upcoming) yarış. Yoksa null. */
 export function nextOfficialRace(races, now) {
   return sortByStart(

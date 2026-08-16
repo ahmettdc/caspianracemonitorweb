@@ -61,3 +61,38 @@ describe("ScheduleTab — yarış merkezi UI", () => {
     expect(html).toContain("Takvim henüz yüklenmedi");
   });
 });
+
+/* v2.0 (README §13): liste artık duruma göre (Şu An Canlı / Yaklaşan /
+   Tamamlanan) değil GÜNE GÖRE gruplanıyor — Bugün / Yarın / tarih. */
+describe("ScheduleTab — güne göre gruplama (v2.0)", () => {
+  const day = 86400000;
+  const at = (offset, over = {}) => ({
+    ...RACE, id: `r${offset}${over.id || ""}`,
+    startMs: Date.now() + offset, ...over,
+  });
+  const draw = (races) => renderToStaticMarkup(
+    <ScheduleTab t={t} lang="tr" races={races} updatedAt={Date.now()}
+      loading={false} onPlan={null} />);
+
+  it("bugün ve yarın başlıkları çizilir", () => {
+    const html = draw([at(2 * 3600000, { id: "a" }), at(day + 3600000, { id: "b" })]);
+    expect(html).toContain("sch-day");
+    expect(html).toContain("Bugün");
+    expect(html).toContain("Yarın");
+  });
+
+  it("eski durum bölümü başlıkları KALKTI", () => {
+    const html = draw([at(2 * 3600000)]);
+    expect(html).not.toContain("Şu An Canlı");
+    expect(html).not.toContain("Tamamlanan");
+  });
+
+  it("gün başlığında o günkü yarış sayısı var", () => {
+    const html = draw([at(3600000, { id: "a" }), at(2 * 3600000, { id: "b" })]);
+    expect(html).toMatch(/sch-cnt">2</);
+  });
+
+  it("boş liste çökertmez", () => {
+    expect(draw([]).length).toBeGreaterThan(0);
+  });
+});

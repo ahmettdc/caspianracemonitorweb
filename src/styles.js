@@ -1509,6 +1509,11 @@ export const css = `
 /* uygun olmayan pilot seçim listesinde soluk + üstü çizili */
 .rc option.unavail,.rc option:disabled{color:var(--faint);text-decoration:line-through}
 
+/* ── v2.0 RESMİ YARIŞLAR — güne göre gruplama (README §13) ───────────────────*/
+.rc .sch-sec.sch-day{display:flex;align-items:baseline;gap:var(--sp-3)}
+.rc .sch-daydate{font-family:var(--font-ui);font-size:11.5px;font-weight:400;
+  color:var(--muted);text-transform:none;letter-spacing:0}
+
 /* ── v2.0 ANA MENÜ — 2x2 hızlı eylem + tam genişlik Resmi Yarışlar (README §1) */
 .rc .mmquick.q4{grid-template-columns:repeat(2,minmax(0,1fr))}
 .rc .mmofficial{width:100%;margin-top:var(--sp-4);flex-direction:row;align-items:center;

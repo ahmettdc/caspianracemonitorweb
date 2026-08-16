@@ -13,7 +13,7 @@ import { TRACKS, TRACK_ASSET, ASSET, AV } from "../constants";
 import { extHref } from "../tauriEnv";
 import {
   groupByStatus, nextOfficialRace, deriveOptions, raceStatus,
-  filtersActive, EMPTY_FILTERS,
+  filtersActive, EMPTY_FILTERS, groupByDay,
 } from "../lmuSchedule";
 
 const trackName = (id) => (id && TRACKS.find((tk) => tk.id === id)?.name) || "";
@@ -106,6 +106,26 @@ function RaceCard({ r, now, t, lang, onPlan }) {
   );
 }
 
+/* v2.0 (README §13): liste GÜNE GÖRE gruplanır — Bugün / Yarın / tarih.
+   Gün başlığında ayrıca o günkü yarış sayısı ve kesin tarih durur. */
+function DaySection({ dayMs, races, now, t, lang, onPlan }) {
+  if (!races.length) return null;
+  const rel = relDay(dayMs, now, t);
+  const exact = new Date(dayMs).toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR",
+    { day: "numeric", month: "long", weekday: "short" });
+  return (
+    <>
+      <h3 className="sch-sec sch-day">
+        {rel}<span className="sch-daydate">{exact}</span>
+        <span className="sch-cnt">{races.length}</span>
+      </h3>
+      <div className="sch-list">
+        {races.map((r) => <RaceCard key={r.id} r={r} now={now} t={t} lang={lang} onPlan={onPlan} />)}
+      </div>
+    </>
+  );
+}
+
 function Section({ id, icon, label, races, now, t, lang, onPlan }) {
   if (!races.length) return null;
   return (
@@ -131,12 +151,14 @@ export default function ScheduleTab({ t, lang = "tr", races = [], updatedAt, loa
   const opts = useMemo(() => deriveOptions(races, trackName), [races]);
   const grouped = useMemo(
     () => groupByStatus(races, filters, now, trackName), [races, filters, now]);
+  /* Liste güne göre; grouped ise yalnız üstteki özet sayaçlarını besliyor. */
+  const daily = useMemo(
+    () => groupByDay(races, filters, now, trackName), [races, filters, now]);
   const next = useMemo(() => nextOfficialRace(races, now), [races, now]);
 
   const active = filtersActive(filters);
   const upcomingTotal = useMemo(
     () => races.filter((r) => raceStatus(r, now) === "upcoming").length, [races, now]);
-  const showSec = (s) => filters.status === "all" || filters.status === s;
   const empty = grouped.matchedCount === 0;
 
   return (
@@ -242,9 +264,10 @@ export default function ScheduleTab({ t, lang = "tr", races = [], updatedAt, loa
       )}
 
       {!loading && !empty && (<>
-        {showSec("live") && <Section id="live" icon="🔴" label="Şu An Canlı" races={grouped.live} now={now} t={t} lang={lang} onPlan={onPlan} />}
-        {showSec("upcoming") && <Section id="upcoming" icon="⏳" label="Yaklaşan" races={grouped.upcoming} now={now} t={t} lang={lang} onPlan={onPlan} />}
-        {showSec("completed") && <Section id="completed" icon="🏁" label="Tamamlanan" races={grouped.completed} now={now} t={t} lang={lang} onPlan={onPlan} />}
+        {daily.map((d) => (
+          <DaySection key={d.dayKey} dayMs={d.dayMs} races={d.races}
+            now={now} t={t} lang={lang} onPlan={onPlan} />
+        ))}
       </>)}
 
       <div className="hint sch-src">

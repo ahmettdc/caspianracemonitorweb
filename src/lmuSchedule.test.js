@@ -3,6 +3,7 @@ import {
   raceStatus, matchesFilters, sortByStart, groupByStatus,
   nextOfficialRace, deriveOptions, filtersActive, EMPTY_FILTERS,
   officialRaceToForm,
+  groupByDay,
 } from "./lmuSchedule";
 import { classId } from "./constants";
 
@@ -180,5 +181,50 @@ describe("officialRaceToForm (Resmi Yarış → ön ayar, v1.7.3)", () => {
   it("startMs yoksa startsAt bir zaman damgası olur (0 değil)", () => {
     const f = officialRaceToForm(mk({ startMs: null }), { classId });
     expect(f.startsAt).toBeGreaterThan(0);
+  });
+});
+
+/* v2.0 — README §13: liste duruma göre değil GÜNE GÖRE gruplanır
+   (Bugün / Yarın / tarih). groupByStatus özet sayaçları için duruyor. */
+describe("groupByDay (v2.0)", () => {
+  const D = (iso) => new Date(iso).getTime();
+  const NOW = D("2026-08-16T12:00:00");
+  const mk = (id, iso, dur = 3600000) => ({
+    id, startMs: D(iso), endMs: D(iso) + dur, kind: "Daily", classes: ["GT3"],
+  });
+
+  it("aynı güne düşen yarışlar tek grupta toplanır", () => {
+    const g = groupByDay([mk("a", "2026-08-16T14:00:00"), mk("b", "2026-08-16T18:00:00")],
+      {}, NOW, null);
+    expect(g).toHaveLength(1);
+    expect(g[0].races.map((r) => r.id)).toEqual(["a", "b"]);
+  });
+
+  it("bugün ve sonrası önce, geçmiş günler en yeniden eskiye sonra", () => {
+    const g = groupByDay([
+      mk("dun", "2026-08-15T10:00:00"), mk("yarin", "2026-08-17T10:00:00"),
+      mk("bugun", "2026-08-16T20:00:00"), mk("oncekiGun", "2026-08-14T10:00:00"),
+    ], {}, NOW, null);
+    expect(g.map((d) => d.races[0].id)).toEqual(["bugun", "yarin", "dun", "oncekiGun"]);
+  });
+
+  it("gün içinde canlı yarış başa gelir, sonra yaklaşan, sonra biten", () => {
+    const g = groupByDay([
+      mk("biten", "2026-08-16T08:00:00"),
+      mk("yaklasan", "2026-08-16T22:00:00"),
+      mk("canli", "2026-08-16T11:30:00", 3 * 3600000),
+    ], {}, NOW, null);
+    expect(g[0].races.map((r) => r.id)).toEqual(["canli", "yaklasan", "biten"]);
+  });
+
+  it("başlangıcı olmayan kayıt gruplanmaz (çökertmez)", () => {
+    const g = groupByDay([{ id: "x" }, mk("a", "2026-08-16T14:00:00")], {}, NOW, null);
+    expect(g).toHaveLength(1);
+    expect(g[0].races.map((r) => r.id)).toEqual(["a"]);
+  });
+
+  it("boş liste boş dizi döner", () => {
+    expect(groupByDay([], {}, NOW, null)).toEqual([]);
+    expect(groupByDay(null, {}, NOW, null)).toEqual([]);
   });
 });
