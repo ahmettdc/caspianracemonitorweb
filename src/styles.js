@@ -1303,6 +1303,26 @@ export const css = `
 .rc .rb-actions .rb-count{background:var(--yellow);color:#3A2E00;border-radius:99px;font-size:9px;
   padding:0 5px;font-weight:700}
 
+/* --- ekran içeriği (kalıcı sol data kolonu kaldırıldı) --- */
+.rc .content{padding:16px 20px;min-width:0}
+@media(max-width:720px){.rc .content{padding:12px 14px}}
+
+/* --- yarış datası paneli: sağdan kayar (tasarım §14) --- */
+.rc .rdbg{position:fixed;inset:0;z-index:var(--z-datapanel-bg);
+  background:rgba(10,6,10,.55);animation:rcfade .18s ease}
+.rc .rdpanel{position:fixed;top:0;right:0;height:100vh;width:var(--panel-data);
+  z-index:var(--z-datapanel);background:var(--panel-alt);
+  border-left:1px solid var(--line-strong);box-shadow:var(--sh-panel);
+  display:flex;flex-direction:column;transform:translateX(102%);visibility:hidden;
+  transition:transform .28s cubic-bezier(.4,0,.2,1),visibility .28s}
+.rc .rdpanel.on{transform:translateX(0);visibility:visible}
+.rc .rdhead{display:flex;align-items:center;gap:8px;padding:14px 16px;
+  border-bottom:1px solid var(--line);font-family:var(--font-disp);font-size:15px;
+  font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--accent)}
+.rc .rdbody{flex:1;overflow-y:auto;padding:14px 16px 28px}
+/* izleyici modu: panel gövdesi pasif (tasarım §18) */
+.rc .rdbody.ro{opacity:.5;pointer-events:none}
+
 /* --- rehber kutusu (tek satır ipucu) --- */
 .rc .guidebox{display:flex;align-items:flex-start;gap:11px;margin:14px 20px 0;padding:12px 15px;
   border-radius:12px;border:1px solid var(--line-strong);background:rgba(181,139,255,.07)}

@@ -730,7 +730,10 @@ ${bottomBar}
   const planLsf = lastStintFuel(fmtHMS(planLastCd), st, racePlan.flagExtra);
   const [autoCd, setAutoCd] = useState(true); // plandan otomatik countdown
   const [barOpen, setBarOpen] = useState(true); // oda katılım çubuğu aç/kapa
-  const [sideOpen, setSideOpen] = useState(true); // sol data sidebar aç/kapa
+  /* v2.0: kalıcı sol data kolonu kalktı — yarış datası artık yarış çubuğundaki
+     "⚙ Yarış datası" düğmesiyle sağdan kayan panelde açılır (varsayılan kapalı).
+     Ad korundu: tourSteps setSideOpen ile paneli açıyor. */
+  const [sideOpen, setSideOpen] = useState(false);
   /* ---- kimlik doğrulama (Google) → useAuth hook'u ---- */
   const { user, authLoading, udoc } = useAuth();
   const [authErr, setAuthErr] = useState("");
@@ -2680,17 +2683,8 @@ ${bottomBar}
       )}
 
       {guideBox}
-      <div className={`grid ${sideOpen ? "" : "noside"} ${role === "viewer" && curRace ? "viewonly" : ""}`}>
-        <button className={`sidetoggle ${sideOpen ? "" : "closed"}`}
-          onClick={() => setSideOpen(!sideOpen)}
-          title={sideOpen ? t("Paneli gizle") : t("Paneli göster")}>
-          {sideOpen ? "◀" : "▶"}</button>
-        {/* ================= SOL: DATA ================= */}
-        <div className="sidecol">
-          <div className="sideinner">{dataCards}</div>
-        </div>
-
-        {/* ================= SAĞ: EKRAN İÇERİĞİ (nav artık sol rayda) ================= */}
+      {/* Ekran içeriği — nav sol rayda, yarış datası sağdan kayan panelde. */}
+      <div className={`content ${role === "viewer" && curRace ? "viewonly" : ""}`}>
         <div>
           <div id="tabpanel-main" role="tabpanel" aria-labelledby={`tab-${tab}`} tabIndex={-1}>
           <Suspense fallback={
@@ -2850,6 +2844,22 @@ ${bottomBar}
           </div>{/* /tabpanel-main */}
         </div>
       </div>
+
+      {/* ===== Yarış datası paneli (sağdan kayar) — tasarım §14 =====
+          Kalıcı sol kolonun yerini aldı; yarış çubuğundaki ⚙ düğmesi açar.
+          Sahnele+uygula modeli WS2'de gelecek; şu an mevcut anında-kayıt sürüyor. */}
+      {sideOpen && <div className="rdbg" onClick={() => setSideOpen(false)} />}
+      <aside className={`rdpanel ${sideOpen ? "on" : ""}`} aria-hidden={!sideOpen}>
+        <div className="rdhead">
+          ⚙ {t("Yarış datası")}
+          <button className="lbclose" style={{ marginLeft: "auto" }}
+            onClick={() => setSideOpen(false)}
+            title={t("Kapat")} aria-label={t("Kapat")}>✕</button>
+        </div>
+        <div className={`rdbody ${role === "viewer" && curRace ? "ro" : ""}`}>
+          {dataCards}
+        </div>
+      </aside>
         </div>{/* /shell-main */}
       </div>{/* /shell */}
     </div>
