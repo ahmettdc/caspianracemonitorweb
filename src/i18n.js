@@ -45,6 +45,7 @@ export const EN = {
   "Yeniden bağlan": "Reconnect",
   "Köprü durumu": "Bridge status",
   "Bu sezonda yarış yok": "No races this season",
+  "Yarış ekle": "Add race",
   "Takvime yarış ekle ya da resmi yarışlar listesinden planla — eklediğin yarışlar takımdaki herkeste görünür.":
     "Add a race to the calendar or plan one from the official races list — races you add appear for everyone in the team.",
   "Kadroda pilot yok": "No drivers in the roster",

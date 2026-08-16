@@ -37,7 +37,7 @@ import {
 import {
   normalizeScreen, pushScreen, popScreen, hashForScreen, screenFromHash, showsRaceBar,
 } from "./nav";
-import { Rail, RaceBar, Guide } from "./shell";
+import { Rail, RaceBar, Guide, EmptyState } from "./shell";
 import { guideFor } from "./guides";
 import { pruneAssignments } from "./avail";
 import {
@@ -1900,12 +1900,9 @@ ${bottomBar}
                 </div>
 
                 {/* §1.2 — hızlı eylemler: 📊 Telemetri belirgin */}
-                <div className="mmquick">
-                  <button className="mmqa" onClick={() => go("official")}>
-                    <span className="mmqi">🏁</span>
-                    <span className="mmql">{t("Resmi Yarışlar")}</span>
-                    <span className="mmqs">{t("resmi yarış takvimi")}</span>
-                  </button>
+                {/* §1.2 — 2×2 hızlı eylem ızgarası; "Resmi Yarışlar" tasarımda
+                    ızgaranın altında TAM GENİŞLİK satır olarak duruyor. */}
+                <div className="mmquick q4">
                   <button className="mmqa"
                     onClick={() => go("tele")}>
                     <span className="mmqi">📊</span>
@@ -1930,6 +1927,11 @@ ${bottomBar}
                     <span className="mmqs">{t("takvim & takım")}</span>
                   </button>
                 </div>
+                <button className="mmqa mmofficial" onClick={() => go("official")}>
+                  <span className="mmqi">🏁</span>
+                  <span className="mmql">{t("Resmi Yarışlar")}</span>
+                  <span className="mmqs">{t("resmi yarış takvimi")}</span>
+                </button>
 
                 {/* sezon süzgeci (çok sezon) — yaklaşanı ve geçmişi süzer */}
                 {seasonIds.length > 1 && (
@@ -1988,7 +1990,18 @@ ${bottomBar}
                       </div>
                     </>);
                   })() : (
-                    <div className="hint">{t("Takvimde yaklaşan yarış yok.")}</div>
+                    /* Takvim boş durumu (README §1 + i18n-EN.md §2): kesikli
+                       çerçeveli blok — takvim ikonu, başlık, açıklama ve iki
+                       eylem. Düz "hint" satırının yerini aldı. */
+                    <EmptyState icon="🗓" title={t("Bu sezonda yarış yok")}
+                      text={t("Takvime yarış ekle ya da resmi yarışlar listesinden planla — eklediğin yarışlar takımdaki herkeste görünür.")}>
+                      {canEditTeam && curTeam && (
+                        <button className="rbbtn" onClick={() => setRForm({})}>
+                          ＋ {t("Yarış ekle")}</button>
+                      )}
+                      <button className="rbbtn" onClick={() => go("official")}>
+                        {t("Resmi yarışlar")}</button>
+                    </EmptyState>
                   )}
 
                   {/* kalan yaklaşanlar */}

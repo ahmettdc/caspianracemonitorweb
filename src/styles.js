@@ -1509,6 +1509,14 @@ export const css = `
 /* uygun olmayan pilot seçim listesinde soluk + üstü çizili */
 .rc option.unavail,.rc option:disabled{color:var(--faint);text-decoration:line-through}
 
+/* ── v2.0 ANA MENÜ — 2x2 hızlı eylem + tam genişlik Resmi Yarışlar (README §1) */
+.rc .mmquick.q4{grid-template-columns:repeat(2,minmax(0,1fr))}
+.rc .mmofficial{width:100%;margin-top:var(--sp-4);flex-direction:row;align-items:center;
+  gap:var(--sp-4);text-align:left}
+.rc .mmofficial .mmqi{margin:0}
+.rc .mmofficial .mmqs{margin-left:auto}
+@media(max-width:560px){.rc .mmquick.q4{grid-template-columns:1fr}}
+
 /* ── v2.0 STINT alt şeridi (README §4) ───────────────────────────────────────*/
 .rc .stintfoot{display:flex;align-items:center;gap:var(--sp-4);flex-wrap:wrap;
   margin-top:var(--sp-6);padding-top:var(--sp-5);border-top:1px solid var(--line)}
