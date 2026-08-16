@@ -1336,6 +1336,16 @@ export const css = `
 .rc .rdcount.on{color:var(--yellow);font-weight:600}
 .rc .rdfoot button:disabled{opacity:.45;cursor:not-allowed}
 
+/* --- modal → TAM SAYFA (Takım · Sohbet): .aspage sarmalı modal kabuğunu söker.
+   Bileşenlerin iç yapısı aynı kalır; yalnız dış kabuk sayfaya dönüşür. --- */
+.rc .aspage{display:block;animation:rcin .26s ease-out}
+.rc .aspage .wxmbox{width:auto;max-width:none;max-height:none;border:none;border-radius:0;
+  background:transparent;box-shadow:none;animation:none}
+.rc .aspage .wxmhead{position:sticky;top:0;z-index:1;background:var(--panel-alt);
+  border-radius:var(--r-card) var(--r-card) 0 0}
+.rc .aspage .wxmlist{max-height:none;overflow:visible}
+.rc .aspage .tmbody{max-height:none}
+
 /* --- rehber kutusu (tek satır ipucu) --- */
 .rc .guidebox{display:flex;align-items:flex-start;gap:11px;margin:14px 20px 0;padding:12px 15px;
   border-radius:12px;border:1px solid var(--line-strong);background:rgba(181,139,255,.07)}

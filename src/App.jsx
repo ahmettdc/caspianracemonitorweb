@@ -167,6 +167,35 @@ export default function App() {
   const [tab, setTab] = useState("dash");
   /* v2.0 kabuk — sol ray gizle/göster (76px ray ↔ 0). */
   const [railHidden, setRailHidden] = useState(false);
+  /* v2.0 ekran yönlendirmesi — ekran değişimi tarayıcı geçmişine yazılır;
+     geri tuşu önceki EKRANA döner (Takım/Sohbet tam sayfa olduğundan artık
+     "pencere kapatma" yok). Tauri webview'ında da aynı davranır. */
+  const navBack = useRef(false);
+  useEffect(() => {
+    try { window.history.replaceState({ rcTab: "dash" }, ""); } catch { /* yoksay */ }
+  }, []);
+  useEffect(() => {
+    const onPop = (e) => {
+      const nx = e.state?.rcTab;
+      if (!nx) return;                 // uygulama dışı giriş → tarayıcıya bırak
+      navBack.current = true;          // bu değişim geçmişe TEKRAR yazılmasın
+      setTab(nx);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+  useEffect(() => {
+    if (navBack.current) { navBack.current = false; return; }
+    try {
+      if (window.history.state?.rcTab === tab) return;
+      window.history.pushState({ rcTab: tab }, "");
+    } catch { /* yoksay */ }
+  }, [tab]);
+  /* Tam sayfa ekranlarda ✕ / "kapat" → önceki ekran (geri tuşuyla aynı yol). */
+  const goBackScreen = () => {
+    if (window.history.state?.rcTab) window.history.back();
+    else setTab("dash");
+  };
 
   /* ---------- Faz 2: takım senkronizasyonu + yetki ---------- */
   const [lang, setLang] = useState(() => {
@@ -1215,7 +1244,9 @@ ${bottomBar}
     /* v2.0: ☀/🌙 tema + global yoğunluk komut paletinden GİZLENDİ (kod korunur;
        açık tema sonraki turda, yoğunluk yalnız Canlı ekranında). */
     { id: "lang", label: lang === "en" ? "Türkçe" : "English", keywords: "language dil", run: () => switchLang(lang === "en" ? "tr" : "en") },
-    ...(user ? [{ id: "chat", label: t("Sohbet"), keywords: "chat sohbet team", icon: <Icon name="chat" size={15} />, run: () => setChatOpen(true) }] : []),
+    /* v2.0: Sohbet ve Takım tam sayfa ekran (modal değil) → setTab */
+    ...(user ? [{ id: "chat", label: t("Sohbet"), keywords: "chat sohbet", icon: <Icon name="chat" size={15} />, run: () => setTab("chat") }] : []),
+    ...(access ? [{ id: "team", label: t("Takım"), keywords: "team takım", icon: <Icon name="building" size={15} />, run: () => setTab("team") }] : []),
     ...(curRace ? [{ id: "home", label: t("Ana Menü"), keywords: "home ana menü lobby", icon: <Icon name="home" size={15} />, run: leaveRace }] : []),
   ];
   const cmdPalette = (
@@ -2099,6 +2130,8 @@ ${bottomBar}
     tele: ["Telemetri", "Stint yuvalarına dosya yükle, iki turu A/B karşılaştır. Grafiklerde imleçle gez, tekerlekle yakınlaştır, Space ile oynat."],
     setup: ["Setup havuzu", "Setupları pist bazında gör, ⚖ ile iki tanesini karşılaştır. Yıldızladıkların listenin başında durur."],
     rchat: ["Sohbet", "Genel, takım ve yarışa özel kanallar. Yarış kanalı yalnız o yarışın katılımcılarına açıktır."],
+    chat: ["Sohbet", "Genel, takım ve yarışa özel kanallar. Yarış kanalı yalnız o yarışın katılımcılarına açıktır."],
+    team: ["Takım", "Üye yetkilerini, sezon takvimini ve takım kimliğini buradan yönet. Katılım kodunu paylaşarak yeni üye davet edebilirsin."],
   };
   const guideBox = GUIDES[tab] && (
     <div className="guidebox">
@@ -2131,7 +2164,8 @@ ${bottomBar}
       </button>
       <span className="rail-sep" />
       {access && (
-        <button className="rail-btn" onClick={() => setTeamOpen(true)}
+        <button className={`rail-btn ${tab === "team" ? "on" : ""}`}
+          onClick={() => setTab("team")}
           title={t("Takım")} aria-label={t("Takım")}>
           <Icon name="building" size={20} /><span>{t("Takım")}</span>
         </button>
@@ -2159,11 +2193,13 @@ ${bottomBar}
           </button>
         )}
         {user && (
-          <button className="rail-btn" onClick={() => setChatOpen(true)}
+          <button className={`rail-btn ${tab === "chat" ? "on" : ""}`}
+            onClick={() => setTab("chat")}
             title={t("Sohbet")} aria-label={t("Sohbet")}>
             <span className="rail-chat-wrap">
               <Icon name="chat" size={20} />
-              {chatUnread > 0 && <b className="rail-badge">{chatUnread > 99 ? "99+" : chatUnread}</b>}
+              {chatUnread > 0 && tab !== "chat" &&
+                <b className="rail-badge">{chatUnread > 99 ? "99+" : chatUnread}</b>}
             </span>
             <span>{t("Sohbet")}</span>
           </button>
@@ -2880,6 +2916,27 @@ ${bottomBar}
             <FuelTab t={t} st={st} up={up} lsf={lsf} autoCd={autoCd}
               setAutoCd={setAutoCd} planLastCd={planLastCd} racePlan={racePlan}
               liveFuelObs={liveFuelObs} applyLiveFuel={applyLiveFuel} canEdit={canEdit} />
+          )}
+
+          {/* v2.0: Takım ve Sohbet artık modal değil — sol raydan açılan TAM SAYFA.
+              Kapatma (✕) önceki ekrana döner (tarayıcı geri tuşuyla aynı). */}
+          {tab === "team" && access && (
+            <TeamModal open page onClose={goBackScreen} user={user} t={t} lang={lang}
+              myTeams={myTeams} curTeam={curTeam} setCurTeam={setCurTeam}
+              teamData={teamData} tnEdit={tnEdit} setTnEdit={setTnEdit}
+              canManageTeam={canManageTeam} canEditTeam={canEditTeam}
+              curSeason={curSeason} setCurSeason={setCurSeason} seasons={seasons}
+              races={races} st={st} myRole={myRole} openRace={openRace}
+              setRForm={setRForm} setBadge={setBadge} roleLabel={roleLabel}
+              onCreateJoin={() => { setTab("dash"); setCreateJoinOpen(true); }} />
+          )}
+
+          {tab === "chat" && user && curChan && (
+            <ChatModal open page onClose={goBackScreen} t={t}
+              chatSound={chatSound} toggleChatSound={toggleChatSound}
+              chatChans={chatChans} unreadOf={unreadOf} chatChan={chatChan}
+              setChatChan={setChatChan} teamData={teamData} curChan={curChan}
+              chatBody={chatBody} />
           )}
           </Suspense>
           </div>{/* /tabpanel-main */}

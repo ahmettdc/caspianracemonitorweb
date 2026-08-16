@@ -965,6 +965,8 @@ export const EN = {
     "Browse setups by track and compare two with ⚖. The ones you star stay at the top of the list.",
   "Genel, takım ve yarışa özel kanallar. Yarış kanalı yalnız o yarışın katılımcılarına açıktır.":
     "General, team and race-specific channels. A race channel is open only to that race's participants.",
+  "Üye yetkilerini, sezon takvimini ve takım kimliğini buradan yönet. Katılım kodunu paylaşarak yeni üye davet edebilirsin.":
+    "Manage member permissions, the season calendar and team identity here. Share the join code to invite new members.",
   /* izleyici modu (yarış çubuğu rozeti) */
   "İzleyici modu": "Viewer mode",
   "İzleyici": "Viewer",

@@ -1073,12 +1073,14 @@ export function RaceEditModal({ rForm, setRForm, t, seasons, onSave }) {
 /* Sohbet penceresi (kanal sekmeleri + gövde). App.jsx'ten çıkarıldı; sohbet gövdesi
    (ChatPanel'i saran, iki yerde kullanılan) App'te kalıp `chatBody` render-prop'u ile
    gelir. open=false → null döner. */
-export function ChatModal({ open, onClose, t, chatSound, toggleChatSound, chatChans,
+/* page=true → modal kabuğu kalkar, tam sayfa ekran olarak render edilir (v2.0).
+   İç yapı aynı; yalnız dış sarmal ve zemin tıklaması değişir. */
+export function ChatModal({ open, onClose, page, t, chatSound, toggleChatSound, chatChans,
   unreadOf, chatChan, setChatChan, teamData, curChan, chatBody }) {
   if (!open) return null;
   return (
-    <div className="wxmodal" onClick={onClose}>
-      <div className="wxmbox" style={{ width: "min(560px,94vw)" }}
+    <div className={page ? "aspage" : "wxmodal"} onClick={page ? undefined : onClose}>
+      <div className="wxmbox" style={page ? undefined : { width: "min(560px,94vw)" }}
         onClick={(e) => e.stopPropagation()}>
         <div className="wxmhead">
           <span>💬 {t("Sohbet")}</span>
@@ -1099,7 +1101,7 @@ export function ChatModal({ open, onClose, t, chatSound, toggleChatSound, chatCh
             );
           })}
         </div>
-        {chatBody(curChan)}
+        {chatBody(curChan, page ? "min(68vh,620px)" : undefined)}
       </div>
     </div>
   );
@@ -1667,7 +1669,8 @@ function AssetUpload({ label, current, fallback = "", specKey, aspect, w,
   );
 }
 
-export function TeamModal({ open, onClose, user, t, lang, myTeams, curTeam, setCurTeam,
+/* page=true → modal kabuğu kalkar, sol raydan açılan tam sayfa ekran olur (v2.0). */
+export function TeamModal({ open, onClose, page, user, t, lang, myTeams, curTeam, setCurTeam,
   teamData, tnEdit, setTnEdit, canManageTeam, canEditTeam, curSeason, setCurSeason,
   seasons, races, st, myRole,
   openRace, setRForm, setBadge, roleLabel, onCreateJoin }) {
@@ -1678,8 +1681,8 @@ export function TeamModal({ open, onClose, user, t, lang, myTeams, curTeam, setC
   const astKey = astCar ? carAssetKey(astCls, astCar) : "";
   const astCustom = (angle) => teamData?.assets?.cars?.[astKey]?.[angle] || "";
   return (
-        <div className="wxmodal" onClick={onClose}>
-          <div className="wxmbox" style={{ width: "min(680px,95vw)" }}
+        <div className={page ? "aspage" : "wxmodal"} onClick={page ? undefined : onClose}>
+          <div className="wxmbox" style={page ? undefined : { width: "min(680px,95vw)" }}
             onClick={(e) => e.stopPropagation()}>
             <div className="wxmhead">
               <span>⚙ {t("Yönet")} · {t("Takımlar")}</span>
