@@ -1509,6 +1509,27 @@ export const css = `
 /* uygun olmayan pilot seçim listesinde soluk + üstü çizili */
 .rc option.unavail,.rc option:disabled{color:var(--faint);text-decoration:line-through}
 
+/* ── v2.0 LASTİK — set envanteri (README §7) ─────────────────────────────────*/
+.rc .setinv{display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap;
+  margin:var(--sp-4) 0 var(--sp-2)}
+.rc .setinv .cap{font-size:var(--fs-label);text-transform:uppercase;
+  letter-spacing:var(--ls-label);color:var(--muted);margin-right:var(--sp-2)}
+.rc .setchip{display:inline-flex;align-items:baseline;gap:4px;padding:3px 9px;
+  border-radius:var(--r-pill);border:1px solid var(--line);background:var(--panel2);
+  font-size:11.5px}
+.rc .setchip b{font-family:var(--font-disp);font-weight:700;font-size:13px}
+.rc .setchip i{font-style:normal;color:var(--muted);font-size:10.5px}
+.rc .setchip em{font-style:normal;font-size:9.5px;color:var(--faint);
+  text-transform:uppercase;letter-spacing:.06em}
+/* kullanım rengi tablo hücreleriyle AYNI sınıflardan gelir (.t2/.tq/.t3/.t4/.terr) */
+.rc .setchip.t2{border-color:var(--ty-2x);color:var(--ty-2x)}
+.rc .setchip.tq{border-color:var(--ty-qual);color:var(--ty-qual)}
+.rc .setchip.t3{border-color:var(--ty-3x);color:var(--ty-3x)}
+.rc .setchip.t4{border-color:var(--ty-4x);color:var(--ty-4x)}
+.rc .setchip.terr{border-color:var(--ty-err);color:var(--ty-err);border-width:2px}
+/* lastik limiti aşıldıysa kart kırmızı çerçeve (README §7) */
+.rc .card.tyover{border-color:var(--red)}
+
 /* ── v2.0 YAKIT — senaryolar (README §5) ─────────────────────────────────────*/
 .rc .scenrows{display:flex;flex-direction:column;gap:var(--sp-2);margin:var(--sp-4) 0}
 .rc .scenrow{display:flex;align-items:center;gap:var(--sp-4);padding:7px var(--sp-4);

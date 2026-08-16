@@ -3,12 +3,14 @@ import { Num } from "../components";
 /* Lastik Stratejisi sekmesi — köşe bazlı lastik atama, limit takibi, hızlı atama.
    Türetilmiş tyreInfo/racePlan ve handler'lar (upTyreCell/quickTyre/carriedAt/
    clearTyres) App'ten prop gelir. */
+const CORNERS = ["FL", "FR", "RL", "RR"];
+
 export default function TyreTab({
   t, st, up, tyreInfo, racePlan, carriedAt, upTyreCell, quickTyre,
   qsel, setQsel, QSEL_LBL, clearTyres,
 }) {
   return (
-    <div className="card" data-tour="tyrecard">
+    <div className={`card${tyreInfo.available < 0 ? " tyover" : ""}`} data-tour="tyrecard">
       <h2>{t("Lastik Stratejisi")}</h2>
       <div className="kpis">
         <div className="kpi">
@@ -23,7 +25,40 @@ export default function TyreTab({
           <div className="l">{t("Kalan Lastik")}</div></div>
         <div className="kpi"><div className="v">{racePlan.fullStints}</div>
           <div className="l">{t("Stint Sayısı")}</div></div>
+        {/* Wet KPI (README §7) — wet lastikler limitten bağımsız ve sınırsız,
+            bu yüzden ayrı sayılır. */}
+        <div className="kpi"><div className="v" style={{ color: "var(--ty-wet)" }}>
+          {tyreInfo.counts.W || 0}</div>
+          <div className="l">Wet</div></div>
       </div>
+
+      {/* --- Set envanteri (README §7): her setin kullanım sayısı + kilitli köşe,
+          kullanım rengine göre. cellCls tablo hücreleriyle AYNI renk sınıfını
+          verir → envanter ve matris hep aynı dili konuşur. --- */}
+      {Object.keys(tyreInfo.counts).filter((k) => k !== "W").length > 0 && (
+        <div className="setinv">
+          <span className="cap">{t("Set envanteri")}</span>
+          {Object.keys(tyreInfo.counts)
+            .filter((k) => k !== "W")
+            .sort((a, b) => (Number(a) || 0) - (Number(b) || 0))
+            .map((k) => {
+              /* Kilitli köşe: kullanılmış bir set için allowedIn YALNIZ ilk
+                 takıldığı sütunda true döner. Birden çok sütun (ihlal) ya da
+                 hiç → köşe rozeti gösterilmez. */
+              const cols = [0, 1, 2, 3].filter((ci) => tyreInfo.allowedIn(k, ci));
+              const lock = cols.length === 1 ? CORNERS[cols[0]] : null;
+              return (
+                <span key={k} className={`setchip ${tyreInfo.cellCls(k)}`}
+                  title={`${t("Kullanım")}: ${tyreInfo.counts[k]}${
+                    lock ? ` · ${t("kilitli köşe")} ${lock}` : ""}`}>
+                  <b>{k}</b>
+                  <i>×{tyreInfo.counts[k]}</i>
+                  {lock && <em>{lock}</em>}
+                </span>
+              );
+            })}
+        </div>
+      )}
       <div style={{ overflowX: "auto" }}>
       <table aria-label={t("Lastik strateji tablosu")}>
         <thead><tr><th>Stint</th><th>FL</th><th>FR</th><th>RL</th><th>RR</th><th>{t("Hızlı Atama")}</th></tr></thead>
@@ -104,9 +139,9 @@ export default function TyreTab({
       </div>
       <div className="legend">
         <span><i style={{ background: "var(--panel2)" }} />{t("Yeni lastik (1 kez)")}</span>
-        <span><i style={{ background: "rgba(242,201,76,.5)" }} />{t("2 kez (duplicate)")}</span>
-        <span><i style={{ background: "rgba(102,148,255,.5)" }} />{t("Qual lastiği tekrar")}</span>
-        <span><i style={{ background: "rgba(240,96,77,.5)" }} />{t("3 kez")}</span>
+        <span><i style={{ background: "var(--ty-2x)" }} />{t("2 kez (duplicate)")}</span>
+        <span><i style={{ background: "var(--ty-qual)" }} />{t("Qual lastiği tekrar")}</span>
+        <span><i style={{ background: "var(--ty-3x)" }} />{t("3 kez")}</span>
         <span><i style={{ background: "#000" }} />{t("4+ kez")}</span>
         <span><i style={{ background: "transparent", border: "1px dashed var(--dim)" }} />
           ⟳ {t("Değişmedi — önceki lastikle devam")}</span>
@@ -115,10 +150,10 @@ export default function TyreTab({
             background: "var(--yellow)", marginRight: 4 }} />{t("Yeni kuru")}</span>
         <span style={{ marginLeft: 10 }}>
           <i style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3,
-            background: "#4D9FFF", marginRight: 4 }} />{t("Qual'a dönüş")}</span>
+            background: "var(--ty-qual)", marginRight: 4 }} />{t("Qual'a dönüş")}</span>
         <span style={{ marginLeft: 10 }}>
           <i style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3,
-            background: "#7FE3A0", marginRight: 4 }} />{t("Wet — limitten bağımsız, sınırsız")}</span>
+            background: "var(--ty-wet)", marginRight: 4 }} />{t("Wet — limitten bağımsız, sınırsız")}</span>
         <span style={{ marginLeft: 10 }}>
           <i style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3,
             background: "#0B0D12", border: "1px solid #6B7280", marginRight: 4 }} />{t("Eski kuru tekrar")}</span>
