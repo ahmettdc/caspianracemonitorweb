@@ -1789,7 +1789,8 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
     setRForm(null);
   };
   const raceForm = (
-    <RaceEditModal rForm={rForm} setRForm={setRForm} t={t} seasons={seasons} onSave={saveRaceForm} />
+    <RaceEditModal rForm={rForm} setRForm={setRForm} t={t} seasons={seasons} onSave={saveRaceForm}
+      lmuData={lmuData} />
   );
 
   /* takım penceresi → TeamModal (sunum); depo fn'leri bileşende, navigasyon/

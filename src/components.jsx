@@ -1090,7 +1090,8 @@ export function VersionModal({ open, onClose, t, lang, onStartGuide }) {
    ızgara seçici. Aynı pencere hem eklemede hem düzenlemede (rForm.rid) kullanılır;
    veri akışı (rForm/setRForm/onSave) değişmedi. Renk→token: #1E1418→surface-3,
    #34232A→border, #4A2F38→border-strong, #150E10→surface-2, #A88C93→text-3. */
-export function RaceEditModal({ rForm, setRForm, t, seasons, onSave }) {
+export function RaceEditModal({ rForm, setRForm, t, seasons, onSave, lmuData }) {
+  const [trackOpen, setTrackOpen] = useState(false);
   if (!rForm) return null;
   const disp = "var(--rc-font-display)";
   const close = () => setRForm(null);
@@ -1158,26 +1159,46 @@ export function RaceEditModal({ rForm, setRForm, t, seasons, onSave }) {
               </div>
             </div>
 
+            {/* Pist — bayraklı açılır liste (ızgara çok uzun oluyordu). Kapalıyken
+                yalnız seçili pist; tıkla → kaydırmalı bayraklı liste açılır. */}
             <div>
               <label style={lbl}>{t("Pist")}</label>
-              <div style={{ display: "grid",
-                gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: 8 }}>
-                {TRACKS.map((tr) => {
-                  const on = rForm.trackId === tr.id;
-                  return (
-                    <button key={tr.id} onClick={() => setRForm({ ...rForm, trackId: tr.id })}
-                      style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px",
-                        borderRadius: 9, cursor: "pointer", textAlign: "left", color: "var(--rc-text)",
-                        background: on ? "rgba(150,0,24,.14)" : "var(--rc-surface-3)",
-                        border: `1px solid ${on ? "var(--rc-brand-bright)" : "var(--rc-border)"}` }}>
-                      <img src={`${ASSET}flags/${TRACK_ASSET(tr.id)}.png`} alt="" onError={hideImg}
-                        style={{ width: 22, borderRadius: 2, flex: "0 0 auto" }} />
-                      <span style={{ fontSize: 12.5, whiteSpace: "nowrap", overflow: "hidden",
-                        textOverflow: "ellipsis" }}>{tr.name}</span>
-                    </button>
-                  );
-                })}
-              </div>
+              <button onClick={() => setTrackOpen((v) => !v)}
+                style={{ ...fld, display: "flex", alignItems: "center", gap: 8, cursor: "pointer",
+                  textAlign: "left" }}>
+                {rForm.trackId ? (
+                  <>
+                    <img src={`${ASSET}flags/${TRACK_ASSET(rForm.trackId)}.png`} alt="" onError={hideImg}
+                      style={{ width: 22, borderRadius: 2, flex: "0 0 auto" }} />
+                    <span>{trackName(rForm.trackId)}</span>
+                  </>
+                ) : (
+                  <span style={{ color: "var(--rc-text-3)" }}>{t("Pist seç")}</span>
+                )}
+                <span style={{ marginLeft: "auto", color: "var(--rc-text-3)", fontSize: 11,
+                  transform: trackOpen ? "rotate(180deg)" : "none", transition: "transform .15s" }}>▾</span>
+              </button>
+              {trackOpen && (
+                <div style={{ marginTop: 6, maxHeight: 240, overflowY: "auto", overflowX: "hidden",
+                  border: "1px solid var(--rc-border)", borderRadius: 10,
+                  background: "var(--rc-surface-4)" }}>
+                  {TRACKS.map((tr) => {
+                    const on = rForm.trackId === tr.id;
+                    return (
+                      <button key={tr.id}
+                        onClick={() => { setRForm({ ...rForm, trackId: tr.id }); setTrackOpen(false); }}
+                        style={{ display: "flex", alignItems: "center", gap: 8, width: "100%",
+                          padding: "9px 12px", cursor: "pointer", textAlign: "left", border: "none",
+                          borderBottom: "1px solid var(--rc-border)", color: "var(--rc-text)",
+                          background: on ? "rgba(150,0,24,.14)" : "transparent" }}>
+                        <img src={`${ASSET}flags/${TRACK_ASSET(tr.id)}.png`} alt="" onError={hideImg}
+                          style={{ width: 22, borderRadius: 2, flex: "0 0 auto" }} />
+                        <span style={{ fontSize: 13 }}>{tr.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
@@ -1300,6 +1321,48 @@ export function RaceEditModal({ rForm, setRForm, t, seasons, onSave }) {
                 </div>
               </div>
             )}
+            {/* Ohne Speed tempo referansı — seçili pist+araç için tur süreleri
+                (DashTab büyütme tablosuyla aynı kademe/renkler). */}
+            {rForm.trackId && rForm.carId && (() => {
+              const d = lmuData?.data?.[rForm.trackId];
+              const carE = d?.[`${rForm.carClass}:${rForm.carId}`];
+              const clsE = d?.[rForm.carClass];
+              const tiers = clsE?.tiers;
+              const hot = carE?.hot || clsE?.hot;
+              if (!tiers && !hot) return null;
+              const ROWS = [
+                ["HOTLAP", hot, "#b06ffc"],
+                ["ALIEN · 100%", tiers?.alien, "#16a34a"],
+                ["COMPETITIVE · 1.01", tiers?.c101, "#65a30d"],
+                ["GOOD · 1.02", tiers?.c102, "#ca8a04"],
+                ["· 1.03", tiers?.c103, "#d97706"],
+                ["MIDPACK · 1.04", tiers?.c104, "#ea580c"],
+                ["· 1.05", tiers?.c105, "#f05252"],
+                ["TAIL-ENDER · 1.06", tiers?.c106, "#dc2626"],
+                ["OFFLINE · 1.07", tiers?.c107, "#991b1b"],
+              ].filter(([, v]) => v);
+              return (
+                <div style={{ border: "1px solid var(--rc-border)", borderRadius: 12,
+                  background: "var(--rc-surface-2)", padding: "12px 14px" }}>
+                  <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".1em",
+                    color: "var(--rc-text-3)", marginBottom: 8 }}>{t("Tempo referansı")}</div>
+                  {ROWS.map(([lb, v, col]) => (
+                    <div key={lb} style={{ display: "flex", alignItems: "center", gap: 8,
+                      padding: "3px 0" }}>
+                      <i style={{ width: 3, height: 12, borderRadius: 2, background: col,
+                        flex: "0 0 auto" }} />
+                      <span style={{ fontSize: 11, color: "var(--rc-text-2)", flex: 1,
+                        whiteSpace: "nowrap" }}>{lb}</span>
+                      <b className="mono" style={{ fontSize: 12, color: col }}>{v}</b>
+                    </div>
+                  ))}
+                  {lmuData?.source && (
+                    <div style={{ fontSize: 9.5, color: "var(--rc-text-3)", marginTop: 6,
+                      lineHeight: 1.4 }}>{lmuData.source}</div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </div>
 

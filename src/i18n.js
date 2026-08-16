@@ -239,6 +239,8 @@ export const EN = {
   "Başlangıç · yerel saat": "Start · local time",
   "Resmi yarıştan ön ayar": "Official-race preset",
   "Seans başı": "Session start",
+  "Pist seç": "Select track",
+  "Tempo referansı": "Pace reference",
   "Setupları pist bazında gör, ⚖ ile iki tanesini karşılaştır. Yıldızladıkların listenin başında durur.":
     "Browse setups by track and compare two with ⚖. The ones you star stay at the top of the list.",
   "Üye yetkilerini, sezon takvimini ve takım kimliğini buradan yönet. Katılım kodunu paylaşarak yeni üye davet edebilirsin.":
