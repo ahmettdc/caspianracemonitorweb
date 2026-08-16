@@ -198,11 +198,18 @@ export default function StintTab({
         <div style={{ position: "relative" }}>
           {/* stint şeridi */}
           <div role="img" aria-label={t("Stint zaman çizelgesi")} style={{ display: "flex", gap: 0, height: 34, borderRadius: 8, overflow: "hidden", border: "1px solid var(--rc-border)" }}>
-            {timeline.map((s, i) => (
-              <div key={i} style={{ width: `${s.w}%`, flex: "0 0 auto", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", background: s.cls === "pit" ? "var(--rc-warn)" : s.bg, borderRight: "1px solid var(--rc-surface)" }}>
+            {timeline.map((s, i) => {
+              /* fiş 06-stint: pit=amber, o an SÜRÜLEN stint=marka kırmızı,
+                 planlı stintler tek düze koyu (#2A171C). Numaralar koyu zemin
+                 üstünde açık metinle net okunur (eski dönüşümlü bordo → soluk). */
+              const isLive = nowLive && s.cls === "stint" && s.idx === liveInfo.stintIdx;
+              const bg = s.cls === "pit" ? "var(--rc-warn)" : isLive ? "var(--rc-brand)" : "#2A171C";
+              return (
+              <div key={i} style={{ width: `${s.w}%`, flex: "0 0 auto", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", background: bg, borderRight: "1px solid var(--rc-surface)" }}>
                 <span style={s.w > 5 ? { fontFamily: disp, fontWeight: 700, fontSize: 12, color: s.cls === "pit" ? "var(--rc-bg)" : "var(--rc-text)", letterSpacing: ".04em" } : { display: "none" }}>{s.label}</span>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* pilot şeridi: stint segmentleriyle hizalı; aynı pilotun ardışık

@@ -481,10 +481,12 @@ export function applyResetPits(st) {
 }
 
 export function buildTimeline(plan) {
+  /* v2.0 — fiş 06-stint: segment rengi StintTab'te (canlı stint vurgusu için
+     liveInfo gerekir). Burada yalnız genişlik + tür + stint no üretilir;
+     eski idx'e göre kırmızı/bordo dönüşümlü `bg` KALDIRILDI. */
   return plan.rows.flatMap((r) => {
     const segs = [{
-      w: (r.stintSec / plan.raceSec) * 100, cls: "", label: `S${r.idx}`,
-      bg: r.idx % 2 ? "var(--car)" : "#5E0B18",
+      w: (r.stintSec / plan.raceSec) * 100, cls: "stint", idx: r.idx, label: `S${r.idx}`,
     }];
     if (r.pitSec > 0) segs.push({ w: (r.pitSec / plan.raceSec) * 100, cls: "pit", label: "" });
     return segs;
