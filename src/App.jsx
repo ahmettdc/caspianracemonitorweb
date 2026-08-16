@@ -333,7 +333,7 @@ export default function App() {
       setCurRace(rid);
       setRole(canEditTeam ? "editor" : "viewer");
       setEntered(true); setPickDone(true); setSetupDone(true);
-      go("dash");
+      go("stint");   // yarış açılınca doğrudan Stint planına gir (Dash değil)
       setTeamOpen(false); setSyncMsg("");
       setTimeout(() => { sync.current.applying = false; }, 60);
     } catch (e) { setSyncMsg(t("Bağlantı hatası: ") + e.message); }
