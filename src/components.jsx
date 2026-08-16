@@ -14,6 +14,7 @@ import { parseSvm, b64ToText, setupSummary, diffSetups, categorizeSetup,
   duckSetupToParsed } from "./setupParse";
 import { renameTeam, syncMyTeamName, createSeason, deleteRace,
   leaveTeam, createTeam, joinTeam, getSetupBlob,
+  transferOwnership, removeMember, deleteTeam,
   getUserAvatar, saveTeamAsset, clearTeamAsset } from "./storage";
 import { processImageFile, IMG_ACCEPT_TYPES } from "./imageUpload";
 import { carAssetKey, teamLogoSrc } from "./teamAssets";
@@ -2032,9 +2033,11 @@ export function TeamModal({ open, onClose, page = false, user, t, lang, myTeams,
                 <div style={cardHead}>
                   <span style={sectTtl}>{t("Üyeler & yetkiler")}</span>
                   <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>{memCount} {t("kişi")}</span>
-                  {/* FLAG: davet modalı handler'ı yok → no-op */}
-                  <button style={{ ...subBtn, marginLeft: "auto" }} onClick={() => {}}>
-                    ＋ {t("Üye davet et")}</button>
+                  {/* Davet = katılım kodu modeli: kodu panoya kopyalar (kimlik kartında görünür). */}
+                  <button style={{ ...subBtn, marginLeft: "auto" }} onClick={() => {
+                    try { navigator.clipboard?.writeText(teamData?.meta?.joinCode || "");
+                      setCopied(true); setTimeout(() => setCopied(false), 1500); } catch {}
+                  }}>＋ {t("Üye davet et")}</button>
                 </div>
                 <div style={{ overflowX: "auto" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 600 }}>
@@ -2096,24 +2099,34 @@ export function TeamModal({ open, onClose, page = false, user, t, lang, myTeams,
                               color: "var(--rc-text-3)", fontSize: 12 }}>—</td>
                             <td style={{ padding: "11px 14px", textAlign: "center" }}>
                               <span style={{ position: "relative", display: "inline-flex" }}>
+                                {canManageTeam && uid !== user.uid && (<>
                                 <button onClick={() => setOpenMenu(menuOpen ? null : uid)}
                                   style={{ width: 28, height: 26, borderRadius: 7,
                                     border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)",
                                     color: "var(--rc-text-3)", cursor: "pointer", fontSize: 13,
                                     lineHeight: 1 }}>⋯</button>
-                                {/* FLAG: devret/yeniden davet/çıkar handler'ları yok → menüyü kapatır */}
                                 <span style={{ position: "absolute", top: "100%", right: 0, marginTop: 4,
                                   zIndex: 5, minWidth: 180, display: menuOpen ? "flex" : "none",
                                   flexDirection: "column", background: "var(--rc-surface-4)",
                                   border: "1px solid var(--rc-border-strong)", borderRadius: 10,
                                   padding: 6, boxShadow: "0 8px 24px rgba(0,0,0,.4)" }}>
-                                  <button style={mItem} onClick={() => setOpenMenu(null)}>
-                                    👑 {t("Sahipliği devret")}</button>
-                                  <button style={mItem} onClick={() => setOpenMenu(null)}>
-                                    ✉ {t("Yeniden davet et")}</button>
-                                  <button style={mDanger} onClick={() => setOpenMenu(null)}>
-                                    ✕ {t("Takımdan çıkar")}</button>
+                                  <button style={mItem} onClick={() => {
+                                    setOpenMenu(null);
+                                    if (window.confirm(`${t("Sahipliği bu üyeye devret?")}\n\n${nm}\n\n${t("Sen düzenleyici (editör) olursun.")}`))
+                                      transferOwnership(curTeam, user.uid, uid).catch(() => {});
+                                  }}>👑 {t("Sahipliği devret")}</button>
+                                  <button style={mItem} onClick={() => {
+                                    setOpenMenu(null);
+                                    /* Davet = katılım kodu modeli; "yeniden davet" kodu panoya kopyalar. */
+                                    try { navigator.clipboard?.writeText(teamData?.meta?.joinCode || ""); } catch {}
+                                  }}>✉ {t("Yeniden davet et")}</button>
+                                  <button style={mDanger} onClick={() => {
+                                    setOpenMenu(null);
+                                    if (window.confirm(`${t("Bu üye takımdan çıkarılsın mı?")}\n\n${nm}`))
+                                      removeMember(curTeam, uid).catch(() => {});
+                                  }}>✕ {t("Takımdan çıkar")}</button>
                                 </span>
+                                </>)}
                               </span>
                             </td>
                           </tr>
@@ -2255,11 +2268,25 @@ export function TeamModal({ open, onClose, page = false, user, t, lang, myTeams,
                     <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>
                       {t("Sezonlar, yarışlar ve takım setupları kalıcı olarak silinir. Geri alınamaz.")}</span>
                   </span>
-                  {/* FLAG: takım silme handler'ı/depo fonksiyonu yok → no-op */}
-                  <button
+                  {/* Yalnız sahip siler; geri alınamaz → takım adını yazarak onay. */}
+                  {teamData?.meta?.ownerUid === user.uid && (
+                    <button onClick={() => {
+                      const nm = (teamData?.meta?.name || "").trim();
+                      const typed = window.prompt(
+                        `${t("Takımı KALICI olarak sil. Onaylamak için takım adını yaz:")}\n\n${nm}`);
+                      if (typed == null) return;
+                      if (nm && typed.trim() === nm) {
+                        deleteTeam(curTeam, user.uid, teamData?.meta?.joinCode)
+                          .then(() => { setCurTeam(""); onClose && onClose(); })
+                          .catch(() => {});
+                      } else {
+                        window.alert(t("Ad eşleşmedi — silme iptal edildi."));
+                      }
+                    }}
                     style={{ padding: "8px 15px", borderRadius: 9, border: "1px solid var(--rc-danger)",
                       background: "rgba(255,77,94,.10)", color: "var(--rc-danger)", cursor: "pointer",
                       fontSize: 12.5, fontWeight: 600, whiteSpace: "nowrap" }}>{t("Takımı sil")}</button>
+                  )}
                 </div>
               </section>
             </div>

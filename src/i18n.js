@@ -43,6 +43,12 @@ export const EN = {
   "Kullanılan": "Used",
   "Sıradaki stint lastikleri": "Next stint tyres",
   "Son stint VE": "Last stint FE",
+  /* Takım yönetimi onay metinleri (10-takim). */
+  "Sahipliği bu üyeye devret?": "Transfer ownership to this member?",
+  "Sen düzenleyici (editör) olursun.": "You become an editor.",
+  "Bu üye takımdan çıkarılsın mı?": "Remove this member from the team?",
+  "Takımı KALICI olarak sil. Onaylamak için takım adını yaz:": "Permanently delete the team. Type the team name to confirm:",
+  "Ad eşleşmedi — silme iptal edildi.": "Name didn't match — deletion cancelled.",
   /* Görsel denetim düzeltmeleri (09/08). */
   "Şu anki pist": "Current track",
   "dosya bekleniyor": "waiting for file",

@@ -25,7 +25,7 @@
     "teamCodes": {
       ".read": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true",
       "$code": {
-        ".write": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && !data.exists()"
+        ".write": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && (!data.exists() || (!newData.exists() && root.child('teams').child(data.val()).child('meta').child('ownerUid').val() == auth.uid))"
       }
     },
 
@@ -60,6 +60,7 @@
 
     "teams": {
       "$tid": {
+        ".write": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && !newData.exists() && data.child('meta').child('ownerUid').val() == auth.uid",
         "meta": {
           ".read": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && root.child('teams').child($tid).child('members').child(auth.uid).exists()",
           ".write": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && (!data.exists() || data.child('ownerUid').val() == auth.uid)"

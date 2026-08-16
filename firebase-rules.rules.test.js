@@ -403,3 +403,57 @@ describe("lmuSchedule", () => {
     await assertFails(set(ref(db("admin"), "lmuSchedule"), { count: 0, races: [] }));
   });
 });
+
+/* v2.0: takım yönetimi — sahiplik devri, üye çıkarma, takım silme (yalnız owner). */
+describe("takım yönetimi (owner işlemleri)", () => {
+  const transfer = (from, to) => ({
+    "teams/team1/meta/ownerUid": to,
+    [`teams/team1/members/${to}`]: "owner",
+    [`teams/team1/members/${from}`]: "editor",
+  });
+
+  it("owner sahipliği devredebilir (tek atomik update)", async () => {
+    await assertSucceeds(update(ref(db("alice")), transfer("alice", "bob")));
+  });
+  it("owner olmayan sahipliği devredemez", async () => {
+    await assertFails(update(ref(db("bob")), transfer("alice", "bob")));
+    await assertFails(update(ref(db("carol")), transfer("alice", "carol")));
+  });
+  it("üye kendini owner'a yükseltemez", async () => {
+    await assertFails(set(ref(db("bob"), "teams/team1/members/bob"), "owner"));
+  });
+
+  it("owner üyeyi çıkarabilir (members/names/photos/badges)", async () => {
+    await assertSucceeds(update(ref(db("alice")), {
+      "teams/team1/members/carol": null,
+      "teams/team1/names/carol": null,
+      "teams/team1/photos/carol": null,
+      "teams/team1/badges/carol": null,
+    }));
+  });
+  it("editör/izleyici başka üyeyi çıkaramaz", async () => {
+    await assertFails(set(ref(db("bob"), "teams/team1/members/carol"), null));
+    await assertFails(set(ref(db("carol"), "teams/team1/members/bob"), null));
+  });
+
+  it("owner takımı (tüm alt ağaç) silebilir", async () => {
+    await assertSucceeds(set(ref(db("alice"), "teams/team1"), null));
+  });
+  it("owner olmayan takımı silemez", async () => {
+    await assertFails(set(ref(db("bob"), "teams/team1"), null));    // editör
+    await assertFails(set(ref(db("carol"), "teams/team1"), null));  // izleyici
+    await assertFails(set(ref(db("dave"), "teams/team1"), null));   // başka takım sahibi
+  });
+  it("takımı sil kuralı yalnız null yazıma açık (owner keyfi veri yazamaz)", async () => {
+    await assertFails(set(ref(db("alice"), "teams/team1"), { meta: { ownerUid: "alice" } }));
+  });
+
+  it("owner katılım kodunu silebilir; başkası silemez", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await set(ref(ctx.database(), "teamCodes/CSP123"), "team1");
+    });
+    await assertFails(set(ref(db("bob"), "teamCodes/CSP123"), null));
+    await assertFails(set(ref(db("dave"), "teamCodes/CSP123"), null));
+    await assertSucceeds(set(ref(db("alice"), "teamCodes/CSP123"), null));
+  });
+});

@@ -364,6 +364,46 @@ export async function leaveTeam(tid, uid) {
   await remove(ref(db, `users/${uid}/teams/${tid}`));
 }
 
+/* Sahipliği devret (yalnız mevcut sahip) — hedef üye owner olur, eski sahip
+   editor'a düşer. TEK atomik update: kurallar yazımdan ÖNCEKİ duruma (fromUid
+   hâlâ owner) göre doğrular → üç yol da geçer. */
+export async function transferOwnership(tid, fromUid, toUid) {
+  if (!db || !tid || !fromUid || !toUid || fromUid === toUid) return;
+  await update(ref(db), {
+    [`teams/${tid}/meta/ownerUid`]: toUid,
+    [`teams/${tid}/members/${toUid}`]: "owner",
+    [`teams/${tid}/members/${fromUid}`]: "editor",
+  });
+}
+
+/* Üyeyi takımdan çıkar (yalnız owner) — takım tarafı düğümleri silinir. Owner
+   kuralı members/names/photos/badges'e yazma izni verir. Çıkarılan üyenin
+   users/{uid}/teams etiketi kendi cihazında self-heal ile temizlenir (App). */
+export async function removeMember(tid, uid) {
+  if (!db || !tid || !uid) return;
+  await update(ref(db), {
+    [`teams/${tid}/members/${uid}`]: null,
+    [`teams/${tid}/names/${uid}`]: null,
+    [`teams/${tid}/photos/${uid}`]: null,
+    [`teams/${tid}/badges/${uid}`]: null,
+  });
+}
+
+/* Takımı sil (yalnız owner) — tüm takım alt ağacı + katılım kodu + sahibin kendi
+   etiketi. TEK atomik update: `teams/{tid}` silme kuralı ve teamCodes silme
+   kuralı yazımdan ÖNCEKİ meta.ownerUid'e bakar (bkz. firebase-rules.json).
+   Diğer üyelerin users/{uid}/teams etiketleri kendi cihazlarında self-heal ile
+   temizlenir (erişim zaten kalktı). */
+export async function deleteTeam(tid, ownerUid, joinCode) {
+  if (!db || !tid || !ownerUid) return;
+  const patch = {
+    [`teams/${tid}`]: null,
+    [`users/${ownerUid}/teams/${tid}`]: null,
+  };
+  if (joinCode) patch[`teamCodes/${joinCode}`] = null;
+  await update(ref(db), patch);
+}
+
 /* Rozet (admin atar): "admin" | "driver" | "engineer" */
 export async function setUserBadge(uid, badge) {
   if (!db || !uid) return;
