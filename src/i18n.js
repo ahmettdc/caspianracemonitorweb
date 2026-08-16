@@ -31,6 +31,18 @@ export const EN = {
   "elle girildi": "entered manually",
   "örnek": "sample",
   "veri yok": "no data",
+  /* Dashboard ekranı mikro etiketleri (03-dashboard.md). */
+  "Dashboard": "Dashboard",
+  "Strateji · tur": "Strategy · lap",
+  "stratejisi": "strategy",
+  "Bitiş": "End",
+  "pistte": "on track",
+  "pilot": "driver",
+  "Limit": "Limit",
+  "set": "sets",
+  "Kullanılan": "Used",
+  "Sıradaki stint lastikleri": "Next stint tyres",
+  "Son stint VE": "Last stint FE",
   "Canlı timing": "Live timing",
   "Sütun başlıklarına tıklayınca değer değişir (Gap ⇄ Aralık, Son ⇄ En iyi). Bir rakip satırına tıkla, altta karşılaştırma açılır.":
     "Click a column header to switch what it shows (Gap ⇄ Interval, Last ⇄ Best). Click a rival's row and a comparison opens below.",
