@@ -976,4 +976,14 @@ export const EN = {
   "Enerji": "Energy",
   "veri yok": "no data",
   "Yarış datası": "Race data",
+  /* yarış datası paneli — sahnele + uygula (i18n-EN.md §4) */
+  "Bu değişiklik neyi etkiler": "What this change affects",
+  "📋 Stint planı süreleri ve pit pencereleri": "📋 Stint plan durations and pit windows",
+  "⛽ Son stint yakıtı hesabı": "⛽ Final-stint fuel calculation",
+  "🛞 Lastik limiti uyarıları": "🛞 Tyre limit warnings",
+  "alan değişti": "fields changed",
+  "Değişiklik yok": "No changes",
+  "Uygula": "Apply",
+  "Geri al": "Discard",
+  "Kaydedilmemiş değişiklikler var — kapatılsın mı?": "You have unsaved changes — close anyway?",
 };

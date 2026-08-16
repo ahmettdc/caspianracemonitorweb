@@ -490,3 +490,43 @@ export function buildTimeline(plan) {
     return segs;
   });
 }
+
+/* ---------- yarış datası paneli: sahnele + uygula (v2.0, tasarım §14) ----------
+   Panel değişiklikleri yerel taslakta (draft) tutulur; Firebase'e yalnız
+   "Uygula" ile tek patch olarak geçer. Aşağısı bunun saf mantığı. */
+
+/* Alan hangi hesabı etkiler — "Bu değişiklik neyi etkiler" listesi için. */
+export const DATA_EFFECTS = {
+  stint: ["raceTime", "avgLap", "strategies", "chosen", "multiclass", "leaderClass",
+    "leaderLap", "extraLap", "raceStartMs", "pitLaneTime", "fuelTime", "weather", "weatherLog"],
+  fuel: ["avgLap", "raceTime", "consumption", "fuelRatio", "extraLap", "fuelTime",
+    "weather", "weatherLog"],
+  tyre: ["tyreLimit"],
+};
+
+/* strategies/weatherLog gibi nesne alanlarda referans eşitliği yetmez. */
+export function sameFieldValue(a, b) {
+  if ((a && typeof a === "object") || (b && typeof b === "object")) {
+    return JSON.stringify(a) === JSON.stringify(b);
+  }
+  return a === b;
+}
+
+/* Taslakta base'den GERÇEKTEN farklı olan alanlar (aynı değere geri dönen düşer). */
+export function draftChangedKeys(base, draft) {
+  if (!draft || !base) return [];
+  return Object.keys(draft).filter((k) => !sameFieldValue(draft[k], base[k]));
+}
+
+/* Uygula'da yazılacak patch — yalnız değişen alanlar. */
+export function draftPatch(base, draft) {
+  const patch = {};
+  for (const k of draftChangedKeys(base, draft)) patch[k] = draft[k];
+  return patch;
+}
+
+/* Değişen alanlara göre etkilenen hesaplar (sabit sıra: stint → fuel → tyre). */
+export function draftEffectIds(changedKeys) {
+  return ["stint", "fuel", "tyre"]
+    .filter((id) => (changedKeys || []).some((k) => DATA_EFFECTS[id].includes(k)));
+}

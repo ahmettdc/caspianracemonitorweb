@@ -46,6 +46,7 @@ import {
   computeTyreInfo, computeDriverPlan,
   computeLiveInfo, buildTimeline,
   applyMarkPit, applyUnmarkPit, applyResetPits,
+  draftChangedKeys, draftPatch, draftEffectIds,
 } from "./state";
 import { buildTourSteps } from "./tourSteps";
 import { poolEmptyReason } from "./setupPool";
@@ -330,7 +331,8 @@ export default function App() {
      Tek havada iki formül birebir aynı sonucu verir. */
   const totalVE = plan.totalFuel + st.extraLap * effCons(st); // % VE (DATA I2)
   const totalFuelL = totalVE * st.fuelRatio;            // gerçek litre karşılığı
-  const fuelCarried = 100 * st.fuelRatio;               // %100 = taşınan yakıt (L)
+  /* %100 = taşınan yakıt (L) — dataCardsFor içinde görüntülenen değerden
+     (100 * v.fuelRatio) hesaplanır ki sahnelenmiş taslakla tutarlı olsun. */
   const TY = ["FL", "FR", "RL", "RR"];
 
   /* ---------- Faz 3: lastik stratejisi ---------- */
@@ -734,6 +736,10 @@ ${bottomBar}
      "⚙ Yarış datası" düğmesiyle sağdan kayan panelde açılır (varsayılan kapalı).
      Ad korundu: tourSteps setSideOpen ile paneli açıyor. */
   const [sideOpen, setSideOpen] = useState(false);
+  /* SAHNELE + UYGULA (tasarım §14): panelde yapılan değişiklikler önce yerel
+     taslakta durur, Firebase'e YAZILMAZ; "Uygula" ile tek seferde işlenir.
+     null = bekleyen değişiklik yok. Yarış değişince taslak sıfırlanır. */
+  const [rdDraft, setRdDraft] = useState(null);
   /* ---- kimlik doğrulama (Google) → useAuth hook'u ---- */
   const { user, authLoading, udoc } = useAuth();
   const [authErr, setAuthErr] = useState("");
@@ -1314,62 +1320,94 @@ ${bottomBar}
       tForm={tForm} setTForm={setTForm} setTErr={setTErr} tErr={tErr} setCurTeam={setCurTeam} />
   );
 
-  /* ---------- ortak data kartları (setup + ana arayüz sol kolon) ---------- */
-  const dataCards = (<>
+  /* ---------- yarış datası: sahnele + uygula (tasarım §14) ----------
+     Panelde yapılan her değişiklik rdDraft'a yazılır; st'ye (dolayısıyla
+     Firebase'e) yalnız "Uygula" ile geçer. Yarış değişince taslak düşer. */
+  useEffect(() => { setRdDraft(null); }, [curRace]);
+  const rdView = rdDraft ? { ...st, ...rdDraft } : st;
+  const rdChanged = draftChangedKeys(st, rdDraft);   // saf mantık → state.js
+  const rdDirty = rdChanged.length > 0;
+  const stageRd = (patch) => {
+    if (blocked()) { showDeny(); return; }
+    setRdDraft((d) => ({ ...(d || {}), ...patch }));
+  };
+  const rdApply = () => {
+    if (!rdDirty) { setRdDraft(null); return; }
+    up(draftPatch(st, rdDraft));   // tek seferde işlenir → useRaceSync yazar
+    setRdDraft(null);
+  };
+  const rdClose = () => {
+    if (rdDirty && !window.confirm(t("Kaydedilmemiş değişiklikler var — kapatılsın mı?"))) return;
+    setRdDraft(null); setSideOpen(false);
+  };
+  /* "Bu değişiklik neyi etkiler" — yalnız değişen alanlara göre listelenir */
+  const RD_EFFECT_LBL = {
+    stint: "📋 Stint planı süreleri ve pit pencereleri",
+    fuel: "⛽ Son stint yakıtı hesabı",
+    tyre: "🛞 Lastik limiti uyarıları",
+  };
+  const rdEffects = draftEffectIds(rdChanged).map((id) => [id, RD_EFFECT_LBL[id]]);
+
+  /* ---------- ortak data kartları (setup gate + yarış datası paneli) ----------
+     v   = okunacak değerler (st ya da sahnelenmiş taslak birleşimi)
+     put = yazma fonksiyonu (up = anında kayıt · stageRd = taslağa sahnele)
+     Böylece aynı JSX iki modda kullanılır: onboarding'de anında kayıt korunur,
+     panelde sahnele+uygula çalışır. */
+  const dataCardsFor = (v, put) => (<>
     <div className="card" data-tour="data">
       <h2>{t("Yarış · Data")}</h2>
       <div className="row2">
         <div><label>Race Time (h:mm:ss)</label>
-          <input type="text" value={st.raceTime} onChange={(e) => up({ raceTime: e.target.value })} /></div>
+          <input type="text" value={v.raceTime} onChange={(e) => put({ raceTime: e.target.value })} /></div>
         <div><label>Avg Lap (m:ss.00)</label>
-          <input type="text" value={st.avgLap} onChange={(e) => up({ avgLap: e.target.value })} />
+          <input type="text" value={v.avgLap} onChange={(e) => put({ avgLap: e.target.value })} />
           {avgSug && canEdit && (
             <button className="act" style={{ marginTop: 4, fontSize: 11, padding: "3px 8px" }}
               title={t("Canlı son 5 turun ortalaması — tıkla, plana uygula")}
-              onClick={() => up({ avgLap: avgSug.txt })}>
+              onClick={() => put({ avgLap: avgSug.txt })}>
               ⚡ {t("Canlı AVG5")}: <b className="mono">{avgSug.txt}</b> — {t("uygula")}</button>
           )}</div>
       </div>
       <div className="row4">
         {["A", "B", "C", "D"].map((k) => (
-          <Num key={k} v={st.strategies[k]} step={1}
-            onC={(v) => up({ strategies: { ...st.strategies, [k]: v } })} />
+          <Num key={k} v={v.strategies[k]} step={1}
+            onC={(nv) => put({ strategies: { ...v.strategies, [k]: nv } })} />
         ))}
       </div>
       <label>{t("Seçili Strateji")}</label>
       <div className="strat">
         {["A", "B", "C", "D"].map((k) => (
-          <button key={k} className={st.chosen === k ? "on" : ""}
-            onClick={() => up({ chosen: k })}>{k} · {st.strategies[k]}</button>
+          <button key={k} className={v.chosen === k ? "on" : ""}
+            onClick={() => put({ chosen: k })}>{k} · {v.strategies[k]}</button>
         ))}
       </div>
       <div className="row2">
         <div>
           <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
-            <input type="checkbox" checked={st.multiclass} style={{ width: "auto", margin: 0 }}
-              onChange={(e) => up({ multiclass: e.target.checked })} />
+            <input type="checkbox" checked={v.multiclass} style={{ width: "auto", margin: 0 }}
+              onChange={(e) => put({ multiclass: e.target.checked })} />
             {t("Multiclass Yarış")}
           </label>
-          <select value={st.leaderClass} disabled={!st.multiclass}
-            style={!st.multiclass ? { opacity: .45 } : undefined}
-            onChange={(e) => up({ leaderClass: e.target.value })}>
+          <select value={v.leaderClass} disabled={!v.multiclass}
+            style={!v.multiclass ? { opacity: .45 } : undefined}
+            onChange={(e) => put({ leaderClass: e.target.value })}>
             {CAR_CLASSES.map(([id, name]) => (
               <option key={id} value={id}>{name}</option>
             ))}
           </select>
         </div>
         <div><label>Extra Lap</label>
-          <Num v={st.extraLap} step={1} onC={(v) => up({ extraLap: v })} /></div>
+          <Num v={v.extraLap} step={1} onC={(nv) => put({ extraLap: nv })} /></div>
       </div>
-      {st.multiclass && (
+      {v.multiclass && (
         <div className="row2">
           <div><label>🏁 {t("Lider Tur (m:ss.00)")}</label>
-            <input type="text" value={st.leaderLap} placeholder={st.avgLap}
-              onChange={(e) => up({ leaderLap: e.target.value })} /></div>
+            <input type="text" value={v.leaderLap} placeholder={v.avgLap}
+              onChange={(e) => put({ leaderLap: e.target.value })} /></div>
           <div />
         </div>
       )}
-      {st.multiclass && racePlan.flagExtra > 0.5 && (
+      {v.multiclass && racePlan.flagExtra > 0.5 && (
         <div className="hint">🏁 {t("Lider bayrağı")}: +{racePlan.flagExtra.toFixed(0)}s → {t("son tur otomatik eklenir")}</div>
       )}
     </div>
@@ -1377,9 +1415,9 @@ ${bottomBar}
     <div className="card" data-tour="rstart" style={{ marginTop: 12 }}>
       <h2>{t("Yarış Başlangıcı")}</h2>
       <label>{t("Start Tarih & Saat")}</label>
-      <input type="datetime-local" value={msToLocalInput(st.raceStartMs)}
-        onChange={(e) => { const t = new Date(e.target.value).getTime();
-          if (!isNaN(t)) up({ raceStartMs: t }); }} />
+      <input type="datetime-local" value={msToLocalInput(v.raceStartMs)}
+        onChange={(e) => { const ms = new Date(e.target.value).getTime();
+          if (!isNaN(ms)) put({ raceStartMs: ms }); }} />
       <div style={{ marginTop: 10, background: "var(--panel2)",
         border: "1px solid var(--line)", borderRadius: 8, padding: "8px 12px",
         display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
@@ -1399,12 +1437,12 @@ ${bottomBar}
           onClick={() => {
             const el = liveInfo.status === "live"
               ? Math.max(0, Math.round(liveInfo.elapsed / 1000)) : 0;
-            let past = (st.weatherLog || []).filter((e) => e.t < el - 0.5);
-            const future = (st.weatherLog || []).filter((e) => e.t > el + 0.5);
+            let past = (v.weatherLog || []).filter((e) => e.t < el - 0.5);
+            const future = (v.weatherLog || []).filter((e) => e.t > el + 0.5);
             if (el < 1) past = [];
             const log = [...past, { t: el, w: wxSug.id, src: "live" }, ...future]
               .sort((a, b) => a.t - b.t);
-            up({ weather: wxSug.id, weatherLog: log });
+            put({ weather: wxSug.id, weatherLog: log });
           }}>
           <WetIcon id={wxSug.id} size={15} /> {t("Canlı")}: 🌧 {t(wxSug.rainLbl)} ·{" "}
           <b>{t(wxSug.label)}</b> → {t("geçişi ekle")}
@@ -1412,18 +1450,18 @@ ${bottomBar}
       )}
       <div className="wxsel">
         {Object.entries(WEATHER).map(([id, w]) => (
-          <button key={id} className={st.weather === id ? "on" : ""}
-            style={st.weather === id ? { borderColor: w.col, color: w.col } : undefined}
+          <button key={id} className={v.weather === id ? "on" : ""}
+            style={v.weather === id ? { borderColor: w.col, color: w.col } : undefined}
             onClick={() => {
               const el = liveInfo.status === "live"
                 ? Math.max(0, Math.round(liveInfo.elapsed / 1000)) : 0;
-              let past = (st.weatherLog || []).filter((e) => e.t < el - 0.5);
-              const future = (st.weatherLog || []).filter((e) => e.t > el + 0.5);
+              let past = (v.weatherLog || []).filter((e) => e.t < el - 0.5);
+              const future = (v.weatherLog || []).filter((e) => e.t > el + 0.5);
               if (el < 1) past = [];
               const log = [...past, { t: el, w: id, src: "live" }, ...future]
                 .sort((a, b) => a.t - b.t);
               const cur = wxAtRel(log, el);
-              up({ weather: Object.keys(WEATHER).find((k) => WEATHER[k] === cur) || id,
+              put({ weather: Object.keys(WEATHER).find((k) => WEATHER[k] === cur) || id,
                 weatherLog: log });
             }}>
             <WetIcon id={id} size={20} /> {t(w.lbl)}<br /><small>×{w.lap.toFixed(2)}</small>
@@ -1432,13 +1470,13 @@ ${bottomBar}
       </div>
       {(() => {
         /* "Efektif tur (şu an)": vurgulu hava düğmesiyle AYNI kaynağı kullan (şimdiki
-           hava = st.weather). WX(st) log'un EN İLERİ kaydını verir → ileride planlı bir
+           hava = v.weather). WX(st) log'un EN İLERİ kaydını verir → ileride planlı bir
            ıslak geçiş varsa gelecekteki çarpanı gösterirdi (etiket "şu an" ile çelişir). */
-        const wxNow = WEATHER[st.weather] || WEATHER.dry;
+        const wxNow = WEATHER[v.weather] || WEATHER.dry;
         return wxNow.lap > 1 && (
           <div className="hint">
-            {t("Efektif tur")} ({t("şu an")}): <b className="mono">{st.avgLap}</b> ×{wxNow.lap.toFixed(2)} ={" "}
-            <b className="mono" style={{ color: wxNow.col }}>{fmtLap(parseLap(st.avgLap) * wxNow.lap)}</b>
+            {t("Efektif tur")} ({t("şu an")}): <b className="mono">{v.avgLap}</b> ×{wxNow.lap.toFixed(2)} ={" "}
+            <b className="mono" style={{ color: wxNow.col }}>{fmtLap(parseLap(v.avgLap) * wxNow.lap)}</b>
             {wxNow.fuel < 1 && <> · ⚡ {t("yakıt")} −{((1 - wxNow.fuel) * 100).toFixed(0)}%</>}
           </div>
         );
@@ -1446,24 +1484,24 @@ ${bottomBar}
       <div className="hint" style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
         <button className="histbtn" onClick={() => setWxHist(true)}>
           🕒 {t("Geçmiş / Planlı geçişler")}
-          {(st.weatherLog || []).length > 0 ? ` (${st.weatherLog.length})` : ""}</button>
+          {(v.weatherLog || []).length > 0 ? ` (${v.weatherLog.length})` : ""}</button>
       </div>
     </div>
 
     <div className="card" data-tour="pittimes" style={{ marginTop: 12 }}>
       <h2>{t("Pit · Süreler (s)")}</h2>
       <div className="row2">
-        <div><label>Pit Line</label><Num v={st.pitLaneTime} onC={(v) => up({ pitLaneTime: v })} />
-          {st.track && PIT_LANE_TIMES[st.track] != null && (
-            <div className="hint">{t("Pist verisi")}: {PIT_LANE_TIMES[st.track]}s · {trackName(st.track)}</div>
+        <div><label>Pit Line</label><Num v={v.pitLaneTime} onC={(nv) => put({ pitLaneTime: nv })} />
+          {v.track && PIT_LANE_TIMES[v.track] != null && (
+            <div className="hint">{t("Pist verisi")}: {PIT_LANE_TIMES[v.track]}s · {trackName(v.track)}</div>
           )}</div>
         <div><label style={{ display: "flex", alignItems: "center", gap: 5 }}>
           ⛽ Fuel &amp; <Bolt size={13} /> VE</label>
-          <Num v={st.fuelTime} onC={(v) => up({ fuelTime: v })} /></div>
+          <Num v={v.fuelTime} onC={(nv) => put({ fuelTime: nv })} /></div>
       </div>
       <div className="row2">
         <div><label style={{ display: "flex", alignItems: "center", gap: 5 }}><Tyre size={15} /> {t("Lastik Limiti (adet)")}</label>
-          <Num v={st.tyreLimit} step={1} onC={(v) => up({ tyreLimit: v })} /></div>
+          <Num v={v.tyreLimit} step={1} onC={(nv) => put({ tyreLimit: nv })} /></div>
         <div />
       </div>
     </div>
@@ -1471,23 +1509,23 @@ ${bottomBar}
     <div className="card" data-tour="ve" style={{ marginTop: 12 }}>
       <h2>⚡ Virtual Energy · Data</h2>
       <div className="row2">
-        <div><label>⚡ {t("VE Tüketim (%/tur)")}</label><Num v={st.consumption} onC={(v) => up({ consumption: v })} /></div>
-        <div><label>Fuel Ratio (L / %1)</label><Num v={st.fuelRatio} onC={(v) => up({ fuelRatio: v })} /></div>
+        <div><label>⚡ {t("VE Tüketim (%/tur)")}</label><Num v={v.consumption} onC={(nv) => put({ consumption: nv })} /></div>
+        <div><label>Fuel Ratio (L / %1)</label><Num v={v.fuelRatio} onC={(nv) => put({ fuelRatio: nv })} /></div>
       </div>
       <div className="row2">
         <div><label>⛽ {t("%100 = Taşınan Yakıt")}</label>
           <div className="mono" style={{ padding: "6px 0", color: "var(--green)" }}>
-            {fuelCarried.toFixed(1)} L</div></div>
+            {(100 * v.fuelRatio).toFixed(1)} L</div></div>
       </div>
     </div>
 
     <div className="card" data-tour="stream" style={{ marginTop: 12 }}>
       <h2>📺 {t("Canlı Yayın")}</h2>
       <label>{t("YouTube linki")}</label>
-      <input type="text" value={st.streamUrl} placeholder="https://youtube.com/watch?v=..."
-        onChange={(e) => up({ streamUrl: e.target.value })} />
+      <input type="text" value={v.streamUrl} placeholder="https://youtube.com/watch?v=..."
+        onChange={(e) => put({ streamUrl: e.target.value })} />
       <div className="hint">
-        {ytId(st.streamUrl)
+        {ytId(v.streamUrl)
           ? <>✅ {t("Yayın köşedeki mini oynatıcıda gösteriliyor.")}</>
           : t("Geçerli bir YouTube linki yapıştırın; köşede mini oynatıcı açılır.")}
       </div>
@@ -2033,7 +2071,8 @@ ${bottomBar}
               </>) : t("Solo mod — datalar sadece bu cihazda")}
             </div>
 
-            {dataCards}
+            {/* onboarding: anında kayıt (sahnele+uygula yalnız panelde) */}
+            {dataCardsFor(st, up)}
 
             <button className="bigbtn" style={{ marginTop: 18 }}
               onClick={() => setSetupDone(true)}>
@@ -2475,8 +2514,10 @@ ${bottomBar}
                 {isLive ? <><i /> {t("canlı")}</> : t("veri yok")}
               </button>
               <div className="rb-actions">
-                <button onClick={() => setSideOpen((v) => !v)} title={t("Yarış datası")}>
-                  ⚙ {t("Yarış datası")}</button>
+                <button onClick={() => (sideOpen ? rdClose() : setSideOpen(true))}
+                  title={t("Yarış datası")}>
+                  ⚙ {t("Yarış datası")}
+                  {rdDirty && <b className="rb-count">{rdChanged.length}</b>}</button>
                 <button onClick={() => setPitboard(true)} title="Pit Board">📟 Pit Board</button>
               </div>
               {syncMsg && <span className="rb-meta" style={{ color: "var(--yellow)" }}>{syncMsg}</span>}
@@ -2848,16 +2889,31 @@ ${bottomBar}
       {/* ===== Yarış datası paneli (sağdan kayar) — tasarım §14 =====
           Kalıcı sol kolonun yerini aldı; yarış çubuğundaki ⚙ düğmesi açar.
           Sahnele+uygula modeli WS2'de gelecek; şu an mevcut anında-kayıt sürüyor. */}
-      {sideOpen && <div className="rdbg" onClick={() => setSideOpen(false)} />}
+      {sideOpen && <div className="rdbg" onClick={rdClose} />}
       <aside className={`rdpanel ${sideOpen ? "on" : ""}`} aria-hidden={!sideOpen}>
         <div className="rdhead">
           ⚙ {t("Yarış datası")}
           <button className="lbclose" style={{ marginLeft: "auto" }}
-            onClick={() => setSideOpen(false)}
-            title={t("Kapat")} aria-label={t("Kapat")}>✕</button>
+            onClick={rdClose} title={t("Kapat")} aria-label={t("Kapat")}>✕</button>
         </div>
         <div className={`rdbody ${role === "viewer" && curRace ? "ro" : ""}`}>
-          {dataCards}
+          {dataCardsFor(rdView, stageRd)}
+          {rdEffects.length > 0 && (
+            <div className="rdeffects">
+              <b>{t("Bu değişiklik neyi etkiler")}</b>
+              <ul>{rdEffects.map(([id, lbl]) => <li key={id}>{t(lbl)}</li>)}</ul>
+            </div>
+          )}
+        </div>
+        {/* alt şerit: sahnelenen değişiklik sayısı + Geri al / Uygula */}
+        <div className="rdfoot">
+          <span className={`rdcount ${rdDirty ? "on" : ""}`}>
+            {rdDirty ? `${rdChanged.length} ${t("alan değişti")}` : t("Değişiklik yok")}
+          </span>
+          <button className="btn btn--subtle btn--sm" disabled={!rdDirty}
+            onClick={() => setRdDraft(null)}>{t("Geri al")}</button>
+          <button className="btn btn--primary btn--sm" disabled={!rdDirty}
+            onClick={rdApply}>{t("Uygula")}</button>
         </div>
       </aside>
         </div>{/* /shell-main */}

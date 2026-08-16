@@ -43,6 +43,9 @@ describe("v2.0 kabuk — CSS sınıfları ve keyframes", () => {
     ".rc .rail-btn.on{", ".rc .rail-sep{", ".rc .rail-open{",
     ".rc .racebar{", ".rc .racebar .rb-cell{", ".rc .racebar .rb-pit{",
     ".rc .rb-ro-tag{", ".rc .rb-live{", ".rc .guidebox{",
+    ".rc .content{", ".rc .rdpanel{", ".rc .rdpanel.on{", ".rc .rdbg{",
+    ".rc .rdhead{", ".rc .rdbody{", ".rc .rdbody.ro{",
+    ".rc .rdeffects{", ".rc .rdfoot{", ".rc .rdcount.on{",
     "@keyframes rcin", "@keyframes rcalert", "@keyframes rcpop",
     "@keyframes rcpb", "@keyframes rcpbc", "@keyframes rcspin",
   ];
@@ -57,6 +60,11 @@ describe("v2.0 kabuk — i18n EN anahtarları", () => {
     "Stint planı", "Son stint yakıtı", "Canlı timing", "Lastik stratejisi",
     "Setup havuzu", "İzleyici modu", "İzleyici", "Mühendis",
     "Bayrağa Kalan", "Enerji", "veri yok", "Yarış datası", "Masaüstü uygulaması",
+    // yarış datası paneli — sahnele + uygula
+    "Bu değişiklik neyi etkiler", "alan değişti", "Değişiklik yok",
+    "Uygula", "Geri al", "Kaydedilmemiş değişiklikler var — kapatılsın mı?",
+    "📋 Stint planı süreleri ve pit pencereleri", "⛽ Son stint yakıtı hesabı",
+    "🛞 Lastik limiti uyarıları",
   ];
   for (const k of keys) {
     it(`EN karşılığı var: "${k}"`, () => {

@@ -1319,9 +1319,22 @@ export const css = `
 .rc .rdhead{display:flex;align-items:center;gap:8px;padding:14px 16px;
   border-bottom:1px solid var(--line);font-family:var(--font-disp);font-size:15px;
   font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--accent)}
-.rc .rdbody{flex:1;overflow-y:auto;padding:14px 16px 28px}
+.rc .rdbody{flex:1;overflow-y:auto;padding:14px 16px 20px}
 /* izleyici modu: panel gövdesi pasif (tasarım §18) */
 .rc .rdbody.ro{opacity:.5;pointer-events:none}
+/* "Bu değişiklik neyi etkiler" — yalnız bekleyen değişiklik varken */
+.rc .rdeffects{margin-top:12px;padding:11px 13px;border-radius:var(--r-card);
+  border:1px solid var(--line-strong);background:rgba(245,178,61,.07)}
+.rc .rdeffects b{display:block;font-family:var(--font-disp);font-size:12.5px;
+  text-transform:uppercase;letter-spacing:.08em;color:var(--yellow);margin-bottom:6px}
+.rc .rdeffects ul{margin:0;padding-left:2px;list-style:none}
+.rc .rdeffects li{font-size:11.5px;color:var(--dim);line-height:1.75}
+/* alt şerit: N alan değişti + Geri al / Uygula */
+.rc .rdfoot{display:flex;align-items:center;gap:8px;padding:11px 14px;
+  border-top:1px solid var(--line);background:var(--panel)}
+.rc .rdcount{flex:1;font-size:11.5px;color:var(--muted)}
+.rc .rdcount.on{color:var(--yellow);font-weight:600}
+.rc .rdfoot button:disabled{opacity:.45;cursor:not-allowed}
 
 /* --- rehber kutusu (tek satır ipucu) --- */
 .rc .guidebox{display:flex;align-items:flex-start;gap:11px;margin:14px 20px 0;padding:12px 15px;
