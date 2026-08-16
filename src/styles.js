@@ -1980,9 +1980,10 @@ export const css = `
 .rc .hminfopop .st .r span{color:var(--rc-text-3)}
 .rc .hminfopop .st .r b{font-family:var(--rc-font-display)}
 .rc .hminfopop .act{display:block;padding:10px 8px}
-.rc .hminfopop .act button{display:block;width:100%;text-align:left;padding:8px 12px;
-  background:none;border:none;color:var(--rc-text);cursor:pointer;font-size:12.5px;border-radius:7px}
-.rc .hminfopop .act button:hover{background:var(--rc-surface-3)}
+.rc .hminfopop .act button,.rc .hminfopop .act a{display:block;width:100%;text-align:left;
+  padding:8px 12px;background:none;border:none;color:var(--rc-text);cursor:pointer;
+  font-size:12.5px;border-radius:7px;text-decoration:none;box-sizing:border-box}
+.rc .hminfopop .act button:hover,.rc .hminfopop .act a:hover{background:var(--rc-surface-3)}
 .rc .hminfopop .ft{display:block;padding:9px 16px;border-top:1px solid var(--rc-border);
   font-size:10.5px;color:var(--rc-text-3);line-height:1.5}
 .rc .hmacct{display:inline-flex;align-items:center;gap:9px;padding:5px 12px 5px 5px;border-radius:99px;

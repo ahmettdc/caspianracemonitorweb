@@ -8,6 +8,8 @@ export const APP_VERSION = "v2.0.0";   // tek kaynak — sürüm yazısı burada
    kaydıyla elle senkron — büyük changelog.js'i erken yüklememek için ayrı. */
 export const APP_VERSION_SUMMARY = "Arayüz baştan tasarlandı — 76px sol ray, birleşik yarış çubuğu ve tam sayfa ekranlar.";
 export const REPO_URL = "https://github.com/ahmettdc/caspianracemonitorweb";
+/* Bilgi (ℹ) açılırındaki "Hata bildir" → e-posta ile bildirim. */
+export const SUPPORT_EMAIL = "ahmetdemircan55@gmail.com";
 export const SEEN_VER_KEY = "rm_seen_version";
 export const ASSET = import.meta.env.BASE_URL + "assets/";
 export const AV = "?v=3"; // görsel sürümü — dosya güncellenince artır (önbellek kırma)

@@ -41,7 +41,7 @@ import { Rail, RaceBar, Guide, EmptyState } from "./shell";
 import { guideFor } from "./guides";
 import { pruneAssignments } from "./avail";
 import {
-  SLOT_COLORS, APP_VERSION, APP_VERSION_SUMMARY, SEEN_VER_KEY, ASSET, AV,
+  SLOT_COLORS, APP_VERSION, APP_VERSION_SUMMARY, SEEN_VER_KEY, ASSET, AV, SUPPORT_EMAIL,
   TRACKS, PIT_LANE_TIMES, TRACK_ASSET,
   CARS, CAR_CLASSES, trackName, carName, carImg, brandLogo, classId, venueToTrackId,
   PIE_COLORS, DESKTOP_RELEASE_URL, BRIDGE_EXE_URL,
@@ -2460,6 +2460,10 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
                     <span className="act">
                       <button onClick={() => { setHomeInfo(false); openVersions(); }}>
                         {t("Yenilikler · neler değişti")}</button>
+                      <a href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
+                        `Race Monitor — ${t("Hata bildir")} (${APP_VERSION})`)}&body=${encodeURIComponent(
+                        `\n\n———\n${t("Sürüm")}: ${APP_VERSION}`)}`}
+                        onClick={() => setHomeInfo(false)}>{t("Hata bildir")}</a>
                     </span>
                     <span className="ft">{t("Takvim kaynağı")}{" "}
                       <a href="https://lmugarage.com" target="_blank" rel="noopener noreferrer">lmugarage.com</a>{" "}
