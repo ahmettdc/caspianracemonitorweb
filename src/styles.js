@@ -1432,6 +1432,23 @@ export const css = `
    Yoğunluk YALNIZ bu ekranda: .wall = Pit duvarı (seyrek satır, büyük sayı),
    .eng = Mühendis (sık satır, 12.5px). Sütunlar İKİ MODDA DA görünür — yalnız
    ölçek değişir. Global yoğunluk anahtarı v2.0'da kaldırıldı. */
+/* Canlı Timing iki kolon: saha tablosu + 320px sağ panel (kayarak kapanır) */
+.rc .livegrid{display:flex;gap:var(--sp-5);align-items:flex-start}
+.rc .livemain{flex:1 1 auto;min-width:0}
+.rc .liveside{flex:0 0 var(--side-w);width:var(--side-w);
+  transition:margin-right var(--t-panel),opacity var(--t-panel)}
+.rc .livegrid.noside .liveside{margin-right:calc(var(--side-w) * -1);opacity:0;
+  pointer-events:none}
+.rc .sideflip{flex:0 0 auto;align-self:flex-start;width:14px;height:38px;margin-top:4px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:10px;
+  border:1px solid var(--line);border-right:none;
+  border-radius:var(--r-sm) 0 0 var(--r-sm);background:var(--panel-alt);color:var(--dim)}
+.rc .sideflip:hover{color:var(--accent);border-color:var(--line-strong)}
+@media(max-width:1180px){
+  .rc .livegrid{flex-wrap:wrap}
+  .rc .liveside{flex:1 1 100%;width:auto}
+}
+
 /* rakip karşılaştırma tepsisi içeriği */
 .rc .cmptray .cmphead{display:flex;flex-direction:column;padding-right:var(--sp-3);
   border-right:1px solid var(--line);margin-right:var(--sp-2)}

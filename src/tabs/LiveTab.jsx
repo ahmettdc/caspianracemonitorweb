@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { EmptyState } from "../shell";
 import { fmtLap, fmtHMS, fmtGap, WEATHER, wetnessLevel, rainLevel, rubberPct } from "../engine";
 import { WetIcon } from "../WetIcon";
 import { GripIcon, gripColor } from "../GripIcon";
@@ -47,6 +48,18 @@ function connOf(ts) {
 
 /* Sınıf rozeti — pick ekranındaki renkli vektör (assets/class/<id>.png).
    Görsel yüklenmezse sınıf adını nötr çip olarak gösterir. */
+/* Üstü çizili sinyal ikonu — canlı veri yokken boş durumun başında (README §6). */
+function NoSignalIcon() {
+  return (
+    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+      <path d="M4.6 8a10 10 0 0 1 14.8 0M7.6 11a6 6 0 0 1 8.8 0" />
+      <circle cx="12" cy="15" r="1.6" fill="currentColor" stroke="none" />
+      <path d="M3 3 21 21" />
+    </svg>
+  );
+}
+
 function ClassBadge({ raw }) {
   const [err, setErr] = useState(false);
   const id = classId(raw);
@@ -612,6 +625,13 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
     return nx;
   });
   const [secOn, setSecOn] = useState(true);        // Sektör sütunu gizlenebilir (👁)
+  /* Sağ panel (320px) kayarak kapanır — tercih localStorage'da. */
+  const [sideOn, setSideOn] = useState(() => {
+    try { return localStorage.getItem("crm-live-side") !== "0"; } catch { return true; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("crm-live-side", sideOn ? "1" : "0"); } catch { /* özel mod */ }
+  }, [sideOn]);
   const [cmpCar, setCmpCar] = useState(null);      // rakip karşılaştırma tepsisi
   // DEMO: yerel sahte veri (oyun/köprü/Firebase gerekmez) — UI düzenlemek için
   const [demo, setDemo] = useState(false);
@@ -723,7 +743,25 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
             {staleOff && <span className="livebadge off"><i /> {t("çevrimdışı")}</span>}
             <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
               {guideBtn}{demoBtn}</span></h2>
-          <div className="hint" style={{ lineHeight: 1.7 }}>
+          {/* v2.0 sistematik boş durum (README §6 "Boş durum" + i18n-EN.md §2):
+              üstü çizili sinyal ikonu + başlık + açıklama + yeniden bağlan /
+              köprü durumu + son paket saati. Platforma özgü kurulum yönergeleri
+              altta korunur (KORU/TAŞI). */}
+          <EmptyState
+            icon={<NoSignalIcon />}
+            title={t("Canlı veri gelmiyor")}
+            text={t("Köprü çalışmıyor ya da oyun seansta değil. Sürüş PC'sinde köprüyü başlat; bağlanınca saha tablosu kendiliğinden dolar.")}>
+            <button className="rbbtn" onClick={() => window.location.reload()}>
+              {t("Yeniden bağlan")}</button>
+            {bridgeCard && <span className="ro-note">{t("Köprü durumu")} ↑</span>}
+            {live?.ts && (
+              <span className="fsub">
+                {t("son paket")} · {ageSec < 90
+                  ? `${ageSec} ${t("sn")}` : `${Math.round(ageSec / 60)} ${t("dk önce")}`}
+              </span>
+            )}
+          </EmptyState>
+          <div className="hint" style={{ lineHeight: 1.7, marginTop: 12 }}>
             {staleOff
               ? <>⚠ {t("Canlı veri akışı durdu")} — {t("son veri")} {ageTxt} {t("önce")}.{" "}
                 {t("Oyun ya da köprü kapanmış olabilir.")}</>
@@ -881,27 +919,11 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
         </div>
       </div>
 
-      {/* Strateji artık Pist Haritası kutusunun İÇİNDE en üstte (aşağıda topSlot).
-          Harita yoksa (trackLength/posX gelmemiş) kaybolmasın diye yedek: bağımsız. */}
-      {!big && !(s.trackLength > 0 && fieldAll.some((c) => c.posX != null)) && (
-        <StrategyBar t={t} field={fieldAll} />
-      )}
-
-      {/* Pist haritası (sol, strateji üstünde) + Kendi Araç (sağ) yan yana */}
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
-        {s.trackLength > 0 && fieldAll.some((c) => c.posX != null) && (
-          <div style={{ flex: "1 1 360px", minWidth: 300 }}>
-            <TrackMap t={t} field={fieldAll} session={s} trackLength={s.trackLength}
-              tid={tid} trackKey={binKey(s.trackName, s.trackLength)} canSave={canEdit}
-              topSlot={!big ? <StrategyBar t={t} field={fieldAll} embedded /> : null} />
-          </div>
-        )}
-        {own && (
-          <div style={{ flex: "1 1 420px", minWidth: 300 }}>
-            <OwnCar t={t} own={own} liveFuelObs={liveFuelObs} topSrc={ownTopSrc} />
-          </div>
-        )}
-      </div>
+      {/* v2.0 iki kolon (README §6): solda saha tablosu, sağda 320px panel
+          (pist haritası + strateji + kendi araç kartı). Panel kayarak kapanır.
+          Büyük Pano (⛶) modunda tek kolon kalır. */}
+      <div className={`livegrid${sideOn ? "" : " noside"}`}>
+      <div className="livemain">
 
       <div className="card" data-tour="livefield">
         <h2 className="fieldhead">
@@ -1057,6 +1079,31 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
       </div>
       {!big && isRace && <PosChart t={t} tid={tid} rid={rid} field={fieldAll}
         myClassOnly={myClassOnly} playerClass={playerClass} />}
+      </div>{/* /livemain */}
+
+      {!big && (
+        <>
+        {/* Açma/kapama tırnağı panelin DIŞINDA: panel kapanınca opacity:0 olduğu
+            için içeride kalsa tekrar açılamazdı. */}
+        <button className="sideflip" onClick={() => setSideOn((v) => !v)}
+          title={sideOn ? t("Paneli gizle") : t("Paneli göster")}
+          aria-expanded={sideOn}>{sideOn ? "▶" : "◀"}</button>
+        <aside className="liveside" aria-label={t("Pist ve araç paneli")}>
+          {/* Strateji, Pist Haritası kutusunun İÇİNDE en üstte (topSlot). Harita
+              yoksa (trackLength/posX gelmemiş) kaybolmasın diye yedek: bağımsız. */}
+          {!(s.trackLength > 0 && fieldAll.some((c) => c.posX != null)) && (
+            <StrategyBar t={t} field={fieldAll} />
+          )}
+          {s.trackLength > 0 && fieldAll.some((c) => c.posX != null) && (
+            <TrackMap t={t} field={fieldAll} session={s} trackLength={s.trackLength}
+              tid={tid} trackKey={binKey(s.trackName, s.trackLength)} canSave={canEdit}
+              topSlot={<StrategyBar t={t} field={fieldAll} embedded />} />
+          )}
+          {own && <OwnCar t={t} own={own} liveFuelObs={liveFuelObs} topSrc={ownTopSrc} />}
+        </aside>
+        </>
+      )}
+      </div>{/* /livegrid */}
 
       {/* Rakip karşılaştırma tepsisi — satır tıklamasıyla açılır. Araç sahadan
           düşerse taze kareden yeniden bulunur, yoksa tepsi kapanır. */}
