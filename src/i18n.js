@@ -932,4 +932,43 @@ export const EN = {
     "Image could not be processed — the file may be corrupt.",
   "Görsel sıkıştırılamadı — daha küçük/az detaylı bir görsel deneyin.":
     "Image could not be compressed — try a smaller or simpler image.",
+
+  /* --- v2.0 kabuk: sol ray + rehber kutuları + izleyici (i18n-EN.md) --- */
+  "Menü": "Menu",
+  "Dash": "Dash",
+  "Tele": "Tele",
+  "Menüyü aç": "Open menu",
+  "Menüyü gizle": "Hide menu",
+  "Ana menü": "Main menu",
+  /* rehber kutusu başlıkları */
+  "Stint planı": "Stint plan",
+  "Son stint yakıtı": "Final stint fuel",
+  "Canlı timing": "Live timing",
+  "Lastik stratejisi": "Tyre strategy",
+  "Setup havuzu": "Setup pool",
+  /* rehber kutusu metinleri */
+  "Yarışın özeti: pozisyon, enerji, lastik ve stint dağılımı. Araç ve pist görseline tıklayınca tempo referansı açılır.":
+    "The race at a glance: position, energy, tyres and stint split. Click the car or track image to open the pace reference.",
+  "Stintleri süre ve pilotla planla; pit satırında lastik seçimini işaretle. PIT düğmesi gerçek pit anını kaydeder.":
+    "Plan stints by duration and driver, and mark the tyre choice on the pit row. The PIT button records the actual stop.",
+  "Kalan süreye göre gereken enerji yüzdesi. 📋 Plan açıkken geri sayım stint planından gelir; canlı veriyle tüketimi güncelleyebilirsin.":
+    "The energy percentage you need for the time remaining. With 📋 Plan on, the countdown comes from the stint plan; you can refresh consumption from live data.",
+  "Sütun başlıklarına tıklayınca değer değişir (Gap ⇄ Aralık, Son ⇄ En iyi). Bir rakip satırına tıkla, altta karşılaştırma açılır.":
+    "Click a column header to switch what it shows (Gap ⇄ Interval, Last ⇄ Best). Click a rival's row and a comparison opens below.",
+  "Her hücreye tıklayarak set ata; bir lastik ilk takıldığı köşeye kilitlenir. Hızlı atama penceresi tüm kombinasyonları verir.":
+    "Click a cell to assign a set; a tyre locks to the corner it was first fitted on. The quick-assign window lists every combination.",
+  "Stintlere pilot ata, sürüş süresi dağılımını izle. Uygunluk penceresinde kapattığın saatlere atama yapılamaz.":
+    "Assign drivers to stints and watch the driving-time split. Hours you close in the availability window can't be assigned.",
+  "Stint yuvalarına dosya yükle, iki turu A/B karşılaştır. Grafiklerde imleçle gez, tekerlekle yakınlaştır, Space ile oynat.":
+    "Load a file into a stint slot and compare two laps A/B. Scrub the charts with the cursor, zoom with the wheel, play with Space.",
+  "Setupları pist bazında gör, ⚖ ile iki tanesini karşılaştır. Yıldızladıkların listenin başında durur.":
+    "Browse setups by track and compare two with ⚖. The ones you star stay at the top of the list.",
+  "Genel, takım ve yarışa özel kanallar. Yarış kanalı yalnız o yarışın katılımcılarına açıktır.":
+    "General, team and race-specific channels. A race channel is open only to that race's participants.",
+  /* izleyici modu (yarış çubuğu rozeti) */
+  "İzleyici modu": "Viewer mode",
+  "İzleyici": "Viewer",
+  "Mühendis": "Engineer",
+  /* masaüstü (info/lobi) */
+  "Masaüstü uygulaması": "Desktop app",
 };

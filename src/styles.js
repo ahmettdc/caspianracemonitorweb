@@ -5,18 +5,32 @@ export const css = `
 :root{
   /* Pit Wall OS — #960018 merkezli, koyu + sıcak "pit-wall" kimliği (konseptten).
      Zemin sıcak yakın-siyah, paneller bürgündi; marka #960018, etkileşim lift'i
-     #C51E38→#D24357; anlamsal renkler (good/warn/crit/best) markadan ayrı. */
-  --bg:#0B0708; --panel:#150E10; --panel2:#1E1418; --line:#34232A; --line2:#4A2F38;
+     #C51E38→#D24357; anlamsal renkler (good/warn/crit/best) markadan ayrı.
+     v2.0: README "Design Tokens" tam seti — surface/line/state + ölçü token'ları. */
+  /* Zemin & yüzey */
+  --bg:#0B0708; --panel:#120C0E; --panel-alt:#150E10; --panel2:#1E1418; --rail-bg:#100A0C;
+  /* Çizgi/çerçeve tonları (v2.0) — --line2 geri-uyum alias'ı --line-strong'a bağlı */
+  --line:#34232A; --line-soft:#241519; --line-softer:#1B1013;
+  --line-strong:#4A2F38; --line-dim:#5C3B44; --line2:var(--line-strong);
   /* metin tonları — WCAG AA için --dim/--muted açıldı (eski #B199A0/#8A7176). */
-  --txt:#F3EAEC; --dim:#C9B3B9; --muted:#A88C93;
+  --txt:#F3EAEC; --dim:#C9B3B9; --muted:#A88C93; --faint:#6B4A52; --on-car:#FFE9ED;
   /* --accent = kanonik etkileşim rengi (pembe-kırmızı). --teal eski adın geri-uyum
-     alias'ı — yeni kodda var(--accent) kullanın. */
-  --accent:#D24357; --teal:var(--accent); --brand2:#C51E38; --car:#960018;
-  --green:#37D67A; --yellow:#F5B23D; --red:#FF4D5E; --purple:#B58BFF;
+     alias'ı — yeni kodda var(--accent) kullanın. --brand2 → --accent-soft alias'ı. */
+  --accent:#D24357; --teal:var(--accent); --accent-soft:#C51E38; --brand2:var(--accent-soft);
+  --car:#960018;
+  --green:#37D67A; --yellow:#F5B23D; --red:#FF4D5E; --purple:#B58BFF; --blue:#4C9AFF;
   --focus:var(--accent);
   /* seçili/aktif durum dolgusu — tek kaynak (eski dağınık rgba(150,0,24,.14–.25)). */
   --sel-bg:rgba(150,0,24,.22); --sel-bg-soft:rgba(150,0,24,.12);
   --sel-border:var(--accent);
+  /* Ölçü token'ları (v2.0, temadan bağımsız — tek yerde) */
+  --r-sm:7px; --r:8px; --r-btn:9px; --r-card:12px; --r-modal:16px; --r-chip:99px;
+  --sp-1:5px; --sp-2:6px; --sp-3:8px; --sp-4:10px; --sp-5:12px; --sp-6:14px; --sp-7:16px; --sp-8:20px;
+  --sh-modal:0 24px 70px rgba(0,0,0,.6); --sh-tray:0 16px 46px rgba(0,0,0,.55);
+  --sh-panel:-18px 0 50px rgba(0,0,0,.5);
+  --rail-w:76px; --panel-right:320px; --panel-data:min(400px,94vw);
+  --z-racebar:20; --z-datapanel-bg:40; --z-datapanel:45;
+  --z-modal:1000; --z-modal-nested:1010; --z-raceadd:1030; --z-pdf:1040;
   /* Typography — TEK KAYNAK (§1.5): gövde/UI, disp başlık, mono yalnız tablo/sayı hizası.
      Bileşenler hardcoded font aile yerine bu değişkenleri kullanır → font seçimi buradan. */
   --font-ui:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
@@ -26,10 +40,13 @@ export const css = `
 /* --- Light mode (opsiyonel) — koyu tema ana kimlik; bu blok tokenları rol-swap eder.
    Marka #960018 / --car korunur. Anlamsal renkler açık zemine göre koyulaştırıldı. --- */
 :root[data-theme="light"]{
-  --bg:#F4EEF0; --panel:#FFFFFF; --panel2:#F6EEF0; --line:#E2D3D8; --line2:#CBB4BC;
-  --txt:#1B1215; --dim:#6C5A61; --muted:#87737B;
-  --accent:#BC2A44; --teal:var(--accent); --brand2:#A5182F; --car:#960018;
-  --green:#128A4D; --yellow:#B0790C; --red:#D22F3C; --purple:#7A4FD0;
+  --bg:#F4EEF0; --panel:#FFFFFF; --panel-alt:#F9F1F3; --panel2:#F6EEF0; --rail-bg:#F0E6E9;
+  --line:#E2D3D8; --line-soft:#ECE0E4; --line-softer:#F1E8EB;
+  --line-strong:#CBB4BC; --line-dim:#B79AA3; --line2:var(--line-strong);
+  --txt:#1B1215; --dim:#6C5A61; --muted:#87737B; --faint:#9A8087; --on-car:#FFE9ED;
+  --accent:#BC2A44; --teal:var(--accent); --accent-soft:#A5182F; --brand2:var(--accent-soft);
+  --car:#960018;
+  --green:#128A4D; --yellow:#B0790C; --red:#D22F3C; --purple:#7A4FD0; --blue:#2F6BD6;
   --focus:var(--accent);
   --sel-bg:rgba(150,0,24,.12); --sel-bg-soft:rgba(150,0,24,.06);
   --sel-border:var(--accent);
@@ -1186,4 +1203,105 @@ export const css = `
   .rc .sch-side{margin-left:0;width:100%;justify-content:space-between}
   .rc .sch-sel select{min-width:0}
 }
+
+/* ============================================================
+   v2.0 KABUK (WS0) — sol ray + birleşik yarış çubuğu + rehber kutusu
+   Değerler design_handoff Yeni Tasarım.dc.html ile birebir.
+   ============================================================ */
+@keyframes rcin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes rcfade{from{opacity:0}to{opacity:1}}
+@keyframes rcpop{from{opacity:0;transform:translateY(14px) scale(.975)}to{opacity:1;transform:none}}
+@keyframes rcalert{0%,100%{box-shadow:0 0 0 0 rgba(245,178,61,.42)}50%{box-shadow:0 0 0 7px rgba(245,178,61,0)}}
+@keyframes rcspin{to{transform:rotate(360deg)}}
+@keyframes rcpb{0%{background:rgba(55,214,122,.34)}70%{background:rgba(55,214,122,.20)}100%{background:transparent}}
+@keyframes rcpbc{0%{background:rgba(181,139,255,.36)}70%{background:rgba(181,139,255,.22)}100%{background:transparent}}
+/* rcpulse zaten tanımlı (§ canlı nokta) */
+
+/* --- kabuk grid: sol ray + içerik --- */
+.rc .shell{display:grid;grid-template-columns:var(--rail-w) 1fr;min-height:100vh;
+  transition:grid-template-columns .32s cubic-bezier(.4,0,.2,1)}
+.rc .shell.railhidden{grid-template-columns:0 1fr}
+.rc .shell-main{min-width:0}
+.rc .screen{animation:rcin .26s ease-out}
+
+/* --- sol ray --- */
+.rc .rail{border-right:1px solid var(--line);background:var(--rail-bg);display:flex;
+  flex-direction:column;align-items:center;gap:4px;padding:12px 0;position:sticky;top:0;
+  height:100vh;width:var(--rail-w);overflow:hidden;
+  transition:transform .32s cubic-bezier(.4,0,.2,1),opacity .24s ease}
+.rc .shell.railhidden .rail{transform:translateX(-100%);opacity:0;pointer-events:none}
+.rc .rail-toggle{width:26px;height:26px;border-radius:8px;margin:0 10px 6px auto;cursor:pointer;
+  border:1px solid var(--line);background:var(--panel2);color:var(--muted);font-size:12px;line-height:1}
+.rc .rail-toggle:hover{color:var(--accent);border-color:var(--accent)}
+.rc .rail-open{position:fixed;left:14px;top:14px;z-index:90;width:38px;height:38px;border-radius:10px;
+  cursor:pointer;border:1px solid var(--line-strong);background:rgba(21,14,16,.92);
+  backdrop-filter:blur(6px);color:var(--txt);font-size:15px;box-shadow:0 6px 20px rgba(0,0,0,.45);
+  transform:translateX(0);opacity:1;transition:transform .32s cubic-bezier(.4,0,.2,1),opacity .2s ease}
+.rc .shell:not(.railhidden) .rail-open{transform:translateX(-140%);opacity:0;pointer-events:none}
+.rc .rail-btn{width:60px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 0;
+  border-radius:10px;cursor:pointer;overflow:hidden;border:1px solid transparent;background:transparent;
+  color:var(--muted);transition:background .18s ease,color .18s ease,border-color .18s ease}
+.rc .rail-btn.home{gap:4px}
+.rc .rail-btn:hover{color:var(--dim)}
+.rc .rail-btn.on{border-color:var(--accent);background:rgba(150,0,24,.28);color:var(--txt)}
+.rc .rail-btn.on:hover{color:var(--txt)}
+.rc .rail-btn>span{font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;
+  font-family:var(--font-disp);font-weight:600}
+.rc .rail-btn.ro{color:var(--muted)}
+.rc .rail-btn.ro.on{border-color:var(--yellow);background:rgba(245,178,61,.14);color:var(--yellow)}
+.rc .rail-sep{width:40px;height:1px;background:var(--line);margin:6px 0 8px}
+.rc .rail-bottom{margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:8px;width:100%}
+.rc .rail-chat-wrap{position:relative;display:inline-flex}
+.rc .rail-badge{position:absolute;top:-5px;right:-8px;background:var(--accent-soft);color:#fff;
+  border-radius:9px;font-size:9px;padding:0 5px;font-family:var(--font-ui);line-height:1.5}
+.rc .rail-ver{font-size:9.5px;color:var(--muted);font-family:var(--font-disp)}
+
+/* --- birleşik sticky yarış çubuğu --- */
+.rc .racebar{position:sticky;top:0;z-index:var(--z-racebar);display:flex;align-items:stretch;gap:0;
+  border-bottom:1px solid var(--line);background:linear-gradient(180deg,#1A1013,var(--panel))}
+.rc .racebar .rb-id{display:flex;align-items:center;gap:14px;padding:14px 20px;min-width:250px}
+.rc .racebar .rb-flag{width:34px;border-radius:3px;border:1px solid var(--line)}
+.rc .racebar .rb-name{font-family:var(--font-disp);font-weight:700;font-size:22px;line-height:1;letter-spacing:.02em}
+.rc .racebar .rb-meta{font-size:11px;color:var(--muted);white-space:nowrap}
+.rc .racebar .rb-cells{flex:1;display:flex;align-items:stretch;border-left:1px solid var(--line)}
+.rc .racebar .rb-cell{display:flex;flex-direction:column;justify-content:center;gap:2px;
+  padding:10px 22px;border-right:1px solid var(--line)}
+.rc .racebar .rb-cell.flex14{flex:1.4}
+.rc .racebar .rb-cell.flex1{flex:1}
+.rc .racebar .rb-cell.pit{background:rgba(245,178,61,.07)}
+.rc .racebar .rb-lbl{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.12em}
+.rc .racebar .rb-big{font-family:var(--font-disp);font-weight:700;font-variant-numeric:tabular-nums;
+  font-size:clamp(38px,4.2vw,60px);line-height:.9;color:var(--txt)}
+.rc .racebar .rb-pit{display:inline-block;font-family:var(--font-disp);font-weight:700;
+  font-variant-numeric:tabular-nums;font-size:clamp(30px,3.2vw,44px);line-height:.95;color:var(--yellow);
+  border-radius:10px;animation:rcalert 2.6s ease-in-out infinite}
+.rc .racebar .rb-sub{font-size:11px;color:var(--dim)}
+.rc .racebar .rb-prog{height:3px;border-radius:2px;background:var(--line-soft);overflow:hidden;margin-top:6px}
+.rc .racebar .rb-prog>i{display:block;height:100%;background:var(--car)}
+.rc .racebar .rb-right{display:flex;flex-direction:column;justify-content:center;align-items:stretch;
+  gap:7px;padding:10px 18px;border-left:1px solid var(--line)}
+.rc .rb-ro-tag{display:inline-flex;align-items:center;justify-content:center;gap:7px;margin-top:12px;
+  align-self:center;padding:4px 12px;border-radius:8px;border:1px solid var(--yellow);
+  background:rgba(245,178,61,.10);color:var(--yellow);font-size:11px;text-transform:uppercase;
+  letter-spacing:.08em;white-space:nowrap}
+.rc .rb-live{display:flex;align-items:center;justify-content:center;gap:6px;font-size:11px;
+  font-family:var(--font-disp);letter-spacing:.04em;padding:5px 11px;border-radius:8px;
+  border:1px solid rgba(55,214,122,.5);background:transparent;text-transform:uppercase;
+  color:var(--green);white-space:nowrap;cursor:pointer}
+.rc .rb-live i{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);
+  animation:rcpulse 1.2s ease-in-out infinite}
+.rc .rb-actions{display:flex;gap:7px}
+.rc .rb-actions button{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:5px;
+  font-size:11px;padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);
+  color:var(--dim);cursor:pointer;white-space:nowrap}
+.rc .rb-actions button:hover{border-color:var(--accent);color:var(--accent)}
+.rc .rb-actions .rb-count{background:var(--yellow);color:#3A2E00;border-radius:99px;font-size:9px;
+  padding:0 5px;font-weight:700}
+
+/* --- rehber kutusu (tek satır ipucu) --- */
+.rc .guidebox{display:flex;align-items:flex-start;gap:11px;margin:14px 20px 0;padding:12px 15px;
+  border-radius:12px;border:1px solid var(--line-strong);background:rgba(181,139,255,.07)}
+.rc .guidebox .gcol{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.rc .guidebox b{font-family:var(--font-disp);font-size:14px;letter-spacing:.02em;font-weight:600}
+.rc .guidebox .gt{font-size:11.5px;color:var(--dim);line-height:1.6}
 `;

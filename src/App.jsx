@@ -164,6 +164,8 @@ function ytId(url) {
 export default function App() {
   const [st, setSt] = useState(DEFAULT_STATE);
   const [tab, setTab] = useState("dash");
+  /* v2.0 kabuk — sol ray gizle/göster (76px ray ↔ 0). */
+  const [railHidden, setRailHidden] = useState(false);
 
   /* ---------- Faz 2: takım senkronizasyonu + yetki ---------- */
   const [lang, setLang] = useState(() => {
@@ -1201,8 +1203,8 @@ ${bottomBar}
     { id: "tele", label: t("Telemetri"), keywords: "telemetry telemetri", icon: <Icon name="chart" size={15} />, run: () => setTab("tele") },
     { id: "setup", label: t("Setup"), keywords: "setup", icon: <Icon name="wrench" size={15} />, run: () => setTab("setup") },
     ...(raceChan ? [{ id: "rchat", label: t("Yarış Sohbeti"), keywords: "chat sohbet", icon: <Icon name="chat" size={15} />, run: () => setTab("rchat") }] : []),
-    { id: "theme", label: theme === "light" ? t("Koyu temaya geç") : t("Açık temaya geç"), keywords: "theme tema dark light", icon: <Icon name={theme === "light" ? "moon" : "sun"} size={15} />, run: toggleTheme },
-    { id: "density", label: t("Yoğunluğu değiştir"), keywords: "density yoğunluk", icon: <Icon name="rows" size={15} />, run: toggleDensity },
+    /* v2.0: ☀/🌙 tema + global yoğunluk komut paletinden GİZLENDİ (kod korunur;
+       açık tema sonraki turda, yoğunluk yalnız Canlı ekranında). */
     { id: "lang", label: lang === "en" ? "Türkçe" : "English", keywords: "language dil", run: () => switchLang(lang === "en" ? "tr" : "en") },
     ...(user ? [{ id: "chat", label: t("Sohbet"), keywords: "chat sohbet team", icon: <Icon name="chat" size={15} />, run: () => setChatOpen(true) }] : []),
     ...(curRace ? [{ id: "home", label: t("Ana Menü"), keywords: "home ana menü lobby", icon: <Icon name="home" size={15} />, run: leaveRace }] : []),
@@ -2043,6 +2045,92 @@ ${bottomBar}
     );
   }
 
+  /* v2.0 kabuk — rehber kutuları sözlüğü (ekran kimliği → [başlık, metin]).
+     Metinler i18n-EN.md §1'den; t() Türkçe anahtarı EN'e çevirir. */
+  const GUIDES = {
+    dash: ["Dashboard", "Yarışın özeti: pozisyon, enerji, lastik ve stint dağılımı. Araç ve pist görseline tıklayınca tempo referansı açılır."],
+    stint: ["Stint planı", "Stintleri süre ve pilotla planla; pit satırında lastik seçimini işaretle. PIT düğmesi gerçek pit anını kaydeder."],
+    fuel: ["Son stint yakıtı", "Kalan süreye göre gereken enerji yüzdesi. 📋 Plan açıkken geri sayım stint planından gelir; canlı veriyle tüketimi güncelleyebilirsin."],
+    live: ["Canlı timing", "Sütun başlıklarına tıklayınca değer değişir (Gap ⇄ Aralık, Son ⇄ En iyi). Bir rakip satırına tıkla, altta karşılaştırma açılır."],
+    tyre: ["Lastik stratejisi", "Her hücreye tıklayarak set ata; bir lastik ilk takıldığı köşeye kilitlenir. Hızlı atama penceresi tüm kombinasyonları verir."],
+    drivers: ["Pilotlar", "Stintlere pilot ata, sürüş süresi dağılımını izle. Uygunluk penceresinde kapattığın saatlere atama yapılamaz."],
+    tele: ["Telemetri", "Stint yuvalarına dosya yükle, iki turu A/B karşılaştır. Grafiklerde imleçle gez, tekerlekle yakınlaştır, Space ile oynat."],
+    setup: ["Setup havuzu", "Setupları pist bazında gör, ⚖ ile iki tanesini karşılaştır. Yıldızladıkların listenin başında durur."],
+    rchat: ["Sohbet", "Genel, takım ve yarışa özel kanallar. Yarış kanalı yalnız o yarışın katılımcılarına açıktır."],
+  };
+  const guideBox = GUIDES[tab] && (
+    <div className="guidebox">
+      <span className="gcol">
+        <b>{t(GUIDES[tab][0])}</b>
+        <span className="gt">{t(GUIDES[tab][1])}</span>
+      </span>
+    </div>
+  );
+  /* v2.0 kabuk — 76px sol ray navigasyonu (yatay .tabs yerine).
+     Takım/Sohbet raydan; ekran-sekmeleri setTab ile. */
+  const railTabs = [
+    ["dash", t("Dash"), <Icon name="chart" size={20} />],
+    ["stint", t("Stint"), <Icon name="cap" size={20} />],
+    ["fuel", t("Yakıt"), <Icon name="zap" size={20} />],
+    ["live", t("Canlı"), <Icon name="live" size={20} />],
+    ["tyre", t("Lastik"), <Icon name="tyre" size={20} />],
+    ["drivers", t("Pilot"), <Wheel size={20} />],
+    ["tele", t("Tele"), <Icon name="chart" size={20} />],
+    ["setup", t("Setup"), <Icon name="wrench" size={20} />],
+  ];
+  const railNav = (
+    <nav className="rail" aria-label={t("Ana menü")} role="tablist">
+      <button className="rail-toggle" onClick={() => setRailHidden(true)}
+        title={t("Menüyü gizle")} aria-label={t("Menüyü gizle")}>‹</button>
+      <button className="rail-btn home" onClick={leaveRace}
+        title={t("Ana Menü")} aria-label={t("Ana Menü")}>
+        <img src={`${ASSET}logo.png`} alt="" style={{ width: 40, height: "auto" }} />
+        <span>{t("Menü")}</span>
+      </button>
+      <span className="rail-sep" />
+      {access && (
+        <button className="rail-btn" onClick={() => setTeamOpen(true)}
+          title={t("Takım")} aria-label={t("Takım")}>
+          <Icon name="building" size={20} /><span>{t("Takım")}</span>
+        </button>
+      )}
+      {railTabs.map(([k, l, ico]) => (
+        <button key={k} id={`tab-${k}`} role="tab" aria-selected={tab === k}
+          aria-controls="tabpanel-main" tabIndex={tab === k ? 0 : -1}
+          className={`rail-btn ${tab === k ? "on" : ""}`}
+          onClick={() => setTab(k)} title={l} aria-label={l}>
+          {ico}<span>{l}</span>
+        </button>
+      ))}
+      <div className="rail-bottom">
+        <span className="rail-sep" />
+        {raceChan && (
+          <button className={`rail-btn ${tab === "rchat" ? "on" : ""}`}
+            onClick={() => setTab("rchat")}
+            title={t("Yarış Sohbeti")} aria-label={t("Yarış Sohbeti")}>
+            <span className="rail-chat-wrap">
+              <Icon name="chat" size={20} />
+              {raceUnread > 0 && tab !== "rchat" &&
+                <b className="rail-badge">{raceUnread > 9 ? "9+" : raceUnread}</b>}
+            </span>
+            <span>{t("Yarış")}</span>
+          </button>
+        )}
+        {user && (
+          <button className="rail-btn" onClick={() => setChatOpen(true)}
+            title={t("Sohbet")} aria-label={t("Sohbet")}>
+            <span className="rail-chat-wrap">
+              <Icon name="chat" size={20} />
+              {chatUnread > 0 && <b className="rail-badge">{chatUnread > 99 ? "99+" : chatUnread}</b>}
+            </span>
+            <span>{t("Sohbet")}</span>
+          </button>
+        )}
+        <span className="rail-ver">{APP_VERSION}</span>
+      </div>
+    </nav>
+  );
+
   return (
     <div className="rc">
       <UpdateBanner t={t} />
@@ -2247,6 +2335,11 @@ ${bottomBar}
           </div>
         </div>
       )}
+      <div className={`shell ${railHidden ? "railhidden" : ""}`}>
+        {railNav}
+        <button className="rail-open" onClick={() => setRailHidden(false)}
+          title={t("Menüyü aç")} aria-label={t("Menüyü aç")}>☰</button>
+        <div className="shell-main">
       <header>
         <img className="hlogo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
         <h1 className="disp" style={{ fontSize: 20 }}>RACE MONITOR</h1>
@@ -2255,23 +2348,7 @@ ${bottomBar}
           title={t("Rehberi başlat")} aria-label={t("Rehberi başlat")}>
           <Icon name="cap" size={15} /></button>
         {infoBtn}
-        {/* Ana Menü: yarıştayken her zaman görünür (teambar katlansa da) → takvim/lobiye dön */}
-        {curRace && (
-          <Btn variant="subtle" size="sm" data-tour="home" onClick={leaveRace}
-            title={t("Ana menüye dön")} iconLeft={<Icon name="home" size={14} />}>
-            {t("Ana Menü")}
-          </Btn>
-        )}
-        <button className="adminbtn" onClick={toggleTheme}
-          title={theme === "light" ? t("Koyu temaya geç") : t("Açık temaya geç")}
-          aria-label={t("Temayı değiştir")} aria-pressed={theme === "light"}>
-          <Icon name={theme === "light" ? "moon" : "sun"} size={14} />
-        </button>
-        <button className="adminbtn" onClick={toggleDensity}
-          title={density === "comfort" ? t("Yoğunluk: Rahat") : t("Yoğunluk: Kompakt")}
-          aria-label={t("Yoğunluğu değiştir")} aria-pressed={density === "comfort"}>
-          <Icon name="rows" size={14} />
-        </button>
+        {/* v2.0: Ana Menü sol raydan (Menü); ☀/🌙 tema + yoğunluk düğmeleri gizlendi. */}
         <span className="langsw">
           {["tr", "en"].map((l) => (
             <button key={l} className={lang === l ? "on" : ""}
@@ -2288,16 +2365,7 @@ ${bottomBar}
               {carName(st.carClass, st.car)}</>}
           </span>
         )}
-        {access && (
-          <Btn variant="subtle" size="sm" data-tour="hteam"
-            onClick={() => setTeamOpen(true)} title={t("Takımlarım")}
-            iconLeft={teamLogoSrc(teamData?.assets)
-              ? <img className="hdteamlogo" src={teamLogoSrc(teamData.assets)} alt="" />
-              : <Icon name="building" size={14} />}>
-            {teamData?.meta?.name || t("Takımlar")}
-          </Btn>
-        )}
-        {chatBtn}
+        {/* v2.0: Takım + Sohbet sol raydan erişiliyor (header'dan kaldırıldı). */}
         {isAdmin && (
           <button className="adminbtn" onClick={() => setAdminOpen(true)}
             title={t("Kullanıcı yönetimi")}>
@@ -2610,6 +2678,7 @@ ${bottomBar}
         </div>
       )}
 
+      {guideBox}
       <div className={`grid ${sideOpen ? "" : "noside"} ${role === "viewer" && curRace ? "viewonly" : ""}`}>
         <button className={`sidetoggle ${sideOpen ? "" : "closed"}`}
           onClick={() => setSideOpen(!sideOpen)}
@@ -2620,46 +2689,8 @@ ${bottomBar}
           <div className="sideinner">{dataCards}</div>
         </div>
 
-        {/* ================= SAĞ: SEKMELER ================= */}
+        {/* ================= SAĞ: EKRAN İÇERİĞİ (nav artık sol rayda) ================= */}
         <div>
-          {/* ARIA: role=tablist/tab + aria-selected; ok/Home/End ile gezinme (roving tabindex).
-              Erişilebilir ad = etiket metni (ikon span'i aria-hidden). */}
-          <div className="tabs" data-tour="tabs" role="tablist" aria-label={t("Ana sekmeler")}
-            onKeyDown={(e) => {
-              const keys = ["ArrowRight", "ArrowLeft", "Home", "End"];
-              if (!keys.includes(e.key)) return;
-              const btns = [...e.currentTarget.querySelectorAll('[role="tab"]')];
-              const i = btns.indexOf(document.activeElement);
-              if (i < 0) return;
-              e.preventDefault();
-              const n = e.key === "ArrowRight" ? (i + 1) % btns.length
-                : e.key === "ArrowLeft" ? (i - 1 + btns.length) % btns.length
-                : e.key === "Home" ? 0 : btns.length - 1;
-              btns[n].focus(); btns[n].click();
-            }}>
-            {[["dash", "Dashboard", <Icon name="chart" size={15} />], ["stint", "Stint", <Icon name="cap" size={15} />],
-              /* ["code80", "Code 80"], — şimdilik arayüzden gizli, kod korunuyor */
-              ["fuel", t("Son Stint Yakıtı"), <Icon name="zap" size={15} />],
-              /* Canlı timing tüm kullanıcılara açık (v1.4.79) — test aşaması bitti. */
-              ["live", t("Canlı"), <Icon name="live" size={15} />],
-              ["tyre", t("Lastik"), <Icon name="tyre" size={15} />],
-              ["drivers", t("Pilotlar"), <Wheel size={15} />],
-              ["tele", t("Telemetri"), <Icon name="chart" size={15} />],
-              ["setup", t("Setup"), <Icon name="wrench" size={15} />],
-              ...(raceChan ? [["rchat", t("Yarış Sohbeti"), <Icon name="chat" size={15} />]] : [])]
-              .map(([k, l, ico]) => (
-              <button key={k} id={`tab-${k}`} role="tab" aria-selected={tab === k}
-                aria-controls="tabpanel-main" tabIndex={tab === k ? 0 : -1}
-                className={`${tab === k ? "on" : ""} ${k === "code80" && tab === k ? "c80t" : ""}`}
-                onClick={() => setTab(k)} style={{ position: "relative" }}>
-                <span style={{ marginRight: 6 }} aria-hidden="true">{ico}</span>{l}
-                {k === "rchat" && raceUnread > 0 && tab !== "rchat" &&
-                  <b className="cdot" style={{ position: "absolute", top: 2, right: 3 }}>
-                    {raceUnread > 9 ? "9+" : raceUnread}</b>}
-              </button>
-            ))}
-          </div>
-
           <div id="tabpanel-main" role="tabpanel" aria-labelledby={`tab-${tab}`} tabIndex={-1}>
           <Suspense fallback={
             <div className="skelwrap" aria-busy="true" aria-label={t("Yükleniyor…")}>
@@ -2818,6 +2849,8 @@ ${bottomBar}
           </div>{/* /tabpanel-main */}
         </div>
       </div>
+        </div>{/* /shell-main */}
+      </div>{/* /shell */}
     </div>
   );
 }
