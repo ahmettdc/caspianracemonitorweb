@@ -236,6 +236,9 @@ export const EN = {
     "Load a file into a stint slot and compare two laps A/B. Scrub the charts with the cursor, zoom with the wheel, play with Space.",
   "Setup havuzu": "Setup pool",
   "setupları": "setups",
+  "Başlangıç · yerel saat": "Start · local time",
+  "Resmi yarıştan ön ayar": "Official-race preset",
+  "Seans başı": "Session start",
   "Setupları pist bazında gör, ⚖ ile iki tanesini karşılaştır. Yıldızladıkların listenin başında durur.":
     "Browse setups by track and compare two with ⚖. The ones you star stay at the top of the list.",
   "Üye yetkilerini, sezon takvimini ve takım kimliğini buradan yönet. Katılım kodunu paylaşarak yeni üye davet edebilirsin.":

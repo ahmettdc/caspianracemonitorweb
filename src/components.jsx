@@ -1085,109 +1085,237 @@ export function VersionModal({ open, onClose, t, lang, onStartGuide }) {
 /* Yarış ekleme/düzenleme penceresi (form). App.jsx'ten çıkarıldı; sunum + form
    durumu (rForm) prop ile gelir. Kaydetme iş mantığı App'te (onSave callback).
    rForm=null iken null döner. */
+/* Yarış ekle/düzenle — fiş raceOpen (Yeni Tasarım.dc.html): tam ekran katman,
+   sol form + sağ pist/araç önizlemesi. Pist artık açılır liste değil, bayraklı
+   ızgara seçici. Aynı pencere hem eklemede hem düzenlemede (rForm.rid) kullanılır;
+   veri akışı (rForm/setRForm/onSave) değişmedi. Renk→token: #1E1418→surface-3,
+   #34232A→border, #4A2F38→border-strong, #150E10→surface-2, #A88C93→text-3. */
 export function RaceEditModal({ rForm, setRForm, t, seasons, onSave }) {
   if (!rForm) return null;
+  const disp = "var(--rc-font-display)";
+  const close = () => setRForm(null);
+  const hideImg = (e) => { e.currentTarget.style.display = "none"; };
+  const lbl = { display: "block", color: "var(--rc-text-3)", fontSize: 10,
+    textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 6 };
+  const fld = { width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)",
+    border: "1px solid var(--rc-border)", borderRadius: 10, color: "var(--rc-text)",
+    padding: "11px 12px", fontSize: 13 };
+  const raceStart = rForm.startsAt
+    ? new Date(rForm.startsAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—";
+  const setQual = (q) => setRForm({ ...rForm, qualMin: q,
+    startsAt: rForm.sessionStartMs + (q + OFFICIAL_FORMATION_MIN) * 60000 });
   return (
-    <div className="wxmodal" onClick={() => setRForm(null)}>
-      <div className="wxmbox" style={{ width: "min(560px,95vw)" }}
-        onClick={(e) => e.stopPropagation()}>
-        <div className="wxmhead">
-          <span>🏁 {rForm.rid ? t("Yarışı Düzenle") : t("Yarış Ekle")}</span>
-          <button className="lbclose" onClick={() => setRForm(null)}>✕</button>
+    <div onClick={close} style={{ position: "fixed", inset: 0, zIndex: 1030,
+      background: "rgba(10,6,10,.74)", backdropFilter: "blur(5px)", display: "flex",
+      alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: "min(820px,96vw)",
+        maxHeight: "88vh", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)",
+        borderRadius: 16, overflow: "hidden", display: "flex", flexDirection: "column",
+        boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
+
+        {/* başlık */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 20px",
+          borderBottom: "1px solid var(--rc-border)" }}>
+          <span style={{ fontFamily: disp, textTransform: "uppercase", letterSpacing: ".07em",
+            fontSize: 19, fontWeight: 700 }}>
+            {rForm.rid ? t("Yarışı Düzenle") : t("Yarış Ekle")}</span>
+          <button onClick={close} style={{ marginLeft: "auto", width: 32, height: 32,
+            borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)",
+            color: "var(--rc-text-2)", cursor: "pointer", fontSize: 15, lineHeight: 1 }}>✕</button>
         </div>
-        <div style={{ padding: "12px 16px", maxHeight: "62vh", overflow: "auto" }}>
-          <div className="row2">
-            <div><label>{t("Sezon")}</label>
-              <select value={rForm.seasonId || ""}
-                onChange={(e) => setRForm({ ...rForm, seasonId: e.target.value || null })}>
-                <option value="">{t("Takvim dışı (tekli yarış)")}</option>
-                {Object.entries(seasons).map(([sid, se]) => (
-                  <option key={sid} value={sid}>{se.name}</option>
-                ))}
-              </select></div>
-            <div><label>{t("Round")}</label>
-              <input type="number" value={rForm.round || ""}
-                onChange={(e) => setRForm({ ...rForm, round: e.target.value })} /></div>
-          </div>
-          <label>{t("Yarış adı")}</label>
-          <input type="text" value={rForm.name || ""} style={{ textTransform: "none" }}
-            placeholder={t("örn. 6 Hours of Spa")}
-            onChange={(e) => setRForm({ ...rForm, name: e.target.value })} />
-          <div className="row2">
-            <div><label>{t("Pist")}</label>
-              <select value={rForm.trackId || ""}
-                onChange={(e) => setRForm({ ...rForm, trackId: e.target.value })}>
-                <option value="">—</option>
-                {TRACKS.map((tr) => (
-                  <option key={tr.id} value={tr.id}>{tr.name}</option>
-                ))}
-              </select></div>
-            <div><label>{t("Yarış Süresi")}</label>
-              <input type="text" value={rForm.raceTime || ""} placeholder="6:00:00"
-                onChange={(e) => setRForm({ ...rForm, raceTime: e.target.value })} /></div>
-          </div>
-          <div className="row2">
-            <div><label>{t("Sınıf")}</label>
-              <select value={rForm.carClass || ""}
-                onChange={(e) => setRForm({ ...rForm, carClass: e.target.value, carId: "" })}>
-                {CAR_CLASSES.map(([id, nm]) => (
-                  <option key={id} value={id}>{nm}</option>
-                ))}
-              </select></div>
-            <div><label>{t("Araç")}</label>
-              <select value={rForm.carId || ""}
-                onChange={(e) => setRForm({ ...rForm, carId: e.target.value })}>
-                <option value="">—</option>
-                {(CARS[rForm.carClass] || []).map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select></div>
-          </div>
-          {/* Resmi yarıştan ön ayar (v1.7.5): listelenen saat SEANS (sıralama) başıdır;
-              gerçek yarış başı = seans + sıralama + 5 dk formasyon. Sıralama süresi
-              takvimde yok → kullanıcı girer, yarış başı canlı hesaplanır. */}
-          {rForm.sessionStartMs != null && (
-            <div className="hint" style={{ margin: "10px 0 4px", padding: "8px 10px",
-              border: "1px solid var(--line)", borderRadius: 8, background: "var(--panel)" }}>
-              🏁 {t("Resmi seans başı")}:{" "}
-              <b className="mono">{new Date(rForm.sessionStartMs)
-                .toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</b>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, margin: "6px 0" }}>
-                <span>{t("Sıralama süresi")}</span>
-                <input type="number" min={0} max={180} value={rForm.qualMin ?? 0}
-                  style={{ width: 64, margin: 0, textAlign: "right" }}
-                  onChange={(e) => {
-                    const q = Math.max(0, Math.min(180, Number(e.target.value) || 0));
-                    setRForm({ ...rForm, qualMin: q,
-                      startsAt: rForm.sessionStartMs + (q + OFFICIAL_FORMATION_MIN) * 60000 });
-                  }} />
-                <span>{t("dk")} + {OFFICIAL_FORMATION_MIN} {t("dk formasyon")}</span>
-              </div>
-              → {t("Yarış başı")}:{" "}
-              <b className="mono" style={{ color: "var(--teal)" }}>{new Date(rForm.startsAt)
-                .toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</b>
-              {/* Lastik seti sınırı (siteden) → kaydedilince st.tyreLimit'e uygulanır */}
-              {rForm.tyreSets != null && (
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
-                  <span>🛞 {t("Lastik seti")}</span>
-                  <input type="number" min={0} max={99} value={rForm.tyreSets ?? 0}
-                    style={{ width: 64, margin: 0, textAlign: "right" }}
-                    onChange={(e) => setRForm({ ...rForm,
-                      tyreSets: Math.max(0, Math.min(99, Number(e.target.value) || 0)) })} />
-                </div>
-              )}
+
+        {/* gövde: sol form + sağ önizleme */}
+        <div style={{ overflowY: "auto", padding: "18px 20px 20px", display: "flex",
+          flexWrap: "wrap", gap: 18 }}>
+
+          {/* ── sol: form ── */}
+          <div style={{ flex: "1 1 380px", minWidth: 0, display: "flex",
+            flexDirection: "column", gap: 14 }}>
+            <div>
+              <label style={lbl}>{t("Yarış adı")}</label>
+              <input type="text" value={rForm.name || ""} placeholder={t("örn. 6 Hours of Spa")}
+                onChange={(e) => setRForm({ ...rForm, name: e.target.value })}
+                style={{ ...fld, border: "1px solid var(--rc-border-strong)", fontFamily: disp,
+                  fontSize: 20, fontWeight: 700, textTransform: "none", padding: "12px 14px" }} />
             </div>
-          )}
-          <label>{t("Başlangıç (yerel saat)")}</label>
-          <input type="datetime-local" value={msToLocalInput(rForm.startsAt || Date.now())}
-            onChange={(e) => {
-              const v = new Date(e.target.value).getTime();
-              if (!isNaN(v)) setRForm({ ...rForm, startsAt: v });
-            }} />
+
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <div style={{ flex: "2 1 200px", minWidth: 0 }}>
+                <label style={lbl}>{t("Sezon")}</label>
+                <select value={rForm.seasonId || ""} style={fld}
+                  onChange={(e) => setRForm({ ...rForm, seasonId: e.target.value || null })}>
+                  <option value="">{t("Takvim dışı (tekli yarış)")}</option>
+                  {Object.entries(seasons).map(([sid, se]) => (
+                    <option key={sid} value={sid}>{se.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ flex: "1 1 90px", minWidth: 0 }}>
+                <label style={lbl}>{t("Round")}</label>
+                <input type="number" value={rForm.round || ""}
+                  onChange={(e) => setRForm({ ...rForm, round: e.target.value })}
+                  style={{ ...fld, fontFamily: disp, fontSize: 16 }} />
+              </div>
+            </div>
+
+            <div>
+              <label style={lbl}>{t("Pist")}</label>
+              <div style={{ display: "grid",
+                gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: 8 }}>
+                {TRACKS.map((tr) => {
+                  const on = rForm.trackId === tr.id;
+                  return (
+                    <button key={tr.id} onClick={() => setRForm({ ...rForm, trackId: tr.id })}
+                      style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px",
+                        borderRadius: 9, cursor: "pointer", textAlign: "left", color: "var(--rc-text)",
+                        background: on ? "rgba(150,0,24,.14)" : "var(--rc-surface-3)",
+                        border: `1px solid ${on ? "var(--rc-brand-bright)" : "var(--rc-border)"}` }}>
+                      <img src={`${ASSET}flags/${TRACK_ASSET(tr.id)}.png`} alt="" onError={hideImg}
+                        style={{ width: 22, borderRadius: 2, flex: "0 0 auto" }} />
+                      <span style={{ fontSize: 12.5, whiteSpace: "nowrap", overflow: "hidden",
+                        textOverflow: "ellipsis" }}>{tr.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <div style={{ flex: "1 1 150px", minWidth: 0 }}>
+                <label style={lbl}>{t("Sınıf")}</label>
+                <select value={rForm.carClass || ""} style={fld}
+                  onChange={(e) => setRForm({ ...rForm, carClass: e.target.value, carId: "" })}>
+                  {CAR_CLASSES.map(([id, nm]) => (
+                    <option key={id} value={id}>{nm}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ flex: "1 1 180px", minWidth: 0 }}>
+                <label style={lbl}>{t("Araç")}</label>
+                <select value={rForm.carId || ""} style={fld}
+                  onChange={(e) => setRForm({ ...rForm, carId: e.target.value })}>
+                  <option value="">—</option>
+                  {(CARS[rForm.carClass] || []).map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ flex: "1 1 130px", minWidth: 0 }}>
+                <label style={lbl}>{t("Yarış süresi")}</label>
+                <input type="text" value={rForm.raceTime || ""} placeholder="6:00:00"
+                  onChange={(e) => setRForm({ ...rForm, raceTime: e.target.value })}
+                  style={{ ...fld, fontFamily: disp, fontSize: 16 }} />
+              </div>
+            </div>
+
+            <div>
+              <label style={lbl}>{t("Başlangıç · yerel saat")}</label>
+              <input type="datetime-local" value={msToLocalInput(rForm.startsAt || Date.now())}
+                onChange={(e) => {
+                  const v = new Date(e.target.value).getTime();
+                  if (!isNaN(v)) setRForm({ ...rForm, startsAt: v });
+                }}
+                style={{ ...fld, border: "1px solid var(--rc-border-strong)", fontFamily: disp,
+                  fontSize: 15 }} />
+            </div>
+
+            {/* Resmi yarıştan ön ayar (v1.7.5 mantığı korunur): seans başı +
+                sıralama + formasyon = yarış başı. */}
+            {rForm.sessionStartMs != null && (
+              <div style={{ border: "1px solid var(--rc-border-strong)", borderRadius: 11,
+                background: "var(--rc-surface-2)", padding: "13px 15px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap",
+                  marginBottom: 10 }}>
+                  <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".1em",
+                    color: "var(--rc-brand-bright)", fontWeight: 600 }}>
+                    {t("Resmi yarıştan ön ayar")}</span>
+                  <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>
+                    {t("Seans başı")} <b style={{ fontFamily: disp, color: "var(--rc-text)" }}>
+                      {new Date(rForm.sessionStartMs).toLocaleTimeString([],
+                        { hour: "2-digit", minute: "2-digit" })}</b></span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 12, color: "var(--rc-text-2)" }}>{t("Sıralama süresi")}</span>
+                  <span style={{ display: "inline-flex", alignItems: "center",
+                    border: "1px solid var(--rc-border)", borderRadius: 9, overflow: "hidden" }}>
+                    <button onClick={() => setQual(Math.max(0, (rForm.qualMin ?? 0) - 5))}
+                      style={{ width: 32, height: 34, border: "none", background: "var(--rc-surface-3)",
+                        color: "var(--rc-text-2)", cursor: "pointer", fontSize: 14 }}>−</button>
+                    <b style={{ minWidth: 44, textAlign: "center", fontFamily: disp, fontSize: 16 }}>
+                      {rForm.qualMin ?? 0}</b>
+                    <button onClick={() => setQual(Math.min(180, (rForm.qualMin ?? 0) + 5))}
+                      style={{ width: 32, height: 34, border: "none", background: "var(--rc-surface-3)",
+                        color: "var(--rc-text-2)", cursor: "pointer", fontSize: 14 }}>+</button>
+                  </span>
+                  <span style={{ fontSize: 12, color: "var(--rc-text-3)" }}>
+                    {t("dk")} + {OFFICIAL_FORMATION_MIN} {t("dk formasyon")}</span>
+                  <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{t("Yarış başı")}</span>
+                    <b style={{ fontFamily: disp, fontSize: 19, color: "var(--rc-ok)" }}>{raceStart}</b>
+                  </span>
+                </div>
+                {rForm.tyreSets != null && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10,
+                    paddingTop: 10, borderTop: "1px solid var(--rc-border)" }}>
+                    <span style={{ fontSize: 12, color: "var(--rc-text-2)" }}>🛞 {t("Lastik seti")}</span>
+                    <input type="number" min={0} max={99} value={rForm.tyreSets ?? 0}
+                      onChange={(e) => setRForm({ ...rForm,
+                        tyreSets: Math.max(0, Math.min(99, Number(e.target.value) || 0)) })}
+                      style={{ width: 70, background: "var(--rc-surface-3)",
+                        border: "1px solid var(--rc-border)", borderRadius: 9, color: "var(--rc-text)",
+                        padding: "7px 10px", fontFamily: disp, fontSize: 14, textAlign: "right" }} />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ── sağ: önizleme (pist + araç) ── */}
+          <div style={{ flex: "1 1 240px", minWidth: 230, display: "flex",
+            flexDirection: "column", gap: 12 }}>
+            {rForm.trackId && (
+              <div style={{ border: "1px solid var(--rc-border-strong)", borderRadius: 12,
+                background: "radial-gradient(120% 160% at 100% 0,rgba(150,0,24,.20),var(--rc-surface-2) 62%)",
+                padding: 16, textAlign: "center" }}>
+                <img src={`${ASSET}tracks/${TRACK_ASSET(rForm.trackId)}.png`} alt="" onError={hideImg}
+                  style={{ display: "block", width: "100%", maxWidth: 190, height: "auto",
+                    margin: "0 auto 10px" }} />
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 7, fontFamily: disp,
+                  fontWeight: 700, fontSize: 17 }}>
+                  <img src={`${ASSET}flags/${TRACK_ASSET(rForm.trackId)}.png`} alt="" onError={hideImg}
+                    style={{ width: 20, borderRadius: 2 }} />
+                  {trackName(rForm.trackId)}
+                </div>
+              </div>
+            )}
+            {rForm.carId && (
+              <div style={{ border: "1px solid var(--rc-border)", borderRadius: 12,
+                background: "var(--rc-surface-2)", padding: 16, textAlign: "center" }}>
+                <img src={carImg(rForm.carClass, rForm.carId)} alt="" onError={hideImg}
+                  style={{ display: "block", width: "100%", maxWidth: 210, height: "auto",
+                    margin: "0 auto 8px" }} />
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 7, fontFamily: disp,
+                  fontWeight: 700, fontSize: 16 }}>
+                  {carName(rForm.carClass, rForm.carId)}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-        <div className="wxmfoot" style={{ gap: 8 }}>
-          <button className="histbtn" onClick={() => setRForm(null)}>{t("Vazgeç")}</button>
-          <button className="gbtn ubtn" onClick={() => onSave(rForm)}>{t("Kaydet")}</button>
+
+        {/* alt çubuk */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 20px",
+          borderTop: "1px solid var(--rc-border)", background: "var(--rc-surface-2)" }}>
+          <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+            <button onClick={close} style={{ padding: "10px 18px", borderRadius: 10,
+              border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)",
+              color: "var(--rc-text-2)", cursor: "pointer", fontSize: 13 }}>{t("Vazgeç")}</button>
+            <button onClick={() => onSave(rForm)} style={{ padding: "10px 24px", borderRadius: 10,
+              border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)",
+              color: "var(--rc-on-brand)", cursor: "pointer", fontFamily: disp, fontSize: 16,
+              fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase" }}>
+              {t("Kaydet")}</button>
+          </span>
         </div>
       </div>
     </div>
