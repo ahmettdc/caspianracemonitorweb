@@ -74,7 +74,7 @@ describe("tourSteps", () => {
   it("Canlı adımlarının HEPSİ Canlı sekmesini açar ve demoyu tetikler", () => {
     const c = ctx();
     const steps = liveSteps(t, c);
-    expect(steps.length).toBeGreaterThanOrEqual(8);
+    expect(steps.length).toBeGreaterThanOrEqual(7);
     for (const st of steps) {
       expect(typeof st.act, st.title).toBe("function");
       st.act();
@@ -87,7 +87,8 @@ describe("tourSteps", () => {
 
   it("Canlı bölümü Canlı Timing'in ana kutularını kapsar", () => {
     const sels = liveSteps(t, ctx()).map((x) => x.sel);
-    for (const need of ["livedemo", "liveconn", "livesession", "ownlive",
+    /* liveconn/livesession v2'de kaldırıldı (bilgi yarış çubuğuna taşındı). */
+    for (const need of ["livedemo", "ownlive",
       "livemap", "livefield", "livelapsbtn", "livepos", "livebig"]) {
       expect(sels, need).toContain(`[data-tour='${need}']`);
     }

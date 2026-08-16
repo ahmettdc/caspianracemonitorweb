@@ -115,12 +115,8 @@ export function liveSteps(t, { setTab, setTourDemo }) {
     { sel: "[data-tour='livedemo']", act: live,
       title: t("📡 Canlı Timing — ve 🎬 Demo"),
       body: t("Oyundan gelen gerçek zamanlı yarış verisi: saha tablosu, pist haritası ve kendi aracın. Rehber şu an Demo'yu açtı — oyun ya da köprü olmadan ekranın nasıl göründüğünü görüyorsun. Demo sahte 14 araç akıtır ve hiçbir şeyi kaydetmez; kapatınca gerçek veriye döner.") },
-    { sel: "[data-tour='liveconn']", act: live,
-      title: t("Veri nereden gelir?"),
-      body: t("Gerçek veri, oyunun çalıştığı PC'deki Masaüstü Uygulamasından gelir: orada 'Canlı Köprü Başlat'a basılır, veri tüm takıma akar. Buradaki rozet tazeliği gösterir — canlı, gecikmeli ya da çevrimdışı. Veri 30 sn durursa ekran tek kutuya iner ki kimse eski tabloyu canlı sanmasın.") },
-    { sel: "[data-tour='livesession']", act: live,
-      title: t("Seans şeridi"),
-      body: t("Seans tipi, bayrak/faz, kalan süre, pist ve ortam sıcaklığı, yağmur ile zemin ıslaklığı (oyunun kendi kelimeleriyle) ve 🛞 tutuş tahmini. Bayrak sarıya dönerse hangi sektörlerin sarı olduğu da yazar.") },
+    /* Bağlantı/seans kartları v2'de yarış üst çubuğuna ve köprü açılırına taşındı;
+       ayrı 'liveconn'/'livesession' adımları kaldırıldı. */
     { sel: "[data-tour='ownlive']", act: live,
       title: t("Kendi Araç"),
       body: t("Yakıt ve VE halkaları, dört köşe lastik (aşınma, iç sıcaklık, basınç), anlık gaz/fren/vites/hız, S1/S2/S3 sektörlerin ve AVG5/AVG/stint süresi. Yakıt tüketimi turlar geçtikçe öğrenilir — 'Son Stint Yakıtı' sekmesinde tek tıkla plana uygulanır.") },
