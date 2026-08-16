@@ -1219,6 +1219,13 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
     setTour(null);
   };
 
+  /* Yarış datası paneli açık/taslak durumu — tourSteps useMemo'su setRdOpen'ı
+     okuduğu için ORADAN ÖNCE tanımlanmalı (aksi halde ilk render'da, tur açıkken
+     TDZ: "Cannot access 'setRdOpen' before initialization"). Panelin türetilen
+     değerleri ve JSX'i aşağıda (st/up/blocked tanımlandıktan sonra). */
+  const [rdOpen, setRdOpen] = useState(false);
+  const [rdDraft, setRdDraft] = useState(null);
+
   /* Adım listesi ./tourSteps.js'te (saf + test edilebilir). "live" bölümü demoyu
      açar → Canlı ekranı veri olmadan da dolu görünür, adımların hedefi oluşur. */
   const tourSteps = useMemo(
@@ -1638,8 +1645,6 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
      basılmadan hiçbir şey kaydedilmez; panel kapatılırken bekleyen değişiklik
      varsa onay sorulur. Mevcut anında kaydetme yolu YALNIZ bu ekran için devre
      dışı — kurulum adımı dataCardsWith(st, up) ile eskisi gibi çalışır. */
-  const [rdOpen, setRdOpen] = useState(false);
-  const [rdDraft, setRdDraft] = useState(null);
   const rdN = rdDraft ? Object.keys(rdDraft).length : 0;
   const rdSt = rdDraft ? { ...st, ...rdDraft } : st;
   const rdSet = (patch) => {
