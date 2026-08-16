@@ -3,28 +3,115 @@
    keşfedilen font isteği ilk boyamayı geciktiriyordu). */
 export const css = `
 :root{
-  /* Pit Wall OS — #960018 merkezli, koyu + sıcak "pit-wall" kimliği (konseptten).
-     Zemin sıcak yakın-siyah, paneller bürgündi; marka #960018, etkileşim lift'i
-     #C51E38→#D24357; anlamsal renkler (good/warn/crit/best) markadan ayrı. */
-  --bg:#0B0708; --panel:#150E10; --panel2:#1E1418; --line:#34232A; --line2:#4A2F38;
-  /* metin tonları — WCAG AA için --dim/--muted açıldı (eski #B199A0/#8A7176). */
-  --txt:#F3EAEC; --dim:#C9B3B9; --muted:#A88C93;
-  /* --accent = kanonik etkileşim rengi (pembe-kırmızı). --teal eski adın geri-uyum
-     alias'ı — yeni kodda var(--accent) kullanın. */
-  --accent:#D24357; --teal:var(--accent); --brand2:#C51E38; --car:#960018;
-  --green:#37D67A; --yellow:#F5B23D; --red:#FF4D5E; --purple:#B58BFF;
+  /* ── v2.0 DESIGN TOKENS ────────────────────────────────────────────────────
+     Kaynak: docs/design-handoff/README.md "Design Tokens". Prototipteki her stil
+     değeri buradan bir token'a bağlanır; bileşen dosyalarında inline stil YOK
+     (tek istisna: hesaplanan değerler — çubuk genişliği %, SVG koordinatı,
+     canlı renk eşiği). Yeni ad uydurma — adlar README tablosundan.
+     v1 adları (--panel2/--line2/--teal/--brand2/--sel-*) geri-uyum için korunur. */
+
+  /* zemin ve yüzey */
+  --bg:#0B0708;            /* sayfa zemini */
+  --panel:#120C0E;         /* kart / tablo zemini */
+  --panel-alt:#150E10;     /* ikincil kart, alt şerit, açılır menü zemini */
+  --panel2:#1E1418;        /* girdi, düğme, hücre zemini */
+  --line:#34232A;          /* ana çizgi / çerçeve */
+  --line-soft:#241519;     /* tablo satır ayracı */
+  --line-softer:#1B1013;   /* iç liste ayracı */
+  --line-strong:#4A2F38;   /* vurgulu çerçeve, panel kenarı */
+  --line-dim:#5C3B44;      /* pasif ikon / çizgi */
+  --line2:var(--line-strong);          /* v1 alias */
+
+  /* marka ve metin */
+  --car:#960018;           /* marka kırmızısı (birincil düğme, kendi araç satırı) */
+  --accent:#D24357;        /* vurgu (başlık, aktif çerçeve, vites) */
+  --accent-soft:#C51E38;   /* rozet zemini (okunmamış sayacı) */
+  --txt:#F3EAEC;           /* ana metin */
+  --dim:#C9B3B9;           /* ikincil metin */
+  --muted:#A88C93;         /* etiket / üçüncül metin */
+  --faint:#6B4A52;         /* pasif metin */
+  --on-car:#FFE9ED;        /* marka zemin üstü metin */
+  --teal:var(--accent);                /* v1 alias */
+  --brand2:var(--accent-soft);         /* v1 alias */
+
+  /* durum */
+  --green:#37D67A;         /* iyi / canlı / kişisel en iyi */
+  --yellow:#F5B23D;        /* uyarı, sarı bayrak, favori */
+  --red:#FF4D5E;           /* hata, ceza, kritik */
+  --purple:#B58BFF;        /* sınıf en iyi turu, telemetri vurgusu */
+  --blue:#4C9AFF;          /* LMP2, sürücü rozeti, karşılaştırma B */
   --focus:var(--accent);
-  /* seçili/aktif durum dolgusu — tek kaynak (eski dağınık rgba(150,0,24,.14–.25)). */
+
+  /* sınıf renkleri — constants.js CLASS_ACCENT ile BİREBİR aynı */
+  --cls-hypercar:#E7443B; --cls-lmp2:#4C9AFF; --cls-lmp3:#B58BFF;
+  --cls-gt3:#EF8A2B; --cls-gte:#37D67A;
+
+  /* zemin ıslaklığı — WX_COL */
+  --wx-dry:#F5C84C; --wx-damp:#8FD0E8; --wx-slwet:#4D9FFF;
+  --wx-wet:#7B8FF7; --wx-xwet:#5C6BC0;
+
+  /* lastik kullanım renkleri — .t2/.tq/.t3/.t4/.tw/.terr ile eşit */
+  --ty-new:#C9B3B9; --ty-2x:#F2C94C; --ty-qual:#6694FF;
+  --ty-3x:#E8842A; --ty-4x:#DC2626; --ty-wet:#7FE3A0; --ty-err:#F0604D;
+
+  /* telemetri yuvaları — SLOT_COLORS + A/B iz renkleri */
+  --slot-a:#40D68C; --slot-b:#F0604D; --slot-c:#F2A33C; --slot-d:#6694FF;
+  --trace-a:#ff5470; --trace-b:#4d9fff; --trace-neutral:#7a8797; --trace-cur:#3ad07a;
+
+  /* seçili/aktif durum dolgusu */
   --sel-bg:rgba(150,0,24,.22); --sel-bg-soft:rgba(150,0,24,.12);
+  --sel-strong:rgba(150,0,24,.28);     /* kendi araç satırı */
   --sel-border:var(--accent);
-  /* Typography — TEK KAYNAK (§1.5): gövde/UI, disp başlık, mono yalnız tablo/sayı hizası.
-     Bileşenler hardcoded font aile yerine bu değişkenleri kullanır → font seçimi buradan. */
+  --hover-row:rgba(255,255,255,.05);
+  --scrim:rgba(10,6,10,.74);           /* pencere zemini */
+
+  /* tipografi */
   --font-ui:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
   --font-disp:'Rajdhani','Inter',system-ui,sans-serif;
   --font-mono:'IBM Plex Mono',ui-monospace,'Cascadia Code',Consolas,monospace;
+  --fs-page:22px;      /* sayfa başlığı, 700, uppercase .06em */
+  --fs-card:14px;      /* kart başlığı 14–16, 700, uppercase .08em */
+  --fs-card-lg:16px;
+  --fs-body:13px; --fs-body-sm:12.5px;
+  --fs-label:10px;     /* etiket, uppercase .1em */
+  --fs-kpi:20px; --fs-kpi-lg:36px;
+  --hud-num:clamp(30px,3.2vw,44px);
+  --hud-num-lg:clamp(38px,4.2vw,60px);
+  --ls-page:.06em; --ls-card:.08em; --ls-label:.1em; --ls-eyebrow:.14em;
+
+  /* yarıçap */
+  --r-xs:7px; --r-sm:8px; --r-md:9px; --r-lg:10px; --r-xl:12px;
+  --r-modal:14px; --r-modal-lg:16px; --r-pill:99px;
+
+  /* boşluk */
+  --sp-1:5px; --sp-2:6px; --sp-3:8px; --sp-4:10px; --sp-5:12px;
+  --sp-6:14px; --sp-7:16px; --sp-8:20px;
+
+  /* gölge */
+  --sh-modal:0 24px 70px rgba(0,0,0,.6);
+  --sh-tray:0 16px 46px rgba(0,0,0,.55);
+  --sh-panel:-18px 0 50px rgba(0,0,0,.5);
+
+  /* ölçüler */
+  --rail-w:76px;          /* sol ray */
+  --side-w:320px;         /* canlı sağ paneli */
+  --rd-w:min(400px,94vw); /* yarış datası paneli */
+
+  /* katman sırası — README "Interactions & Behavior" */
+  --z-racebar:20; --z-rd-scrim:40; --z-rd:45; --z-tray:40;
+  --z-rail:60; --z-modal:1000; --z-modal-nested:1010;
+  --z-race-add:1030; --z-pdf:1040;
+
+  /* hareket */
+  --t-fast:.15s ease; --t-hover:.18s ease;
+  --t-panel:.28s cubic-bezier(.4,0,.2,1);
+  --t-panel-slow:.32s cubic-bezier(.4,0,.2,1);
+  --t-screen:.26s ease-out;
 }
-/* --- Light mode (opsiyonel) — koyu tema ana kimlik; bu blok tokenları rol-swap eder.
-   Marka #960018 / --car korunur. Anlamsal renkler açık zemine göre koyulaştırıldı. --- */
+/* --- Light mode — v2.0 KAPSAM DIŞI. v2.0 tek koyu temayla çıkar; header ☀/🌙
+   anahtarı gizlendi (kod silinmedi). Bu blok v1'den olduğu gibi duruyor ve v2
+   token'larının (--panel-alt, --faint, --on-car, --blue, --line-soft…) açık
+   karşılıkları HENÜZ ÜRETİLMEDİ — sonraki turda tamamlanacak. --- */
 :root[data-theme="light"]{
   --bg:#F4EEF0; --panel:#FFFFFF; --panel2:#F6EEF0; --line:#E2D3D8; --line2:#CBB4BC;
   --txt:#1B1215; --dim:#6C5A61; --muted:#87737B;
@@ -1186,4 +1273,154 @@ export const css = `
   .rc .sch-side{margin-left:0;width:100%;justify-content:space-between}
   .rc .sch-sel select{min-width:0}
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   v2.0 KABUK — sol ray (76px) + sticky yarış çubuğu + ekran yönlendirmesi
+   Kaynak: docs/design-handoff/Yeni Tasarım.dc.html (markup) + README.md §2, §Interactions
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* --- Animasyonlar (README "Animasyonlar (keyframes)") --- */
+@keyframes rcin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes rcfade{from{opacity:0}to{opacity:1}}
+@keyframes rcpop{from{opacity:0;transform:translateY(14px) scale(.975)}to{opacity:1;transform:none}}
+@keyframes rcalert{0%,100%{box-shadow:0 0 0 0 rgba(245,178,61,.42)}
+  50%{box-shadow:0 0 0 7px rgba(245,178,61,0)}}
+@keyframes rcpb{0%{background:rgba(55,214,122,.34)}70%{background:rgba(55,214,122,.20)}
+  100%{background:transparent}}
+@keyframes rcpbc{0%{background:rgba(181,139,255,.36)}70%{background:rgba(181,139,255,.22)}
+  100%{background:transparent}}
+@keyframes rcspin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){
+  .rc *,.rc *::before,.rc *::after{
+    animation-duration:.01ms !important;animation-iteration-count:1 !important;
+    transition-duration:.01ms !important}
+}
+
+/* --- Kabuk düzeni: ray + içerik --- */
+.rc.v2{padding:0;display:flex;min-height:100vh}
+.rc.v2 .v2main{flex:1 1 auto;min-width:0;display:flex;flex-direction:column}
+.rc.v2 .v2screen{flex:1 1 auto;min-width:0;padding:var(--sp-7) var(--sp-8) 40px;
+  animation:rcin var(--t-screen)}
+
+/* --- Sol ray (76px) --- */
+.rc .rail{flex:0 0 var(--rail-w);width:var(--rail-w);position:sticky;top:0;align-self:flex-start;
+  height:100vh;display:flex;flex-direction:column;align-items:center;gap:2px;
+  padding:10px 0 12px;background:var(--panel-alt);border-right:1px solid var(--line);
+  z-index:var(--z-rail);overflow-y:auto;scrollbar-width:none;
+  transition:margin-left var(--t-panel)}
+.rc .rail::-webkit-scrollbar{display:none}
+.rc .rail.hidden{margin-left:calc(var(--rail-w) * -1)}
+.rc .railtoggle{position:absolute;top:8px;right:4px;width:18px;height:18px;padding:0;
+  display:flex;align-items:center;justify-content:center;border:none;background:transparent;
+  color:var(--faint);cursor:pointer;font-size:13px;line-height:1}
+.rc .railtoggle:hover{color:var(--accent)}
+.rc .railopen{position:fixed;top:10px;left:0;z-index:var(--z-rail);width:26px;height:34px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;
+  border:1px solid var(--line);border-left:none;border-radius:0 var(--r-sm) var(--r-sm) 0;
+  background:var(--panel-alt);color:var(--dim)}
+.rc .railopen:hover{color:var(--accent);border-color:var(--line-strong)}
+.rc .railbtn{width:64px;display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding:9px 2px;border:1px solid transparent;border-radius:var(--r-lg);background:transparent;
+  color:var(--muted);cursor:pointer;transition:color var(--t-fast),background var(--t-fast),
+  border-color var(--t-fast)}
+.rc .railbtn span{font-family:var(--font-disp);font-weight:600;font-size:9.5px;
+  letter-spacing:.04em;text-transform:uppercase;line-height:1}
+.rc .railbtn:hover{color:var(--dim);background:var(--panel2)}
+.rc .railbtn.on{color:var(--on-car);background:var(--sel-bg);border-color:var(--accent)}
+.rc .railsep{width:40px;height:1px;background:var(--line);margin:6px 0 8px;flex:0 0 auto}
+.rc .railfoot{margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding-top:8px}
+.rc .railver{font-size:9px;color:var(--faint);letter-spacing:.04em}
+.rc .railbadge{position:absolute;top:4px;right:12px;min-width:15px;height:15px;padding:0 4px;
+  display:flex;align-items:center;justify-content:center;border-radius:var(--r-pill);
+  background:var(--accent-soft);color:var(--on-car);font-size:9.5px;font-weight:700}
+.rc .railbtnwrap{position:relative;display:flex}
+
+/* --- Birleşik sticky yarış çubuğu --- */
+.rc .racebar{position:sticky;top:0;z-index:var(--z-racebar);display:flex;align-items:stretch;
+  gap:0;padding:0;background:linear-gradient(180deg,#1A1013,var(--panel));
+  border-bottom:1px solid var(--line)}
+.rc .rbblock{display:flex;flex-direction:column;justify-content:center;gap:2px;
+  padding:9px var(--sp-6);border-left:1px solid var(--line);min-width:0}
+.rc .rbblock:first-child{border-left:none}
+.rc .rblabel{font-size:var(--fs-label);text-transform:uppercase;letter-spacing:var(--ls-label);
+  color:var(--muted);font-weight:600;white-space:nowrap}
+.rc .rbrace{flex:1 1 auto;flex-direction:row;align-items:center;gap:var(--sp-4)}
+.rc .rbflag{width:34px;height:auto;border-radius:3px;flex:0 0 auto}
+.rc .rbname{font-family:var(--font-disp);font-size:var(--fs-page);font-weight:700;
+  letter-spacing:.02em;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rc .rbmeta{font-size:11px;color:var(--muted);white-space:nowrap}
+.rc .rbviewer{display:inline-flex;align-items:center;justify-content:center;gap:5px;
+  margin:4px auto 0;padding:2px 8px;border-radius:var(--r-pill);
+  border:1px solid var(--yellow);background:rgba(245,178,61,.08);color:var(--yellow);
+  font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.rc .rbnum{font-family:var(--font-disp);font-weight:700;line-height:1;
+  font-variant-numeric:tabular-nums;font-size:var(--hud-num)}
+.rc .rbnum.lg{font-size:var(--hud-num-lg)}
+.rc .rbbar{height:3px;border-radius:2px;background:var(--line);overflow:hidden;margin-top:4px}
+.rc .rbbar i{display:block;height:100%;background:var(--accent);border-radius:2px}
+.rc .rbpit .rbnum{color:var(--yellow)}
+.rc .rbpitring{border-radius:var(--r-lg);animation:rcalert 2.6s infinite}
+.rc .rbenergy .rbnum{color:var(--green)}
+.rc .rbcls{font-family:var(--font-disp);font-weight:700;font-size:16px}
+.rc .rbside{margin-left:auto;display:flex;flex-direction:column;gap:6px;justify-content:center;
+  padding:9px var(--sp-6);border-left:1px solid var(--line)}
+.rc .rbsiderow{display:flex;gap:6px}
+.rc .rbsiderow>*{flex:1 1 0;min-width:0}
+.rc .rblive{display:flex;align-items:center;justify-content:center;gap:7px;padding:6px 12px;
+  border-radius:var(--r-sm);cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;
+  border:1px solid var(--green);background:rgba(55,214,122,.14);color:var(--green)}
+.rc .rblive.off{border-color:var(--line);background:var(--panel2);color:var(--muted)}
+.rc .rblive i{width:7px;height:7px;border-radius:50%;background:currentColor;
+  animation:rcpulse 1.2s infinite;flex:0 0 auto}
+.rc .rbbtn{position:relative;display:flex;align-items:center;justify-content:center;gap:6px;
+  padding:6px 10px;border-radius:var(--r-sm);cursor:pointer;font-size:12px;white-space:nowrap;
+  border:1px solid var(--line);background:var(--panel2);color:var(--dim);
+  transition:border-color var(--t-fast),color var(--t-fast)}
+.rc .rbbtn:hover{border-color:var(--line-strong);color:var(--txt)}
+.rc .rbbtn .rbdirty{min-width:16px;height:16px;padding:0 4px;border-radius:var(--r-pill);
+  background:var(--yellow);color:#1B1013;font-size:10px;font-weight:700;
+  display:inline-flex;align-items:center;justify-content:center}
+
+/* --- Rehber kutuları (README §17) --- */
+.rc .guide{display:flex;align-items:baseline;gap:var(--sp-4);margin-bottom:var(--sp-6);
+  padding:9px var(--sp-6);border-radius:var(--r-lg);
+  border:1px solid var(--line-strong);background:rgba(181,139,255,.07)}
+.rc .guide b{font-family:var(--font-disp);font-size:var(--fs-card);font-weight:700;
+  color:var(--txt);white-space:nowrap}
+.rc .guide span{font-size:11.5px;color:var(--dim);line-height:1.45}
+
+/* --- Sistematik boş durumlar --- */
+.rc .empty{display:flex;flex-direction:column;align-items:center;gap:var(--sp-4);
+  padding:34px var(--sp-8);text-align:center;border-radius:var(--r-xl);
+  border:1px dashed var(--line-strong);background:var(--panel-alt)}
+.rc .empty-i{color:var(--line-dim);line-height:0}
+.rc .empty b{font-family:var(--font-disp);font-size:17px;font-weight:700;color:var(--txt)}
+.rc .empty p{margin:0;max-width:46ch;font-size:12.5px;color:var(--muted);line-height:1.5}
+.rc .empty-act{display:flex;gap:var(--sp-3);flex-wrap:wrap;justify-content:center}
+
+/* --- İzleyici modu pasifleştirme (README §18) --- */
+.rc .ro-off{opacity:.5;pointer-events:none}
+.rc .ro-note{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--yellow)}
+
+/* --- Sağdan kayan panel (yarış datası) --- */
+.rc .rdscrim{position:fixed;inset:0;z-index:var(--z-rd-scrim);background:var(--scrim);
+  animation:rcfade .18s ease-out}
+.rc .rdpanel{position:fixed;top:0;right:0;bottom:0;z-index:var(--z-rd);width:var(--rd-w);
+  display:flex;flex-direction:column;background:var(--panel);
+  border-left:1px solid var(--line-strong);box-shadow:var(--sh-panel);
+  transform:translateX(102%);transition:transform var(--t-panel)}
+.rc .rdpanel.open{transform:none}
+
+/* --- Alttan kayan karşılaştırma tepsisi --- */
+.rc .cmptray{position:fixed;left:50%;bottom:20px;z-index:var(--z-tray);
+  display:flex;align-items:center;gap:var(--sp-5);padding:var(--sp-4) var(--sp-7);
+  border-radius:var(--r-xl);background:var(--panel-alt);border:1px solid var(--accent);
+  box-shadow:var(--sh-tray);transform:translate(-50%,140%);
+  transition:transform var(--t-panel)}
+.rc .cmptray.open{transform:translate(-50%,0)}
+
+/* --- Yükleme göstergesi --- */
+.rc .spin{width:16px;height:16px;border-radius:50%;border:2px solid var(--line-strong);
+  border-top-color:var(--accent);animation:rcspin .8s linear infinite;flex:0 0 auto}
 `;
