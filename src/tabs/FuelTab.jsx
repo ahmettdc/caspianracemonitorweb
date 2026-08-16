@@ -1,5 +1,16 @@
+import { useState } from "react";
 import { fmtHMS, lastStintFuel } from "../engine";
 import { Bolt } from "../components";
+
+/* Senaryolar (README §5): Planlanan / Tasarruflu / Agresif. Her satırda
+   düzenlenebilir %/tur girdisi, o tüketimle hesaplanan gereken yüzde ve
+   plandan fark. Yeni veri katmanı YOK — yalnız görünüm; hesap mevcut
+   lastStintFuel() ile yapılır, state'e hiçbir şey yazılmaz. */
+const SCEN = [
+  { id: "plan", label: "Planlanan", mul: 1 },
+  { id: "save", label: "Tasarruflu", mul: 0.95 },
+  { id: "push", label: "Agresif", mul: 1.05 },
+];
 
 /* Son Stint Yakıtı sekmesi — kalan süreye göre VE/yakıt ihtiyacı.
    Türetilmiş değerler (lsf, planLastCd, racePlan) ve up/autoCd App'ten prop gelir. */
@@ -7,6 +18,15 @@ export default function FuelTab({ t, st, up, lsf, autoCd, setAutoCd, planLastCd,
   liveFuelObs, applyLiveFuel, canEdit }) {
   const applyDisabled = !liveFuelObs || !canEdit
     || (!liveFuelObs.obsCons && !liveFuelObs.obsRatio);
+
+  /* Senaryo tüketimleri — yerel, kalıcı değil. Varsayılanlar plandaki
+     tüketimin ±%5'i (tasarruflu / agresif). */
+  const baseCons = Number(st.consumption) || 0;
+  const [scen, setScen] = useState(() =>
+    Object.fromEntries(SCEN.map((x) => [x.id, (baseCons * x.mul).toFixed(2)])));
+  const effCd = autoCd ? fmtHMS(planLastCd) : st.lastStintCountdown;
+  const planRefuel = lastStintFuel(effCd, st, racePlan.flagExtra).refuel;
+
   return (
     <div className="row2" data-tour="fuelcalc"
       style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 1fr" }}>
@@ -57,6 +77,36 @@ export default function FuelTab({ t, st, up, lsf, autoCd, setAutoCd, planLastCd,
           </div>
         </div>
       ))}
+
+      {/* --- Senaryolar (README §5) --- */}
+      <div className="card">
+        <h2>{t("Senaryolar")}</h2>
+        <div className="scenrows">
+          {SCEN.map((x) => {
+            const c = Number(scen[x.id]) || 0;
+            const r = lastStintFuel(effCd, { ...st, consumption: c }, racePlan.flagExtra);
+            const d = r.refuel - planRefuel;
+            return (
+              <div className="scenrow" key={x.id}>
+                <span className="nm">{t(x.label)}</span>
+                <span className="inp">
+                  <input type="number" step="0.01" min="0" value={scen[x.id]}
+                    aria-label={`${t(x.label)} ${t("%/tur")}`}
+                    onChange={(e) => setScen((v) => ({ ...v, [x.id]: e.target.value }))} />
+                  <i>{t("%/tur")}</i>
+                </span>
+                <b className="val">{r.refuel.toFixed(1)}%</b>
+                <span className={`dlt ${d < -0.05 ? "down" : d > 0.05 ? "up" : ""}`}>
+                  {x.id === "plan" ? "—" : `${d > 0 ? "+" : ""}${d.toFixed(1)}`}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        <div className="hint">
+          {t("Senaryolar yalnız gösterim — plan verisine yazılmaz.")}
+        </div>
+      </div>
 
       {liveFuelObs && (
         <div className="card">

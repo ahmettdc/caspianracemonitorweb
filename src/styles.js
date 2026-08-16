@@ -1509,6 +1509,22 @@ export const css = `
 /* uygun olmayan pilot seçim listesinde soluk + üstü çizili */
 .rc option.unavail,.rc option:disabled{color:var(--faint);text-decoration:line-through}
 
+/* ── v2.0 YAKIT — senaryolar (README §5) ─────────────────────────────────────*/
+.rc .scenrows{display:flex;flex-direction:column;gap:var(--sp-2);margin:var(--sp-4) 0}
+.rc .scenrow{display:flex;align-items:center;gap:var(--sp-4);padding:7px var(--sp-4);
+  border-radius:var(--r-sm);border:1px solid var(--line);background:var(--panel2)}
+.rc .scenrow .nm{flex:1 1 auto;font-size:12.5px;min-width:0}
+.rc .scenrow .inp{display:inline-flex;align-items:baseline;gap:4px;flex:0 0 auto}
+.rc .scenrow .inp input{width:74px;text-align:right;padding:3px 6px;font-size:12.5px}
+.rc .scenrow .inp i{font-style:normal;font-size:10.5px;color:var(--muted)}
+.rc .scenrow .val{flex:0 0 auto;min-width:62px;text-align:right;
+  font-family:var(--font-disp);font-weight:700;font-size:16px;
+  font-variant-numeric:tabular-nums}
+.rc .scenrow .dlt{flex:0 0 auto;min-width:46px;text-align:right;font-size:11.5px;
+  color:var(--muted);font-variant-numeric:tabular-nums}
+.rc .scenrow .dlt.down{color:var(--green)}
+.rc .scenrow .dlt.up{color:var(--yellow)}
+
 /* Tam sayfa kabuğu — modalden çıkarılan ekranlar (Takım · Sohbet · …) */
 .rc .v2page{display:block;animation:rcin var(--t-screen)}
 .rc .v2pagehead{display:flex;align-items:center;gap:var(--sp-4);margin-bottom:var(--sp-6);
