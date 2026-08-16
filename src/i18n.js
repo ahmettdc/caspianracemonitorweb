@@ -43,6 +43,18 @@ export const EN = {
   "Kullanılan": "Used",
   "Sıradaki stint lastikleri": "Next stint tyres",
   "Son stint VE": "Last stint FE",
+  /* Pist & araç ekranı (13-pist-arac.md). */
+  "Pist & araç": "Track & car",
+  "Solo mod · veriler bu cihazda": "Solo mode · data on this device",
+  "Pist seç": "Select track",
+  "Pist ara…": "Search track…",
+  "Pit kaybı": "Pit loss",
+  "sn · seçili pist": "s · selected track",
+  "Önizleme için bir pist seç": "Select a track to preview",
+  "Sınıf seç": "Select class",
+  "Araç seç": "Select car",
+  "Seçilmedi": "Not selected",
+  "✓ Devam et — yarış dataları": "✓ Continue — race data",
   /* Pilotlar ekranı etiketleri (07-pilotlar.md). */
   "Atamaları temizle": "Clear assignments",
   "pilot · takım havuzundan ekleyebilirsin": "drivers · you can add from the team pool",

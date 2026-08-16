@@ -298,6 +298,7 @@ export default function App() {
   const scheduleOnly = screen === "official";        // yarıştan AYRI resmi takvim
   const [pickDone, setPickDone] = useState(false); // pist/araç seçimi tamamlandı mı
   const [setupDone, setSetupDone] = useState(false); // data giriş adımı tamamlandı mı
+  const [trackQ, setTrackQ] = useState(""); // pist & araç ekranı: pist arama süzgeci
   const [userName, setUserName] = useState("");
   const [curRace, setCurRace] = useState("");    // aktif yarış id (takım içinde)
   /* canlı timing + yakıt öğrenici → useLive hook'u (aşağıda, curTeamRef kurulduktan
@@ -2291,76 +2292,197 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
   /* ---------- setup 1: pist & araç seçimi ---------- */  /* ---------- setup 1: pist & araç seçimi ---------- */
   if (!pickDone) {
     const cls = st.carClass || "hypercar";
+    const clsCars = CARS[cls] || [];
+    const curCar = clsCars.find((c) => c.id === st.car);
+    const clsName = CAR_CLASSES.find(([id]) => id === cls)?.[1] || "";
+    const disp = "var(--rc-font-display)";
+    const trkPit = (id) => (PIT_LANE_TIMES[id] != null ? PIT_LANE_TIMES[id] : "—");
+    const shownTracks = TRACKS.filter((tk) =>
+      !trackQ.trim() || tk.name.toLowerCase().includes(trackQ.trim().toLowerCase()));
+    const numBadge = { width: 22, height: 22, borderRadius: "50%", background: "var(--rc-brand)",
+      color: "var(--rc-on-brand)", display: "grid", placeItems: "center", fontFamily: disp,
+      fontWeight: 700, fontSize: 12, flex: "0 0 auto" };
+    const secLbl = { fontFamily: disp, textTransform: "uppercase", letterSpacing: ".07em",
+      fontSize: 16, fontWeight: 700 };
+    const goData = () => { setPickDone(true); go("data"); };
     return (
-      <div className="rc">
+      <div className="rc v2">
         <UpdateBanner t={t} />
-        <div className="lobby" style={{ alignItems: "flex-start", paddingTop: 40 }}>
-          <div className="box" style={{ maxWidth: 720 }}>
-            <img className="logo" style={{ maxWidth: 190 }} src={`${ASSET}logo.png`} alt="" />
-            <h1><b>{t("PİST")}</b> {t("& ARAÇ")}</h1>
-            <div className="sub">
-              {curRace ? (<>{t("Yarış")}: <b className="roomcode">{races[curRace]?.name || curRace}</b></>)
-                : t("Solo mod")}
-            </div>
+        <div style={{ padding: "18px 20px 108px" }}>
+          {/* --- başlık --- */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 18 }}>
+            <button onClick={leaveRace} aria-label={t("Ana menü")}
+              style={{ width: 34, height: 34, borderRadius: 9, border: "1px solid var(--rc-border)",
+                background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 14 }}>←</button>
+            <h2 style={{ margin: 0, fontFamily: disp, textTransform: "uppercase", letterSpacing: ".06em",
+              fontSize: 22, fontWeight: 700 }}>{t("Pist & araç")}</h2>
+            <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".1em",
+              padding: "4px 11px", borderRadius: 99, border: "1px solid var(--rc-border-strong)",
+              color: "var(--rc-text-3)" }}>
+              {curRace ? (races[curRace]?.name || curRace) : t("Solo mod · veriler bu cihazda")}</span>
+          </div>
 
-            <div className="picksec">
-              <h3>{t("1 · Pist Seç")}</h3>
-              <div className="trackgrid">
-                {TRACKS.map((t) => (
-                  <button key={t.id} className={st.track === t.id ? "on" : ""}
-                    onClick={() => up({ track: t.id,
-                      ...(PIT_LANE_TIMES[t.id] != null ? { pitLaneTime: PIT_LANE_TIMES[t.id] } : {}) })}>
-                    <img src={`${ASSET}flags/${TRACK_ASSET(t.id)}.png`} alt="" />{t.name}
-                  </button>
-                ))}
+          {/* --- 1 · Pist seç + önizleme --- */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "flex-start", marginBottom: 22 }}>
+            <div style={{ flex: "1 1 520px", minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                <span style={numBadge}>1</span>
+                <span style={secLbl}>{t("Pist seç")}</span>
+                <input type="search" placeholder={t("Pist ara…")} value={trackQ}
+                  onChange={(e) => setTrackQ(e.target.value)}
+                  style={{ marginLeft: "auto", background: "var(--rc-surface-3)",
+                    border: "1px solid var(--rc-border)", borderRadius: 9, color: "var(--rc-text)",
+                    fontSize: 12.5, padding: "7px 12px", width: 180 }} />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(168px,1fr))", gap: 9 }}>
+                {shownTracks.map((tk) => {
+                  const sel = st.track === tk.id;
+                  return (
+                    <button key={tk.id}
+                      onClick={() => up({ track: tk.id,
+                        ...(PIT_LANE_TIMES[tk.id] != null ? { pitLaneTime: PIT_LANE_TIMES[tk.id] } : {}) })}
+                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
+                        borderRadius: 11, cursor: "pointer", color: "var(--rc-text)", minWidth: 0,
+                        border: `1px solid ${sel ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
+                        background: sel ? "rgba(150,0,24,.22)" : "var(--rc-surface-2)" }}>
+                      <img src={`${ASSET}flags/${TRACK_ASSET(tk.id)}.png`} alt=""
+                        style={{ width: 26, borderRadius: 3, border: "1px solid var(--rc-border)", flex: "0 0 auto" }}
+                        onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
+                      <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0, textAlign: "left" }}>
+                        <b style={{ fontFamily: disp, fontSize: 15, whiteSpace: "nowrap",
+                          overflow: "hidden", textOverflow: "ellipsis" }}>{tk.name}</b>
+                        <span style={{ fontSize: 10.5, color: "var(--rc-text-3)" }}>
+                          {t("Pit kaybı")} {trkPit(tk.id)}s</span>
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            {st.track && (
-              <img key={st.track} src={`${ASSET}tracks/${TRACK_ASSET(st.track)}.png${AV}`} alt=""
-                style={{ display: "block", margin: "14px auto 0", maxWidth: "100%",
-                  maxHeight: 220, filter: "drop-shadow(0 4px 12px rgba(0,0,0,.5))" }}
-                onError={(e) => { e.currentTarget.style.display = "none"; }} />
-            )}
-
-            <div className="picksec">
-              <h3>{t("2 · Sınıf Seç")}</h3>
-              <div className="classtoggle">
-                {CAR_CLASSES.map(([id, name]) => (
-                  <button key={id} className={cls === id ? "on" : ""}
-                    onClick={() => up({ carClass: id, car: "" })}>
-                    <img src={`${ASSET}class/${id}.png`} alt=""
-                      onError={(e) => { e.currentTarget.style.display = "none"; }} />{name}
-                  </button>
-                ))}
-              </div>
+            <div style={{ flex: "1 1 300px", minWidth: 280, border: "1px solid var(--rc-border)",
+              borderRadius: 12, background: "var(--rc-surface)", padding: 18, textAlign: "center" }}>
+              {st.track ? (
+                <>
+                  <img key={st.track} src={`${ASSET}tracks/${TRACK_ASSET(st.track)}.png${AV}`} alt=""
+                    style={{ display: "block", width: "100%", maxWidth: 280, height: "auto", margin: "0 auto",
+                      filter: "drop-shadow(0 6px 18px rgba(0,0,0,.5))" }}
+                    onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                  <div style={{ fontFamily: disp, fontWeight: 700, fontSize: 19, marginTop: 12 }}>
+                    {trackName(st.track)}</div>
+                  <div style={{ color: "var(--rc-text-3)", fontSize: 11.5, marginTop: 3 }}>
+                    {t("Pit kaybı")} {trkPit(st.track)} {t("sn · seçili pist")}</div>
+                </>
+              ) : (
+                <div style={{ color: "var(--rc-text-3)", fontSize: 12.5, padding: "40px 0" }}>
+                  {t("Önizleme için bir pist seç")}</div>
+              )}
             </div>
+          </div>
 
-            <div className="picksec">
-              <h3>{t("3 · Araç Seç")}</h3>
-              <div className="cargrid">
-                {CARS[cls].map((c) => (
-                  <button key={c.id} className={st.car === c.id ? "on" : ""}
-                    onClick={() => up({ carClass: cls, car: c.id })}>
-                    <img src={carImageSrc(teamData?.assets, cls, c.id, "side")} alt="" loading="lazy"
+          {/* --- 2 · Sınıf seç --- */}
+          <div style={{ marginBottom: 22 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+              <span style={numBadge}>2</span>
+              <span style={secLbl}>{t("Sınıf seç")}</span>
+            </div>
+            <div style={{ display: "flex", gap: 9, flexWrap: "wrap" }}>
+              {CAR_CLASSES.map(([id, name]) => {
+                const sel = cls === id;
+                const hasCars = (CARS[id] || []).length;
+                return (
+                  <button key={id}
+                    onClick={() => up({ carClass: id, car: (CARS[id] || [])[0]?.id || "" })}
+                    style={{ display: "flex", alignItems: "center", gap: 9, padding: "11px 16px",
+                      borderRadius: 11, cursor: "pointer", color: "var(--rc-text)",
+                      border: `1px solid ${sel ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
+                      background: sel ? "rgba(150,0,24,.22)" : "var(--rc-surface-2)", opacity: hasCars ? 1 : 0.5 }}>
+                    <img src={`${ASSET}class/${id}.png`} alt="" style={{ height: 22, flex: "0 0 auto" }}
                       onError={(e) => { e.currentTarget.style.display = "none"; }} />
-                    {c.name}
+                    <span style={{ fontFamily: disp, fontWeight: 700, fontSize: 15, letterSpacing: ".03em" }}>{name}</span>
+                    <span style={{ fontSize: 10.5, color: "var(--rc-text-3)" }}>{hasCars} {t("araç")}</span>
                   </button>
-                ))}
-              </div>
+                );
+              })}
             </div>
+          </div>
 
-            <button className="bigbtn" style={{ marginTop: 20 }}
-              disabled={!st.track || !st.car}
-              onClick={() => { setPickDone(true); go("data"); }}>
-              {t("✓ Devam Et — Yarış Dataları")}
-            </button>
-            <div className="lmsg">
-              {(!st.track || !st.car) && t("Devam etmek için pist ve araç seç")}
+          {/* --- 3 · Araç seç --- */}
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+              <span style={numBadge}>3</span>
+              <span style={secLbl}>{t("Araç seç")}</span>
+              <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{clsName} · {clsCars.length} {t("araç")}</span>
             </div>
-            <button className="solo" onClick={() => { setPickDone(true); go("data"); }}>
-              {t("Seçim yapmadan geç →")}
-            </button>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(230px,1fr))", gap: 12 }}>
+              {clsCars.map((c) => {
+                const sel = st.car === c.id;
+                return (
+                  <button key={c.id} onClick={() => up({ carClass: cls, car: c.id })}
+                    style={{ display: "flex", flexDirection: "column", alignItems: "center",
+                      padding: "14px 14px 12px", borderRadius: 12, cursor: "pointer", color: "var(--rc-text)",
+                      border: `1px solid ${sel ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
+                      background: sel ? "rgba(150,0,24,.16)" : "var(--rc-surface-2)" }}>
+                    <img src={carImageSrc(teamData?.assets, cls, c.id, "side")} alt="" loading="lazy"
+                      style={{ width: "100%", height: 96, objectFit: "contain", display: "block" }}
+                      onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
+                    <span style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, width: "100%" }}>
+                      <b style={{ fontFamily: disp, fontSize: 15, textAlign: "left", flex: 1, minWidth: 0,
+                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</b>
+                      {sel && <span style={{ color: "var(--rc-ok)", fontSize: 14, flex: "0 0 auto" }}>✓</span>}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* --- sabit alt özet çubuğu --- */}
+          <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 30, display: "flex",
+            alignItems: "center", gap: 16, flexWrap: "wrap", padding: "13px 20px",
+            borderTop: "1px solid var(--rc-border-strong)", background: "rgba(18,12,14,.96)",
+            backdropFilter: "blur(8px)" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", minWidth: 0 }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {st.track && <img src={`${ASSET}flags/${TRACK_ASSET(st.track)}.png`} alt=""
+                  style={{ width: 22, borderRadius: 2 }} onError={(e) => { e.currentTarget.style.display = "none"; }} />}
+                <span style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                  <b style={{ fontFamily: disp, fontSize: 15 }}>{st.track ? trackName(st.track) : t("Seçilmedi")}</b>
+                  <span style={{ fontSize: 10, color: "var(--rc-text-3)", textTransform: "uppercase", letterSpacing: ".08em" }}>{t("Pist")}</span>
+                </span>
+              </span>
+              <span style={{ width: 1, height: 26, background: "var(--rc-border)" }} />
+              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <img src={`${ASSET}class/${cls}.png`} alt="" style={{ height: 18 }}
+                  onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                <span style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                  <b style={{ fontFamily: disp, fontSize: 15 }}>{clsName}</b>
+                  <span style={{ fontSize: 10, color: "var(--rc-text-3)", textTransform: "uppercase", letterSpacing: ".08em" }}>{t("Sınıf")}</span>
+                </span>
+              </span>
+              <span style={{ width: 1, height: 26, background: "var(--rc-border)" }} />
+              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                  <b style={{ fontFamily: disp, fontSize: 15, color: curCar ? "var(--rc-text)" : "var(--rc-text-3)" }}>
+                    {curCar ? curCar.name : t("Seçilmedi")}</b>
+                  <span style={{ fontSize: 10, color: "var(--rc-text-3)", textTransform: "uppercase", letterSpacing: ".08em" }}>{t("Araç")}</span>
+                </span>
+              </span>
+            </span>
+            <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <button onClick={goData}
+                style={{ background: "none", border: "none", color: "var(--rc-text-3)", cursor: "pointer",
+                  fontSize: 12.5, textDecoration: "underline", textUnderlineOffset: 3 }}>
+                {t("Seçim yapmadan geç →")}</button>
+              <button onClick={goData} disabled={!st.car}
+                style={{ padding: "11px 22px", borderRadius: 10, cursor: st.car ? "pointer" : "not-allowed",
+                  fontFamily: disp, fontSize: 16, fontWeight: 700, letterSpacing: ".04em",
+                  textTransform: "uppercase", whiteSpace: "nowrap",
+                  border: `1px solid ${st.car ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
+                  background: st.car ? "var(--rc-brand)" : "var(--rc-surface-3)",
+                  color: st.car ? "var(--rc-on-brand)" : "var(--rc-text-3)" }}>
+                {t("✓ Devam et — yarış dataları")}</button>
+            </span>
           </div>
         </div>
       </div>
