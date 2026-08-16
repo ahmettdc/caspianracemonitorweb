@@ -40,7 +40,7 @@ describe("ScheduleTab — yarış merkezi UI", () => {
       <ScheduleTab t={t} lang="tr" races={[RACE]} updatedAt={Date.now()} loading={false} />);
     expect(html).toContain("2.4h Spa");                 // yarış adı
     expect(html).toContain("Toplam");                   // özet
-    expect(html).toContain("Durum");                    // status filtresi (her zaman render)
+    expect(html).toContain("Tüm sınıflar");             // birebir araç çubuğu: sınıf süzgeci (14-resmi-yarislar)
     expect(html).toContain("lmugarage.com");            // kaynak atfı
   });
   it("onPlan YOKSA 'Planla' butonu görünmez (saf görüntüleyici)", () => {

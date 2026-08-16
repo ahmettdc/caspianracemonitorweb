@@ -43,6 +43,12 @@ export const EN = {
   "Kullanılan": "Used",
   "Sıradaki stint lastikleri": "Next stint tyres",
   "Son stint VE": "Last stint FE",
+  /* Resmi yarışlar ekranı (14-resmi-yarislar.md). */
+  "kaynak": "source",
+  "Sıradaki resmi yarış": "Next official race",
+  "Tüm sınıflar": "All classes",
+  "SR: hepsi": "SR: all",
+  "yarış": "races",
   /* Pist & araç ekranı (13-pist-arac.md). */
   "Pist & araç": "Track & car",
   "Solo mod · veriler bu cihazda": "Solo mode · data on this device",
