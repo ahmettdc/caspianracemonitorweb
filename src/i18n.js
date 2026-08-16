@@ -241,6 +241,14 @@ export const EN = {
   "Seans başı": "Session start",
   "Pist seç": "Select track",
   "Tempo referansı": "Pace reference",
+  "Görünen ad": "Display name",
+  "Profil görseli": "Profile picture",
+  "Boşsa baş harflerin kullanılır": "Your initials are used when empty",
+  "Bu takımdaki rolün": "Your role in this team",
+  "Rolleri takım ekranından yönetirsin": "Manage roles from the team screen",
+  "Rozetler": "Badges",
+  "Henüz rozetin yok — takım ekranından rozet alabilirsin.": "No badges yet — you can earn one from the team screen.",
+  "Değişiklikler Kaydet ile uygulanır": "Changes apply when you save",
   "Setupları pist bazında gör, ⚖ ile iki tanesini karşılaştır. Yıldızladıkların listenin başında durur.":
     "Browse setups by track and compare two with ⚖. The ones you star stay at the top of the list.",
   "Üye yetkilerini, sezon takvimini ve takım kimliğini buradan yönet. Katılım kodunu paylaşarak yeni üye davet edebilirsin.":

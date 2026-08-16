@@ -1793,6 +1793,172 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
       lmuData={lmuData} />
   );
 
+  /* Profil ve rozetler — fiş acctModalOpen (profil sekmesi). Hem ana menüden hem
+     yarış içinden AYNI pencere → değişkene çıkarıldı (eskiden yalnız yarış-içi
+     ağaçta render ediliyordu, menüden açılmıyordu). Bildirim ayarları sekmesi
+     ayrı iş (#13); şimdilik yalnız profil. Ad/avatar kaydetme akışı korundu. */
+  const profileModal = profOpen && user && (() => {
+    const disp = "var(--rc-font-display)";
+    const avSrc = avStage || myAvatar || user.photoURL || "";
+    const noref = /^https?:/.test(avSrc) ? "no-referrer" : undefined;
+    const profInitials = (profName || user.displayName || user.email || "?")
+      .split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "?";
+    const lbl = { display: "block", color: "var(--rc-text-3)", fontSize: 10,
+      textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 6 };
+    const closeProf = () => { setAvStage(""); setAvErr(""); setProfOpen(false); };
+    return (
+      <div onClick={closeProf} style={{ position: "fixed", inset: 0, zIndex: 1000,
+        background: "rgba(10,6,10,.74)", backdropFilter: "blur(5px)", display: "flex",
+        alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
+        <div onClick={(e) => e.stopPropagation()} style={{ width: "min(780px,96vw)", maxHeight: "86vh",
+          background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16,
+          overflow: "hidden", display: "flex", flexDirection: "column",
+          boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "18px 20px",
+            borderBottom: "1px solid var(--rc-border)" }}>
+            <span style={{ width: 52, height: 52, borderRadius: "50%", background: "var(--rc-brand)",
+              color: "var(--rc-on-brand)", display: "inline-flex", alignItems: "center",
+              justifyContent: "center", fontFamily: disp, fontWeight: 700, fontSize: 20, flex: "0 0 auto",
+              overflow: "hidden" }}>
+              {avSrc ? <img src={avSrc} alt="" referrerPolicy={noref}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : profInitials}
+            </span>
+            <span style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}>
+              <b style={{ fontFamily: disp, fontSize: 22, letterSpacing: ".02em" }}>
+                {profName || user.displayName || t("Kullanıcı")}</b>
+              <span style={{ fontSize: 11.5, color: "var(--rc-text-3)", overflow: "hidden",
+                textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {user.email}{teamData?.meta?.name ? ` · ${teamData.meta.name}` : ""}</span>
+            </span>
+            <button onClick={closeProf} style={{ marginLeft: "auto", width: 32, height: 32, borderRadius: 9,
+              border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)",
+              color: "var(--rc-text-2)", cursor: "pointer", fontSize: 15, lineHeight: 1 }}>✕</button>
+          </div>
+
+          <div style={{ overflowY: "auto", padding: "18px 20px 22px", display: "flex", flexWrap: "wrap",
+            gap: 18 }}>
+            <div style={{ flex: "1 1 300px", minWidth: 0, display: "flex", flexDirection: "column",
+              gap: 14 }}>
+              <div>
+                <label style={lbl}>{t("Görünen ad")}</label>
+                <input type="text" value={profName} onChange={(e) => setProfName(e.target.value)}
+                  style={{ width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)",
+                    border: "1px solid var(--rc-border-strong)", borderRadius: 10, color: "var(--rc-text)",
+                    padding: "11px 14px", fontFamily: disp, fontSize: 18, fontWeight: 700,
+                    textTransform: "none" }} />
+                <div style={{ color: "var(--rc-text-3)", fontSize: 11, marginTop: 5 }}>
+                  {t("Odalarda ve stint programında bu isim görünür.")}</div>
+              </div>
+              <div>
+                <label style={lbl}>{t("Profil görseli")}</label>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ width: 70, height: 70, flex: "0 0 auto",
+                    border: "1.5px dashed var(--rc-border-strong)", borderRadius: "50%",
+                    background: "var(--rc-surface-2)", display: "grid", placeItems: "center",
+                    fontFamily: disp, fontWeight: 700, fontSize: 20, color: "var(--rc-text-3)",
+                    overflow: "hidden" }}>
+                    {avSrc ? <img src={avSrc} alt="" referrerPolicy={noref}
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : profInitials}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                    <input id="avfile" type="file" accept={IMG_ACCEPT_TYPES.join(",")}
+                      style={{ display: "none" }}
+                      onChange={(e) => { onAvatarFile(e.target.files?.[0]); e.target.value = ""; }} />
+                    <span style={{ display: "flex", gap: 7 }}>
+                      <button disabled={avBusy} onClick={() => document.getElementById("avfile")?.click()}
+                        style={{ padding: "6px 13px", borderRadius: 8, border: "1px solid var(--rc-border)",
+                          background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer",
+                          fontSize: 12 }}>{avBusy ? t("Yükleniyor…") : t("Yükle")}</button>
+                      {(myAvatar || avStage) && (
+                        <button disabled={avBusy} onClick={async () => {
+                          setAvStage(""); setAvErr("");
+                          await clearUserAvatar(user.uid).catch(() => {});
+                          setMyAvatar("");
+                        }} style={{ padding: "6px 13px", borderRadius: 8,
+                          border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)",
+                          color: "var(--rc-text-3)", cursor: "pointer", fontSize: 12 }}>{t("Kaldır")}</button>
+                      )}
+                    </span>
+                    <span style={{ fontSize: 10.5, color: "var(--rc-text-3)" }}>
+                      {avStage ? t("Önizleme — Kaydet ile uygulanır")
+                        : t("Boşsa baş harflerin kullanılır")}</span>
+                    {avErr && <span style={{ fontSize: 11, color: "var(--rc-danger)" }}>{avErr}</span>}
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label style={lbl}>{t("Bu takımdaki rolün")}</label>
+                <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap" }}>
+                  {myBadges.length > 0 ? myBadges.map((b) => (
+                    <span key={b.lbl} style={{ display: "inline-flex", alignItems: "center", gap: 7,
+                      padding: "7px 14px", borderRadius: 99, border: `1px solid ${b.col}`, color: b.col,
+                      fontSize: 12.5 }}>{b.ico} {t(b.lbl)}</span>
+                  )) : (
+                    <span style={{ fontSize: 12, color: "var(--rc-text-3)" }}>{t(roleLabel(role))}</span>
+                  )}
+                  <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>
+                    {t("Rolleri takım ekranından yönetirsin")}</span>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ flex: "1 1 280px", minWidth: 260, display: "flex", flexDirection: "column",
+              gap: 12 }}>
+              <div style={{ border: "1px solid var(--rc-border)", borderRadius: 12,
+                background: "var(--rc-surface-2)", padding: 16 }}>
+                <div style={{ fontFamily: disp, textTransform: "uppercase", letterSpacing: ".08em",
+                  fontSize: 13, fontWeight: 700, color: "var(--rc-brand-bright)", marginBottom: 12 }}>
+                  {t("Rozetler")}</div>
+                {myBadges.length > 0 ? (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 9 }}>
+                    {myBadges.map((b) => (
+                      <span key={b.lbl} style={{ display: "inline-flex", alignItems: "center", gap: 8,
+                        padding: "8px 12px", borderRadius: 10, border: `1px solid ${b.col}`,
+                        background: b.bg, color: b.col }}>
+                        <span style={{ fontSize: 17, lineHeight: 1 }}>{b.ico}</span>
+                        <b style={{ fontSize: 12, whiteSpace: "nowrap" }}>{t(b.lbl)}</b>
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12, color: "var(--rc-text-3)", lineHeight: 1.6 }}>
+                    {t("Henüz rozetin yok — takım ekranından rozet alabilirsin.")}</div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 20px",
+            borderTop: "1px solid var(--rc-border)", background: "var(--rc-surface-2)" }}>
+            <span style={{ color: "var(--rc-text-3)", fontSize: 11.5 }}>
+              {t("Değişiklikler Kaydet ile uygulanır")}</span>
+            <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+              <button onClick={closeProf} style={{ padding: "10px 18px", borderRadius: 10,
+                border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)",
+                color: "var(--rc-text-2)", cursor: "pointer", fontSize: 13 }}>{t("Vazgeç")}</button>
+              <button disabled={!profName.trim()} style={{ padding: "10px 24px", borderRadius: 10,
+                border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)",
+                color: "var(--rc-on-brand)", cursor: profName.trim() ? "pointer" : "not-allowed",
+                opacity: profName.trim() ? 1 : .45, fontFamily: disp, fontSize: 16, fontWeight: 700,
+                letterSpacing: ".04em", textTransform: "uppercase" }}
+                onClick={async () => {
+                  const n = profName.trim().slice(0, 60);
+                  await updateProfile(user.uid, { fullName: n }).catch(() => {});
+                  if (avStage) {
+                    try { await saveUserAvatar(user.uid, avStage); setMyAvatar(avStage); }
+                    catch { setAvErr(t("Avatar kaydedilemedi — tekrar deneyin.")); return; }
+                    setAvStage("");
+                  }
+                  setUserName(n); setProfOpen(false);
+                }}>{t("Kaydet")}</button>
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  })();
+
   /* takım penceresi → TeamModal (sunum); depo fn'leri bileşende, navigasyon/
      rozet/rol yardımcıları (openRace/setRForm/setBadge/roleLabel) App'ten prop. */
   /* v2.0: aynı bileşen hem pencere (lobi/başlık düğmesi) hem TAM SAYFA (sol ray)
@@ -2402,7 +2568,7 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
 
     return (
       <div className="rc v2">
-        {teamModal}{createJoinModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}{cmdPalette}
+        {teamModal}{createJoinModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}{cmdPalette}{profileModal}
         <Rail t={t} screen={screen} go={homeGo} onHome={() => go("home")}
           open={railOpen} onToggle={() => setRailOpen((v) => !v)}
           version={APP_VERSION} chatScreen="chat" unread={chatUnread}
@@ -3408,80 +3574,7 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
       <UpdateBanner t={t} />
       {teamModal}{createJoinModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{streamPlayer}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}
       {denyToast}{cmdPalette}{raceDataPanel}{pdfPreview}
-      {profOpen && user && (
-        <div className="wxmodal" onClick={() => setProfOpen(false)}>
-          <div className="wxmbox" style={{ width: "min(420px,94vw)" }}
-            onClick={(e) => e.stopPropagation()}>
-            <div className="wxmhead">
-              <span>👤 {t("Profil")}</span>
-              <button className="lbclose" onClick={() => setProfOpen(false)}>✕</button>
-            </div>
-            <div style={{ padding: "14px 16px" }}>
-              <div className="userchip" style={{ marginBottom: 14 }}>
-                {(avStage || myAvatar || user.photoURL) && (
-                  <img src={avStage || myAvatar || user.photoURL} alt=""
-                    referrerPolicy={/^https?:/.test(avStage || myAvatar || user.photoURL)
-                      ? "no-referrer" : undefined} />
-                )}
-                <span className="uname" style={{ maxWidth: 260 }}>{user.email}</span>
-              </div>
-              {/* v1.7.0 — avatar yükleme: seç → önizleme → Kaydet yazar; Kaldır siler */}
-              <label>{t("Avatar")}</label>
-              <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
-                <input id="avfile" type="file" accept={IMG_ACCEPT_TYPES.join(",")}
-                  style={{ display: "none" }}
-                  onChange={(e) => { onAvatarFile(e.target.files?.[0]); e.target.value = ""; }} />
-                <button className="histbtn" disabled={avBusy}
-                  onClick={() => document.getElementById("avfile")?.click()}>
-                  {avBusy ? t("Yükleniyor…") : `⬆ ${t("Görsel Seç")}`}</button>
-                {(myAvatar || avStage) && (
-                  <button className="histbtn" disabled={avBusy}
-                    onClick={async () => {
-                      setAvStage(""); setAvErr("");
-                      await clearUserAvatar(user.uid).catch(() => {});
-                      setMyAvatar("");
-                    }}>✕ {t("Kaldır")}</button>
-                )}
-                {avStage && <span className="hint" style={{ margin: 0 }}>
-                  {t("Önizleme — Kaydet ile uygulanır")}</span>}
-              </div>
-              {avErr && <div className="hint warn" style={{ marginBottom: 8 }}>{avErr}</div>}
-              {myBadges.length > 0 && (
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
-                  {myBadges.map((b) => (
-                    <span key={b.lbl} className="bchip" style={{ color: b.col,
-                      background: b.bg, borderColor: b.col, marginBottom: 0 }}>
-                      {b.ico} {t(b.lbl)}
-                    </span>
-                  ))}
-                </div>
-              )}
-              <label>{t("Ad Soyad")}</label>
-              <input type="text" value={profName} style={{ textTransform: "none" }}
-                onChange={(e) => setProfName(e.target.value)} />
-              <div className="hint" style={{ marginTop: 6 }}>
-                {t("Odalarda ve stint programında bu isim görünür.")}</div>
-            </div>
-            <div className="wxmfoot" style={{ gap: 8 }}>
-              <button className="histbtn" onClick={() => {
-                setAvStage(""); setAvErr(""); setProfOpen(false);
-              }}>{t("Vazgeç")}</button>
-              <button className="gbtn ubtn" disabled={!profName.trim()}
-                style={{ opacity: profName.trim() ? 1 : .45 }}
-                onClick={async () => {
-                  const n = profName.trim().slice(0, 60);
-                  await updateProfile(user.uid, { fullName: n }).catch(() => {});
-                  if (avStage) {
-                    try { await saveUserAvatar(user.uid, avStage); setMyAvatar(avStage); }
-                    catch { setAvErr(t("Avatar kaydedilemedi — tekrar deneyin.")); return; }
-                    setAvStage("");
-                  }
-                  setUserName(n); setProfOpen(false);
-                }}>{t("Kaydet")}</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {profileModal}
       {adminOpen && isAdmin && (
         <div className="wxmodal" onClick={() => setAdminOpen(false)}>
           <div className="wxmbox" style={{ width: "min(620px,95vw)" }}
