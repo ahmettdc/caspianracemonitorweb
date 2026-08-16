@@ -2312,6 +2312,8 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
     const seasonTag = (curSeason && seasons[curSeason]?.name) || "";
     const memberCount = teamData?.members ? Object.keys(teamData.members).length : 0;
     const raceCount = Object.keys(races).length;
+    /* fiş 01-menu: Setup havuzu fişi "N dosya · M pist" gösterir. */
+    const suTrackCount = new Set(setups.map((s) => s.track).filter(Boolean)).size;
     const initials = (userName || user?.displayName || user?.email || "?")
       .split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "?";
     const otherTeams = Object.entries(myTeams).filter(([tid]) => tid !== curTeam);
@@ -2524,7 +2526,12 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
                   <div className="acts">
                     <button className="open" onClick={() => openRace(nextEntry[0])}>{t("Yarışı aç")} →</button>
                     <button className="setup" onClick={() => setSuOpen(true)}>
-                      {t("Setuplar")} ({setups.length})</button>
+                      {trackName(heroR.trackId)
+                        ? `${trackName(heroR.trackId)} ${t("setupları")}`
+                        : t("Setuplar")}{" "}
+                      ({heroR.trackId
+                        ? setups.filter((s) => s.track === heroR.trackId).length
+                        : setups.length})</button>
                   </div>
                 </div>
                 <div className="vis">
@@ -2557,7 +2564,8 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
             <div className="hmqa">
               <button className="tile" onClick={() => setSuOpen(true)}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--rc-brand-bright)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15.5 4a4.5 4.5 0 0 0-4 6.6L4 18.1 5.9 20l7.5-7.5A4.5 4.5 0 1 0 15.5 4Z" /></svg>
-                <b>{t("Setup havuzu")}</b><span>{setups.length} {t("dosya")}</span>
+                <b>{t("Setup havuzu")}</b><span>{setups.length} {t("dosya")}
+                  {suTrackCount ? ` · ${suTrackCount} ${t("pist")}` : ""}</span>
               </button>
               <button className="tile" onClick={() => go("tele")}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--rc-brand-bright)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4v16h16" /><path d="m7 14 3-3 3 2 4-5" /></svg>
