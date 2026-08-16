@@ -1063,12 +1063,14 @@ ${bottomBar}
     <SetupContentModal open={!!viewSu} su={viewSu} onClose={() => setViewSu(null)} t={t} />
   );
 
-  const chatModal = (
-    <ChatModal open={chatOpen && !!user && !!curChan} onClose={() => setChatOpen(false)}
+  const chatSheet = (page = false) => (
+    <ChatModal open={(page || chatOpen) && !!user && !!curChan} page={page}
+      onClose={page ? back : () => setChatOpen(false)}
       t={t} chatSound={chatSound} toggleChatSound={toggleChatSound}
       chatChans={chatChans} unreadOf={unreadOf} chatChan={chatChan} setChatChan={setChatChan}
       teamData={teamData} curChan={curChan} chatBody={chatBody} />
   );
+  const chatModal = chatSheet(false);
 
   /* Mini oynatıcı: sekmeden bağımsız, köşede sabit. iframe hep aynı ağaçta kalır,
      küçültünce yalnız gizlenir — yayın kesilmez. */
@@ -1345,8 +1347,11 @@ ${bottomBar}
 
   /* takım penceresi → TeamModal (sunum); depo fn'leri bileşende, navigasyon/
      rozet/rol yardımcıları (openRace/setRForm/setBadge/roleLabel) App'ten prop. */
-  const teamModal = (
-    <TeamModal open={teamOpen} onClose={() => setTeamOpen(false)} user={user} t={t} lang={lang}
+  /* v2.0: aynı bileşen hem pencere (lobi/başlık düğmesi) hem TAM SAYFA (sol ray)
+     olarak çizilir. Tam sayfada kapatma = GERİ (önceki ekrana dönülür). */
+  const teamSheet = (page = false) => (
+    <TeamModal open={page || teamOpen} page={page}
+      onClose={page ? back : () => setTeamOpen(false)} user={user} t={t} lang={lang}
       myTeams={myTeams} curTeam={curTeam} setCurTeam={setCurTeam} teamData={teamData}
       tnEdit={tnEdit} setTnEdit={setTnEdit} canManageTeam={canManageTeam} canEditTeam={canEditTeam}
       curSeason={curSeason} setCurSeason={setCurSeason} seasons={seasons} races={races} st={st}
@@ -1354,6 +1359,7 @@ ${bottomBar}
       roleLabel={roleLabel}
       onCreateJoin={() => { setTeamOpen(false); setCreateJoinOpen(true); }} />
   );
+  const teamModal = teamSheet(false);
 
   /* Create & Join — takım kur / katıl (yönetimden AYRI, sade ekran; v1.6) */
   const createJoinModal = (
@@ -2102,8 +2108,7 @@ ${bottomBar}
           yerini aldı. Ray tıklamayla kayarak gizlenir (‹ / açma tırnağı). */}
       <Rail t={t} screen={screen} go={go} onHome={leaveRace}
         open={railOpen} onToggle={() => setRailOpen((v) => !v)}
-        version={APP_VERSION} chatScreen="rchat" hideChat={!raceChan}
-        unread={raceUnread} />
+        version={APP_VERSION} chatScreen="chat" unread={raceUnread} />
       <div className="v2main">
       <UpdateBanner t={t} />
       {teamModal}{createJoinModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{streamPlayer}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}
@@ -2795,6 +2800,10 @@ ${bottomBar}
               setSt={setSt} assignDriver={assignDriver} teamData={teamData}
               clearAssign={clearAssign} />
           )}
+
+          {/* v2.0 TAM SAYFA (modal kabuğu kalktı) — sol raydan erişilir. */}
+          {screen === "team" && teamSheet(true)}
+          {screen === "chat" && chatSheet(true)}
 
           {tab === "rchat" && raceChan && (
             <div className="card">

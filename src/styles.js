@@ -1432,6 +1432,13 @@ export const css = `
    Yoğunluk YALNIZ bu ekranda: .wall = Pit duvarı (seyrek satır, büyük sayı),
    .eng = Mühendis (sık satır, 12.5px). Sütunlar İKİ MODDA DA görünür — yalnız
    ölçek değişir. Global yoğunluk anahtarı v2.0'da kaldırıldı. */
+/* Tam sayfa kabuğu — modalden çıkarılan ekranlar (Takım · Sohbet · …) */
+.rc .v2page{display:block;animation:rcin var(--t-screen)}
+.rc .v2pagehead{display:flex;align-items:center;gap:var(--sp-4);margin-bottom:var(--sp-6);
+  padding-bottom:var(--sp-4);border-bottom:1px solid var(--line)}
+.rc .v2pagehead .ttl{flex:1 1 auto;font-size:var(--fs-page);font-weight:700;
+  text-transform:uppercase;letter-spacing:var(--ls-page);min-width:0}
+
 /* ── v2.0 STINT — S1 / pit lastik ışıkları (README §4) ───────────────────────
    Tek düğme, tıklandıkça durum döner; düğme köşe adını (FL/FR/RL/RR) ve durum
    etiketini birlikte gösterir. Renkler README'deki TY_STATE tablosundan.

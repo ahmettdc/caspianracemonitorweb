@@ -2,7 +2,7 @@
    oxlint no-undef yapmadığından eksik prop yalnız çalışma anında patlar). */
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { Rail, RaceBar, Guide, EmptyState, RAIL_ITEMS } from "./shell";
+import { Rail, RaceBar, Guide, EmptyState, Sheet, RAIL_ITEMS } from "./shell";
 
 const t = (s) => s;
 const noop = () => {};
@@ -107,5 +107,43 @@ describe("Guide / EmptyState", () => {
     expect(html).toContain("Köprü çalışmıyor");
     expect(html).toContain("Yeniden bağlan");
     expect(html).toContain("empty-act");
+  });
+});
+
+describe("Sheet — pencere ↔ tam sayfa (modal→tam sayfa taşınması)", () => {
+  const body = <p>gövde</p>;
+
+  it("varsayılan pencere kabuğu (wxmodal/wxmbox) çizer", () => {
+    const html = render(<Sheet title="Takım" onClose={noop} width="min(680px,95vw)">{body}</Sheet>);
+    expect(html).toContain("wxmodal");
+    expect(html).toContain("wxmbox");
+    expect(html).toContain("wxmhead");
+    expect(html).toContain("gövde");
+  });
+
+  it("page ile modal kabuğu KALKAR, tam sayfa kabuğu gelir", () => {
+    const html = render(<Sheet page title="Takım" onClose={noop}>{body}</Sheet>);
+    expect(html).not.toContain("wxmodal");
+    expect(html).not.toContain("wxmbox");
+    expect(html).toContain("v2page");
+    expect(html).toContain("v2pagehead");
+    expect(html).toContain("gövde");
+  });
+
+  it("tam sayfada kapatma ✕ değil GERİ (←) — önceki ekrana dönülür", () => {
+    expect(render(<Sheet page title="Takım" onClose={noop}>{body}</Sheet>)).toContain(">←<");
+    expect(render(<Sheet title="Takım" onClose={noop}>{body}</Sheet>)).toContain(">✕<");
+  });
+
+  it("headExtra iki kabukta da başlıkta durur", () => {
+    const extra = <button className="snd">🔔</button>;
+    for (const page of [false, true]) {
+      expect(render(<Sheet page={page} title="Sohbet" onClose={noop} headExtra={extra}>
+        {body}</Sheet>)).toContain("snd");
+    }
+  });
+
+  it("onClose verilmezse tam sayfada geri düğmesi çizilmez", () => {
+    expect(render(<Sheet page title="Takım">{body}</Sheet>)).not.toContain("lbclose");
   });
 });

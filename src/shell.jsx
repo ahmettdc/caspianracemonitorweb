@@ -180,3 +180,41 @@ export function RaceBar({
     </header>
   );
 }
+
+/* Sheet — AYNI gövdeyi hem pencere hem TAM SAYFA olarak çizer.
+   v2.0'da Takım · Sohbet · Telemetri · Setup havuzu modal kabuğundan (wxmodal /
+   wxmbox) çıkıp sol raydan erişilen tam sayfa ekran oluyor. İki ayrı bileşen
+   yazmak yerine kabuk buradan seçiliyor → içerik tek yerde kalıyor.
+
+   Tam sayfada ✕ "kapat" değil GERİ'dir: açık pencereyi kapatmak yerine önceki
+   ekrana dönülür (ARAYUZ-YENILEME-PROMPT-v2 · tam sayfa kuralı). */
+export function Sheet({ page, title, onClose, width, headExtra, children }) {
+  if (page) {
+    return (
+      <section className="v2page">
+        <div className="v2pagehead">
+          <span className="ttl disp">{title}</span>
+          {headExtra}
+          {onClose && (
+            <button className="lbclose" onClick={onClose} title="←"
+              aria-label="←">←</button>
+          )}
+        </div>
+        {children}
+      </section>
+    );
+  }
+  return (
+    <div className="wxmodal" onClick={onClose}>
+      <div className="wxmbox" style={width ? { width } : undefined}
+        onClick={(e) => e.stopPropagation()}>
+        <div className="wxmhead">
+          <span>{title}</span>
+          {headExtra}
+          <button className="lbclose" onClick={onClose}>✕</button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}

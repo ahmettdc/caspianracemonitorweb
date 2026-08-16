@@ -1,6 +1,7 @@
 /* Sunum komponentleri — durum tutmayan görsel parçalar.
    App.jsx içe aktarır. */
 import { useState, useEffect, useRef, Fragment } from "react";
+import { Sheet } from "./shell";
 import {
   ASSET, quantile, TRACKS, TRACK_ASSET,
   CAR_CLASSES, CARS, trackName, carImg, carName, brandLogo,
@@ -1080,20 +1081,19 @@ export function RaceEditModal({ rForm, setRForm, t, seasons, onSave }) {
 /* Sohbet penceresi (kanal sekmeleri + gövde). App.jsx'ten çıkarıldı; sohbet gövdesi
    (ChatPanel'i saran, iki yerde kullanılan) App'te kalıp `chatBody` render-prop'u ile
    gelir. open=false → null döner. */
-export function ChatModal({ open, onClose, t, chatSound, toggleChatSound, chatChans,
-  unreadOf, chatChan, setChatChan, teamData, curChan, chatBody }) {
+/* v2.0: `page` ile modal kabuğu yerine TAM SAYFA çizilir (sol raydan erişilir).
+   Gövde tek yerde kalsın diye kabuk Sheet'ten seçilir. */
+export function ChatModal({ open, onClose, page = false, t, chatSound, toggleChatSound,
+  chatChans, unreadOf, chatChan, setChatChan, teamData, curChan, chatBody }) {
   if (!open) return null;
   return (
-    <div className="wxmodal" onClick={onClose}>
-      <div className="wxmbox" style={{ width: "min(560px,94vw)" }}
-        onClick={(e) => e.stopPropagation()}>
-        <div className="wxmhead">
-          <span>💬 {t("Sohbet")}</span>
-          <button className="lbclose" style={{ marginLeft: "auto", marginRight: 4 }}
-            title={chatSound ? t("Bildirim sesini kapat") : t("Bildirim sesini aç")}
-            onClick={toggleChatSound}>{chatSound ? "🔔" : "🔕"}</button>
-          <button className="lbclose" onClick={onClose}>✕</button>
-        </div>
+    <Sheet page={page} onClose={onClose} width="min(560px,94vw)"
+      title={<>💬 {t("Sohbet")}</>}
+      headExtra={
+        <button className="lbclose" style={{ marginLeft: "auto", marginRight: 4 }}
+          title={chatSound ? t("Bildirim sesini kapat") : t("Bildirim sesini aç")}
+          onClick={toggleChatSound}>{chatSound ? "🔔" : "🔕"}</button>
+      }>
         <div className="chattabs">
           {chatChans.map((c) => {
             const u2 = unreadOf(c);
@@ -1107,8 +1107,7 @@ export function ChatModal({ open, onClose, t, chatSound, toggleChatSound, chatCh
           })}
         </div>
         {chatBody(curChan)}
-      </div>
-    </div>
+    </Sheet>
   );
 }
 
@@ -1674,8 +1673,9 @@ function AssetUpload({ label, current, fallback = "", specKey, aspect, w,
   );
 }
 
-export function TeamModal({ open, onClose, user, t, lang, myTeams, curTeam, setCurTeam,
-  teamData, tnEdit, setTnEdit, canManageTeam, canEditTeam, curSeason, setCurSeason,
+/* v2.0: `page` ile modal kabuğu yerine TAM SAYFA çizilir (sol raydan erişilir). */
+export function TeamModal({ open, onClose, page = false, user, t, lang, myTeams, curTeam,
+  setCurTeam, teamData, tnEdit, setTnEdit, canManageTeam, canEditTeam, curSeason, setCurSeason,
   seasons, races, st, myRole,
   openRace, setRForm, setBadge, roleLabel, onCreateJoin }) {
   /* Araç Görselleri kartı seçimi — hook'lar erken return'den ÖNCE (React kuralı). */
@@ -1685,13 +1685,8 @@ export function TeamModal({ open, onClose, user, t, lang, myTeams, curTeam, setC
   const astKey = astCar ? carAssetKey(astCls, astCar) : "";
   const astCustom = (angle) => teamData?.assets?.cars?.[astKey]?.[angle] || "";
   return (
-        <div className="wxmodal" onClick={onClose}>
-          <div className="wxmbox" style={{ width: "min(680px,95vw)" }}
-            onClick={(e) => e.stopPropagation()}>
-            <div className="wxmhead">
-              <span>⚙ {t("Yönet")} · {t("Takımlar")}</span>
-              <button className="lbclose" onClick={onClose}>✕</button>
-            </div>
+        <Sheet page={page} onClose={onClose} width="min(680px,95vw)"
+          title={<>⚙ {t("Yönet")} · {t("Takımlar")}</>}>
 
             {/* takım seçici (birden çok takım) */}
             {Object.keys(myTeams).length > 1 && (
@@ -1936,8 +1931,7 @@ export function TeamModal({ open, onClose, user, t, lang, myTeams, curTeam, setC
                 </section>
               </>)}
             </div>
-          </div>
-        </div>
+        </Sheet>
   );
 }
 
