@@ -1,4 +1,4 @@
-# i18n — sözlük boşlukları (kapandı)
+# i18n — sözlük boşlukları
 
 `docs/design-handoff/ARAYUZ-YENILEME-PROMPT-v2.md` kural 5:
 
@@ -59,3 +59,32 @@ ve §1–§8'in tamamı.
 
 `Yakıt`, `Lastik`, `Pilot`, `Pilotlar`, `Oto PIT`, `Takım`, `Stint`, `Canlı`,
 `Setup`, `Kapat`, `Telemetri` sözlükte zaten vardı; yeniden eklenmedi.
+
+## Yama 2.0.2 — giriş ekranı (onay bekliyor)
+
+Yeni giriş (login) ekranının metinleri `i18n-EN.md`'de yok. Kural gereği çeviri
+ÜRETİLMEDİ; karşılıklar onaylanınca `src/i18n.js`'e girilecek. Şu an İngilizce
+arayüzde bu satırlar Türkçe görünüyor (işlevsel sorun değil).
+
+| # | TR metin | Önerilen EN (onay bekliyor) |
+| --- | --- | --- |
+| 21 | Race | Race |
+| 22 | Monitor | Monitor |
+| 23 | Giriş yap | Sign in |
+| 24 | Google ile devam et | Continue with Google |
+| 25 | Bağlanılıyor… | Connecting… |
+| 26 | Caspian Motorsport pit wall aracı. Canlı zamanlama, stint planı, yakıt hesabı ve telemetri tek ekranda. | Caspian Motorsport pit-wall tool. Live timing, stint plan, fuel calc and telemetry on one screen. |
+| 27 | Yarış boyunca takımla ortak ekran | A shared screen with your team throughout the race |
+| 28 | Le Mans Ultimate köprüsüyle canlı veri | Live data via the Le Mans Ultimate bridge |
+| 29 | Setup havuzu ve stint geçmişi | Setup pool and stint history |
+| 30 | Google hesabınla devam et. Hesabın yoksa ilk girişte oluşturulur. | Continue with your Google account. If you don't have one, it's created on first sign-in. |
+| 31 | Girişten sonra takım kurabilir ya da davet koduyla katılabilirsin. | After signing in you can create a team or join with an invite code. |
+| 32 | Yarış verisi için masaüstü köprüsünü kurman gerekir. | For race data you need to install the desktop bridge. |
+| 33 | Devam ederek | By continuing you |
+| 34 | kullanım koşullarını | the terms of use |
+| 35 | kabul edersin. | accept. |
+| 36 | Caspian Motorsport · pit wall aracı — resmi olmayan topluluk projesi | Caspian Motorsport · pit-wall tool — unofficial community project |
+
+> 33–35 tek cümlenin parçaları ("Devam ederek [kullanım koşullarını] kabul
+> edersin"); EN'de kelime sırası değişeceği için birleşik cümle olarak da
+> girilebilir — nasıl istersen. "Race"/"Monitor" (21–22) marka adı, çevrilmiyor.

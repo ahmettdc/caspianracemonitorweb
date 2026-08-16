@@ -1284,8 +1284,12 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
     if (!isAdmin || !adminOpen) return;
     return watchAllUsers((u) => setAllUsers(u || {}));
   }, [isAdmin, adminOpen]);
+  /* yama 2.0.2: giriş düğmesinin yükleniyor durumu — Google popup açıkken dönen
+     gösterge + "Bağlanılıyor…". Başarıda kullanıcı state'i dolar → kapı kapanır. */
+  const [signingIn, setSigningIn] = useState(false);
   const doSignIn = async (mode = "in") => {
-    setAuthErr(""); setAuthMode(mode);
+    if (signingIn) return;
+    setAuthErr(""); setAuthMode(mode); setSigningIn(true);
     try { await signInGoogle(); }
     catch (e) {
       const em = e?.message || String(e);
@@ -1298,7 +1302,7 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
         : isTauri
         ? t("Giriş tamamlanamadı — tarayıcıda açılan Google penceresinde giriş yapın. Sorun sürerse:") + " " + em
         : em);
-    }
+    } finally { setSigningIn(false); }
   };
   /* ---- sürüm notları penceresi ---- */
   const [verOpen, setVerOpen] = useState(false);
@@ -1696,39 +1700,96 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
      parlaması olmaz. Chunk aynı origin'den geldiği için bu bekleme pratikte
      auth'tan önce biter. */
   if (authReady && (authLoading || !langReady || !user)) {
+    /* Yükleme (auth/sözlük bekleniyor) → sade bekleme ekranı; giriş verisi
+       parlamasın diye yeni tasarım yalnız GİRİŞ GEREKTİĞİNDE gösterilir. */
+    if (authLoading || !langReady) {
+      return (
+        <div className="rc">
+          <UpdateBanner t={t} />
+          <div className="lobby">
+            <div className="box" style={{ textAlign: "center" }}>
+              <img className="logo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
+              <h1><b>RACE</b> MONITOR</h1>
+              <div className="sub">{APP_VERSION}</div>
+              <div className="hint" style={{ marginTop: 22 }}>{t("Yükleniyor…")}</div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    /* v2.0 giriş ekranı (yama 2.0.2) — iki kolon; kabuğun tamamını kaplar.
+       Eski çift düğme (giriş + kayıt) tek "Google ile devam et"e indirildi:
+       Google akışında ikisi aynı işlem. */
     return (
       <div className="rc">
         <UpdateBanner t={t} />
         {teamModal}{createJoinModal}{raceForm}
-        <div className="lobby">
-          <div className="box" style={{ textAlign: "center" }}>
-            <img className="logo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
-            <h1><b>RACE</b> MONITOR</h1>
-            <div className="sub">{APP_VERSION}</div>
-            {(authLoading || !langReady) ? (
-              <div className="hint" style={{ marginTop: 22 }}>{t("Yükleniyor…")}</div>
-            ) : (<>
-              <div className="hint" style={{ margin: "18px 0 14px" }}>
-                {t("Devam etmek için giriş yapın veya kayıt olun.")}</div>
-              <button className="gbtn" onClick={() => doSignIn("in")}>
-                <svg width="17" height="17" viewBox="0 0 48 48" aria-hidden="true">
-                  <path fill="#4285F4" d="M45.1 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h11.8c-.5 2.7-2 5-4.4 6.6v5.5h7.1c4.2-3.8 6.6-9.5 6.6-16.1z"/>
-                  <path fill="#34A853" d="M24 46c6 0 11-2 14.6-5.4l-7.1-5.5c-2 1.3-4.5 2.1-7.5 2.1-5.8 0-10.7-3.9-12.4-9.1H4.3v5.7C7.9 41 15.4 46 24 46z"/>
-                  <path fill="#FBBC05" d="M11.6 28.1c-.4-1.3-.7-2.7-.7-4.1s.3-2.8.7-4.1v-5.7H4.3C2.8 17.1 2 20.4 2 24s.8 6.9 2.3 9.8l7.3-5.7z"/>
-                  <path fill="#EA4335" d="M24 10.8c3.3 0 6.2 1.1 8.5 3.3l6.3-6.3C35 4.2 30 2 24 2 15.4 2 7.9 7 4.3 14.2l7.3 5.7c1.7-5.2 6.6-9.1 12.4-9.1z"/>
-                </svg>
-                {t("Google ile giriş yap")}
-              </button>
-              <div style={{ marginTop: 10 }}>
-                <button className="histbtn" onClick={() => doSignIn("up")}>
-                  {t("Google ile kayıt ol")}</button>
+        <div className="auth">
+          <span className="authlang">
+            {["tr", "en"].map((l) => (
+              <button key={l} className={lang === l ? "on" : ""}
+                onClick={() => switchLang(l)}>{l.toUpperCase()}</button>
+            ))}
+          </span>
+
+          <div className="authgrid">
+            {/* sol: marka bloğu */}
+            <div className="authbrand">
+              <img src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <h1 className="authttl disp"><b>{t("Race")}</b> {t("Monitor")}</h1>
+                <p className="authlede">
+                  {t("Caspian Motorsport pit wall aracı. Canlı zamanlama, stint planı, yakıt hesabı ve telemetri tek ekranda.")}</p>
               </div>
-              {authErr && <div className="hint" style={{ color: "var(--red)", marginTop: 10 }}>
-                {authErr}</div>}
-              <div className="hint" style={{ marginTop: 18, fontSize: 11 }}>
-                {t("Caspian Motorsport · pit wall aracı")}</div>
-            </>)}
+              <div className="authpts">
+                <span><i />{t("Yarış boyunca takımla ortak ekran")}</span>
+                <span><i />{t("Le Mans Ultimate köprüsüyle canlı veri")}</span>
+                <span><i />{t("Setup havuzu ve stint geçmişi")}</span>
+              </div>
+            </div>
+
+            {/* sağ: giriş kartı */}
+            <div className="authcard">
+              <div className="body">
+                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                  <h2>{t("Giriş yap")}</h2>
+                  <span className="lede">
+                    {t("Google hesabınla devam et. Hesabın yoksa ilk girişte oluşturulur.")}</span>
+                </div>
+
+                <button className="gbtn2" onClick={() => doSignIn("in")}
+                  aria-busy={signingIn} disabled={signingIn}>
+                  {signingIn ? <i className="gspin" /> : (
+                    <svg width="17" height="17" viewBox="0 0 48 48" aria-hidden="true"
+                      style={{ flex: "0 0 auto" }}>
+                      <path fill="#4285F4" d="M45.1 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h11.8c-.5 2.7-2 5-4.4 6.6v5.5h7.1c4.2-3.8 6.6-9.5 6.6-16.1z"/>
+                      <path fill="#34A853" d="M24 46c6 0 11-2 14.6-5.4l-7.1-5.5c-2 1.3-4.5 2.1-7.5 2.1-5.8 0-10.7-3.9-12.4-9.1H4.3v5.7C7.9 41 15.4 46 24 46z"/>
+                      <path fill="#FBBC05" d="M11.6 28.1c-.4-1.3-.7-2.7-.7-4.1s.3-2.8.7-4.1v-5.7H4.3C2.8 17.1 2 20.4 2 24s.8 6.9 2.3 9.8l7.3-5.7z"/>
+                      <path fill="#EA4335" d="M24 10.8c3.3 0 6.2 1.1 8.5 3.3l6.3-6.3C35 4.2 30 2 24 2 15.4 2 7.9 7 4.3 14.2l7.3 5.7c1.7-5.2 6.6-9.1 12.4-9.1z"/>
+                    </svg>
+                  )}
+                  <span>{signingIn ? t("Bağlanılıyor…") : t("Google ile devam et")}</span>
+                </button>
+
+                {/* Hata durumu tasarımda yoktu (YAMA.md); kart içinde kırmızı satır. */}
+                {authErr && <div className="autherr">{authErr}</div>}
+
+                <div className="authsteps">
+                  <span><b>1</b>{t("Girişten sonra takım kurabilir ya da davet koduyla katılabilirsin.")}</span>
+                  <span><b>2</b>{t("Yarış verisi için masaüstü köprüsünü kurman gerekir.")}</span>
+                </div>
+              </div>
+              <div className="authfoot">
+                <span className="terms">
+                  {t("Devam ederek")} <a href="#" onClick={(e) => e.preventDefault()}>
+                    {t("kullanım koşullarını")}</a> {t("kabul edersin.")}</span>
+                <span className="ver">{APP_VERSION}</span>
+              </div>
+            </div>
           </div>
+
+          <span className="authcap">
+            {t("Caspian Motorsport · pit wall aracı — resmi olmayan topluluk projesi")}</span>
         </div>
       </div>
     );
