@@ -1185,7 +1185,8 @@ ${bottomBar}
   /* Adım listesi ./tourSteps.js'te (saf + test edilebilir). "live" bölümü demoyu
      açar → Canlı ekranı veri olmadan da dolu görünür, adımların hedefi oluşur. */
   const tourSteps = useMemo(
-    () => (tour ? buildTourSteps(tour, { t, setTab, setSideOpen, setTourDemo }) : []),
+    () => (tour ? /* v2.0: data adımları sağdan kayan panelde → setSideOpen yerine setRdOpen. */
+      buildTourSteps(tour, { t, setTab, setSideOpen: setRdOpen, setTourDemo }) : []),
     [tour, lang]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const tourOverlay = tour && (

@@ -38,7 +38,8 @@ export function Rail({
         <button className="railopen" onClick={onToggle} title={t("Menüyü aç")}
           aria-label={t("Menüyü aç")}>☰</button>
       )}
-      <nav className={`rail${open ? "" : " hidden"}`} aria-label={t("Ana menü")}>
+      <nav className={`rail${open ? "" : " hidden"}`} aria-label={t("Ana menü")}
+        data-tour="tabs">
         <button className="railtoggle" onClick={onToggle} title={t("Menüyü gizle")}
           aria-label={t("Menüyü gizle")}>‹</button>
 
@@ -174,7 +175,8 @@ export function RaceBar({
             ⚙ {t("Yarış datası")}
             {dirtyN > 0 && <span className="rbdirty">{dirtyN}</span>}
           </button>
-          <button className="rbbtn" onClick={onPitBoard}>📟 {t("Pit Board")}</button>
+          <button className="rbbtn" data-tour="pitboard" onClick={onPitBoard}>
+            📟 {t("Pit Board")}</button>
         </span>
       </div>
     </header>

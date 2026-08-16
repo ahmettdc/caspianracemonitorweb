@@ -29,10 +29,13 @@ export function lobbySteps(t) {
 
 /* ---------- yarış ekranı: klasik bölüm ---------- */
 export function coreSteps(t, { setTab, setSideOpen }) {
+  /* v2.0: yarış datası artık sol kolonda DEĞİL, sağdan kayan panelde. `side`
+     bu yüzden paneli açar; App.jsx setSideOpen olarak setRdOpen geçirir.
+     (Ad geriye dönük uyum için korundu — tourSteps saf modül kalsın diye.) */
   const side = () => setSideOpen(true);
   return [
     { title: t("Pit Wall'a hoş geldin"),
-      body: t("Soldaki panel yarışın datası, sağı canlı plan. Kısaca gezelim — her şeyi değiştirdiğin anda takım arkadaşların da görür.") },
+      body: t("Soldaki ray ekranlar arasında gezinir, üstteki çubuk yarışın canlı özetidir. Kısaca gezelim — her şeyi değiştirdiğin anda takım arkadaşların da görür.") },
     /* --- üst çubuk --- */
     { sel: "[data-tour='hteam']", title: t("Takım düğmesi"),
       body: t("Takvimi ve üyeleri yönetmek her an buradan — yarışın ortasında bile. Rozetler de burada atanır.") },
@@ -57,8 +60,8 @@ export function coreSteps(t, { setTab, setSideOpen }) {
       body: t("LMU'da depo daima %100 VE'dir. Ratio, VE'nin kaç litreye denk geldiğini söyler — tüm yakıt hesapları bu orandan litreye çevrilir.") },
     { sel: "[data-tour='stream']", act: side, title: t("Canlı Yayın"),
       body: t("YouTube linkini yapıştır — köşede yüzen mini oynatıcı açılır. Sekme değiştirsen de akmaya devam eder; köşesinden tutup boyutlandırabilirsin.") },
-    { sel: "[data-tour='tabs']", title: t("Sekmeler"),
-      body: t("Şimdi sekmeleri tek tek gezelim — rehber her birini senin için açacak.") },
+    { sel: "[data-tour='tabs']", title: t("Sol ray"),
+      body: t("Ekranlar arasında soldaki raydan geçersin. Şimdi hepsini tek tek gezelim — rehber her birini senin için açacak.") },
     /* --- Dashboard --- */
     { sel: "[data-tour='dash-prog']", act: () => setTab("dash"),
       title: t("📊 Dashboard — Stint Programı"),
