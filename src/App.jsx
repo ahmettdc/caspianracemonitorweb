@@ -13,7 +13,6 @@ import { useLmuSchedule } from "./useLmuSchedule";
 import { officialRaceToForm } from "./lmuSchedule";
 import { useRaceSync } from "./useRaceSync";
 import { useTelemetry } from "./useTelemetry";
-import TelemetryStandalone from "./TelemetryStandalone";
 import ScheduleStandalone from "./ScheduleStandalone";
 import { firebaseReady,
   requestAccess, watchAllUsers, setUserAllowed, updateProfile,
@@ -294,7 +293,6 @@ export default function App() {
   const [entered, setEntered] = useState(false); // lobi geçildi mi (solo/oda)
   /* Bağımsız üst-düzey ekranlar artık ayrı bayrak değil, `screen`den türer —
      böylece geri tuşu ve URL bunlarda da çalışır. */
-  const teleOnly = screen === "tele" && !entered;   // Race Solo'dan AYRI telemetri
   const scheduleOnly = screen === "official";        // yarıştan AYRI resmi takvim
   const [pickDone, setPickDone] = useState(false); // pist/araç seçimi tamamlandı mı
   const [setupDone, setSetupDone] = useState(false); // data giriş adımı tamamlandı mı
@@ -2408,17 +2406,8 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
     );
   }
 
-  /* ---------- bağımsız Telemetri ekranı (Ana Menü → Telemetri) ----------
-     Race Solo yolundan (entered/pick/setup/race shell) TAMAMEN ayrı üst-düzey görünüm;
-     kendi (ikinci) useTelemetry örneğiyle beslenir. Çıkış (🏠 Ana Menü) yalnız teleOnly'yi
-     kapatır → lobiye döner; entered/curRace'e dokunmaz. */
-  if (teleOnly) {
-    return (
-      <TelemetryStandalone t={t} lang={lang} switchLang={switchLang} st={teleSt} up={() => {}}
-        onSaveDuckSetup={user ? saveTeleSetup : null}
-        onExit={back} {...teleHook} />
-    );
-  }
+  /* Telemetri (Ana Menü → Telemetri) artık lobi kabuğu içinde (sol ray korunur) —
+     aşağıdaki screen==="tele" dalında çizilir; ayrı üst-düzey görünüm KALDIRILDI. */
 
   /* ---------- bağımsız Resmi Yarışlar ekranı (Ana Menü → Resmi Yarışlar) ----------
      Race Solo yolundan TAMAMEN ayrı üst-düzey görünüm; yarış seçmeye/oda-solo açmaya
@@ -2601,14 +2590,20 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
         {/* v2.0: Takım/Sohbet ana menüden de TAM SAYFA (modal değil) — sol raydan
             gezinir; Ana Menü'ye ray 🏠 ile dönülür. Yarış-içi kabuktaki
             .v2grid > .v2screen yerleşimiyle birebir. */}
-        {(screen === "team" || screen === "chat" || screen === "setup") ? (
+        {(screen === "team" || screen === "chat" || screen === "setup" || screen === "tele") ? (
         <div className="grid noside v2grid">
           <div className="v2screen">
             {(() => { const g = guideFor(screen, t); return g
               ? <Guide title={g.title} text={g.text} /> : null; })()}
             <div id="tabpanel-main" role="region" aria-label={t("Ana içerik")} tabIndex={-1}>
               {screen === "team" ? teamSheet(true)
-                : screen === "setup" ? setupSheet(true) : chatSheet(true)}
+                : screen === "setup" ? setupScreen()
+                : screen === "tele" ? (
+                  <Suspense fallback={<div className="hint" style={{ padding: 20 }}>⏳ {t("Yükleniyor…")}</div>}>
+                    <TeleTab t={t} lang={lang} st={teleSt} up={() => {}} standalone
+                      {...teleHook} onSaveDuckSetup={user ? saveTeleSetup : null} />
+                  </Suspense>
+                ) : chatSheet(true)}
             </div>
           </div>
         </div>
