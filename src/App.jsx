@@ -2423,7 +2423,7 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
         <div className="v2main">
           <UpdateBanner t={t} />
           <div className="grid noside v2grid">
-            <div className="v2screen">
+            <div key={screen} className="v2screen">
               <div id="tabpanel-main" role="region" aria-label={t("Ana içerik")} tabIndex={-1}>
                 <Suspense fallback={<div className="hint" style={{ padding: 20 }}>⏳ {t("Yükleniyor…")}</div>}>
                   <ScheduleTab t={t} lang={lang} races={lmu.races} updatedAt={lmu.updatedAt}
@@ -2607,7 +2607,7 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
             .v2grid > .v2screen yerleşimiyle birebir. */}
         {(screen === "team" || screen === "chat" || screen === "setup" || screen === "tele") ? (
         <div className="grid noside v2grid">
-          <div className="v2screen">
+          <div key={screen} className="v2screen">
             {(() => { const g = guideFor(screen, t); return g
               ? <Guide title={g.title} text={g.text} /> : null; })()}
             <div id="tabpanel-main" role="region" aria-label={t("Ana içerik")} tabIndex={-1}>
@@ -4280,7 +4280,7 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
           (SAHNELE + UYGULA). Ekranlar tam genişlikte; kabukta yalnız 76px sol ray
           var. `.grid` sınıfı viewonly pasifleştirmesi için korundu. */}
       <div className={`grid noside v2grid ${role === "viewer" && curRace ? "viewonly" : ""}`}>
-        <div className="v2screen">
+        <div key={screen} className="v2screen">
           {/* Rehber kutuları (README §17) — her ekranın üstünde tek satır ipucu.
               İkon ve kapatma düğmesi yok; metinler src/guides.js'te ekran
               kimliğine göre. Statik ipuçları HEP AÇIK, opsiyonel interaktif tur
