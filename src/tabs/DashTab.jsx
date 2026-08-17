@@ -164,6 +164,14 @@ export default function DashTab({
                   {t("Stint")} <b style={{ color: "var(--rc-text)" }}>{liveInfo.stintIdx + 1}</b>
                   {liveInfo.driver && <> · {t("pilot")} <b style={{ color: "var(--rc-text)" }}>
                     {liveInfo.driver}</b></>}
+                  {/* fiş: aktif stintin geçen süresi ("18:52'dir pistte") */}
+                  {(() => {
+                    const el = (liveInfo.phaseEnd - liveInfo.stintStartMs) - liveInfo.nextPitIn;
+                    return liveInfo.phase !== "pit" && el > 0
+                      ? <> · <b style={{ color: "var(--rc-text)" }}>{fmtHMS(el / 1000)}</b>{" "}
+                          {t("süredir pistte")}</>
+                      : null;
+                  })()}
                   {liveInfo.phase === "pit" && <> · {t("(PIT'te)")}</>}
                   {pitSoon && <> · <b style={{ color: "var(--rc-text)" }}>{t("pit yaklaşıyor")}</b></>}
                 </span>

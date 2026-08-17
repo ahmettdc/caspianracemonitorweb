@@ -43,7 +43,7 @@ import { pruneAssignments } from "./avail";
 import {
   SLOT_COLORS, APP_VERSION, APP_VERSION_SUMMARY, SEEN_VER_KEY, ASSET, AV, SUPPORT_EMAIL,
   TRACKS, PIT_LANE_TIMES, TRACK_ASSET,
-  CARS, CAR_CLASSES, trackName, carName, carImg, brandLogo, classId, venueToTrackId,
+  CARS, CAR_CLASSES, trackName, carName, carImg, brandLogo, classId, classAccent, venueToTrackId,
   PIE_COLORS, DESKTOP_RELEASE_URL, BRIDGE_EXE_URL,
 } from "./constants";
 import {
@@ -3823,6 +3823,20 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
         const isLive = liveInfo.status === "live";
         const own = live?.own || null;
         const r = races[curRace];
+        /* Sınıf-içi pozisyon (fiş üst çubuk "· GT3 P2"): saha pozisyona göre sıralı
+           gelir → oyuncunun sınıfındaki araçları oyuncuya kadar say. */
+        const field = Array.isArray(live?.field) ? live.field : [];
+        const pcar = field.find((c) => c.isPlayer);
+        let posCls = null, posClsColor;
+        if (isLive && pcar?.carClass && classId(pcar.carClass)) {
+          const cid = classId(pcar.carClass);
+          let rank = 0;
+          for (const c of field) {
+            if (classId(c.carClass) === cid) { rank += 1; if (c === pcar) break; }
+          }
+          posCls = `${String(pcar.carClass).toUpperCase()} P${rank}`;
+          posClsColor = classAccent(pcar.carClass) || undefined;
+        }
         return (
           <RaceBar t={t}
             flagSrc={st.track ? `${ASSET}flags/${st.track}.png` : ""}
@@ -3839,10 +3853,11 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
             remainPct={isLive ? raceFrac : 0}
             nextPit={isLive ? fmtHMS(liveInfo.nextPitIn / 1000) : null}
             nextPitSub={isLive
-              ? `S${liveInfo.stintIdx + 1}${liveInfo.driver ? ` · ${liveInfo.driver}` : ""}`
+              ? `S${liveInfo.stintIdx + 1}/${racePlan.fullStints}${liveInfo.driver ? ` · ${liveInfo.driver}` : ""}`
               : null}
             pitAlert={!!pitSoon}
             pos={own?.pos != null ? `P${own.pos}` : null}
+            posCls={posCls} posClsColor={posClsColor}
             posSub={pitFrac > 0 ? `%${Math.round(pitFrac)} ${t("stint")}` : null}
             energy={own?.virtualEnergy != null ? `${Math.round(own.virtualEnergy)}%` : null}
             energyPct={own?.virtualEnergy ?? 0}
@@ -3865,6 +3880,44 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
         <div className="pitboard" onClick={() => setPitboard(false)}>
           <button className="close" onClick={() => setPitboard(false)}>✕</button>
           <img className="plogo" src={`${ASSET}logo.png`} alt="" />
+          {/* fiş: üst kimlik çubuğu — yarış adı + canlı bayrak durumu + #no · pilot */}
+          {(() => {
+            const pbName = races[curRace]?.name || trackName(st.track) || t("Solo");
+            const pcar = Array.isArray(live?.field) ? live.field.find((c) => c.isPlayer) : null;
+            const pbNo = pcar?.number != null ? `#${pcar.number}` : null;
+            const pbDrv = liveInfo.driver || pcar?.driver || "";
+            const flag = live?.session?.flag;
+            const flagCol = !flag || flag === "Green" ? "var(--rc-ok)"
+              : (flag === "Yellow" || flag === "FCY") ? "var(--rc-flag-yellow)"
+              : "var(--rc-brand-bright)";
+            const flagLbl = !flag || flag === "Green" ? t("yeşil bayrak")
+              : flag === "Yellow" ? t("sarı bayrak")
+              : flag === "FCY" ? "FCY"
+              : flag === "Red" ? t("kırmızı bayrak") : t(flag);
+            return (
+              <div onClick={(e) => e.stopPropagation()}
+                style={{ position: "absolute", top: 16, left: 24, right: 76, display: "flex",
+                  alignItems: "center", gap: 14, flexWrap: "wrap", textAlign: "left" }}>
+                <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700,
+                  fontSize: "clamp(18px,2.4vw,26px)", letterSpacing: ".03em",
+                  color: "var(--rc-text)" }}>{pbName}</span>
+                {liveInfo.status === "live" && (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 11,
+                    textTransform: "uppercase", letterSpacing: ".12em", padding: "4px 12px",
+                    borderRadius: 99, border: `1px solid ${flagCol}`, color: flagCol }}>
+                    <i style={{ width: 8, height: 8, borderRadius: "50%", background: flagCol,
+                      boxShadow: `0 0 8px ${flagCol}`,
+                      animation: "rcpulse 1.2s ease-in-out infinite" }} />{flagLbl}
+                  </span>
+                )}
+                {(pbNo || pbDrv) && (
+                  <span style={{ fontFamily: "var(--rc-font-display)",
+                    fontSize: "clamp(13px,1.6vw,18px)", color: "var(--rc-text-3)" }}>
+                    {[pbNo, pbDrv].filter(Boolean).join(" · ")}</span>
+                )}
+              </div>
+            );
+          })()}
           {liveInfo.status === "pre" && (<>
             <div className="plbl">{t("Start'a")}</div>
             <div className="huge" style={{ color: "var(--yellow)" }}>

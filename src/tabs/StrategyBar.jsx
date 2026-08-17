@@ -6,7 +6,6 @@ import { fmtDur } from "../engine";
    Pit-loss (pit yolunda kaybedilen saniye) kullanıcı girer; localStorage'da tutulur.
    Yalnız gösterim; ek veri gerektirmez (mevcut gapSec/intervalSec). Ana tema #960018. */
 
-const BRAND = "#960018";
 const TRAFFIC_WIN = 3;   // ±sn trafik penceresi
 
 const codeOf = (name) => {
@@ -17,14 +16,16 @@ const codeOf = (name) => {
    "1:60.0" gibi değerler üretiyordu) */
 const fmt = fmtDur;
 
-function Chip({ label, value, color, title }) {
+/* Etiket/değer SATIRI (fiş 05-canli-strateji: ~92px etiket + Rajdhani bold değer).
+   Yatay çip yerine dikey satır düzeni → pit-wall'da hızlı taranır. */
+function Row({ label, value, color, title }) {
   return (
-    <span className="chip" title={title} style={{ display: "inline-flex", gap: 6,
-      alignItems: "baseline", fontSize: 12, ...(color && { borderColor: color }) }}>
-      <span style={{ color: "var(--dim)", textTransform: "uppercase", fontSize: 10,
-        letterSpacing: ".04em" }}>{label}</span>
-      <b style={{ color: color || "var(--txt)" }}>{value}</b>
-    </span>
+    <div style={{ display: "flex", alignItems: "baseline", gap: 10 }} title={title}>
+      <span style={{ width: 92, flex: "0 0 auto", fontSize: 10, color: "var(--rc-text-3)",
+        textTransform: "uppercase", letterSpacing: ".08em" }}>{label}</span>
+      <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 15,
+        color: color || "var(--rc-text)" }}>{value}</b>
+    </div>
   );
 }
 
@@ -62,36 +63,42 @@ export default function StrategyBar({ t, field, embedded }) {
       <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
         ...(embedded && { marginTop: 0 }) }}>
         🎯 {t("Strateji")}
-        <span className="chip" style={{ fontSize: 11, borderColor: BRAND, color: "#fff",
-          background: BRAND }}>{codeOf(me.driver)} · P{me.pos}</span>
-        <label style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6,
-          fontSize: 11, color: "var(--dim)" }}>
-          {t("PIT KAYBI")}
-          <input type="number" min="0" max="180" value={pitLoss}
-            onChange={(e) => setPL(Math.max(0, Number(e.target.value) || 0))}
-            style={{ width: 56, padding: "3px 6px", fontSize: 13, textAlign: "right" }} />
-          <span>s</span>
-        </label>
+        <span className="chip" style={{ fontSize: 11, borderColor: "var(--rc-brand-bright)",
+          color: "var(--rc-on-brand)", background: "var(--rc-brand)" }}>
+          {codeOf(me.driver)} · P{me.pos}</span>
       </h2>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <Chip label={t("Önünde")}
+      {/* fiş: dikey etiket/değer satırları (yatay çip yerine) */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <Row label={t("Önünde")}
           value={ahead ? `${codeOf(ahead.driver)} +${fmt(aheadGap)}` : t("Lider")}
           title={t("Öndeki araca fark")} />
-        <Chip label={t("Arkanda")}
+        <Row label={t("Arkanda")}
           value={behind ? `${codeOf(behind.driver)} -${fmt(behindGap)}` : "—"}
           title={t("Arkadaki aracın farkı")} />
-        <Chip label={t("Temiz hava")}
+        <Row label={t("Temiz hava")}
           value={clean != null ? `${t("en yakın")} ${fmt(clean)}s` : "—"}
-          color={clean != null && clean > 5 ? "var(--green)" : undefined}
+          color={clean != null && clean > 5 ? "var(--rc-ok)" : undefined}
           title={t("En yakın araca zaman farkı")} />
-        <Chip label={t("Trafik")}
+        <Row label={t("Trafik")}
           value={`±${TRAFFIC_WIN}s ${t("içinde")} ${traffic} ${t("araç")}`}
-          color={traffic > 0 ? "var(--yellow)" : "var(--green)"}
+          color={traffic > 0 ? "var(--rc-warn)" : "var(--rc-ok)"}
           title={t("±3 sn içinde kaç araç var")} />
-        <Chip label={t("Pit çıkışı")}
+        <Row label={t("Pit çıkışı")}
           value={`~P${newPos}${rejoinAhead ? ` · ${codeOf(rejoinAhead.driver)}↑` : ""}${rejoinBehind ? ` ${codeOf(rejoinBehind.driver)}↓` : ""}`}
-          color={BRAND}
+          color="var(--rc-brand-bright)"
           title={t("Şimdi pit'e girersen (pit kaybı kadar geriye) tahmini sıra")} />
+      </div>
+      {/* fiş: pit-kaybı girişi altta, ayraçla ayrılmış */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12,
+        paddingTop: 12, borderTop: "1px solid var(--rc-border)" }}>
+        <span style={{ fontSize: 10, color: "var(--rc-text-3)", textTransform: "uppercase",
+          letterSpacing: ".08em" }}>{t("Pit kaybı")}</span>
+        <input type="number" min="0" max="180" value={pitLoss}
+          onChange={(e) => setPL(Math.max(0, Number(e.target.value) || 0))}
+          style={{ width: 64, padding: "5px 8px", fontSize: 14, textAlign: "right",
+            fontFamily: "var(--rc-font-display)", background: "var(--rc-surface-3)",
+            border: "1px solid var(--rc-border)", borderRadius: 8, color: "var(--rc-text)" }} />
+        <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>{t("saniye")}</span>
       </div>
   </>);
   // gömülü: dış kart yok (harita kartının içinde, en üstte) — ince ayraçla ayrılır

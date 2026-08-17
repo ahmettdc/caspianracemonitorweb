@@ -161,32 +161,37 @@ function Brand({ manufacturer, vehicleName, className = "" }) {
 /* Rakip karşılaştırma tepsisi (v2.0) — saha satırına tıklayınca alttan kayar.
    Son tur · AVG5 · S1–S3 · enerji; fark renkli (yeşil = sen daha hızlısın).
    Kendi satırın tıklanamaz (LiveTab satır onClick'i player'da undefined). */
-function CompareTray({ t, own, rival, onClose }) {
+function CompareTray({ t, own, ownName, rival, onClose }) {
   if (!rival) return null;
   const secs = (x) => String(x || "").split(",").map((v) => Number(v) || null);
   const oS = secs(own?.lastSectors), rS = secs(rival.lastSectors);
   const delta = (mine, his) =>
     (mine == null || his == null || !Number.isFinite(mine) || !Number.isFinite(his))
       ? null : mine - his;
+  /* fiş: her hücrede KENDİ değerin (bold, üstte) + delta + rakip (mavi, ikincil altta).
+     delta = kendi − rakip → kendin daha hızlı/düşükse yeşil (up). */
   const cell = (label, mine, his, fmt) => {
     const d = delta(mine, his);
     return (
       <span className="cmpcell" key={label}>
         <span className="cmpk">{label}</span>
-        <b className="cmpv">{fmt(his)}</b>
+        <b className="cmpv">{fmt(mine)}</b>
         {d != null && (
           <span className={`cmpd ${d < 0 ? "up" : d > 0 ? "down" : ""}`}>
             {d > 0 ? "+" : ""}{d.toFixed(3)}
           </span>
         )}
+        <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 11,
+          color: "var(--rc-delta)", opacity: 0.85 }}>{fmt(his)}</span>
       </span>
     );
   };
+  const ownLbl = `${own?.number != null ? `#${own.number} ` : ""}${ownName || t("Sen")}`;
   return (
     <div className="cmptray open" role="region" aria-label={t("Karşılaştırma")}>
       <span className="cmphead">
-        <b>{rival.driver || "—"}</b>
-        <span className="fsub">{t("Rakip")}</span>
+        <b>{t("Karşılaştırma")}</b>
+        <span className="fsub">{ownLbl} ↔ {rival.driver || "—"}</span>
       </span>
       {cell(t("Son tur"), own?.lastSec, rival.lastSec, lap)}
       {cell("AVG5", own?.avg5Sec, rival.avg5Sec, lap)}
@@ -1189,7 +1194,9 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
         const ck = carKey(cmpCar);
         const fresh = fieldAll.find((c) => carKey(c) === ck);
         return fresh
-          ? <CompareTray t={t} own={own} rival={fresh} onClose={() => setCmpCar(null)} />
+          ? <CompareTray t={t} own={own}
+              ownName={fieldAll.find((c) => c.isPlayer)?.driver}
+              rival={fresh} onClose={() => setCmpCar(null)} />
           : null;
       })()}
 
