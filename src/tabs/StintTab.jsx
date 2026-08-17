@@ -9,12 +9,14 @@ import { driverColorOf } from "../constants";
 /* Lastik ışığı durumları (README §4 TY_STATE) — state.js applyUpTyre döngüsüne
    eşlenmiş: 0 taşı · 1 yeni kuru · 2 Qual'a dön · 3 wet · 4 eski kuru tekrar.
    col/bg fişteki lastik çipi renklerinin --rc-* karşılığı; tag/title UI metni. */
+/* Renk kodu (kullanıcı isteği): sarı=yeni · mavi=qual · yeşil=wet · koyu=eski
+   tekrar · pasif(dashed)=değişmeme. */
 const TY_STATE = [
-  { tag: "→", title: "Taşı — tıkla: yeni kuru",          col: "var(--rc-text-4)", bg: "transparent",           dashed: true },
-  { tag: "N", title: "Yeni kuru — tıkla: Qual'a dön",     col: "var(--rc-ok)",     bg: "rgba(55,214,122,.16)" },
+  { tag: "→", title: "Değişme (taşı) — tıkla: yeni kuru", col: "var(--rc-text-4)", bg: "transparent",           dashed: true },
+  { tag: "N", title: "Yeni kuru — tıkla: Qual'a dön",     col: "var(--rc-warn)",   bg: "rgba(245,178,61,.16)" },
   { tag: "Q", title: "Qual lastiği — tıkla: wet",         col: "var(--rc-info-2)", bg: "rgba(102,148,255,.16)" },
-  { tag: "W", title: "Wet (sınırsız) — tıkla: eski kuru", col: "var(--rc-info)",   bg: "rgba(76,154,255,.16)" },
-  { tag: "U", title: "Eski kuru tekrar — tıkla: taşı",    col: "var(--rc-warn)",   bg: "rgba(245,178,61,.16)" },
+  { tag: "W", title: "Wet (sınırsız) — tıkla: eski kuru", col: "var(--rc-ok)",     bg: "rgba(55,214,122,.16)" },
+  { tag: "U", title: "Eski kuru tekrar — tıkla: taşı",    col: "var(--rc-text-3)", bg: "rgba(150,140,146,.14)" },
 ];
 /* Pilot adından baş harfler (avatar rozeti) */
 const initials = (name) => (name || "").split(/\s+/).filter(Boolean)
@@ -144,7 +146,12 @@ export default function StintTab({
             🛞 {t("S1 start lastikleri")}</span>
           <span style={{ display: "flex", gap: 5 }}>
             {TY.map((corner, ci) => {
-              const stv = tyState(st.tyreStints[0]?.[ci]);
+              /* S1 hücresi SET NUMARASI tutar (tyState değil — o ham sayıyı TY_STATE
+                 index'i sanıp taşıyordu → 5+ set numarasında çöküyordu). Durumu
+                 anlamlıca türet: boş=değişme · W=wet · qual seti=qual · yeni=yeni. */
+              const s1v = String(st.tyreStints[0]?.[ci] ?? "").trim();
+              const stv = s1v === "" ? 0 : s1v === "W" ? 3
+                : (st.tyreQual || []).some((q) => String(q).trim() === s1v) ? 2 : 1;
               return (
                 <span key={corner} style={s1chip(stv)}>{corner}
                   <b style={{ fontSize: 9.5, opacity: 0.8, marginLeft: 4 }}>{TY_STATE[stv].tag}</b></span>

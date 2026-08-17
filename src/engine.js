@@ -21,6 +21,7 @@ export const parseHMS = (s) => {
 export const RACE_PAST_BUFFER_MS = 30 * 60e3;   // planlı bitişten sonra 30 dk pay
 export function raceEndsBy(r) {
   const start = r?.startsAt || 0;
+  if (!start) return Infinity;   // başlangıç saati yok (planlanmamış) → ASLA Geçmiş'e düşmez
   const durMs = parseHMS(r?.raceTime || "") * 1000;
   return durMs > 0 ? start + durMs + RACE_PAST_BUFFER_MS : start + 6 * 3600e3;
 }

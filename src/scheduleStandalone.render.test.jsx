@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import ScheduleStandalone from "./ScheduleStandalone.jsx";
 import ScheduleTab from "./tabs/ScheduleTab.jsx";
@@ -65,6 +65,10 @@ describe("ScheduleTab — yarış merkezi UI", () => {
 /* v2.0 (README §13): liste artık duruma göre (Şu An Canlı / Yaklaşan /
    Tamamlanan) değil GÜNE GÖRE gruplanıyor — Bugün / Yarın / tarih. */
 describe("ScheduleTab — güne göre gruplama (v2.0)", () => {
+  /* Saat bağımsızlığı: now+offset akşam geç saatte yarına taşınıp "Bugün"/"Yarın"
+     gruplamasını kaydırmasın diye sistem saati sabit öğleye çekilir. */
+  beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date(2026, 5, 15, 12, 0, 0)); });
+  afterEach(() => { vi.useRealTimers(); });
   const day = 86400000;
   const at = (offset, over = {}) => ({
     ...RACE, id: `r${offset}${over.id || ""}`,
