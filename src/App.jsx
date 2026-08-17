@@ -1811,14 +1811,27 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
   /* RaceEditModal "İleri" → yarış datası adımına (setupDone formu) götür. Doğrudan
      kaydetmez: st, meta + (düzenlemede) mevcut race state ile tohumlanır; Kaydet
      formda yapılır (saveRaceWizard) → meta ile birlikte strateji state'i de yazılır. */
+  /* Sihirbaz "Geri → İleri" düzenleme kaybını önleyen tek-kullanımlık koruma:
+     Geri'de data-formundaki düzenlenmiş st stash'lenir, sonraki İleri AYNI yarış için
+     onu taban alır (yeni/düzenle açılışı wizResumeRef=null olduğu için asla miras almaz). */
+  const wizResumeRef = useRef(null);
+  const wizKey = (f, payload) => [f.rid || "", payload.trackId, payload.carClass,
+    payload.carId, payload.raceTime || "", payload.startsAt || ""].join("|");
   const raceFormNext = async (f) => {
     if (!curTeam) return;
     const payload = raceFormPayload(f);
-    let base = { ...DEFAULT_STATE };
-    if (f.rid) {                       // düzenleme → mevcut strateji state'ini yükle
-      const remote = await raceStateGet(curTeam, f.rid).catch(() => null);
-      const parsed = remote?.stateJson ? safeParseState(remote.stateJson) : null;
-      if (parsed) base = parsed;
+    const resume = wizResumeRef.current;
+    wizResumeRef.current = null;        // tek kullanımlık — bir sonraki açılışa sızmasın
+    let base;
+    if (resume && resume.key === wizKey(f, payload)) {
+      base = resume.st;                // Geri→İleri: data-formu düzenlemelerini koru
+    } else {
+      base = { ...DEFAULT_STATE };
+      if (f.rid) {                     // düzenleme → mevcut strateji state'ini yükle
+        const remote = await raceStateGet(curTeam, f.rid).catch(() => null);
+        const parsed = remote?.stateJson ? safeParseState(remote.stateJson) : null;
+        if (parsed) base = parsed;
+      }
     }
     setSt(migrate({
       ...base,
@@ -1854,6 +1867,8 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
   /* Data formunda "Geri" (sihirbaz modu) → meta penceresini yeniden aç. */
   const backRaceWizard = () => {
     const f = raceWizard?.form;
+    const payload = raceWizard?.payload;
+    if (f && payload) wizResumeRef.current = { key: wizKey(f, payload), st: migrate(st) };
     setRaceWizard(null);
     setEntered(false); setPickDone(false); setSetupDone(false);
     go("home");
@@ -2649,7 +2664,9 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
         <Rail t={t} screen={screen} go={homeGo} onHome={() => go("home")}
           open={railOpen} onToggle={() => setRailOpen((v) => !v)}
           version={APP_VERSION} chatScreen="chat" unread={chatUnread}
-          onChat={() => go("chat")} />
+          onChat={() => go("chat")}
+          disabledIds={nextEntry ? [] : ["dash", "stint", "fuel", "live", "tyre", "drivers"]}
+          disabledTitle={t("Önce bir yarış aç (Takvimde ‘Aç’)")} />
         <div className="v2main">
         <UpdateBanner t={t} />
         {/* v2.0: Takım/Sohbet ana menüden de TAM SAYFA (modal değil) — sol raydan
@@ -2825,7 +2842,12 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
                   <div className="ttl"><b>{t("Yarış yok")}</b>
                     <span>{t("Takvime yarış ekle ya da resmi yarışlardan planla.")}</span></div>
                   <div className="acts">
-                    <button className="setup" onClick={() => setRForm({})}>＋ {t("Yarış ekle")}</button>
+                    {/* "Yarış ekle" yalnız takımı olan editör/owner'da — diğer tüm
+                       giriş noktalarıyla tutarlı. Eskiden guard yoktu: takımsız/viewer
+                       kullanıcı basınca modal açılıp İleri/Kaydet sessizce no-op oluyordu. */}
+                    {canEditTeam && curTeam && (
+                      <button className="setup" onClick={() => setRForm({})}>＋ {t("Yarış ekle")}</button>
+                    )}
                     <button className="setup" onClick={() => go("official")}>{t("Resmi yarışlar")}</button>
                   </div>
                 </div>
@@ -3780,16 +3802,24 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
                     {t("Köşedeki mini oynatıcıda gösteriliyor")}</span>
                 </div>
                 <div style={streamHint}>{t("Geçerli bir YouTube linki yapıştır; köşede mini oynatıcı açılır.")}</div>
+                {/* Mini oynatıcı konum/boyut — gerçek useMiniPlayer handler'larına bağlı
+                   (eskiden onClick yoktu, ölü butonlardı). Aktif köşe vurgulanır. */}
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
-                  <button style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--rc-border)",
-                    background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 11.5 }}>
-                    ◤ {t("Sol üst")}</button>
-                  <button style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--rc-brand-bright)",
-                    background: "rgba(150,0,24,.22)", color: "var(--rc-text)", cursor: "pointer", fontSize: 11.5 }}>
-                    ◢ {t("Sağ alt")}</button>
-                  <button style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--rc-border)",
-                    background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 11.5 }}>
-                    {t("Boyut: orta")}</button>
+                  {[["tl", "◤", t("Sol üst")], ["br", "◢", t("Sağ alt")]].map(([c, ch, lbl]) => {
+                    const on = streamCorner === c;
+                    return (
+                      <button key={c} onClick={() => moveStream(c)}
+                        style={{ padding: "6px 12px", borderRadius: 8,
+                          border: `1px solid ${on ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
+                          background: on ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)",
+                          color: on ? "var(--rc-text)" : "var(--rc-text-2)", cursor: "pointer", fontSize: 11.5 }}>
+                        {ch} {lbl}</button>
+                    );
+                  })}
+                  <button onClick={() => setStreamMin(!streamMin)}
+                    style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--rc-border)",
+                      background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 11.5 }}>
+                    {t("Boyut")}: {streamMin ? t("küçük") : t("orta")}</button>
                 </div>
               </div>
             </div>

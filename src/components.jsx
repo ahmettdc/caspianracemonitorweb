@@ -409,9 +409,26 @@ export const hasBadge = (team, uid, id) => {
   return typeof b === "string" ? b === id : !!b?.[id];
 };
 
+/* Ondalık-güvenli sayı girişi (yarış datası paneli: VE tüketim / fuel ratio / pit
+   süreleri). Eskiden type="number" + parseFloat(...)||0 idi: alan boşaltılamıyor,
+   "0.85" güvenilmez şekilde sıfıra snap ediyordu. Artık kontrollü METİN tutar; step>=1
+   olan alanlar (strateji tur sayısı, extraLap, tyreLimit) yalnız tam sayı kabul eder. */
 export function Num({ v, onC, step = 0.01, w }) {
-  return <input type="number" step={step} value={v} style={w ? { width: w } : {}}
-    onChange={(e) => onC(parseFloat(e.target.value) || 0)} />;
+  const int = step >= 1;
+  const [txt, setTxt] = useState(v == null ? "" : String(v));
+  const emitted = useRef(v);
+  useEffect(() => {
+    if (v !== emitted.current) { emitted.current = v; setTxt(v == null ? "" : String(v)); }
+  }, [v]);
+  return <input type="text" inputMode={int ? "numeric" : "decimal"} value={txt}
+    style={w ? { width: w } : {}}
+    onChange={(e) => {
+      const s = e.target.value.replace(",", ".");
+      if (s !== "" && !(int ? /^\d*$/ : /^\d*\.?\d*$/).test(s)) return;
+      setTxt(s);
+      const n = (s === "" || s === ".") ? 0 : parseFloat(s);
+      if (!Number.isNaN(n)) { emitted.current = n; onC(n); }
+    }} />;
 }
 
 export function Donut({ data, size = 190, thickness = 34 }) {
@@ -2131,7 +2148,7 @@ export function CreateJoinModal({ open, onClose, user, t, userName,
   };
   const doJoin = async () => {
     const code = join.trim();
-    if (busy || code.length < 4) return;
+    if (busy || code.length < 6) return;   // katılım kodu 6 hane
     setBusy(true); setTErr("");
     try {
       const tid = await joinTeam(user, code, userName);
@@ -2327,8 +2344,8 @@ export function CreateJoinModal({ open, onClose, user, t, userName,
               {tErr && <span style={{ color: "var(--rc-danger)", fontSize: 11.5 }}>{tErr}</span>}
               <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
                 <button onClick={onClose} style={cancelBtn}>{t("Vazgeç")}</button>
-                <button onClick={doJoin} disabled={busy || join.trim().length < 4}
-                  style={primaryBtn(!busy && join.trim().length >= 4)}>{t("Takıma katıl")}</button>
+                <button onClick={doJoin} disabled={busy || join.trim().length < 6}
+                  style={primaryBtn(!busy && join.trim().length >= 6)}>{t("Takıma katıl")}</button>
               </span>
             </div>
           </>
@@ -2780,7 +2797,7 @@ export function TeamModal({ open, onClose, page = false, user, t, lang, myTeams,
                       <span style={{ fontFamily: disp, fontWeight: 700, fontSize: 15,
                         color: "var(--rc-text-3)", width: 34 }}>{r.round ? `R${r.round}` : "—"}</span>
                       {r.trackId && (
-                        <img src={`${ASSET}flags/${r.trackId}.png`} alt=""
+                        <img src={`${ASSET}flags/${TRACK_ASSET(r.trackId)}.png`} alt=""
                           onError={(e) => { e.currentTarget.style.display = "none"; }}
                           style={{ width: 26, borderRadius: 3, border: "1px solid var(--rc-border)" }} />
                       )}
@@ -3010,7 +3027,7 @@ export function TeamModal({ open, onClose, page = false, user, t, lang, myTeams,
                           color: "var(--rc-text-3)", width: 28, flex: "0 0 auto" }}>
                           {r.round ? `R${r.round}` : "—"}</span>
                         {r.trackId && (
-                          <img src={`${ASSET}flags/${r.trackId}.png`} alt=""
+                          <img src={`${ASSET}flags/${TRACK_ASSET(r.trackId)}.png`} alt=""
                             onError={(e) => { e.currentTarget.style.display = "none"; }}
                             style={{ width: 22, borderRadius: 2, flex: "0 0 auto" }} />
                         )}

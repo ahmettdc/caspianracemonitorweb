@@ -30,6 +30,7 @@ export const RAIL_ITEMS = [
 export function Rail({
   t, screen, go, onHome, open = true, onToggle,
   version, chatScreen = "chat", unread = 0, onChat, hideChat = false,
+  disabledIds = [], disabledTitle = "",
 }) {
   /* stint ve code80 aynı ekranın iki modu — ikisinde de Stint aktif görünür. */
   const isOn = (id) => screen === id || (id === "stint" && screen === "code80");
@@ -50,14 +51,19 @@ export function Rail({
         </button>
         <span className="railsep" />
 
-        {RAIL_ITEMS.map((it) => (
-          <button key={it.id} className={`railbtn${isOn(it.id) ? " on" : ""}`}
-            title={t(it.title || it.label)} aria-current={isOn(it.id) ? "page" : undefined}
-            onClick={() => go(it.id)}>
-            <Icon name={it.icon} size={20} />
-            <span>{t(it.label)}</span>
-          </button>
-        ))}
+        {RAIL_ITEMS.map((it) => {
+          const dis = disabledIds.includes(it.id);
+          return (
+            <button key={it.id} className={`railbtn${isOn(it.id) ? " on" : ""}`} disabled={dis}
+              title={dis ? (disabledTitle || t(it.title || it.label)) : t(it.title || it.label)}
+              aria-current={isOn(it.id) ? "page" : undefined}
+              style={dis ? { opacity: 0.38, cursor: "not-allowed" } : undefined}
+              onClick={() => { if (!dis) go(it.id); }}>
+              <Icon name={it.icon} size={20} />
+              <span>{t(it.label)}</span>
+            </button>
+          );
+        })}
 
         <div className="railfoot">
           <span className="railsep" />
@@ -392,19 +398,24 @@ export function RaceBar({
                     color: "var(--rc-text)" }}>UnsubscribedBuffersMask: 96</b>
                 </span>
               </span>
-              <button style={{ marginTop: 8, padding: "5px 11px", borderRadius: 8,
+              {/* MOCK popup (gerçek köprü prop'u yok) — aksiyonlar bağlanana dek pasif
+                 görünüm ver ki tıklanır ama ölü buton gibi durmasın. */}
+              <button disabled title={t("Köprü entegrasyonu ile gelir")}
+                style={{ marginTop: 8, padding: "5px 11px", borderRadius: 8,
                 border: cellBorder, background: "var(--rc-surface-3)", color: "var(--rc-text-2)",
-                cursor: "pointer", fontSize: 11 }}>{t("Değeri kopyala")}</button>
+                cursor: "not-allowed", opacity: 0.5, fontSize: 11 }}>{t("Değeri kopyala")}</button>
             </span>
 
             <span style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 16px",
               borderBottom: cellBorder }}>
-              <button style={{ padding: "6px 12px", borderRadius: 8, border: cellBorder,
-                background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer",
-                fontSize: 11.5 }}>🗑 {t("Tur geçmişini temizle")}</button>
-              <button style={{ marginLeft: "auto", padding: "6px 12px", borderRadius: 8,
+              <button disabled title={t("Köprü entegrasyonu ile gelir")}
+                style={{ padding: "6px 12px", borderRadius: 8, border: cellBorder,
+                background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "not-allowed",
+                opacity: 0.5, fontSize: 11.5 }}>🗑 {t("Tur geçmişini temizle")}</button>
+              <button disabled title={t("Köprü entegrasyonu ile gelir")}
+                style={{ marginLeft: "auto", padding: "6px 12px", borderRadius: 8,
                 border: cellBorder, background: "transparent", color: "var(--rc-text-3)",
-                cursor: "pointer", fontSize: 11.5 }}>{t("Günlük")}</button>
+                cursor: "not-allowed", opacity: 0.5, fontSize: 11.5 }}>{t("Günlük")}</button>
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 16px" }}>
               <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>
