@@ -474,10 +474,13 @@ export function applyUnmarkPit(st) {
   return patch;
 }
 
-/* Tüm gerçek pit işaretlemelerini sıfırla (elle girilen override'lar korunur). */
+/* Tüm gerçek pit işaretlemelerini sıfırla (elle girilen override'lar KORUNUR).
+   pitRepairs de elle girilen bir plan girdisidir (yalnız setRepair yazar, otomatik
+   üretilmez) — "gerçek pit işaretlemeleri" değil; override'lar gibi korunmalı,
+   eskiden sıfırlanıp veri kaybına yol açıyordu. */
 export function applyResetPits(st) {
   const overrides = (st.overrides || []).map((v, i) => ((st.autoOvr || [])[i] ? "" : v));
-  return { actualPits: [], pitRepairs: [], autoOvr: [], overrides };
+  return { actualPits: [], autoOvr: [], overrides };
 }
 
 export function buildTimeline(plan) {

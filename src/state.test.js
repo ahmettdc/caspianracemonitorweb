@@ -335,10 +335,11 @@ describe("applyMarkPit / applyUnmarkPit / applyResetPits", () => {
   it("applyResetPits elle girilen override'ları KORUR", () => {
     const overrides = [...st.overrides]; overrides[0] = "0:30:00"; overrides[1] = "0:25:00";
     const autoOvr = [false, true];
-    const patch = applyResetPits({ ...st, overrides, autoOvr });
+    const patch = applyResetPits({ ...st, overrides, autoOvr, pitRepairs: [30, 0, 15] });
     expect(patch.actualPits).toEqual([]);
     expect(patch.overrides[0]).toBe("0:30:00");  // elle → korunur
     expect(patch.overrides[1]).toBe("");         // otomatik → silinir
+    expect(patch.pitRepairs).toBeUndefined();    // elle girilen tamir süreleri korunur (patch'te yok)
   });
 });
 
