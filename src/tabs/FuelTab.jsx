@@ -174,7 +174,12 @@ export default function FuelTab({ t, st, up, lsf, autoCd, setAutoCd, planLastCd,
             <div style={{ ...sectTtl, marginBottom: 11 }}>{t("Senaryolar")}</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
               {SCEN.map((x) => {
-                const c = Number(scen[x.id]) || 0;
+                /* "Planlanan" satırı DAİMA plandaki güncel tüketimi yansıtır (canlı,
+                   salt-okunur) — eskiden mount anında bir kez scen'e türetiliyordu ve
+                   "Yakıt modeline uygula" st.consumption'ı değiştirince bayatlayıp ana
+                   ikmal sayısıyla uyuşmuyordu. Diğer senaryolar kullanıcı-ayarlı kalır. */
+                const isPlan = x.id === "plan";
+                const c = isPlan ? baseCons : (Number(scen[x.id]) || 0);
                 const rr = lastStintFuel(effCd, { ...st, consumption: c }, racePlan.flagExtra);
                 const diff = rr.refuel - planRefuel;
                 const note = x.id === "plan"
@@ -187,13 +192,15 @@ export default function FuelTab({ t, st, up, lsf, autoCd, setAutoCd, planLastCd,
                     <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--rc-text-2)" }}>
                       {t(x.label)}</span>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 5, flex: "0 0 auto" }}>
-                      <input type="number" step="0.01" min="0" value={scen[x.id]} readOnly={readOnly}
+                      <input type="number" step="0.01" min="0"
+                        value={isPlan ? baseCons.toFixed(2) : scen[x.id]}
+                        readOnly={readOnly || isPlan}
                         aria-label={`${t(x.label)} ${t("%/tur")}`}
                         onChange={(e) => setScen((v) => ({ ...v, [x.id]: e.target.value }))}
                         style={{ width: 62, textAlign: "right", background: "var(--rc-surface-2)",
-                          border: `1px solid ${readOnly ? "var(--rc-border)" : "var(--rc-border-strong)"}`,
+                          border: `1px solid ${(readOnly || isPlan) ? "var(--rc-border)" : "var(--rc-border-strong)"}`,
                           borderRadius: 7, color: "var(--rc-text)", padding: "4px 7px", fontFamily: disp,
-                          fontSize: 13, fontWeight: 700, opacity: readOnly ? 0.6 : 1 }} />
+                          fontSize: 13, fontWeight: 700, opacity: (readOnly || isPlan) ? 0.6 : 1 }} />
                       <span style={{ fontSize: 10, color: "var(--rc-text-3)" }}>{t("%/tur")}</span>
                     </span>
                     <b style={{ fontFamily: disp, fontSize: 17, fontWeight: 700, color: x.col,

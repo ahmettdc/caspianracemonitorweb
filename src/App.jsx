@@ -429,6 +429,13 @@ export default function App() {
     setSt((s) => ({ ...s, roster: [...s.roster, n] }));
     setNewDriver("");
   };
+  /* Takım havuzundan kadroya ekle — addDriver gibi izin kapılı (viewer'da ham setSt
+     ile atlanıyordu: hayalet/senkronlanmayan yerel düzenleme, deny toast'ı yoktu). */
+  const addFromPool = (n) => {
+    if (!n || st.roster.includes(n)) return;
+    if (blocked()) { showDeny(); return; }
+    setSt((s) => (s.roster.includes(n) ? s : { ...s, roster: [...s.roster, n] }));
+  };
   const removeDriver = (n) => edit((s) => ({
     ...s,
     roster: s.roster.filter((x) => x !== n),
@@ -4350,7 +4357,7 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
             <DriversTab t={t} st={st} up={up} driverPlan={driverPlan}
               fmtClock={fmtClock} removeDriver={removeDriver} newDriver={newDriver}
               setNewDriver={setNewDriver} addDriver={addDriver} teamDrivers={teamDrivers}
-              setSt={setSt} assignDriver={assignDriver} teamData={teamData}
+              addFromPool={addFromPool} assignDriver={assignDriver} teamData={teamData}
               clearAssign={clearAssign} avail={avail} setAvail={setAvail}
               resetAvail={resetAvail} canEdit={canEdit} />
           )}

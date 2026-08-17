@@ -1852,10 +1852,19 @@ export function SetupCompareModal({ open, a, b, onClose, t }) {
     if (Math.abs(d) < 1e-9) return null;
     return `${d > 0 ? "+" : ""}${(+d.toFixed(3)).toString()}`;
   };
-  /* Farkları panoya kopyala — gerçek diff satırlarından düz metin. */
+  /* Farkları panoya kopyala — DAİMA yalnız gerçek fark satırlarından (görünümdeki
+     "yalnız farkları göster" kapalıyken de). Eskiden `groups` görünen tüm satırlardan
+     türediği için farksız satırlar da "A → B" olarak kopyalanıyordu (buton etiketiyle
+     çelişir). Görünümden bağımsız `rows.filter(r => r.differ)` üstünden gruplarız. */
   const copyDiff = () => {
+    const diffRows = rows.filter((r) => r.differ);
+    const dGroups = []; const dIdx = {};
+    for (const r of diffRows) {
+      if (!(r.section in dIdx)) { dIdx[r.section] = dGroups.length; dGroups.push({ sec: r.section, list: [] }); }
+      dGroups[dIdx[r.section]].list.push(r);
+    }
     const lines = [`A: ${a.name}`, `B: ${b.name}`, ""];
-    for (const g of groups) {
+    for (const g of dGroups) {
       lines.push(`[${t(SVM_SECTIONS[g.sec] || g.sec)}]`);
       for (const r of g.list) lines.push(`  ${t(SVM_FIELDS[r.key] || r.key)}: ${r.a} → ${r.b}`);
     }

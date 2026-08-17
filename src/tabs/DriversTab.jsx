@@ -20,7 +20,7 @@ function initials(name) {
    bağlanır. */
 export default function DriversTab({
   t, st, up, driverPlan, fmtClock, removeDriver, newDriver, setNewDriver,
-  addDriver, teamDrivers, setSt, assignDriver, teamData, clearAssign,
+  addDriver, teamDrivers, addFromPool, assignDriver, teamData, clearAssign,
   avail, setAvail, resetAvail, canEdit = true,
 }) {
   const [availOpen, setAvailOpen] = useState(false);
@@ -134,10 +134,10 @@ export default function DriversTab({
             <span style={{ fontSize: 11, color: "var(--rc-text-3)", textTransform: "uppercase",
               letterSpacing: ".08em" }}>{t("Takımdan ekle")}</span>
             {poolExtra.map((n) => (
-              <button key={n} onClick={() => setSt((s) => s.roster.includes(n)
-                ? s : { ...s, roster: [...s.roster, n] })}
+              <button key={n} onClick={() => (addFromPool || (() => {}))(n)} disabled={!canEdit}
                 style={{ padding: "6px 12px", borderRadius: 99, border: "1px dashed var(--rc-border-strong)",
-                  background: "transparent", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12 }}>
+                  background: "transparent", color: "var(--rc-text-2)",
+                  cursor: canEdit ? "pointer" : "not-allowed", opacity: canEdit ? 1 : 0.5, fontSize: 12 }}>
                 ＋ {n}</button>
             ))}
           </div>
@@ -191,7 +191,7 @@ export default function DriversTab({
                     <b style={{ fontFamily: disp, fontSize: 18, fontWeight: 700, whiteSpace: "nowrap",
                       overflow: "hidden", textOverflow: "ellipsis" }}>{n}</b>
                     <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>
-                      {poolExtra.includes(n) ? `🏢 ${t("Takımdan")}` : t("Kadro")}</span>
+                      {teamDrivers.includes(n) ? `🏢 ${t("Takımdan")}` : t("Kadro")}</span>
                   </span>
                   <span style={{ textAlign: "right", flex: "0 0 auto" }}>
                     <span style={{ display: "block", fontFamily: disp, fontSize: 19, fontWeight: 600 }}>
