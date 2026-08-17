@@ -42,6 +42,14 @@ function countdown(ms, now, t) {
 const fmtClock = (ms, lang) => new Date(ms)
   .toLocaleTimeString(lang === "en" ? "en-GB" : "tr-TR", { hour: "2-digit", minute: "2-digit" });
 
+/* Geri sayımı sayı(büyük) + birim(küçük, soluk) parçalarına böl — fiş: sıradaki kart. */
+function cdUnits(str) {
+  const s = String(str);
+  if (!/\d/.test(s)) return s;
+  return s.split(/(\d+)/).filter(Boolean).map((p, i) => (/^\d+$/.test(p) ? p
+    : <span key={i} style={{ fontSize: ".5em", color: "var(--rc-text-2)" }}>{p}</span>));
+}
+
 const disp = "var(--rc-font-display)";
 const hideImg = (e) => { e.currentTarget.style.display = "none"; };
 
@@ -227,7 +235,7 @@ export default function ScheduleTab({ t, lang = "tr", races = [], updatedAt, loa
             <div style={{ textAlign: "right", flex: "0 0 auto" }}>
               <div style={{ fontFamily: disp, fontWeight: 700, fontSize: 38, lineHeight: 1,
                 color: "var(--rc-warn)", fontVariantNumeric: "tabular-nums" }}>
-                {countdown(next.startMs, now, t)}</div>
+                {cdUnits(countdown(next.startMs, now, t))}</div>
               <div style={{ fontSize: 11, color: "var(--rc-text-3)", fontFamily: disp }}>
                 {fmtClock(next.startMs, lang)} · {relDay(next.startMs, now, t)}</div>
             </div>

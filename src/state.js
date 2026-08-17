@@ -287,7 +287,7 @@ export function computeDriverPlan(st, racePlan) {
     const s0 = cur;
     const f0 = s0 + r.stintSec * 1000;                 // Excel C: kapatılmamış bitiş
     const dur = Math.max(0, Math.min(f0, finishMs) - s0); // Excel D (FARK): yarış bitişiyle kırpılır
-    rows.push({ idx: r.idx, start: s0, finish: f0, dur });
+    rows.push({ idx: r.idx, start: s0, finish: f0, dur, laps: r.lapsInStint });
     cur = f0 + r.pitSec * 1000;
   }
   const totals = {};

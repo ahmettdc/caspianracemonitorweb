@@ -204,6 +204,8 @@ export const EN = {
   "her setin kullanım sayısı ve kilitli köşesi": "each set's usage count and locked corner",
   "boş": "empty",
   "Lastik seç": "Select tyre",
+  "Kuru setler": "Dry sets",
+  "köşesi": "corner",
   "Tüm köşeler": "All corners",
   "İkili değişim": "Pair change",
   "Tek teker": "Single wheel",
@@ -278,6 +280,7 @@ export const EN = {
   "Takım üyelerini kadroya ekle ya da yeni üye davet et; stint ataması için en az bir pilot gerekir.":
     "Add team members to the roster or invite someone new; stint assignment needs at least one driver.",
   "＋ Üye davet et": "＋ Invite member",
+  "＋ Pilot ekle": "＋ Add driver",
   "Henüz telemetri yok": "No telemetry yet",
   "Stint yuvalarına .ld veya .duckdb dosyası yükle; iki turu karşılaştırmak için en az bir dosya gerekir.":
     "Load an .ld or .duckdb file into a stint slot; comparing two laps needs at least one file.",
@@ -306,6 +309,8 @@ export const EN = {
   "Varsayılan tüm stintlerde uygun": "Available for every stint by default",
   "Uygun değil işaretlenen pilot o stinte atanamaz":
     "A driver marked unavailable can't be assigned to that stint",
+  "için hiç uygun pilot kalmadı — bu stint atanamaz.":
+    "has no available drivers left — this stint can't be assigned.",
   "Tümünü sıfırla": "Reset all",
   "🕑 Uygunluk": "🕑 Availability",
   "Bu stint için uygun pilot kalmadı": "No available driver left for this stint",

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { fmtHMS } from "../engine";
 import { driverColorOf } from "../constants";
-import { isAvailable, toggleAvail, buildAvailGrid } from "../avail";
+import { isAvailable, toggleAvail, buildAvailGrid, stintsWithoutDriver } from "../avail";
 import { Sheet } from "../shell";
 
 /* Ad → baş harf(ler) rozeti (en çok 2). "A. Demircan" → "AD", "Savaş" → "SA". */
@@ -44,6 +44,11 @@ export default function DriversTab({
   const drvTotalTime = driverPlan ? fmtHMS((driverPlan.finishMs - driverPlan.startMs) / 1000) : "—";
   const stintCount = driverPlan ? driverPlan.rows.length : 0;
   const unassigned = driverPlan ? driverPlan.rows.filter((_, i) => !st.driverAssign[i]).length : 0;
+  /* Hiç uygun pilotu kalmayan stintler → uygunluk penceresinde amber uyarı. */
+  const noAvailStints = driverPlan && st.roster.length
+    ? stintsWithoutDriver(avail, st.roster, driverPlan.rows.length)
+      .map((i) => `S${driverPlan.rows[i]?.idx ?? i + 1}`)
+    : [];
 
   /* Donut segmentleri — fiş drvDonut: r=48 çevre üzerinde payına göre dash/offset. */
   const donutC = 2 * Math.PI * 48;
@@ -162,7 +167,7 @@ export default function DriversTab({
           <button onClick={() => nameRef.current?.focus()}
             style={{ marginTop: 4, padding: "9px 18px", borderRadius: 10, border: "1px solid var(--rc-brand-bright)",
               background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer",
-              fontSize: 13, fontWeight: 600 }}>{t("＋ Üye davet et")}</button>
+              fontSize: 13, fontWeight: 600 }}>{t("＋ Pilot ekle")}</button>
         </div>
       )}
 
@@ -277,7 +282,8 @@ export default function DriversTab({
                     {fmtClock(r.start, driverPlan.startMs)}{" "}
                     <span style={{ color: "var(--rc-border-strong)" }}>→</span>{" "}
                     {fmtClock(r.finish, driverPlan.startMs)}</span>
-                  <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{fmtHMS(r.dur / 1000)}</span>
+                  <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{fmtHMS(r.dur / 1000)}
+                    {r.laps != null ? ` · ${r.laps} ${t("tur")}` : ""}</span>
                 </span>
                 <span style={{ display: "block", width: 120, height: 6, borderRadius: 3,
                   background: "var(--rc-line-soft)", overflow: "hidden", flex: "0 0 auto" }}>
@@ -399,6 +405,15 @@ export default function DriversTab({
                 </tbody>
               </table>
             </div>
+            {noAvailStints.length > 0 && (
+              <div style={{ marginTop: 14, display: "flex", alignItems: "flex-start", gap: 9,
+                padding: "11px 14px", borderRadius: 11, border: "1px solid var(--rc-warn)",
+                background: "rgba(245,178,61,.08)", fontSize: 12, color: "var(--rc-warn)", lineHeight: 1.6 }}>
+                <span style={{ flex: "0 0 auto", fontSize: 14 }}>⚠</span>
+                <span><b>{noAvailStints.join(", ")}</b>{" "}
+                  {t("için hiç uygun pilot kalmadı — bu stint atanamaz.")}</span>
+              </div>
+            )}
             <div className="availfoot">
               <span className="lg"><i className="ok" />{t("uygun")}</span>
               <span className="lg"><i className="no" />{t("uygun değil")}</span>

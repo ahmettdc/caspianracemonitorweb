@@ -206,7 +206,7 @@ export default function TyreTab({
                             {cellOpen && (
                               <div onClick={(e) => e.stopPropagation()}
                                 style={{ position: "absolute", top: "calc(100% + 4px)", left: "50%",
-                                  transform: "translateX(-50%)", zIndex: 45, minWidth: 150,
+                                  transform: "translateX(-50%)", zIndex: 45, minWidth: 172,
                                   background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)",
                                   borderRadius: 10, overflow: "hidden", boxShadow: "0 18px 44px rgba(0,0,0,.6)",
                                   animation: "rcpop .16s cubic-bezier(.2,.9,.3,1.05)", padding: 5,
@@ -217,6 +217,9 @@ export default function TyreTab({
                                   {carried ? `⟳ ${carried}` : "—"}</button>
                                 <button onClick={() => { upTyreCell(r.row, ci, "W"); setPick(null); }}
                                   style={pickOpt("var(--ty-wet)")}>🌧 W</button>
+                                <div style={{ padding: "5px 6px 2px", color: "var(--rc-text-3)",
+                                  fontSize: 9.5, textTransform: "uppercase", letterSpacing: ".08em" }}>
+                                  {t("Kuru setler")} · {CORNERS[ci]} {t("köşesi")}</div>
                                 {Array.from({ length: limit }, (_, n) => {
                                   const k = String(n + 1);
                                   if (val !== k && !tyreInfo.allowedIn(k, ci)) return null;
@@ -232,6 +235,12 @@ export default function TyreTab({
                                     </button>
                                   );
                                 })}
+                                <div style={{ padding: "6px 6px 2px", marginTop: 2,
+                                  borderTop: "1px solid var(--rc-line-soft)", fontSize: 10.5,
+                                  color: "var(--rc-text-3)" }}>
+                                  {t("Kalan")}{" "}
+                                  <b style={{ color: avail < 0 ? "var(--rc-danger)" : "var(--rc-text-2)" }}>
+                                    {avail}</b> {t("set")}</div>
                               </div>
                             )}
                           </span>
