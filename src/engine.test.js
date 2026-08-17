@@ -155,6 +155,28 @@ describe("migrate", () => {
     const t = Date.parse("2026-01-01T00:00:00Z");
     expect(migrate({ raceStartMs: 0, raceStart: "2026-01-01T00:00:00Z" }).raceStartMs).toBe(t);
   });
+  /* Bozuk/eski uzak raceState → selektör çökmesi koruması (v2 bug taraması):
+     yayılım eksik anahtarı doldurur ama null/yanlış-tipli anahtarı düzeltmezdi;
+     tek bozuk yazım computePlan'i patlatıp yarışı tüm istemcilerde açılamaz kılardı. */
+  it("bozuk/null kritik alanları normalize eder → computePlan çökmez", () => {
+    for (const bad of [
+      { pits: null }, { pits: [{ fuel: true, lane: true }, null, "x"] },
+      { tyreQual: null }, { tyreStints: null }, { strategies: null, chosen: "D" },
+      { driverAssign: null }, { overrides: null }, { roster: null },
+    ]) {
+      const st = migrate(bad);
+      expect(() => computePlan(st, "race")).not.toThrow();
+    }
+    const st = migrate({ pits: [{ fuel: true, lane: true }] });
+    expect(Array.isArray(st.pits[0].tyres)).toBe(true);
+    expect(st.pits[0].tyres.length).toBe(4);
+  });
+  it("laps'sız telemetri slotunu null'a düşürür (computeSlotStats çökmez)", () => {
+    const st = migrate({ telemetry: { A: {}, B: { laps: null }, C: null, D: { laps: [] } } });
+    expect(st.telemetry.A).toBe(null);
+    expect(st.telemetry.B).toBe(null);
+    expect(st.telemetry.D).not.toBe(null);
+  });
 });
 
 describe("lastStintFuel", () => {
