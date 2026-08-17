@@ -1732,6 +1732,18 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
     fetch(`${ASSET}lmu-data.json`).then((r) => (r.ok ? r.json() : null))
       .then((j) => setLmuData(j)).catch(() => {});
   }, [access]);
+  /* Davet linki (?join=KOD) — açılışta kodu ön-doldur + Kur&Katıl'ı aç; URL'i
+     temizle ki yenilemede tekrar tetiklenmesin. */
+  useEffect(() => {
+    try {
+      const code = new URLSearchParams(window.location.search).get("join");
+      if (!code) return;
+      setTForm((f) => ({ ...f, join: code.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6) }));
+      setCreateJoinOpen(true);
+      window.history.replaceState({}, "",
+        window.location.origin + window.location.pathname + window.location.hash);
+    } catch { /* yoksay */ }
+  }, []);
   const lmuSuggest = (() => {
     const d = lmuData?.data?.[st.track];
     if (!d) return null;

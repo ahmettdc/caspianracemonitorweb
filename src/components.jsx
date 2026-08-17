@@ -12,8 +12,8 @@ import { SETUP_LIMITS, poolEmptyReason, lapDeltas } from "./setupPool";
 import { trackOptions, classOptions, carOptions } from "./pickerOptions";
 import { parseSvm, b64ToText, setupSummary, diffSetups, categorizeSetup,
   duckSetupToParsed } from "./setupParse";
-import { renameTeam, syncMyTeamName, createSeason, deleteSeason, deleteRace,
-  leaveTeam, createTeam, joinTeam, getSetupBlob,
+import { renameTeam, syncMyTeamName, createSeason, deleteSeason, updateSeason, deleteRace,
+  leaveTeam, createTeam, joinTeam, teamCodeExists, getSetupBlob,
   transferOwnership, removeMember, deleteTeam,
   getUserAvatar, saveTeamAsset, clearTeamAsset } from "./storage";
 import { processImageFile, IMG_ACCEPT_TYPES } from "./imageUpload";
@@ -2065,8 +2065,25 @@ export function CreateJoinModal({ open, onClose, user, t, userName,
   const [logoBusy, setLogoBusy] = useState(false);
   const [season2026, setSeason2026] = useState(true); // ilk sezon: 2026 WEC ↔ boş başla
   const [busy, setBusy] = useState(false);
+  const [codeChk, setCodeChk] = useState("idle");  // idle|checking|valid|invalid
   const logoRef = useRef(null);
   const codeRefs = useRef([]);
+  /* Katılım kodu canlı geçerlilik denetimi — 6 hane dolunca teamCodes indexine bakar
+     (kurallarca serbest okuma). Yalnız GEÇERLİLİK; takım adı/üye sayısı meta okuması
+     gerektirir (üyeye özel) → sızdırmamak için gösterilmez. */
+  useEffect(() => {
+    const code = (tForm.join || "").trim();
+    if (!open || code.length < 6) { setCodeChk("idle"); return undefined; }
+    setCodeChk("checking");
+    let alive = true;
+    const id = setTimeout(async () => {
+      const ok = await teamCodeExists(code);
+      if (alive) setCodeChk(ok ? "valid" : "invalid");
+    }, 350);
+    return () => { alive = false; clearTimeout(id); };
+  }, [tForm.join, open]);
+  /* Davet linkiyle (ön-dolu kod) açıldıysa doğrudan Katıl sekmesine geç. */
+  useEffect(() => { if (open && (tForm.join || "").length > 0) setTab("join"); }, [open]);
   if (!open || !user) return null;
   const disp = "var(--rc-font-display)";
   const join = tForm.join || "";
@@ -2271,6 +2288,18 @@ export function CreateJoinModal({ open, onClose, user, t, userName,
                 <div style={{ color: "var(--rc-text-3)", fontSize: 11.5, marginTop: 10,
                   lineHeight: 1.6 }}>
                   {t("Kodu takım sahibinden al. Büyük/küçük harf farketmez; yapıştırırsan kutular kendiliğinden dolar.")}</div>
+                {codeChk !== "idle" && (
+                  <div style={{ marginTop: 10, display: "inline-flex", alignItems: "center", gap: 7,
+                    padding: "6px 12px", borderRadius: 99, fontSize: 12,
+                    border: `1px solid ${codeChk === "valid" ? "var(--rc-ok)"
+                      : codeChk === "invalid" ? "var(--rc-danger)" : "var(--rc-border)"}`,
+                    color: codeChk === "valid" ? "var(--rc-ok)"
+                      : codeChk === "invalid" ? "var(--rc-danger)" : "var(--rc-text-3)" }}>
+                    {codeChk === "checking" ? `⏳ ${t("Kod denetleniyor…")}`
+                      : codeChk === "valid" ? `✓ ${t("Geçerli katılım kodu")}`
+                      : `✗ ${t("Kod bulunamadı")}`}
+                  </div>
+                )}
               </div>
 
               <div style={infoPanel}>
@@ -2331,6 +2360,7 @@ export function TeamModal({ open, onClose, page = false, user, t, lang, myTeams,
   const [busy, setBusy] = useState("");             // yüklenen asset: logo/side/top
   const [copied, setCopied] = useState(false);
   const [invOpen, setInvOpen] = useState(false);    // üye davet penceresi (katılım kodu)
+  const [linkCopied, setLinkCopied] = useState(false); // davet linki kopyalandı
   const [seasonOpen, setSeasonOpen] = useState(false); // sezon düzenleme penceresi
   const logoRef = useRef(null);
   const sideRef = useRef(null);
@@ -2877,6 +2907,28 @@ export function TeamModal({ open, onClose, page = false, user, t, lang, myTeams,
                   <div style={{ fontSize: 11.5, color: "var(--rc-text-3)", marginTop: 9, lineHeight: 1.6 }}>
                     {t("Kodu paylaş — karşı taraf \"Kur & katıl\" penceresinden girer.")}</div>
                 </div>
+                {joinCode && typeof location !== "undefined" && (() => {
+                  const link = `${location.origin}${location.pathname}?join=${joinCode}`;
+                  return (
+                    <div style={{ border: "1px solid var(--rc-border)", borderRadius: 12,
+                      background: "var(--rc-surface-2)", padding: "14px 16px" }}>
+                      <div style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase",
+                        letterSpacing: ".1em", marginBottom: 8 }}>{t("Davet linki")}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                        <code style={{ flex: "1 1 220px", minWidth: 0, fontSize: 12,
+                          color: "var(--rc-text-2)", overflow: "hidden", textOverflow: "ellipsis",
+                          whiteSpace: "nowrap", fontFamily: "var(--rc-font-mono)" }}>{link}</code>
+                        <button className="act" onClick={() => {
+                          try { navigator.clipboard?.writeText(link);
+                            setLinkCopied(true); setTimeout(() => setLinkCopied(false), 1500);
+                          } catch { /* yoksay */ } }}>
+                          {linkCopied ? `✓ ${t("Kopyalandı")}` : `🔗 ${t("Linki kopyala")}`}</button>
+                      </div>
+                      <div style={{ fontSize: 11.5, color: "var(--rc-text-3)", marginTop: 8,
+                        lineHeight: 1.6 }}>{t("Link açılınca kod kutulara otomatik dolar.")}</div>
+                    </div>
+                  );
+                })()}
                 <div className="hint" style={{ margin: 0, lineHeight: 1.6 }}>
                   🛞 {t("Sürücü")} · 🎧 {t("Mühendis")} — {t("yetkileri üye katıldıktan sonra üye listesinden verirsin.")}</div>
               </div>
@@ -2903,11 +2955,33 @@ export function TeamModal({ open, onClose, page = false, user, t, lang, myTeams,
                 <div>
                   <div style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase",
                     letterSpacing: ".1em", marginBottom: 6 }}>{t("Sezon")}</div>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                  {canEditTeam ? (
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <input key={`${curSeason}n`} type="text"
+                        defaultValue={seasons?.[curSeason]?.name || ""} placeholder={t("Sezon adı")}
+                        onBlur={(e) => { const v = e.target.value.trim();
+                          if (v && v !== (seasons?.[curSeason]?.name || ""))
+                            updateSeason(curTeam, curSeason, { name: v }).catch(() => {}); }}
+                        style={{ flex: "2 1 200px", minWidth: 0, boxSizing: "border-box",
+                          background: "var(--rc-surface-3)", border: "1px solid var(--rc-border-strong)",
+                          borderRadius: 10, color: "var(--rc-text)", padding: "10px 13px",
+                          fontFamily: disp, fontSize: 18, fontWeight: 700, textTransform: "none" }} />
+                      <input key={`${curSeason}y`} type="number"
+                        defaultValue={seasons?.[curSeason]?.year || ""} placeholder={t("Yıl")}
+                        onBlur={(e) => { const y = Number(e.target.value) || 0;
+                          if (y && y !== (seasons?.[curSeason]?.year || 0))
+                            updateSeason(curTeam, curSeason, { year: y }).catch(() => {}); }}
+                        style={{ flex: "1 1 90px", minWidth: 0, boxSizing: "border-box",
+                          background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)",
+                          borderRadius: 10, color: "var(--rc-text)", padding: "10px 13px",
+                          fontFamily: disp, fontSize: 16 }} />
+                    </div>
+                  ) : (
                     <b style={{ fontFamily: disp, fontSize: 19, fontWeight: 700 }}>{seasonLbl}</b>
-                    <span style={{ fontSize: 12, color: "var(--rc-text-3)" }}>
-                      {raceEntries.length} {t("yarış")}</span>
-                  </div>
+                  )}
+                  <div style={{ fontSize: 12, color: "var(--rc-text-3)", marginTop: 6 }}>
+                    {raceEntries.length} {t("yarış")}
+                    {canEditTeam ? ` · ${t("değişiklik anında kaydedilir")}` : ""}</div>
                 </div>
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 8 }}>

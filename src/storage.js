@@ -437,6 +437,24 @@ export async function deleteSeason(tid, sid) {
   if (!db) return;
   await remove(ref(db, `teams/${tid}/seasons/${sid}`));
 }
+/* Sezon adı/yılını düzenle — kurallar seasons yazımını owner/editor'a izin veriyor. */
+export async function updateSeason(tid, sid, patch) {
+  if (!db || !tid || !sid) return;
+  const p = {};
+  if (patch.name != null) p.name = String(patch.name).slice(0, 40);
+  if (patch.year != null) p.year = Number(patch.year) || new Date().getFullYear();
+  if (Object.keys(p).length) await update(ref(db, `teams/${tid}/seasons/${sid}`), p);
+}
+/* Katılım kodu geçerli mi? — teamCodes/{code} okuması kurallarca serbest (katılım
+   indexi). Yalnız GEÇERLİLİK döner; takım adı/üye sayısı meta okuması gerektirir
+   (yalnız üyeye açık) → sızdırmamak için burada dönmüyoruz. */
+export async function teamCodeExists(joinCode) {
+  if (!db) return false;
+  const code = String(joinCode || "").trim().toUpperCase();
+  if (code.length < 6) return false;
+  try { const snap = await get(ref(db, `teamCodes/${code}`)); return snap.exists(); }
+  catch { return false; }
+}
 export function watchSeasons(tid, cb) {
   if (!db || !tid) { cb({}); return () => {}; }
   return onValue(ref(db, `teams/${tid}/seasons`),
