@@ -1058,6 +1058,29 @@ export const EN = {
   "Kutu = turların ortadaki %50'si (Q1–Q3), kalın çizgi medyan. Bıyıklar uç turlara, halkalar aykırı turlara işaret eder.":
     "Box = middle 50% of laps (Q1–Q3), thick line is the median. Whiskers reach the extreme laps, rings mark outliers.",
   "tur çözümlendi": "laps parsed",
+  /* v2.0 denetim düzeltmeleri — Telemetri/Setup/Takım/Sohbet */
+  "en iyi tur": "best lap",
+  "Kopyala": "Copy",
+  "LMU .svm dosyasından okundu": "read from LMU .svm file",
+  "Karşılaştırmaya ekle": "Add to compare",
+  "Fark yönü A → B": "Diff direction A → B",
+  "Farkları kopyala": "Copy diffs",
+  "Hedef yuva": "Target slot",
+  "Dosyayı buraya sürükle": "Drag the file here",
+  ".ld ve .duckdb doğrudan çözümlenir · CSV/TSV için sütun eşleme açılır":
+    ".ld and .duckdb parse directly · column mapping opens for CSV/TSV",
+  "Bilgisayardan seç": "Choose from computer",
+  "…veya tur tablosunu yapıştır": "…or paste the lap table",
+  "Kaydedince stint analizi ve tur karşılaştırma güncellenir":
+    "Saving updates stint analysis and lap comparison",
+  "Kodu paylaş — karşı taraf \"Kur & katıl\" penceresinden girer.":
+    "Share the code — the other person enters it from the \"Create & join\" window.",
+  "yetkileri üye katıldıktan sonra üye listesinden verirsin.":
+    "you grant the permissions from the member list after they join.",
+  "Sezonu sil": "Delete season",
+  "Sezon silinsin mi?": "Delete season?",
+  "Sezon kaydı silinir. Yarışlar ve setup havuzu etkilenmez.":
+    "The season record is deleted. Races and the setup pool are unaffected.",
   ".ld çözümleniyor…": "Parsing .ld…",
   "Tur Karşılaştırma": "Lap Comparison",
   "İzler hazırlanıyor…": "Preparing traces…",

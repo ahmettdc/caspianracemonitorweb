@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { fmtLap } from "../engine";
-import { SLOT_COLORS, quantile, venueToTrackId, brandLogo, ASSET, AV, TRACK_ASSET } from "../constants";
+import { SLOT_COLORS, quantile, venueToTrackId, brandLogo, carImg, CARS, ASSET, AV, TRACK_ASSET } from "../constants";
 import { SessionSetupBox } from "../components";
 import { zoomViewAt, panView, advanceCursor } from "../zoomView";
 import { sectorOf, sectorMarks } from "../ldTrace";
@@ -741,7 +741,8 @@ export default function TeleTab({
   cmpSources, cmpASrc, setCmpASrc, cmpBSrc, setCmpBSrc, onSaveDuckSetup, standalone,
 }) {
   const fileRef = useRef(null);
-  const openImport = () => fileRef.current?.click();
+  const [importOpen, setImportOpen] = useState(false);   // fiş importOpen — yükleme penceresi
+  const openImport = () => setImportOpen(true);
   const [colMap, setColMap] = useState(false);
 
   /* yapıştırma alanı debounce'u (parseMotecLog ağır) — yazma durunca (300ms) koşar */
@@ -799,6 +800,19 @@ export default function TeleTab({
   const other = loadedSlots.find((sl) => sl !== baseSlot && slotStats[sl] && !slotStats[sl].empty);
   const delta1 = other ? (bs.avgMs - slotStats[other].avgMs) / 1000 : null;
 
+  /* Telemetri meta yalnız araç ADI verir (sınıf/car-id yok). Katalogda adı geçen
+     araç bulunursa yan görseli çözülür (venueToTrackId ile aynı gevşek eşleme);
+     bulunamazsa "" → yalnız marka logosu gösterilir (uydurma görsel yok). */
+  const carImgFromName = (name) => {
+    const s = String(name || "").toLowerCase();
+    if (!s) return "";
+    for (const [cls, list] of Object.entries(CARS)) {
+      const hit = list.find((c) => c.name && s.includes(c.name.toLowerCase()));
+      if (hit) return carImg(cls, hit.id);
+    }
+    return "";
+  };
+
   /* --- seçili yuvanın seans bilgisi --- */
   const sMeta = st.telemetry[slot]?.src;
   const sStat = slotStats[slot];
@@ -851,16 +865,7 @@ export default function TeleTab({
         </span>
       </div>
 
-      {/* MoTeC yapıştırma (fişte yok — CSV/TSV yapıştırma yolunu korumak için; FLAG) */}
-      <details style={{ marginBottom: 14 }}>
-        <summary style={{ cursor: "pointer", color: "var(--rc-text-3)", fontSize: 12 }}>
-          {t("MoTeC tur istatistiklerini yapıştır (CSV/TSV)")}</summary>
-        <textarea value={rawTele} onChange={onRawChange}
-          placeholder={"Out Lap\t310127\t-6.403 ...\nLap 1\t237350\t-6.36 ..."}
-          style={{ width: "100%", boxSizing: "border-box", height: 84, marginTop: 8,
-            background: "var(--rc-surface-2)", border: "1px solid var(--rc-border)", borderRadius: 8,
-            color: "var(--rc-text)", fontFamily: "var(--rc-font-mono)", fontSize: 11, padding: 8 }} />
-      </details>
+      {/* MoTeC yapıştırma alanı artık "Telemetri yükle" penceresinde (fiş importOpen). */}
       {parsed?.loading && (
         <div style={{ fontSize: 12, color: "var(--rc-text-3)", marginBottom: 12 }}>
           ⏳ {parsed.duck ? t("DuckDB çözümleniyor (ilk açılışta motor indirilir)…") : t(".ld çözümleniyor…")}</div>
@@ -897,6 +902,7 @@ export default function TeleTab({
           const median = has ? fmtLapSec(stt.medMs / 1000) : "—";
           const metaText = meta ? [meta.venue, meta.vehicle].filter(Boolean).join(" · ") : t("dosya bekleniyor");
           const brand = meta?.vehicle ? brandLogo(meta.vehicle) : "";
+          const carPng = meta?.vehicle ? carImgFromName(meta.vehicle) : "";
           return (
             <button key={sl} onClick={() => setSlot(sl)} style={{ flex: "1 1 240px", minWidth: 0,
               display: "flex", alignItems: "center", gap: 12, textAlign: "left", cursor: "pointer",
@@ -920,9 +926,13 @@ export default function TeleTab({
                 <span style={{ fontSize: 11, color: "var(--rc-text-3)", whiteSpace: "nowrap",
                   overflow: "hidden", textOverflow: "ellipsis" }}>{metaText}</span>
               </span>
-              {brand && (
-                <span style={{ flex: "0 0 auto", display: "flex", alignItems: "center", justifyContent: "center", width: 56 }}>
-                  <img src={brand} alt="" onError={hideImg} style={{ width: 40, height: 40, objectFit: "contain" }} />
+              {(brand || carPng) && (
+                <span style={{ flex: "0 0 auto", display: "flex", alignItems: "center", gap: 8,
+                  justifyContent: "flex-end" }}>
+                  {brand && <img src={brand} alt="" onError={hideImg}
+                    style={{ width: 26, height: 26, objectFit: "contain" }} />}
+                  {carPng && <img src={carPng} alt="" onError={hideImg}
+                    style={{ width: 96, height: 44, objectFit: "contain" }} />}
                 </span>
               )}
             </button>
@@ -1272,6 +1282,112 @@ export default function TeleTab({
           cmpASrc={cmpASrc} setCmpASrc={setCmpASrc} cmpBSrc={cmpBSrc} setCmpBSrc={setCmpBSrc}
           cmpA={cmpA} setCmpA={setCmpA} cmpB={cmpB} setCmpB={setCmpB}
           cmpData={cmpData} cmpBusy={cmpBusy} openImport={openImport} />
+      )}
+
+      {/* ══════════ Telemetri yükle penceresi (fiş importOpen) ══════════
+          Hedef yuva + sürükle-bırak + bilgisayardan seç + tablo yapıştır + durum.
+          Yükleme mantığı (onTeleFile/onRawChange/saveBtn) DEĞİŞMEDİ; modal sarar. */}
+      {importOpen && (
+        <div onClick={() => setImportOpen(false)} role="dialog" aria-modal="true"
+          style={{ position: "fixed", inset: 0, zIndex: 60, background: "var(--rc-scrim-strong)",
+            display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: "min(720px,96vw)", maxHeight: "88vh",
+            background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16,
+            overflow: "hidden", display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "15px 20px",
+              borderBottom: "1px solid var(--rc-border)" }}>
+              <span style={{ fontFamily: DISP, textTransform: "uppercase", letterSpacing: ".07em",
+                fontSize: 18, fontWeight: 700 }}>{t("Telemetri yükle")}</span>
+              <span style={{ fontSize: 12, color: "var(--rc-text-3)" }}>MoTeC · .ld · .duckdb · CSV</span>
+              <button onClick={() => setImportOpen(false)} style={{ marginLeft: "auto", width: 31, height: 31,
+                borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)",
+                color: "var(--rc-text-2)", cursor: "pointer", fontSize: 14, lineHeight: 1 }}>✕</button>
+            </div>
+            <div style={{ overflowY: "auto", padding: "16px 20px 18px", display: "flex",
+              flexDirection: "column", gap: 14 }}>
+              {/* hedef yuva */}
+              <div>
+                <div style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase",
+                  letterSpacing: ".1em", marginBottom: 7 }}>{t("Hedef yuva")}</div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {["A", "B", "C", "D"].map((sl) => {
+                    const on = slot === sl; const loaded = !!st.telemetry[sl]; const col = SLOT_COLORS[sl];
+                    return (
+                      <button key={sl} onClick={() => setSlot(sl)} style={{ display: "inline-flex",
+                        alignItems: "center", gap: 7, padding: "8px 14px", borderRadius: 9, cursor: "pointer",
+                        fontSize: 12.5, border: `1px solid ${on ? col : "var(--rc-border)"}`,
+                        background: on ? "var(--rc-surface-2)" : "var(--rc-surface-3)",
+                        color: on ? "var(--rc-text)" : "var(--rc-text-2)" }}>
+                        <i style={{ width: 8, height: 8, borderRadius: 99,
+                          background: loaded ? col : "var(--rc-border-strong)" }} />
+                        Stint {sl}
+                        <span style={{ fontSize: 9.5, textTransform: "uppercase", color: "var(--rc-text-3)" }}>
+                          {loaded ? t("yüklü") : t("boş")}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              {/* sürükle-bırak + dosya seç */}
+              <div onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => { e.preventDefault();
+                  if (e.dataTransfer?.files?.length) onTeleFile({ target: { files: e.dataTransfer.files } }); }}
+                style={{ border: "1.5px dashed var(--rc-border-strong)", borderRadius: 12,
+                  background: "var(--rc-surface-2)", padding: 20, textAlign: "center" }}>
+                <div style={{ fontSize: 24, marginBottom: 6 }}>⬇</div>
+                <div style={{ fontFamily: DISP, fontWeight: 700, fontSize: 16 }}>
+                  {t("Dosyayı buraya sürükle")}</div>
+                <div style={{ color: "var(--rc-text-3)", fontSize: 11.5, marginTop: 4, lineHeight: 1.6 }}>
+                  {t(".ld ve .duckdb doğrudan çözümlenir · CSV/TSV için sütun eşleme açılır")}</div>
+                <button onClick={() => fileRef.current?.click()} style={{ marginTop: 11, padding: "8px 16px",
+                  borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)",
+                  color: "var(--rc-text)", cursor: "pointer", fontSize: 12.5 }}>
+                  📁 {t("Bilgisayardan seç")}</button>
+              </div>
+              {/* durum: yükleniyor / hata / çözümlendi */}
+              {parsed?.loading && (
+                <div style={{ fontSize: 12, color: "var(--rc-text-3)" }}>
+                  ⏳ {parsed.duck ? t("DuckDB çözümleniyor (ilk açılışta motor indirilir)…") : t(".ld çözümleniyor…")}</div>
+              )}
+              {parsed?.error && (
+                <div style={{ fontSize: 12, color: "var(--rc-warn)" }}>⚠ {t(parsed.error)}</div>
+              )}
+              {(parsedHasTable || parsedHasMap) && !parsed?.loading && (
+                <div style={{ fontSize: 12, color: "var(--rc-ok)", fontWeight: 600 }}>
+                  ✓ {parsedHasTable ? parsed.laps?.length : (parsed.lapRows?.length || 0)} {t("tur çözümlendi")}</div>
+              )}
+              {/* …veya tur tablosunu yapıştır */}
+              <div>
+                <div style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase",
+                  letterSpacing: ".1em", marginBottom: 7 }}>{t("…veya tur tablosunu yapıştır")}</div>
+                <textarea value={rawTele} onChange={onRawChange}
+                  placeholder={"Out Lap\t310127\t-6.403 ...\nLap 1\t237350\t-6.36 ..."}
+                  style={{ width: "100%", boxSizing: "border-box", height: 120,
+                    background: "var(--rc-surface-2)", border: "1px solid var(--rc-border)", borderRadius: 10,
+                    color: "var(--rc-text)", fontFamily: "var(--rc-font-mono)", fontSize: 11.5, padding: 11,
+                    resize: "vertical", lineHeight: 1.6 }} />
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "13px 20px",
+              borderTop: "1px solid var(--rc-border)" }}>
+              <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>
+                {t("Kaydedince stint analizi ve tur karşılaştırma güncellenir")}</span>
+              <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+                <button onClick={() => setImportOpen(false)} style={{ padding: "9px 16px", borderRadius: 9,
+                  border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)",
+                  color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12.5 }}>{t("Vazgeç")}</button>
+                {(parsedHasTable || parsedHasMap) && (
+                  <button disabled={parsedHasMap && mapping.timeCol < 0}
+                    onClick={() => { saveBtn(); setImportOpen(false); }}
+                    style={{ padding: "9px 20px", borderRadius: 9, border: "1px solid var(--rc-brand-bright)",
+                      background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer",
+                      fontSize: 13, fontWeight: 600, opacity: parsedHasMap && mapping.timeCol < 0 ? 0.5 : 1 }}>
+                    {t("Stint")} {slot} {t("olarak kaydet")}</button>
+                )}
+              </span>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -12,7 +12,7 @@ import { SETUP_LIMITS, poolEmptyReason, lapDeltas } from "./setupPool";
 import { trackOptions, classOptions, carOptions } from "./pickerOptions";
 import { parseSvm, b64ToText, setupSummary, diffSetups, categorizeSetup,
   duckSetupToParsed } from "./setupParse";
-import { renameTeam, syncMyTeamName, createSeason, deleteRace,
+import { renameTeam, syncMyTeamName, createSeason, deleteSeason, deleteRace,
   leaveTeam, createTeam, joinTeam, getSetupBlob,
   transferOwnership, removeMember, deleteTeam,
   getUserAvatar, saveTeamAsset, clearTeamAsset } from "./storage";
@@ -1394,10 +1394,29 @@ export function RaceEditModal({ rForm, setRForm, t, seasons, onSave, lmuData }) 
    (başlık + mesaj akışı [ChatPanel] + giriş çubuğu). Modal/tam-sayfa kabuğu Sheet ile
    korunur (App.jsx çağrısı değişmesin). className="chattabs" render testinin çıpası
    olarak sol panoda kalır. */
-export function ChatModal({ open, onClose, page = false, t, chatSound, toggleChatSound,
-  chatChans, unreadOf, chatChan, setChatChan, teamData, curChan, chatBody }) {
+export function ChatModal({ open, onClose, page = false, t, lang, chatSound, toggleChatSound,
+  chatChans, unreadOf, chatChan, setChatChan, teamData, curChan, chatBody, chatAll }) {
   if (!open) return null;
   const disp = "var(--rc-font-display)";
+  /* Kanal satırı önizlemesi + zamanı — gerçek veri (useChat chatAll[path]). */
+  const lastOf = (c) => {
+    const arr = chatAll?.[c.path] || [];
+    return arr.length ? arr[arr.length - 1] : null;
+  };
+  const fmtWhen = (ts) => {
+    if (!ts) return "";
+    const d = new Date(ts); const loc = lang === "en" ? "en-GB" : "tr-TR";
+    return new Date().toDateString() === d.toDateString()
+      ? d.toLocaleTimeString(loc, { hour: "2-digit", minute: "2-digit" })
+      : d.toLocaleDateString(loc, { day: "2-digit", month: "2-digit" });
+  };
+  const previewOf = (c) => {
+    const m = lastOf(c);
+    if (!m) return "";
+    const who = teamData?.names?.[m.uid] || m.name || "";
+    const first = who ? `${String(who).split(/\s+/)[0]}: ` : "";
+    return `${first}${m.text || ""}`;
+  };
   const chanName = (c) => (c && c.id === "team"
     ? (teamData?.meta?.name || t(c.lbl)) : (c ? t(c.lbl) : ""));
   const memCount = teamData?.members ? Object.keys(teamData.members).length : null;
@@ -1454,10 +1473,10 @@ export function ChatModal({ open, onClose, page = false, t, chatSound, toggleCha
                           {u2 > 9 ? "9+" : u2}</span>
                       )}
                       <span style={{ marginLeft: "auto", fontSize: 10.5, color: "var(--rc-text-3)",
-                        fontFamily: disp }}></span>
+                        fontFamily: disp }}>{fmtWhen(lastOf(c)?.at)}</span>
                     </span>
                     <span style={{ fontSize: 11.5, color: "var(--rc-text-3)", overflow: "hidden",
-                      textOverflow: "ellipsis", whiteSpace: "nowrap" }}></span>
+                      textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{previewOf(c)}</span>
                   </span>
                 </button>
               );
@@ -1476,13 +1495,10 @@ export function ChatModal({ open, onClose, page = false, t, chatSound, toggleCha
             <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{curMeta}</span>
             <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
               <button onClick={toggleChatSound}
+                title={chatSound ? t("Bildirim sesini kapat") : t("Bildirim sesini aç")}
                 style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--rc-border)",
                   background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer",
-                  fontSize: 12 }}>🔕 {t("Sessize al")}</button>
-              <button
-                style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--rc-border)",
-                  background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer",
-                  fontSize: 12 }}>{t("Ara")}</button>
+                  fontSize: 12 }}>{chatSound ? "🔔" : "🔕"} {t("Sessize al")}</button>
             </span>
           </div>
           {chatBody(curChan)}
@@ -1557,7 +1573,7 @@ function useSetupBlob(su, open) {
 
 /* Setup içeriği penceresi — havuzdaki base64 (su.data) çözülüp .svm parse edilir; üstte
    özet çipleri (Arka Kanat vb.), altında bölüm bölüm anlamlı değerler. open=false → null. */
-export function SetupContentModal({ open, su, onClose, t }) {
+export function SetupContentModal({ open, su, onClose, t, onDownload, onAddCompare }) {
   const blob = useSetupBlob(su, open);
   const [q, setQ] = useState("");
   const [showAll, setShowAll] = useState(false);
@@ -1582,6 +1598,9 @@ export function SetupContentModal({ open, su, onClose, t }) {
     : cats;
   const title = [carName(su.cls, su.car) || su.car, trackName(su.track) || su.track]
     .filter(Boolean).join(" · ");
+  const hideImg = (e) => { e.currentTarget.style.display = "none"; };
+  const carPng = carImg(su.cls, su.car);
+  const disp = "var(--rc-font-display)";
   return (
     <div className="wxmodal" onClick={onClose}>
       <div className="wxmbox" style={{ width: "min(640px,95vw)" }}
@@ -1590,9 +1609,36 @@ export function SetupContentModal({ open, su, onClose, t }) {
           <span>🔧 {t("Setup İçeriği")}</span>
           <button className="lbclose" onClick={onClose}>✕</button>
         </div>
-        <div className="wxmlist" style={{ maxHeight: "74vh" }}>
+        {/* fiş 09 svOpen görsel banner: bayrak + araç + pist görseli + en iyi tur (gerçek su verisi) */}
+        <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px",
+          borderBottom: "1px solid var(--rc-line-soft)", flexWrap: "wrap",
+          background: "radial-gradient(120% 200% at 100% 0,rgba(150,0,24,.16),var(--rc-surface-2) 70%)" }}>
+          {su.track && <img src={`${ASSET}flags/${TRACK_ASSET(su.track)}.png`} alt="" onError={hideImg}
+            style={{ width: 26, borderRadius: 3, flex: "0 0 auto", border: "1px solid var(--rc-border)" }} />}
+          <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+            <b style={{ fontFamily: disp, fontSize: 15 }}>{trackName(su.track) || su.track || "—"}</b>
+            <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>
+              {[su.champ, `${su.cond === "wet" ? "🌧 Wet" : `☀️ ${t("Kuru")}`}`,
+                su.sess === "Q" ? t("Sıralama") : t("Yarış")].filter(Boolean).join(" · ")}</span>
+          </span>
+          {carPng && <img src={carPng} alt="" onError={hideImg}
+            style={{ height: 38, width: "auto", objectFit: "contain", flex: "0 0 auto" }} />}
+          <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+            <b style={{ fontSize: 12.5, whiteSpace: "nowrap" }}>{carName(su.cls, su.car) || su.car || "—"}</b>
+            {su.uname && <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{su.uname}</span>}
+          </span>
+          {su.lap && (
+            <span style={{ marginLeft: "auto", textAlign: "right" }}>
+              <div style={{ fontFamily: disp, fontSize: 24, fontWeight: 700, lineHeight: 1,
+                color: "var(--rc-ok)" }}>{su.lap}</div>
+              <div style={{ fontSize: 10, color: "var(--rc-text-3)", textTransform: "uppercase",
+                letterSpacing: ".09em" }}>{t("en iyi tur")}</div>
+            </span>
+          )}
+        </div>
+        <div className="wxmlist" style={{ maxHeight: "66vh" }}>
           <div className="hint" style={{ margin: "0 0 8px" }}>
-            {su.name}{title ? ` · ${title}` : ""}{su.lap ? ` · ⏱ ${su.lap}` : ""}</div>
+            {su.name}{title ? ` · ${title}` : ""}{su.note ? ` · 📝 ${su.note}` : ""}</div>
           {blob.loading ? (
             <div className="hint">⏳ {t("Dosya yükleniyor…")}</div>
           ) : !parsed.ok ? (
@@ -1646,6 +1692,22 @@ export function SetupContentModal({ open, su, onClose, t }) {
             </>
           )}
         </div>
+        {/* fiş 09 svOpen footer: karşılaştırmaya ekle + indir (gerçek handler'lar) */}
+        {(onAddCompare || onDownload) && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px",
+            borderTop: "1px solid var(--rc-border)" }}>
+            <span className="hint" style={{ margin: 0 }}>{t("LMU .svm dosyasından okundu")}</span>
+            <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+              {onAddCompare && (
+                <button className="act" onClick={() => { onAddCompare(su); onClose(); }}>
+                  ⚖ {t("Karşılaştırmaya ekle")}</button>
+              )}
+              {onDownload && (
+                <button className="gbtn ubtn" onClick={() => onDownload(su)}>⬇ {t("İndir")}</button>
+              )}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1748,6 +1810,7 @@ export function SessionSetupBox({ setup, meta, t, onSave }) {
    uyarı çipi çıkar (kıyas kullanıcının bilinçli kararı). open=false → null. */
 export function SetupCompareModal({ open, a, b, onClose, t }) {
   const [onlyDiff, setOnlyDiff] = useState(true);
+  const [copied, setCopied] = useState(false);
   const blobA = useSetupBlob(a, open);     // legacy: su.data · yeni: talep üzerine
   const blobB = useSetupBlob(b, open);
   useEffect(() => {
@@ -1773,6 +1836,25 @@ export function SetupCompareModal({ open, a, b, onClose, t }) {
     groups[gIdx[r.section]].list.push(r);
   }
   const mismatch = a.track !== b.track || a.cls !== b.cls;
+  /* Sayısal Δ — yalnız iki taraf da sayı ayrıştırıyorsa (etiket değerlerden türetilir). */
+  const numOf = (s) => { const m = String(s ?? "").match(/-?\d+(?:\.\d+)?/); return m ? +m[0] : null; };
+  const deltaOf = (r) => {
+    const na = numOf(r.a); const nb = numOf(r.b);
+    if (na == null || nb == null) return null;
+    const d = nb - na;
+    if (Math.abs(d) < 1e-9) return null;
+    return `${d > 0 ? "+" : ""}${(+d.toFixed(3)).toString()}`;
+  };
+  /* Farkları panoya kopyala — gerçek diff satırlarından düz metin. */
+  const copyDiff = () => {
+    const lines = [`A: ${a.name}`, `B: ${b.name}`, ""];
+    for (const g of groups) {
+      lines.push(`[${t(SVM_SECTIONS[g.sec] || g.sec)}]`);
+      for (const r of g.list) lines.push(`  ${t(SVM_FIELDS[r.key] || r.key)}: ${r.a} → ${r.b}`);
+    }
+    try { navigator.clipboard?.writeText(lines.join("\n"));
+      setCopied(true); setTimeout(() => setCopied(false), 1400); } catch { /* yoksay */ }
+  };
   const side = (su) => (
     <>
       <b className="setupmono" style={{ fontSize: 11, wordBreak: "break-all" }}>{su.name}</b>
@@ -1836,18 +1918,34 @@ export function SetupCompareModal({ open, a, b, onClose, t }) {
               {groups.map(({ sec, list }) => (
                 <div className="setupsec" key={sec}>
                   <div className="setupsec-h">{t(SVM_SECTIONS[sec] || sec)}</div>
-                  {list.map((r) => (
+                  {list.map((r) => {
+                    const dl = deltaOf(r);
+                    return (
                     <div className={`cmprow${r.differ ? " diffhl" : ""}`}
+                      style={{ gridTemplateColumns: "1.15fr 1fr 1fr 0.6fr" }}
                       key={`${r.section}/${r.key}`}>
                       <span className="setuprow-k">{t(SVM_FIELDS[r.key] || r.key)}</span>
                       <span className="cmpv setupmono">{r.a}</span>
                       <span className="cmpv setupmono">{r.b}</span>
+                      <span className="setupmono" style={{ textAlign: "right", fontSize: 11,
+                        color: dl ? "var(--rc-brand-bright)" : "var(--rc-text-3)" }}>{dl || ""}</span>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ))}
             </>
           )}
+        </div>
+        {/* fiş diffOpen footer: farkları kopyala + kapat (gerçek diff metni) */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px",
+          borderTop: "1px solid var(--rc-border)" }}>
+          <span className="hint" style={{ margin: 0 }}>{t("Fark yönü A → B")}</span>
+          <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+            <button className="act" disabled={!both || !diffCount} onClick={copyDiff}>
+              {copied ? `✓ ${t("Kopyalandı")}` : `📋 ${t("Farkları kopyala")}`}</button>
+            <button className="gbtn ubtn" onClick={onClose}>{t("Kapat")}</button>
+          </span>
         </div>
       </div>
     </div>
@@ -2036,6 +2134,8 @@ export function TeamModal({ open, onClose, page = false, user, t, lang, myTeams,
   const [openMenu, setOpenMenu] = useState(null);   // ⋯ menüsü açık üye uid
   const [busy, setBusy] = useState("");             // yüklenen asset: logo/side/top
   const [copied, setCopied] = useState(false);
+  const [invOpen, setInvOpen] = useState(false);    // üye davet penceresi (katılım kodu)
+  const [seasonOpen, setSeasonOpen] = useState(false); // sezon düzenleme penceresi
   const logoRef = useRef(null);
   const sideRef = useRef(null);
   const topRef = useRef(null);
@@ -2223,15 +2323,11 @@ export function TeamModal({ open, onClose, page = false, user, t, lang, myTeams,
                     fontSize: 18 }}>{joinCode}</b>
                 </div>
                 <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                  {/* "Yenile" (kod yenileme) backend'i yok → gizlendi; yalnız kopyala kaldı. */}
                   <button onClick={copyCode}
                     style={{ flex: 1, padding: "8px 12px", borderRadius: 9, border: "1px solid var(--rc-border)",
                       background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer",
                       fontSize: 12 }}>{copied ? t("Kopyalandı") : t("Kodu kopyala")}</button>
-                  {/* FLAG: katılım kodu yenileme handler'ı yok → no-op */}
-                  <button
-                    style={{ flex: 1, padding: "8px 12px", borderRadius: 9, border: "1px solid var(--rc-border)",
-                      background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer",
-                      fontSize: 12 }}>{t("Yenile")}</button>
                 </div>
               </section>
 
@@ -2304,11 +2400,9 @@ export function TeamModal({ open, onClose, page = false, user, t, lang, myTeams,
                 <div style={cardHead}>
                   <span style={sectTtl}>{t("Üyeler & yetkiler")}</span>
                   <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>{memCount} {t("kişi")}</span>
-                  {/* Davet = katılım kodu modeli: kodu panoya kopyalar (kimlik kartında görünür). */}
-                  <button style={{ ...subBtn, marginLeft: "auto" }} onClick={() => {
-                    try { navigator.clipboard?.writeText(teamData?.meta?.joinCode || "");
-                      setCopied(true); setTimeout(() => setCopied(false), 1500); } catch {}
-                  }}>＋ {t("Üye davet et")}</button>
+                  {/* Davet = katılım kodu modeli: pencere kodu + kopyala + rol notu gösterir. */}
+                  <button style={{ ...subBtn, marginLeft: "auto" }}
+                    onClick={() => setInvOpen(true)}>＋ {t("Üye davet et")}</button>
                 </div>
                 <div style={{ overflowX: "auto" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 600 }}>
@@ -2387,9 +2481,7 @@ export function TeamModal({ open, onClose, page = false, user, t, lang, myTeams,
                                       transferOwnership(curTeam, user.uid, uid).catch(() => {});
                                   }}>👑 {t("Sahipliği devret")}</button>
                                   <button style={mItem} onClick={() => {
-                                    setOpenMenu(null);
-                                    /* Davet = katılım kodu modeli; "yeniden davet" kodu panoya kopyalar. */
-                                    try { navigator.clipboard?.writeText(teamData?.meta?.joinCode || ""); } catch {}
+                                    setOpenMenu(null); setInvOpen(true);
                                   }}>✉ {t("Yeniden davet et")}</button>
                                   <button style={mDanger} onClick={() => {
                                     setOpenMenu(null);
@@ -2434,10 +2526,11 @@ export function TeamModal({ open, onClose, page = false, user, t, lang, myTeams,
                     )}
                   </span>
                   <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-                    {/* FLAG: sezon düzenleme modalı handler'ı yok → no-op */}
-                    <button style={{ padding: "7px 12px", borderRadius: 9, border: "1px solid var(--rc-border)",
-                      background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer",
-                      fontSize: 12 }} onClick={() => {}}>✎ {t("Sezonu düzenle")}</button>
+                    {curSeason && (
+                      <button style={{ padding: "7px 12px", borderRadius: 9, border: "1px solid var(--rc-border)",
+                        background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer",
+                        fontSize: 12 }} onClick={() => setSeasonOpen(true)}>✎ {t("Sezonu düzenle")}</button>
+                    )}
                     {canEditTeam && (
                       <button style={subBtn} onClick={newRace}>＋ {t("Yarış ekle")}</button>
                     )}
@@ -2469,9 +2562,7 @@ export function TeamModal({ open, onClose, page = false, user, t, lang, myTeams,
                         whiteSpace: "nowrap", border: `1px solid ${rst.col}`, color: rst.col }}>
                         {rst.label}</span>
                       <span style={{ display: "flex", gap: 5, flex: "0 0 auto" }}>
-                        {/* FLAG: sıralama (yukarı/aşağı) handler'ı yok → no-op */}
-                        <button title={t("Yukarı taşı")} style={miniBtn}>▲</button>
-                        <button title={t("Aşağı taşı")} style={miniBtn}>▼</button>
+                        {/* ▲▼ sıralama backend'i yok → gizlendi (ölü buton bırakılmadı). */}
                         {canEditTeam && (<>
                           <button title={t("Düzenle")} style={miniBtn}
                             onClick={() => setRForm({ rid, ...r })}>✎</button>
@@ -2560,6 +2651,130 @@ export function TeamModal({ open, onClose, page = false, user, t, lang, myTeams,
                   )}
                 </div>
               </section>
+            </div>
+          </div>
+        )}
+
+        {/* ── Üye davet penceresi (fiş invOpen) — yalnız gerçek katılım-kodu akışı ──
+            E-posta daveti / bekleyen davet listesi backend'i YOK → eklenmedi. */}
+        {invOpen && (
+          <div className="wxmodal" onClick={() => setInvOpen(false)}>
+            <div className="wxmbox" style={{ width: "min(560px,95vw)" }}
+              onClick={(e) => e.stopPropagation()}>
+              <div className="wxmhead">
+                <span>✉ {t("Üye davet et")}</span>
+                <button className="lbclose" onClick={() => setInvOpen(false)}>✕</button>
+              </div>
+              <div className="wxmlist" style={{ padding: "16px 18px", display: "flex",
+                flexDirection: "column", gap: 14 }}>
+                <div style={{ border: "1px solid var(--rc-border-strong)", borderRadius: 12,
+                  background: "radial-gradient(120% 200% at 100% 0,rgba(150,0,24,.2),var(--rc-surface-2) 65%)",
+                  padding: "16px 18px" }}>
+                  <div style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase",
+                    letterSpacing: ".1em", marginBottom: 9 }}>{t("Katılım kodu")}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                    <b style={{ fontFamily: disp, fontWeight: 700, letterSpacing: ".2em", fontSize: 30,
+                      lineHeight: 1 }}>{joinCode}</b>
+                    <button className="act" style={{ marginLeft: "auto" }} onClick={copyCode}>
+                      {copied ? `✓ ${t("Kopyalandı")}` : `📋 ${t("Kopyala")}`}</button>
+                  </div>
+                  <div style={{ fontSize: 11.5, color: "var(--rc-text-3)", marginTop: 9, lineHeight: 1.6 }}>
+                    {t("Kodu paylaş — karşı taraf \"Kur & katıl\" penceresinden girer.")}</div>
+                </div>
+                <div className="hint" style={{ margin: 0, lineHeight: 1.6 }}>
+                  🛞 {t("Sürücü")} · 🎧 {t("Mühendis")} — {t("yetkileri üye katıldıktan sonra üye listesinden verirsin.")}</div>
+              </div>
+              <div style={{ display: "flex", padding: "12px 18px", borderTop: "1px solid var(--rc-border)" }}>
+                <button className="gbtn ubtn" style={{ marginLeft: "auto" }}
+                  onClick={() => setInvOpen(false)}>{t("Kapat")}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Sezon düzenleme penceresi (fiş seasonOpen) — yarış listesi + sezonu sil ──
+            Sezon adı yeniden adlandırma backend'i (updateSeason) YOK → ad salt okunur. */}
+        {seasonOpen && (
+          <div className="wxmodal" onClick={() => setSeasonOpen(false)}>
+            <div className="wxmbox" style={{ width: "min(640px,96vw)" }}
+              onClick={(e) => e.stopPropagation()}>
+              <div className="wxmhead">
+                <span>✎ {t("Sezonu düzenle")}</span>
+                <button className="lbclose" onClick={() => setSeasonOpen(false)}>✕</button>
+              </div>
+              <div className="wxmlist" style={{ maxHeight: "74vh", padding: "16px 18px",
+                display: "flex", flexDirection: "column", gap: 14 }}>
+                <div>
+                  <div style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase",
+                    letterSpacing: ".1em", marginBottom: 6 }}>{t("Sezon")}</div>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                    <b style={{ fontFamily: disp, fontSize: 19, fontWeight: 700 }}>{seasonLbl}</b>
+                    <span style={{ fontSize: 12, color: "var(--rc-text-3)" }}>
+                      {raceEntries.length} {t("yarış")}</span>
+                  </div>
+                </div>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 8 }}>
+                    <span style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase",
+                      letterSpacing: ".1em" }}>{t("Yarışlar")}</span>
+                    {canEditTeam && (
+                      <button className="act" style={{ marginLeft: "auto" }}
+                        onClick={() => { setSeasonOpen(false); newRace(); }}>＋ {t("Yarış ekle")}</button>
+                    )}
+                  </div>
+                  <div style={{ border: "1px solid var(--rc-border)", borderRadius: 11, overflow: "hidden" }}>
+                    {raceEntries.map(([rid, r], i) => (
+                      <div key={rid} style={{ display: "flex", alignItems: "center", gap: 10,
+                        padding: "9px 12px", borderTop: i ? "1px solid var(--rc-surface-5)" : "none" }}>
+                        <span style={{ fontFamily: disp, fontWeight: 700, fontSize: 13,
+                          color: "var(--rc-text-3)", width: 28, flex: "0 0 auto" }}>
+                          {r.round ? `R${r.round}` : "—"}</span>
+                        {r.trackId && (
+                          <img src={`${ASSET}flags/${r.trackId}.png`} alt=""
+                            onError={(e) => { e.currentTarget.style.display = "none"; }}
+                            style={{ width: 22, borderRadius: 2, flex: "0 0 auto" }} />
+                        )}
+                        <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, whiteSpace: "nowrap",
+                          overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {r.name || trackName(r.trackId) || "—"}</span>
+                        {canEditTeam && (<>
+                          <button title={t("Düzenle")} style={miniBtn}
+                            onClick={() => { setSeasonOpen(false); setRForm({ rid, ...r }); }}>✎</button>
+                          <button title={t("Sil")} style={miniBtn}
+                            onClick={() => { if (window.confirm(t("Yarış silinsin mi?")))
+                              deleteRace(curTeam, rid).catch(() => {}); }}>✕</button>
+                        </>)}
+                      </div>
+                    ))}
+                    {raceEntries.length === 0 && (
+                      <div style={{ padding: 12, fontSize: 12, color: "var(--rc-text-3)" }}>
+                        {t("Takvimde yarış yok.")}</div>
+                    )}
+                  </div>
+                </div>
+                {canEditTeam && curSeason && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px",
+                    borderRadius: 11, border: "1px solid var(--rc-border-strong)",
+                    background: "rgba(255,77,94,.06)", flexWrap: "wrap" }}>
+                    <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, flex: 1 }}>
+                      <b style={{ fontSize: 12.5, color: "var(--rc-danger)" }}>{t("Sezonu sil")}</b>
+                      <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>
+                        {t("Sezon kaydı silinir. Yarışlar ve setup havuzu etkilenmez.")}</span>
+                    </span>
+                    <button style={{ padding: "8px 15px", borderRadius: 9, border: "1px solid var(--rc-danger)",
+                      background: "transparent", color: "var(--rc-danger)", cursor: "pointer",
+                      fontSize: 12.5, whiteSpace: "nowrap" }}
+                      onClick={() => { if (window.confirm(`${t("Sezon silinsin mi?")}\n\n${seasonLbl}`)) {
+                        deleteSeason(curTeam, curSeason)
+                          .then(() => { setCurSeason(""); setSeasonOpen(false); }).catch(() => {}); } }}>
+                      {t("Sezonu sil")}</button>
+                  </div>
+                )}
+              </div>
+              <div style={{ display: "flex", padding: "12px 18px", borderTop: "1px solid var(--rc-border)" }}>
+                <button className="gbtn ubtn" style={{ marginLeft: "auto" }}
+                  onClick={() => setSeasonOpen(false)}>{t("Kapat")}</button>
+              </div>
             </div>
           </div>
         )}

@@ -1161,8 +1161,6 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
       fontSize: 11.5, border: `1px solid ${active ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
       background: active ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)",
       color: active ? "var(--rc-text)" : "var(--rc-text-3)" });
-    const starBtn = { border: "none", background: "transparent", cursor: "pointer",
-      color: "var(--rc-text-3)", fontSize: 13, padding: 0, lineHeight: 1 };
     const verChip = { fontSize: 10, padding: "1px 6px", borderRadius: 6, flex: "0 0 auto",
       border: "1px solid var(--rc-border)", color: "var(--rc-text-3)",
       fontFamily: "var(--rc-font-mono)", whiteSpace: "nowrap" };
@@ -1246,7 +1244,8 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
             padding: "8px 12px", borderBottom: "1px solid var(--rc-border)",
             cursor: file ? "pointer" : "default",
             background: selected ? "rgba(150,0,24,.22)" : here ? "rgba(150,0,24,.08)" : "transparent" }}>
-          <button onClick={stop} style={starBtn} title={t("Favori")}>★</button>
+          {/* Favori (★) kalıcılığı backend'de yok → grid hizası için boş hücre. */}
+          <span />
           <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
             <span style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
               <b style={{ fontFamily: disp, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden",
@@ -1324,7 +1323,7 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
             <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>
               {su.uname || "—"} · {fmtDate(su.at)}</span>
             <span style={{ marginLeft: "auto", display: "flex", gap: 6, alignItems: "center" }}>
-              <button onClick={stop} style={starBtn} title={t("Favori")}>★</button>
+              {/* Favori (★) kalıcılığı backend'de yok → buton gizlendi. */}
               {su.ver && <span style={verChip}>{su.ver}</span>}
               {selected && <span style={cmpChip}>⚖ {t("seçili")}</span>}
               {file && <button onClick={(e) => { stop(e); setViewSu(su); }} style={actBtn}>
@@ -1495,15 +1494,16 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
   );
 
   const setupContentModal = (
-    <SetupContentModal open={!!viewSu} su={viewSu} onClose={() => setViewSu(null)} t={t} />
+    <SetupContentModal open={!!viewSu} su={viewSu} onClose={() => setViewSu(null)} t={t}
+      onDownload={downloadSetup} onAddCompare={cmpToggle} />
   );
 
   const chatSheet = (page = false) => (
     <ChatModal open={(page || chatOpen) && !!user && !!curChan} page={page}
       onClose={page ? back : () => setChatOpen(false)}
-      t={t} chatSound={chatSound} toggleChatSound={toggleChatSound}
+      t={t} lang={lang} chatSound={chatSound} toggleChatSound={toggleChatSound}
       chatChans={chatChans} unreadOf={unreadOf} chatChan={chatChan} setChatChan={setChatChan}
-      teamData={teamData} curChan={curChan} chatBody={chatBody} />
+      teamData={teamData} curChan={curChan} chatBody={chatBody} chatAll={chatAll} />
   );
   const chatModal = chatSheet(false);
 
