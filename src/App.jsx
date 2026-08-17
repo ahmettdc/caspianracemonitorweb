@@ -508,10 +508,13 @@ export default function App() {
   const liveInfo = useMemo(() => computeLiveInfo(st, racePlan, now),
     [now, st.raceStartMs, st.driverAssign, st.actualPits, st.pitRepairs, st.autoOvr, racePlan]);
   useEffect(() => {
-    const needed = liveInfo.status === "pre" || liveInfo.status === "live";
+    /* Lobide de saat işlesin: takvim geçmiş-eşiği (bitiş + 30 dk) ve hero geri
+       sayımı CANLI güncellensin — yoksa biten yarış Geçmiş'e düşmeden ekranda takılır. */
+    const needed = liveInfo.status === "pre" || liveInfo.status === "live"
+      || (!curRace && !entered);
     if (needed && !clockNeededRef.current) setNow(Date.now());   // durmuş saati tazele
     clockNeededRef.current = needed;
-  }, [liveInfo.status]);
+  }, [liveInfo.status, curRace, entered]);
 
   /* --- gerçek pit işaretleme (sadece düzenleyici) --- */
   const canEdit = !curRace || role === "editor";
