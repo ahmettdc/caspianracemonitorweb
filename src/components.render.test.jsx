@@ -72,14 +72,15 @@ describe("modal bileşenleri: açık halde çökmeden render olur", () => {
     expect(html).toContain("Coco");               // üye satırı
   });
 
-  it("CreateJoinModal (v1.6 — sade kur/katıl, yönetim yok)", () => {
+  it("CreateJoinModal (fiş cjOpen — 2 sekmeli kur/katıl, yönetim yok)", () => {
     const html = render(
       <CreateJoinModal open onClose={noop} user={{ uid: "u1" }} t={t}
         userName="Ben" tForm={{ name: "", join: "" }} setTForm={noop}
         setTErr={noop} tErr="" setCurTeam={noop} />);
-    expect(html).toContain("Kur &amp; Katıl");   // & → &amp; (HTML escape)
-    expect(html).toContain("Takım Kur");
-    expect(html).toContain("Takıma Katıl");
+    expect(html).toContain("Takıma bağlan");      // başlık
+    expect(html).toContain("Takım Kur");           // sekme 1
+    expect(html).toContain("Takıma Katıl");        // sekme 2
+    expect(html).toContain("Kurduğunda ne olur");  // kur sekmesi bilgi paneli
     // yönetim bölümleri BU ekranda görünmemeli
     expect(html).not.toContain("Sezonlar & Takvim");
     expect(html).not.toContain("Üyeler & Yetkiler");

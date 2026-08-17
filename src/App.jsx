@@ -841,6 +841,8 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
   const access = udoc?.allowed === true;
   const isAdmin = udoc?.admin === true;
   const [adminOpen, setAdminOpen] = useState(false);
+  const [adminQ, setAdminQ] = useState("");        // üye yönetimi: arama
+  const [adminFilter, setAdminFilter] = useState("all"); // all | pending | allowed
   const [profOpen, setProfOpen] = useState(false);
   /* ---- takımlar ---- */
   const [teamOpen, setTeamOpen] = useState(false);
@@ -1692,22 +1694,27 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
       onDone={() => setDeny(0)} />
   );
   /* Komut paleti aksiyonları — sekmeler + hızlı ayarlar. */
+  /* Komut paleti aksiyonları — fiş cmdOpen (cmdGroups): kategori başlıklı gruplar.
+     `group` alanı CommandPalette'te başlık olarak çizilir; dizi sırası grup
+     kümelenmesini korur (Ekranlar → Genel). */
+  const gScreen = t("Ekranlar");
+  const gGeneral = t("Genel");
   const cmdActions = [
-    { id: "dash", label: t("Dashboard"), keywords: "dash panel", icon: <Icon name="chart" size={15} />, run: () => setTab("dash") },
-    { id: "schedule", label: t("Resmi Yarışlar"), keywords: "schedule takvim race yarış lmugarage resmi official", icon: "🏁", run: () => go("official") },
-    { id: "stint", label: t("Stint"), keywords: "stint", icon: <Icon name="cap" size={15} />, run: () => setTab("stint") },
-    { id: "fuel", label: t("Son Stint Yakıtı"), keywords: "fuel yakıt", icon: <Icon name="zap" size={15} />, run: () => setTab("fuel") },
-    { id: "live", label: t("Canlı"), keywords: "live canlı timing", icon: <Icon name="live" size={15} />, run: () => setTab("live") },
-    { id: "tyre", label: t("Lastik"), keywords: "tyre lastik", icon: <Icon name="tyre" size={15} />, run: () => setTab("tyre") },
-    { id: "drivers", label: t("Pilotlar"), keywords: "drivers pilot", icon: <Wheel size={13} />, run: () => setTab("drivers") },
-    { id: "tele", label: t("Telemetri"), keywords: "telemetry telemetri", icon: <Icon name="chart" size={15} />, run: () => setTab("tele") },
-    { id: "setup", label: t("Setup"), keywords: "setup", icon: <Icon name="wrench" size={15} />, run: () => setTab("setup") },
-    ...(raceChan ? [{ id: "rchat", label: t("Yarış Sohbeti"), keywords: "chat sohbet", icon: <Icon name="chat" size={15} />, run: () => setTab("rchat") }] : []),
+    { id: "dash", group: gScreen, label: t("Dashboard"), keywords: "dash panel", icon: <Icon name="chart" size={15} />, run: () => setTab("dash") },
+    { id: "stint", group: gScreen, label: t("Stint"), keywords: "stint", icon: <Icon name="cap" size={15} />, run: () => setTab("stint") },
+    { id: "fuel", group: gScreen, label: t("Son Stint Yakıtı"), keywords: "fuel yakıt", icon: <Icon name="zap" size={15} />, run: () => setTab("fuel") },
+    { id: "live", group: gScreen, label: t("Canlı"), keywords: "live canlı timing", icon: <Icon name="live" size={15} />, run: () => setTab("live") },
+    { id: "tyre", group: gScreen, label: t("Lastik"), keywords: "tyre lastik", icon: <Icon name="tyre" size={15} />, run: () => setTab("tyre") },
+    { id: "drivers", group: gScreen, label: t("Pilotlar"), keywords: "drivers pilot", icon: <Wheel size={13} />, run: () => setTab("drivers") },
+    { id: "tele", group: gScreen, label: t("Telemetri"), keywords: "telemetry telemetri", icon: <Icon name="chart" size={15} />, run: () => setTab("tele") },
+    { id: "setup", group: gScreen, label: t("Setup"), keywords: "setup", icon: <Icon name="wrench" size={15} />, run: () => setTab("setup") },
+    ...(raceChan ? [{ id: "rchat", group: gScreen, label: t("Yarış Sohbeti"), keywords: "chat sohbet", icon: <Icon name="chat" size={15} />, run: () => setTab("rchat") }] : []),
     /* v2.0: tema ve yoğunluk komutları paletten de gizlendi (yukarıdaki
        KALDIRILANLAR ile aynı karar). */
-    { id: "lang", label: lang === "en" ? "Türkçe" : "English", keywords: "language dil", run: () => switchLang(lang === "en" ? "tr" : "en") },
-    ...(user ? [{ id: "chat", label: t("Sohbet"), keywords: "chat sohbet team", icon: <Icon name="chat" size={15} />, run: () => go("chat") }] : []),
-    ...(curRace ? [{ id: "home", label: t("Ana Menü"), keywords: "home ana menü lobby", icon: <Icon name="home" size={15} />, run: leaveRace }] : []),
+    { id: "schedule", group: gGeneral, label: t("Resmi Yarışlar"), keywords: "schedule takvim race yarış lmugarage resmi official", icon: "🏁", run: () => go("official") },
+    ...(user ? [{ id: "chat", group: gGeneral, label: t("Sohbet"), keywords: "chat sohbet team", icon: <Icon name="chat" size={15} />, run: () => go("chat") }] : []),
+    ...(curRace ? [{ id: "home", group: gGeneral, label: t("Ana Menü"), keywords: "home ana menü lobby", icon: <Icon name="home" size={15} />, run: leaveRace }] : []),
+    { id: "lang", group: gGeneral, label: lang === "en" ? "Türkçe" : "English", keywords: "language dil", run: () => switchLang(lang === "en" ? "tr" : "en") },
   ];
   const cmdPalette = (
     <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} actions={cmdActions} t={t} />
@@ -3580,15 +3587,50 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
           <div className="wxmbox" style={{ width: "min(620px,95vw)" }}
             onClick={(e) => e.stopPropagation()}>
             <div className="wxmhead">
-              <span>👥 {t("Üye Yönetimi")}</span>
+              <span>🛡 {t("Üye Yönetimi")}</span>
+              <span className="hint" style={{ margin: 0, fontSize: 11.5 }}>
+                {t("Site geneli erişim onayı")}</span>
               <button className="lbclose" onClick={() => setAdminOpen(false)}>✕</button>
             </div>
+            {(() => {
+              const entries = Object.entries(allUsers);
+              const cntAll = entries.length;
+              const cntPending = entries.filter(([, u]) => u?.requested && !u?.allowed
+                && u?.admin !== true).length;
+              const cntAllowed = entries.filter(([, u]) => u?.allowed || u?.admin === true).length;
+              const q = adminQ.trim().toLowerCase();
+              const rows = entries
+                .filter(([uid, u]) => {
+                  if (adminFilter === "pending"
+                    && !(u?.requested && !u?.allowed && u?.admin !== true)) return false;
+                  if (adminFilter === "allowed" && !(u?.allowed || u?.admin === true)) return false;
+                  if (!q) return true;
+                  return `${u?.name || ""} ${u?.email || uid}`.toLowerCase().includes(q);
+                })
+                .sort(([, a], [, b]) => (b?.requestedAt || 0) - (a?.requestedAt || 0));
+              const chip = (id, label, n) => (
+                <button className={`hmchip${adminFilter === id ? " on" : ""}`}
+                  style={{ whiteSpace: "nowrap" }}
+                  onClick={() => setAdminFilter(id)}>{label} {n}</button>
+              );
+              return (<>
+            <div className="admfilter">
+              <input type="search" value={adminQ} onChange={(e) => setAdminQ(e.target.value)}
+                placeholder={t("E-posta veya ad ara…")} />
+              <span className="chips">
+                {chip("all", t("Tümü"), cntAll)}
+                {chip("pending", t("Beklemede"), cntPending)}
+                {chip("allowed", t("Erişim var"), cntAllowed)}
+              </span>
+            </div>
             <div className="wxmlist">
-              {Object.entries(allUsers).length === 0 && (
+              {cntAll === 0 && (
                 <div className="hint" style={{ padding: 12 }}>{t("Kayıt yok.")}</div>
               )}
-              {Object.entries(allUsers)
-                .sort(([, a], [, b]) => (b?.requestedAt || 0) - (a?.requestedAt || 0))
+              {cntAll > 0 && rows.length === 0 && (
+                <div className="hint" style={{ padding: 12 }}>{t("Eşleşen üye yok.")}</div>
+              )}
+              {rows
                 .map(([uid, u]) => (
                   <div key={uid} className="urow">
                     <Avatar uid={uid} name={u?.name || u?.email} photo={u?.photo} size={32} />
@@ -3620,16 +3662,72 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
               <span className="hint" style={{ marginRight: "auto", fontSize: 11 }}>
                 {t("Onaylanan kişi sayfayı yenilemeden erişir.")}</span>
             </div>
+              </>);
+            })()}
           </div>
         </div>
       )}
-      {wxHist && (
+      {wxHist && (() => {
+        /* Hava geçişi penceresi — fiş wxOpen (Yeni Tasarım.dc.html:1512): zaman
+           çizelgesi barı + "Bu andan sonraki hava" 5-buton ızgarası + "Plana etkisi"
+           özeti + "Şu an/Stint başı" hızlı butonları. Mevcut geçmiş/planlı-ekleme
+           mantığı (st.weatherLog + up) KORUNUR; değerler gerçek plandan türetilir.
+           FLAG: fişteki "toplam −N tur / stint süresi" etkisi tam plan yeniden
+           simülasyonu ister → yalnız GERÇEK olan tur-başı etki (çarpan/delta/yakıt)
+           gösteriliyor; toplam-tur etkisi uydurulmadı. */
+        const raceSec = racePlan.raceSec || parseHMS(st.raceTime) || 0;
+        const log = (st.weatherLog || []).slice().sort((a, b) => a.t - b.t);
+        const elapsedNow = liveInfo.status === "live"
+          ? Math.max(0, Math.round(liveInfo.elapsed / 1000)) : 0;
+        const wxColAt = (mid) => {
+          const cur = wxAtRel(log, mid);
+          return (WEATHER[Object.keys(WEATHER).find((k) => WEATHER[k] === cur)] || WEATHER.dry).col;
+        };
+        const bounds = Array.from(new Set([0,
+          ...log.map((e) => e.t).filter((x) => x > 0 && x < raceSec), raceSec]))
+          .sort((a, b) => a - b);
+        const segs = [];
+        for (let i = 0; i < bounds.length - 1; i++) {
+          const a = bounds[i]; const b = bounds[i + 1];
+          segs.push({ flex: Math.max(0.0001, b - a), col: wxColAt((a + b) / 2) });
+        }
+        const base = parseLap(st.avgLap);
+        const selW = WEATHER[wxPlanW] || WEATHER.dry;
+        const effLap = base * selW.lap;
+        const dLap = effLap - base;
+        const dFuelPct = (1 - selW.fuel) * 100;
+        const stintStart = liveInfo.status === "live"
+          ? (liveInfo.stintIdx === 0 ? 0 : (racePlan.rows[liveInfo.stintIdx - 1]?.endSec || 0)) : 0;
+        return (
         <div className="wxmodal" onClick={() => setWxHist(false)}>
-          <div className="wxmbox" onClick={(e) => e.stopPropagation()}>
+          <div className="wxmbox" style={{ width: "min(680px,95vw)" }}
+            onClick={(e) => e.stopPropagation()}>
             <div className="wxmhead">
-              <span>🕒 {t("Hava Geçmişi")}</span>
+              <span>🌦 {t("Hava geçişi ekle")}</span>
+              <span className="hint" style={{ margin: 0, fontSize: 11.5 }}>
+                {t("Yarış saatinde havanın değiştiği an")}</span>
               <button className="lbclose" onClick={() => setWxHist(false)}>✕</button>
             </div>
+
+            {raceSec > 0 && (
+              <div className="wxtl">
+                <div className="wxtl-bar">
+                  {segs.map((s, i) => (
+                    <i key={i} style={{ flex: s.flex, background: s.col, opacity: .5 }} />
+                  ))}
+                  {log.filter((e) => e.t > 0 && e.t < raceSec).map((e, i) => (
+                    <span key={i} className="wxtl-mk"
+                      style={{ left: `${(e.t / raceSec) * 100}%`,
+                        background: (WEATHER[e.w] || WEATHER.dry).col }} />
+                  ))}
+                  {liveInfo.status === "live" && elapsedNow > 0 && elapsedNow < raceSec && (
+                    <span className="wxtl-now" style={{ left: `${(elapsedNow / raceSec) * 100}%` }} />
+                  )}
+                </div>
+                <div className="wxtl-ax"><span>0:00</span><span>{fmtHMS(raceSec)}</span></div>
+              </div>
+            )}
+
             <div className="wxmlist">
               {!(st.weatherLog || []).length && (
                 <div className="hint" style={{ padding: "10px 6px" }}>
@@ -3652,36 +3750,57 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
                     <span className="wxat mono">@{fmtHMS(e.t)}</span>
                     <button className="minibtn" title={t("Sil")}
                       onClick={() => {
-                        const log = st.weatherLog.filter((_, j) => j !== i);
-                        up({ weather: log.length ? log[log.length - 1].w : "dry",
-                          weatherLog: log });
+                        const logD = st.weatherLog.filter((_, j) => j !== i);
+                        up({ weather: logD.length ? logD[logD.length - 1].w : "dry",
+                          weatherLog: logD });
                       }}>✕</button>
                   </div>
                 );
               })}
             </div>
             <div className="wxmplan">
-              <div className="wxmptitle">➕ {t("Planlı geçiş ekle")}</div>
+              <div className="wxmptitle">➕ {t("Bu andan sonraki hava")}</div>
+              <div className="wxpick5">
+                {Object.entries(WEATHER).map(([id, w]) => (
+                  <button key={id} className={`wxp5${wxPlanW === id ? " on" : ""}`}
+                    style={wxPlanW === id ? { borderColor: w.col, color: w.col } : undefined}
+                    onClick={() => setWxPlanW(id)}>
+                    <WetIcon id={id} size={20} />
+                    <span>{t(w.lbl)}</span>
+                    <small>×{w.lap.toFixed(2)}</small>
+                  </button>
+                ))}
+              </div>
+              <div className="wxeffect">
+                <span className="k">{t("Plana etkisi")}</span>
+                <b style={{ color: dLap > 0.05 ? "var(--rc-warn)" : "var(--rc-ok)" }}>
+                  {t("tur")} {dLap >= 0 ? "+" : ""}{dLap.toFixed(1)} {t("sn")}</b>
+                <span className="sep">·</span>
+                <b>×{selW.lap.toFixed(2)} → {fmtLap(effLap)}</b>
+                {dFuelPct > 0.5 && (<>
+                  <span className="sep">·</span>
+                  <b>⚡ {t("yakıt")} −{dFuelPct.toFixed(0)}%</b></>)}
+              </div>
               <div className="wxmprow">
-                <select value={wxPlanW} onChange={(e) => setWxPlanW(e.target.value)}>
-                  {Object.entries(WEATHER).map(([id, w]) => (
-                    <option key={id} value={id}>{w.ico} {t(w.lbl)}</option>
-                  ))}
-                </select>
                 <input type="text" placeholder="s:dd:ss" value={wxPlanT}
                   onChange={(e) => setWxPlanT(e.target.value)}
                   title={t("Yarış saati (başlangıçtan itibaren)")} />
                 <button className="histbtn" onClick={() => {
                   const tt = parseHMS(wxPlanT);
                   if (tt <= 0) return;
-                  const log = [...(st.weatherLog || []).filter((e) => Math.abs(e.t - tt) > 0.5),
+                  const logN = [...(st.weatherLog || []).filter((e) => Math.abs(e.t - tt) > 0.5),
                     { t: tt, w: wxPlanW, src: "plan" }].sort((a, b) => a.t - b.t);
-                  up({ weather: WX({ weatherLog: log }).lap ? st.weather : st.weather,
-                    weatherLog: log });
+                  up({ weatherLog: logN });
                   setWxPlanT("");
-                }}>{t("Ekle")}</button>
+                }}>{t("Geçişi ekle")}</button>
               </div>
               <div className="wxmquick">
+                <button className="minibtn" style={{ width: "auto", padding: "0 8px" }}
+                  title={t("Yarış saati (başlangıçtan itibaren)")}
+                  onClick={() => setWxPlanT(fmtHMS(elapsedNow))}>{t("Şu an")}</button>
+                <button className="minibtn" style={{ width: "auto", padding: "0 8px" }}
+                  title={t("Yarış saati (başlangıçtan itibaren)")}
+                  onClick={() => setWxPlanT(fmtHMS(stintStart))}>{t("Stint başı")}</button>
                 {[["30 dk", 30], ["60 dk", 60], ["90 dk", 90]].map(([lbl, mn]) => (
                   <button key={mn} className="minibtn" style={{ width: "auto", padding: "0 8px" }}
                     title={t("Son X dk için geçiş zamanı")}
@@ -3699,7 +3818,8 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
       <header>
         <img className="hlogo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
         <h1 className="disp" style={{ fontSize: 20 }}>RACE MONITOR</h1>

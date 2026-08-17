@@ -357,21 +357,28 @@ export function CommandPalette({ open, onClose, actions, t }) {
         role="dialog" aria-modal="true" aria-label={t("Komut paleti")}>
         <div className="cmdk-in">
           <Icon name="search" size={16} />
-          <input ref={inputRef} type="text" value={q} placeholder={`${t("Komut ara")}…`}
+          <input ref={inputRef} type="text" value={q}
+            placeholder={t("Yarış, ekran veya komut ara…")}
             onChange={(e) => setQ(e.target.value)} aria-label={t("Komut ara")} />
         </div>
         <div className="cmdk-list" role="listbox">
           {!filtered.length && (
             <div className="hint" style={{ padding: "12px 14px" }}>{t("Sonuç yok")}</div>)}
-          {filtered.map((a, i) => (
-            <button key={a.id} role="option" aria-selected={i === sel}
-              className={`cmdk-opt ${i === sel ? "on" : ""}`}
-              onMouseEnter={() => setSel(i)} onClick={() => run(a)}>
-              {a.icon && <span className="cmdk-i" aria-hidden="true">{a.icon}</span>}
-              <span className="cmdk-l">{a.label}</span>
-              {a.hint && <span className="cmdk-h">{a.hint}</span>}
-            </button>
-          ))}
+          {filtered.map((a, i) => {
+            const showHead = a.group && (i === 0 || filtered[i - 1].group !== a.group);
+            return (
+              <Fragment key={a.id}>
+                {showHead && <div className="cmdk-grp">{a.group}</div>}
+                <button role="option" aria-selected={i === sel}
+                  className={`cmdk-opt ${i === sel ? "on" : ""}`}
+                  onMouseEnter={() => setSel(i)} onClick={() => run(a)}>
+                  {a.icon && <span className="cmdk-i" aria-hidden="true">{a.icon}</span>}
+                  <span className="cmdk-l">{a.label}</span>
+                  {a.hint && <span className="cmdk-h">{a.hint}</span>}
+                </button>
+              </Fragment>
+            );
+          })}
         </div>
         <div className="cmdk-foot">
           <span>↑↓ {t("gezin")}</span><span>↵ {t("seç")}</span><span>esc {t("kapat")}</span>
@@ -2043,61 +2050,250 @@ export function SetupModal({ open, onClose, t, suUpOpen, setSuUpOpen, suList, se
 /* Create & Join — sade takım OLUŞTUR / KATIL ekranı (v1.6). Team Management'tan
    AYRI: yalnız yeni takım kur + katılım kodu ile katıl. Yönetim (sezon/takvim/
    üye/izin) burada YOK — o TeamModal'da. Backend/Firebase davranışı değişmez. */
+/* Kur & Katıl — fiş cjOpen (Yeni Tasarım.dc.html:1763): 2 SEKMELİ (Takım kur /
+   Takıma Katıl) 2 kolonlu modal. Sol form + sağ bilgi paneli. Mevcut createTeam/
+   joinTeam mantığı KORUNUR; ek olarak logo (saveTeamAsset, takım oluştuktan SONRA)
+   ve ilk sezon (createSeason) uygulanır. Renk→token: #1E1418→surface-3, #34232A→
+   border, #4A2F38→border-strong, #150E10→surface-2, #A88C93→text-3.
+   FLAG: fişteki "kod doğrulama kartı" (katılmadan takım adı/üye sayısı) için koda
+   göre takım arayan bir backend fonksiyonu YOK (joinTeam meta okumadan katıyor) →
+   sahte veri yazmamak için kart konmadı, yerine bilgilendirme metni var. */
 export function CreateJoinModal({ open, onClose, user, t, userName,
   tForm, setTForm, setTErr, tErr, setCurTeam }) {
+  const [tab, setTab] = useState("create");
+  const [logoStage, setLogoStage] = useState("");   // işlenmiş dataUri (takım kurulunca uygulanır)
+  const [logoBusy, setLogoBusy] = useState(false);
+  const [season2026, setSeason2026] = useState(true); // ilk sezon: 2026 WEC ↔ boş başla
+  const [busy, setBusy] = useState(false);
+  const logoRef = useRef(null);
+  const codeRefs = useRef([]);
   if (!open || !user) return null;
+  const disp = "var(--rc-font-display)";
+  const join = tForm.join || "";
+  const setJoinStr = (s) => setTForm({ ...tForm,
+    join: String(s).toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6) });
+  const onBox = (i, e) => {
+    const raw = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (raw.length > 1) { setJoinStr(raw); codeRefs.current[Math.min(raw.length, 5)]?.focus(); return; }
+    const arr = join.split(""); while (arr.length < 6) arr.push("");
+    arr[i] = raw;
+    setJoinStr(arr.join("").replace(/\s/g, ""));
+    if (raw && i < 5) codeRefs.current[i + 1]?.focus();
+  };
+  const onBoxKey = (i, e) => {
+    if (e.key === "Backspace" && !join[i] && i > 0) codeRefs.current[i - 1]?.focus();
+  };
+  const onLogoFile = async (file) => {
+    if (!file) return;
+    setLogoBusy(true); setTErr("");
+    try { setLogoStage(await processImageFile(file, "logo")); }
+    catch { setTErr(t("Görsel işlenemedi")); }
+    finally { setLogoBusy(false); }
+  };
+  const doCreate = async () => {
+    const nm = (tForm.name || "").trim();
+    if (busy || !nm) return;
+    setBusy(true); setTErr("");
+    try {
+      const tid = await createTeam(user, nm, userName);
+      if (logoStage) await saveTeamAsset(tid, "logo", logoStage).catch(() => {});
+      if (season2026) await createSeason(tid, "2026 WEC", 2026).catch(() => {});
+      setCurTeam(tid); setTForm({ ...tForm, name: "" }); setLogoStage(""); onClose();
+    } catch { setTErr(t("Takım kurulamadı")); }
+    finally { setBusy(false); }
+  };
+  const doJoin = async () => {
+    const code = join.trim();
+    if (busy || code.length < 4) return;
+    setBusy(true); setTErr("");
+    try {
+      const tid = await joinTeam(user, code, userName);
+      setCurTeam(tid); setTForm({ ...tForm, join: "" }); onClose();
+    } catch (e) {
+      setTErr(e.message === "NOT_FOUND" ? t("Takım bulunamadı") : t("Katılınamadı"));
+    } finally { setBusy(false); }
+  };
+
+  const lbl = { display: "block", color: "var(--rc-text-3)", fontSize: 10,
+    textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 6 };
+  const tabBtn = (active) => ({ display: "inline-flex", alignItems: "center", gap: 7,
+    padding: "9px 16px", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 600,
+    border: `1px solid ${active ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
+    background: active ? "rgba(150,0,24,.18)" : "var(--rc-surface-3)",
+    color: active ? "var(--rc-text)" : "var(--rc-text-3)" });
+  const infoPanel = { flex: "1 1 240px", minWidth: 220, border: "1px solid var(--rc-border)",
+    borderRadius: 12, background: "var(--rc-surface-2)", padding: 16, alignSelf: "flex-start" };
+  const infoTtl = { fontFamily: disp, textTransform: "uppercase", letterSpacing: ".08em",
+    fontSize: 13, fontWeight: 700, color: "var(--rc-brand-bright)", marginBottom: 10 };
+  const infoList = { display: "flex", flexDirection: "column", gap: 9, fontSize: 12,
+    color: "var(--rc-text-2)", lineHeight: 1.5 };
+  const cancelBtn = { padding: "10px 18px", borderRadius: 10, border: "1px solid var(--rc-border)",
+    background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 13 };
+  const primaryBtn = (enabled) => ({ padding: "10px 24px", borderRadius: 10,
+    border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)",
+    color: "var(--rc-on-brand)", cursor: enabled ? "pointer" : "not-allowed", opacity: enabled ? 1 : .45,
+    fontFamily: disp, fontSize: 16, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase" });
+  const footBar = { display: "flex", alignItems: "center", gap: 12, padding: "14px 20px",
+    borderTop: "1px solid var(--rc-border)", background: "var(--rc-surface-2)", flexWrap: "wrap" };
+  const seasonChip = (active) => ({ padding: "8px 14px", borderRadius: 99, cursor: "pointer",
+    fontSize: 12.5, border: `1px solid ${active ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
+    background: active ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)",
+    color: active ? "var(--rc-text)" : "var(--rc-text-2)" });
+
   return (
-    <div className="wxmodal" onClick={onClose}>
-      <div className="wxmbox" style={{ width: "min(460px,94vw)" }}
-        onClick={(e) => e.stopPropagation()}>
-        <div className="wxmhead">
-          <span>🏢 {t("Kur & Katıl")}</span>
-          <button className="lbclose" onClick={onClose}>✕</button>
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 1000,
+      background: "rgba(10,6,10,.74)", backdropFilter: "blur(5px)", display: "flex",
+      alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: "min(760px,96vw)", maxHeight: "90vh",
+        background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16,
+        overflow: "hidden", display: "flex", flexDirection: "column",
+        boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
+
+        {/* başlık */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 20px",
+          borderBottom: "1px solid var(--rc-border)", flexWrap: "wrap" }}>
+          <span style={{ fontFamily: disp, textTransform: "uppercase", letterSpacing: ".07em",
+            fontSize: 19, fontWeight: 700 }}>{t("Takıma bağlan")}</span>
+          <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>
+            {t("Yeni takım kur ya da katılım koduyla katıl")}</span>
+          <button onClick={onClose} style={{ marginLeft: "auto", width: 32, height: 32, borderRadius: 9,
+            border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)",
+            color: "var(--rc-text-2)", cursor: "pointer", fontSize: 15, lineHeight: 1 }}>✕</button>
         </div>
-        <div className="wxmlist" style={{ padding: "14px 16px" }}>
-          <div className="hint" style={{ marginTop: 0, marginBottom: 16 }}>
-            {t("Yeni bir takım kur ya da katılım koduyla mevcut bir takıma katıl.")}
-          </div>
 
-          <div className="cjsec">
-            <div className="cjsec-h">➕ {t("Takım Kur")}</div>
-            <div className="cjrow">
-              <input placeholder={t("Yeni takım adı")} value={tForm.name}
-                onChange={(e) => setTForm({ ...tForm, name: e.target.value })}
-                style={{ textTransform: "none" }} />
-              <button className="gbtn ubtn" disabled={!tForm.name.trim()}
-                style={{ opacity: tForm.name.trim() ? 1 : .45 }}
-                onClick={async () => {
-                  setTErr("");
-                  try {
-                    const tid = await createTeam(user, tForm.name.trim(), userName);
-                    setCurTeam(tid); setTForm({ ...tForm, name: "" }); onClose();
-                  } catch { setTErr(t("Takım kurulamadı")); }
-                }}>{t("Takım Kur")}</button>
-            </div>
-          </div>
-
-          <div className="cjsec">
-            <div className="cjsec-h">🔑 {t("Takıma Katıl")}</div>
-            <div className="cjrow">
-              <input placeholder={t("KATILIM KODU")} maxLength={6} value={tForm.join}
-                onChange={(e) => setTForm({ ...tForm, join: e.target.value.toUpperCase() })} />
-              <button className="gbtn ubtn" disabled={tForm.join.trim().length < 4}
-                style={{ opacity: tForm.join.trim().length >= 4 ? 1 : .45 }}
-                onClick={async () => {
-                  setTErr("");
-                  try {
-                    const tid = await joinTeam(user, tForm.join, userName);
-                    setCurTeam(tid); setTForm({ ...tForm, join: "" }); onClose();
-                  } catch (e) {
-                    setTErr(e.message === "NOT_FOUND" ? t("Takım bulunamadı") : t("Katılınamadı"));
-                  }
-                }}>{t("Katıl")}</button>
-            </div>
-          </div>
-
-          {tErr && <div className="hint" style={{ color: "var(--red)", margin: 0 }}>{tErr}</div>}
+        {/* sekmeler */}
+        <div style={{ display: "flex", gap: 8, padding: "14px 20px 0" }}>
+          <button onClick={() => { setTab("create"); setTErr(""); }} style={tabBtn(tab === "create")}>
+            ➕ {t("Takım Kur")}</button>
+          <button onClick={() => { setTab("join"); setTErr(""); }} style={tabBtn(tab === "join")}>
+            🔑 {t("Takıma Katıl")}</button>
         </div>
+
+        {tab === "create" ? (
+          <>
+            <div style={{ overflowY: "auto", display: "flex", flexWrap: "wrap", gap: 20,
+              padding: "18px 20px 22px" }}>
+              <div style={{ flex: "1 1 320px", minWidth: 0, display: "flex", flexDirection: "column",
+                gap: 14 }}>
+                <div>
+                  <label style={lbl}>{t("Takım adı")}</label>
+                  <input type="text" value={tForm.name} placeholder={t("Yeni takım adı")}
+                    onChange={(e) => setTForm({ ...tForm, name: e.target.value })}
+                    style={{ width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)",
+                      border: "1px solid var(--rc-border-strong)", borderRadius: 10, color: "var(--rc-text)",
+                      padding: "12px 14px", fontFamily: disp, fontSize: 20, fontWeight: 700,
+                      textTransform: "none" }} />
+                  <div style={{ color: "var(--rc-text-3)", fontSize: 11, marginTop: 5 }}>
+                    {t("Yarış çubuğunda ve pit board'da görünür · en fazla 40 karakter")}</div>
+                </div>
+                <div>
+                  <label style={lbl}>{t("Takım logosu")}{" "}
+                    <span style={{ textTransform: "none", letterSpacing: 0 }}>({t("isteğe bağlı")})</span></label>
+                  <input ref={logoRef} type="file" accept={IMG_ACCEPT_TYPES.join(",")}
+                    style={{ display: "none" }}
+                    onChange={(e) => { onLogoFile(e.target.files?.[0]); e.target.value = ""; }} />
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div onClick={() => logoRef.current?.click()}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => { e.preventDefault(); onLogoFile(e.dataTransfer.files?.[0]); }}
+                      style={{ width: 76, height: 76, flex: "0 0 auto",
+                        border: "1.5px dashed var(--rc-border-strong)", borderRadius: 12,
+                        background: "var(--rc-surface-2)", display: "grid", placeItems: "center",
+                        color: "var(--rc-text-3)", fontSize: 20, cursor: "pointer", overflow: "hidden" }}>
+                      {logoStage
+                        ? <img src={logoStage} alt="" style={{ width: "100%", height: "100%",
+                            objectFit: "contain" }} />
+                        : (logoBusy ? "…" : "＋")}
+                    </div>
+                    <div style={{ minWidth: 0, color: "var(--rc-text-3)", fontSize: 11.5,
+                      lineHeight: 1.6 }}>
+                      {logoBusy ? t("Yükleniyor…")
+                        : <>{t("Sürükleyip bırak ya da seç.")}<br />{t("PNG / JPG · en az 256×256")}</>}
+                      {logoStage && !logoBusy && (
+                        <button onClick={() => setLogoStage("")}
+                          style={{ display: "block", marginTop: 5, background: "none", border: "none",
+                            color: "var(--rc-brand-bright)", cursor: "pointer", fontSize: 11,
+                            padding: 0, textDecoration: "underline" }}>{t("Kaldır")}</button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label style={lbl}>{t("İlk sezon")}</label>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button onClick={() => setSeason2026(true)} style={seasonChip(season2026)}>2026 WEC</button>
+                    <button onClick={() => setSeason2026(false)} style={seasonChip(!season2026)}>
+                      {t("Boş başla")}</button>
+                  </div>
+                </div>
+              </div>
+
+              <div style={infoPanel}>
+                <div style={infoTtl}>{t("Kurduğunda ne olur")}</div>
+                <div style={infoList}>
+                  <span>👑 {t("Takım sahibi sen olursun")}</span>
+                  <span>🔑 {t("6 haneli katılım kodu üretilir")}</span>
+                  <span>🏁 {t("Sezon takvimi ve yarış odaları açılır")}</span>
+                  <span>📚 {t("Setup havuzu takımla paylaşılır")}</span>
+                </div>
+              </div>
+            </div>
+            <div style={footBar}>
+              <span style={{ color: "var(--rc-text-3)", fontSize: 11.5 }}>
+                {userName || user.displayName || user.email} {t("olarak kurulacak")}</span>
+              {tErr && <span style={{ color: "var(--rc-danger)", fontSize: 11.5 }}>{tErr}</span>}
+              <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+                <button onClick={onClose} style={cancelBtn}>{t("Vazgeç")}</button>
+                <button onClick={doCreate} disabled={busy || !tForm.name.trim()}
+                  style={primaryBtn(!busy && !!tForm.name.trim())}>{t("Takımı kur")}</button>
+              </span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{ overflowY: "auto", display: "flex", flexWrap: "wrap", gap: 20,
+              padding: "22px 20px 24px" }}>
+              <div style={{ flex: "1 1 320px", minWidth: 0 }}>
+                <label style={lbl}>{t("Katılım kodu")}</label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {[0, 1, 2, 3, 4, 5].map((i) => (
+                    <input key={i} ref={(el) => { codeRefs.current[i] = el; }} type="text"
+                      maxLength={1} value={join[i] || ""} inputMode="text" autoComplete="off"
+                      onChange={(e) => onBox(i, e)} onKeyDown={(e) => onBoxKey(i, e)}
+                      onKeyUp={(e) => { if (e.key === "Enter") doJoin(); }}
+                      style={{ width: 46, height: 54, textAlign: "center", textTransform: "uppercase",
+                        boxSizing: "border-box", background: "var(--rc-surface-3)",
+                        border: `1px solid ${join[i] ? "var(--rc-brand-bright)" : "var(--rc-border-strong)"}`,
+                        borderRadius: 10, color: "var(--rc-text)", fontFamily: disp, fontSize: 24,
+                        fontWeight: 700 }} />
+                  ))}
+                </div>
+                <div style={{ color: "var(--rc-text-3)", fontSize: 11.5, marginTop: 10,
+                  lineHeight: 1.6 }}>
+                  {t("Kodu takım sahibinden al. Büyük/küçük harf farketmez; yapıştırırsan kutular kendiliğinden dolar.")}</div>
+              </div>
+
+              <div style={infoPanel}>
+                <div style={infoTtl}>{t("Katıldığında")}</div>
+                <div style={infoList}>
+                  <span>🛞 {t("Sürücü olarak eklenirsin")}</span>
+                  <span>👀 {t("Yarış datasını görürsün, değiştiremezsin")}</span>
+                  <span>🎧 {t("Mühendis yetkisini sahip verir")}</span>
+                </div>
+              </div>
+            </div>
+            <div style={footBar}>
+              <span style={{ color: "var(--rc-text-3)", fontSize: 11.5 }}>
+                {t("Kod bulunamazsa takım sahibinden yenisini iste")}</span>
+              {tErr && <span style={{ color: "var(--rc-danger)", fontSize: 11.5 }}>{tErr}</span>}
+              <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+                <button onClick={onClose} style={cancelBtn}>{t("Vazgeç")}</button>
+                <button onClick={doJoin} disabled={busy || join.trim().length < 4}
+                  style={primaryBtn(!busy && join.trim().length >= 4)}>{t("Takıma katıl")}</button>
+              </span>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

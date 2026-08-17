@@ -643,6 +643,12 @@ export const css = `
 .rc .cjrow input{margin:0;flex:1;min-width:0}
 .rc .cjrow .ubtn{flex:0 0 auto;white-space:nowrap}
 @media(max-width:440px){.rc .cjrow{flex-wrap:wrap}.rc .cjrow .ubtn{width:100%}}
+.rc .admfilter{display:flex;align-items:center;gap:10px;padding:12px 16px;flex-wrap:wrap;
+  border-bottom:1px solid var(--rc-border)}
+.rc .admfilter>input{flex:1;min-width:180px;background:var(--rc-surface-3);
+  border:1px solid var(--rc-border);border-radius:9px;color:var(--rc-text);
+  font-size:12.5px;padding:8px 12px;margin:0}
+.rc .admfilter .chips{display:flex;gap:6px;flex-wrap:wrap}
 .rc .urow{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px}
 .rc .urow:nth-child(odd){background:rgba(255,255,255,.03)}
 .rc .urow img,.rc .urow .uav{width:32px;height:32px;border-radius:50%;object-fit:cover;flex:0 0 auto;
@@ -893,8 +899,30 @@ export const css = `
   margin-bottom:7px}
 .rc .wxmprow{display:flex;gap:6px;align-items:center}
 .rc .wxmprow select{flex:1}
-.rc .wxmprow input{width:90px;text-align:center}
-.rc .wxmquick{display:flex;gap:6px;margin-top:7px}
+.rc .wxmprow input{flex:1;text-align:center}
+.rc .wxmquick{display:flex;gap:6px;margin-top:7px;flex-wrap:wrap}
+/* hava geçişi — zaman çizelgesi barı (fiş wxOpen) */
+.rc .wxtl{padding:12px 16px;border-bottom:1px solid var(--rc-border)}
+.rc .wxtl-bar{position:relative;display:flex;height:38px;border-radius:10px;overflow:hidden;
+  border:1px solid var(--rc-border);background:var(--rc-surface-2)}
+.rc .wxtl-bar>i{min-width:2px;display:block}
+.rc .wxtl-mk{position:absolute;top:0;bottom:0;width:2px;transform:translateX(-1px)}
+.rc .wxtl-now{position:absolute;top:0;bottom:0;width:1px;background:var(--rc-text);
+  border-left:1px dashed var(--rc-text)}
+.rc .wxtl-ax{display:flex;justify-content:space-between;margin-top:5px;font-size:10px;
+  color:var(--rc-text-3);font-family:var(--rc-font-display)}
+/* "Bu andan sonraki hava" — 5 buton ızgarası */
+.rc .wxpick5{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.rc .wxp5{display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 4px;
+  border-radius:10px;border:1px solid var(--rc-border);background:var(--rc-surface-3);
+  color:var(--rc-text-2);cursor:pointer;font-size:11px}
+.rc .wxp5 small{color:var(--rc-text-3);font-family:var(--rc-font-display);font-size:10px}
+.rc .wxp5.on{background:var(--rc-surface-2)}
+.rc .wxeffect{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;
+  padding:9px 13px;border-radius:10px;border:1px solid var(--rc-border-strong);
+  background:var(--rc-surface-2);font-family:var(--rc-font-display);font-size:13px}
+.rc .wxeffect .k{font-family:inherit;font-size:11.5px;color:var(--rc-text-3)}
+.rc .wxeffect .sep{color:var(--rc-border-strong)}
 .rc .wxbar{position:relative;display:flex;height:16px;margin-top:4px;border-radius:6px;
   overflow:hidden;border:1px solid var(--line)}
 .rc .wxbar .wseg{position:relative;min-width:2px;display:flex;align-items:center;
@@ -1267,6 +1295,8 @@ export const css = `
 .rc .cmdk-in input{flex:1;background:none;border:none;outline:none;color:var(--txt);
   font-family:var(--font-ui);font-size:16px;padding:0}
 .rc .cmdk-list{max-height:min(52vh,420px);overflow-y:auto;padding:6px}
+.rc .cmdk-grp{font-size:9.5px;text-transform:uppercase;letter-spacing:.12em;
+  color:var(--rc-text-3);padding:8px 12px 5px}
 .rc .cmdk-opt{display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;
   border-radius:8px;color:var(--txt);cursor:pointer;padding:9px 11px;text-align:left;font-size:13px}
 .rc .cmdk-opt.on{background:var(--sel-bg)}

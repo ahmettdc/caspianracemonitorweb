@@ -809,6 +809,50 @@ export const EN = {
   "Takım senkronizasyonu kapalı — ": "Team sync is off — ",
   " dosyasını doldur.": " needs to be filled in.",
   /* --- takım / sezon / yarış takvimi --- */
+  /* fiş cjOpen — 2 sekmeli Kur & Katıl modalı (Yeni Tasarım.dc.html) */
+  "Takıma bağlan": "Connect to a team",
+  "Yeni takım kur ya da katılım koduyla katıl": "Create a new team or join with an invite code",
+  "Takım adı": "Team name",
+  "Yarış çubuğunda ve pit board'da görünür · en fazla 40 karakter":
+    "Shown in the race bar and on the pit board · up to 40 characters",
+  "Takım logosu": "Team logo",
+  "isteğe bağlı": "optional",
+  "Sürükleyip bırak ya da seç.": "Drag & drop or choose.",
+  "PNG / JPG · en az 256×256": "PNG / JPG · at least 256×256",
+  "İlk sezon": "First season",
+  "Boş başla": "Start empty",
+  "Kurduğunda ne olur": "What happens when you create",
+  "Takım sahibi sen olursun": "You become the team owner",
+  "6 haneli katılım kodu üretilir": "A 6-digit invite code is generated",
+  "Sezon takvimi ve yarış odaları açılır": "The season calendar and race rooms open",
+  "Setup havuzu takımla paylaşılır": "The setup pool is shared with the team",
+  "olarak kurulacak": "will be the owner",
+  "Takımı kur": "Create team",
+  "Katıldığında": "When you join",
+  "Sürücü olarak eklenirsin": "You're added as a driver",
+  "Yarış datasını görürsün, değiştiremezsin": "You can view race data but not edit it",
+  "Mühendis yetkisini sahip verir": "The owner grants engineer access",
+  "Kodu takım sahibinden al. Büyük/küçük harf farketmez; yapıştırırsan kutular kendiliğinden dolar.":
+    "Get the code from the team owner. Case doesn't matter; if you paste, the boxes fill automatically.",
+  "Kod bulunamazsa takım sahibinden yenisini iste": "If the code doesn't work, ask the owner for a new one",
+  "Takıma katıl": "Join the team",
+  "Görsel işlenemedi": "Image could not be processed",
+  /* fiş adminOpen — üye yönetimi arama + filtre */
+  "Site geneli erişim onayı": "Site-wide access approval",
+  "E-posta veya ad ara…": "Search email or name…",
+  "Erişim var": "Has access",
+  "Eşleşen üye yok.": "No matching members.",
+  /* fiş cmdOpen — komut paleti grupları */
+  "Ekranlar": "Screens",
+  "Yarış, ekran veya komut ara…": "Search races, screens or commands…",
+  /* fiş wxOpen — hava geçişi penceresi */
+  "Hava geçişi ekle": "Add weather change",
+  "Yarış saatinde havanın değiştiği an": "The race time when the weather changes",
+  "Bu andan sonraki hava": "Weather after this point",
+  "Plana etkisi": "Impact on plan",
+  "Geçişi ekle": "Add change",
+  "Şu an": "Now",
+  "Stint başı": "Stint start",
   /* v1.6 — Create & Join ayrı ekran + Team Management yeniden düzenleme */
   "Kur & Katıl": "Create & Join",
   "Yeni bir takım kur ya da katılım koduyla mevcut bir takıma katıl.":
