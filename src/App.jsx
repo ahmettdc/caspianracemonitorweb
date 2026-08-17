@@ -13,7 +13,6 @@ import { useLmuSchedule } from "./useLmuSchedule";
 import { officialRaceToForm } from "./lmuSchedule";
 import { useRaceSync } from "./useRaceSync";
 import { useTelemetry } from "./useTelemetry";
-import ScheduleStandalone from "./ScheduleStandalone";
 import { firebaseReady,
   requestAccess, watchAllUsers, setUserAllowed, updateProfile,
   setTeamRole, toggleTeamBadge, setTeamMemberName,
@@ -102,6 +101,7 @@ const TyreTab = lazyRetry(() => import("./tabs/TyreTab"));
 const DriversTab = lazyRetry(() => import("./tabs/DriversTab"));
 const TeleTab = lazyRetry(() => import("./tabs/TeleTab"));
 const LiveTab = lazyRetry(() => import("./tabs/LiveTab"));
+const ScheduleTab = lazyRetry(() => import("./tabs/ScheduleTab"));
 
 /* ============================================================
    CASPIAN MOTORSPORT — RACE MONITOR  ·  Faz 2
@@ -2409,16 +2409,31 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
   /* Telemetri (Ana Menü → Telemetri) artık lobi kabuğu içinde (sol ray korunur) —
      aşağıdaki screen==="tele" dalında çizilir; ayrı üst-düzey görünüm KALDIRILDI. */
 
-  /* ---------- bağımsız Resmi Yarışlar ekranı (Ana Menü → Resmi Yarışlar) ----------
-     Race Solo yolundan TAMAMEN ayrı üst-düzey görünüm; yarış seçmeye/oda-solo açmaya
-     gerek yok. Çıkış (🏠 Ana Menü) yalnız scheduleOnly'yi kapatır; entered/curRace'e
-     dokunmaz. curRace/entered'den ÖNCE gelir → yarış açıkken bile bağımsız açılır. */
+  /* ---------- Resmi Yarışlar ekranı (Ana Menü → Resmi Yarışlar) ----------
+     Sol ray KORUNUR (v2 kabuk). curRace/entered'den ÖNCE gelir → yarış açıkken de
+     açılabilir; bu yüzden lobi dalına katılmaz, kendi v2 kabuğunu çizer. Ray gezinmesi
+     ham `go` ile (homeGo lobi-kapsamlı); yeni ekran re-render'da doğru yerde çizilir. */
   if (scheduleOnly) {
     return (
-      <ScheduleStandalone t={t} lang={lang} switchLang={switchLang}
-        races={lmu.races} updatedAt={lmu.updatedAt}
-        loading={lmu.loading} onExit={back}
-        onPlan={curTeam ? planOfficialRace : undefined} />
+      <div className="rc v2">
+        <Rail t={t} screen={screen} go={go} onHome={() => go("home")}
+          open={railOpen} onToggle={() => setRailOpen((v) => !v)}
+          version={APP_VERSION} chatScreen="chat" unread={chatUnread}
+          onChat={() => go("chat")} />
+        <div className="v2main">
+          <UpdateBanner t={t} />
+          <div className="grid noside v2grid">
+            <div className="v2screen">
+              <div id="tabpanel-main" role="region" aria-label={t("Ana içerik")} tabIndex={-1}>
+                <Suspense fallback={<div className="hint" style={{ padding: 20 }}>⏳ {t("Yükleniyor…")}</div>}>
+                  <ScheduleTab t={t} lang={lang} races={lmu.races} updatedAt={lmu.updatedAt}
+                    loading={lmu.loading} onPlan={curTeam ? planOfficialRace : undefined} />
+                </Suspense>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     );
   }
 
