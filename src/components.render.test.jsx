@@ -48,6 +48,15 @@ describe("modal bileşenleri: açık halde çökmeden render olur", () => {
     expect(html).toContain("Setup");
   });
 
+  it("SetupModal (tam sayfa / page)", () => {
+    const html = render(
+      <SetupModal open page onClose={noop} t={t} suUpOpen={false} setSuUpOpen={noop}
+        suList={[]} setups={[]} suFTrack="" setSuFTrack={noop} suFCond="" setSuFCond={noop}
+        suFSess="" setSuFSess={noop} setupForm={() => null} setupTable={() => null} />);
+    expect(html).toContain("v2page");            // Sheet tam-sayfa kabuğu
+    expect(html).toContain("Setup");
+  });
+
   it("TeamModal (owner, üye + rozet + takvim)", () => {
     const teamData = {
       meta: { name: "Caspian", joinCode: "ABC123" },

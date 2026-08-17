@@ -1962,23 +1962,25 @@ export function SetupCompareModal({ open, a, b, onClose, t }) {
 /* Lobi ortak setup havuzu penceresi — süzgeçler + liste. Yükleme formu (setupForm)
    ve tablo (setupTable) App'te kalıp render-prop ile gelir (Setup sekmesinde de
    kullanılıyor). open=false → null döner. */
-export function SetupModal({ open, onClose, t, suUpOpen, setSuUpOpen, suList, setups,
+/* v2.0: `page` ile modal yerine TAM SAYFA (Sheet page) çizilir — ana menü sol
+   rayından erişilince fişteki gibi tam ekran açılır. Gövde (süzgeç + form + tablo)
+   tek yerde kalır; kabuk Sheet'ten seçilir. */
+export function SetupModal({ open, onClose, page = false, t, suUpOpen, setSuUpOpen, suList, setups,
   suFTrack, setSuFTrack, suFCond, setSuFCond, suFSess, setSuFSess,
   suQuery, setSuQuery, suMine, setSuMine, suView, toggleSuView,
   suHasMore, loadMoreSetups, setupForm, setupTable }) {
   if (!open) return null;
+  const title = `🔧 ${t("Setup Havuzu")} · ${t("Ortak")} (${suList.length}/${setups.length})`;
+  const upBtn = (
+    <button className="lbclose" style={{ marginLeft: "auto", marginRight: 4 }}
+      title={t("Setup Ekle")}
+      onClick={() => setSuUpOpen((v) => !v)}>{suUpOpen ? "▾" : "＋"}</button>
+  );
   return (
-    <div className="wxmodal" onClick={onClose}>
-      <div className="wxmbox" style={{ width: "min(1080px,97vw)" }}
-        onClick={(e) => e.stopPropagation()}>
-        <div className="wxmhead">
-          <span>🔧 {t("Setup Havuzu")} · {t("Ortak")} ({suList.length}/{setups.length})</span>
-          <button className="lbclose" style={{ marginLeft: "auto", marginRight: 4 }}
-            title={t("Setup Ekle")}
-            onClick={() => setSuUpOpen((v) => !v)}>{suUpOpen ? "▾" : "＋"}</button>
-          <button className="lbclose" onClick={onClose}>✕</button>
-        </div>
-        <div style={{ padding: "12px 16px", maxHeight: "70vh", overflowY: "auto" }}>
+    <Sheet page={page} title={title} onClose={onClose} width="min(1080px,97vw)" headExtra={upBtn}>
+        <div style={page
+          ? { flex: 1, minHeight: 0, overflowY: "auto", padding: "14px 18px" }
+          : { padding: "12px 16px", maxHeight: "70vh", overflowY: "auto" }}>
           {suUpOpen && (
             <div className="card" style={{ marginBottom: 12 }}>
               <h2>🔧 {t("Setup Yükle")}</h2>
@@ -2038,8 +2040,7 @@ export function SetupModal({ open, onClose, t, suUpOpen, setSuUpOpen, suList, se
             </div>
           )}
         </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }
 

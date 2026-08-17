@@ -1485,8 +1485,11 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
       onClose={() => setCmpOpen(false)} t={t} />
   );
 
-  const setupModal = (
-    <SetupModal open={suOpen} onClose={() => setSuOpen(false)} t={t}
+  /* v2.0: Ana menü sol rayından Setup TAM SAYFA (page) açılır; modal kabuğu yalnız
+     eski çağrılar için kalır. Gövde tek yerde — kabuk page bayrağıyla seçilir. */
+  const setupSheet = (page = false) => (
+    <SetupModal open={page ? screen === "setup" : suOpen} page={page}
+      onClose={page ? back : () => setSuOpen(false)} t={t}
       suUpOpen={suUpOpen} setSuUpOpen={setSuUpOpen} suList={suList} setups={setups}
       suFTrack={suFTrack} setSuFTrack={setSuFTrack} suFCond={suFCond} setSuFCond={setSuFCond}
       suFSess={suFSess} setSuFSess={setSuFSess} suQuery={suQuery} setSuQuery={setSuQuery}
@@ -1494,6 +1497,7 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
       suHasMore={suHasMore} loadMoreSetups={loadMoreSetups}
       setupForm={setupForm} setupTable={setupTable} />
   );
+  const setupModal = setupSheet(false);
 
   const setupContentModal = (
     <SetupContentModal open={!!viewSu} su={viewSu} onClose={() => setViewSu(null)} t={t}
@@ -2524,7 +2528,7 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
     const homeGo = (id) => {
       if (id === "team") return go("team");
       if (id === "chat") return go("chat");
-      if (id === "setup") return setSuOpen(true);
+      if (id === "setup") return go("setup");
       if (id === "tele") return go("tele");
       if (nextEntry) return openRace(nextEntry[0]);
       return undefined;
@@ -2597,13 +2601,14 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
         {/* v2.0: Takım/Sohbet ana menüden de TAM SAYFA (modal değil) — sol raydan
             gezinir; Ana Menü'ye ray 🏠 ile dönülür. Yarış-içi kabuktaki
             .v2grid > .v2screen yerleşimiyle birebir. */}
-        {(screen === "team" || screen === "chat") ? (
+        {(screen === "team" || screen === "chat" || screen === "setup") ? (
         <div className="grid noside v2grid">
           <div className="v2screen">
             {(() => { const g = guideFor(screen, t); return g
               ? <Guide title={g.title} text={g.text} /> : null; })()}
             <div id="tabpanel-main" role="region" aria-label={t("Ana içerik")} tabIndex={-1}>
-              {screen === "team" ? teamSheet(true) : chatSheet(true)}
+              {screen === "team" ? teamSheet(true)
+                : screen === "setup" ? setupSheet(true) : chatSheet(true)}
             </div>
           </div>
         </div>
@@ -2731,7 +2736,7 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
                   </div>
                   <div className="acts">
                     <button className="open" onClick={() => openRace(nextEntry[0])}>{t("Yarışı aç")} →</button>
-                    <button className="setup" onClick={() => setSuOpen(true)}>
+                    <button className="setup" onClick={() => go("setup")}>
                       {trackName(heroR.trackId)
                         ? `${trackName(heroR.trackId)} ${t("setupları")}`
                         : t("Setuplar")}{" "}
@@ -2768,7 +2773,7 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
             )}
 
             <div className="hmqa">
-              <button className="tile" onClick={() => setSuOpen(true)}>
+              <button className="tile" onClick={() => go("setup")}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--rc-brand-bright)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15.5 4a4.5 4.5 0 0 0-4 6.6L4 18.1 5.9 20l7.5-7.5A4.5 4.5 0 1 0 15.5 4Z" /></svg>
                 <b>{t("Setup havuzu")}</b><span>{setups.length} {t("dosya")}
                   {suTrackCount ? ` · ${suTrackCount} ${t("pist")}` : ""}</span>
@@ -3684,9 +3689,8 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
            çizelgesi barı + "Bu andan sonraki hava" 5-buton ızgarası + "Plana etkisi"
            özeti + "Şu an/Stint başı" hızlı butonları. Mevcut geçmiş/planlı-ekleme
            mantığı (st.weatherLog + up) KORUNUR; değerler gerçek plandan türetilir.
-           FLAG: fişteki "toplam −N tur / stint süresi" etkisi tam plan yeniden
-           simülasyonu ister → yalnız GERÇEK olan tur-başı etki (çarpan/delta/yakıt)
-           gösteriliyor; toplam-tur etkisi uydurulmadı. */
+           Toplam etki: girilen geçiş anıyla plan YENİDEN simüle edilir (computePlan)
+           ve mevcut plana göre tur/stint/yakıt farkı gösterilir — gerçek hesap. */
         const raceSec = racePlan.raceSec || parseHMS(st.raceTime) || 0;
         const log = (st.weatherLog || []).slice().sort((a, b) => a.t - b.t);
         const elapsedNow = liveInfo.status === "live"
@@ -3793,6 +3797,31 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
                   <span className="sep">·</span>
                   <b>⚡ {t("yakıt")} −{dFuelPct.toFixed(0)}%</b></>)}
               </div>
+              {/* Toplam etki — geçiş anı girilince planı yeniden simüle et (gerçek). */}
+              {(() => {
+                const tt = parseHMS(wxPlanT);
+                if (!(tt > 0) || !(racePlan.totalLaps > 0)) return null;
+                const logHyp = [...(st.weatherLog || []).filter((e) => Math.abs(e.t - tt) > 0.5),
+                  { t: tt, w: wxPlanW, src: "plan" }].sort((a, b) => a.t - b.t);
+                const ph = computePlan({ ...st, weather: wxPlanW, weatherLog: logHyp }, "race");
+                const dL = ph.totalLaps - racePlan.totalLaps;
+                const dS = ph.fullStints - racePlan.fullStints;
+                const dF = ph.totalFuel - racePlan.totalFuel;
+                const col = dL < 0 ? "var(--rc-warn)" : dL > 0 ? "var(--rc-ok)" : "var(--rc-text-2)";
+                return (
+                  <div className="wxeffect" style={{ marginTop: 6 }}>
+                    <span className="k">@{fmtHMS(tt)} → {t("toplam")}</span>
+                    <b style={{ color: col }}>{dL >= 0 ? "+" : ""}{dL.toFixed(0)} {t("tur")}</b>
+                    {dS !== 0 && (<><span className="sep">·</span>
+                      <b>{dS >= 0 ? "+" : ""}{dS} {t("stint")}</b></>)}
+                    {Math.abs(dF) > 0.05 && (<><span className="sep">·</span>
+                      <b>⚡ {dF >= 0 ? "+" : ""}{dF.toFixed(1)}L</b></>)}
+                    <span className="sep">·</span>
+                    <span className="hint" style={{ margin: 0 }}>
+                      {ph.totalLaps.toFixed(0)} {t("tur")} / {ph.fullStints} {t("stint")}</span>
+                  </div>
+                );
+              })()}
               <div className="wxmprow">
                 <input type="text" placeholder="s:dd:ss" value={wxPlanT}
                   onChange={(e) => setWxPlanT(e.target.value)}
