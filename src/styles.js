@@ -1231,10 +1231,15 @@ export const css = `
   filter:drop-shadow(0 16px 48px rgba(0,0,0,.75))}
 .rc .lightbox .lbcap{font-family:var(--font-disp);font-size:20px;letter-spacing:.05em;
   text-transform:uppercase;color:var(--txt);animation:lbfade .4s ease}
-.rc .lightbox .lbclose{position:absolute;top:18px;right:22px;background:var(--panel2);
-  border:1px solid var(--line);border-radius:8px;color:var(--txt);font-size:16px;
-  padding:6px 12px;cursor:pointer}
-.rc .lightbox .lbclose:hover{border-color:var(--car);color:#FFE9ED}
+/* ✕ kapat düğmesi — TÜM pencerelerde tema-tutarlı (yeni inline stilli ✕'lerle
+   birebir: 32px, yuvarlak, surface-3, kenarlık). .lightbox konumu ayrı korunur. */
+.rc .lbclose{width:32px;height:32px;flex:0 0 auto;display:inline-flex;align-items:center;
+  justify-content:center;border-radius:9px;border:1px solid var(--rc-border);
+  background:var(--rc-surface-3);color:var(--rc-text-2);cursor:pointer;font-size:15px;
+  line-height:1;padding:0}
+.rc .lbclose:hover{border-color:var(--rc-brand-bright);color:var(--rc-text)}
+.rc .lightbox .lbclose{position:absolute;top:18px;right:22px;width:auto;height:auto;
+  font-size:16px;padding:6px 12px}
 @keyframes lbfade{from{opacity:0}to{opacity:1}}
 @keyframes lbzoom{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
 /* lightbox tempo kademeleri paneli */
