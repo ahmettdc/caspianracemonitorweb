@@ -167,6 +167,27 @@ function ytId(url) {
 }
 
 
+/* Ondalık girişli sayı alanı — kontrollü input'ta parseFlo(v)||0 her tuşta değeri
+   sayıya çevirdiği için "0." gibi ARA hali silip ondalık yazmayı engelliyordu.
+   Burada ham metin yerel tutulur (ondalık yazılabilir), dışarı SAYI verilir. */
+function NumInput({ value, onNum, ...rest }) {
+  const [txt, setTxt] = useState(value == null ? "" : String(value));
+  const emitted = useRef(value);
+  useEffect(() => {
+    if (value !== emitted.current) { emitted.current = value; setTxt(value == null ? "" : String(value)); }
+  }, [value]);
+  return (
+    <input type="text" inputMode="decimal" value={txt} {...rest}
+      onChange={(e) => {
+        const v = e.target.value.replace(",", ".");
+        if (v !== "" && !/^\d*\.?\d*$/.test(v)) return;   // yalnız rakam + tek nokta
+        setTxt(v);
+        const n = (v === "" || v === ".") ? 0 : parseFloat(v);
+        if (!Number.isNaN(n)) { emitted.current = n; onNum(n); }
+      }} />
+  );
+}
+
 export default function App() {
   const [st, setSt] = useState(DEFAULT_STATE);
   /* ---------- v2.0 EKRAN YÖNLENDİRMESİ — TEK NOKTA ----------
@@ -3533,8 +3554,7 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
                   <div style={{ flex: "1 1 150px", minWidth: 0 }}>
                     <label style={lbl}>{t("Pit line")}</label>
-                    <input type="text" value={st.pitLaneTime}
-                      onChange={(e) => up({ pitLaneTime: parseFloat(e.target.value) || 0 })}
+                    <NumInput value={st.pitLaneTime} onNum={(n) => up({ pitLaneTime: n })}
                       style={{ width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)",
                         border: "1px solid var(--rc-border-strong)", borderRadius: 10, color: "var(--rc-text)",
                         padding: "11px 13px", fontFamily: disp, fontSize: 19, fontWeight: 600 }} />
@@ -3545,8 +3565,7 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
                   </div>
                   <div style={{ flex: "1 1 150px", minWidth: 0 }}>
                     <label style={lbl}>⛽ {t("Yakıt & VE")}</label>
-                    <input type="text" value={st.fuelTime}
-                      onChange={(e) => up({ fuelTime: parseFloat(e.target.value) || 0 })}
+                    <NumInput value={st.fuelTime} onNum={(n) => up({ fuelTime: n })}
                       style={{ width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)",
                         border: "1px solid var(--rc-border)", borderRadius: 10, color: "var(--rc-text)",
                         padding: "11px 13px", fontFamily: disp, fontSize: 19, fontWeight: 600 }} />
@@ -3579,16 +3598,14 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
                   <div style={{ flex: "1 1 150px", minWidth: 0 }}>
                     <label style={lbl}>{t("VE tüketim · %/tur")}</label>
-                    <input type="text" value={st.consumption}
-                      onChange={(e) => up({ consumption: parseFloat(e.target.value) || 0 })}
+                    <NumInput value={st.consumption} onNum={(n) => up({ consumption: n })}
                       style={{ width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)",
                         border: "1px solid var(--rc-border-strong)", borderRadius: 10, color: "var(--rc-text)",
                         padding: "11px 13px", fontFamily: disp, fontSize: 19, fontWeight: 600 }} />
                   </div>
                   <div style={{ flex: "1 1 150px", minWidth: 0 }}>
                     <label style={lbl}>{t("Fuel ratio · L / %1")}</label>
-                    <input type="text" value={st.fuelRatio}
-                      onChange={(e) => up({ fuelRatio: parseFloat(e.target.value) || 0 })}
+                    <NumInput value={st.fuelRatio} onNum={(n) => up({ fuelRatio: n })}
                       style={{ width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)",
                         border: "1px solid var(--rc-border)", borderRadius: 10, color: "var(--rc-text)",
                         padding: "11px 13px", fontFamily: disp, fontSize: 19, fontWeight: 600 }} />
