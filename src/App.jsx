@@ -4006,38 +4006,14 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
         )}
       </header>
 
-      <div className={`teambar ${barOpen ? "" : "collapsed"}`}>
-        <span className={`dot ${curRace ? "on" : "off"}`} title={curRace ? t("Bağlı") : t("Solo mod")} />
-        {!barOpen && !curRace && <span className="syncinfo" style={{ marginLeft: 0 }}>
-          {t("Solo mod")}</span>}
-        <button className="bartoggle"
-          onClick={() => setBarOpen(!barOpen)}
-          title={barOpen ? t("Katılım çubuğunu gizle") : t("Katılım çubuğunu göster")}>
-          {barOpen ? "▲" : "▼"}</button>
-        {barOpen && (<>
-        {!curRace ? (
-          <span className="syncinfo" style={{ marginLeft: 0 }}>
-            {t("Solo mod — takım takvimi için lobiye dön.")}
-          </span>
-        ) : (<>
-          <span>{t("YARIŞ")}: <span className="roomcode">
-            {races[curRace]?.name || trackName(races[curRace]?.trackId) || curRace}</span></span>
-          {/* rol rozeti yok — yetki takım rozetlerinden (🛞 sürücü / 🎧 mühendis) belli */}
-          {teamData?.meta?.name && (
-            <span className="syncinfo" style={{ marginLeft: 0, display: "inline-flex",
-              alignItems: "center", gap: 5 }}>
-              {teamLogoSrc(teamData?.assets)
-                ? <img className="hdteamlogo" src={teamLogoSrc(teamData.assets)} alt="" />
-                : "🏢"} {teamData.meta.name}</span>
-          )}
-          <button className="leave" onClick={leaveRace}>{t("Takvime Dön")}</button>
-          <span className="syncinfo">
-            {lastSync ? `${t("Son güncelleme: ")}${lastSync.by} · ${new Date(lastSync.at).toLocaleTimeString(lang === "en" ? "en-GB" : "tr-TR")}` : t("Senkronize")}
-          </span>
-        </>)}
-        {syncMsg && <span style={{ color: "var(--yellow)" }}>{syncMsg}</span>}
-        </>)}
-      </div>
+      {/* teambar (YARIŞ:… · Takvime Dön · Son güncelleme) KALDIRILDI (kullanıcı isteği) —
+         v1 kalıntısıydı; yarış adı zaten RaceBar'da, Takvime Dön ray 🏠 + üst home
+         düğmesinde. Bağlantı hatası mesajı RaceBar altına taşındı. */}
+      {syncMsg && (
+        <div style={{ padding: "6px 16px", background: "var(--rc-surface-2)",
+          borderBottom: "1px solid var(--rc-border)", color: "var(--rc-warn)", fontSize: 12 }}>
+          {syncMsg}</div>
+      )}
 
       {/* v2.0 BİRLEŞİK STICKY YARIŞ ÇUBUĞU (README §2) — v1'deki .hudstrip ve
           .livestrip şeritlerinin yerini aldı. Aynı bilgiler tek çubukta:
