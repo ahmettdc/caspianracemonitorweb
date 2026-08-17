@@ -19,7 +19,7 @@ import { firebaseReady,
   deleteChat, syncMyTeamName,
   deleteSetup, addSetup,
   createRace, updateRace, deleteRace,
-  raceStateGet,
+  raceStateGet, raceStateSet,
   getUserAvatar, saveUserAvatar, clearUserAvatar,
   availSet, availClear, availSubscribe } from "./storage";
 import { processImageFile, IMG_ACCEPT_TYPES } from "./imageUpload";
@@ -296,6 +296,9 @@ export default function App() {
   const scheduleOnly = screen === "official";        // yarıştan AYRI resmi takvim
   const [pickDone, setPickDone] = useState(false); // pist/araç seçimi tamamlandı mı
   const [setupDone, setSetupDone] = useState(false); // data giriş adımı tamamlandı mı
+  /* Yarış ekle/düzenle sihirbazı: RaceEditModal "İleri" → data formu → Kaydet.
+     Dolu iken data formunun aksiyonu takvime kaydeder (canlı yarış başlatmaz). */
+  const [raceWizard, setRaceWizard] = useState(null); // { payload, rid, form } | null
   const [trackQ, setTrackQ] = useState(""); // pist & araç ekranı: pist arama süzgeci
   const [userName, setUserName] = useState("");
   const [curRace, setCurRace] = useState("");    // aktif yarış id (takım içinde)
@@ -1784,33 +1787,66 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
 
   /* yarış ekleme / düzenleme penceresi → RaceEditModal (sunum); kaydetme iş
      mantığı burada (createRace/updateRace + init state hazırlığı). */
-  const saveRaceForm = async (f) => {
-    const payload = {
-      seasonId: f.seasonId || null,
-      round: f.round ? Number(f.round) : null,
-      name: f.name || "", trackId: f.trackId || "",
-      carClass: f.carClass || "", carId: f.carId || "",
-      raceTime: f.raceTime || "", startsAt: f.startsAt || 0,
-    };
-    if (f.rid) {
-      await updateRace(curTeam, f.rid, payload).catch(() => {});
-    } else {
-      /* yarış verisi önceden hazırlanır: pist/araç/süre/başlangıç dolu gelir.
-         Resmi ön ayardan geldiyse lastik seti sınırı (f.tyreSets → st.tyreLimit). */
-      const init = migrate({
-        ...DEFAULT_STATE,
-        track: payload.trackId, carClass: payload.carClass, car: payload.carId,
-        raceTime: payload.raceTime || DEFAULT_STATE.raceTime,
-        raceStartMs: payload.startsAt || Date.now(),
-        pitLaneTime: PIT_LANE_TIMES[payload.trackId] ?? DEFAULT_STATE.pitLaneTime,
-        tyreLimit: f.tyreSets > 0 ? f.tyreSets : DEFAULT_STATE.tyreLimit,
-      });
-      await createRace(curTeam, payload, init, user?.uid).catch(() => {});
+  const raceFormPayload = (f) => ({
+    seasonId: f.seasonId || null,
+    round: f.round ? Number(f.round) : null,
+    name: f.name || "", trackId: f.trackId || "",
+    carClass: f.carClass || "", carId: f.carId || "",
+    raceTime: f.raceTime || "", startsAt: f.startsAt || 0,
+  });
+  /* RaceEditModal "İleri" → yarış datası adımına (setupDone formu) götür. Doğrudan
+     kaydetmez: st, meta + (düzenlemede) mevcut race state ile tohumlanır; Kaydet
+     formda yapılır (saveRaceWizard) → meta ile birlikte strateji state'i de yazılır. */
+  const raceFormNext = async (f) => {
+    if (!curTeam) return;
+    const payload = raceFormPayload(f);
+    let base = { ...DEFAULT_STATE };
+    if (f.rid) {                       // düzenleme → mevcut strateji state'ini yükle
+      const remote = await raceStateGet(curTeam, f.rid).catch(() => null);
+      const parsed = remote?.stateJson ? safeParseState(remote.stateJson) : null;
+      if (parsed) base = parsed;
     }
+    setSt(migrate({
+      ...base,
+      track: payload.trackId, carClass: payload.carClass, car: payload.carId,
+      raceTime: payload.raceTime || base.raceTime || DEFAULT_STATE.raceTime,
+      raceStartMs: payload.startsAt || base.raceStartMs || Date.now(),
+      pitLaneTime: PIT_LANE_TIMES[payload.trackId] ?? base.pitLaneTime ?? DEFAULT_STATE.pitLaneTime,
+      ...(f.tyreSets > 0 ? { tyreLimit: f.tyreSets } : {}),
+    }));
+    setRaceWizard({ payload, rid: f.rid || null, form: f });
     setRForm(null);
+    setEntered(true); setPickDone(true); setSetupDone(false);
+    go("data");
+  };
+  /* Data formunda "Kaydet" (sihirbaz modu) → meta + düzenlenmiş strateji state'ini
+     takvime yaz (canlı yarış BAŞLATMAZ), sonra lobiye dön. */
+  const saveRaceWizard = async () => {
+    if (!raceWizard || !curTeam) return;
+    const { payload, rid } = raceWizard;
+    const snap = migrate(st);
+    if (rid) {
+      await updateRace(curTeam, rid, payload).catch(() => {});
+      const remote = await raceStateGet(curTeam, rid).catch(() => null);
+      await raceStateSet(curTeam, rid, { rev: (remote?.rev || 0) + 1,
+        stateJson: JSON.stringify(snap), updatedBy: "plan", updatedAt: Date.now() }).catch(() => {});
+    } else {
+      await createRace(curTeam, payload, snap, user?.uid).catch(() => {});
+    }
+    setRaceWizard(null);
+    setEntered(false); setPickDone(false); setSetupDone(false);
+    go("home");
+  };
+  /* Data formunda "Geri" (sihirbaz modu) → meta penceresini yeniden aç. */
+  const backRaceWizard = () => {
+    const f = raceWizard?.form;
+    setRaceWizard(null);
+    setEntered(false); setPickDone(false); setSetupDone(false);
+    go("home");
+    if (f) setRForm(f);
   };
   const raceForm = (
-    <RaceEditModal rForm={rForm} setRForm={setRForm} t={t} seasons={seasons} onSave={saveRaceForm}
+    <RaceEditModal rForm={rForm} setRForm={setRForm} t={t} seasons={seasons} onSave={raceFormNext}
       lmuData={lmuData} />
   );
 
@@ -3170,7 +3206,7 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
         <div style={{ padding: "18px 20px 108px" }}>
           {/* --- başlık --- */}
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 18 }}>
-            <button onClick={goPick} aria-label={t("Geri")}
+            <button onClick={raceWizard ? backRaceWizard : goPick} aria-label={t("Geri")}
               style={{ width: 34, height: 34, borderRadius: 9, border: "1px solid var(--rc-border)",
                 background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 14 }}>←</button>
             <h2 style={{ margin: 0, fontFamily: disp, textTransform: "uppercase", letterSpacing: ".06em",
@@ -3578,18 +3614,19 @@ ${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
             borderTop: "1px solid var(--rc-border-strong)", background: "rgba(18,12,14,.96)",
             backdropFilter: "blur(8px)" }}>
             <span style={{ fontSize: 12, color: "var(--rc-text-3)" }}>
-              {t("Dataları sonradan sol panelden değiştirebilirsin")}</span>
+              {raceWizard ? t("Kaydedince takvime eklenir; dataları sonradan da değiştirebilirsin")
+                : t("Dataları sonradan sol panelden değiştirebilirsin")}</span>
             <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
-              <button onClick={goPick}
+              <button onClick={raceWizard ? backRaceWizard : goPick}
                 style={{ padding: "10px 18px", borderRadius: 10, border: "1px solid var(--rc-border)",
                   background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 13 }}>
                 {t("Geri")}</button>
-              <button onClick={goLive}
+              <button onClick={raceWizard ? saveRaceWizard : goLive}
                 style={{ padding: "11px 24px", borderRadius: 10, border: "1px solid var(--rc-brand-bright)",
                   background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer",
                   fontFamily: disp, fontSize: 16, fontWeight: 700, letterSpacing: ".04em",
                   textTransform: "uppercase" }}>
-                {t("Yarışı aç →")}</button>
+                {raceWizard ? t("Kaydet") : t("Yarışı aç →")}</button>
             </span>
           </div>
         </div>

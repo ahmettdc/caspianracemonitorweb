@@ -1384,7 +1384,7 @@ export function RaceEditModal({ rForm, setRForm, t, seasons, onSave, lmuData }) 
               border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)",
               color: "var(--rc-on-brand)", cursor: "pointer", fontFamily: disp, fontSize: 16,
               fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase" }}>
-              {t("Kaydet")}</button>
+              {t("İleri →")}</button>
           </span>
         </div>
       </div>

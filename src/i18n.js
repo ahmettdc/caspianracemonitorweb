@@ -247,6 +247,8 @@ export const EN = {
   "Seans başı": "Session start",
   "Pist seç": "Select track",
   "Tempo referansı": "Pace reference",
+  "İleri →": "Next →",
+  "Kaydedince takvime eklenir; dataları sonradan da değiştirebilirsin": "Saving adds it to the calendar; you can change the data later too",
   "Yıl": "Year",
   "değişiklik anında kaydedilir": "changes save instantly",
   "Kod denetleniyor…": "Checking code…",
