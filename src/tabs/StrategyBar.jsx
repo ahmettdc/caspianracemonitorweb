@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { fmtDur } from "../engine";
+import NumInput from "../NumInput";
 
 /* Strateji rozetleri — kendi araç için gap'lerden hesaplanan pit-wall ipuçları:
    önündeki/arkandaki araç, temiz hava, trafik riski ve pit çıkışı tahmini.
@@ -93,8 +94,7 @@ export default function StrategyBar({ t, field, embedded }) {
         paddingTop: 12, borderTop: "1px solid var(--rc-border)" }}>
         <span style={{ fontSize: 10, color: "var(--rc-text-3)", textTransform: "uppercase",
           letterSpacing: ".08em" }}>{t("Pit kaybı")}</span>
-        <input type="number" min="0" max="180" value={pitLoss}
-          onChange={(e) => setPL(Math.max(0, Number(e.target.value) || 0))}
+        <NumInput value={pitLoss} onNum={(n) => setPL(Math.max(0, Math.min(180, n)))}
           style={{ width: 64, padding: "5px 8px", fontSize: 14, textAlign: "right",
             fontFamily: "var(--rc-font-display)", background: "var(--rc-surface-3)",
             border: "1px solid var(--rc-border)", borderRadius: 8, color: "var(--rc-text)" }} />

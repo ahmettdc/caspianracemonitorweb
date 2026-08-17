@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback, lazy, Suspense, Fragment } from "react";
 import UpdateBanner from "./UpdateBanner";
+import NumInput from "./NumInput";
 import { isTauri } from "./tauriEnv";
 import { useLiveBridge } from "./useLiveBridge";
 import { useLive } from "./useLive";
@@ -170,24 +171,6 @@ function ytId(url) {
 /* Ondalık girişli sayı alanı — kontrollü input'ta parseFlo(v)||0 her tuşta değeri
    sayıya çevirdiği için "0." gibi ARA hali silip ondalık yazmayı engelliyordu.
    Burada ham metin yerel tutulur (ondalık yazılabilir), dışarı SAYI verilir. */
-function NumInput({ value, onNum, ...rest }) {
-  const [txt, setTxt] = useState(value == null ? "" : String(value));
-  const emitted = useRef(value);
-  useEffect(() => {
-    if (value !== emitted.current) { emitted.current = value; setTxt(value == null ? "" : String(value)); }
-  }, [value]);
-  return (
-    <input type="text" inputMode="decimal" value={txt} {...rest}
-      onChange={(e) => {
-        const v = e.target.value.replace(",", ".");
-        if (v !== "" && !/^\d*\.?\d*$/.test(v)) return;   // yalnız rakam + tek nokta
-        setTxt(v);
-        const n = (v === "" || v === ".") ? 0 : parseFloat(v);
-        if (!Number.isNaN(n)) { emitted.current = n; onNum(n); }
-      }} />
-  );
-}
-
 export default function App() {
   const [st, setSt] = useState(DEFAULT_STATE);
   /* ---------- v2.0 EKRAN YÖNLENDİRMESİ — TEK NOKTA ----------

@@ -208,7 +208,10 @@ export default function StintTab({
               /* fiş 06-stint: pit=amber, o an SÜRÜLEN stint=marka kırmızı,
                  planlı stintler tek düze koyu (#2A171C). Numaralar koyu zemin
                  üstünde açık metinle net okunur (eski dönüşümlü bordo → soluk). */
-              const isLive = nowLive && s.cls === "stint" && s.idx === liveInfo.stintIdx;
+              /* s.idx 1-tabanlı (label S1,S2…, buildTimeline r.idx=engine i+1) ama
+                 liveInfo.stintIdx 0-tabanlı (computeLiveInfo stintIdx=i) — +1 ile hizala.
+                 (Plan tablosu ve pilot şeridi zaten 0-tabanlı i ile karşılaştırıyor.) */
+              const isLive = nowLive && s.cls === "stint" && s.idx === liveInfo.stintIdx + 1;
               const bg = s.cls === "pit" ? "var(--rc-warn)" : isLive ? "var(--rc-brand)" : "#2A171C";
               return (
               <div key={i} style={{ width: `${s.w}%`, flex: "0 0 auto", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", background: bg, borderRight: "1px solid var(--rc-surface)" }}>

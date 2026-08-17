@@ -170,14 +170,18 @@ function CompareTray({ t, own, ownName, rival, onClose }) {
       ? null : mine - his;
   /* fiş: her hücrede KENDİ değerin (bold, üstte) + delta + rakip (mavi, ikincil altta).
      delta = kendi − rakip → kendin daha hızlı/düşükse yeşil (up). */
-  const cell = (label, mine, his, fmt) => {
+  const cell = (label, mine, his, fmt, higherBetter = false) => {
     const d = delta(mine, his);
+    /* Renk "iyilik"e göre, sayı ham farka göre. Tur/sektör süreleri: düşük=iyi
+       (d<0 yeşil). Enerji: yüksek=iyi — bu hücrede renk ters çevrilmeli yoksa
+       VE'n rakipten fazlayken (avantaj) kırmızı görünüyordu (fiş bug). */
+    const good = d == null ? 0 : higherBetter ? d : -d;
     return (
       <span className="cmpcell" key={label}>
         <span className="cmpk">{label}</span>
         <b className="cmpv">{fmt(mine)}</b>
         {d != null && (
-          <span className={`cmpd ${d < 0 ? "up" : d > 0 ? "down" : ""}`}>
+          <span className={`cmpd ${good > 0 ? "up" : good < 0 ? "down" : ""}`}>
             {d > 0 ? "+" : ""}{d.toFixed(3)}
           </span>
         )}
@@ -198,7 +202,7 @@ function CompareTray({ t, own, ownName, rival, onClose }) {
       {[0, 1, 2].map((k) => cell(`S${k + 1}`, oS[k], rS[k],
         (v) => (v == null ? "—" : v.toFixed(3))))}
       {cell(t("Enerji"), own?.virtualEnergy, rival.virtualEnergy,
-        (v) => (v == null ? "—" : `${Math.round(v)}%`))}
+        (v) => (v == null ? "—" : `${Math.round(v)}%`), true)}
       <button className="rbbtn" onClick={onClose}
         aria-label={t("Karşılaştırmayı kapat")}>✕</button>
     </div>
@@ -838,7 +842,10 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
      taban th/td ve satır mini-bar stilleri DashTab desenindeki gibi yerelde kurulur
      (FLAG: fiş-dışı, tasarım diline uygun). --- */
   const disp = "var(--rc-font-display)";
-  const nClasses = Object.keys(classCounts).length;
+  /* Gösterilen (süzülmüş) satırlardaki benzersiz sınıf sayısı — "kendi sınıfım"
+     süzgeci açıkken araç sayısıyla birlikte sınıf sayısı da süzülsün (fiş bug:
+     eskiden classCounts tüm sahadan sayıp süzgeçte "1 sınıf" yerine hepsini derdi). */
+  const nClasses = new Set(shown.map((r) => r.id)).size;
   const pillBtn = { padding: "7px 13px", borderRadius: 99, cursor: "pointer", fontSize: 12,
     border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-3)" };
   const th = { padding: "10px 12px", borderBottom: "1px solid var(--rc-border)", textAlign: "right",
