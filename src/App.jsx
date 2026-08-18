@@ -22,7 +22,8 @@ import { firebaseReady,
   deleteSetup, addSetup,
   createRace, updateRace, deleteRace,
   raceStateGet,
-  getUserAvatar, saveUserAvatar, clearUserAvatar } from "./storage";
+  getUserAvatar, saveUserAvatar, clearUserAvatar,
+  liveHistoryClearAll } from "./storage";
 import { processImageFile, IMG_ACCEPT_TYPES } from "./imageUpload";
 import { carImageSrc, teamLogoSrc } from "./teamAssets";
 import { duckSetupToSvm, textToB64 } from "./setupParse";
@@ -731,6 +732,7 @@ ${bottomBar}
   const [sideOpen, setSideOpen] = useState(true); // sol data sidebar aç/kapa
   const [rail, setRail] = useState(true);   // v2.0 kabuk: sol dikey menü rayı aç/kapa
   const [guideOn] = useState(true); // v2.0 kabuk: ekran rehber kutusu (gizle kontrolü sonraki fişte)
+  const [bridgePopOpen, setBridgePopOpen] = useState(false); // v2.0 üst çubuk: köprü açılır paneli
   /* ---- kimlik doğrulama (Google) → useAuth hook'u ---- */
   const { user, authLoading, udoc } = useAuth();
   const [authErr, setAuthErr] = useState("");
@@ -1050,13 +1052,6 @@ ${bottomBar}
     </div>
   );
 
-  const chatBtn = user && (
-    <button className="adminbtn" data-tour="hchat" onClick={() => setChatOpen(true)}
-      title={t("Takım Sohbeti")}>
-      <Icon name="chat" size={14} /> {t("Sohbet")}
-      {chatUnread > 0 && <b className="badge">{chatUnread > 99 ? "99+" : chatUnread}</b>}
-    </button>
-  );
 
   /* Takım adı değişince kendi users/{uid}/teams kopyamı tazele — lobideki
      takım sekmeleri bu kopyayı okuyor, yoksa eski ad takılı kalır. */
@@ -2209,6 +2204,33 @@ ${bottomBar}
       }
     : { display: "none" };
 
+  /* ---- v2.0 yarış üst çubuğu (handoff-spec/ekranlar/00-yaris-ust-cubugu.md) ---- */
+  const isRace = ["live", "dash", "stint", "fuel", "tyre", "drivers"].includes(tab);
+  const rcInfo = races[curRace] || {};
+  const raceTitle = rcInfo.name || trackName(rcInfo.trackId || st.track) || t("Yarış");
+  const raceSub = [rcInfo.round ? `R${rcInfo.round}` : "", trackName(rcInfo.trackId || st.track),
+    st.car ? carName(st.carClass, st.car) : ""].filter(Boolean).join(" · ");
+  const readOnly = !!curRace && role === "viewer";
+  const feed = !!(live && live.own && live.own.position != null && liveInfo.status === "live");
+  const bPhase = bridge?.phase || "idle";
+  const bWriter = bridge?.writerBy || "";
+  const bLive = bPhase === "running";
+  const bDot = bLive ? "var(--rc-ok)" : bPhase === "error" ? "var(--rc-danger)"
+    : bPhase === "starting" || bPhase === "standby" ? "var(--rc-warn)" : "var(--rc-text-4)";
+  const flagBig = liveInfo.status === "live" ? fmtHMS(liveInfo.remaining / 1000)
+    : liveInfo.status === "pre" ? (liveInfo.toStart < 86400000 ? fmtHMS(liveInfo.toStart / 1000) : "—")
+    : "—";
+  const raceFrac = liveInfo.status === "live" && liveInfo.raceMs > 0
+    ? Math.min(1, Math.max(0, liveInfo.elapsed / liveInfo.raceMs)) : 0;
+  const totStints = racePlan.rows.length;
+  const pitBig = liveInfo.status === "live" ? fmtHMS(liveInfo.nextPitIn / 1000) : "—";
+  const pitLabel = liveInfo.status !== "live" ? t("Sıradaki pit")
+    : liveInfo.phase === "pit" ? t("Pit çıkışı") : onLastStint ? t("Bayrağa") : t("Sıradaki pit");
+  const pitSub = liveInfo.status === "live"
+    ? `S${liveInfo.stintIdx + 1}/${totStints}${liveInfo.driver ? ` · ${liveInfo.driver}` : ""}` : "";
+  const staleDot = feed ? { display: "none" }
+    : { width: 6, height: 6, borderRadius: "50%", background: "var(--rc-warn)", flex: "0 0 auto", animation: "rcpulse 1.6s ease-in-out infinite" };
+
   return (
     <div className="rc">
       <UpdateBanner t={t} />
@@ -2462,7 +2484,7 @@ ${bottomBar}
           </button>
           <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, width: "100%" }}>
             <span style={railSep} />
-            <button onClick={() => setChatOpen(true)} style={navBtn(false)} title={t("Yarış sohbeti")}>
+            <button onClick={() => setChatOpen(true)} style={navBtn(false)} title={t("Yarış sohbeti")} data-tour="hchat">
               <span style={{ position: "relative", display: "inline-flex" }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 4H4a1.5 1.5 0 0 0-1.5 1.5V16A1.5 1.5 0 0 0 4 17.5h3V21l4-3.5h9A1.5 1.5 0 0 0 21.5 16V5.5A1.5 1.5 0 0 0 20 4Z" /></svg>
                 {chatUnread > 0 && (
@@ -2483,87 +2505,160 @@ ${bottomBar}
               <span style={{ fontSize: 11.5, color: "var(--rc-text-2)", lineHeight: 1.6 }}>{t((GUIDES[scr] || ["", ""])[1])}</span>
             </span>
           </div>
-      <header>
-        <img className="hlogo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
-        <h1 className="disp" style={{ fontSize: 20 }}>RACE MONITOR</h1>
-        <span className="ver">{APP_VERSION}</span>
-        <button className="tourbtn" onClick={() => setTour("main")}
-          title={t("Rehberi başlat")} aria-label={t("Rehberi başlat")}>
-          <Icon name="cap" size={15} /></button>
-        {infoBtn}
-        {/* Ana Menü: yarıştayken her zaman görünür (teambar katlansa da) → takvim/lobiye dön */}
-        {curRace && (
-          <Btn variant="subtle" size="sm" data-tour="home" onClick={leaveRace}
-            title={t("Ana menüye dön")} iconLeft={<Icon name="home" size={14} />}>
-            {t("Ana Menü")}
-          </Btn>
-        )}
-        <button className="adminbtn" onClick={toggleTheme}
-          title={theme === "light" ? t("Koyu temaya geç") : t("Açık temaya geç")}
-          aria-label={t("Temayı değiştir")} aria-pressed={theme === "light"}>
-          <Icon name={theme === "light" ? "moon" : "sun"} size={14} />
-        </button>
-        <button className="adminbtn" onClick={toggleDensity}
-          title={density === "comfort" ? t("Yoğunluk: Rahat") : t("Yoğunluk: Kompakt")}
-          aria-label={t("Yoğunluğu değiştir")} aria-pressed={density === "comfort"}>
-          <Icon name="rows" size={14} />
-        </button>
-        <span className="langsw">
-          {["tr", "en"].map((l) => (
-            <button key={l} className={lang === l ? "on" : ""}
-              onClick={() => switchLang(l)}>{l.toUpperCase()}</button>
-          ))}
-        </span>
-        {(st.track || st.car) && (
-          <span className="hdsel">
-            {st.track && <><img className="flag" src={`${ASSET}flags/${st.track}.png`} alt="" />
-              {trackName(st.track)}</>}
-            {st.car && <>
-              <img className="car" src={carImageSrc(teamData?.assets, st.carClass, st.car, "side")}
-                alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} />
-              {carName(st.carClass, st.car)}</>}
-          </span>
-        )}
-        {access && (
-          <Btn variant="subtle" size="sm" data-tour="hteam"
-            onClick={() => setTeamOpen(true)} title={t("Takımlarım")}
-            iconLeft={teamLogoSrc(teamData?.assets)
-              ? <img className="hdteamlogo" src={teamLogoSrc(teamData.assets)} alt="" />
-              : <Icon name="building" size={14} />}>
-            {teamData?.meta?.name || t("Takımlar")}
-          </Btn>
-        )}
-        {chatBtn}
-        {isAdmin && (
-          <button className="adminbtn" onClick={() => setAdminOpen(true)}
-            title={t("Kullanıcı yönetimi")}>
-            <Icon name="users" size={14} /> {t("Üyeler")}
-            {Object.values(allUsers).filter((u) => u?.requested && u?.allowed !== true).length > 0 &&
-              <b className="badge">{Object.values(allUsers)
-                .filter((u) => u?.requested && u?.allowed !== true).length}</b>}
-          </button>
-        )}
-        {user && (
-          <span className="userchip" data-tour="uchip" title={user.email || ""}>
-            {(myAvatar || user.photoURL) && (
-              <img src={myAvatar || user.photoURL} alt=""
-                referrerPolicy={/^https?:/.test(myAvatar || user.photoURL)
-                  ? "no-referrer" : undefined} />
+      {isRace && (() => {
+        const age = live?.ts ? Math.max(0, Math.round((now - live.ts) / 1000)) : null;
+        const bVer = bridge?.ver || APP_VERSION.replace(/^v/, "");
+        const wasted = feed || bLive ? bridge?.diag?.plugin : null;
+        return (
+      <header style={{ position: "sticky", top: 0, zIndex: 20, display: "flex", alignItems: "stretch",
+        gap: 0, borderBottom: "1px solid var(--rc-border)", background: "linear-gradient(180deg,#1A1013,var(--rc-surface))" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 20px", minWidth: 250 }}>
+          {st.track && <img src={`${ASSET}flags/${st.track}.png`} alt=""
+            style={{ width: 34, borderRadius: 3, border: "1px solid var(--rc-border)" }} />}
+          <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+            <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 22,
+              lineHeight: 1, letterSpacing: ".02em" }}>{raceTitle}</span>
+            <span style={{ fontSize: 11, color: "var(--rc-text-3)", whiteSpace: "nowrap" }}>{raceSub}</span>
+            {readOnly && (
+              <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7,
+                marginTop: 12, alignSelf: "flex-start", padding: "4px 12px", borderRadius: 8,
+                border: "1px solid var(--rc-warn)", background: "rgba(245,178,61,.10)", color: "var(--rc-warn)",
+                fontSize: 11, textTransform: "uppercase", letterSpacing: ".08em", whiteSpace: "nowrap" }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--rc-warn)" strokeWidth="1.9" strokeLinecap="round" style={{ flex: "0 0 auto" }}><path d="M2.5 12S6 5.8 12 5.8 21.5 12 21.5 12 18 18.2 12 18.2 2.5 12 2.5 12Z" /><circle cx="12" cy="12" r="2.7" /></svg>
+                {t("İzleyici modu")}
+              </span>
             )}
-            {myBadges.map((b) => (
-              <span key={b.lbl} className="ubadge" title={t(b.lbl)}
-                style={{ color: b.col, background: b.bg, borderColor: b.col }}>
-                {b.ico}</span>
-            ))}
-            <button className="unamebtn" title={t("Profili düzenle")}
-              onClick={() => { setProfName(userName || user.displayName || "");
-                setAvStage(""); setAvErr(""); setProfOpen(true); }}>
-              {userName || user.displayName || user.email}</button>
-            <button onClick={signOut} title={t("Çıkış yap")} aria-label={t("Çıkış yap")}>
-              <Icon name="power" size={15} /></button>
+          </div>
+        </div>
+
+        <div style={{ flex: 1, display: "flex", alignItems: "stretch", borderLeft: "1px solid var(--rc-border)" }}>
+          <div style={{ flex: 1.4, display: "flex", flexDirection: "column", justifyContent: "center", gap: 2,
+            padding: "10px 22px", borderRight: "1px solid var(--rc-border)" }}>
+            <span style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".12em" }}>{t("Bayrağa kalan")}</span>
+            <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontVariantNumeric: "tabular-nums",
+              fontSize: "clamp(38px,4.2vw,60px)", lineHeight: .9, color: "var(--rc-text)" }}>{flagBig}</span>
+            <div style={{ height: 3, borderRadius: 2, background: "var(--rc-line-soft)", overflow: "hidden", marginTop: 6 }}>
+              <i style={{ display: "block", height: "100%", width: `${Math.round(raceFrac * 100)}%`, background: "var(--rc-brand)" }} /></div>
+          </div>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: 2,
+            padding: "10px 22px", borderRight: "1px solid var(--rc-border)", background: "rgba(245,178,61,.07)" }}>
+            <span style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".12em" }}>{pitLabel}</span>
+            <span style={{ display: "inline-block", fontFamily: "var(--rc-font-display)", fontWeight: 700,
+              fontVariantNumeric: "tabular-nums", fontSize: "clamp(30px,3.2vw,44px)", lineHeight: .95, color: "var(--rc-warn)",
+              borderRadius: 10, animation: pitSoon ? "rcalert 2.6s ease-in-out infinite" : "none" }}>{pitBig}</span>
+            <span style={{ fontSize: 11, color: "var(--rc-text-2)" }}>{pitSub}</span>
+          </div>
+          <div style={{ flex: .8, display: "flex", flexDirection: "column", justifyContent: "center", gap: 2,
+            padding: "10px 22px", borderRight: "1px solid var(--rc-border)", background: feed ? "transparent" : "rgba(245,178,61,.06)" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".12em" }}>{t("Pozisyon")}</span>
+              <i style={staleDot} />
+            </span>
+            <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, lineHeight: .95,
+              fontSize: "clamp(30px,3.2vw,44px)", color: feed ? "var(--rc-text)" : "var(--rc-border-strong)" }}>
+              {feed ? `P${live.own.position}` : "—"}
+              {feed && st.carClass && <span style={{ fontSize: ".45em", color: "var(--rc-cls-gt3)" }}> · {st.carClass.toUpperCase()}</span>}</span>
+            <span style={feed ? { display: "none" } : { fontSize: 11, color: "var(--rc-warn)" }}>{t("köprü verisi yok")}</span>
+          </div>
+          <div style={{ flex: .7, display: "flex", flexDirection: "column", justifyContent: "center", gap: 4,
+            padding: "10px 22px", borderRight: "1px solid var(--rc-border)", background: feed ? "transparent" : "rgba(245,178,61,.06)" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".12em" }}>{t("Enerji")}</span>
+              <i style={staleDot} />
+            </span>
+            <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontVariantNumeric: "tabular-nums",
+              lineHeight: .95, fontSize: "clamp(26px,2.6vw,36px)", color: feed ? "var(--rc-ok)" : "var(--rc-border-strong)" }}>
+              {feed ? `${Math.round(live.own.virtualEnergy)}%` : "—"}</span>
+            <div style={{ height: 3, borderRadius: 2, background: "var(--rc-line-soft)", overflow: "hidden" }}>
+              <i style={{ display: "block", height: "100%", width: feed ? `${Math.max(0, Math.min(100, live.own.virtualEnergy))}%` : "100%",
+                background: feed ? "var(--rc-ok)" : "repeating-linear-gradient(90deg,#4A2F38 0 6px,transparent 6px 12px)" }} /></div>
+            <span style={feed ? { display: "none" } : { fontSize: 11, color: "var(--rc-warn)" }}>{t("son değer yok")}</span>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "stretch",
+          gap: 7, padding: "10px 18px", borderLeft: "1px solid var(--rc-border)" }}>
+          <span style={{ position: "relative", display: "flex" }}>
+            <button onClick={() => setBridgePopOpen((v) => !v)} title={t("Köprü durumu ve kaydı")}
+              style={{ display: "flex", flex: 1, alignItems: "center", justifyContent: "center", gap: 6, fontSize: 11,
+                fontFamily: "var(--rc-font-display)", letterSpacing: ".04em", padding: "5px 11px", borderRadius: 8,
+                border: `1px solid ${bLive ? "rgba(55,214,122,.5)" : "var(--rc-border)"}`, background: "transparent",
+                textTransform: "uppercase", color: bLive ? "var(--rc-ok)" : "var(--rc-text-3)", whiteSpace: "nowrap", cursor: "pointer" }}>
+              <i style={{ width: 8, height: 8, borderRadius: "50%", background: bDot,
+                boxShadow: bLive ? "0 0 8px var(--rc-ok)" : "none", animation: bLive ? "rcpulse 1.2s ease-in-out infinite" : "none" }} />
+              {bLive ? t("canlı") : t("bağlı değil")}{age != null ? ` · ${age}s` : ""} <span style={{ opacity: .6 }}>▾</span>
+            </button>
+            {bridgePopOpen && (
+              <span style={{ position: "absolute", right: 0, top: "calc(100% + 9px)", zIndex: 70, width: 320,
+                background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 13,
+                boxShadow: "0 16px 44px rgba(0,0,0,.55)", display: "block", overflow: "hidden", textAlign: "left",
+                textTransform: "none", letterSpacing: 0, color: "var(--rc-text)", fontFamily: "var(--rc-font-ui)" }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 9, padding: "13px 16px", borderBottom: "1px solid var(--rc-border)" }}>
+                  <span style={{ fontSize: 15 }}>🛰</span>
+                  <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+                    <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 15, letterSpacing: ".03em" }}>{t("Canlı köprü")}</b>
+                    <span style={{ fontSize: 10.5, color: "var(--rc-text-3)" }}>{t("otomatik")} · v{bVer}</span>
+                  </span>
+                  <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 10,
+                    textTransform: "uppercase", letterSpacing: ".09em", padding: "3px 9px", borderRadius: 99,
+                    border: `1px solid ${bDot}`, color: bDot }}>
+                    <i style={{ width: 7, height: 7, borderRadius: "50%", background: bDot }} />{bLive ? t("çalışıyor") : t(bPhase)}
+                  </span>
+                </span>
+                <span style={{ display: "block", padding: "12px 16px", borderBottom: "1px solid var(--rc-border)" }}>
+                  {[
+                    [t("Canlı kaynak"), bWriter || "—", "var(--rc-text)"],
+                    [t("Kare hızı"), bridge?.hz ? `${bridge.hz} Hz` : "—", "var(--rc-text)"],
+                    [t("Son kare"), age != null ? `${age} sn önce` : "—", age != null && age < 5 ? "var(--rc-ok)" : "var(--rc-text)"],
+                    [t("Sahadaki araç"), String(bridge?.diag?.cars ?? (live?.field?.length || "—")), "var(--rc-text)"],
+                  ].map(([k, v, col]) => (
+                    <span key={k} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "3px 0", fontSize: 11.5 }}>
+                      <span style={{ color: "var(--rc-text-3)" }}>{k}</span>
+                      <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 11.5, color: col }}>{v}</b>
+                    </span>
+                  ))}
+                </span>
+                {wasted?.wastedFps > 0 && wasted.suggest != null && (
+                  <span style={{ display: "block", padding: "11px 16px", borderBottom: "1px solid var(--rc-border)" }}>
+                    <span style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 11, color: "var(--rc-warn)", lineHeight: 1.55 }}>
+                      <span style={{ flex: "0 0 auto" }}>⚡</span>
+                      <span>{t("Oyun eklentisi saniyede")} ~{wasted.wastedFps} {t("kez bu uygulamanın okumadığı veriyi yazıyor")} — {t("oyunda takılma yapar.")}
+                        <b style={{ display: "block", marginTop: 4, fontFamily: "var(--rc-font-display)", fontSize: 10.5, color: "var(--rc-text)" }}>UnsubscribedBuffersMask: {wasted.suggest}</b>
+                      </span>
+                    </span>
+                    <button onClick={() => navigator.clipboard?.writeText(String(wasted.suggest))}
+                      style={{ marginTop: 8, padding: "5px 11px", borderRadius: 8, border: "1px solid var(--rc-border)",
+                        background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 11 }}>{t("Değeri kopyala")}</button>
+                  </span>
+                )}
+                {canEdit && curTeam && curRace && (
+                  <span style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 16px" }}>
+                    <button onClick={async () => {
+                        if (!window.confirm(t("Bu yarışın tüm '+' tur geçmişi silinsin mi? (Yeni turlar yine kaydedilir.)"))) return;
+                        try { await liveHistoryClearAll(curTeam, curRace); } catch { /* yoksay */ }
+                      }}
+                      style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--rc-border)",
+                        background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer", fontSize: 11.5 }}>🗑 {t("Tur geçmişini temizle")}</button>
+                  </span>
+                )}
+              </span>
+            )}
           </span>
-        )}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+            <button onClick={() => setSideOpen((v) => !v)}
+              style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "6px 12px",
+                borderRadius: 8, border: `1px solid ${sideOpen ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
+                background: sideOpen ? "rgba(150,0,24,.24)" : "var(--rc-surface-3)", color: "var(--rc-text)",
+                cursor: "pointer", fontSize: 12, whiteSpace: "nowrap" }}>⚙ {t("Yarış datası")}</button>
+            <button onClick={() => setPitboard(true)}
+              style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "6px 12px",
+                borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text)",
+                cursor: "pointer", fontSize: 12, whiteSpace: "nowrap" }}>📟 {t("Pit Board")}</button>
+          </div>
+        </div>
       </header>
+        );
+      })()}
 
       <div className={`teambar ${barOpen ? "" : "collapsed"}`}>
         <span className={`dot ${curRace ? "on" : "off"}`} title={curRace ? t("Bağlı") : t("Solo mod")} />
