@@ -1,3 +1,4 @@
+import { useRef, useState, useEffect } from "react";
 import { fmtHMS, parseHMS, wxLog, wxAtRel, tyState, EMPTY_PIT, MAX_STINTS } from "../engine";
 import { driverColorOf } from "../constants";
 
@@ -21,6 +22,13 @@ const TY_STATE = [
 /* Pilot adından baş harfler (avatar rozeti) */
 const initials = (name) => (name || "").split(/\s+/).filter(Boolean)
   .map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+/* Pilot şeridi dar segment kodu: soyadın (yoksa adın) ilk 3 harfi — "Ahmet Demir"→DEM,
+   "Kaan Yıldız"→YIL, "Selin Ak"→AK. Tam ad sığmadığında bunu gösteririz (timing kodu gibi). */
+const drvCode = (name) => {
+  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+  const base = parts.length > 1 ? parts[parts.length - 1] : (parts[0] || "");
+  return base.slice(0, 3).toUpperCase();
+};
 
 export default function StintTab({
   tab, mode, t, st, plan, totalVE, totalFuelL, timeline, liveInfo, pitSoon,
@@ -30,6 +38,17 @@ export default function StintTab({
   const TY = ["FL", "FR", "RL", "RR"];
   /* pilot renkleri Dashboard ve Pilotlar ile AYNI kaynaktan (constants.js). */
   const drvNames = driverPlan ? st.roster.filter((n) => driverPlan.totals[n]) : (st.roster || []);
+  /* Pilot şeridi genişliğini ölç → segment piksel genişliğine göre tam ad / 3-harf
+     kod / yalnız renk seç (dar ekranda tam ad kırpılmasın; %-eşiği piksele eşdeğer değil). */
+  const stripRef = useRef(null);
+  const [stripPx, setStripPx] = useState(0);
+  useEffect(() => {
+    const el = stripRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return undefined;
+    const ro = new ResizeObserver(() => setStripPx(el.clientWidth));
+    ro.observe(el); setStripPx(el.clientWidth);
+    return () => ro.disconnect();
+  }, []);
 
   /* --- yeniden kullanılan stil objeleri (fiş: 04-stint-plani.md) --- */
   const disp = "var(--rc-font-display)";
@@ -244,13 +263,23 @@ export default function StintTab({
               i = j + 1;
             }
             return (
-              <div role="img" aria-label={t("Pilot şeridi")} style={{ display: "flex", gap: 0, height: 26, marginTop: 5, borderRadius: 8, overflow: "hidden", border: "1px solid var(--rc-border)" }}>
+              <div ref={stripRef} role="img" aria-label={t("Pilot şeridi")} style={{ display: "flex", gap: 0, height: 26, marginTop: 5, borderRadius: 8, overflow: "hidden", border: "1px solid var(--rc-border)" }}>
                 {cells.map((c, k) => {
                   const gap = c.type === "gap";
+                  /* segment piksel genişliğine göre etiket: tam ad sığıyorsa tam ad,
+                     sığmıyorsa 3-harf soyad kodu (DEM), çok darsa yalnız renk. */
+                  const px = (c.w / 100) * (stripPx || 0);
+                  const full = c.drv || "—";
+                  let label = "", isCode = false;
+                  if (!gap) {
+                    if (px >= full.length * 7.2 + 12) label = full;
+                    else if (c.drv && px >= 26) { label = drvCode(c.drv); isCode = true; }
+                    else if (!c.drv && px >= 16) label = "—";
+                  }
                   return (
                     <div key={k} title={gap ? undefined : (c.drv || t("Atanmadı"))}
                       style={{ width: `${c.w}%`, flex: "0 0 auto", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", borderRight: "1px solid var(--rc-surface)", background: gap ? "var(--rc-surface-2)" : driverColorOf(drvNames, c.drv), opacity: gap ? 1 : c.cur ? 1 : 0.62, boxShadow: c.cur ? "inset 0 0 0 2px var(--rc-text)" : "none" }}>
-                      <span style={c.w > 6 && !gap ? { fontSize: 11, fontWeight: 600, color: "var(--rc-bg)", whiteSpace: "nowrap" } : { display: "none" }}>{gap ? "" : (c.drv || "—")}</span>
+                      <span style={label ? { fontSize: isCode ? 10 : 11, fontWeight: isCode ? 700 : 600, letterSpacing: isCode ? ".06em" : "normal", color: "var(--rc-bg)", whiteSpace: "nowrap" } : { display: "none" }}>{label}</span>
                     </div>
                   );
                 })}
