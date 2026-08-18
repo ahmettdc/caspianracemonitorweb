@@ -369,7 +369,10 @@ export default function StintTab({
                         <span style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                           <span style={{ display: "flex", gap: 3 }}>
                             {TY.map((corner, ti) => {
-                              const stv = tyState((st.pits[i] || EMPTY_PIT).tyres[ti]);
+                              /* 0-4'e kırp: tyState ham Number(v)||0 döndürür; bozuk/eski
+                                 state'te 4'ü aşan bir bayrak TY_STATE[stv].title/dashed
+                                 erişiminde çökerdi (migrate sayısal değeri kırpmıyor). */
+                              const stv = Math.min(4, Math.max(0, tyState((st.pits[i] || EMPTY_PIT).tyres[ti])));
                               return (
                                 <button key={corner} style={cornerBtn(stv)} title={t(TY_STATE[stv].title)} onClick={() => upTyre(i, ti)}>{corner}</button>
                               );

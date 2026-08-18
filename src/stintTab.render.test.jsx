@@ -54,6 +54,16 @@ describe("StintTab — plan uyarıları", () => {
     expect(html).toContain("Plan tamamlanamadı");
     expect(html).toContain("stint sınırı");
   });
+
+  /* Bozuk/eski state: pit lastik bayrağı 0-4 aralığını aşarsa (ör. 9) plan tablosu
+     TY_STATE[stv].title erişiminde ÇÖKMEMELİ — render sitesinde 0-4'e kırpılır. */
+  it("aralık dışı pit lastik bayrağı plan tablosunu çökertmez", () => {
+    const bad = mk({ pits: [
+      { fuel: true, lane: true, tyres: [9, 7, 0, 0] },
+      { fuel: true, lane: true, tyres: [-3, 0, 0, 0] },
+    ] });
+    expect(() => draw(bad)).not.toThrow();
+  });
 });
 
 /* v2.0 alt şeridi (canlı senkron · geri al · PIT) KALDIRILDI — PIT işlemi yalnız
