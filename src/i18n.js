@@ -1524,6 +1524,8 @@ export const EN = {
   "Geçerli bir YouTube linki yapıştır; köşede mini oynatıcı açılır.": "Paste a valid YouTube link; a mini player opens in the corner.",
   "Sol üst": "Top left",
   "Sağ alt": "Bottom right",
+  "tur kaydedildi": "laps saved",
+  "Tur geçmişi takım için kaydediliyor": "Recording lap history for the team",
   "Boyut: orta": "Size: medium",
   "Boyut": "Size",
   "orta": "medium",

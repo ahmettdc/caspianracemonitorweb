@@ -12,7 +12,6 @@ import { driverAtLap, parseLapCond, capLapEntries } from "../liveLaps";
 import { detectFlashes, carKey } from "../liveFlash";
 import { binKey } from "../trackShape";
 import { demoLive } from "../liveDemo";
-import { tyreTitle, teleStale } from "../tyreInfo";
 import { compoundAxles, compoundInfo, parseTyreLog } from "../tyreCompound";
 import TrackMap from "./TrackMap";
 import PosChart from "./PosChart";
@@ -108,35 +107,6 @@ function CompoundIcons({ ax }) {
 /* Birleşik LASTİK hücresi: hamur ikonu/ikonları (ön/arka) + DÖRT KÖŞE aşınma % (FL·FR /
    RL·RR, renkli 2×2). Köşe-köşe HAMUR oyunda yok (yalnız ön/arka) — bu yüzden 4 köşe
    yalnız AŞINMA için. tyres4 yoksa tek "en kötü" aşınmaya düşer. Bayat telemetride soluk. */
-function TyreCell({ c, t }) {
-  const ax = compoundAxles(c.tyreComp);
-  const stale = teleStale(c.teleLag);
-  const t4 = Array.isArray(c.tyres4) && c.tyres4.length >= 4 ? c.tyres4 : null;
-  const wear = c.tyreWear != null ? `%${Math.round(c.tyreWear * 100)}` : null;
-  if (!ax && !t4 && wear == null) return <span style={{ color: "var(--dim)" }}>—</span>;
-  const lbl = (info) => (info.cls ? t(info.label) : info.raw);
-  const compTitle = ax
-    ? (ax.split ? `${t("Ön")}: ${lbl(ax.front)} · ${t("Arka")}: ${lbl(ax.rear)}` : lbl(ax.front))
-    : "";
-  const title = [compTitle, tyreTitle(c, t)].filter(Boolean).join("\n");
-  const pct = (f) => (f != null ? Math.round(f * 100) : "—");
-  return (
-    <span style={{ opacity: stale ? 0.4 : 1, whiteSpace: "nowrap",
-      display: "inline-flex", alignItems: "center", gap: 5 }} title={title}>
-      {ax && <CompoundIcons ax={ax} />}
-      {t4 ? (
-        <span style={{ display: "inline-grid", gridTemplateColumns: "auto auto", gap: "0 4px",
-          fontSize: 10, lineHeight: 1.15, fontVariantNumeric: "tabular-nums", fontWeight: 700 }}>
-          <span style={{ color: wearColor(t4[0]) }}>{pct(t4[0])}</span>
-          <span style={{ color: wearColor(t4[1]) }}>{pct(t4[1])}</span>
-          <span style={{ color: wearColor(t4[2]) }}>{pct(t4[2])}</span>
-          <span style={{ color: wearColor(t4[3]) }}>{pct(t4[3])}</span>
-        </span>
-      ) : (wear && <span style={{ color: "var(--dim)", fontSize: 12 }}>{wear}</span>)}
-    </span>
-  );
-}
-
 /* Araç markası logosu (assets/brands/<key>.png). Önce LMU katalog manufacturer'ı
    (temiz: "Cadillac"), yoksa vehicleName parser'ı denenir; dosya yoksa gizlenir. */
 function Brand({ manufacturer, vehicleName, className = "" }) {
@@ -164,7 +134,11 @@ function Brand({ manufacturer, vehicleName, className = "" }) {
 function CompareTray({ t, own, ownName, rival, onClose }) {
   if (!rival) return null;
   const secs = (x) => String(x || "").split(",").map((v) => Number(v) || null);
-  const oS = secs(own?.lastSectors), rS = secs(rival.lastSectors);
+  /* own sektörleri s1/s2/s3 alanlarında taşınır — own'da `lastSectors` YOK (o yalnız
+     field satırında var). Eskiden own?.lastSectors okunuyordu → SEN sütunu S1/S2/S3'te
+     hep "—" çıkıyordu (delta yok). rival tarafı `lastSectors`'ı doğru kullanır. */
+  const oS = [own?.s1, own?.s2, own?.s3].map((v) => (v > 0 ? v : null));
+  const rS = secs(rival.lastSectors);
   const delta = (mine, his) =>
     (mine == null || his == null || !Number.isFinite(mine) || !Number.isFinite(his))
       ? null : mine - his;
@@ -197,7 +171,7 @@ function CompareTray({ t, own, ownName, rival, onClose }) {
         <b>{t("Karşılaştırma")}</b>
         <span className="fsub">{ownLbl} ↔ {rival.driver || "—"}</span>
       </span>
-      {cell(t("Son tur"), own?.lastSec, rival.lastSec, lap)}
+      {cell(t("Son tur"), own?.lastLapSec, rival.lastSec, lap)}
       {cell("AVG5", own?.avg5Sec, rival.avg5Sec, lap)}
       {[0, 1, 2].map((k) => cell(`S${k + 1}`, oS[k], rS[k],
         (v) => (v == null ? "—" : v.toFixed(3))))}
@@ -808,8 +782,16 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
 
   // türetilmiş: sınıf-içi pozisyon, seans en hızlı turu, oyuncu sınıfı
   const leaderLaps = fieldAll[0]?.lapsDone ?? 0;
-  const fastestBest = Math.min(
-    ...fieldAll.map((c) => c.bestSec).filter((v) => v > 0), Infinity);
+  /* Sınıf başına en hızlı bestSec — "En İyi" sütununda mor = SINIF rekoru (liveFlash
+     classBest ile aynı desen). Eskiden tek genel minimumdu → çok sınıflı yarışta yalnız
+     genelin en hızlısı morlanıp sınıf rekorları (ör. en hızlı LMGT3) hiç morlanmıyordu. */
+  const classFastest = {};
+  for (const c of fieldAll) {
+    if (c && c.bestSec > 0) {
+      const cid = classId(c.carClass);
+      classFastest[cid] = classFastest[cid] == null ? c.bestSec : Math.min(classFastest[cid], c.bestSec);
+    }
+  }
   const playerClass = classId(fieldAll.find((c) => c.isPlayer)?.carClass);
   const classCounts = {};
   const rows = fieldAll.map((c, i) => {
@@ -828,7 +810,7 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
       ? Math.max(0, c.lapsBehind) : Math.max(0, leaderLaps - (c.lapsDone ?? 0));
     const lapsDownNext = c.lapsBehindNext != null ? Math.max(0, c.lapsBehindNext) : 0;
     return { c, i, id, classPos: classCounts[id], interval, lapsDown, lapsDownNext,
-      isFastest: c.bestSec > 0 && c.bestSec === fastestBest };
+      isFastest: c.bestSec > 0 && c.bestSec === classFastest[id] };
   });
   const shown = myClassOnly && playerClass
     ? rows.filter((r) => r.id === playerClass) : rows;
@@ -974,7 +956,18 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
             </span>
 
             {/* sağ kontroller (FLAG: yoğunluk/rehber/büyük-pano fişte yok — özellik+test kancası, korunur) */}
-            <span style={{ marginLeft: "auto", display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+              {/* editör tur geçmişini kaydederken canlı rozet (useLive lapCapture). Eskiden
+                  prop geçiliyor ama hiç gösterilmiyordu → kayıt durumu görünmezdi. */}
+              {lapCapture?.writing && (
+                <span title={t("Tur geçmişi takım için kaydediliyor")}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11,
+                    padding: "3px 9px", borderRadius: 99, border: "1px solid var(--rc-ok)", color: "var(--rc-ok)" }}>
+                  <i style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--rc-ok)",
+                    boxShadow: "0 0 6px var(--rc-ok)" }} />
+                  {lapCapture.laps} {t("tur kaydedildi")}
+                </span>
+              )}
               {!secOn && (
                 <button onClick={() => setSecOn(true)} style={pillBtn}>{t("👁 Sektör sütununu göster")}</button>
               )}
