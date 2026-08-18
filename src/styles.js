@@ -23,6 +23,65 @@ export const css = `
   --font-disp:'Rajdhani','Inter',system-ui,sans-serif;
   --font-mono:'IBM Plex Mono',ui-monospace,'Cascadia Code',Consolas,monospace;
 }
+
+/* ============================================================================
+   Race Monitor v2.0 — tasarım tokenları (--rc-*)
+   Kaynak: handoff-spec/tokens/tokens.css · Yeni Tasarım.dc.html prototipinden
+   birebir çıkarılmıştır. Kural: bu blokta olmayan bir renk/ölçü kullanma.
+   ============================================================================ */
+:root{
+  /* Yüzeyler */
+  --rc-bg:#0B0708; --rc-surface:#120C0E; --rc-surface-2:#150E10;
+  --rc-surface-3:#1E1418; --rc-surface-4:#151013; --rc-surface-5:#1B1013;
+  /* Çizgiler */
+  --rc-line-soft:#241519; --rc-border:#34232A; --rc-border-strong:#4A2F38;
+  --rc-border-hi:#5C3B44; --rc-border-mute:#6B4A52;
+  /* Metin */
+  --rc-text:#F3EAEC; --rc-text-2:#C9B3B9; --rc-text-3:#A88C93;
+  --rc-text-4:#7A6F75; --rc-text-5:#5B5157;
+  /* Marka */
+  --rc-brand:#960018; --rc-brand-bright:#D24357; --rc-brand-deep:#C51E38;
+  --rc-on-brand:#FFE9ED;
+  /* Durum */
+  --rc-ok:#37D67A; --rc-ok-2:#40D68C; --rc-ok-3:#3AD07A; --rc-ok-soft:#7FE3A0;
+  --rc-warn:#F5B23D; --rc-warn-2:#F5C84C; --rc-warn-3:#F2C94C; --rc-flag-yellow:#F2C037;
+  --rc-danger:#FF4D5E; --rc-danger-2:#FF5470; --rc-danger-3:#F0604D;
+  --rc-info:#4C9AFF; --rc-delta:#4D9FFF; --rc-info-2:#6694FF; --rc-info-3:#5AA9E6;
+  --rc-info-4:#4FB0EC; --rc-info-soft:#7CCDFF;
+  --rc-purple:#B58BFF; --rc-purple-2:#B06FFC;
+  --rc-neutral:#6E8496; --rc-neutral-2:#5B6B7A;
+  --rc-light:#E3DDDF; --rc-light-2:#EDE8E9; --rc-white:#FFFFFF;
+  /* Sınıf renkleri (LMU) */
+  --rc-cls-hypercar:#E7443B; --rc-cls-gt3:#EF8A2B; --rc-cls-lmp2:#4C9AFF;
+  --rc-cls-lmp3:#B58BFF; --rc-cls-gte:#37D67A;
+  /* Saydam katmanlar */
+  --rc-scrim:rgba(10,6,10,.74); --rc-scrim-strong:rgba(8,5,6,.88);
+  --rc-glow-brand:rgba(150,0,24,.22);
+  --rc-tint-ok:rgba(55,214,122,.14); --rc-tint-warn:rgba(245,178,61,.08);
+  --rc-tint-info:rgba(76,154,255,.14); --rc-tint-purple:rgba(181,139,255,.10);
+  /* Gölge */
+  --rc-shadow-card:0 24px 60px rgba(0,0,0,.55); --rc-shadow-pop:0 18px 40px rgba(0,0,0,.5);
+  --rc-shadow-img:0 10px 30px rgba(0,0,0,.6);
+  /* Tipografi */
+  --rc-font-display:'Rajdhani',sans-serif; --rc-font-ui:'Inter',sans-serif;
+  --rc-font-mono:'IBM Plex Mono',monospace;
+  /* Punto ölçeği */
+  --rc-fs-9:9px; --rc-fs-95:9.5px; --rc-fs-10:10px; --rc-fs-105:10.5px;
+  --rc-fs-11:11px; --rc-fs-115:11.5px; --rc-fs-12:12px; --rc-fs-125:12.5px;
+  --rc-fs-13:13px; --rc-fs-14:14px; --rc-fs-15:15px; --rc-fs-16:16px;
+  --rc-fs-17:17px; --rc-fs-19:19px; --rc-fs-20:20px; --rc-fs-22:22px;
+  --rc-fs-26:26px; --rc-fs-34:34px; --rc-fs-44:44px;
+  /* Harf aralığı */
+  --rc-ls-label:.07em; --rc-ls-micro:.09em; --rc-ls-num:.02em;
+  /* Yarıçap */
+  --rc-r-2:2px; --rc-r-3:3px; --rc-r-5:5px; --rc-r-7:7px; --rc-r-8:8px;
+  --rc-r-9:9px; --rc-r-10:10px; --rc-r-11:11px; --rc-r-12:12px; --rc-r-13:13px;
+  --rc-r-14:14px; --rc-r-16:16px; --rc-r-pill:99px;
+  /* Boşluk */
+  --rc-sp-2:2px; --rc-sp-4:4px; --rc-sp-6:6px; --rc-sp-8:8px; --rc-sp-9:9px;
+  --rc-sp-10:10px; --rc-sp-12:12px; --rc-sp-14:14px; --rc-sp-16:16px; --rc-sp-18:18px;
+  --rc-sp-20:20px; --rc-sp-22:22px; --rc-sp-24:24px; --rc-sp-26:26px; --rc-sp-40:40px;
+}
 /* --- Light mode (opsiyonel) — koyu tema ana kimlik; bu blok tokenları rol-swap eder.
    Marka #960018 / --car korunur. Anlamsal renkler açık zemine göre koyulaştırıldı. --- */
 :root[data-theme="light"]{
@@ -909,6 +968,14 @@ export const css = `
 .rc .livestrip .lbl{color:var(--dim);font-size:10px;text-transform:uppercase;
   letter-spacing:.07em;display:block}
 @keyframes rcpulse{0%,100%{opacity:1}50%{opacity:.35}}
+/* v2.0 token hareketleri (handoff-spec/tokens/tokens.css) */
+@keyframes rcfade{from{opacity:0}to{opacity:1}}
+@keyframes rcspin{to{transform:rotate(360deg)}}
+@keyframes rcin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes rcpop{from{opacity:0;transform:translateY(14px) scale(.975)}to{opacity:1;transform:none}}
+@keyframes rcalert{0%,100%{box-shadow:0 0 0 0 rgba(245,178,61,.42)}50%{box-shadow:0 0 0 7px rgba(245,178,61,0)}}
+@keyframes rcpb{0%{background:rgba(55,214,122,.34)}70%{background:rgba(55,214,122,.20)}100%{background:transparent}}
+@keyframes rcpbc{0%{background:rgba(181,139,255,.36)}70%{background:rgba(181,139,255,.22)}100%{background:transparent}}
 .rc .pulse{animation:rcpulse 1.1s ease-in-out infinite;color:var(--yellow)}
 @media (prefers-reduced-motion: reduce){.rc .pulse{animation:none}}
 .rc .timeline{position:relative}

@@ -733,6 +733,7 @@ ${bottomBar}
   const { user, authLoading, udoc } = useAuth();
   const [authErr, setAuthErr] = useState("");
   const [authMode, setAuthMode] = useState("in"); // "in" giriş | "up" kayıt
+  const [signingIn, setSigningIn] = useState(false); // v2.0 giriş ekranı: düğme yükleniyor durumu
   const [regNote, setRegNote] = useState("");
   const [regName, setRegName] = useState("");
   // kayıt adı ön-doldurma (useAuth'tan gelen user'a göre) — hook'tan ayrı tutuldu
@@ -1146,7 +1147,8 @@ ${bottomBar}
     return watchAllUsers((u) => setAllUsers(u || {}));
   }, [isAdmin, adminOpen]);
   const doSignIn = async (mode = "in") => {
-    setAuthErr(""); setAuthMode(mode);
+    if (signingIn) return; // ikinci tıklamayı yok say (v2.0 giriş ekranı)
+    setAuthErr(""); setAuthMode(mode); setSigningIn(true);
     try { await signInGoogle(); }
     catch (e) {
       const em = e?.message || String(e);
@@ -1159,6 +1161,7 @@ ${bottomBar}
         : isTauri
         ? t("Giriş tamamlanamadı — tarayıcıda açılan Google penceresinde giriş yapın. Sorun sürerse:") + " " + em
         : em);
+      setSigningIn(false); // hata: düğmeyi tekrar aktif et (başarıda kapı zaten kapanır)
     }
   };
   /* ---- sürüm notları penceresi ---- */
@@ -1495,39 +1498,130 @@ ${bottomBar}
      parlaması olmaz. Chunk aynı origin'den geldiği için bu bekleme pratikte
      auth'tan önce biter. */
   if (authReady && (authLoading || !langReady || !user)) {
+    /* v2.0 giriş ekranı (handoff-spec/ekranlar/15-giris.md + yama-v2.0.2).
+       busy: ilk auth/dict yüklemesi VEYA düğmeye basılınca — tek yükleniyor
+       göstergesi (dönen spinner + "Bağlanılıyor…"). Prototipteki setTimeout
+       yerine gerçek Firebase akışı: doSignIn → signInGoogle. */
+    const busy = signingIn || authLoading || !langReady;
+    const googleBtn = {
+      display: "flex", alignItems: "center", justifyContent: "center", gap: 11,
+      width: "100%", padding: "13px 16px", borderRadius: 11, border: "1px solid #E6DDE0",
+      background: busy ? "#E3D9DC" : "#F5F1F2", color: "#160D10",
+      cursor: busy ? "progress" : "pointer", fontFamily: "var(--rc-font-ui)",
+    };
     return (
       <div className="rc">
         <UpdateBanner t={t} />
         {teamModal}{createJoinModal}{raceForm}
-        <div className="lobby">
-          <div className="box" style={{ textAlign: "center" }}>
-            <img className="logo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
-            <h1><b>RACE</b> MONITOR</h1>
-            <div className="sub">{APP_VERSION}</div>
-            {(authLoading || !langReady) ? (
-              <div className="hint" style={{ marginTop: 22 }}>{t("Yükleniyor…")}</div>
-            ) : (<>
-              <div className="hint" style={{ margin: "18px 0 14px" }}>
-                {t("Devam etmek için giriş yapın veya kayıt olun.")}</div>
-              <button className="gbtn" onClick={() => doSignIn("in")}>
-                <svg width="17" height="17" viewBox="0 0 48 48" aria-hidden="true">
-                  <path fill="#4285F4" d="M45.1 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h11.8c-.5 2.7-2 5-4.4 6.6v5.5h7.1c4.2-3.8 6.6-9.5 6.6-16.1z"/>
-                  <path fill="#34A853" d="M24 46c6 0 11-2 14.6-5.4l-7.1-5.5c-2 1.3-4.5 2.1-7.5 2.1-5.8 0-10.7-3.9-12.4-9.1H4.3v5.7C7.9 41 15.4 46 24 46z"/>
-                  <path fill="#FBBC05" d="M11.6 28.1c-.4-1.3-.7-2.7-.7-4.1s.3-2.8.7-4.1v-5.7H4.3C2.8 17.1 2 20.4 2 24s.8 6.9 2.3 9.8l7.3-5.7z"/>
-                  <path fill="#EA4335" d="M24 10.8c3.3 0 6.2 1.1 8.5 3.3l6.3-6.3C35 4.2 30 2 24 2 15.4 2 7.9 7 4.3 14.2l7.3 5.7c1.7-5.2 6.6-9.1 12.4-9.1z"/>
-                </svg>
-                {t("Google ile giriş yap")}
-              </button>
-              <div style={{ marginTop: 10 }}>
-                <button className="histbtn" onClick={() => doSignIn("up")}>
-                  {t("Google ile kayıt ol")}</button>
+        <div style={{ position: "fixed", inset: 0, zIndex: 2000, overflow: "auto",
+          display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 28px",
+          backgroundColor: "var(--rc-bg)",
+          backgroundImage: "radial-gradient(120% 95% at 50% -12%,rgba(150,0,24,.24),rgba(11,7,8,0) 62%)",
+          fontFamily: "var(--rc-font-ui)", color: "var(--rc-text)", animation: "rcfade .22s ease" }}>
+
+          <span style={{ position: "absolute", top: 22, right: 26 }}>
+            <div className="langsw">
+              {["tr", "en"].map((l) => (
+                <button key={l} className={lang === l ? "on" : ""}
+                  onClick={() => switchLang(l)}>{l.toUpperCase()}</button>
+              ))}
+            </div>
+          </span>
+
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center",
+            justifyContent: "center", gap: 56, maxWidth: 960, width: "100%" }}>
+
+            <div style={{ flex: "1 1 380px", minWidth: 280, display: "flex",
+              flexDirection: "column", gap: 18 }}>
+              <img src={`${ASSET}logo.png`} alt="Caspian Motorsport"
+                style={{ width: 112, height: "auto", objectFit: "contain" }} />
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <h1 style={{ margin: 0, fontFamily: "var(--rc-font-display)", fontWeight: 700,
+                  fontSize: "clamp(38px,5vw,54px)", lineHeight: ".98", letterSpacing: ".02em",
+                  textTransform: "uppercase" }}>
+                  <span style={{ color: "var(--rc-brand-bright)" }}>Race</span> Monitor</h1>
+                <p style={{ margin: 0, maxWidth: "34ch", fontSize: 14, lineHeight: 1.65,
+                  color: "var(--rc-text-2)", textWrap: "pretty" }}>
+                  {t("Caspian Motorsport pit wall aracı. Canlı zamanlama, stint planı, yakıt hesabı ve telemetri tek ekranda.")}</p>
               </div>
-              {authErr && <div className="hint" style={{ color: "var(--red)", marginTop: 10 }}>
-                {authErr}</div>}
-              <div className="hint" style={{ marginTop: 18, fontSize: 11 }}>
-                {t("Caspian Motorsport · pit wall aracı")}</div>
-            </>)}
+              <div style={{ display: "flex", flexDirection: "column", gap: 9, marginTop: 2 }}>
+                {[
+                  "Yarış boyunca takımla ortak ekran",
+                  "Le Mans Ultimate köprüsüyle canlı veri",
+                  "Setup havuzu ve stint geçmişi",
+                ].map((x) => (
+                  <span key={x} style={{ display: "flex", alignItems: "center", gap: 10,
+                    fontSize: 12.5, color: "var(--rc-text-3)" }}>
+                    <i style={{ width: 4, height: 14, borderRadius: 2, background: "var(--rc-brand)",
+                      flex: "0 0 auto" }} />{t(x)}</span>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ flex: "0 1 372px", minWidth: 288, border: "1px solid var(--rc-border-strong)",
+              borderRadius: 16, background: "var(--rc-surface)", boxShadow: "var(--rc-shadow-card)",
+              overflow: "hidden" }}>
+              <div style={{ padding: "26px 26px 22px", display: "flex", flexDirection: "column", gap: 18 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                  <h2 style={{ margin: 0, fontFamily: "var(--rc-font-display)", fontWeight: 700,
+                    fontSize: 22, letterSpacing: ".06em", textTransform: "uppercase" }}>
+                    {t("Giriş yap")}</h2>
+                  <span style={{ fontSize: 12.5, color: "var(--rc-text-3)", lineHeight: 1.6 }}>
+                    {t("Google hesabınla devam et. Hesabın yoksa ilk girişte oluşturulur.")}</span>
+                </div>
+
+                <button onClick={() => doSignIn("in")} disabled={busy} style={googleBtn}>
+                  {!busy && (
+                    <svg width="18" height="18" viewBox="0 0 48 48" style={{ flex: "0 0 auto" }} aria-hidden="true">
+                      <path fill="#4285F4" d="M45.1 24.5c0-1.6-.1-3.2-.4-4.7H24v8.9h11.8c-.5 2.8-2 5.1-4.4 6.7v5.5h7.1c4.2-3.8 6.6-9.5 6.6-16.4Z"/>
+                      <path fill="#34A853" d="M24 46c6 0 11-2 14.6-5.4l-7.1-5.5c-2 1.3-4.5 2.1-7.5 2.1-5.8 0-10.7-3.9-12.4-9.1H4.3v5.7C7.9 41 15.3 46 24 46Z"/>
+                      <path fill="#FBBC05" d="M11.6 28.1c-.4-1.3-.7-2.7-.7-4.1s.3-2.8.7-4.1V14H4.3A22 22 0 0 0 2 24c0 3.6.9 6.9 2.3 9.8l7.3-5.7Z"/>
+                      <path fill="#EA4335" d="M24 10.8c3.3 0 6.2 1.1 8.5 3.3l6.3-6.3C35 4.3 30 2 24 2 15.3 2 7.9 7 4.3 14.2l7.3 5.7c1.7-5.2 6.6-9.1 12.4-9.1Z"/>
+                    </svg>
+                  )}
+                  {busy && (
+                    <i style={{ width: 16, height: 16, borderRadius: "50%",
+                      border: "2px solid rgba(22,13,16,.25)", borderTopColor: "#960018",
+                      animation: "rcspin .7s linear infinite", flex: "0 0 auto" }} />
+                  )}
+                  <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700,
+                    fontSize: 15, letterSpacing: ".06em", textTransform: "uppercase" }}>
+                    {busy ? t("Bağlanılıyor…") : t("Google ile devam et")}</span>
+                </button>
+
+                {authErr && (
+                  <div style={{ fontSize: 12, color: "var(--rc-danger)", lineHeight: 1.55,
+                    border: "1px solid var(--rc-border-strong)", borderRadius: 8, padding: "8px 11px" }}>
+                    {authErr}</div>
+                )}
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 2,
+                  borderTop: "1px solid var(--rc-line-soft)" }}>
+                  {[
+                    ["1", "Girişten sonra takım kurabilir ya da davet koduyla katılabilirsin."],
+                    ["2", "Yarış verisi için masaüstü köprüsünü kurman gerekir."],
+                  ].map(([n, x], i) => (
+                    <span key={n} style={{ display: "flex", gap: 9, fontSize: 11.5,
+                      color: "var(--rc-text-3)", lineHeight: 1.6, paddingTop: i === 0 ? 14 : 0 }}>
+                      <b style={{ color: "var(--rc-text-2)", fontFamily: "var(--rc-font-display)",
+                        fontSize: 13, flex: "0 0 auto" }}>{n}</b>{t(x)}</span>
+                  ))}
+                </div>
+              </div>
+              <div style={{ padding: "13px 26px", borderTop: "1px solid var(--rc-border)",
+                background: "#0F090B", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 10.5, color: "var(--rc-text-4)", lineHeight: 1.5 }}>
+                  {t("Devam ederek")} <a href="#" style={{ color: "var(--rc-brand-bright)" }}>{t("kullanım koşullarını")}</a> {t("kabul edersin.")}</span>
+                <span style={{ marginLeft: "auto", fontFamily: "var(--rc-font-display)",
+                  fontSize: 11, color: "var(--rc-text-3)", letterSpacing: ".04em" }}>{APP_VERSION}</span>
+              </div>
+            </div>
+
           </div>
+
+          <span style={{ position: "absolute", bottom: 20, left: 0, right: 0, textAlign: "center",
+            fontSize: 10.5, color: "var(--rc-text-5)" }}>
+            {t("Caspian Motorsport · pit wall aracı — resmi olmayan topluluk projesi")}</span>
         </div>
       </div>
     );
