@@ -729,6 +729,8 @@ ${bottomBar}
   const [autoCd, setAutoCd] = useState(true); // plandan otomatik countdown
   const [barOpen, setBarOpen] = useState(true); // oda katılım çubuğu aç/kapa
   const [sideOpen, setSideOpen] = useState(true); // sol data sidebar aç/kapa
+  const [rail, setRail] = useState(true);   // v2.0 kabuk: sol dikey menü rayı aç/kapa
+  const [guideOn] = useState(true); // v2.0 kabuk: ekran rehber kutusu (gizle kontrolü sonraki fişte)
   /* ---- kimlik doğrulama (Google) → useAuth hook'u ---- */
   const { user, authLoading, udoc } = useAuth();
   const [authErr, setAuthErr] = useState("");
@@ -922,7 +924,7 @@ ${bottomBar}
   /* ---- sohbet (kanallar / okunmamış / ses / okundu takibi) → useChat hook'u ---- */
   const { chatOpen, setChatOpen, chatChan, setChatChan, chatChans, raceChan,
     chatAll, chatText, setChatText, doSendTo, curChan, chatEndRef, raceEndRef,
-    unreadOf, chatUnread, raceUnread } = useChat({
+    unreadOf, chatUnread } = useChat({
     user, userName, curTeam, curRace, races, tab, chatSound });
 
   /* Sohbet gövdesi — hem pencerede hem yarış sekmesinde kullanılır */
@@ -2137,6 +2139,76 @@ ${bottomBar}
     );
   }
 
+  /* ================= v2.0 KABUK — sol dikey menü rayı + rehber kutusu =================
+     Kaynak: handoff-spec/ekranlar/00-kabuk.md. Yatay sekme çubuğunun yerine geçen sabit
+     sol ray. Değerler fişteki dinamik stil objelerinden birebir; hex → var(--rc-*).
+     GUIDES metinleri i18n-EN.md (§1) TR karşılıklarından alındı. */
+  const scr = tab === "rchat" ? "chat" : tab; // rehber kutusu anahtarı
+  const GUIDES = {
+    home: ["Ana menü", "Sıradaki yarışı buradan aç, hızlı eylemlerle setup havuzuna, telemetriye ve takım takvimine geç."],
+    dash: ["Dashboard", "Yarışın özeti: pozisyon, enerji, lastik ve stint dağılımı. Araç ve pist görseline tıklayınca tempo referansı açılır."],
+    stint: ["Stint planı", "Stintleri süre ve pilotla planla; pit satırında lastik seçimini işaretle. PIT düğmesi gerçek pit anını kaydeder."],
+    fuel: ["Son stint yakıtı", "Kalan süreye göre gereken enerji yüzdesi. 📋 Plan açıkken geri sayım stint planından gelir; canlı veriyle tüketimi güncelleyebilirsin."],
+    live: ["Canlı timing", "Sütun başlıklarına tıklayınca değer değişir (Gap ⇄ Aralık, Son ⇄ En iyi). Bir rakip satırına tıkla, altta karşılaştırma açılır."],
+    tyre: ["Lastik stratejisi", "Her hücreye tıklayarak set ata; bir lastik ilk takıldığı köşeye kilitlenir. Hızlı atama penceresi tüm kombinasyonları verir."],
+    drivers: ["Pilotlar", "Stintlere pilot ata, sürüş süresi dağılımını izle. Uygunluk penceresinde kapattığın saatlere atama yapılamaz."],
+    tele: ["Telemetri", "Stint yuvalarına dosya yükle, iki turu A/B karşılaştır. Grafiklerde imleçle gez, tekerlekle yakınlaştır, Space ile oynat."],
+    setup: ["Setup havuzu", "Setupları pist bazında gör, ⚖ ile iki tanesini karşılaştır. Yıldızladıkların listenin başında durur."],
+    team: ["Takım", "Üye yetkilerini, sezon takvimini ve takım kimliğini buradan yönet. Katılım kodunu paylaşarak yeni üye davet edebilirsin."],
+    chat: ["Sohbet", "Genel, takım ve yarışa özel kanallar. Yarış kanalı yalnız o yarışın katılımcılarına açıktır."],
+    official: ["Resmi yarışlar", "lmugarage listesinden günlük ve haftalık yarışlar. Planla düğmesiyle takvimine ekleyebilirsin."],
+  };
+  const toggleRail = () => setRail((r) => !r);
+  const shell = {
+    minHeight: "100vh", background: "var(--rc-bg)", color: "var(--rc-text)",
+    fontFamily: "var(--rc-font-ui)", fontSize: 13, display: "grid",
+    gridTemplateColumns: rail ? "76px 1fr" : "0px 1fr",
+    transition: "grid-template-columns .32s cubic-bezier(.4,0,.2,1)",
+  };
+  const navShell = {
+    borderRight: "1px solid var(--rc-border)", background: "#100A0C", display: "flex",
+    flexDirection: "column", alignItems: "center", gap: 4, padding: "12px 0",
+    position: "sticky", top: 0, height: "100vh", width: 76, overflow: "hidden",
+    transform: rail ? "translateX(0)" : "translateX(-100%)", opacity: rail ? 1 : 0,
+    pointerEvents: rail ? "auto" : "none",
+    transition: "transform .32s cubic-bezier(.4,0,.2,1), opacity .24s ease",
+  };
+  const railToggle = {
+    width: 26, height: 26, borderRadius: 8, marginBottom: 6, cursor: "pointer",
+    border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-3)",
+    fontSize: 12, alignSelf: "flex-end", marginRight: 10, lineHeight: 1,
+  };
+  const railOpenBtn = {
+    position: "fixed", left: 14, top: 14, zIndex: 90, width: 38, height: 38,
+    borderRadius: 10, cursor: "pointer", border: "1px solid var(--rc-border-strong)",
+    background: "rgba(21,14,16,.92)", backdropFilter: "blur(6px)", color: "var(--rc-text)",
+    fontSize: 15, boxShadow: "0 6px 20px rgba(0,0,0,.45)",
+    transform: rail ? "translateX(-140%)" : "translateX(0)", opacity: rail ? 0 : 1,
+    pointerEvents: rail ? "none" : "auto",
+    transition: "transform .32s cubic-bezier(.4,0,.2,1), opacity .2s ease",
+  };
+  /* navStyle bu fişte tanımlı değil; kabul kriteri: aktif = marka kenarlık + --rc-surface-2.
+     Kap ölçüleri (60px genişlik, 8px dikey ped, 12px yarıçap) ray genişliğine (76px) göre türetildi. */
+  const navBtn = (active) => ({
+    display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+    gap: 4, width: 60, padding: "8px 0", borderRadius: 12, cursor: "pointer",
+    color: active ? "var(--rc-text)" : "var(--rc-text-3)",
+    border: active ? "1px solid var(--rc-brand)" : "1px solid transparent",
+    background: active ? "var(--rc-surface-2)" : "transparent",
+  });
+  const railLabel = {
+    fontSize: 9.5, letterSpacing: ".04em", textTransform: "uppercase",
+    fontFamily: "var(--rc-font-display)", fontWeight: 600,
+  };
+  const railSep = { width: 40, height: 1, background: "var(--rc-border)" };
+  const guideWrap = guideOn && GUIDES[scr]
+    ? {
+        display: "flex", alignItems: "flex-start", gap: 11, margin: "14px 20px 0",
+        padding: "12px 15px", borderRadius: 12,
+        border: "1px solid var(--rc-border-strong)", background: "rgba(181,139,255,.07)",
+      }
+    : { display: "none" };
+
   return (
     <div className="rc">
       <UpdateBanner t={t} />
@@ -2341,6 +2413,76 @@ ${bottomBar}
           </div>
         </div>
       )}
+
+      <div style={shell}>
+        <button onClick={toggleRail} title={t("Menüyü aç")} style={railOpenBtn}>☰</button>
+
+        <nav style={navShell} data-tour="tabs">
+          <button onClick={toggleRail} title={t("Menüyü gizle")} style={railToggle}>‹</button>
+          <button onClick={leaveRace} style={navBtn(false)}>
+            <img src={`${ASSET}logo.png`} alt="Caspian" style={{ width: 40, height: "auto" }} />
+            <span style={railLabel}>{t("Menü")}</span>
+          </button>
+          <span style={{ ...railSep, margin: "6px 0 8px" }} />
+          <button onClick={() => setTeamOpen(true)} style={navBtn(teamOpen)}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="3" width="16" height="18" rx="1.4" /><path d="M9 8h1M14 8h1M9 12h1M14 12h1M9 16h2v5" /></svg>
+            <span style={railLabel}>{t("Takım")}</span>
+          </button>
+          <button onClick={() => setTab("dash")} id="tab-dash" style={navBtn(tab === "dash")}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 13a8 8 0 0 1 16 0" /><path d="M4 13v3.2M20 13v3.2" /><path d="m12 13 4.2-3.4" /><circle cx="12" cy="13" r="1.6" fill="currentColor" stroke="none" /></svg>
+            <span style={railLabel}>{t("Dash")}</span>
+          </button>
+          <button onClick={() => setTab("stint")} id="tab-stint" style={navBtn(tab === "stint")}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="13.6" r="7.6" /><path d="M12 13.6V9.4" /><path d="M9.6 2.6h4.8" /><path d="M12 2.6V6" /><path d="m18.6 7.4 1.4-1.4" /></svg>
+            <span style={railLabel}>{t("Stint")}</span>
+          </button>
+          <button onClick={() => setTab("fuel")} id="tab-fuel" style={navBtn(tab === "fuel")} title={t("Son Stint Yakıtı")}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" /></svg>
+            <span style={railLabel}>{t("Yakıt")}</span>
+          </button>
+          <button onClick={() => setTab("live")} id="tab-live" style={navBtn(tab === "live")}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4.6 8a10 10 0 0 1 14.8 0M7.6 11a6 6 0 0 1 8.8 0" /><circle cx="12" cy="15" r="1.7" fill="currentColor" stroke="none" /></svg>
+            <span style={railLabel}>{t("Canlı")}</span>
+          </button>
+          <button onClick={() => setTab("tyre")} id="tab-tyre" style={navBtn(tab === "tyre")}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9.2" /><circle cx="12" cy="12" r="4" /><path d="M12 2.8v2.6M12 18.6v2.6M2.8 12h2.6M18.6 12h2.6" /></svg>
+            <span style={railLabel}>{t("Lastik")}</span>
+          </button>
+          <button onClick={() => setTab("drivers")} id="tab-drivers" style={navBtn(tab === "drivers")}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="9.3" /><circle cx="12" cy="12" r="2.8" fill="currentColor" stroke="none" /><path d="M2.9 12h6.3M14.8 12h6.3M12 14.8v6.3" /></svg>
+            <span style={railLabel}>{t("Pilot")}</span>
+          </button>
+          <button onClick={() => setTab("tele")} id="tab-tele" style={navBtn(tab === "tele")} title={t("Telemetri")}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4v16h16" /><path d="m7 14 3-3 3 2 4-5" /></svg>
+            <span style={railLabel}>{t("Tele")}</span>
+          </button>
+          <button onClick={() => setTab("setup")} id="tab-setup" style={navBtn(tab === "setup")}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M10.4 2.6h3.2l.35 2.3a7.4 7.4 0 0 1 1.72 1l2.1-.98 1.6 2.77-1.75 1.53a7.4 7.4 0 0 1 0 1.98l1.75 1.53-1.6 2.77-2.1-.98a7.4 7.4 0 0 1-1.72 1l-.35 2.3h-3.2l-.35-2.3a7.4 7.4 0 0 1-1.72-1l-2.1.98-1.6-2.77 1.75-1.53a7.4 7.4 0 0 1 0-1.98L4.23 7.69l1.6-2.77 2.1.98a7.4 7.4 0 0 1 1.72-1l.35-2.3Z" /><circle cx="12" cy="12" r="3" /></svg>
+            <span style={railLabel}>{t("Setup")}</span>
+          </button>
+          <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, width: "100%" }}>
+            <span style={railSep} />
+            <button onClick={() => setChatOpen(true)} style={navBtn(false)} title={t("Yarış sohbeti")}>
+              <span style={{ position: "relative", display: "inline-flex" }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 4H4a1.5 1.5 0 0 0-1.5 1.5V16A1.5 1.5 0 0 0 4 17.5h3V21l4-3.5h9A1.5 1.5 0 0 0 21.5 16V5.5A1.5 1.5 0 0 0 20 4Z" /></svg>
+                {chatUnread > 0 && (
+                  <b style={{ position: "absolute", top: -5, right: -8, background: "var(--rc-brand-deep)", color: "#fff", borderRadius: 9, fontSize: 9, padding: "0 5px", fontFamily: "var(--rc-font-ui)", lineHeight: 1.5 }}>
+                    {chatUnread > 99 ? "99+" : chatUnread}</b>
+                )}
+              </span>
+              <span style={railLabel}>{t("Sohbet")}</span>
+            </button>
+            <span style={{ fontSize: 9.5, color: "var(--rc-text-3)", fontFamily: "var(--rc-font-display)" }}>{APP_VERSION}</span>
+          </div>
+        </nav>
+
+        <div style={{ minWidth: 0 }}>
+          <div style={guideWrap}>
+            <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, flex: 1 }}>
+              <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 14, letterSpacing: ".02em" }}>{t((GUIDES[scr] || ["", ""])[0])}</b>
+              <span style={{ fontSize: 11.5, color: "var(--rc-text-2)", lineHeight: 1.6 }}>{t((GUIDES[scr] || ["", ""])[1])}</span>
+            </span>
+          </div>
       <header>
         <img className="hlogo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
         <h1 className="disp" style={{ fontSize: 20 }}>RACE MONITOR</h1>
@@ -2714,46 +2856,10 @@ ${bottomBar}
           <div className="sideinner">{dataCards}</div>
         </div>
 
-        {/* ================= SAĞ: SEKMELER ================= */}
+        {/* ================= SAĞ: EKRAN ================= */}
+        {/* v2.0: yatay sekme çubuğu kaldırıldı; gezinme sol dikey raya taşındı
+            (handoff-spec/ekranlar/00-kabuk.md). Sekme içeriği aşağıda korunuyor. */}
         <div>
-          {/* ARIA: role=tablist/tab + aria-selected; ok/Home/End ile gezinme (roving tabindex).
-              Erişilebilir ad = etiket metni (ikon span'i aria-hidden). */}
-          <div className="tabs" data-tour="tabs" role="tablist" aria-label={t("Ana sekmeler")}
-            onKeyDown={(e) => {
-              const keys = ["ArrowRight", "ArrowLeft", "Home", "End"];
-              if (!keys.includes(e.key)) return;
-              const btns = [...e.currentTarget.querySelectorAll('[role="tab"]')];
-              const i = btns.indexOf(document.activeElement);
-              if (i < 0) return;
-              e.preventDefault();
-              const n = e.key === "ArrowRight" ? (i + 1) % btns.length
-                : e.key === "ArrowLeft" ? (i - 1 + btns.length) % btns.length
-                : e.key === "Home" ? 0 : btns.length - 1;
-              btns[n].focus(); btns[n].click();
-            }}>
-            {[["dash", "Dashboard", <Icon name="chart" size={15} />], ["stint", "Stint", <Icon name="cap" size={15} />],
-              /* ["code80", "Code 80"], — şimdilik arayüzden gizli, kod korunuyor */
-              ["fuel", t("Son Stint Yakıtı"), <Icon name="zap" size={15} />],
-              /* Canlı timing tüm kullanıcılara açık (v1.4.79) — test aşaması bitti. */
-              ["live", t("Canlı"), <Icon name="live" size={15} />],
-              ["tyre", t("Lastik"), <Icon name="tyre" size={15} />],
-              ["drivers", t("Pilotlar"), <Wheel size={15} />],
-              ["tele", t("Telemetri"), <Icon name="chart" size={15} />],
-              ["setup", t("Setup"), <Icon name="wrench" size={15} />],
-              ...(raceChan ? [["rchat", t("Yarış Sohbeti"), <Icon name="chat" size={15} />]] : [])]
-              .map(([k, l, ico]) => (
-              <button key={k} id={`tab-${k}`} role="tab" aria-selected={tab === k}
-                aria-controls="tabpanel-main" tabIndex={tab === k ? 0 : -1}
-                className={`${tab === k ? "on" : ""} ${k === "code80" && tab === k ? "c80t" : ""}`}
-                onClick={() => setTab(k)} style={{ position: "relative" }}>
-                <span style={{ marginRight: 6 }} aria-hidden="true">{ico}</span>{l}
-                {k === "rchat" && raceUnread > 0 && tab !== "rchat" &&
-                  <b className="cdot" style={{ position: "absolute", top: 2, right: 3 }}>
-                    {raceUnread > 9 ? "9+" : raceUnread}</b>}
-              </button>
-            ))}
-          </div>
-
           <div id="tabpanel-main" role="tabpanel" aria-labelledby={`tab-${tab}`} tabIndex={-1}>
           <Suspense fallback={
             <div className="skelwrap" aria-busy="true" aria-label={t("Yükleniyor…")}>
@@ -2911,7 +3017,9 @@ ${bottomBar}
           </Suspense>
           </div>{/* /tabpanel-main */}
         </div>
-      </div>
+      </div>{/* /.grid */}
+        </div>{/* /kabuk içerik sütunu */}
+      </div>{/* /kabuk (shell) */}
     </div>
   );
 }
