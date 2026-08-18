@@ -1818,7 +1818,6 @@ ${bottomBar}
     const inFilter = (e) => lobSeason === "all" || sidOf(e) === lobSeason;
     const upF = allUp.filter(inFilter);
     const nextEntry = upF.length ? upF[0] : null;   // §1 sıradaki yarış (hero)
-    const restUp = upF.slice(1);                     // kalan yaklaşanlar
     const q = lobQuery.trim().toLowerCase();
     const matchQ = ([, r]) => !q
       || (r.name || "").toLowerCase().includes(q)
@@ -1835,36 +1834,6 @@ ${bottomBar}
         deleteRace(curTeam, rid).catch(() => setSyncMsg(t("Yarış silinemedi.")));
     };
 
-    const RaceRow = ([rid, r], isNext) => (
-      <div key={rid} className="lracewrap">
-        <button className={`lrace ${isNext ? "next" : ""}`}
-          onClick={() => openRace(rid)}>
-          {r.trackId && (
-            <img className="lrtrack" src={`${ASSET}tracks/${TRACK_ASSET(r.trackId)}.png${AV}`}
-              alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} />
-          )}
-          <span className="lrinfo">
-            <b>{r.round ? `R${r.round} · ` : ""}{r.name || trackName(r.trackId) || "—"}</b>
-            <span className="lrmeta">
-              {r.trackId ? trackName(r.trackId) : ""}
-              {r.raceTime ? ` · ${r.raceTime}` : ""}
-              {r.carId ? ` · ${carName(r.carClass, r.carId)}` : ""}
-            </span>
-            {r.startsAt ? (
-              <span className="lrdate">{new Date(r.startsAt)
-                .toLocaleString(lang === "en" ? "en-GB" : "tr-TR",
-                  { weekday: "short", day: "2-digit", month: "short",
-                    hour: "2-digit", minute: "2-digit" })}</span>
-            ) : null}
-          </span>
-          <span className="rgo">→</span>
-        </button>
-        {canEditTeam && (
-          <button className="lrdel" title={t("Yarışı sil")}
-            onClick={() => askDeleteRace(rid, r)}>🗑</button>
-        )}
-      </div>
-    );
 
     return (
       <div className="rc">
@@ -1882,8 +1851,13 @@ ${bottomBar}
           const acctInitials = (userName || user?.email || "?").trim().slice(0, 2).toUpperCase();
           const upCount = upF.length;
           const pastCount = pastAll.length;
-          const calList = menuCal === "up" ? restUp : pastShown;
+          const calList = menuCal === "up" ? upF : pastShown; // hero dahil tüm yaklaşanlar
           const calEmpty = menuCal === "up" ? upCount === 0 : pastCount === 0;
+          const editRace = (rid, r) => setRForm({ rid, seasonId: r.seasonId || "", round: r.round || "",
+            name: r.name || "", trackId: r.trackId || "", carClass: r.carClass || "", carId: r.carId || "",
+            raceTime: r.raceTime || "", startsAt: r.startsAt || 0 });
+          /* + Yarış ekle: pist/araç seçimi → data formu → yarışı aç (stint) akışı */
+          const newRace = () => { setTab("stint"); setPickDone(false); setSetupDone(false); setEntered(true); };
           const langBtn = (on) => ({
             padding: "6px 12px", border: "none", cursor: "pointer", fontSize: 12,
             fontFamily: "var(--rc-font-display)", fontWeight: 600, letterSpacing: ".04em",
@@ -2128,7 +2102,7 @@ ${bottomBar}
                 onChange={(e) => { setLobQuery(e.target.value); setPastLimit(12); }}
                 style={{ marginLeft: "auto", background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", borderRadius: 9, color: "var(--rc-text)", fontSize: 12.5, padding: "8px 12px", width: 220 }} />
             )}
-            <button onClick={() => setScheduleOnly(true)} style={{ marginLeft: menuCal === "past" ? 0 : "auto", padding: "8px 16px", borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer", fontSize: 12.5 }}>＋ {t("Yarış ekle")}</button>
+            <button onClick={newRace} style={{ marginLeft: menuCal === "past" ? 0 : "auto", padding: "8px 16px", borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer", fontSize: 12.5 }}>＋ {t("Yarış ekle")}</button>
           </div>
 
           <div style={{ border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)", overflow: "hidden" }}>
@@ -2143,12 +2117,29 @@ ${bottomBar}
               </div>
             ) : (
               <div style={{ padding: 6 }}>
-                {calList.map((e) => (
-                  <Fragment key={e[0]}>
+                {calList.map(([rid, r]) => (
+                  <Fragment key={rid}>
                     {seasonIds.length > 1 && lobSeason === "all" && (
-                      <div style={{ padding: "8px 12px 2px", fontSize: 11, color: "var(--rc-text-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>{sName(sidOf(e))}</div>
+                      <div style={{ padding: "8px 12px 2px", fontSize: 11, color: "var(--rc-text-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>{sName(sidOf([rid, r]))}</div>
                     )}
-                    {RaceRow(e, false)}
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 10 }}>
+                      <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 16, color: "var(--rc-text-3)", width: 36, flex: "0 0 auto" }}>{r.round ? `R${r.round}` : "—"}</span>
+                      {r.trackId && <img src={`${ASSET}flags/${TRACK_ASSET(r.trackId)}.png${AV}`} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }}
+                        style={{ width: 28, borderRadius: 3, border: "1px solid var(--rc-border)", flex: "0 0 auto" }} />}
+                      {r.trackId && <img src={`${ASSET}tracks/${TRACK_ASSET(r.trackId)}.png${AV}`} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }}
+                        style={{ width: 56, height: 34, objectFit: "contain", opacity: .8, flex: "0 0 auto" }} />}
+                      <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, flex: 1 }}>
+                        <b style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 17, letterSpacing: ".01em" }}>{r.name || trackName(r.trackId) || "—"}</b>
+                        <span style={{ fontSize: 11.5, color: "var(--rc-text-3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{[trackName(r.trackId), r.raceTime, r.carId ? carName(r.carClass, r.carId) : ""].filter(Boolean).join(" · ")}</span>
+                      </span>
+                      <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 13, color: "var(--rc-text-2)", flex: "0 0 auto" }}>
+                        {r.startsAt ? new Date(r.startsAt).toLocaleString(lang === "en" ? "en-GB" : "tr-TR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "—"}</span>
+                      <button onClick={() => openRace(rid)} style={{ flex: "0 0 auto", padding: "7px 16px", borderRadius: 8, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontFamily: "var(--rc-font-display)", fontSize: 13, fontWeight: 700, letterSpacing: ".03em", textTransform: "uppercase" }}>{t("Aç")}</button>
+                      {canEditTeam && (<>
+                        <button onClick={() => editRace(rid, r)} title={t("Düzenle")} style={{ width: 32, height: 32, flex: "0 0 auto", borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12 }}>✎</button>
+                        <button onClick={() => askDeleteRace(rid, r)} title={t("Sil")} style={{ width: 32, height: 32, flex: "0 0 auto", borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 12 }}>🗑</button>
+                      </>)}
+                    </div>
                   </Fragment>
                 ))}
               </div>
