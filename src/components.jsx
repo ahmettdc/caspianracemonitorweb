@@ -909,8 +909,12 @@ export function Tyre({ size = 16 }) {
    gerekiyor → başlangıç paketine girmesin diye modal AÇILINCA dynamic import ile
    yüklenir, modül-seviyesi cache ile sonraki açılışlar anında. */
 let CHANGELOG_CACHE = null;
+/* v2.0 katman — handoff-spec/katmanlar/wnOpen.md. İki kolon: solda sürüm listesi
+   (süzgeç), sağda notlar (emoji ikon + kart). Renkler var(--rc-*); metin CHANGELOG'tan. */
+const WN_ICO = /^(\p{Extended_Pictographic}️?|➕|⚡|🗑|📈|📼|🛰|🏁)\s*/u;
 export function VersionModal({ open, onClose, t, lang, onStartGuide }) {
   const [list, setList] = useState(CHANGELOG_CACHE);
+  const [wnV, setWnV] = useState(null); // seçili sürüm süzgeci (null = tümü)
   useEffect(() => {
     if (!open || CHANGELOG_CACHE) return undefined;
     let on = true;
@@ -921,37 +925,74 @@ export function VersionModal({ open, onClose, t, lang, onStartGuide }) {
     return () => { on = false; };
   }, [open]);
   if (!open) return null;
+  const all = list || [];
+  const CUR = APP_VERSION;
+  const newest = all[0]?.v || CUR;
+  const notes = all.filter((c) => !wnV || c.v === wnV);
   return (
-    <div className="wxmodal" onClick={onClose}>
-      <div className="wxmbox" style={{ width: "min(560px,94vw)" }}
-        onClick={(e) => e.stopPropagation()}>
-        <div className="wxmhead">
-          <span>ℹ {t("Neler değişti")}</span>
-          <button className="lbclose" onClick={onClose}>✕</button>
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 1000, background: "var(--rc-scrim)",
+      backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: "min(860px,96vw)", height: "min(680px,86vh)",
+        background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden",
+        display: "flex", flexDirection: "column", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 20px", borderBottom: "1px solid var(--rc-border)" }}>
+          <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".07em", fontSize: 19, fontWeight: 700 }}>{t("Neler değişti")}</span>
+          <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>{t("Kurulu sürüm")} {CUR} · {t("en yeni")} {newest}</span>
+          <button onClick={onClose} style={{ marginLeft: "auto", width: 32, height: 32, borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 15, lineHeight: 1 }}>✕</button>
         </div>
-        <div className="wxmlist" style={{ padding: 0, maxHeight: "62vh" }}>
-          {!list && <div className="hint" style={{ padding: 16 }}>{t("Yükleniyor…")}</div>}
-          {(list || []).map((c) => (
-            <div className="clgv" key={c.v}>
-              <h4>{c.v}{c.v === APP_VERSION &&
-                <span className="cur">{t("ŞU AN")}</span>}</h4>
-              <div className="cdate">{c.date}</div>
-              <ul>{((lang === "en" ? c.en : c.tr) || c.tr || c.en || []).map((x, i) =>
-                <li key={i}>{x}</li>)}</ul>
-            </div>
-          ))}
+
+        <div style={{ flex: 1, minHeight: 0, display: "flex" }}>
+          <div style={{ flex: "0 0 132px", borderRight: "1px solid var(--rc-border)", overflowY: "auto", padding: "10px 8px", background: "var(--rc-surface-2)" }}>
+            {!list && <div style={{ padding: 10, fontSize: 11, color: "var(--rc-text-3)" }}>{t("Yükleniyor…")}</div>}
+            {all.map((c) => {
+              const cur = c.v === CUR, sel = c.v === wnV;
+              return (
+                <button key={c.v} onClick={() => setWnV(sel ? null : c.v)}
+                  style={{ display: "flex", flexDirection: "column", gap: 2, width: "100%", textAlign: "left",
+                    padding: "9px 10px", borderRadius: 9, cursor: "pointer", marginBottom: 3, color: "var(--rc-text)",
+                    border: sel ? "1px solid var(--rc-brand-bright)" : "1px solid transparent",
+                    background: sel ? "rgba(150,0,24,.22)" : "transparent" }}>
+                  <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 12.5 }}>{c.v}</b>
+                  <span style={{ fontSize: 10, color: "var(--rc-text-3)" }}>{c.date}</span>
+                  {cur && <span style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: ".09em", marginTop: 2, color: "var(--rc-ok)" }}>{t("şu an")}</span>}
+                </button>
+              );
+            })}
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0, overflowY: "auto", padding: "18px 22px 24px" }}>
+            {notes.map((c) => {
+              const cur = c.v === CUR;
+              const items = ((lang === "en" ? c.en : c.tr) || c.tr || c.en || []).map((x) => {
+                const m = x.match(WN_ICO);
+                return { ico: m ? m[1] : "•", text: m ? x.slice(m[0].length) : x };
+              });
+              return (
+                <div key={c.v} style={{ marginBottom: 22 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                    <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 21, letterSpacing: ".02em" }}>{c.v}</span>
+                    {cur && <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".09em", padding: "3px 10px", borderRadius: 99, border: "1px solid var(--rc-ok)", color: "var(--rc-ok)" }}>{t("şu an kurulu")}</span>}
+                    <span style={{ marginLeft: "auto", fontFamily: "var(--rc-font-display)", fontSize: 11.5, color: "var(--rc-text-3)" }}>{c.date}</span>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {items.map((it, i) => (
+                      <div key={i} style={{ display: "flex", gap: 11, alignItems: "flex-start", border: "1px solid var(--rc-border)", borderRadius: 11, background: "var(--rc-surface-2)", padding: "12px 14px" }}>
+                        <span style={{ fontSize: 16, lineHeight: 1.35, flex: "0 0 auto" }}>{it.ico}</span>
+                        <span style={{ fontSize: 13, lineHeight: 1.65, color: "var(--rc-text-2)", textWrap: "pretty" }}>{it.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
-        <div className="wxmfoot" style={{ justifyContent: "space-between" }}>
-          <span style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <a className="hint" {...extHref(`${REPO_URL}/commits/main`)}
-              style={{ color: "var(--muted)" }}>{t("GitHub'da tüm değişiklikler ↗")}</a>
-            <button className="hint" style={{ background: "none", border: 0,
-              color: "var(--teal)", cursor: "pointer", padding: 0,
-              textDecoration: "underline" }}
-              onClick={onStartGuide}>
-              🎓 {t("Rehberi başlat")}</button>
-          </span>
-          <button className="histbtn" onClick={onClose}>{t("Kapat")}</button>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 20px", borderTop: "1px solid var(--rc-border)", background: "var(--rc-surface-2)", flexWrap: "wrap" }}>
+          <a {...extHref(`${REPO_URL}/commits/main`)} style={{ fontSize: 12, color: "var(--rc-text-3)" }}>{t("GitHub'da tüm değişiklikler ↗")}</a>
+          <button onClick={onStartGuide} style={{ background: "none", border: "none", color: "var(--rc-brand-bright)", cursor: "pointer", fontSize: 12, padding: 0, textDecoration: "underline", textUnderlineOffset: 3 }}>🎓 {t("Rehberi başlat")}</button>
+          <button onClick={onClose} style={{ marginLeft: "auto", padding: "9px 20px", borderRadius: 10, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer", fontSize: 13 }}>{t("Kapat")}</button>
         </div>
       </div>
     </div>
