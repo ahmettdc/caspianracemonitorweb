@@ -733,6 +733,9 @@ ${bottomBar}
   const [rail, setRail] = useState(true);   // v2.0 kabuk: sol dikey menü rayı aç/kapa
   const [guideOn] = useState(true); // v2.0 kabuk: ekran rehber kutusu (gizle kontrolü sonraki fişte)
   const [bridgePopOpen, setBridgePopOpen] = useState(false); // v2.0 üst çubuk: köprü açılır paneli
+  const [menuInfo, setMenuInfo] = useState(false);  // v2.0 ana menü: bilgi (ℹ) açılır paneli
+  const [menuAcct, setMenuAcct] = useState(false);  // v2.0 ana menü: hesap açılır menüsü
+  const [menuCal, setMenuCal] = useState("up");     // v2.0 ana menü: takvim görünümü (up|past)
   /* ---- kimlik doğrulama (Google) → useAuth hook'u ---- */
   const { user, authLoading, udoc } = useAuth();
   const [authErr, setAuthErr] = useState("");
@@ -1172,12 +1175,6 @@ ${bottomBar}
     setSeenVer(APP_VERSION);
   };
   const verNew = seenVer !== APP_VERSION;
-  const infoBtn = (
-    <button className="infobtn" data-tour="info" onClick={openVersions}
-      title={t("Neler değişti")} aria-label={t("Neler değişti")}>
-      i{verNew && <span className="nd" />}
-    </button>
-  );
   const versionModal = (
     <VersionModal open={verOpen} onClose={() => setVerOpen(false)} t={t} lang={lang}
       onStartGuide={() => { setVerOpen(false); setTour(curRace ? "main" : "lobby"); }} />
@@ -1781,243 +1778,330 @@ ${bottomBar}
       <div className="rc">
         <UpdateBanner t={t} />
         {teamModal}{createJoinModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}{cmdPalette}
-        <div className="lobby">
-          <div className="box" style={{ maxWidth: 900 }}>
-            <div className="langsw" style={{ display: "flex", justifyContent: "flex-end",
-              alignItems: "center", gap: 6, marginBottom: 6 }}>
-              <button className="tourbtn" onClick={() => setTour("lobby")}
-                title={t("Rehberi başlat")}>🎓 {t("Rehber")}</button>
-              {["tr", "en"].map((l) => (
-                <button key={l} className={lang === l ? "on" : ""}
-                  onClick={() => switchLang(l)}>{l.toUpperCase()}</button>
-              ))}
-              {infoBtn}
-            </div>
-            <img className="logo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
-            <h1><b>RACE</b> MONITOR</h1>
-            <div className="sub">{APP_VERSION}</div>
+        {(() => {
+          /* ================= v2.0 ANA MENÜ (handoff-spec/ekranlar/01-menu.md) =================
+             Tam sayfa menü; eski ortalanmış .lobby kutusunun yerine. Tüm handler'lar mevcut
+             lobiden yeniden kullanıldı. Genel kontroller (dil/hesap/çıkış/üyeler/info) buraya
+             taşındı — yarış üst çubuğundan kaldırılanların v2.0'daki kalıcı evi. */
+          const teamName = teamData?.meta?.name || (curTeam && myTeams[curTeam]) || "Caspian Motorsport";
+          const roleLabel = myRole === "owner" ? "👑 " + t("Sahip")
+            : myRole === "editor" ? "🎧 " + t("Mühendis")
+            : myRole === "viewer" ? "👁 " + t("İzleyici") : "🙋 " + t("Üye");
+          const acctInitials = (userName || user?.email || "?").trim().slice(0, 2).toUpperCase();
+          const upCount = upF.length;
+          const pastCount = pastAll.length;
+          const calList = menuCal === "up" ? restUp : pastShown;
+          const calEmpty = menuCal === "up" ? upCount === 0 : pastCount === 0;
+          const langBtn = (on) => ({
+            padding: "6px 12px", border: "none", cursor: "pointer", fontSize: 12,
+            fontFamily: "var(--rc-font-display)", fontWeight: 600, letterSpacing: ".04em",
+            background: on ? "var(--rc-brand)" : "transparent", color: on ? "var(--rc-on-brand)" : "var(--rc-text-3)",
+          });
+          const chip = (on) => ({
+            padding: "7px 14px", borderRadius: 99, cursor: "pointer", fontSize: 12.5,
+            border: `1px solid ${on ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
+            background: on ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)", color: on ? "var(--rc-text)" : "var(--rc-text-2)",
+          });
+          const qaBtn = {
+            display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 4,
+            background: "var(--rc-surface-2)", border: "1px solid var(--rc-border)", borderRadius: 12,
+            padding: 14, cursor: "pointer", color: "var(--rc-text)", textAlign: "left",
+          };
+          return (
+        <div style={{ padding: "22px 24px 40px", fontFamily: "var(--rc-font-ui)" }}>
 
-            {firebaseReady ? (<>
-              <div className="hint" style={{ marginBottom: 10 }}>
-                👤 {userName || t("isimsiz")}</div>
+          {/* ---- üst çubuk: takım + genel kontroller ---- */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--rc-surface-2)",
+              border: "1px solid var(--rc-border-strong)", borderRadius: 99, padding: "5px 16px 5px 6px" }}>
+              <img src={`${ASSET}logo.png`} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />
+              <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 15 }}>{teamName}</span>
+            </span>
+            {Object.entries(myTeams).filter(([tid]) => tid !== curTeam).slice(0, 3).map(([tid, nm]) => (
+              <button key={tid} onClick={() => setCurTeam(tid)}
+                style={{ padding: "7px 14px", borderRadius: 99, border: "1px solid var(--rc-border)",
+                  background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12.5 }}>{nm}</button>
+            ))}
+            <button onClick={() => setCreateJoinOpen(true)}
+              style={{ padding: "7px 14px", borderRadius: 99, border: "1px dashed var(--rc-border-strong)",
+                background: "transparent", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 12.5 }}>＋ {t("Kur & Katıl")}</button>
 
-              {Object.keys(myTeams).length === 0 ? (
-                <div className="lobbyfoot">
-                  <button className="bigbtn ghost" onClick={() => setCreateJoinOpen(true)}>
-                    🏢 {t("Kur & Katıl")}
-                  </button>
-                  <button className="bigbtn ghost" onClick={() => setScheduleOnly(true)}>
-                    🏁 {t("Resmi Yarışlar")}
-                  </button>
-                </div>
-              ) : (<>
-                {/* §1 — takım seçici: yatay kaydırılan kartlar (10+ ölçeklenir) */}
-                <div className="mmcap">{t("Takım")}</div>
-                <div className="mmteams">
-                  {Object.entries(myTeams).map(([tid, nm]) => (
-                    <button key={tid} className={`mmtm ${curTeam === tid ? "on" : ""}`}
-                      onClick={() => setCurTeam(tid)}>
-                      <span className="mmtlg">
-                        {tid === curTeam && teamLogoSrc(teamData?.assets)
-                          ? <img src={teamLogoSrc(teamData.assets)} alt="" />
-                          : "🏁"}
+            <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span style={{ display: "inline-flex", border: "1px solid var(--rc-border)", borderRadius: 8, overflow: "hidden" }}>
+                <button onClick={() => switchLang("tr")} style={langBtn(lang !== "en")}>TR</button>
+                <button onClick={() => switchLang("en")} style={langBtn(lang === "en")}>EN</button>
+              </span>
+              <button onClick={() => setTour("lobby")} data-tour="info"
+                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8,
+                  border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12 }}>🎓 {t("Rehber")}</button>
+              <button onClick={() => setCmdOpen(true)} title={t("Komut paleti · ⌘K")}
+                style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "7px 12px", borderRadius: 8,
+                  border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 12 }}>🔎 {t("Ara")}
+                <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 10, border: "1px solid var(--rc-border)", borderRadius: 5, padding: "1px 5px" }}>⌘K</b></button>
+              {isAdmin && (
+                <button onClick={() => setAdminOpen(true)} title={t("Kullanıcı yönetimi")}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8,
+                    border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12 }}>🛡 {t("Üyeler")}
+                  {Object.values(allUsers).filter((u) => u?.requested && u?.allowed !== true).length > 0 &&
+                    <b style={{ background: "var(--rc-brand-deep)", color: "#fff", borderRadius: 99, fontSize: 9.5, padding: "0 5px" }}>
+                      {Object.values(allUsers).filter((u) => u?.requested && u?.allowed !== true).length}</b>}
+                </button>
+              )}
+              <span style={{ position: "relative" }}>
+                <button onClick={() => { setMenuInfo((v) => !v); setMenuAcct(false); }} title={t("Sürüm ve bilgi")}
+                  style={{ width: 32, height: 32, borderRadius: 8, cursor: "pointer", fontSize: 13,
+                    border: `1px solid ${menuInfo ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
+                    background: menuInfo ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)", color: menuInfo ? "var(--rc-text)" : "var(--rc-text-3)" }}>ℹ</button>
+                {menuInfo && (
+                  <span style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", zIndex: 60, width: 292,
+                    background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 12,
+                    boxShadow: "0 14px 40px rgba(0,0,0,.5)", display: "block", overflow: "hidden" }}>
+                    <span style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 16px", borderBottom: "1px solid var(--rc-border)" }}>
+                      <img src={`${ASSET}logo.png`} alt="" style={{ width: 34, height: 34, objectFit: "contain" }} />
+                      <span style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                        <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 16, letterSpacing: ".02em" }}>Race Monitor</b>
+                        <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{t("Sürüm")} {APP_VERSION} · Caspian Motorsport</span>
                       </span>
-                      <span className="mmtnm">{nm}</span>
-                    </button>
-                  ))}
-                  <button className="mmtm add" onClick={() => setCreateJoinOpen(true)}>
-                    <span className="mmtlg">＋</span>
-                    <span className="mmtnm">{t("Kur & Katıl")}</span>
-                  </button>
-                </div>
-
-                {/* §1.2 — hızlı eylemler: 📊 Telemetri belirgin */}
-                <div className="mmquick">
-                  <button className="mmqa" onClick={() => setScheduleOnly(true)}>
-                    <span className="mmqi">🏁</span>
-                    <span className="mmql">{t("Resmi Yarışlar")}</span>
-                    <span className="mmqs">{t("resmi yarış takvimi")}</span>
-                  </button>
-                  <button className="mmqa"
-                    onClick={() => setTeleOnly(true)}>
-                    <span className="mmqi">📊</span>
-                    <span className="mmql">{t("Telemetri")}</span>
-                    <span className="mmqs">{t(".ld yükle · analiz")}</span>
-                  </button>
-                  <button className="mmqa" onClick={() => setSuOpen(true)}>
-                    <span className="mmqi">🔧</span>
-                    <span className="mmql">{t("Setup Havuzu")}
-                      {setups.length > 0 && <span className="mmbadge">{setups.length}</span>}</span>
-                    <span className="mmqs">{t("paylaşımlı setuplar")}</span>
-                  </button>
-                  <button className="mmqa" data-tour="chat" onClick={() => setChatOpen(true)}>
-                    <span className="mmqi">💬</span>
-                    <span className="mmql">{t("Sohbet")}
-                      {chatUnread > 0 && <span className="mmbadge">{chatUnread}</span>}</span>
-                    <span className="mmqs">{t("takım kanalları")}</span>
-                  </button>
-                  <button className="mmqa" data-tour="manage" onClick={() => setTeamOpen(true)}>
-                    <span className="mmqi">⚙</span>
-                    <span className="mmql">{canEditTeam ? t("Yönet") : t("Görüntüle")}</span>
-                    <span className="mmqs">{t("takvim & takım")}</span>
-                  </button>
-                </div>
-
-                {/* sezon süzgeci (çok sezon) — yaklaşanı ve geçmişi süzer */}
-                {seasonIds.length > 1 && (
-                  <div className="mmchips">
-                    {[["all", t("Tümü")], ...seasonIds.map((sid) => [sid, sName(sid)])]
-                      .map(([v, l]) => (
-                        <button key={v} className={`mmchip ${lobSeason === v ? "on" : ""}`}
-                          onClick={() => setLobSeason(v)}>{l}</button>
-                      ))}
-                  </div>
+                    </span>
+                    <span style={{ display: "block", padding: "10px 8px" }}>
+                      <button onClick={() => { openVersions(); setMenuInfo(false); }}
+                        style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", background: "none",
+                          border: "none", color: "var(--rc-text)", cursor: "pointer", fontSize: 12.5, borderRadius: 7 }}>{t("Yenilikler · neler değişti")}</button>
+                    </span>
+                    <span style={{ display: "block", padding: "9px 16px", borderTop: "1px solid var(--rc-border)", fontSize: 10.5, color: "var(--rc-text-3)", lineHeight: 1.5 }}>
+                      {t("Takvim kaynağı")} <a href="https://lmugarage.com" target="_blank" rel="noopener" style={{ color: "var(--rc-brand-bright)" }}>lmugarage.com</a> — {t("resmi olmayan topluluk projesi.")}</span>
+                  </span>
                 )}
-
-                <div className="mmraces" data-tour="races">
-                  {/* sıradaki yarış — vurgulu hero */}
-                  {nextEntry ? (() => {
-                    const [rid, r] = nextEntry;
-                    return (<>
-                      <div className="mmsec">🏁 {t("Sıradaki Yarış")}</div>
-                      <div className="mmnextwrap">
-                      <button className="mmnext" onClick={() => openRace(rid)}>
-                        {/* bayrak + pist görseli — mevcut asset sistemi (flags/ + tracks/,
-                            TRACK_ASSET ile). Emoji bayrak bazı OS'lerde "FR" harfine düşüyordu. */}
-                        <span className="mmntrk">
-                          {r.trackId ? (<>
-                            <img className="mmnflag"
-                              src={`${ASSET}flags/${TRACK_ASSET(r.trackId)}.png${AV}`} alt=""
-                              onError={(e) => { e.currentTarget.style.display = "none"; }} />
-                            <img className="mmntrkimg"
-                              src={`${ASSET}tracks/${TRACK_ASSET(r.trackId)}.png${AV}`} alt=""
-                              onError={(e) => { e.currentTarget.style.display = "none"; }} />
-                          </>) : "🏁"}
-                        </span>
-                        <span className="mmninfo">
-                          <span className="mmnrnd">
-                            {sName(sidOf(nextEntry))}{r.round ? ` · R${r.round}` : ""}</span>
-                          <span className="mmnttl">{r.name || trackName(r.trackId) || "—"}</span>
-                          <span className="mmnmt">
-                            {r.trackId ? trackName(r.trackId) : ""}
-                            {r.raceTime ? ` · ${r.raceTime}` : ""}
-                            {r.carId ? ` · ${carName(r.carClass, r.carId)}` : ""}</span>
-                        </span>
-                        <span className="mmncd">
-                          {r.startsAt ? (
-                            <span className="mmncdd">{new Date(r.startsAt)
-                              .toLocaleString(lang === "en" ? "en-GB" : "tr-TR",
-                                { day: "2-digit", month: "short",
-                                  hour: "2-digit", minute: "2-digit" })}</span>
-                          ) : null}
-                          <span className="mmngo">{t("Aç")} →</span>
-                        </span>
-                      </button>
-                      {canEditTeam && (
-                        <button className="mmdel" title={t("Yarışı sil")}
-                          onClick={() => askDeleteRace(rid, r)}>🗑</button>
-                      )}
-                      </div>
-                    </>);
-                  })() : (
-                    <div className="hint">{t("Takvimde yaklaşan yarış yok.")}</div>
+              </span>
+              {user && (
+                <span style={{ position: "relative" }} data-tour="uchip">
+                  <button onClick={() => { setMenuAcct((v) => !v); setMenuInfo(false); }}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 9, padding: "5px 12px 5px 5px", borderRadius: 99,
+                      cursor: "pointer", color: "var(--rc-text)",
+                      border: `1px solid ${menuAcct ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
+                      background: menuAcct ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)" }}>
+                    {(myAvatar || user.photoURL)
+                      ? <img src={myAvatar || user.photoURL} alt="" referrerPolicy={/^https?:/.test(myAvatar || user.photoURL) ? "no-referrer" : undefined}
+                          style={{ width: 26, height: 26, borderRadius: "50%", objectFit: "cover" }} />
+                      : <span style={{ width: 26, height: 26, borderRadius: "50%", background: "var(--rc-brand)", color: "var(--rc-on-brand)",
+                          display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 11 }}>{acctInitials}</span>}
+                    <span style={{ display: "flex", flexDirection: "column", gap: 1, textAlign: "left" }}>
+                      <b style={{ fontSize: 12.5, lineHeight: 1.15 }}>{userName || user.displayName || user.email}</b>
+                      <span style={{ fontSize: 10, color: "var(--rc-text-3)", lineHeight: 1.15 }}>{roleLabel}</span>
+                    </span>
+                    <span style={{ color: "var(--rc-text-3)", fontSize: 10 }}>▾</span>
+                  </button>
+                  {menuAcct && (
+                    <span style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", zIndex: 60, width: 210,
+                      background: "var(--rc-surface-2)", border: "1px solid var(--rc-border-strong)", borderRadius: 11,
+                      padding: "6px 0", boxShadow: "0 14px 40px rgba(0,0,0,.5)", display: "block" }}>
+                      <button onClick={() => { setProfName(userName || user.displayName || ""); setAvStage(""); setAvErr(""); setProfOpen(true); setMenuAcct(false); }}
+                        style={{ display: "block", width: "100%", textAlign: "left", padding: "9px 14px", background: "none", border: "none", color: "var(--rc-text)", cursor: "pointer", fontSize: 12.5 }}>{t("Profil ve rozetler")}</button>
+                      <span style={{ display: "block", height: 1, background: "var(--rc-border)", margin: "4px 0" }} />
+                      <button onClick={() => { setMenuAcct(false); signOut(); }}
+                        style={{ display: "block", width: "100%", textAlign: "left", padding: "9px 14px", background: "none", border: "none", color: "var(--rc-danger)", cursor: "pointer", fontSize: 12.5 }}>{t("Çıkış yap")}</button>
+                    </span>
                   )}
+                </span>
+              )}
+            </span>
+          </div>
 
-                  {/* kalan yaklaşanlar */}
-                  {restUp.length > 0 && (<>
-                    <div className="mmsec sub">{t("Yaklaşan")} ({restUp.length})</div>
-                    <div className="racegrid">
-                      {restUp.map((e) => (
-                        <Fragment key={e[0]}>
-                          {seasonIds.length > 1 && lobSeason === "all" && (
-                            <div className="lseason">{sName(sidOf(e))}</div>
-                          )}
-                          {RaceRow(e, false)}
-                        </Fragment>
+          {/* ---- sürüm şeridi ---- */}
+          {verNew && (
+            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "11px 16px",
+              marginBottom: 16, border: "1px solid var(--rc-border-strong)", borderRadius: 11, background: "rgba(245,178,61,.08)" }}>
+              <span style={{ fontSize: 15 }}>⬆</span>
+              <span style={{ fontSize: 12.5, color: "var(--rc-text)" }}>{t("Sürüm")} <b>{APP_VERSION}</b> {t("hazır — yenilikleri gör.")}</span>
+              <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+                <button onClick={openVersions} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--rc-border)", background: "transparent", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12 }}>{t("Neler değişti")}</button>
+              </span>
+            </div>
+          )}
+
+          {/* ---- hero: sıradaki yarış + hızlı eylemler ---- */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "stretch", marginBottom: 26 }} data-tour="races">
+            {nextEntry ? (() => {
+              const [rid, r] = nextEntry;
+              const ms = (r.startsAt || 0) - now;
+              const dd = ms > 0 ? Math.floor(ms / 86400000) : 0;
+              const hh = ms > 0 ? Math.floor((ms % 86400000) / 3600000) : 0;
+              const mm = ms > 0 ? Math.floor((ms % 3600000) / 60000) : 0;
+              return (
+              <div style={{ flex: "1 1 620px", minWidth: 0, border: "1px solid var(--rc-brand-deep)", borderRadius: 16, overflow: "hidden",
+                background: "radial-gradient(120% 150% at 100% 0,rgba(150,0,24,.30),var(--rc-surface-2) 65%)", display: "flex", flexWrap: "wrap" }}>
+                <div style={{ flex: "1 1 340px", minWidth: 0, padding: "24px 26px", display: "flex", flexDirection: "column", gap: 14 }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 11, textTransform: "uppercase",
+                    letterSpacing: ".14em", color: "var(--rc-brand-bright)", fontWeight: 600 }}>{t("Sıradaki Yarış")}{r.round ? ` · R${r.round}` : ""}</span>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: "clamp(34px,4vw,52px)", lineHeight: .95, letterSpacing: ".01em" }}>{r.name || trackName(r.trackId) || "—"}</span>
+                    <span style={{ fontSize: 13, color: "var(--rc-text-2)" }}>{[trackName(r.trackId), r.raceTime, r.carId ? carName(r.carClass, r.carId) : ""].filter(Boolean).join(" · ")}</span>
+                  </div>
+                  {r.startsAt && ms > 0 && (
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 2 }}>
+                      {[[dd, t("gün")], [hh, t("saat")], [mm, t("dakika")]].map(([v, l]) => (
+                        <div key={l} style={{ background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", borderRadius: 10, padding: "9px 14px", minWidth: 78 }}>
+                          <div style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 24, lineHeight: 1 }}>{String(v).padStart(2, "0")}</div>
+                          <div style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".1em" }}>{l}</div>
+                        </div>
                       ))}
+                      <div style={{ background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", borderRadius: 10, padding: "9px 14px" }}>
+                        <div style={{ fontFamily: "var(--rc-font-display)", fontSize: 15, lineHeight: 1.5 }}>{new Date(r.startsAt).toLocaleString(lang === "en" ? "en-GB" : "tr-TR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</div>
+                        <div style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".1em" }}>{t("yerel saat")}</div>
+                      </div>
                     </div>
-                  </>)}
-
-                  {/* §1.3 — geçmiş: ara + sayfalama */}
-                  {allPast.length > 0 && (<>
-                    <div className="mmpasthd">
-                      <div className="mmsec">📅 {t("Geçmiş Yarışlar")}</div>
-                      <input className="mmsrch" value={lobQuery}
-                        placeholder={t("ara: pist, yarış adı…")}
-                        onChange={(e) => { setLobQuery(e.target.value); setPastLimit(12); }} />
-                    </div>
-                    {pastShown.length === 0
-                      ? <div className="hint">{t("Aramayla eşleşen geçmiş yarış yok.")}</div>
-                      : <div className="racegrid">
-                        {pastShown.map((e) => (
-                          <Fragment key={e[0]}>
-                            {seasonIds.length > 1 && lobSeason === "all" && (
-                              <div className="lseason">{sName(sidOf(e))}</div>
-                            )}
-                            {RaceRow(e, false)}
-                          </Fragment>
-                        ))}
-                      </div>}
-                    {pastAll.length > pastLimit && (
-                      <button className="mmmore" onClick={() => setPastLimit((n) => n + 12)}>
-                        ↓ {t("Daha fazla göster")} ({pastShown.length} / {pastAll.length})</button>
-                    )}
-                  </>)}
+                  )}
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 6 }}>
+                    <button onClick={() => openRace(rid)}
+                      style={{ padding: "12px 24px", borderRadius: 10, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)",
+                        color: "var(--rc-on-brand)", cursor: "pointer", fontFamily: "var(--rc-font-display)", fontSize: 17, fontWeight: 700, letterSpacing: ".05em", textTransform: "uppercase" }}>{t("Yarışı aç")} →</button>
+                    <button onClick={() => setSuOpen(true)}
+                      style={{ padding: "12px 20px", borderRadius: 10, border: "1px solid var(--rc-border-strong)", background: "transparent", color: "var(--rc-text)", cursor: "pointer", fontSize: 13 }}>{t("Setuplar")} ({setups.length})</button>
+                  </div>
                 </div>
-              </>)}
-
-              <div className="lmsg">{syncMsg}</div>
-            </>) : (
-              <div className="hint" style={{ textAlign: "center", marginBottom: 8 }}>
-                {t("Takım senkronizasyonu kapalı — ")}<b>src/firebase-config.js</b>{t(" dosyasını doldur.")}
+                <div style={{ flex: "0 1 260px", minWidth: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, borderLeft: "1px solid rgba(74,47,56,.6)" }}>
+                  <div style={{ textAlign: "center" }}>
+                    {r.trackId && <img src={`${ASSET}flags/${TRACK_ASSET(r.trackId)}.png${AV}`} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }}
+                      style={{ width: 44, borderRadius: 4, border: "1px solid var(--rc-border)", marginBottom: 10 }} />}
+                    {r.trackId && <img src={`${ASSET}tracks/${TRACK_ASSET(r.trackId)}.png${AV}`} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }}
+                      style={{ display: "block", width: "100%", maxWidth: 230, height: "auto", filter: "drop-shadow(0 6px 18px rgba(0,0,0,.5))" }} />}
+                  </div>
+                </div>
+              </div>
+              );
+            })() : (
+              <div style={{ flex: "1 1 620px", minWidth: 0, border: "1px solid var(--rc-border-strong)", borderRadius: 16,
+                padding: "40px 26px", textAlign: "center", background: "var(--rc-surface-2)" }}>
+                <div style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 20 }}>{t("Takvimde yaklaşan yarış yok.")}</div>
+                <div style={{ fontSize: 12, color: "var(--rc-text-3)", marginTop: 6 }}>{t("Resmi yarışlar listesinden bir yarış planlayabilirsin.")}</div>
               </div>
             )}
 
-            <div className="lobbyfoot">
-            <button className="solo" onClick={() => setEntered(true)}>
-              {t("Takımsız solo devam et →")}
-            </button>
-
-            {!isTauri && (<>
-              <div className="divider">{t("masaüstü uygulaması")}</div>
-              <a className="bigbtn ghost" href={DESKTOP_RELEASE_URL}
-                target="_blank" rel="noopener noreferrer"
-                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center",
-                  gap: 8, textDecoration: "none" }}>
-                🖥 {t("Masaüstü Uygulamasını İndir")}</a>
-              <div className="hint" style={{ textAlign: "center", marginTop: 6 }}>
-                {t("Tarayıcısız, kendi penceresinde açılır — canlı timing köprüsü dahil (oyunun PC'sinde 'Canlı Köprü Başlat'). Sonraki sürümler uygulama içinden otomatik gelir.")}</div>
-
-              <div className="divider">{t("sürüş PC'si için hafif köprü")}</div>
-              <a className="bigbtn ghost" href={BRIDGE_EXE_URL}
-                target="_blank" rel="noopener noreferrer"
-                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center",
-                  gap: 8, textDecoration: "none" }}>
-                🪶 {t("Hafif Köprüyü İndir (.exe)")}</a>
-              <div className="hint" style={{ textAlign: "center", marginTop: 6 }}>
-                {t("Oyunun çalıştığı PC için: tarayıcı motoru yok → oyunu yormaz. Paylaşımlı belleği okuyup canlı timing'i yayınlar; mühendisler web'den izler. (Kendi Google hesabınla giriş — bot gerekmez.)")}</div>
-            </>)}
-
-            {isTauri && (<>
-              <div className="divider">{t("sürüş PC'si için hafif köprü")}</div>
-              <button className="bigbtn ghost"
-                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8 }}
-                onClick={async () => {
-                  if (!window.confirm(t("Race Monitor kapanacak ve tarayıcısız Hafif Köprü açılacak (oyunun donmasını önler). Devam edilsin mi?"))) return;
-                  try {
-                    const { invoke } = await import("@tauri-apps/api/core");
-                    await invoke("launch_bridge_and_quit");
-                  } catch (e) {
-                    window.alert(t("Hafif köprü açılamadı: ") + e);
-                  }
-                }}>
-                🏎 {t("Driver Moduna Geç")}</button>
-              <div className="hint" style={{ textAlign: "center", marginTop: 6 }}>
-                {t("Oyunun PC'sinde: ağır arayüzü kapatıp yalnız tarayıcısız köprüyü çalıştırır → oyun donmaz. Köprü tepside çalışır; mühendisler canlıyı web'den izler.")}</div>
-            </>)}
+            <div style={{ flex: "1 1 280px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, alignContent: "stretch" }}>
+              <button onClick={() => setSuOpen(true)} style={qaBtn}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--rc-brand-bright)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15.5 4a4.5 4.5 0 0 0-4 6.6L4 18.1 5.9 20l7.5-7.5A4.5 4.5 0 1 0 15.5 4Z" /></svg>
+                <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 15 }}>{t("Setup Havuzu")}</span>
+                <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{setups.length} {t("dosya")}</span>
+              </button>
+              <button onClick={() => setTeleOnly(true)} style={qaBtn}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--rc-brand-bright)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4v16h16" /><path d="m7 14 3-3 3 2 4-5" /></svg>
+                <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 15 }}>{t("Telemetri")}</span>
+                <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{t(".ld yükle · analiz")}</span>
+              </button>
+              <button onClick={() => setChatOpen(true)} data-tour="chat" style={qaBtn}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--rc-brand-bright)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 4H4a1.5 1.5 0 0 0-1.5 1.5V16A1.5 1.5 0 0 0 4 17.5h3V21l4-3.5h9A1.5 1.5 0 0 0 21.5 16V5.5A1.5 1.5 0 0 0 20 4Z" /></svg>
+                <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 15 }}>{t("Sohbet")}
+                  {chatUnread > 0 && <span style={{ marginLeft: 7, background: "var(--rc-brand-deep)", color: "#fff", borderRadius: 9, fontSize: 10, padding: "1px 7px", fontFamily: "var(--rc-font-ui)" }}>{chatUnread}</span>}</span>
+                <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{t("takım kanalları")}</span>
+              </button>
+              <button onClick={() => setTeamOpen(true)} data-tour="manage" style={qaBtn}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--rc-brand-bright)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="3" width="16" height="18" rx="1.4" /><path d="M9 8h1M14 8h1M9 12h1M14 12h1M9 16h2v5" /></svg>
+                <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 15 }}>{canEditTeam ? t("Takım & takvim") : t("Görüntüle")}</span>
+                <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{t("takvim & takım")}</span>
+              </button>
+              <button onClick={() => setScheduleOnly(true)}
+                style={{ gridColumn: "1/-1", display: "flex", alignItems: "center", gap: 12, background: "var(--rc-surface-2)",
+                  border: "1px solid var(--rc-border-strong)", borderRadius: 12, padding: 14, cursor: "pointer", color: "var(--rc-text)", textAlign: "left" }}>
+                <span style={{ width: 34, height: 34, borderRadius: 9, background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", display: "grid", placeItems: "center", fontSize: 16, flex: "0 0 auto" }}>🏁</span>
+                <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, flex: 1 }}>
+                  <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 15 }}>{t("Resmi Yarışlar")}</span>
+                  <span style={{ fontSize: 11, color: "var(--rc-text-3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t("resmi yarış takvimi")}</span>
+                </span>
+              </button>
             </div>
           </div>
+
+          {/* ---- takvim ---- */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+            <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 17, fontWeight: 700 }}>{t("Takvim")}</span>
+            <span style={{ display: "flex", gap: 6 }}>
+              <button onClick={() => setMenuCal("up")} style={chip(menuCal === "up")}>{t("Yaklaşan")} ({upCount})</button>
+              <button onClick={() => setMenuCal("past")} style={chip(menuCal === "past")}>{t("Geçmiş")} ({pastCount})</button>
+            </span>
+            {seasonIds.length > 1 && (<>
+              <span style={{ width: 1, height: 22, background: "var(--rc-border)" }} />
+              <span style={{ display: "flex", gap: 6 }}>
+                {[["all", t("Tümü")], ...seasonIds.map((sid) => [sid, sName(sid)])].map(([v, l]) => (
+                  <button key={v} onClick={() => setLobSeason(v)} style={chip(lobSeason === v)}>{l}</button>
+                ))}
+              </span>
+            </>)}
+            {menuCal === "past" && (
+              <input type="text" value={lobQuery} placeholder={t("ara: pist, yarış adı…")}
+                onChange={(e) => { setLobQuery(e.target.value); setPastLimit(12); }}
+                style={{ marginLeft: "auto", background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", borderRadius: 9, color: "var(--rc-text)", fontSize: 12.5, padding: "8px 12px", width: 220 }} />
+            )}
+            <button onClick={() => setScheduleOnly(true)} style={{ marginLeft: menuCal === "past" ? 0 : "auto", padding: "8px 16px", borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer", fontSize: 12.5 }}>＋ {t("Yarış ekle")}</button>
+          </div>
+
+          <div style={{ border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)", overflow: "hidden" }}>
+            {calEmpty ? (
+              <div style={{ padding: "40px 24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 9 }}>
+                <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="var(--rc-border-strong)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></svg>
+                <div style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 18 }}>{t("Bu sezonda yarış yok")}</div>
+                <div style={{ fontSize: 12, color: "var(--rc-text-3)", lineHeight: 1.7, maxWidth: 380 }}>{t("Takvime yarış ekle ya da resmi yarışlar listesinden planla — eklediğin yarışlar takımdaki herkeste görünür.")}</div>
+                <span style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", marginTop: 3 }}>
+                  <button onClick={() => setScheduleOnly(true)} style={{ padding: "8px 15px", borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12.5 }}>{t("Resmi Yarışlar")}</button>
+                </span>
+              </div>
+            ) : (
+              <div style={{ padding: 6 }}>
+                {calList.map((e) => (
+                  <Fragment key={e[0]}>
+                    {seasonIds.length > 1 && lobSeason === "all" && (
+                      <div style={{ padding: "8px 12px 2px", fontSize: 11, color: "var(--rc-text-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>{sName(sidOf(e))}</div>
+                    )}
+                    {RaceRow(e, false)}
+                  </Fragment>
+                ))}
+              </div>
+            )}
+          </div>
+          {menuCal === "past" && pastAll.length > pastLimit && (
+            <button onClick={() => setPastLimit((n) => n + 12)}
+              style={{ margin: "14px auto 0", display: "block", background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", color: "var(--rc-text-2)", borderRadius: 9, padding: "9px 20px", fontSize: 12.5, cursor: "pointer" }}>↓ {t("Daha fazla göster")} ({pastShown.length} / {pastAll.length})</button>
+          )}
+
+          {/* ---- solo ---- */}
+          <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginTop: 26, padding: "16px 18px",
+            border: "1px dashed var(--rc-border-strong)", borderRadius: 12, background: "var(--rc-surface)" }}>
+            <span style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0, flex: 1 }}>
+              <b style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 16, letterSpacing: ".02em" }}>{t("Takım olmadan devam et")}</b>
+              <span style={{ fontSize: 11.5, color: "var(--rc-text-3)", lineHeight: 1.5 }}>{t("Yarışlarını yerel olarak kur, stint planla ve canlı timing kullan. Setup havuzu ve sohbet takım gerektirir; sonradan katılabilirsin.")}</span>
+            </span>
+            <button onClick={() => setEntered(true)}
+              style={{ flex: "0 0 auto", padding: "10px 20px", borderRadius: 10, border: "1px solid var(--rc-border-strong)", background: "var(--rc-surface-3)",
+                color: "var(--rc-text)", cursor: "pointer", fontFamily: "var(--rc-font-display)", fontSize: 15, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase" }}>{t("Solo devam et")} →</button>
+          </div>
+
+          {/* ---- indirmeler ---- */}
+          {!isTauri && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 16 }}>
+              <a href={DESKTOP_RELEASE_URL} target="_blank" rel="noopener noreferrer"
+                style={{ flex: "1 1 340px", display: "flex", alignItems: "center", gap: 14, border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)", padding: "16px 18px", textDecoration: "none", color: "var(--rc-text)" }}>
+                <span style={{ width: 44, height: 44, flex: "0 0 auto", borderRadius: 11, background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", display: "grid", placeItems: "center", fontSize: 19 }}>🖥</span>
+                <span style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0, flex: 1 }}>
+                  <b style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 16 }}>{t("Masaüstü uygulaması")}</b>
+                  <span style={{ fontSize: 11.5, color: "var(--rc-text-3)", lineHeight: 1.5 }}>{t("Tarayıcısız, kendi penceresinde açılır — canlı timing köprüsü dahil. Sonraki sürümler uygulama içinden gelir.")}</span>
+                </span>
+                <span style={{ flex: "0 0 auto", padding: "9px 16px", borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text)", fontSize: 12.5 }}>{t("İndir")}</span>
+              </a>
+              <a href={BRIDGE_EXE_URL} target="_blank" rel="noopener noreferrer"
+                style={{ flex: "1 1 340px", display: "flex", alignItems: "center", gap: 14, border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)", padding: "16px 18px", textDecoration: "none", color: "var(--rc-text)" }}>
+                <span style={{ width: 44, height: 44, flex: "0 0 auto", borderRadius: 11, background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", display: "grid", placeItems: "center", fontSize: 19 }}>🪶</span>
+                <span style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0, flex: 1 }}>
+                  <b style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 16 }}>{t("Hafif köprü · .exe")}</b>
+                  <span style={{ fontSize: 11.5, color: "var(--rc-text-3)", lineHeight: 1.5 }}>{t("Oyunun çalıştığı PC için: tarayıcı motoru yok, oyunu yormaz. Paylaşımlı belleği okuyup canlı timing'i yayınlar.")}</span>
+                </span>
+                <span style={{ flex: "0 0 auto", padding: "9px 16px", borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text)", fontSize: 12.5 }}>{t("İndir")}</span>
+              </a>
+            </div>
+          )}
+
+          <div className="lmsg" style={{ marginTop: 14 }}>{syncMsg}</div>
         </div>
+          );
+        })()}
       </div>
     );
   }
