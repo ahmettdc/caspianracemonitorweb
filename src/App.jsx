@@ -3454,78 +3454,79 @@ ${bottomBar}
               assets={teamData?.assets} />
           )}
 
-          {tab === "setup" && (<>
-            <div className="card" data-tour="setuptab">
-              <h2>🔧 {t("Setup Yükle")}</h2>
-              {setupForm()}
-            </div>
-
-            <div className="card" style={{ marginTop: 12 }}>
-              <h2>📚 {t("Setup Havuzu")} ({suList.length}/{setups.length})</h2>
-              {/* araç çubuğu: solda filtreler, sağda aksiyonlar — eşit yükseklik, sarınca da düzenli */}
-              <div className="toolbar">
-                <div className="tb-group">
-                  <select value={suFTrack} onChange={(e) => setSuFTrack(e.target.value)}>
-                    <option value="">{t("Tüm pistler")}</option>
-                    {TRACKS.filter((tr) => setups.some((x) => x.track === tr.id))
-                      .map((tr) =>
-                        <option key={tr.id} value={tr.id}>{trackFlag(tr.id)} {tr.name}</option>)}
-                  </select>
-                  <select value={suFCond} onChange={(e) => setSuFCond(e.target.value)}>
-                    <option value="">{t("Kuru + Wet")}</option>
-                    <option value="dry">☀️ {t("Kuru")}</option>
-                    <option value="wet">🌧 Wet</option>
-                  </select>
-                  <select value={suFSess} onChange={(e) => setSuFSess(e.target.value)}>
-                    <option value="">{t("Yarış + Sıralama")}</option>
-                    <option value="R">{t("Yarış")}</option>
-                    <option value="Q">{t("Sıralama")}</option>
-                  </select>
-                  <input type="text" value={suQuery} placeholder={`🔎 ${t("ara")}…`}
-                    style={{ textTransform: "none", minWidth: 150 }}
-                    onChange={(e) => setSuQuery(e.target.value)} />
-                </div>
-                <div className="tb-group">
-                  {st.track && setups.some((x) => x.track === st.track) && (
-                    <button className="act" style={{ fontSize: 11 }}
-                      onClick={() => setSuFTrack(st.track)}>
-                      📍 {trackName(st.track)}</button>
-                  )}
-                  <button className="act" style={{ fontSize: 11,
-                      ...(suMine ? { borderColor: "var(--green)", color: "var(--green)" } : {}) }}
-                    title={t("Yalnız senin yüklediklerin")}
-                    onClick={() => setSuMine((v) => !v)}>
-                    👤 {t("Benim setuplarım")}</button>
-                  <span className="tb-sep" />
-                  <button className="act" style={{ fontSize: 11 }}
-                    title={suView === "cards" ? t("Tablo") : t("Kartlar")}
-                    onClick={toggleSuView}>
-                    {suView === "cards" ? <>☰ {t("Tablo")}</> : <>⊞ {t("Kartlar")}</>}</button>
-                </div>
+          {tab === "setup" && (() => {
+            const suCard = { border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)" };
+            const suHd = { fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 15, fontWeight: 700 };
+            const chip = (on) => ({ padding: "6px 13px", borderRadius: 99, cursor: "pointer", fontSize: 12, whiteSpace: "nowrap",
+              border: `1px solid ${on ? "var(--rc-brand-bright)" : "var(--rc-border)"}`, background: on ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)", color: on ? "var(--rc-text)" : "var(--rc-text-2)" });
+            const poolTracks = TRACKS.filter((tr) => setups.some((x) => x.track === tr.id));
+            // pist bazlı grupla (mevcut süzülmüş suList) — spec'teki grup başlıkları
+            const byTrack = {};
+            for (const s of suList) (byTrack[s.track || ""] ||= []).push(s);
+            const groupIds = Object.keys(byTrack).sort((a, b) => (a === st.track ? -1 : b === st.track ? 1 : (trackName(a) || a).localeCompare(trackName(b) || b)));
+            return (
+            <div style={{ padding: "2px 0 90px", fontFamily: "var(--rc-font-ui)", animation: "rcin .26s ease-out" }} data-tour="setuptab">
+              <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+                <h2 style={{ margin: 0, fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".06em", fontSize: 22, fontWeight: 700 }}>{t("Setup havuzu")}</h2>
+                <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>{suList.length}/{setups.length} {t("dosya")} · {poolTracks.length} {t("pist")}</span>
+                <span style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <input type="text" value={suQuery} placeholder={t("Dosya, araç, not ara…")} onChange={(e) => setSuQuery(e.target.value)}
+                    style={{ background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", borderRadius: 9, color: "var(--rc-text)", fontSize: 13, padding: "8px 12px", width: 220, textTransform: "none" }} />
+                </span>
               </div>
-              {suDelErr && <div className="hint warn">⚠ {suDelErr}</div>}
-              {/* Havuz doluyken süzgeç hiçbir şeyi tutmuyorsa "Henüz setup yok" demek
-                  yanıltıcıydı (başlıktaki 0/N ile çelişiyordu) → sebebe göre mesaj. */}
+
+              {/* filtre + görünüm */}
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 16 }}>
+                <button onClick={() => setSuFTrack("")} style={chip(!suFTrack)}>{t("Tümü")}</button>
+                {poolTracks.map((tr) => <button key={tr.id} onClick={() => setSuFTrack(tr.id)} style={chip(suFTrack === tr.id)}>{trackFlag(tr.id)} {tr.name}</button>)}
+                <span style={{ width: 1, height: 22, background: "var(--rc-border)" }} />
+                {[["", t("Kuru + Wet")], ["dry", "☀️ " + t("Kuru")], ["wet", "🌧 Wet"]].map(([v, l]) => <button key={v || "all"} onClick={() => setSuFCond(v)} style={chip(suFCond === v)}>{l}</button>)}
+                <button onClick={() => setSuMine((v) => !v)} style={chip(suMine)}>👤 {t("Benim")}</button>
+                <span style={{ marginLeft: "auto", display: "flex", border: "1px solid var(--rc-border)", borderRadius: 9, overflow: "hidden" }}>
+                  <button onClick={() => suView !== "cards" && toggleSuView()} title={t("Kartlar")} style={{ width: 34, height: 30, border: "none", cursor: "pointer", fontSize: 13, background: suView === "cards" ? "rgba(150,0,24,.28)" : "var(--rc-surface-3)", color: suView === "cards" ? "var(--rc-text)" : "var(--rc-text-3)" }}>⊞</button>
+                  <button onClick={() => suView === "cards" && toggleSuView()} title={t("Liste")} style={{ width: 34, height: 30, border: "none", borderLeft: "1px solid var(--rc-border)", cursor: "pointer", fontSize: 13, background: suView !== "cards" ? "rgba(150,0,24,.28)" : "var(--rc-surface-3)", color: suView !== "cards" ? "var(--rc-text)" : "var(--rc-text-3)" }}>☰</button>
+                </span>
+              </div>
+
+              {suDelErr && <div style={{ marginBottom: 12, padding: "10px 14px", borderRadius: 11, border: "1px solid var(--rc-warn)", background: "rgba(245,178,61,.10)", fontSize: 12.5, color: "var(--rc-warn)" }}>⚠ {suDelErr}</div>}
+
               {!suList.length && (
-                <div className="hint">
-                  {poolEmptyReason(setups.length, suList.length) === "filtered"
-                    ? <>{t("Bu süzgeçle setup yok.")}{" "}
-                      <button className="act" style={{ fontSize: 11 }}
-                        onClick={() => { setSuFTrack(""); setSuFCond(""); setSuFSess("");
-                          setSuQuery(""); setSuMine(false); }}>
-                        ✕ {t("Süzgeçleri temizle")}</button></>
-                    : t("Henüz setup yok — ilk dosyayı yukarıdan yükle.")}
+                <div style={{ border: "1.5px dashed var(--rc-border-strong)", borderRadius: 14, background: "var(--rc-surface-2)", padding: "46px 24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 11 }}>
+                  <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="var(--rc-border-strong)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M15.5 4a4.5 4.5 0 0 0-4 6.6L4 18.1 5.9 20l7.5-7.5A4.5 4.5 0 1 0 15.5 4Z" /></svg>
+                  <div style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 20 }}>{poolEmptyReason(setups.length, suList.length) === "filtered" ? t("Bu filtreyle setup yok") : t("Henüz setup yok")}</div>
+                  <div style={{ fontSize: 12.5, color: "var(--rc-text-3)", lineHeight: 1.7, maxWidth: 420 }}>{poolEmptyReason(setups.length, suList.length) === "filtered" ? t("Filtreleri temizle ya da yeni bir setup yükle — takımdaki herkes görebilir.") : t("Havuza henüz setup eklenmedi. Aşağıdan yüklediğin dosyalar takımda paylaşılır.")}</div>
+                  {poolEmptyReason(setups.length, suList.length) === "filtered" && (
+                    <button onClick={() => { setSuFTrack(""); setSuFCond(""); setSuFSess(""); setSuQuery(""); setSuMine(false); }} style={{ marginTop: 4, padding: "9px 16px", borderRadius: 10, cursor: "pointer", fontSize: 13, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)" }}>{t("Filtreleri temizle")}</button>
+                  )}
                 </div>
               )}
-              {suList.length > 0 && setupTable(suList)}
+
+              {/* pist gruplu havuz */}
+              {suList.length > 0 && groupIds.map((tid) => (
+                <div key={tid || "none"} style={{ marginBottom: 24 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, paddingBottom: 8, borderBottom: "1px solid var(--rc-border)" }}>
+                    {tid && <img src={`${ASSET}flags/${TRACK_ASSET(tid)}.png`} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ width: 24, borderRadius: 3, border: "1px solid var(--rc-border)" }} />}
+                    <span style={suHd}>{trackName(tid) || tid || t("Pist yok")}</span>
+                    <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>{byTrack[tid].length} setup</span>
+                    {tid && tid === st.track && <span style={{ fontSize: 10.5, padding: "3px 10px", borderRadius: 99, border: "1px solid var(--rc-brand-bright)", color: "var(--rc-brand-bright)" }}>{t("şu anki pist")}</span>}
+                  </div>
+                  {setupTable(byTrack[tid])}
+                </div>
+              ))}
               {suHasMore && (
                 <div style={{ textAlign: "center", marginTop: 10 }}>
-                  <button className="act" onClick={loadMoreSetups}>
-                    ⬇ {t("Daha fazla yükle")}</button>
+                  <button onClick={loadMoreSetups} style={{ padding: "9px 20px", borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12.5 }}>⬇ {t("Daha fazla yükle")}</button>
                 </div>
               )}
+
+              {/* Setup yükle */}
+              <div style={{ ...suCard, padding: "16px 18px", marginTop: 8 }}>
+                <div style={{ ...suHd, marginBottom: 12 }}>⬆ {t("Setup yükle")}</div>
+                {setupForm()}
+              </div>
             </div>
-          </>)}
+            );
+          })()}
 
           {tab === "live" && <LiveTab t={t} live={live} liveFuelObs={liveFuelObs}
             lapCapture={lapCapture}
