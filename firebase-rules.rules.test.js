@@ -257,6 +257,60 @@ describe("teams/livetrackpit (paylaşımlı pit giriş/çıkış — v1.4.96)", 
   });
 });
 
+describe("teams/races/avail (pilot müsaitliği — v2.0.0)", () => {
+  /* teams/{tid}/races/{rid}/avail/{driverId} = [stintNo…]
+     Listedeki stintler pilotun UYGUN OLMADIĞI stintler; düğüm yoksa hepsinde uygun.
+     races/{rid} altında durduğu için izin Tier A'dan gelir: owner/editor yazar,
+     üye (izleyici dahil) okur. Tip/boyut doğrulaması avail/$driverId altında. */
+  const P = "teams/team1/races/r1/avail";
+
+  it("owner ve editor yazar; izleyici okur", async () => {
+    await assertSucceeds(set(ref(db("alice"), `${P}/drv1`), [0, 2, 5]));
+    await assertSucceeds(set(ref(db("bob"), `${P}/drv2`), [1]));
+    await assertSucceeds(get(ref(db("carol"), P)));
+  });
+
+  it("izleyici YAZAMAZ (salt-okur)", async () => {
+    await assertFails(set(ref(db("carol"), `${P}/drv1`), [3]));
+  });
+
+  it("başka takımın üyesi ne okur ne yazar", async () => {
+    await assertFails(set(ref(db("dave"), `${P}/drv1`), [3]));
+    await assertFails(get(ref(db("dave"), P)));
+  });
+
+  it("erişimi kapalı kullanıcı yazamaz", async () => {
+    await assertFails(set(ref(db("mallory"), `${P}/drv1`), [3]));
+  });
+
+  it("sayı olmayan stint numarası reddedilir", async () => {
+    await assertFails(set(ref(db("bob"), `${P}/drv1`), ["2"]));
+    await assertFails(set(ref(db("bob"), `${P}/drv1`), [true]));
+  });
+
+  it("aralık dışı stint numarası reddedilir (0 ≤ n < 200)", async () => {
+    await assertFails(set(ref(db("bob"), `${P}/drv1`), [-1]));
+    await assertFails(set(ref(db("bob"), `${P}/drv1`), [200]));
+  });
+
+  it("ondalık stint numarası reddedilir (yalnız tam sayı)", async () => {
+    /* Aralık kontrolü tek başına yetmiyordu: 1.5 hem sayı hem 0..200 arasında.
+       Kuralda `val % 1 == 0` tam sayı koşulu bunun için var. */
+    await assertFails(set(ref(db("bob"), `${P}/drv1`), [1.5]));
+    await assertFails(set(ref(db("bob"), `${P}/drv1`), [0.1]));
+  });
+
+  it("düğüm silinebilir (tüm stintlerde uygun = varsayılan)", async () => {
+    await assertSucceeds(set(ref(db("bob"), `${P}/drv1`), [4]));
+    await assertSucceeds(set(ref(db("bob"), `${P}/drv1`), null));
+  });
+
+  it("yarış silinince müsaitlik de gider (races/{rid} altında)", async () => {
+    await assertSucceeds(set(ref(db("alice"), `${P}/drv1`), [1]));
+    await assertSucceeds(set(ref(db("alice"), "teams/team1/races/r1"), null));
+  });
+});
+
 describe("userAvatars (v1.7.0 — kullanıcı avatarı)", () => {
   const URI = "data:image/webp;base64,AAAA";
   it("kişi kendi avatarını yazar ve DEĞİŞTİREBİLİR (create-only değil)", async () => {
@@ -347,5 +401,59 @@ describe("lmuSchedule", () => {
   it("istemci (admin bile) yazamaz — yalnız Action admin token'ı yazar", async () => {
     await assertFails(set(ref(db("alice"), "lmuSchedule"), { count: 0, races: [] }));
     await assertFails(set(ref(db("admin"), "lmuSchedule"), { count: 0, races: [] }));
+  });
+});
+
+/* v2.0: takım yönetimi — sahiplik devri, üye çıkarma, takım silme (yalnız owner). */
+describe("takım yönetimi (owner işlemleri)", () => {
+  const transfer = (from, to) => ({
+    "teams/team1/meta/ownerUid": to,
+    [`teams/team1/members/${to}`]: "owner",
+    [`teams/team1/members/${from}`]: "editor",
+  });
+
+  it("owner sahipliği devredebilir (tek atomik update)", async () => {
+    await assertSucceeds(update(ref(db("alice")), transfer("alice", "bob")));
+  });
+  it("owner olmayan sahipliği devredemez", async () => {
+    await assertFails(update(ref(db("bob")), transfer("alice", "bob")));
+    await assertFails(update(ref(db("carol")), transfer("alice", "carol")));
+  });
+  it("üye kendini owner'a yükseltemez", async () => {
+    await assertFails(set(ref(db("bob"), "teams/team1/members/bob"), "owner"));
+  });
+
+  it("owner üyeyi çıkarabilir (members/names/photos/badges)", async () => {
+    await assertSucceeds(update(ref(db("alice")), {
+      "teams/team1/members/carol": null,
+      "teams/team1/names/carol": null,
+      "teams/team1/photos/carol": null,
+      "teams/team1/badges/carol": null,
+    }));
+  });
+  it("editör/izleyici başka üyeyi çıkaramaz", async () => {
+    await assertFails(set(ref(db("bob"), "teams/team1/members/carol"), null));
+    await assertFails(set(ref(db("carol"), "teams/team1/members/bob"), null));
+  });
+
+  it("owner takımı (tüm alt ağaç) silebilir", async () => {
+    await assertSucceeds(set(ref(db("alice"), "teams/team1"), null));
+  });
+  it("owner olmayan takımı silemez", async () => {
+    await assertFails(set(ref(db("bob"), "teams/team1"), null));    // editör
+    await assertFails(set(ref(db("carol"), "teams/team1"), null));  // izleyici
+    await assertFails(set(ref(db("dave"), "teams/team1"), null));   // başka takım sahibi
+  });
+  it("takımı sil kuralı yalnız null yazıma açık (owner keyfi veri yazamaz)", async () => {
+    await assertFails(set(ref(db("alice"), "teams/team1"), { meta: { ownerUid: "alice" } }));
+  });
+
+  it("owner katılım kodunu silebilir; başkası silemez", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await set(ref(ctx.database(), "teamCodes/CSP123"), "team1");
+    });
+    await assertFails(set(ref(db("bob"), "teamCodes/CSP123"), null));
+    await assertFails(set(ref(db("dave"), "teamCodes/CSP123"), null));
+    await assertSucceeds(set(ref(db("alice"), "teamCodes/CSP123"), null));
   });
 });

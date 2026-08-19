@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="crossorigin" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" />
+<style>
+body{margin:0;background:#0B0708}
+a{color:#D24357;text-decoration:none}
+a:hover{color:#F3EAEC}
+@keyframes rcpulse{0%,100%{opacity:1}50%{opacity:.35}}
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:#0B0708;color:#F3EAEC;font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:13px;padding:0 0 40px">
+
+  <header style="display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding:14px 20px;border-bottom:1px solid #34232A">
+    <img src="public/assets/logo.png" alt="Caspian Motorsport" style="height:38px;width:auto;display:block;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))" />
+    <h1 style="margin:0;font-family:'Rajdhani','Inter',system-ui,sans-serif;letter-spacing:.04em;font-size:20px;font-weight:700;text-transform:uppercase;line-height:1">RACE <b style="color:#D24357">MONITOR</b></h1>
+    <span style="color:#C9B3B9;font-size:12px;margin-left:-4px;align-self:flex-end;padding-bottom:2px">v1.8.18</span>
+    <button style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:6px;border:1px solid #34232A;background:#1E1418;color:#A88C93;font-size:11.5px;cursor:pointer;align-self:center;white-space:nowrap">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M12 4 2.5 8.5 12 13l9.5-4.5L12 4Z"></path><path d="M6 10.6V15c0 1.5 2.7 2.7 6 2.7s6-1.2 6-2.7v-4.4"></path><path d="M21.5 8.6V14"></path></svg>
+    </button>
+    <button style="position:relative;display:inline-flex;align-items:center;gap:6px;cursor:pointer;border:1px solid #34232A;border-radius:8px;background:#1E1418;color:#F3EAEC;font-family:'Inter',sans-serif;line-height:1.2;white-space:nowrap;padding:5px 11px;font-size:12px">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.6 12 3l9 7.6"></path><path d="M5.2 9.4V21h13.6V9.4"></path></svg>Ana Menü
+    </button>
+    <button style="position:relative;align-self:center;display:inline-flex;align-items:center;gap:5px;background:#1E1418;border:1px solid #34232A;border-radius:8px;color:#F3EAEC;cursor:pointer;font-size:12px;padding:5px 11px">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a7 7 0 1 0 10.5 10.5Z"></path></svg>
+    </button>
+    <button style="position:relative;align-self:center;display:inline-flex;align-items:center;gap:5px;background:#1E1418;border:1px solid #34232A;border-radius:8px;color:#F3EAEC;cursor:pointer;font-size:12px;padding:5px 11px">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>
+    </button>
+    <span style="display:inline-flex;gap:4px;margin-left:auto;align-self:center">
+      <button style="padding:3px 9px;border-radius:5px;border:1px solid #D24357;background:#1E1418;color:#D24357;font-size:11px;cursor:pointer;font-weight:600">TR</button>
+      <button style="padding:3px 9px;border-radius:5px;border:1px solid #34232A;background:#1E1418;color:#C9B3B9;font-size:11px;cursor:pointer;font-weight:600">EN</button>
+    </span>
+    <span style="display:inline-flex;align-items:center;gap:7px;color:#C9B3B9;font-size:12px;align-self:center">
+      <img src="public/assets/flags/spa.png" alt="" style="width:18px;height:auto;border-radius:2px" />Spa-Francorchamps
+      <span style="color:#A88C93">·</span>Ferrari 296 GT3
+    </span>
+    <button onClick="{{ openTeam }}" style="position:relative;display:inline-flex;align-items:center;gap:6px;cursor:pointer;border:1px solid #34232A;border-radius:8px;background:#1E1418;color:#F3EAEC;line-height:1.2;white-space:nowrap;padding:5px 11px;font-size:12px">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="1.4"></rect><path d="M9 8h1M14 8h1M9 12h1M14 12h1M9 16h2v5"></path></svg>Caspian Motorsport
+    </button>
+    <span style="display:inline-flex;align-items:center;gap:7px;align-self:center;background:#1E1418;border:1px solid #34232A;border-radius:20px;padding:3px 5px 3px 3px">
+      <span style="width:24px;height:24px;border-radius:50%;background:#960018;color:#FFE9ED;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:11px">AT</span>
+      <span style="font-size:12px;line-height:1;padding:3px 6px;border-radius:6px;border:1px solid #37D67A;color:#37D67A;background:rgba(55,214,122,.12)">🎧</span>
+      <button style="background:none;border:none;color:#F3EAEC;font-size:12px;cursor:pointer;padding:2px">Ahmet Demirci</button>
+      <button style="background:none;border:none;color:#C9B3B9;cursor:pointer;font-size:13px;padding:2px 6px;border-radius:6px">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v9"></path><path d="M6.4 6.4a8 8 0 1 0 11.2 0"></path></svg>
+      </button>
+    </span>
+  </header>
+
+  <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:8px;padding:10px 20px;border-bottom:1px solid #34232A;background:#150E10">
+    <span style="width:9px;height:9px;border-radius:99px;display:inline-block;background:#37D67A;box-shadow:0 0 6px #37D67A"></span>
+    <button style="background:#1E1418;border:1px solid #34232A;border-radius:6px;color:#C9B3B9;cursor:pointer;padding:2px 12px;font-size:11px;line-height:1.4;font-family:'IBM Plex Mono',monospace">▲</button>
+    <span>YARIŞ: <span style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:17px;color:#F5B23D;letter-spacing:.02em">6H SPA · R3</span></span>
+    <span style="color:#C9B3B9;font-size:11px;display:inline-flex;align-items:center;gap:5px">🏢 Caspian Motorsport</span>
+    <button style="padding:6px 12px;border-radius:6px;border:1px solid #FF4D5E;background:transparent;color:#FF4D5E;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:600;letter-spacing:.05em;text-transform:uppercase">Takvime Dön</button>
+    <span style="color:#C9B3B9;font-size:11px;margin-left:auto">Son güncelleme: Ahmet D. · 18:42:07</span>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;align-items:center;gap:18px;padding:12px 20px;border-bottom:1px solid #34232A;background:radial-gradient(130% 180% at 100% 0,rgba(150,0,24,.22),#1E0A0E 62%)">
+    <div style="display:flex;flex-direction:column;justify-content:center;gap:2px;min-width:0">
+      <span style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.07em">Bayrağa Kalan</span>
+      <span style="font-family:'Rajdhani',sans-serif;font-weight:700;font-variant-numeric:tabular-nums;font-size:clamp(30px,5vw,48px);line-height:.95;color:#37D67A;text-shadow:0 0 20px rgba(55,214,122,.28)">4:12:38</span>
+      <div style="height:4px;border-radius:3px;background:#1E1418;overflow:hidden;margin-top:5px;min-width:150px"><i style="display:block;height:100%;width:30%;border-radius:3px;background:linear-gradient(90deg,#960018,#D24357)"></i></div>
+      <span style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.07em">%30 tamam</span>
+    </div>
+    <div style="display:flex;flex-direction:column;justify-content:center;gap:2px;min-width:0">
+      <span style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.07em">Şu An</span>
+      <span style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:30px;line-height:1;letter-spacing:.02em">S2<span style="color:#A88C93;font-size:.6em">/7</span></span>
+      <span style="color:#D24357;font-weight:600;font-size:14px">Kerem Yılmaz</span>
+    </div>
+    <div style="display:flex;flex-direction:column;justify-content:center;align-items:center;gap:4px">
+      <span style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.07em">Sıradaki Pit</span>
+      <svg width="78" height="78" viewBox="0 0 78 78">
+        <circle cx="39" cy="39" r="35" fill="none" stroke="#1E1418" stroke-width="8"></circle>
+        <circle cx="39" cy="39" r="35" fill="none" stroke="#D24357" stroke-width="8" stroke-linecap="round" stroke-dasharray="219.91" stroke-dashoffset="57.18" transform="rotate(-90 39 39)" style="filter:drop-shadow(0 0 6px #D24357)"></circle>
+        <text x="50%" y="50%" text-anchor="middle" dominant-baseline="central" fill="#D24357" style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:16px;font-variant-numeric:tabular-nums">0:22:14</text>
+      </svg>
+    </div>
+    <div style="display:flex;flex-direction:column;justify-content:center;align-items:center;gap:4px">
+      <span style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.07em">Tamamlanan</span>
+      <svg width="78" height="78" viewBox="0 0 78 78">
+        <circle cx="39" cy="39" r="35" fill="none" stroke="#1E1418" stroke-width="8"></circle>
+        <circle cx="39" cy="39" r="35" fill="none" stroke="#960018" stroke-width="8" stroke-linecap="round" stroke-dasharray="219.91" stroke-dashoffset="153.94" transform="rotate(-90 39 39)"></circle>
+        <text x="50%" y="50%" text-anchor="middle" dominant-baseline="central" fill="#960018" style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:19px;font-variant-numeric:tabular-nums">%30</text>
+      </svg>
+    </div>
+    <button style="padding:6px 12px;border-radius:6px;border:1px solid #34232A;background:#1E1418;color:#F3EAEC;cursor:pointer;font-size:12px;margin-left:auto;align-self:center">📟 Pit Board</button>
+  </div>
+
+  <div style="display:grid;grid-template-columns:300px 1fr;gap:16px;padding:16px 20px;align-items:start">
+
+    <div style="overflow:hidden;min-width:0">
+      <div style="width:300px">
+        <div style="background:#150E10;border:1px solid #34232A;border-radius:10px;padding:14px">
+          <h2 style="margin:0 0 10px;font-size:15px;text-transform:uppercase;font-family:'Rajdhani',sans-serif;letter-spacing:.08em;color:#D24357">Yarış · Data</h2>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div>
+              <label style="display:block;color:#C9B3B9;font-size:11px;margin:8px 0 3px;text-transform:uppercase;letter-spacing:.05em">Race Time (h:mm:ss)</label>
+              <input type="text" value="6:00:00" readonly="readonly" style="width:100%;background:#1E1418;border:1px solid #34232A;border-radius:6px;color:#F3EAEC;padding:6px 8px;font-family:'IBM Plex Mono',monospace;font-size:13px" />
+            </div>
+            <div>
+              <label style="display:block;color:#C9B3B9;font-size:11px;margin:8px 0 3px;text-transform:uppercase;letter-spacing:.05em">Avg Lap (m:ss.00)</label>
+              <input type="text" value="2:19.84" readonly="readonly" style="width:100%;background:#1E1418;border:1px solid #34232A;border-radius:6px;color:#F3EAEC;padding:6px 8px;font-family:'IBM Plex Mono',monospace;font-size:13px" />
+              <button style="margin-top:4px;font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid #34232A;background:#1E1418;color:#F3EAEC;cursor:pointer">⚡ Canlı AVG5: <b style="font-family:'IBM Plex Mono',monospace">2:19.31</b> — uygula</button>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px">
+            <input type="number" value="6" readonly="readonly" style="width:100%;background:#1E1418;border:1px solid #34232A;border-radius:6px;color:#F3EAEC;padding:6px 8px;font-family:'IBM Plex Mono',monospace;font-size:13px" />
+            <input type="number" value="7" readonly="readonly" style="width:100%;background:#1E1418;border:1px solid #34232A;border-radius:6px;color:#F3EAEC;padding:6px 8px;font-family:'IBM Plex Mono',monospace;font-size:13px" />
+            <input type="number" value="8" readonly="readonly" style="width:100%;background:#1E1418;border:1px solid #34232A;border-radius:6px;color:#F3EAEC;padding:6px 8px;font-family:'IBM Plex Mono',monospace;font-size:13px" />
+            <input type="number" value="9" readonly="readonly" style="width:100%;background:#1E1418;border:1px solid #34232A;border-radius:6px;color:#F3EAEC;padding:6px 8px;font-family:'IBM Plex Mono',monospace;font-size:13px" />
+          </div>
+          <label style="display:block;color:#C9B3B9;font-size:11px;margin:8px 0 3px;text-transform:uppercase;letter-spacing:.05em">Seçili Strateji</label>
+          <div style="display:flex;gap:6px;margin-top:4px">
+            <button style="flex:1;padding:7px 0;border-radius:6px;border:1px solid #34232A;background:#1E1418;color:#C9B3B9;font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:600;cursor:pointer">A · 6</button>
+            <button style="flex:1;padding:7px 0;border-radius:6px;border:1px solid #D24357;background:#960018;color:#FFE9ED;font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:600;cursor:pointer">B · 7</button>
+            <button style="flex:1;padding:7px 0;border-radius:6px;border:1px solid #34232A;background:#1E1418;color:#C9B3B9;font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:600;cursor:pointer">C · 8</button>
+            <button style="flex:1;padding:7px 0;border-radius:6px;border:1px solid #34232A;background:#1E1418;color:#C9B3B9;font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:600;cursor:pointer">D · 9</button>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+            <div>
+              <label style="display:flex;align-items:center;gap:6px;color:#C9B3B9;font-size:11px;margin:8px 0 3px;text-transform:uppercase;letter-spacing:.05em">
+                <input type="checkbox" checked="checked" style="width:auto;margin:0" />Multiclass Yarış
+              </label>
+              <select style="width:100%;background:#1E1418;border:1px solid #34232A;border-radius:6px;color:#F3EAEC;padding:6px 8px;font-size:12px"><option>Hypercar</option></select>
+            </div>
+            <div>
+              <label style="display:block;color:#C9B3B9;font-size:11px;margin:8px 0 3px;text-transform:uppercase;letter-spacing:.05em">Extra Lap</label>
+              <input type="number" value="1" readonly="readonly" style="width:100%;background:#1E1418;border:1px solid #34232A;border-radius:6px;color:#F3EAEC;padding:6px 8px;font-family:'IBM Plex Mono',monospace;font-size:13px" />
+            </div>
+          </div>
+        </div>
+
+        <div style="background:#150E10;border:1px solid #34232A;border-radius:10px;padding:14px;margin-top:12px">
+          <h2 style="margin:0 0 10px;font-size:15px;text-transform:uppercase;font-family:'Rajdhani',sans-serif;letter-spacing:.08em;color:#D24357">Yarış Başlangıcı</h2>
+          <label style="display:block;color:#C9B3B9;font-size:11px;margin:8px 0 3px;text-transform:uppercase;letter-spacing:.05em">Start Tarih &amp; Saat</label>
+          <input type="text" value="15.08.2026 14:00" readonly="readonly" style="width:100%;background:#1E1418;border:1px solid #34232A;border-radius:6px;color:#F3EAEC;padding:6px 8px;font-family:'IBM Plex Mono',monospace;font-size:13px" />
+          <div style="margin-top:10px;background:#1E1418;border:1px solid #34232A;border-radius:8px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+            <span style="color:#C9B3B9;font-size:11px">🏁 Hesaplanan Bitiş</span>
+            <b style="font-family:'IBM Plex Mono',monospace;font-size:15px;color:#37D67A">20:00:00</b>
+          </div>
+        </div>
+
+        <div style="background:#150E10;border:1px solid #34232A;border-radius:10px;padding:14px;margin-top:12px">
+          <h2 style="margin:0 0 10px;font-size:15px;text-transform:uppercase;font-family:'Rajdhani',sans-serif;letter-spacing:.08em;color:#D24357">🌦 Hava Durumu</h2>
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:4px 0 2px">
+            <button style="padding:6px 2px;border:1px solid #6e8496;border-radius:8px;background:rgba(255,255,255,.05);color:#6e8496;cursor:pointer;font-size:11px;line-height:1.3;text-align:center">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M8.5 21.2h7" stroke="#5b6b7a" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="1.2 2.6"></path><path d="M12 3.4c0 0-5.1 6.4-5.1 9.6a5.1 5.1 0 0 0 10.2 0c0-3.2-5.1-9.6-5.1-9.6Z" stroke="#6e8496" stroke-width="1.5" stroke-linejoin="round"></path></svg><br />Kuru<br /><small style="font-family:'IBM Plex Mono',monospace;opacity:.8;font-size:10px">×1.00</small>
+            </button>
+            <button style="padding:6px 2px;border:1px solid #34232A;border-radius:8px;background:#1E1418;color:#C9B3B9;cursor:pointer;font-size:11px;line-height:1.3;text-align:center">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M8 21.2h8" stroke="#3f7fae" stroke-width="1.6" stroke-linecap="round"></path><clipPath id="wcdamp1"><rect x="4" y="13.6" width="16" height="8"></rect></clipPath><path d="M12 3.4c0 0-5.1 6.4-5.1 9.6a5.1 5.1 0 0 0 10.2 0c0-3.2-5.1-9.6-5.1-9.6Z" fill="#3f8fc4" clip-path="url(#wcdamp1)"></path><path d="M12 3.4c0 0-5.1 6.4-5.1 9.6a5.1 5.1 0 0 0 10.2 0c0-3.2-5.1-9.6-5.1-9.6Z" stroke="#4d9ed4" stroke-width="1.5" stroke-linejoin="round"></path></svg><br />Nemli<br /><small style="font-family:'IBM Plex Mono',monospace;opacity:.8;font-size:10px">×1.02</small>
+            </button>
+            <button style="padding:6px 2px;border:1px solid #34232A;border-radius:8px;background:#1E1418;color:#C9B3B9;cursor:pointer;font-size:11px;line-height:1.3;text-align:center">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><ellipse cx="12" cy="21" rx="5.4" ry="1.3" fill="#2f83bd" opacity=".55"></ellipse><path d="M12 3.4c0 0-5.1 6.4-5.1 9.6a5.1 5.1 0 0 0 10.2 0c0-3.2-5.1-9.6-5.1-9.6Z" fill="#3f9dda"></path></svg><br />Az Islak<br /><small style="font-family:'IBM Plex Mono',monospace;opacity:.8;font-size:10px">×1.06</small>
+            </button>
+            <button style="padding:6px 2px;border:1px solid #34232A;border-radius:8px;background:#1E1418;color:#C9B3B9;cursor:pointer;font-size:11px;line-height:1.3;text-align:center">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><ellipse cx="12" cy="21" rx="8.6" ry="1.6" fill="#2f8fd4" opacity=".7"></ellipse><path d="M13 2.9c0 0-4.7 5.9-4.7 8.9a4.7 4.7 0 0 0 9.4 0c0-3-4.7-8.9-4.7-8.9Z" fill="#4fb0ec"></path><path d="M5.6 8.6c0 0-2.7 3.4-2.7 5.1a2.7 2.7 0 0 0 5.4 0c0-1.7-2.7-5.1-2.7-5.1Z" fill="#4fb0ec"></path></svg><br />Islak<br /><small style="font-family:'IBM Plex Mono',monospace;opacity:.8;font-size:10px">×1.12</small>
+            </button>
+            <button style="padding:6px 2px;border:1px solid #34232A;border-radius:8px;background:#1E1418;color:#C9B3B9;cursor:pointer;font-size:11px;line-height:1.3;text-align:center">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><ellipse cx="12" cy="20.8" rx="11" ry="2.1" fill="#2f9ae8" opacity=".85"></ellipse><path d="M13.6 2.4c0 0-4.4 5.5-4.4 8.3a4.4 4.4 0 0 0 8.8 0c0-2.8-4.4-8.3-4.4-8.3Z" fill="#7ccdff"></path><path d="M5.4 6.5c0 0-3 3.8-3 5.7a3 3 0 0 0 6 0c0-1.9-3-5.7-3-5.7Z" fill="#7ccdff"></path></svg><br />Çok Islak<br /><small style="font-family:'IBM Plex Mono',monospace;opacity:.8;font-size:10px">×1.20</small>
+            </button>
+          </div>
+          <div style="color:#C9B3B9;font-size:11px;margin-top:6px;line-height:1.5">Efektif tur (şu an): ×1.00</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <button onClick="{{ goDash }}" style="padding:8px 16px;border-radius:8px 8px 0 0;border:1px solid #34232A;border-bottom:none;background:transparent;color:#C9B3B9;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:600;letter-spacing:.05em;text-transform:uppercase"><span style="margin-right:6px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M4 4v16h16"></path><path d="m7 14 3-3 3 2 4-5"></path></svg></span>Dashboard</button>
+        <button style="padding:8px 16px;border-radius:8px 8px 0 0;border:1px solid #34232A;border-bottom:none;background:transparent;color:#C9B3B9;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:600;letter-spacing:.05em;text-transform:uppercase"><span style="margin-right:6px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M12 4 2.5 8.5 12 13l9.5-4.5L12 4Z"></path><path d="M6 10.6V15c0 1.5 2.7 2.7 6 2.7s6-1.2 6-2.7v-4.4"></path><path d="M21.5 8.6V14"></path></svg></span>Stint</button>
+        <button style="padding:8px 16px;border-radius:8px 8px 0 0;border:1px solid #34232A;border-bottom:none;background:transparent;color:#C9B3B9;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:600;letter-spacing:.05em;text-transform:uppercase"><span style="margin-right:6px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z"></path></svg></span>Son Stint Yakıtı</button>
+        <button onClick="{{ goLive }}" style="{{ tabLive }}"><span style="margin-right:6px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M4.6 8a10 10 0 0 1 14.8 0M7.6 11a6 6 0 0 1 8.8 0"></path><circle cx="12" cy="15" r="1.7" fill="currentColor" stroke="none"></circle></svg></span>Canlı</button>
+        <button style="padding:8px 16px;border-radius:8px 8px 0 0;border:1px solid #34232A;border-bottom:none;background:transparent;color:#C9B3B9;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:600;letter-spacing:.05em;text-transform:uppercase"><span style="margin-right:6px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><circle cx="12" cy="12" r="9.2"></circle><circle cx="12" cy="12" r="4"></circle><path d="M12 2.8v2.6M12 18.6v2.6M2.8 12h2.6M18.6 12h2.6"></path></svg></span>Lastik</button>
+        <button style="padding:8px 16px;border-radius:8px 8px 0 0;border:1px solid #34232A;border-bottom:none;background:transparent;color:#C9B3B9;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:600;letter-spacing:.05em;text-transform:uppercase"><span style="margin-right:6px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="vertical-align:-2px"><circle cx="12" cy="12" r="9.3"></circle><circle cx="12" cy="12" r="2.8" fill="currentColor" stroke="none"></circle><path d="M2.9 12h6.3M14.8 12h6.3M12 14.8v6.3"></path></svg></span>Pilotlar</button>
+        <button style="padding:8px 16px;border-radius:8px 8px 0 0;border:1px solid #34232A;border-bottom:none;background:transparent;color:#C9B3B9;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:600;letter-spacing:.05em;text-transform:uppercase"><span style="margin-right:6px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M4 4v16h16"></path><path d="m7 14 3-3 3 2 4-5"></path></svg></span>Telemetri</button>
+        <button onClick="{{ goSetup }}" style="{{ tabSetup }}"><span style="margin-right:6px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M15.5 4a4.5 4.5 0 0 0-4 6.6L4 18.1 5.9 20l7.5-7.5A4.5 4.5 0 1 0 15.5 4Z"></path></svg></span>Setup</button>
+        <button style="position:relative;padding:8px 16px;border-radius:8px 8px 0 0;border:1px solid #34232A;border-bottom:none;background:transparent;color:#C9B3B9;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:600;letter-spacing:.05em;text-transform:uppercase"><span style="margin-right:6px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M20 4H4a1.5 1.5 0 0 0-1.5 1.5V16A1.5 1.5 0 0 0 4 17.5h3V21l4-3.5h9A1.5 1.5 0 0 0 21.5 16V5.5A1.5 1.5 0 0 0 20 4Z"></path></svg></span>Yarış Sohbeti<b style="position:absolute;top:2px;right:3px;background:#960018;color:#fff;border-radius:9px;font-size:10px;padding:0 5px;font-family:'Inter',sans-serif">3</b></button>
+      </div>
+
+      <sc-if value="{{ isLive }}" hint-placeholder-val="{{ true }}">
+      <div>
+        <div style="background:#150E10;border:1px solid #34232A;border-radius:10px;padding:14px;margin-bottom:12px">
+          <h2 style="margin:0 0 10px;font-size:15px;text-transform:uppercase;font-family:'Rajdhani',sans-serif;letter-spacing:.08em;color:#D24357;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            📡 Canlı Timing
+            <span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-family:'IBM Plex Mono',monospace;letter-spacing:.04em;padding:2px 9px;border-radius:99px;border:1px solid rgba(55,214,122,.5);text-transform:uppercase;color:#37D67A">
+              <i style="width:8px;height:8px;border-radius:50%;flex:0 0 auto;background:#37D67A;box-shadow:0 0 8px #37D67A;animation:rcpulse 1.2s ease-in-out infinite"></i> canlı · 1s</span>
+            <span style="margin-left:auto;display:flex;gap:8px">
+              <button style="padding:3px 10px;border-radius:6px;border:1px solid #34232A;background:#1E1418;color:#F3EAEC;cursor:pointer;font-size:11px">⛶ Büyük Pano</button>
+            </span>
+          </h2>
+          <div style="color:#37D67A;font-size:11px;margin-top:6px;line-height:1.5">🔴 Tur geçmişi kaydediliyor · 34 araç · 412 tur</div>
+          <div style="color:#C9B3B9;font-size:11px;margin-top:6px;line-height:1.5">🛰 Köprü v1.8.18 · 📼 412 tur kaydetti</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:14px 0 0">
+            <div style="position:relative;overflow:hidden;background:#1E1418;border:1px solid #34232A;border-radius:8px;padding:10px"><div style="position:absolute;left:10px;right:10px;top:0;height:2px;border-radius:2px;background:linear-gradient(90deg,#D24357,transparent 72%);opacity:.6"></div>
+              <div style="font-family:'Rajdhani',sans-serif;font-size:24px;font-weight:700;line-height:1">Yarış</div><div style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin-top:4px">Seans</div></div>
+            <div style="position:relative;overflow:hidden;background:#1E1418;border:1px solid #34232A;border-radius:8px;padding:10px"><div style="position:absolute;left:10px;right:10px;top:0;height:2px;border-radius:2px;background:linear-gradient(90deg,#D24357,transparent 72%);opacity:.6"></div>
+              <div style="font-family:'Rajdhani',sans-serif;font-size:24px;font-weight:700;line-height:1;color:#37D67A">Yeşil</div><div style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin-top:4px">Bayrak / Faz</div></div>
+            <div style="position:relative;overflow:hidden;background:#1E1418;border:1px solid #34232A;border-radius:8px;padding:10px"><div style="position:absolute;left:10px;right:10px;top:0;height:2px;border-radius:2px;background:linear-gradient(90deg,#D24357,transparent 72%);opacity:.6"></div>
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:700;line-height:1">4:12:38</div><div style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin-top:4px">Kalan</div></div>
+            <div style="position:relative;overflow:hidden;background:#1E1418;border:1px solid #34232A;border-radius:8px;padding:10px"><div style="position:absolute;left:10px;right:10px;top:0;height:2px;border-radius:2px;background:linear-gradient(90deg,#D24357,transparent 72%);opacity:.6"></div>
+              <div style="font-family:'Rajdhani',sans-serif;font-size:24px;font-weight:700;line-height:1">🛣 38°<span style="font-size:13px;color:#C9B3B9"> pist</span></div><div style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin-top:4px">Pist · Ortam 24°</div></div>
+            <div style="position:relative;overflow:hidden;background:#1E1418;border:1px solid #34232A;border-radius:8px;padding:10px"><div style="position:absolute;left:10px;right:10px;top:0;height:2px;border-radius:2px;background:linear-gradient(90deg,#D24357,transparent 72%);opacity:.6"></div>
+              <div style="font-family:'Rajdhani',sans-serif;font-size:24px;font-weight:700;line-height:1">☀️ Kuru</div><div style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin-top:4px">Yağmur</div></div>
+            <div style="position:relative;overflow:hidden;background:#1E1418;border:1px solid #34232A;border-radius:8px;padding:10px"><div style="position:absolute;left:10px;right:10px;top:0;height:2px;border-radius:2px;background:linear-gradient(90deg,#D24357,transparent 72%);opacity:.6"></div>
+              <div style="font-family:'Rajdhani',sans-serif;font-size:24px;font-weight:700;line-height:1"><span style="color:#6e8496;display:inline-flex;align-items:center;gap:8px"><svg width="34" height="34" viewBox="0 0 24 24" fill="none"><path d="M8.5 21.2h7" stroke="#5b6b7a" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="1.2 2.6"></path><path d="M12 3.4c0 0-5.1 6.4-5.1 9.6a5.1 5.1 0 0 0 10.2 0c0-3.2-5.1-9.6-5.1-9.6Z" stroke="#6e8496" stroke-width="1.5" stroke-linejoin="round"></path></svg><span style="font-size:15px;font-weight:700;line-height:1.05">Kuru</span></span></div><div style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin-top:4px">Zemin ıslaklığı</div></div>
+            <div style="position:relative;overflow:hidden;background:#1E1418;border:1px solid #34232A;border-radius:8px;padding:10px"><div style="position:absolute;left:10px;right:10px;top:0;height:2px;border-radius:2px;background:linear-gradient(90deg,#D24357,transparent 72%);opacity:.6"></div>
+              <div style="font-family:'Rajdhani',sans-serif;font-size:24px;font-weight:700;line-height:1"><span style="display:inline-flex;align-items:center;gap:7px;color:#37D67A"><svg width="30" height="30" viewBox="0 0 24 24" fill="none"><defs><clipPath id="gcx"><circle cx="12" cy="12" r="9.2"></circle></clipPath></defs><rect x="2" y="6.9" width="20" height="14.3" fill="#37D67A" opacity="0.9" clip-path="url(#gcx)"></rect><path d="M2.8 6.9h18.4" stroke="#F3EAEC" stroke-width="0.8" opacity="0.5" clip-path="url(#gcx)"></path><circle cx="12" cy="12" r="9.2" fill="none" stroke="#8a6f4a" stroke-width="2"></circle><circle cx="12" cy="12" r="4" fill="none" stroke="#8a6f4a" stroke-width="1.6"></circle></svg>%78</span></div><div style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin-top:4px">Tutuş</div></div>
+          </div>
+        </div>
+
+        <div style="background:#150E10;border:1px solid #34232A;border-radius:10px;padding:14px;margin-bottom:12px">
+          <h2 style="margin:0 0 10px;font-size:15px;text-transform:uppercase;font-family:'Rajdhani',sans-serif;letter-spacing:.08em;color:#D24357;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            🎯 Strateji
+            <span style="display:inline-block;padding:1px 7px;border-radius:99px;font-size:11px;border:1px solid #960018;background:#960018;color:#fff">YIL · P4</span>
+            <label style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:11px;color:#C9B3B9;text-transform:none;letter-spacing:0">PIT KAYBI
+              <input type="number" value="30" readonly="readonly" style="width:56px;padding:3px 6px;font-size:13px;text-align:right;background:#1E1418;border:1px solid #34232A;border-radius:6px;color:#F3EAEC;font-family:'IBM Plex Mono',monospace" /><span>s</span></label>
+          </h2>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <span style="display:inline-flex;gap:6px;align-items:baseline;padding:1px 7px;border-radius:99px;font-size:12px;border:1px solid #34232A;color:#C9B3B9"><span style="color:#C9B3B9;text-transform:uppercase;font-size:10px;letter-spacing:.04em">Önünde</span><b style="color:#F3EAEC">HRT +1.842</b></span>
+            <span style="display:inline-flex;gap:6px;align-items:baseline;padding:1px 7px;border-radius:99px;font-size:12px;border:1px solid #34232A;color:#C9B3B9"><span style="color:#C9B3B9;text-transform:uppercase;font-size:10px;letter-spacing:.04em">Arkanda</span><b style="color:#F3EAEC">BEN -0.914</b></span>
+            <span style="display:inline-flex;gap:6px;align-items:baseline;padding:1px 7px;border-radius:99px;font-size:12px;border:1px solid #34232A;color:#C9B3B9"><span style="color:#C9B3B9;text-transform:uppercase;font-size:10px;letter-spacing:.04em">Temiz hava</span><b style="color:#F3EAEC">en yakın 0.9s</b></span>
+            <span style="display:inline-flex;gap:6px;align-items:baseline;padding:1px 7px;border-radius:99px;font-size:12px;border:1px solid #F5B23D;color:#C9B3B9"><span style="color:#C9B3B9;text-transform:uppercase;font-size:10px;letter-spacing:.04em">Trafik</span><b style="color:#F5B23D">±3s içinde 3 araç</b></span>
+            <span style="display:inline-flex;gap:6px;align-items:baseline;padding:1px 7px;border-radius:99px;font-size:12px;border:1px solid #960018;color:#C9B3B9"><span style="color:#C9B3B9;text-transform:uppercase;font-size:10px;letter-spacing:.04em">Pit çıkışı</span><b style="color:#960018">~P9 · MÜL↑ SCH↓</b></span>
+          </div>
+        </div>
+
+        <div style="background:#150E10;border:1px solid #34232A;border-radius:10px;padding:14px;margin-bottom:12px">
+          <h2 style="margin:0 0 10px;font-size:15px;text-transform:uppercase;font-family:'Rajdhani',sans-serif;letter-spacing:.08em;color:#D24357;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            🏎 Kendi Araç
+            <span style="display:inline-block;padding:1px 7px;border-radius:99px;font-size:11px;border:1px solid #D24357;color:#D24357">🛞 Medium</span>
+          </h2>
+          <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center">
+            <div style="text-align:center">
+              <svg width="104" height="104" viewBox="0 0 104 104">
+                <circle cx="52" cy="52" r="46.5" fill="none" stroke="#1E1418" stroke-width="11"></circle>
+                <circle cx="52" cy="52" r="46.5" fill="none" stroke="#37D67A" stroke-width="11" stroke-linecap="round" stroke-dasharray="292.17" stroke-dashoffset="111.02" transform="rotate(-90 52 52)"></circle>
+                <text x="50%" y="50%" text-anchor="middle" dominant-baseline="central" fill="#37D67A" style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:26px;font-variant-numeric:tabular-nums">62%</text>
+              </svg>
+              <div style="color:#C9B3B9;font-size:11px">VE (Sanal Enerji)</div>
+            </div>
+            <div style="text-align:center">
+              <svg width="84" height="84" viewBox="0 0 84 84">
+                <circle cx="42" cy="42" r="37.5" fill="none" stroke="#1E1418" stroke-width="9"></circle>
+                <circle cx="42" cy="42" r="37.5" fill="none" stroke="#F5B23D" stroke-width="9" stroke-linecap="round" stroke-dasharray="235.62" stroke-dashoffset="122.52" transform="rotate(-90 42 42)"></circle>
+                <text x="50%" y="50%" text-anchor="middle" dominant-baseline="central" fill="#F5B23D" style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:20px;font-variant-numeric:tabular-nums">48%</text>
+              </svg>
+              <div style="color:#C9B3B9;font-size:11px">Yakıt 51.4 L / 108</div>
+              <div style="color:#D24357;font-size:11px;font-weight:600">~14 tur</div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;flex:1;min-width:220px">
+              <div style="position:relative;overflow:hidden;background:#1E1418;border:1px solid #34232A;border-radius:8px;padding:10px"><div style="position:absolute;left:10px;right:10px;top:0;height:2px;border-radius:2px;background:linear-gradient(90deg,#D24357,transparent 72%);opacity:.6"></div><div style="font-family:'Rajdhani',sans-serif;font-size:24px;font-weight:700;line-height:1">4</div><div style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin-top:4px">Pozisyon</div></div>
+              <div style="position:relative;overflow:hidden;background:#1E1418;border:1px solid #34232A;border-radius:8px;padding:10px"><div style="position:absolute;left:10px;right:10px;top:0;height:2px;border-radius:2px;background:linear-gradient(90deg,#D24357,transparent 72%);opacity:.6"></div><div style="font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:700;line-height:1">1:12.4</div><div style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin-top:4px">Mevcut Tur</div></div>
+              <div style="position:relative;overflow:hidden;background:#1E1418;border:1px solid #34232A;border-radius:8px;padding:10px"><div style="position:absolute;left:10px;right:10px;top:0;height:2px;border-radius:2px;background:linear-gradient(90deg,#D24357,transparent 72%);opacity:.6"></div><div style="font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:700;line-height:1">2:19.31</div><div style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin-top:4px">Son Tur</div></div>
+              <div style="position:relative;overflow:hidden;background:#1E1418;border:1px solid #34232A;border-radius:8px;padding:10px"><div style="position:absolute;left:10px;right:10px;top:0;height:2px;border-radius:2px;background:linear-gradient(90deg,#D24357,transparent 72%);opacity:.6"></div><div style="font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:700;line-height:1;color:#B58BFF">2:17.88</div><div style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin-top:4px">En İyi</div></div>
+              <div style="position:relative;overflow:hidden;background:#1E1418;border:1px solid #34232A;border-radius:8px;padding:10px"><div style="position:absolute;left:10px;right:10px;top:0;height:2px;border-radius:2px;background:linear-gradient(90deg,#D24357,transparent 72%);opacity:.6"></div><div style="font-family:'Rajdhani',sans-serif;font-size:24px;font-weight:700;line-height:1">46</div><div style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin-top:4px">Tur</div></div>
+              <div style="position:relative;overflow:hidden;background:#1E1418;border:1px solid #34232A;border-radius:8px;padding:10px"><div style="position:absolute;left:10px;right:10px;top:0;height:2px;border-radius:2px;background:linear-gradient(90deg,#D24357,transparent 72%);opacity:.6"></div><div style="font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:700;line-height:1">31.2 <span style="color:#C9B3B9">/</span> 52.9 <span style="color:#C9B3B9">/</span> 55.2</div><div style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin-top:4px">S1 / S2 / S3</div></div>
+            </div>
+          </div>
+          <div style="display:flex;gap:26px;flex-wrap:wrap;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid #34232A">
+            <div style="text-align:center;min-width:76px"><div style="font-family:'Rajdhani',sans-serif;font-size:30px;line-height:1">243</div><div style="color:#C9B3B9;font-size:11px">km/h · Hız</div></div>
+            <div style="text-align:center;min-width:52px"><div style="font-family:'Rajdhani',sans-serif;font-size:30px;line-height:1;color:#D24357">5</div><div style="color:#C9B3B9;font-size:11px">Vites</div></div>
+            <div style="flex:1;min-width:220px;display:flex;flex-direction:column;gap:6px">
+              <div style="display:flex;align-items:center;gap:8px"><span style="width:34px;font-size:11px;color:#C9B3B9">GAZ</span><div style="flex:1;height:10px;background:#34232A;border-radius:5px;overflow:hidden"><div style="height:100%;width:82%;background:#37D67A;transition:width .4s linear"></div></div><span style="width:38px;text-align:right;font-size:11px;font-family:'IBM Plex Mono',monospace">82%</span></div>
+              <div style="display:flex;align-items:center;gap:8px"><span style="width:34px;font-size:11px;color:#C9B3B9">FREN</span><div style="flex:1;height:10px;background:#34232A;border-radius:5px;overflow:hidden"><div style="height:100%;width:0%;background:#FF4D5E;transition:width .4s linear"></div></div><span style="width:38px;text-align:right;font-size:11px;font-family:'IBM Plex Mono',monospace">0%</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:#150E10;border:1px solid #34232A;border-radius:10px;padding:14px">
+          <h2 style="margin:0 0 10px;font-size:15px;text-transform:uppercase;font-family:'Rajdhani',sans-serif;letter-spacing:.08em;color:#D24357;display:flex;align-items:center;gap:10px;flex-wrap:wrap">🏁 Saha (12)</h2>
+          <div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse">
+              <thead><tr>
+                <th style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;text-align:left;padding:6px 8px;border-bottom:1px solid #34232A">#</th>
+                <th style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;text-align:left;padding:6px 8px;border-bottom:1px solid #34232A"><span style="text-decoration:underline dotted">Pilot</span></th>
+                <th style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;text-align:left;padding:6px 8px;border-bottom:1px solid #34232A"><span style="text-decoration:underline dotted">Sınıf</span></th>
+                <th style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;text-align:left;padding:6px 8px;border-bottom:1px solid #34232A">Tur</th>
+                <th style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;text-align:left;padding:6px 8px;border-bottom:1px solid #34232A">Gap</th>
+                <th style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;text-align:left;padding:6px 8px;border-bottom:1px solid #34232A">Aralık</th>
+                <th style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;text-align:left;padding:6px 8px;border-bottom:1px solid #34232A"><span style="text-decoration:underline dotted">Son</span></th>
+                <th style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;text-align:left;padding:6px 8px;border-bottom:1px solid #34232A">Sektör</th>
+                <th style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;text-align:left;padding:6px 8px;border-bottom:1px solid #34232A"><span style="text-decoration:underline dotted">AVG5</span></th>
+                <th style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;text-align:left;padding:6px 8px;border-bottom:1px solid #34232A">VE</th>
+                <th style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;text-align:left;padding:6px 8px;border-bottom:1px solid #34232A">VE/tur</th>
+                <th style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;text-align:left;padding:6px 8px;border-bottom:1px solid #34232A">Stint</th>
+                <th style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;text-align:left;padding:6px 8px;border-bottom:1px solid #34232A">Lastik</th>
+                <th style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;text-align:left;padding:6px 8px;border-bottom:1px solid #34232A">Hasar</th>
+                <th style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;text-align:left;padding:6px 8px;border-bottom:1px solid #34232A">Pit</th>
+                <th style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;text-align:left;padding:6px 8px;border-bottom:1px solid #34232A">Ceza</th>
+                <th style="color:#C9B3B9;font-size:10px;padding:6px 8px;border-bottom:1px solid #34232A"></th>
+              </tr></thead>
+              <tbody>
+                <sc-for list="{{ field }}" as="r" hint-placeholder-count="12">
+                  <tr style="{{ r.rowStyle }}">
+                    <td style="{{ r.tdPos }}">{{ r.pos }}<span style="{{ r.dirStyle }}">{{ r.dir }}</span></td>
+                    <td style="{{ r.tdName }}"><img src="{{ r.brand }}" alt="" style="height:16px;width:16px;object-fit:contain;vertical-align:middle;margin-right:6px" /><span style="color:#C9B3B9;font-size:11px;margin-right:5px">#{{ r.num }}</span>{{ r.driver }}</td>
+                    <td style="{{ r.tdNowrap }}"><img src="{{ r.clsImg }}" alt="" style="height:18px;vertical-align:middle;border-radius:3px" /><span style="{{ r.clsPosStyle }}">P{{ r.classPos }}</span></td>
+                    <td style="{{ r.td }}">{{ r.laps }}</td>
+                    <td style="{{ r.td }}">{{ r.gap }}</td>
+                    <td style="{{ r.tdDim }}">{{ r.interval }}</td>
+                    <td style="{{ r.td }}">{{ r.last }}</td>
+                    <td style="{{ r.tdSector }}">{{ r.sectors }}</td>
+                    <td style="{{ r.tdDim }}">{{ r.avg5 }}</td>
+                    <td style="{{ r.veStyle }}">{{ r.ve }}</td>
+                    <td style="{{ r.tdSmall }}">{{ r.vePerLap }}</td>
+                    <td style="{{ r.tdMono }}">{{ r.stint }}</td>
+                    <td style="{{ r.td }}"><span style="white-space:nowrap;display:inline-flex;align-items:center;gap:5px"><img src="{{ r.compImg }}" alt="" style="height:20px;vertical-align:middle" /><span style="display:inline-grid;grid-template-columns:auto auto;gap:0 4px;font-size:10px;line-height:1.15;font-variant-numeric:tabular-nums;font-weight:700"><span style="{{ r.w0 }}">{{ r.wear0 }}</span><span style="{{ r.w1 }}">{{ r.wear1 }}</span><span style="{{ r.w2 }}">{{ r.wear2 }}</span><span style="{{ r.w3 }}">{{ r.wear3 }}</span></span></span></td>
+                    <td style="{{ r.dmgStyle }}">{{ r.damage }}</td>
+                    <td style="{{ r.tdNowrap }}"><span style="{{ r.pitChip }}">PIT</span><span style="color:#C9B3B9">{{ r.pitStops }}</span></td>
+                    <td style="{{ r.tdCenter }}"><span style="{{ r.penStyle }}">{{ r.pen }}</span></td>
+                    <td style="{{ r.tdCenter }}"><button style="padding:1px 8px;border-radius:6px;border:1px solid #34232A;background:#1E1418;color:#F3EAEC;cursor:pointer;font-size:14px;line-height:1">+</button></td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ isSetup }}" hint-placeholder-val="{{ false }}">
+      <div>
+        <div style="background:#150E10;border:1px solid #34232A;border-radius:10px;padding:14px">
+          <h2 style="margin:0 0 10px;font-size:15px;text-transform:uppercase;font-family:'Rajdhani',sans-serif;letter-spacing:.08em;color:#D24357">🔧 Setup Yükle</h2>
+          <div style="border:1.5px dashed #34232A;border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:5px">
+            <span style="color:#C9B3B9;font-size:11px;line-height:1.5">.svm dosyasını buraya sürükle — form kendiliğinden dolar.</span>
+            <button style="padding:6px 12px;border-radius:6px;border:1px solid #34232A;background:#1E1418;color:#F3EAEC;cursor:pointer;font-size:12px;align-self:flex-start">📁 Dosya Seç</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:9px;align-items:start;margin-top:12px;max-width:960px">
+            <div><label style="display:block;color:#C9B3B9;font-size:11px;margin:8px 0 3px;text-transform:uppercase;letter-spacing:.05em">Pist</label><select style="width:100%;background:#1E1418;border:1px solid #34232A;border-radius:6px;color:#F3EAEC;padding:6px 8px;font-size:12px"><option>Spa-Francorchamps</option></select></div>
+            <div><label style="display:block;color:#C9B3B9;font-size:11px;margin:8px 0 3px;text-transform:uppercase;letter-spacing:.05em">Sınıf</label><select style="width:100%;background:#1E1418;border:1px solid #34232A;border-radius:6px;color:#F3EAEC;padding:6px 8px;font-size:12px"><option>GT3</option></select></div>
+            <div><label style="display:block;color:#C9B3B9;font-size:11px;margin:8px 0 3px;text-transform:uppercase;letter-spacing:.05em">Araç</label><select style="width:100%;background:#1E1418;border:1px solid #34232A;border-radius:6px;color:#F3EAEC;padding:6px 8px;font-size:12px"><option>Ferrari 296 GT3</option></select></div>
+            <div><label style="display:block;color:#C9B3B9;font-size:11px;margin:8px 0 3px;text-transform:uppercase;letter-spacing:.05em">Tur (m:ss.00)</label><input type="text" value="2:17.88" readonly="readonly" style="width:100%;background:#1E1418;border:1px solid #34232A;border-radius:6px;color:#F3EAEC;padding:6px 8px;font-family:'IBM Plex Mono',monospace;font-size:13px" /></div>
+          </div>
+        </div>
+
+        <div style="background:#150E10;border:1px solid #34232A;border-radius:10px;padding:14px;margin-top:12px">
+          <h2 style="margin:0 0 10px;font-size:15px;text-transform:uppercase;font-family:'Rajdhani',sans-serif;letter-spacing:.08em;color:#D24357">📚 Setup Havuzu (8/34)</h2>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:#1E1418;border:1px solid #34232A;border-radius:9px;padding:9px 11px;margin-bottom:10px">
+            <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+              <select style="height:32px;font-size:12px;background:#1E1418;border:1px solid #34232A;border-radius:6px;color:#F3EAEC;padding:0 8px"><option>Tüm pistler</option></select>
+              <select style="height:32px;font-size:12px;background:#1E1418;border:1px solid #34232A;border-radius:6px;color:#F3EAEC;padding:0 8px"><option>Kuru + Wet</option></select>
+              <select style="height:32px;font-size:12px;background:#1E1418;border:1px solid #34232A;border-radius:6px;color:#F3EAEC;padding:0 8px"><option>Yarış + Sıralama</option></select>
+              <input type="text" placeholder="🔎 ara…" style="height:32px;font-size:12px;width:auto;min-width:150px;background:#1E1418;border:1px solid #34232A;border-radius:6px;color:#F3EAEC;padding:0 8px;font-family:'IBM Plex Mono',monospace" />
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+              <button style="height:32px;font-size:11px;padding:0 12px;border-radius:6px;border:1px solid #34232A;background:#1E1418;color:#F3EAEC;cursor:pointer">📍 Spa-Francorchamps</button>
+              <button style="height:32px;font-size:11px;padding:0 12px;border-radius:6px;border:1px solid #34232A;background:#1E1418;color:#F3EAEC;cursor:pointer">👤 Benim setuplarım</button>
+              <span style="width:1px;align-self:stretch;background:#34232A;margin:0 1px"></span>
+              <button style="height:32px;font-size:11px;padding:0 12px;border-radius:6px;border:1px solid #34232A;background:#1E1418;color:#F3EAEC;cursor:pointer">⊞ Kartlar</button>
+            </div>
+          </div>
+          <div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;font-size:12px">
+              <thead><tr>
+                <th style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;text-align:left;padding:6px 8px;border-bottom:1px solid #34232A;cursor:pointer;white-space:nowrap">Tarih ▼</th>
+                <th style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;text-align:left;padding:6px 8px;border-bottom:1px solid #34232A">Pist</th>
+                <th style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;text-align:left;padding:6px 8px;border-bottom:1px solid #34232A">Koşul</th>
+                <th style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;text-align:left;padding:6px 8px;border-bottom:1px solid #34232A">Sınıf</th>
+                <th style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;text-align:left;padding:6px 8px;border-bottom:1px solid #34232A">Araç</th>
+                <th style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;text-align:left;padding:6px 8px;border-bottom:1px solid #34232A;cursor:pointer;white-space:nowrap">Tur</th>
+                <th style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;text-align:left;padding:6px 8px;border-bottom:1px solid #34232A">Dosya</th>
+                <th style="color:#C9B3B9;font-size:10px;text-transform:uppercase;letter-spacing:.06em;text-align:left;padding:6px 8px;border-bottom:1px solid #34232A">Yükleyen</th>
+                <th style="color:#C9B3B9;font-size:10px;padding:6px 8px;border-bottom:1px solid #34232A"></th>
+              </tr></thead>
+              <tbody>
+                <sc-for list="{{ setups }}" as="s" hint-placeholder-count="8">
+                  <tr style="{{ s.rowStyle }}">
+                    <td style="{{ s.tdMono }}">{{ s.date }}</td>
+                    <td style="{{ s.td }}"><span style="display:inline-flex;align-items:center;gap:6px"><img src="{{ s.flag }}" alt="" style="width:18px;border-radius:2px" />{{ s.track }}</span></td>
+                    <td style="{{ s.td }}"><span style="{{ s.condChip }}">{{ s.cond }}</span></td>
+                    <td style="{{ s.td }}"><span style="display:inline-flex;align-items:center;gap:5px"><img src="{{ s.clsImg }}" alt="" style="height:16px;vertical-align:-3px" />{{ s.cls }}</span></td>
+                    <td style="{{ s.td }}"><span style="display:inline-flex;align-items:center;gap:6px"><img src="{{ s.brand }}" alt="" style="height:16px;width:auto" />{{ s.car }}</span></td>
+                    <td style="{{ s.tdLap }}">{{ s.lap }}<span style="{{ s.deltaStyle }}">{{ s.delta }}</span></td>
+                    <td style="{{ s.td }}"><span style="font-family:'Inter',sans-serif;font-variant-numeric:tabular-nums;font-size:11px">{{ s.file }}</span><span style="display:block;color:#C9B3B9;font-size:11px">{{ s.meta }}</span></td>
+                    <td style="{{ s.td }}">{{ s.by }}<span style="display:block;color:#C9B3B9;font-size:11px">Caspian Motorsport</span></td>
+                    <td style="{{ s.tdNowrap }}">
+                      <button style="padding:2px 8px;border-radius:6px;border:1px solid #34232A;background:#1E1418;color:#F3EAEC;cursor:pointer;font-size:11px;margin-right:4px">⚖</button>
+                      <button style="padding:2px 8px;border-radius:6px;border:1px solid #34232A;background:#1E1418;color:#F3EAEC;cursor:pointer;font-size:11px;margin-right:4px">🔍 İçerik</button>
+                      <button style="padding:2px 8px;border-radius:6px;border:1px solid #34232A;background:#1E1418;color:#F3EAEC;cursor:pointer;font-size:11px">⬇ İndir</button>
+                    </td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+          <div style="text-align:center;margin-top:10px"><button style="padding:6px 12px;border-radius:6px;border:1px solid #34232A;background:#1E1418;color:#F3EAEC;cursor:pointer;font-size:12px">⬇ Daha fazla yükle</button></div>
+        </div>
+      </div>
+      </sc-if>
+
+    </div>
+  </div>
+
+  <sc-if value="{{ teamOpen }}" hint-placeholder-val="{{ false }}">
+  <div style="position:fixed;inset:0;z-index:1000;background:rgba(10,6,10,.72);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:20px" onClick="{{ closeTeam }}">
+    <div style="background:#150E10;border:1px solid #34232A;border-radius:14px;width:min(680px,95vw);max-height:80vh;display:flex;flex-direction:column;overflow:hidden" onClick="{{ stop }}">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #34232A;font-family:'Rajdhani',sans-serif;font-size:18px;letter-spacing:.04em;text-transform:uppercase">
+        <span>⚙ Yönet · Takımlar</span>
+        <button onClick="{{ closeTeam }}" style="background:#1E1418;border:1px solid #34232A;border-radius:8px;color:#F3EAEC;font-size:16px;padding:6px 12px;cursor:pointer">✕</button>
+      </div>
+      <div style="display:flex;gap:6px;padding:10px 14px 0;flex-wrap:wrap">
+        <button style="padding:5px 12px;border:1px solid #960018;border-radius:8px;background:rgba(150,0,24,.22);color:#FFD9E0;cursor:pointer;font-size:12px">Caspian Motorsport</button>
+        <button style="padding:5px 12px;border:1px solid #34232A;border-radius:8px;background:#1E1418;color:#C9B3B9;cursor:pointer;font-size:12px">Caspian Junior</button>
+      </div>
+      <div style="overflow:auto;padding:12px 14px 14px">
+
+        <section style="background:#1E1418;border:1px solid #34232A;border-radius:12px;padding:12px 14px;margin:0 0 12px">
+          <div style="font-family:'Rajdhani',sans-serif;text-transform:uppercase;letter-spacing:.06em;font-size:12px;font-weight:700;color:#D24357;margin:0 0 10px;display:flex;align-items:center;gap:8px">🏷 Takım Kimliği</div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <b style="font-family:'Rajdhani',sans-serif;font-size:17px;font-weight:700">Caspian Motorsport</b>
+            <button style="width:auto;padding:0 10px;height:24px;border:1px solid #34232A;border-radius:6px;background:#1E1418;color:#F3EAEC;cursor:pointer;font-size:13px;line-height:1">Düzenle</button>
+          </div>
+          <div style="margin-top:12px;display:flex;flex-direction:column;gap:6px">
+            <span style="font-size:10.5px;color:#C9B3B9;text-transform:uppercase;letter-spacing:.05em">Takım Logosu</span>
+            <div style="border:1px dashed #34232A;border-radius:8px;background:#150E10;display:flex;align-items:center;justify-content:center;overflow:hidden;width:110px;height:110px">
+              <img src="public/assets/logo.png" alt="" style="max-width:100%;max-height:100%;object-fit:contain;display:block" />
+            </div>
+            <div style="display:flex;gap:6px">
+              <button style="padding:4px 12px;border-radius:6px;border:1px solid #34232A;background:#1E1418;color:#F3EAEC;cursor:pointer;font-size:11px">Değiştir</button>
+              <button style="padding:4px 12px;border-radius:6px;border:1px solid #34232A;background:#1E1418;color:#C9B3B9;cursor:pointer;font-size:11px">Kaldır</button>
+            </div>
+          </div>
+        </section>
+
+        <section style="background:#1E1418;border:1px solid #34232A;border-radius:12px;padding:12px 14px;margin:0 0 12px">
+          <div style="font-family:'Rajdhani',sans-serif;text-transform:uppercase;letter-spacing:.06em;font-size:12px;font-weight:700;color:#D24357;margin:0 0 10px;display:flex;align-items:center;gap:8px">🏁 Sezonlar &amp; Takvim</div>
+          <div style="display:flex;gap:6px;padding:0 0 10px;flex-wrap:wrap">
+            <button style="padding:5px 12px;border:1px solid #34232A;border-radius:8px;background:#1E1418;color:#C9B3B9;cursor:pointer;font-size:12px">Tümü</button>
+            <button style="padding:5px 12px;border:1px solid #960018;border-radius:8px;background:rgba(150,0,24,.22);color:#FFD9E0;cursor:pointer;font-size:12px">2026 WEC</button>
+            <button style="padding:5px 12px;border:1px solid #34232A;border-radius:8px;background:#1E1418;color:#C9B3B9;cursor:pointer;font-size:12px">+ Sezon</button>
+          </div>
+          <sc-for list="{{ races }}" as="rc" hint-placeholder-count="3">
+            <div style="display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:8px;background:rgba(255,255,255,.03);margin-bottom:5px">
+              <span style="font-weight:700;color:#D24357;letter-spacing:.08em">{{ rc.round }}</span>
+              <span style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                <b>{{ rc.name }}</b>
+                <span style="display:block;font-size:10.5px;color:#C9B3B9;font-weight:400">{{ rc.meta }}</span>
+              </span>
+              <button style="padding:4px 12px;font-size:11px;border-radius:8px;border:1px solid #34232A;background:#1E1418;color:#F3EAEC;cursor:pointer">Aç</button>
+              <button style="width:24px;height:24px;padding:0;border:1px solid #34232A;border-radius:6px;background:#1E1418;color:#F3EAEC;cursor:pointer;font-size:13px;line-height:1">✎</button>
+              <button style="width:24px;height:24px;padding:0;border:1px solid #34232A;border-radius:6px;background:#1E1418;color:#F3EAEC;cursor:pointer;font-size:13px;line-height:1">✕</button>
+            </div>
+          </sc-for>
+          <button style="width:100%;margin-top:10px;padding:4px 12px;font-size:11px;border-radius:8px;border:1px solid #34232A;background:#1E1418;color:#F3EAEC;cursor:pointer">➕ Yarış Ekle</button>
+        </section>
+
+        <section style="background:#1E1418;border:1px solid #34232A;border-radius:12px;padding:12px 14px;margin:0 0 12px">
+          <div style="font-family:'Rajdhani',sans-serif;text-transform:uppercase;letter-spacing:.06em;font-size:12px;font-weight:700;color:#D24357;margin:0 0 10px;display:flex;align-items:center;gap:8px">👥 Üyeler &amp; Yetkiler</div>
+          <div style="display:flex;flex-direction:column;gap:3px;margin:0 0 10px;font-size:11px;color:#A88C93;line-height:1.5">
+            <span>🎧 Yarış Mühendisi — yarış datasını değiştirebilir, üyelere dokunamaz</span>
+            <span>🛞 Sürücü — her şeyi görür, hiçbir şeyi değiştiremez</span>
+            <span>👑 Takım Sahibi — rozetleri ve yetkileri yönetir</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:2px">
+            <sc-for list="{{ members }}" as="m" hint-placeholder-count="5">
+              <div style="{{ m.rowStyle }}">
+                <span style="{{ m.avStyle }}">{{ m.initials }}</span>
+                <span style="display:inline-flex;gap:4px;flex:0 0 auto"><span style="{{ m.badgeStyle }}">{{ m.badge }}</span></span>
+                <span style="display:flex;align-items:center;gap:9px;min-width:0">
+                  <b style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ m.name }}</b>
+                  <span style="flex:0 0 auto;font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;padding:2px 8px;border-radius:6px;border:1px solid #34232A;color:#C9B3B9;white-space:nowrap">{{ m.role }}</span>
+                </span>
+                <span style="display:inline-flex;gap:5px;flex:0 0 auto">
+                  <button style="{{ m.tglDrv }}">🛞</button>
+                  <button style="{{ m.tglEng }}">🎧</button>
+                </span>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+
+        <section style="background:#1E1418;border:1px solid #34232A;border-radius:12px;padding:12px 14px;margin:0">
+          <div style="font-family:'Rajdhani',sans-serif;text-transform:uppercase;letter-spacing:.06em;font-size:12px;font-weight:700;color:#D24357;margin:0 0 10px;display:flex;align-items:center;gap:8px">🔑 Takım Erişimi</div>
+          <div style="display:inline-flex;align-items:center;gap:12px;background:#150E10;border:1px solid #4A2F38;border-radius:9px;padding:7px 14px;margin:0 0 8px">
+            <span style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#A88C93">Katılım kodu</span>
+            <b style="font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:.16em;font-size:17px;color:#F3EAEC">CSP-7T4K</b>
+          </div>
+          <div style="color:#C9B3B9;font-size:11px;line-height:1.5">Bu kodu paylaş — üyeler katılırken girer. PIN'leri yalnız düzenleyiciler görür.</div>
+        </section>
+
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const TD = "padding:7px 8px;border-bottom:1px solid #2E1D21;font-family:'IBM Plex Mono',monospace;font-size:12.5px";
+const CLS_ACC = { hypercar: "#E7443B", gt3: "#EF8A2B", lmp2: "#4C9AFF", lmp3: "#B58BFF", gte: "#37D67A" };
+
+function s2o(str) {
+  const o = {};
+  String(str).split(";").filter(Boolean).forEach((d) => {
+    const i = d.indexOf(":");
+    if (i < 0) return;
+    const k = d.slice(0, i).trim().replace(/-([a-z])/g, (m, c) => c.toUpperCase());
+    o[k] = d.slice(i + 1).trim();
+  });
+  return o;
+}
+const wearCol = (w) => (w == null ? "#C9B3B9" : w < 0.4 ? "#FF4D5E" : w < 0.7 ? "#F5B23D" : "#37D67A");
+const veCol = (v) => (v == null ? "#C9B3B9" : v > 50 ? "#37D67A" : v > 20 ? "#F5B23D" : "#FF4D5E");
+
+const FIELD = [
+  { pos: 1, dir: "", num: 51, driver: "A. Pier Guidi", brand: "ferrari", cls: "hypercar", classPos: 1, laps: 47, gap: "Lider", interval: "—", last: "2:04.12", best: true, sectors: "28.4·47.9·47.8", avg5: "2:04.66", ve: 71, vePerLap: 4.2, stint: "0:41:12", comp: "medium", wear: [0.86, 0.84, 0.79, 0.81], damage: 0, pit: false, pitStops: 2, pen: 0 },
+  { pos: 2, dir: "up", num: 7, driver: "K. Kobayashi", brand: "toyota", cls: "hypercar", classPos: 2, laps: 47, gap: "+3.412", interval: "+3.412", last: "2:04.38", sectors: "28.5·48.0·47.9", avg5: "2:04.71", ve: 64, vePerLap: 4.3, stint: "0:38:04", comp: "medium", wear: [0.81, 0.80, 0.74, 0.76], damage: 0, pit: false, pitStops: 2, pen: 0 },
+  { pos: 3, dir: "down", num: 6, driver: "K. Estre", brand: "porsche", cls: "hypercar", classPos: 3, laps: 47, gap: "+9.884", interval: "+6.472", last: "2:04.91", sectors: "28.7·48.2·48.0", avg5: "2:05.02", ve: 58, vePerLap: 4.4, stint: "0:36:51", comp: "hard", wear: [0.92, 0.91, 0.88, 0.89], damage: 0.03, pit: false, pitStops: 2, pen: 0 },
+  { pos: 4, dir: "", num: 2, driver: "E. Bamber", brand: "cadillac", cls: "hypercar", classPos: 4, laps: 47, gap: "+18.220", interval: "+8.336", last: "2:05.44", sectors: "28.9·48.4·48.1", avg5: "2:05.30", ve: 47, vePerLap: 4.5, stint: "0:33:19", comp: "medium", wear: [0.68, 0.67, 0.61, 0.63], damage: 0, pit: false, pitStops: 2, pen: 1 },
+  { pos: 5, dir: "", num: 94, driver: "L. Duval", brand: "peugeot", cls: "hypercar", classPos: 5, laps: 46, gap: "+1 Tur", interval: "+12.104", last: "2:06.02", sectors: "29.1·48.6·48.3", avg5: "2:06.11", ve: 39, vePerLap: 4.6, stint: "0:29:47", comp: "medium", wear: [0.55, 0.54, 0.49, 0.51], damage: 0.07, pit: false, pitStops: 3, pen: 0 },
+  { pos: 6, dir: "up", num: 36, driver: "M. Vaxivière", brand: "alpine", cls: "hypercar", classPos: 6, laps: 46, gap: "+1 Tur", interval: "+4.918", last: "2:06.31", sectors: "29.2·48.7·48.4", avg5: "2:06.40", ve: 33, vePerLap: 4.6, stint: "0:26:08", comp: "hard", wear: [0.74, 0.73, 0.70, 0.71], damage: 0, pit: true, pitStops: 3, pen: 0 },
+  { pos: 7, dir: "", num: 22, driver: "F. Albuquerque", brand: "oreca", cls: "lmp2", classPos: 1, laps: 45, gap: "+2 Tur", interval: "+1 Tur", last: "2:09.77", sectors: "30.1·50.2·49.5", avg5: "2:09.94", ve: 61, vePerLap: 3.8, stint: "0:44:20", comp: "medium", wear: [0.77, 0.76, 0.72, 0.73], damage: 0, pit: false, pitStops: 2, pen: 0 },
+  { pos: 8, dir: "", num: 31, driver: "S. van der Linde", brand: "bmw", cls: "gt3", classPos: 1, laps: 44, gap: "+3 Tur", interval: "+1 Tur", last: "2:18.02", sectors: "31.0·52.6·54.4", avg5: "2:18.44", ve: 68, vePerLap: 3.4, stint: "0:21:36", comp: "medium", wear: [0.88, 0.87, 0.83, 0.84], damage: 0, pit: false, pitStops: 2, pen: 0 },
+  { pos: 9, dir: "up", num: 55, driver: "Kerem Yılmaz", brand: "ferrari", cls: "gt3", classPos: 2, laps: 44, gap: "+3 Tur", interval: "+1.842", last: "2:19.31", sectors: "31.2·52.9·55.2", avg5: "2:19.08", ve: 62, vePerLap: 3.5, stint: "0:18:52", comp: "medium", wear: [0.72, 0.71, 0.64, 0.66], damage: 0.02, pit: false, pitStops: 2, pen: 0, isPlayer: true },
+  { pos: 10, dir: "down", num: 92, driver: "A. Malykhin", brand: "porsche", cls: "gt3", classPos: 3, laps: 44, gap: "+3 Tur", interval: "+0.914", last: "2:19.66", sectors: "31.3·53.0·55.3", avg5: "2:19.51", ve: 44, vePerLap: 3.5, stint: "0:17:41", comp: "soft", wear: [0.38, 0.36, 0.31, 0.33], damage: 0.18, pit: false, pitStops: 3, pen: 2 },
+  { pos: 11, dir: "", num: 59, driver: "M. Saucy", brand: "mclaren", cls: "gt3", classPos: 4, laps: 44, gap: "+3 Tur", interval: "+2.507", last: "2:20.18", sectors: "31.5·53.2·55.4", avg5: "2:20.02", ve: 18, vePerLap: 3.6, stint: "0:15:03", comp: "hard", wear: [0.61, 0.60, 0.57, 0.58], damage: 0, pit: false, pitStops: 3, pen: 0 },
+  { pos: 12, dir: "", num: 33, driver: "B. Keating", brand: "corvette", cls: "gt3", classPos: 5, laps: 43, gap: "+4 Tur", interval: "+1 Tur", last: "2:21.04", sectors: "31.8·53.5·55.7", avg5: "2:21.22", ve: 55, vePerLap: 3.6, stint: "0:09:12", comp: "wet", wear: [0.95, 0.94, 0.93, 0.93], damage: 0, pit: false, pitStops: 4, pen: 0 },
+];
+
+const SETUPS = [
+  { date: "14.08.26", track: "Spa-Francorchamps", flag: "spa", cond: "☀️ R", wet: false, cls: "GT3", clsId: "gt3", car: "Ferrari 296 GT3", brand: "ferrari", lap: "2:17.88", delta: " ⚡", best: true, file: "spa_296_race_v4.svm", meta: "WEC 2026 · v4", by: "Ahmet D.", here: true },
+  { date: "14.08.26", track: "Spa-Francorchamps", flag: "spa", cond: "☀️ Q", wet: false, cls: "GT3", clsId: "gt3", car: "Ferrari 296 GT3", brand: "ferrari", lap: "2:16.02", delta: "", file: "spa_296_quali.svm", meta: "WEC 2026 · v2", by: "Kerem Y.", here: true },
+  { date: "12.08.26", track: "Spa-Francorchamps", flag: "spa", cond: "🌧 R", wet: true, cls: "GT3", clsId: "gt3", car: "Porsche 911 GT3 R", brand: "porsche", lap: "2:31.44", delta: "", file: "spa_911_wet.svm", meta: "yağmur bazlı", by: "Ahmet D.", here: true },
+  { date: "09.08.26", track: "Le Mans", flag: "lemans", cond: "☀️ R", wet: false, cls: "Hypercar", clsId: "hypercar", car: "Ferrari 499P", brand: "ferrari", lap: "3:28.11", delta: " +0.42", file: "lemans_499p_r.svm", meta: "WEC 2026 · v7", by: "Deniz K.", here: false },
+  { date: "05.08.26", track: "Monza", flag: "monza", cond: "☀️ R", wet: false, cls: "GT3", clsId: "gt3", car: "BMW M4 GT3", brand: "bmw", lap: "1:47.63", delta: "", file: "monza_m4_race.svm", meta: "düşük kanat", by: "Kerem Y.", here: false },
+  { date: "02.08.26", track: "Imola", flag: "imola", cond: "☀️ Q", wet: false, cls: "GT3", clsId: "gt3", car: "McLaren 720S GT3 Evo", brand: "mclaren", lap: "1:39.22", delta: "", file: "imola_720s_q.svm", meta: "v3", by: "Ahmet D.", here: false },
+  { date: "28.07.26", track: "Bahrain", flag: "bahrain", cond: "☀️ R", wet: false, cls: "LMP2", clsId: "lmp2", car: "Oreca 07", brand: "oreca", lap: "1:52.07", delta: "", file: "bahrain_oreca.svm", meta: "sıcak zemin", by: "Deniz K.", here: false },
+  { date: "21.07.26", track: "Fuji", flag: "fuji", cond: "🌧 R", wet: true, cls: "GT3", clsId: "gt3", car: "Corvette Z06 GT3.R", brand: "corvette", lap: "2:05.90", delta: "", file: "fuji_z06_wet.svm", meta: "tam yağmur", by: "Ahmet D.", here: false },
+];
+
+const MEMBERS = [
+  { name: "Ahmet Demirci (sen)", initials: "AD", role: "Takım Sahibi", badge: "👑", bcol: "#F5B23D", drv: false, eng: true },
+  { name: "Kerem Yılmaz", initials: "KY", role: "Üye", badge: "🛞", bcol: "#4C9AFF", drv: true, eng: false },
+  { name: "Deniz Kaya", initials: "DK", role: "Üye", badge: "🎧", bcol: "#37D67A", drv: false, eng: true },
+  { name: "Selin Arslan", initials: "SA", role: "Üye", badge: "🛞", bcol: "#4C9AFF", drv: true, eng: false },
+  { name: "Mert Özkan", initials: "MÖ", role: "Üye", badge: "·", bcol: "#A88C93", drv: false, eng: false },
+];
+
+const RACES = [
+  { round: "R1", name: "1812 km Qatar", meta: "Lusail · 10:00:00 · 28.02 14:00" },
+  { round: "R2", name: "6H Imola", meta: "Imola · 6:00:00 · 20.04 13:00" },
+  { round: "R3", name: "6H Spa", meta: "Spa-Francorchamps · 6:00:00 · 15.08 14:00" },
+];
+
+const TAB_OFF = "padding:8px 16px;border-radius:8px 8px 0 0;border:1px solid #34232A;border-bottom:none;background:transparent;color:#C9B3B9;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:600;letter-spacing:.05em;text-transform:uppercase";
+const TAB_ON = "padding:8px 16px;border-radius:8px 8px 0 0;border:1px solid #D24357;border-bottom:none;background:#150E10;color:#F3EAEC;cursor:pointer;font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:600;letter-spacing:.05em;text-transform:uppercase";
+
+class Component extends DCLogic {
+  state = { tab: "live", teamOpen: false };
+
+  renderVals() {
+    const tab = this.state.tab;
+    const td = s2o(TD);
+    const field = FIELD.map((c) => {
+      const acc = CLS_ACC[c.cls];
+      return {
+        ...c,
+        pos: c.pos,
+        dir: c.dir === "up" ? "▲" : c.dir === "down" ? "▼" : "",
+        dirStyle: { color: c.dir === "up" ? "#37D67A" : "#FF4D5E", fontSize: 10, marginLeft: 3 },
+        brand: `public/assets/brands/${c.brand}.png`,
+        clsImg: `public/assets/class/${c.cls}.png`,
+        compImg: `public/assets/tyre-compound/${c.comp}.png`,
+        rowStyle: c.isPlayer
+          ? { background: "rgba(150,0,24,.16)", borderLeft: "3px solid #D24357" }
+          : { borderLeft: `3px solid ${acc}` },
+        td,
+        tdPos: { ...td, fontFamily: "'Rajdhani',sans-serif", letterSpacing: ".04em", fontSize: 15, whiteSpace: "nowrap" },
+        tdName: { ...td, fontFamily: "'Inter',sans-serif", whiteSpace: "nowrap" },
+        tdNowrap: { ...td, whiteSpace: "nowrap" },
+        tdDim: { ...td, color: "#C9B3B9" },
+        tdSmall: { ...td, color: "#C9B3B9", fontSize: 12 },
+        tdMono: { ...td, color: "#C9B3B9", fontSize: 12 },
+        tdSector: { ...td, color: "#C9B3B9", fontSize: 11 },
+        tdCenter: { ...td, textAlign: "center" },
+        clsPosStyle: { fontSize: 10, marginLeft: 5, color: c.classPos === 1 ? "#F5B23D" : "#C9B3B9", fontWeight: c.classPos === 1 ? 700 : 400 },
+        veStyle: { ...td, color: veCol(c.ve), fontSize: 12 },
+        ve: `${c.ve}%`,
+        vePerLap: `${c.vePerLap.toFixed(1)}%`,
+        damage: `${Math.round(c.damage * 100)}%`,
+        dmgStyle: { ...td, fontSize: 12, color: c.damage > 0.15 ? "#FF4D5E" : c.damage > 0.02 ? "#F5B23D" : "#C9B3B9" },
+        pitChip: c.pit
+          ? { display: "inline-block", padding: "1px 7px", borderRadius: 99, fontSize: 11, border: "1px solid #F5B23D", color: "#F5B23D", marginRight: 4 }
+          : { display: "none" },
+        pen: c.pen > 0 ? `⚠ ${c.pen}` : "—",
+        penStyle: c.pen > 0
+          ? { display: "inline-block", padding: "1px 7px", borderRadius: 99, fontSize: 11, border: "1px solid #FF4D5E", color: "#FF4D5E", fontWeight: 700 }
+          : { color: "#C9B3B9" },
+        wear0: `${Math.round(c.wear[0] * 100)}`, wear1: `${Math.round(c.wear[1] * 100)}`,
+        wear2: `${Math.round(c.wear[2] * 100)}`, wear3: `${Math.round(c.wear[3] * 100)}`,
+        w0: { color: wearCol(c.wear[0]) }, w1: { color: wearCol(c.wear[1]) },
+        w2: { color: wearCol(c.wear[2]) }, w3: { color: wearCol(c.wear[3]) },
+      };
+    });
+
+    const setups = SETUPS.map((s) => ({
+      ...s,
+      flag: `public/assets/flags/${s.flag}.png`,
+      clsImg: `public/assets/class/${s.clsId}.png`,
+      brand: `public/assets/brands/${s.brand}.png`,
+      rowStyle: s.here ? { background: "rgba(150,0,24,.08)", cursor: "pointer" } : { cursor: "pointer" },
+      td: { ...td, fontFamily: "'Inter',sans-serif", fontSize: 12 },
+      tdMono: { ...td, fontFamily: "'Inter',sans-serif", fontVariantNumeric: "tabular-nums", fontSize: 12 },
+      tdNowrap: { ...td, whiteSpace: "nowrap" },
+      tdLap: { ...td, fontFamily: "'Inter',sans-serif", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap", fontSize: 12, color: s.best ? "#37D67A" : "#F3EAEC", fontWeight: s.best ? 700 : 400 },
+      deltaStyle: { color: "#A88C93", fontSize: 11, fontWeight: 400 },
+      condChip: {
+        display: "inline-block", padding: "1px 7px", borderRadius: 99, fontSize: 11,
+        border: `1px solid ${s.wet ? "#4C9AFF" : "#34232A"}`, color: s.wet ? "#4C9AFF" : "#C9B3B9",
+      },
+    }));
+
+    const members = MEMBERS.map((m, i) => ({
+      ...m,
+      rowStyle: {
+        display: "grid", gridTemplateColumns: "auto auto minmax(0,1fr) auto", alignItems: "center",
+        gap: 10, padding: "7px 9px", borderRadius: 9,
+        background: i % 2 === 0 ? "rgba(255,255,255,.03)" : "transparent",
+      },
+      avStyle: {
+        display: "inline-flex", alignItems: "center", justifyContent: "center", width: 24, height: 24,
+        borderRadius: "50%", border: "1px solid #4A2F38", background: "#150E10", fontWeight: 700,
+        fontSize: 10, flex: "0 0 auto", lineHeight: 1,
+      },
+      badgeStyle: { fontSize: 12, lineHeight: 1, padding: "3px 6px", borderRadius: 6, border: `1px solid ${m.bcol}`, color: m.bcol, background: m.badge === "·" ? "transparent" : "rgba(255,255,255,.05)", opacity: m.badge === "·" ? 0.25 : 1 },
+      tglDrv: {
+        width: 26, height: 24, padding: 0, borderRadius: 6, cursor: "pointer", fontSize: 12, lineHeight: 1,
+        border: `1px solid ${m.drv ? "#4C9AFF" : "#34232A"}`, background: m.drv ? "rgba(76,154,255,.12)" : "#1E1418",
+        color: m.drv ? "#4C9AFF" : "#C9B3B9", opacity: m.drv ? 1 : 0.5,
+      },
+      tglEng: {
+        width: 26, height: 24, padding: 0, borderRadius: 6, cursor: "pointer", fontSize: 12, lineHeight: 1,
+        border: `1px solid ${m.eng ? "#37D67A" : "#34232A"}`, background: m.eng ? "rgba(55,214,122,.12)" : "#1E1418",
+        color: m.eng ? "#37D67A" : "#C9B3B9", opacity: m.eng ? 1 : 0.5,
+      },
+    }));
+
+    return {
+      field, setups, members, races: RACES,
+      isLive: tab === "live", isSetup: tab === "setup",
+      tabLive: s2o(tab === "live" ? TAB_ON : TAB_OFF),
+      tabSetup: s2o(tab === "setup" ? TAB_ON : TAB_OFF),
+      goLive: () => this.setState({ tab: "live" }),
+      goSetup: () => this.setState({ tab: "setup" }),
+      goDash: () => this.setState({ tab: "live" }),
+      teamOpen: this.state.teamOpen,
+      openTeam: () => this.setState({ teamOpen: true }),
+      closeTeam: () => this.setState({ teamOpen: false }),
+      stop: (e) => e.stopPropagation(),
+    };
+  }
+}
+</script>
+</body>
+</html>

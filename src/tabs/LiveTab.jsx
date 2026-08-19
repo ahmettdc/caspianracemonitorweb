@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { EmptyState } from "../shell";
 import { fmtLap, fmtHMS, fmtGap, WEATHER, wetnessLevel, rainLevel, rubberPct } from "../engine";
 import { WetIcon } from "../WetIcon";
 import { GripIcon, gripColor } from "../GripIcon";
@@ -11,7 +12,6 @@ import { driverAtLap, parseLapCond, capLapEntries } from "../liveLaps";
 import { detectFlashes, carKey } from "../liveFlash";
 import { binKey } from "../trackShape";
 import { demoLive } from "../liveDemo";
-import { tyreTitle, teleStale } from "../tyreInfo";
 import { compoundAxles, compoundInfo, parseTyreLog } from "../tyreCompound";
 import TrackMap from "./TrackMap";
 import PosChart from "./PosChart";
@@ -47,6 +47,18 @@ function connOf(ts) {
 
 /* Sınıf rozeti — pick ekranındaki renkli vektör (assets/class/<id>.png).
    Görsel yüklenmezse sınıf adını nötr çip olarak gösterir. */
+/* Üstü çizili sinyal ikonu — canlı veri yokken boş durumun başında (README §6). */
+function NoSignalIcon() {
+  return (
+    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+      <path d="M4.6 8a10 10 0 0 1 14.8 0M7.6 11a6 6 0 0 1 8.8 0" />
+      <circle cx="12" cy="15" r="1.6" fill="currentColor" stroke="none" />
+      <path d="M3 3 21 21" />
+    </svg>
+  );
+}
+
 function ClassBadge({ raw }) {
   const [err, setErr] = useState(false);
   const id = classId(raw);
@@ -95,38 +107,9 @@ function CompoundIcons({ ax }) {
 /* Birleşik LASTİK hücresi: hamur ikonu/ikonları (ön/arka) + DÖRT KÖŞE aşınma % (FL·FR /
    RL·RR, renkli 2×2). Köşe-köşe HAMUR oyunda yok (yalnız ön/arka) — bu yüzden 4 köşe
    yalnız AŞINMA için. tyres4 yoksa tek "en kötü" aşınmaya düşer. Bayat telemetride soluk. */
-function TyreCell({ c, t }) {
-  const ax = compoundAxles(c.tyreComp);
-  const stale = teleStale(c.teleLag);
-  const t4 = Array.isArray(c.tyres4) && c.tyres4.length >= 4 ? c.tyres4 : null;
-  const wear = c.tyreWear != null ? `%${Math.round(c.tyreWear * 100)}` : null;
-  if (!ax && !t4 && wear == null) return <span style={{ color: "var(--dim)" }}>—</span>;
-  const lbl = (info) => (info.cls ? t(info.label) : info.raw);
-  const compTitle = ax
-    ? (ax.split ? `${t("Ön")}: ${lbl(ax.front)} · ${t("Arka")}: ${lbl(ax.rear)}` : lbl(ax.front))
-    : "";
-  const title = [compTitle, tyreTitle(c, t)].filter(Boolean).join("\n");
-  const pct = (f) => (f != null ? Math.round(f * 100) : "—");
-  return (
-    <span style={{ opacity: stale ? 0.4 : 1, whiteSpace: "nowrap",
-      display: "inline-flex", alignItems: "center", gap: 5 }} title={title}>
-      {ax && <CompoundIcons ax={ax} />}
-      {t4 ? (
-        <span style={{ display: "inline-grid", gridTemplateColumns: "auto auto", gap: "0 4px",
-          fontSize: 10, lineHeight: 1.15, fontVariantNumeric: "tabular-nums", fontWeight: 700 }}>
-          <span style={{ color: wearColor(t4[0]) }}>{pct(t4[0])}</span>
-          <span style={{ color: wearColor(t4[1]) }}>{pct(t4[1])}</span>
-          <span style={{ color: wearColor(t4[2]) }}>{pct(t4[2])}</span>
-          <span style={{ color: wearColor(t4[3]) }}>{pct(t4[3])}</span>
-        </span>
-      ) : (wear && <span style={{ color: "var(--dim)", fontSize: 12 }}>{wear}</span>)}
-    </span>
-  );
-}
-
 /* Araç markası logosu (assets/brands/<key>.png). Önce LMU katalog manufacturer'ı
    (temiz: "Cadillac"), yoksa vehicleName parser'ı denenir; dosya yoksa gizlenir. */
-function Brand({ manufacturer, vehicleName }) {
+function Brand({ manufacturer, vehicleName, className = "" }) {
   const [i, setI] = useState(0);
   const cands = [];
   const push = (k) => { if (k) { const u = `${ASSET}brands/${k}.png`; if (!cands.includes(u)) cands.push(u); } };
@@ -139,9 +122,65 @@ function Brand({ manufacturer, vehicleName }) {
   push(brandKey(vehicleName));
   const url = cands[i];
   if (!url) return null;
-  return <img src={url} alt="" title={manufacturer || vehicleName || ""}
-    style={{ height: 16, width: 16, objectFit: "contain", verticalAlign: "middle",
-      marginRight: 6 }} onError={() => setI((x) => x + 1)} />;
+  /* boyut sınıftan gelir (.brandimg varsayılan; saha tablosunda .fbrand yoğunluğa
+     göre 26/20px ile ezer) — inline stil YOK. */
+  return <img className={`brandimg ${className}`} src={url} alt=""
+    title={manufacturer || vehicleName || ""} onError={() => setI((x) => x + 1)} />;
+}
+
+/* Rakip karşılaştırma tepsisi (v2.0) — saha satırına tıklayınca alttan kayar.
+   Son tur · AVG5 · S1–S3 · enerji; fark renkli (yeşil = sen daha hızlısın).
+   Kendi satırın tıklanamaz (LiveTab satır onClick'i player'da undefined). */
+function CompareTray({ t, own, ownName, rival, onClose }) {
+  if (!rival) return null;
+  const secs = (x) => String(x || "").split(",").map((v) => Number(v) || null);
+  /* own sektörleri s1/s2/s3 alanlarında taşınır — own'da `lastSectors` YOK (o yalnız
+     field satırında var). Eskiden own?.lastSectors okunuyordu → SEN sütunu S1/S2/S3'te
+     hep "—" çıkıyordu (delta yok). rival tarafı `lastSectors`'ı doğru kullanır. */
+  const oS = [own?.s1, own?.s2, own?.s3].map((v) => (v > 0 ? v : null));
+  const rS = secs(rival.lastSectors);
+  const delta = (mine, his) =>
+    (mine == null || his == null || !Number.isFinite(mine) || !Number.isFinite(his))
+      ? null : mine - his;
+  /* fiş: her hücrede KENDİ değerin (bold, üstte) + delta + rakip (mavi, ikincil altta).
+     delta = kendi − rakip → kendin daha hızlı/düşükse yeşil (up). */
+  const cell = (label, mine, his, fmt, higherBetter = false) => {
+    const d = delta(mine, his);
+    /* Renk "iyilik"e göre, sayı ham farka göre. Tur/sektör süreleri: düşük=iyi
+       (d<0 yeşil). Enerji: yüksek=iyi — bu hücrede renk ters çevrilmeli yoksa
+       VE'n rakipten fazlayken (avantaj) kırmızı görünüyordu (fiş bug). */
+    const good = d == null ? 0 : higherBetter ? d : -d;
+    return (
+      <span className="cmpcell" key={label}>
+        <span className="cmpk">{label}</span>
+        <b className="cmpv">{fmt(mine)}</b>
+        {d != null && (
+          <span className={`cmpd ${good > 0 ? "up" : good < 0 ? "down" : ""}`}>
+            {d > 0 ? "+" : ""}{d.toFixed(3)}
+          </span>
+        )}
+        <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 11,
+          color: "var(--rc-delta)", opacity: 0.85 }}>{fmt(his)}</span>
+      </span>
+    );
+  };
+  const ownLbl = `${own?.number != null ? `#${own.number} ` : ""}${ownName || t("Sen")}`;
+  return (
+    <div className="cmptray open" role="region" aria-label={t("Karşılaştırma")}>
+      <span className="cmphead">
+        <b>{t("Karşılaştırma")}</b>
+        <span className="fsub">{ownLbl} ↔ {rival.driver || "—"}</span>
+      </span>
+      {cell(t("Son tur"), own?.lastLapSec, rival.lastSec, lap)}
+      {cell("AVG5", own?.avg5Sec, rival.avg5Sec, lap)}
+      {[0, 1, 2].map((k) => cell(`S${k + 1}`, oS[k], rS[k],
+        (v) => (v == null ? "—" : v.toFixed(3))))}
+      {cell(t("Enerji"), own?.virtualEnergy, rival.virtualEnergy,
+        (v) => (v == null ? "—" : `${Math.round(v)}%`), true)}
+      <button className="rbbtn" onClick={onClose}
+        aria-label={t("Karşılaştırmayı kapat")}>✕</button>
+    </div>
+  );
 }
 
 /* Bir aracın tüm yarış boyunca attığı turların zaman listesi (satırdaki "+" ile açılır).
@@ -556,6 +595,27 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
   const [lapMode, setLapMode] = useState(false);   // Son ↔ En İyi tek sütun geçişi
   const [avgMode, setAvgMode] = useState(false);   // AVG5 ↔ AVG tek sütun geçişi
   const [gapMode, setGapMode] = useState(false);   // Gap ↔ Aralık tek sütun geçişi
+  /* v2.0 — yoğunluk YALNIZ bu ekranda (global anahtar kaldırıldı):
+     "Pit duvarı" (seyrek satır, büyük sayı) ↔ "Mühendis" (sık satır, 12.5px).
+     Sütunlar iki modda da görünür, yalnız ölçek değişir. */
+  const [density, setDensity] = useState(() => {
+    try { return localStorage.getItem("crm-live-density") || "wall"; } catch { return "wall"; }
+  });
+  const wall = density === "wall";
+  const toggleDensity = () => setDensity((d) => {
+    const nx = d === "wall" ? "eng" : "wall";
+    try { localStorage.setItem("crm-live-density", nx); } catch { /* özel mod */ }
+    return nx;
+  });
+  const [secOn, setSecOn] = useState(true);        // Sektör sütunu gizlenebilir (👁)
+  /* Sağ panel (320px) kayarak kapanır — tercih localStorage'da. */
+  const [sideOn, setSideOn] = useState(() => {
+    try { return localStorage.getItem("crm-live-side") !== "0"; } catch { return true; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("crm-live-side", sideOn ? "1" : "0"); } catch { /* özel mod */ }
+  }, [sideOn]);
+  const [cmpCar, setCmpCar] = useState(null);      // rakip karşılaştırma tepsisi
   // DEMO: yerel sahte veri (oyun/köprü/Firebase gerekmez) — UI düzenlemek için
   const [demo, setDemo] = useState(false);
   const [demoData, setDemoData] = useState(null);
@@ -666,7 +726,25 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
             {staleOff && <span className="livebadge off"><i /> {t("çevrimdışı")}</span>}
             <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
               {guideBtn}{demoBtn}</span></h2>
-          <div className="hint" style={{ lineHeight: 1.7 }}>
+          {/* v2.0 sistematik boş durum (README §6 "Boş durum" + i18n-EN.md §2):
+              üstü çizili sinyal ikonu + başlık + açıklama + yeniden bağlan /
+              köprü durumu + son paket saati. Platforma özgü kurulum yönergeleri
+              altta korunur (KORU/TAŞI). */}
+          <EmptyState
+            icon={<NoSignalIcon />}
+            title={t("Canlı veri gelmiyor")}
+            text={t("Köprü çalışmıyor ya da oyun seansta değil. Sürüş PC'sinde köprüyü başlat; bağlanınca saha tablosu kendiliğinden dolar.")}>
+            <button className="rbbtn" onClick={() => window.location.reload()}>
+              {t("Yeniden bağlan")}</button>
+            {bridgeCard && <span className="ro-note">{t("Köprü durumu")} ↑</span>}
+            {live?.ts && (
+              <span className="fsub">
+                {t("son paket")} · {ageSec < 90
+                  ? `${ageSec} ${t("sn")}` : `${Math.round(ageSec / 60)} ${t("dk önce")}`}
+              </span>
+            )}
+          </EmptyState>
+          <div className="hint" style={{ lineHeight: 1.7, marginTop: 12 }}>
             {staleOff
               ? <>⚠ {t("Canlı veri akışı durdu")} — {t("son veri")} {ageTxt} {t("önce")}.{" "}
                 {t("Oyun ya da köprü kapanmış olabilir.")}</>
@@ -704,8 +782,16 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
 
   // türetilmiş: sınıf-içi pozisyon, seans en hızlı turu, oyuncu sınıfı
   const leaderLaps = fieldAll[0]?.lapsDone ?? 0;
-  const fastestBest = Math.min(
-    ...fieldAll.map((c) => c.bestSec).filter((v) => v > 0), Infinity);
+  /* Sınıf başına en hızlı bestSec — "En İyi" sütununda mor = SINIF rekoru (liveFlash
+     classBest ile aynı desen). Eskiden tek genel minimumdu → çok sınıflı yarışta yalnız
+     genelin en hızlısı morlanıp sınıf rekorları (ör. en hızlı LMGT3) hiç morlanmıyordu. */
+  const classFastest = {};
+  for (const c of fieldAll) {
+    if (c && c.bestSec > 0) {
+      const cid = classId(c.carClass);
+      classFastest[cid] = classFastest[cid] == null ? c.bestSec : Math.min(classFastest[cid], c.bestSec);
+    }
+  }
   const playerClass = classId(fieldAll.find((c) => c.isPlayer)?.carClass);
   const classCounts = {};
   const rows = fieldAll.map((c, i) => {
@@ -724,7 +810,7 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
       ? Math.max(0, c.lapsBehind) : Math.max(0, leaderLaps - (c.lapsDone ?? 0));
     const lapsDownNext = c.lapsBehindNext != null ? Math.max(0, c.lapsBehindNext) : 0;
     return { c, i, id, classPos: classCounts[id], interval, lapsDown, lapsDownNext,
-      isFastest: c.bestSec > 0 && c.bestSec === fastestBest };
+      isFastest: c.bestSec > 0 && c.bestSec === classFastest[id] };
   });
   const shown = myClassOnly && playerClass
     ? rows.filter((r) => r.id === playerClass) : rows;
@@ -732,258 +818,389 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
   const thBtn = { background: "none", border: 0, color: "inherit", font: "inherit",
     cursor: "pointer", padding: 0, textDecoration: "underline dotted" };
 
+  /* --- fiş: 02-canli-timing.md — markup ve stil değerleri birebir; renkler --rc-*
+     tokenlarına bağlı. Veri katmanı DEĞİŞMEDİ (yukarıdaki türetilmiş rows/shown/own…
+     ve StrategyBar/TrackMap/PosChart/OwnCar çocukları korunur). Fişte tanımı olmayan
+     taban th/td ve satır mini-bar stilleri DashTab desenindeki gibi yerelde kurulur
+     (FLAG: fiş-dışı, tasarım diline uygun). --- */
+  const disp = "var(--rc-font-display)";
+  /* Gösterilen (süzülmüş) satırlardaki benzersiz sınıf sayısı — "kendi sınıfım"
+     süzgeci açıkken araç sayısıyla birlikte sınıf sayısı da süzülsün (fiş bug:
+     eskiden classCounts tüm sahadan sayıp süzgeçte "1 sınıf" yerine hepsini derdi). */
+  const nClasses = new Set(shown.map((r) => r.id)).size;
+  const pillBtn = { padding: "7px 13px", borderRadius: 99, cursor: "pointer", fontSize: 12,
+    border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-3)" };
+  const th = { padding: "10px 12px", borderBottom: "1px solid var(--rc-border)", textAlign: "right",
+    color: "var(--rc-text-3)", fontSize: 11, fontWeight: 600, textTransform: "uppercase",
+    letterSpacing: ".08em", whiteSpace: "nowrap" };
+  const thLeft = { ...th, textAlign: "left" };
+  const thClick = { ...th, cursor: "pointer", color: "var(--rc-brand-bright)",
+    textDecoration: "underline dotted", textUnderlineOffset: 3 };
+  const thLeftClick = { ...thLeft, cursor: "pointer", color: "var(--rc-brand-bright)",
+    textDecoration: "underline dotted", textUnderlineOffset: 3 };
+  const thPos = { ...thLeftClick, fontWeight: myClassOnly ? 700 : 600 };
+  const secHideBtn = { display: "inline-flex", alignItems: "center", justifyContent: "center",
+    width: 20, height: 20, borderRadius: 6, cursor: "pointer", border: "1px solid var(--rc-border)",
+    background: "var(--rc-surface-3)", color: "var(--rc-text-3)", padding: 0, verticalAlign: "middle" };
+  const tdBase = { padding: "9px 12px", borderBottom: "1px solid var(--rc-line-soft)", textAlign: "right",
+    fontFamily: "var(--rc-font-mono)", fontVariantNumeric: "tabular-nums", fontSize: wall ? 14 : 12.5 };
+  const barTrack = { display: "inline-block", width: 46, height: 6, background: "var(--rc-line-soft)",
+    borderRadius: 4, overflow: "hidden", verticalAlign: "middle", flex: "0 0 auto" };
+  const barFill = (pct, col) => ({ display: "block", height: "100%",
+    width: `${Math.max(0, Math.min(100, pct))}%`, background: col, borderRadius: 4 });
+  const veCol = (v) => (v == null ? "var(--rc-text-3)"
+    : v > 50 ? "var(--rc-ok)" : v > 20 ? "var(--rc-warn)" : "var(--rc-danger)");
+  const wearCol = (w) => (w == null ? "var(--rc-text-3)"
+    : w < 0.4 ? "var(--rc-danger)" : w < 0.7 ? "var(--rc-warn)" : "var(--rc-ok)");
+
   return (
     <div data-tour="livecard" ref={rootRef} className={big ? "bigboard" : ""}>
+      {/* FLAG: fişte yok — köprü durum kartı (Tauri) yük taşıyor (bağlantı/teşhis/geçmiş temizleme). */}
       {!big && bridgeCard}
-      <div className="card" style={{ marginBottom: 12 }}>
-        <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          📡 {t("Canlı Timing")}
-          <span className={`livebadge ${conn.cls}`} data-tour="liveconn">
-            <i /> {t(conn.lbl)} · {ageSec}s</span>
-          <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-            {!big && guideBtn}
-            {demoBtn}
-            {document.fullscreenEnabled && (
-              <button className="act" data-tour="livebig"
-                style={{ fontSize: 11, padding: "3px 10px" }}
-                onClick={toggleBig}>{big ? t("✕ Küçült") : t("⛶ Büyük Pano")}</button>
-            )}
-          </span>
-        </h2>
-        {/* Tur geçmişi OKUYUCU-tarafı hasat göstergesi (v1.8.12): kayıt artık bu tarayıcıda
-            yapılıyor → köprü sürümünden bağımsız, HER ZAMAN görünür. Eski köprü bunu
-            bastıramaz. Yalnız editör yazar; demo modunda gösterilmez (Firebase'e yazmaz). */}
-        {!demoOn && lapCapture?.writing && (
-          <div className="hint" style={{ marginTop: 6, color: "var(--green)" }}>
-            🔴 {t("Tur geçmişi kaydediliyor")} · {lapCapture.cars} {t("araç")} · {lapCapture.laps} {t("tur")}
-          </div>
-        )}
-        {/* Köprü kaydı görünürlüğü (v1.8.13): köprü web'den BAĞIMSIZ kaydediyor →
-            frame.bridgeVer + frame.lapsWritten. bridgeVer yoksa köprü ESKİ sürüm
-            (kablo üzerinde artık sürüm var) → güncelleme uyarısı. */}
-        {!demoOn && (live.bridgeVer ? (
-          <div className="hint" style={{ marginTop: 6, color: "var(--dim)" }}>
-            🛰 {t("Köprü")} v{live.bridgeVer}
-            {typeof live.lapsWritten === "number"
-              ? <> · 📼 {live.lapsWritten} {t("tur kaydetti")}</> : null}
-          </div>
-        ) : (
-          <div className="hint warn" style={{ marginTop: 6 }}>
-            ⚠ {t("Köprü eski sürüm — sürüş PC'sinde köprüyü güncelle (kayıt yine web'den yapılıyor)")}
-          </div>
-        ))}
-        <div className="kpis" data-tour="livesession" style={{ marginBottom: 0 }}>
-          <div className="kpi"><div className="v disp">{s.sessionType ? t(s.sessionType) : "—"}</div>
-            <div className="l">{t("Seans")}</div></div>
-          <div className="kpi"><div className="v disp" style={{
-            color: s.flag === "Green" ? "var(--green)"
-              : (s.flag === "Yellow" || s.flag === "FCY") ? "var(--yellow)" : undefined }}>
-            {s.flag ? t(s.flag) : (s.phase || "—")}
-            {s.flag === "Yellow" && s.yellowSectors?.length > 0 && (
-              <span style={{ fontSize: 13 }}> S{s.yellowSectors.join("·S")}</span>
-            )}</div>
-            <div className="l">{t("Bayrak / Faz")}</div></div>
-          <div className="kpi"><div className="v mono">
-            {s.timeLeftSec != null ? fmtHMS(s.timeLeftSec) : "—"}</div>
-            <div className="l">{t("Kalan")}</div></div>
-          <div className="kpi"><div className="v">🛣 {s.trackTemp != null ? `${Math.round(s.trackTemp)}°` : "—"}
-            <span style={{ fontSize: 13, color: "var(--dim)" }}> {t("pist")}</span></div>
-            <div className="l">{t("Pist")} · {t("Ortam")} {s.ambientTemp != null ? `${Math.round(s.ambientTemp)}°` : "—"}</div></div>
-          <div className="kpi"><div className="v">
-            {/* oyunun kelimesi (yüzde tooltip'te) — sayı yerine ad daha okunur */}
-            {(() => {
-              const lv = rainLevel(s.rain);
-              if (!lv) return s.raining ? `🌧 ${t("Yağmur")}` : `☀️ ${t("Kuru")}`;
-              return <span title={`%${Math.round(s.rain)}`}>{lv.ico} {t(lv.lbl)}</span>;
-            })()}</div>
-            <div className="l">{t("Yağmur")}</div></div>
-          <div className="kpi"><div className="v">
-            {(() => {
-              const id = wetnessLevel(s.wetness);
-              if (!id) return "—";
-              // ikon HERO (büyük), kelime daha küçük etiket — kullanıcı isteği
-              return <span title={`%${Math.round(s.wetness)}`}
-                style={{ color: WEATHER[id].col, display: "inline-flex", alignItems: "center", gap: 8 }}>
-                <WetIcon id={id} size={34} title={t(WEATHER[id].lbl)} />
-                <span style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.05 }}>
-                  {t(WEATHER[id].lbl)}</span></span>;
-            })()}</div>
-            <div className="l">{t("Zemin ıslaklığı")}</div></div>
-          {/* Tutuş (rubber) — TinyPedal gibi turlardan MODELLENMİŞ tahmin, gerçek
-              okuma değil (title'da "tahmini"). Sahadaki tüm araçların tur toplamı. */}
-          <div className="kpi"><div className="v">
-            {fieldAll.length > 0
-              ? (() => {
-                  const g = rubberPct(s.sessionType, fieldAll.reduce((a, c) => a + (c.lapsDone || 0), 0));
-                  return <span title={t("Turlardan modellenmiş tahmin (gerçek okuma değil)")}
-                    style={{ display: "inline-flex", alignItems: "center", gap: 7, color: gripColor(g) }}>
-                    <GripIcon pct={g} size={30} title={t("Tutuş")} />%{g}</span>;
-                })()
-              : "—"}</div>
-            <div className="l">{t("Tutuş")}</div></div>
-        </div>
-      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 16, padding: "16px 20px",
+        alignItems: "flex-start", animation: "rcin .26s ease-out" }}>
 
-      {/* Strateji artık Pist Haritası kutusunun İÇİNDE en üstte (aşağıda topSlot).
-          Harita yoksa (trackLength/posX gelmemiş) kaybolmasın diye yedek: bağımsız. */}
-      {!big && !(s.trackLength > 0 && fieldAll.some((c) => c.posX != null)) && (
-        <StrategyBar t={t} field={fieldAll} />
-      )}
+        {/* ═══════════ SOL: Saha kartı ═══════════ */}
+        <div data-tour="livefield" style={{ flex: "1 1 720px", minWidth: 0,
+          border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)",
+          overflow: "hidden" }}>
 
-      {/* Pist haritası (sol, strateji üstünde) + Kendi Araç (sağ) yan yana */}
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
-        {s.trackLength > 0 && fieldAll.some((c) => c.posX != null) && (
-          <div style={{ flex: "1 1 360px", minWidth: 300 }}>
-            <TrackMap t={t} field={fieldAll} session={s} trackLength={s.trackLength}
-              tid={tid} trackKey={binKey(s.trackName, s.trackLength)} canSave={canEdit}
-              topSlot={!big ? <StrategyBar t={t} field={fieldAll} embedded /> : null} />
-          </div>
-        )}
-        {own && (
-          <div style={{ flex: "1 1 420px", minWidth: 300 }}>
-            <OwnCar t={t} own={own} liveFuelObs={liveFuelObs} topSrc={ownTopSrc} />
-          </div>
-        )}
-      </div>
+          {/* başlık: Saha + sayım + hava/bayrak/tutuş kümesi + kontroller */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px",
+            borderBottom: "1px solid var(--rc-border)", flexWrap: "wrap" }}>
+            <span style={{ fontFamily: disp, textTransform: "uppercase", letterSpacing: ".08em",
+              fontSize: 15, fontWeight: 700 }}>{t("Saha")}</span>
+            <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>
+              {shown.length} {t("araç")} · {nClasses} {t("sınıf")}</span>
 
-      <div className="card" data-tour="livefield">
-        <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          🏁 {t("Saha")} ({shown.length})
-          {myClassOnly && playerClass && (
-            <span style={{ fontSize: 11, color: "var(--teal)" }}>· {t("Kendi sınıfım")}</span>
-          )}
-        </h2>
-        {!shown.length && <div className="hint">{t("Henüz araç verisi yok.")}</div>}
-        {shown.length > 0 && (
-          <div style={{ overflowX: "auto" }}>
-            <table aria-label={t("Canlı timing tablosu")}>
-              <thead><tr>
-                <th>#</th>
-                <th><button onClick={() => setShowTeam((v) => !v)}
-                  title={t("Pilot / Takım değiştir")} style={thBtn}>
-                  {showTeam ? t("Takım") : t("Pilot")}</button></th>
-                <th>{playerClass ? (
-                  <button onClick={() => setMyClassOnly((v) => !v)}
-                    title={t("Kendi sınıfım süzgeci")}
-                    style={{ ...thBtn, ...(myClassOnly && { color: "var(--teal)", fontWeight: 700 }) }}>
-                    {t("Sınıf")}</button>
-                ) : t("Sınıf")}</th>
-                <th>{t("Tur")}</th>
-                <th><button onClick={() => setGapMode((v) => !v)}
-                  title={t("Gap / Aralık değiştir")} style={thBtn}>
-                  {gapMode ? t("Aralık") : "Gap"}</button></th>
-                <th><button onClick={() => setLapMode((v) => !v)}
-                  title={t("Son / En İyi değiştir")} style={thBtn}>
-                  {lapMode ? t("En İyi") : t("Son")}</button></th>
-                <th>{t("Sektör")}</th>
-                <th><button onClick={() => setAvgMode((v) => !v)}
-                  title={t("AVG5 / AVG değiştir")} style={thBtn}>
-                  {avgMode ? "AVG" : "AVG5"}</button></th>
-                <th>VE</th><th>{t("VE/tur")}</th>
-                <th>Stint</th><th>{t("Lastik")}</th>
-                <th>{t("Hasar")}</th><th>Pit</th><th>{t("Ceza")}</th>
-                <th aria-label={t("Turlar")}></th>
-              </tr></thead>
-              <tbody>
-                {shown.map(({ c, i, id, classPos, interval, lapsDown, lapsDownNext,
-                  isFastest }) => {
-                  const acc = classAccent(c.carClass);
-                  const fl = flash[carKey(c)];   // "purple" | "green" | undefined
-                  return (
-                    /* key = STABİL araç kimliği (carKey), pozisyon DEĞİL: pozisyon
-                       key'i her geçişte satırları söküp yeniden kuruyordu (görsel
-                       hata state'leri sıfırlanıyor, img yeniden decode, flash
-                       animasyonu yeniden başlıyordu). Stabil key ile React satırı
-                       taşır. */
-                    <tr key={carKey(c) ?? (c.pos ?? i)}
-                      className={[c.isPlayer ? "live" : "",
-                        fl === "purple" ? "flashpurple" : fl === "green" ? "flashgreen" : ""]
-                        .filter(Boolean).join(" ")}
-                      style={!c.isPlayer && acc ? { borderLeft: `3px solid ${acc}` } : undefined}>
-                      <td className="disp" style={{ fontSize: 15, whiteSpace: "nowrap" }}>
-                        {c.pos ?? i + 1}
-                        {dirRef.current[c.lapKey || c.driver] === "up" && <span
-                          style={{ color: "var(--green)", fontSize: 10, marginLeft: 3 }}>▲</span>}
-                        {dirRef.current[c.lapKey || c.driver] === "down" && <span
-                          style={{ color: "var(--red)", fontSize: 10, marginLeft: 3 }}>▼</span>}
-                      </td>
-                      <td style={{ fontFamily: "var(--font-ui)", whiteSpace: "nowrap" }}>
-                        <Brand manufacturer={c.manufacturer} vehicleName={c.vehicleName} />
-                        {c.number != null && <span style={{ color: "var(--dim)", fontSize: 11,
-                          marginRight: 5 }}>#{c.number}</span>}
-                        {showTeam ? (c.team || c.driver || "—") : (c.driver || "—")}</td>
-                      <td style={{ whiteSpace: "nowrap" }}>
-                        <ClassBadge raw={c.carClass} />
-                        {id && <span style={{ fontSize: 10, marginLeft: 5,
-                          color: classPos === 1 ? "var(--yellow)" : "var(--dim)",
-                          fontWeight: classPos === 1 ? 700 : 400 }}>P{classPos}</span>}
-                      </td>
-                      <td>{c.lapsDone ?? "—"}</td>
-                      {/* Gap/Aralık tek sütun (başlıktan geçiş); Tur'dan hemen sonra 5. sıra. */}
-                      <td style={gapMode ? { color: "var(--dim)" } : undefined}>
-                        {gapMode
-                          ? (lapsDownNext >= 1 ? `+${lapsDownNext} ${t("Tur")}`
-                              : interval != null ? gap(interval) : "—")
-                          : (i === 0 ? t("Lider") : lapsDown >= 1 ? `+${lapsDown} ${t("Tur")}`
-                              : gap(c.gapSec))}</td>
-                      {/* Son/En İyi tek sütun (başlıktan geçiş); En İyi'de sınıf en hızlısı mor. */}
-                      <td style={{ color: lapMode ? (isFastest ? "var(--purple)" : "var(--dim)") : undefined,
-                        fontWeight: lapMode && isFastest ? 700 : 400 }}>
-                        {lap(lapMode ? c.bestSec : c.lastSec)}</td>
-                      <td className="mono" style={{ color: "var(--dim)", fontSize: 11 }}
-                        title={t("Son turun S1·S2·S3 sektör süreleri")}>{secStr(c.lastSectors)}</td>
-                      {/* AVG5/AVG tek sütun (başlıktan geçiş). */}
-                      <td style={{ color: "var(--dim)" }}>{lap(avgMode ? c.avgSec : c.avg5Sec)}</td>
-                      <td style={{ color: veColor(c.virtualEnergy), fontSize: 12 }}>
-                        {c.virtualEnergy != null ? `${Math.round(c.virtualEnergy)}%` : "—"}</td>
-                      <td style={{ color: "var(--dim)", fontSize: 12 }}
-                        title={t("Tur başına VE tüketimi")}>
-                        {c.vePerLap != null ? `${c.vePerLap.toFixed(1)}%` : "—"}</td>
-                      <td className="mono" style={{ color: "var(--dim)", fontSize: 12 }}>
-                        {c.stintSec > 0 ? fmtHMS(c.stintSec) : "—"}</td>
-                      {/* Lastik (birleşik): hamur ikonu + en kötü aşınma %. Renkli nokta
-                          yok. Pit lastik değişimi artık "+" tur geçmişinde. Tooltip'te
-                          hamur (ön/arka) + köşe-köşe aşınma; bayat telemetride soluk. */}
-                      <td><TyreCell c={c} t={t} /></td>
-                      <td style={{ fontSize: 12, color: (c.damage || 0) > 0.15 ? "var(--red)"
-                        : (c.damage || 0) > 0.02 ? "var(--yellow)" : "var(--dim)" }}>
-                        {c.damage != null ? `${Math.round(c.damage * 100)}%` : "—"}</td>
-                      <td style={{ whiteSpace: "nowrap" }}>
-                        {c.inPits && <span className="chip" style={{ marginRight: 4,
-                          color: "var(--yellow)", borderColor: "var(--yellow)" }}>PIT</span>}
-                        <span style={{ color: "var(--dim)" }}>{c.pitStops ?? "—"}</span>
-                      </td>
-                      <td style={{ textAlign: "center" }}
-                        title={t("Ceza sayısı (cut/puan cezaları dahil)")}>
-                        {c.penalties > 0
-                          ? <span className="chip" style={{ color: "var(--red)",
-                              borderColor: "var(--red)", fontWeight: 700 }}>⚠ {c.penalties}</span>
-                          : <span style={{ color: "var(--dim)" }}>—</span>}
-                      </td>
-                      <td style={{ textAlign: "center" }}>
-                        {c.lapsDone > 0 && c.lapKey && (
-                          <button className="act" title={t("Tur zamanları")}
-                            aria-label={t("Tur zamanları")}
-                            /* rehber turu ilk satırın "+"ını vurgular */
-                            data-tour={shown[0]?.c === c ? "livelapsbtn" : undefined}
-                            style={{ fontSize: 14, lineHeight: 1, padding: "1px 8px" }}
-                            onClick={() => setLapsFor(c)}>+</button>
+            <span style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap",
+              paddingLeft: 16, marginLeft: 2, borderLeft: "1px solid var(--rc-border)" }}>
+              {/* bayrak (salt-okunur: s.flag'den. FLAG: fişte döngüsel buton; veride bayrak sabit → gösterim) */}
+              {(() => {
+                const on = !!s.flag && s.flag !== "Green";
+                const col = !s.flag ? "var(--rc-text-3)"
+                  : (s.flag === "Yellow" || s.flag === "FCY") ? "var(--rc-flag-yellow)"
+                  : s.flag === "Green" ? "var(--rc-ok)" : "var(--rc-brand-bright)";
+                const lbl = s.flag ? t(s.flag) : (s.phase || "—");
+                return (
+                  <span title={t("Bayrak durumu")} style={{ display: "inline-flex", alignItems: "center",
+                    gap: 7, border: `1px solid ${on ? col : "transparent"}`,
+                    background: on ? "rgba(242,192,55,.10)" : "transparent", borderRadius: 9,
+                    padding: on ? "3px 9px" : "3px 0",
+                    animation: on ? "rcpulse 1.6s ease-in-out infinite" : "none" }}>
+                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" style={{ flex: "0 0 auto" }}>
+                      <path d="M5.6 3.2v17.6" stroke="var(--rc-border-hi)" strokeWidth="1.8" strokeLinecap="round" />
+                      <path d="M7 4.4c3.4-1.8 6.8 1.8 10.2 0v7.8c-3.4 1.8-6.8-1.8-10.2 0V4.4Z" fill={col} opacity=".9" />
+                    </svg>
+                    <span style={{ fontFamily: disp, fontSize: 17, fontWeight: 700, lineHeight: 1,
+                      color: col, letterSpacing: on ? ".04em" : 0 }}>{lbl}{s.flag === "Yellow"
+                      && s.yellowSectors?.length > 0 ? ` S${s.yellowSectors.join("·S")}` : ""}</span>
+                  </span>
+                );
+              })()}
+              {/* pist / ortam sıcaklığı */}
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}
+                title={t("Pist / ortam sıcaklığı")}>
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" style={{ flex: "0 0 auto" }}>
+                  <rect x="9.1" y="2.6" width="5.8" height="13" rx="2.9" stroke="var(--rc-brand-bright)" strokeWidth="1.6" />
+                  <path d="M12 6.4v6.2" stroke="var(--rc-brand-bright)" strokeWidth="1.6" strokeLinecap="round" />
+                  <circle cx="12" cy="17.6" r="3.6" fill="var(--rc-brand-bright)" opacity=".85" />
+                </svg>
+                <span style={{ fontFamily: disp, fontSize: 17, fontWeight: 700, lineHeight: 1 }}>
+                  {s.trackTemp != null ? `${Math.round(s.trackTemp)}°` : "—"}
+                  <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>
+                    {" / "}{s.ambientTemp != null ? `${Math.round(s.ambientTemp)}°` : "—"}</span></span>
+              </span>
+              {/* yağış */}
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }} title={t("Yağış durumu")}>
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" style={{ flex: "0 0 auto" }}>
+                  <circle cx="12" cy="9.4" r="4.2" fill="var(--rc-warn-2)" />
+                  <g stroke="var(--rc-warn-2)" strokeWidth="1.5" strokeLinecap="round">
+                    <path d="M12 1.6v2.2M12 15v2.2M4.4 9.4H2.2M21.8 9.4h-2.2M6.6 4l-1.5-1.5M18.9 16.3l-1.5-1.5M17.4 4l1.5-1.5M5.1 16.3l1.5-1.5" />
+                  </g>
+                </svg>
+                <span style={{ fontFamily: disp, fontSize: 17, fontWeight: 700, lineHeight: 1 }}>
+                  {(() => { const rl = rainLevel(s.rain);
+                    return rl ? t(rl.lbl) : (s.raining ? t("Yağmur") : t("Yağmur yok")); })()}</span>
+              </span>
+              {/* zemin ıslaklığı (WetIcon çocuğu) */}
+              {(() => {
+                const wid = wetnessLevel(s.wetness);
+                return (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}
+                    title={t("Zemin ıslaklığı")}>
+                    {wid ? <WetIcon id={wid} size={19} title={t(WEATHER[wid].lbl)} />
+                      : (<svg width="19" height="19" viewBox="0 0 24 24" fill="none" style={{ flex: "0 0 auto" }}>
+                          <path d="M8.5 21.2h7" stroke="var(--rc-neutral-2)" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="1.2 2.6" />
+                          <path d="M12 3.4c0 0-5.1 6.4-5.1 9.6a5.1 5.1 0 0 0 10.2 0c0-3.2-5.1-9.6-5.1-9.6Z" stroke="var(--rc-neutral)" strokeWidth="1.5" strokeLinejoin="round" />
+                        </svg>)}
+                    <span style={{ fontFamily: disp, fontSize: 17, fontWeight: 700, lineHeight: 1 }}>
+                      {wid ? t(WEATHER[wid].lbl) : "—"}
+                      {s.wetness != null && <span style={{ fontFamily: disp, fontSize: 12, fontWeight: 500,
+                        color: "var(--rc-text-3)" }}>{" "}%{Math.round(s.wetness)}</span>}</span>
+                  </span>
+                );
+              })()}
+              {/* yol tutuşu (GripIcon çocuğu — test kancası: 'Tutuş' + clip-path url(#gc)) */}
+              {(() => {
+                const totalLaps = fieldAll.reduce((a, c) => a + (c.lapsDone || 0), 0);
+                const g = rubberPct(s.sessionType, totalLaps) ?? 0;
+                return (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }} title={t("Tutuş")}>
+                    <GripIcon pct={g} size={19} title={t("Tutuş")} />
+                    <span style={{ fontFamily: disp, fontSize: 17, fontWeight: 700, lineHeight: 1,
+                      color: gripColor(g) }}>%{g}</span>
+                  </span>
+                );
+              })()}
+            </span>
+
+            {/* sağ kontroller (FLAG: yoğunluk/rehber/büyük-pano fişte yok — özellik+test kancası, korunur) */}
+            <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+              {/* editör tur geçmişini kaydederken canlı rozet (useLive lapCapture). Eskiden
+                  prop geçiliyor ama hiç gösterilmiyordu → kayıt durumu görünmezdi. */}
+              {lapCapture?.writing && (
+                <span title={t("Tur geçmişi takım için kaydediliyor")}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11,
+                    padding: "3px 9px", borderRadius: 99, border: "1px solid var(--rc-ok)", color: "var(--rc-ok)" }}>
+                  <i style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--rc-ok)",
+                    boxShadow: "0 0 6px var(--rc-ok)" }} />
+                  {lapCapture.laps} {t("tur kaydedildi")}
+                </span>
+              )}
+              {!secOn && (
+                <button onClick={() => setSecOn(true)} style={pillBtn}>{t("👁 Sektör sütununu göster")}</button>
+              )}
+              <button className={`denbtn${wall ? " on" : ""}`} onClick={toggleDensity}
+                title={t("Satır yoğunluğu")} aria-pressed={wall}>
+                {wall ? t("◱ Pit duvarı") : t("◰ Mühendis")}</button>
+              {demoBtn}
+              {!big && guideBtn}
+              {document.fullscreenEnabled && (
+                <button className="act" data-tour="livebig" style={{ fontSize: 11, padding: "3px 10px" }}
+                  onClick={toggleBig}>{big ? t("✕ Küçült") : t("⛶ Büyük Pano")}</button>
+              )}
+            </span>
+          </div>
+
+          {/* saha tablosu */}
+          {!shown.length ? (
+            <div style={{ padding: "28px 16px", color: "var(--rc-text-3)", fontSize: 12.5 }}>
+              {t("Henüz araç verisi yok.")}</div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table className={`fieldtbl ${wall ? "wall" : "eng"}`} aria-label={t("Canlı timing tablosu")}
+                style={{ width: "100%", borderCollapse: "collapse", minWidth: 900 }}>
+                <thead><tr>
+                  <th style={thPos} onClick={() => setMyClassOnly((v) => !v)} title={t("Kendi sınıfım süzgeci")}>
+                    {t("Poz · Sınıf")} {myClassOnly ? t("· kendi sınıfım") : "⇄"}</th>
+                  <th style={thLeftClick} onClick={() => setShowTeam((v) => !v)} title={t("Pilot / Takım değiştir")}>
+                    {showTeam ? t("Takım") : t("Pilot")} ⇄</th>
+                  <th style={th}>{t("Tur")}</th>
+                  <th style={thClick} onClick={() => setGapMode((v) => !v)} title={t("Lidere Gap ↔ öndekine Aralık")}>
+                    {gapMode ? t("Aralık") : "Gap"} ⇄</th>
+                  <th style={thClick} onClick={() => setLapMode((v) => !v)} title={t("Son ↔ En iyi")}>
+                    {lapMode ? t("En İyi") : t("Son tur")} ⇄</th>
+                  {secOn && (
+                    <th style={th}>{t("Sektör")}{" "}
+                      <button className="secbtn" onClick={() => setSecOn(false)}
+                        title={t("Sektör sütununu gizle")} style={secHideBtn}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                          strokeWidth="2.2" strokeLinecap="round">
+                          <path d="M3.5 3.5l17 17" />
+                          <path d="M10.6 6.3A9.7 9.7 0 0 1 12 6.2c5 0 8.4 3.6 9.3 5.8-.4.9-1.3 2.4-2.8 3.7" />
+                          <path d="M6.6 8.1C4.6 9.4 3.3 11.2 2.7 12c.9 2.2 4.3 5.8 9.3 5.8 1.3 0 2.5-.2 3.5-.6" />
+                        </svg>
+                      </button>
+                    </th>
+                  )}
+                  <th style={thClick} onClick={() => setAvgMode((v) => !v)} title={t("AVG5 ↔ AVG")}>
+                    {avgMode ? "AVG" : "AVG5"} ⇄</th>
+                  <th style={th}>{t("Enerji")}</th>
+                  <th style={th}>{t("VE/tur")}</th>
+                  <th style={th}>{t("Lastik")}</th>
+                  <th style={th}>Stint</th>
+                  <th style={th}>{t("Hasar")}</th>
+                  <th style={th}>Incident</th>
+                  <th style={th}>Pit</th>
+                  <th style={th} aria-label={t("Turlar")}></th>
+                </tr></thead>
+                <tbody>
+                  {shown.map(({ c, i, id, classPos, interval, lapsDown, lapsDownNext, isFastest }) => {
+                    const acc = classAccent(c.carClass);
+                    const fl = flash[carKey(c)];
+                    const dir = dirRef.current[c.lapKey || c.driver];
+                    const gapForBar = gapMode ? interval : c.gapSec;
+                    const gapBarPct = gapForBar != null && gapForBar > 0
+                      ? Math.max(6, 100 - (Math.min(gapForBar, 5) / 5) * 94) : 0;
+                    const gapBarCol = gapForBar == null ? "var(--rc-text-3)"
+                      : gapForBar < 1 ? "var(--rc-ok)" : gapForBar < 3 ? "var(--rc-warn)" : "var(--rc-brand-bright)";
+                    const ve = c.virtualEnergy;
+                    const wearPct = c.tyreWear != null ? Math.round(c.tyreWear * 100) : null;
+                    const ax = compoundAxles(c.tyreComp);
+                    return (
+                      <tr key={carKey(c) ?? (c.pos ?? i)}
+                        className={[c.isPlayer ? "me" : "pick",
+                          fl === "purple" ? "pbc" : fl === "green" ? "pb" : ""].filter(Boolean).join(" ")}
+                        onClick={c.isPlayer ? undefined
+                          : () => setCmpCar((v) => (carKey(v) === carKey(c) ? null : c))}
+                        style={{ cursor: c.isPlayer ? "default" : "pointer" }}>
+                        {/* Poz · sınıf-içi poz (sol kenar 4px sınıf rengi — veri, hex inline) */}
+                        <td className="l" style={{ ...tdBase, textAlign: "left", fontFamily: disp,
+                          ...(acc ? { borderLeftColor: acc } : {}) }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                            <span className="fpos" style={{ fontFamily: disp, fontSize: wall ? 18 : 15,
+                              fontWeight: 700, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
+                              {c.pos ?? i + 1}</span>
+                            <span style={{ display: "inline-flex", flexDirection: "column",
+                              alignItems: "flex-start", gap: 1 }}>
+                              {id && <span className="fclspos" style={{ fontSize: 10.5, fontWeight: 700,
+                                ...(acc ? { color: acc } : {}) }}>{classPos}</span>}
+                              {dir === "up" && <span style={{ color: "var(--rc-ok)", fontSize: 10 }}>▲</span>}
+                              {dir === "down" && <span style={{ color: "var(--rc-danger)", fontSize: 10 }}>▼</span>}
+                            </span>
+                          </span>
+                        </td>
+                        {/* Pilot */}
+                        <td className="l" style={{ ...tdBase, textAlign: "left", fontFamily: "var(--rc-font-ui)" }}>
+                          <span style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                            <Brand manufacturer={c.manufacturer} vehicleName={c.vehicleName} className="fbrand" />
+                            <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+                              <span className="fdrv" style={{ fontSize: 13, fontWeight: 600, whiteSpace: "nowrap",
+                                overflow: "hidden", textOverflow: "ellipsis" }}>
+                                {showTeam ? (c.team || c.driver || "—") : (c.driver || "—")}</span>
+                              <span className="fsub" style={{ fontSize: 10.5, color: "var(--rc-text-3)",
+                                whiteSpace: "nowrap" }}>
+                                {c.number != null && <>#{c.number} · </>}
+                                {showTeam ? (c.driver || "") : (c.team || "")}
+                                {id && <> · {String(c.carClass || "").toUpperCase()} P{classPos}</>}</span>
+                            </span>
+                          </span>
+                        </td>
+                        <td style={tdBase}>{c.lapsDone ?? "—"}</td>
+                        {/* Gap/Aralık + mini bar */}
+                        <td style={tdBase}>
+                          <span style={{ display: "flex", flexDirection: "column", gap: 3, alignItems: "flex-end" }}>
+                            <span>{gapMode
+                              ? (lapsDownNext >= 1 ? `+${lapsDownNext} ${t("Tur")}`
+                                  : interval != null ? gap(interval) : "—")
+                              : (i === 0 ? t("Lider") : lapsDown >= 1 ? `+${lapsDown} ${t("Tur")}`
+                                  : gap(c.gapSec))}</span>
+                            {i > 0 && gapForBar != null && gapForBar > 0 && (
+                              <span style={barTrack}><i style={barFill(gapBarPct, gapBarCol)} /></span>
+                            )}
+                          </span>
+                        </td>
+                        {/* Son tur / En iyi (en iyi'de sınıf en hızlısı mor) */}
+                        <td style={{ ...tdBase, ...(lapMode
+                          ? (isFastest ? { color: "var(--rc-purple)" } : { color: "var(--rc-text-3)" }) : {}) }}>
+                          {lap(lapMode ? c.bestSec : c.lastSec)}</td>
+                        {secOn && (
+                          <td style={{ ...tdBase, color: "var(--rc-text-3)", fontSize: wall ? 12.5 : 11 }}
+                            title={t("Son turun S1·S2·S3 sektör süreleri")}>{secStr(c.lastSectors)}</td>
                         )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        <td style={{ ...tdBase, color: "var(--rc-text-3)" }}>{lap(avgMode ? c.avgSec : c.avg5Sec)}</td>
+                        {/* Enerji + mini bar */}
+                        <td style={tdBase}>
+                          <span style={{ display: "flex", alignItems: "center", gap: 7, justifyContent: "flex-end" }}>
+                            {ve != null && <span style={barTrack}><i style={barFill(ve, veCol(ve))} /></span>}
+                            <b style={{ color: veCol(ve), fontWeight: 700 }}>
+                              {ve != null ? `${Math.round(ve)}%` : "—"}</b>
+                          </span>
+                        </td>
+                        <td style={{ ...tdBase, color: "var(--rc-text-3)" }} title={t("Tur başına VE tüketimi")}>
+                          {c.vePerLap != null ? `${c.vePerLap.toFixed(1)}%` : "—"}</td>
+                        {/* Lastik: hamur ikonu + aşınma bar + % (fiş Lastik hücresi) */}
+                        <td style={tdBase}>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 7, justifyContent: "flex-end" }}>
+                            {ax && <CompoundIcons ax={ax} />}
+                            {wearPct != null ? (<>
+                              <span style={barTrack}><i style={barFill(wearPct, wearCol(c.tyreWear))} /></span>
+                              <b style={{ color: wearCol(c.tyreWear), fontWeight: 700 }}>%{wearPct}</b>
+                            </>) : (!ax && <span style={{ color: "var(--rc-text-3)" }}>—</span>)}
+                          </span>
+                        </td>
+                        <td style={{ ...tdBase, color: "var(--rc-text-3)" }}>
+                          {c.stintSec > 0 ? fmtHMS(c.stintSec) : "—"}</td>
+                        <td style={{ ...tdBase, color: (c.damage || 0) > 0.15 ? "var(--rc-danger)"
+                          : (c.damage || 0) > 0.02 ? "var(--rc-warn)" : "var(--rc-text-3)" }}>
+                          {c.damage != null ? `${Math.round(c.damage * 100)}%` : "—"}</td>
+                        <td style={tdBase} title={t("Ceza sayısı (cut/puan cezaları dahil)")}>
+                          {c.penalties > 0
+                            ? <span style={{ color: "var(--rc-warn)", fontWeight: 700 }}>{c.penalties}x</span>
+                            : <span style={{ color: "var(--rc-text-3)" }}>—</span>}</td>
+                        <td style={tdBase}>
+                          {c.inPits && <span className="chip" style={{ marginRight: 4, color: "var(--rc-warn)",
+                            borderColor: "var(--rc-warn)" }}>PIT</span>}
+                          <span style={{ color: "var(--rc-text-3)" }}>{c.pitStops ?? "—"}</span></td>
+                        <td style={tdBase}>
+                          {c.lapsDone > 0 && c.lapKey && (
+                            <button className="flapsbtn" title={t("Tur zamanları")} aria-label={t("Tur zamanları")}
+                              data-tour={shown[0]?.c === c ? "livelapsbtn" : undefined}
+                              onClick={(e) => { e.stopPropagation(); setLapsFor(c); }}>+</button>
+                          )}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* pozisyon grafiği (PosChart çocuğu — fiş chartWrap yerleşimi) */}
+          {!big && isRace && shown.length > 0 && (
+            <div data-tour="livepos" style={{ padding: "14px 16px", borderTop: "1px solid var(--rc-border)" }}>
+              <PosChart t={t} tid={tid} rid={rid} field={fieldAll}
+                myClassOnly={myClassOnly} playerClass={playerClass} />
+            </div>
+          )}
+        </div>
+
+        {/* yan panel açma tırnağı (kapalıyken) */}
+        {!big && !sideOn && (
+          <button onClick={() => setSideOn(true)} title={t("Yan paneli aç")}
+            style={{ position: "fixed", right: 0, top: 132, zIndex: 15, width: 26, height: 74,
+              borderRadius: "10px 0 0 10px", border: "1px solid var(--rc-border-strong)", borderRight: "none",
+              background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer",
+              fontSize: 14 }}>‹</button>
+        )}
+
+        {/* ═══════════ SAĞ: yan panel (Harita → Kendi Araç → Strateji) ═══════════ */}
+        {!big && (
+          <div style={{ flex: sideOn ? "0 0 320px" : "0 0 0px", minWidth: 0, overflow: "hidden",
+            alignSelf: "stretch",
+            transition: "flex-basis .32s cubic-bezier(.4,0,.2,1), min-width .32s cubic-bezier(.4,0,.2,1)" }}>
+            <aside aria-label={t("Pist ve araç paneli")} style={{ width: 320, marginLeft: "auto",
+              display: "flex", flexDirection: "column", gap: 12,
+              transform: sideOn ? "translateX(0)" : "translateX(102%)", opacity: sideOn ? 1 : 0,
+              transition: "transform .32s cubic-bezier(.4,0,.2,1), opacity .24s ease" }}>
+              <button onClick={() => setSideOn(false)} style={{ alignSelf: "flex-end", display: "inline-flex",
+                alignItems: "center", gap: 6, padding: "5px 11px", borderRadius: 8,
+                border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)",
+                color: "var(--rc-text-3)", cursor: "pointer", fontSize: 11.5 }}>{t("Paneli kapat")} ›</button>
+              {s.trackLength > 0 && fieldAll.some((c) => c.posX != null) && (
+                <TrackMap t={t} field={fieldAll} session={s} trackLength={s.trackLength}
+                  tid={tid} trackKey={binKey(s.trackName, s.trackLength)} canSave={canEdit} />
+              )}
+              {own && <OwnCar t={t} own={own} liveFuelObs={liveFuelObs} topSrc={ownTopSrc} />}
+              <StrategyBar t={t} field={fieldAll} />
+            </aside>
           </div>
         )}
       </div>
-      {!big && isRace && <PosChart t={t} tid={tid} rid={rid} field={fieldAll}
-        myClassOnly={myClassOnly} playerClass={playerClass} />}
 
-      {/* v1.6.3 — satırı TAZE kareden bul: modal açıkken lapsDone canlı güncellenir →
-          bayat-veri cap'i (capLapEntries) yeni turları anında gösterir, snapshot'ta
-          takılı kalmaz. Araç kareden düşerse tıklama anındaki satıra düşülür. */}
+      {/* Rakip karşılaştırma tepsisi — satır tıklamasıyla açılır. Taze kareden yeniden bulunur. */}
+      {cmpCar && (() => {
+        const ck = carKey(cmpCar);
+        const fresh = fieldAll.find((c) => carKey(c) === ck);
+        return fresh
+          ? <CompareTray t={t} own={own}
+              ownName={fieldAll.find((c) => c.isPlayer)?.driver}
+              rival={fresh} onClose={() => setCmpCar(null)} />
+          : null;
+      })()}
+
+      {/* Tur listesi modalı — satırı TAZE kareden bul (canlı lapsDone güncellenir). */}
       {lapsFor && (() => {
         const fk = lapsFor.lapKey || lapsFor.driver;
         const fresh = fieldAll.find((c) => (c.lapKey || c.driver) === fk) || lapsFor;

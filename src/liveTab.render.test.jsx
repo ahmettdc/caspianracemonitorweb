@@ -43,3 +43,49 @@ describe("LiveTab render (v1.4.74)", () => {
     expect(render({ ...demoLive(30), field: [] })).toContain("Tutuş");
   });
 });
+
+describe("LiveTab v2.0 — saha tablosu", () => {
+  const html = render(demoLive(30));
+
+  it("v2 sütun sırası: Poz·Sınıf → Pilot → Tur → Gap → Son tur → Sektör → AVG5 → "
+    + "Enerji → VE/tur → Lastik → Stint → Hasar → Incident → Pit", () => {
+    const heads = [...html.matchAll(/<th[^>]*>(?:<button[^>]*>)?([^<]+)/g)].map((m) => m[1].trim());
+    const want = ["Poz · Sınıf", "Pilot", "Tur", "Gap", "Son tur", "Sektör", "AVG5",
+      "Enerji", "VE/tur", "Lastik", "Stint", "Hasar", "Incident", "Pit"];
+    const got = heads.filter((h) => want.some((w) => h.startsWith(w)));
+    expect(got.map((h) => h.replace(" ⇄", "").trim())).toEqual(want);
+  });
+
+  it("süzgeç TEK noktada — Poz · Sınıf başlığı; sınıf çip şeridi YOK", () => {
+    expect(html).toContain("Poz · Sınıf");
+    /* v1.8.19 öncesi çip şeridi kaldırıldı: tablo üstünde sınıf çipi olmamalı */
+    expect(html).not.toMatch(/class="chip"[^>]*>\s*(Hypercar|LMP2|GT3)\s*</i);
+  });
+
+  it("başlık geçişleri ⇄ işaretiyle işaretli (Gap/Son tur/AVG5/Pilot)", () => {
+    expect((html.match(/⇄/g) || []).length).toBeGreaterThanOrEqual(4);
+  });
+
+  it("varsayılan yoğunluk Pit duvarı; anahtar YALNIZ bu ekranda", () => {
+    expect(html).toContain("fieldtbl wall");
+    expect(html).toContain("◱ Pit duvarı");
+  });
+
+  it("sektör sütunu varsayılan açık ve gizlenebilir düğmesi var", () => {
+    expect(html).toContain("Sektör");
+    expect(html).toContain("secbtn");
+  });
+
+  it("sınıf-içi pozisyon çerçevesiz rakam olarak (fclspos), rozet değil", () => {
+    expect(html).toContain("fclspos");
+  });
+
+  it("kendi araç satırı .me (tıklanamaz), rakipler .pick", () => {
+    expect(html).toContain('class="me"');
+    expect(html).toContain('class="pick"');
+  });
+
+  it("satır sol kenarı 4px sınıf rengini alır", () => {
+    expect(html).toMatch(/border-left-color:#[0-9A-Fa-f]{6}/);
+  });
+});

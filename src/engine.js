@@ -21,6 +21,7 @@ export const parseHMS = (s) => {
 export const RACE_PAST_BUFFER_MS = 30 * 60e3;   // planlı bitişten sonra 30 dk pay
 export function raceEndsBy(r) {
   const start = r?.startsAt || 0;
+  if (!start) return Infinity;   // başlangıç saati yok (planlanmamış) → ASLA Geçmiş'e düşmez
   const durMs = parseHMS(r?.raceTime || "") * 1000;
   return durMs > 0 ? start + durMs + RACE_PAST_BUFFER_MS : start + 6 * 3600e3;
 }
@@ -395,6 +396,38 @@ export const migrate = (s) => {
   if (!Array.isArray(m.weatherLog)) m.weatherLog = [];
   if (!m.weatherLog.length && s && s.weather && s.weather !== "dry")
     m.weatherLog = [{ t: 0, w: s.weather }]; // eski "tüm yarış" seçimi
+  /* Kritik dizi/nesne alanlarının tip-normalleştirmesi: yayılım yalnız EKSİK anahtarı
+     doldurur, null/yanlış-tipli anahtarı düzeltmez. Bozuk/eski bir uzak raceState
+     yüklendiğinde tek bir bozuk yazım computePlan/computeTyreInfo/computeSlotStats'i
+     patlatıp yarışı tüm editör+izleyicilerde açılamaz kılar — burada onarıyoruz. */
+  if (!Array.isArray(m.pits)) m.pits = DEFAULT_STATE.pits.map((p) => ({ ...p }));
+  else m.pits = m.pits.map((p) => {
+    const t = p && Array.isArray(p.tyres) ? p.tyres : [false, false, false, false];
+    return { fuel: p ? p.fuel !== false : true, lane: p ? p.lane !== false : true,
+      tyres: [t[0] ?? false, t[1] ?? false, t[2] ?? false, t[3] ?? false] };
+  });
+  if (!Array.isArray(m.tyreQual)) m.tyreQual = ["1", "2", "3", "4"];
+  if (!Array.isArray(m.tyreStints))
+    m.tyreStints = Array.from({ length: 14 }, () => ["", "", "", ""]);
+  else m.tyreStints = m.tyreStints.map((r) => (Array.isArray(r) ? r : ["", "", "", ""]));
+  if (!Array.isArray(m.driverAssign)) m.driverAssign = Array(14).fill("");
+  if (!Array.isArray(m.overrides)) m.overrides = Array(14).fill("");
+  if (!Array.isArray(m.roster)) m.roster = [];
+  if (!Array.isArray(m.actualPits)) m.actualPits = [];
+  if (!Array.isArray(m.pitRepairs)) m.pitRepairs = [];
+  if (!Array.isArray(m.autoOvr)) m.autoOvr = [];
+  if (!m.strategies || typeof m.strategies !== "object")
+    m.strategies = { ...DEFAULT_STATE.strategies };
+  if (!m.telemetry || typeof m.telemetry !== "object")
+    m.telemetry = { A: null, B: null, C: null, D: null };
+  else {
+    const tm = {};
+    for (const sl of ["A", "B", "C", "D"]) {
+      const t = m.telemetry[sl];
+      tm[sl] = t && Array.isArray(t.laps) ? t : null; // laps'sız slot kullanılamaz
+    }
+    m.telemetry = tm;
+  }
   return m;
 };
 

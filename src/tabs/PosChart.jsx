@@ -120,8 +120,11 @@ export default function PosChart({ t, tid, rid, field, myClassOnly, playerClass 
       );
     };
     return (
-      <div className="card" data-tour="livepos" style={{ marginBottom: 12 }}>
-        <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+      /* Saha kartının içinde gömülü bölüm — dış ".card" kabuğu YOK (fiş chartWrap:
+         çift kart/kenarlık oluşmasın; LiveTab sarmalayıcısı borderTop + padding verir). */
+      <div style={{ marginBottom: 0 }}>
+        <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
+          marginTop: 0 }}>
           📈 {t("Pozisyon Grafiği")}
           <span className="hint" style={{ margin: 0, fontWeight: 400 }}>
             {t("tur")} {data[0].lap}–{data[data.length - 1].lap} · {keys.length} {t("araç")}

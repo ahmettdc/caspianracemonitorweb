@@ -56,9 +56,12 @@ export function weatherSuggestion(session, st) {
   if (!session) return null;
   const rain = Number(session.rain);
   const wet = Number(session.wetness);
-  if (!Number.isFinite(rain) && !Number.isFinite(wet)) return null;
+  /* Kademe ESASI ıslaklıktır. Zemin ıslaklığı verisi YOKSA yağıştan tek başına kademe
+     uydurma: yağmur 80 iken wetness eksikse eskiden w=0 → "Dry" öneriyordu (sağanakta
+     planı kuruya çevirmeyi öneren yanlış tık). Islaklık yoksa öneri de yok. */
+  if (!Number.isFinite(wet)) return null;
   const r = Number.isFinite(rain) ? rain : 0;
-  const w = Number.isFinite(wet) ? wet : 0;
+  const w = wet;
   const id = wetnessLevel(w);
   if (WEATHER[id] === WX(st)) return null;         // plan zaten bu kademede
   return { id, label: WEATHER[id].lbl, rain: Math.round(r), wetness: Math.round(w),

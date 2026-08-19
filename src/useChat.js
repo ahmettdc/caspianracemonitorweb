@@ -95,8 +95,13 @@ export function useChat({ user, userName, curTeam, curRace, races, tab, chatSoun
   }, [tab, raceChan, chatAll, chatSeen]);
 
   useEffect(() => {
-    if (!chatOpen || !curChan) return;
-    const last = chatMsgs.length ? (chatMsgs[chatMsgs.length - 1].at || 0) : Date.now();
+    /* v2.0: tam sayfa sohbet (tab==="chat") de modal gibi "okundu" işaretler —
+       rozet tam sayfada da temizlensin (chatOpen yalnız modal kabuğunda true olur). */
+    if ((!chatOpen && tab !== "chat") || !curChan) return;
+    /* Boş kanalda 0 kullan (yarış-kanalı effect'iyle tutarlı) — eskiden Date.now()
+       yerel filigranı yazıyordu: saat kayması varsa sonradan gelen mesajın at'i bu
+       filigranın altında kalıp "okundu" sayılabiliyor (kaçırılan okunmamış rozeti). */
+    const last = chatMsgs.length ? (chatMsgs[chatMsgs.length - 1].at || 0) : 0;
     if ((chatSeen[curChan.path] || 0) < last) {
       const next = { ...chatSeen, [curChan.path]: last };
       setChatSeen(next);
@@ -104,7 +109,7 @@ export function useChat({ user, userName, curTeam, curRace, races, tab, chatSoun
       catch { /* yoksay */ }
     }
     chatEndRef.current?.scrollIntoView({ block: "end" });
-  }, [chatOpen, chatMsgs, curChan, chatSeen]);
+  }, [chatOpen, tab, chatMsgs, curChan, chatSeen]);
 
   const doSendTo = async (chan) => {
     const v = chatText.trim();

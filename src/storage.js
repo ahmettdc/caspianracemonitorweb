@@ -364,6 +364,46 @@ export async function leaveTeam(tid, uid) {
   await remove(ref(db, `users/${uid}/teams/${tid}`));
 }
 
+/* Sahipliği devret (yalnız mevcut sahip) — hedef üye owner olur, eski sahip
+   editor'a düşer. TEK atomik update: kurallar yazımdan ÖNCEKİ duruma (fromUid
+   hâlâ owner) göre doğrular → üç yol da geçer. */
+export async function transferOwnership(tid, fromUid, toUid) {
+  if (!db || !tid || !fromUid || !toUid || fromUid === toUid) return;
+  await update(ref(db), {
+    [`teams/${tid}/meta/ownerUid`]: toUid,
+    [`teams/${tid}/members/${toUid}`]: "owner",
+    [`teams/${tid}/members/${fromUid}`]: "editor",
+  });
+}
+
+/* Üyeyi takımdan çıkar (yalnız owner) — takım tarafı düğümleri silinir. Owner
+   kuralı members/names/photos/badges'e yazma izni verir. Çıkarılan üyenin
+   users/{uid}/teams etiketi kendi cihazında self-heal ile temizlenir (App). */
+export async function removeMember(tid, uid) {
+  if (!db || !tid || !uid) return;
+  await update(ref(db), {
+    [`teams/${tid}/members/${uid}`]: null,
+    [`teams/${tid}/names/${uid}`]: null,
+    [`teams/${tid}/photos/${uid}`]: null,
+    [`teams/${tid}/badges/${uid}`]: null,
+  });
+}
+
+/* Takımı sil (yalnız owner) — tüm takım alt ağacı + katılım kodu + sahibin kendi
+   etiketi. TEK atomik update: `teams/{tid}` silme kuralı ve teamCodes silme
+   kuralı yazımdan ÖNCEKİ meta.ownerUid'e bakar (bkz. firebase-rules.json).
+   Diğer üyelerin users/{uid}/teams etiketleri kendi cihazlarında self-heal ile
+   temizlenir (erişim zaten kalktı). */
+export async function deleteTeam(tid, ownerUid, joinCode) {
+  if (!db || !tid || !ownerUid) return;
+  const patch = {
+    [`teams/${tid}`]: null,
+    [`users/${ownerUid}/teams/${tid}`]: null,
+  };
+  if (joinCode) patch[`teamCodes/${joinCode}`] = null;
+  await update(ref(db), patch);
+}
+
 /* Rozet (admin atar): "admin" | "driver" | "engineer" */
 export async function setUserBadge(uid, badge) {
   if (!db || !uid) return;
@@ -396,6 +436,24 @@ export async function createSeason(tid, name, year) {
 export async function deleteSeason(tid, sid) {
   if (!db) return;
   await remove(ref(db, `teams/${tid}/seasons/${sid}`));
+}
+/* Sezon adı/yılını düzenle — kurallar seasons yazımını owner/editor'a izin veriyor. */
+export async function updateSeason(tid, sid, patch) {
+  if (!db || !tid || !sid) return;
+  const p = {};
+  if (patch.name != null) p.name = String(patch.name).slice(0, 40);
+  if (patch.year != null) p.year = Number(patch.year) || new Date().getFullYear();
+  if (Object.keys(p).length) await update(ref(db, `teams/${tid}/seasons/${sid}`), p);
+}
+/* Katılım kodu geçerli mi? — teamCodes/{code} okuması kurallarca serbest (katılım
+   indexi). Yalnız GEÇERLİLİK döner; takım adı/üye sayısı meta okuması gerektirir
+   (yalnız üyeye açık) → sızdırmamak için burada dönmüyoruz. */
+export async function teamCodeExists(joinCode) {
+  if (!db) return false;
+  const code = String(joinCode || "").trim().toUpperCase();
+  if (code.length < 6) return false;
+  try { const snap = await get(ref(db, `teamCodes/${code}`)); return snap.exists(); }
+  catch { return false; }
 }
 export function watchSeasons(tid, cb) {
   if (!db || !tid) { cb({}); return () => {}; }
@@ -546,6 +604,42 @@ export function liveCondSubscribe(tid, rid, lapKey, cb) {
   return onValue(ref(db, `teams/${tid}/livecond/${rid}/${lapKey}`),
     (s) => cb(s.exists() ? s.val() : null),
     (err) => { console.warn("livecond read failed:", err?.message); cb(null); });
+}
+
+/* ---- pilot müsaitliği (avail) — YARIŞ BAŞINA KALICI ----------------------
+   teams/{tid}/races/{rid}/avail/{driverId} = [stintNo, …]
+   Listede bulunan stint numaraları o pilotun UYGUN OLMADIĞI stintlerdir;
+   varsayılan (düğüm yok) = tüm stintlerde uygun.
+
+   Bu, ARAYUZ-YENILEME-PROMPT-v2'deki "yeni veri katmanı yok" kuralının
+   BİLİNÇLİ TEK İSTİSNASIDIR. races/{rid} altında durduğu için yazma izni
+   mevcut Tier A kuralından gelir (owner/editor yazar, üye okur); yarış
+   silinince müsaitlik de silinir (deleteRace races/{rid}'yi kaldırır).
+   Tip/boyut doğrulaması firebase-rules.json → races/$rid/avail/$driverId.
+
+   NOT: stint ve pilot ATAMALARI raceState/{rid}.stateJson blob'unun içinde
+   durur; races/{rid} altında per-stint düğüm deseni YOKTUR. Ayrı düğüm
+   kullanılmasının nedeni budur — müsaitlik, plan blob'undan bağımsız yazılıp
+   okunabilsin diye. */
+export async function availSet(tid, rid, driverId, stintNos) {
+  if (!db || !tid || !rid || !driverId) return;
+  const list = Array.isArray(stintNos)
+    ? [...new Set(stintNos.filter((n) => Number.isInteger(n) && n >= 0 && n < 200))]
+      .sort((a, b) => a - b)
+    : [];
+  await set(ref(db, `teams/${tid}/races/${rid}/avail/${driverId}`),
+    list.length ? list : null);
+}
+export async function availClear(tid, rid) {
+  if (!db || !tid || !rid) return;
+  await set(ref(db, `teams/${tid}/races/${rid}/avail`), null);
+}
+/* cb({driverId: [stintNo…]} | null). İzleyici de okur (Tier A .read = üye). */
+export function availSubscribe(tid, rid, cb) {
+  if (!db || !tid || !rid) { cb(null); return () => {}; }
+  return onValue(ref(db, `teams/${tid}/races/${rid}/avail`),
+    (s2) => cb(s2.exists() ? s2.val() : null),
+    (err) => { console.warn("avail read failed:", err?.message); cb(null); });
 }
 
 /* ---- tur → pilot eşlemesi (livedrv) — endurance driver swap ----

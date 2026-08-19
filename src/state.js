@@ -287,7 +287,7 @@ export function computeDriverPlan(st, racePlan) {
     const s0 = cur;
     const f0 = s0 + r.stintSec * 1000;                 // Excel C: kapatılmamış bitiş
     const dur = Math.max(0, Math.min(f0, finishMs) - s0); // Excel D (FARK): yarış bitişiyle kırpılır
-    rows.push({ idx: r.idx, start: s0, finish: f0, dur });
+    rows.push({ idx: r.idx, start: s0, finish: f0, dur, laps: r.lapsInStint });
     cur = f0 + r.pitSec * 1000;
   }
   const totals = {};
@@ -474,17 +474,22 @@ export function applyUnmarkPit(st) {
   return patch;
 }
 
-/* Tüm gerçek pit işaretlemelerini sıfırla (elle girilen override'lar korunur). */
+/* Tüm gerçek pit işaretlemelerini sıfırla (elle girilen override'lar KORUNUR).
+   pitRepairs de elle girilen bir plan girdisidir (yalnız setRepair yazar, otomatik
+   üretilmez) — "gerçek pit işaretlemeleri" değil; override'lar gibi korunmalı,
+   eskiden sıfırlanıp veri kaybına yol açıyordu. */
 export function applyResetPits(st) {
   const overrides = (st.overrides || []).map((v, i) => ((st.autoOvr || [])[i] ? "" : v));
-  return { actualPits: [], pitRepairs: [], autoOvr: [], overrides };
+  return { actualPits: [], autoOvr: [], overrides };
 }
 
 export function buildTimeline(plan) {
+  /* v2.0 — fiş 06-stint: segment rengi StintTab'te (canlı stint vurgusu için
+     liveInfo gerekir). Burada yalnız genişlik + tür + stint no üretilir;
+     eski idx'e göre kırmızı/bordo dönüşümlü `bg` KALDIRILDI. */
   return plan.rows.flatMap((r) => {
     const segs = [{
-      w: (r.stintSec / plan.raceSec) * 100, cls: "", label: `S${r.idx}`,
-      bg: r.idx % 2 ? "var(--car)" : "#5E0B18",
+      w: (r.stintSec / plan.raceSec) * 100, cls: "stint", idx: r.idx, label: `S${r.idx}`,
     }];
     if (r.pitSec > 0) segs.push({ w: (r.pitSec / plan.raceSec) * 100, cls: "pit", label: "" });
     return segs;

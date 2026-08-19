@@ -1,6 +1,7 @@
 /* Sunum komponentleri — durum tutmayan görsel parçalar.
    App.jsx içe aktarır. */
 import { useState, useEffect, useRef, Fragment } from "react";
+import { Sheet } from "./shell";
 import {
   ASSET, quantile, TRACKS, TRACK_ASSET,
   CAR_CLASSES, CARS, trackName, carImg, carName, brandLogo,
@@ -11,8 +12,9 @@ import { SETUP_LIMITS, poolEmptyReason, lapDeltas } from "./setupPool";
 import { trackOptions, classOptions, carOptions } from "./pickerOptions";
 import { parseSvm, b64ToText, setupSummary, diffSetups, categorizeSetup,
   duckSetupToParsed } from "./setupParse";
-import { renameTeam, syncMyTeamName, createSeason, deleteRace,
-  leaveTeam, createTeam, joinTeam, getSetupBlob,
+import { renameTeam, syncMyTeamName, createSeason, deleteSeason, updateSeason, deleteRace,
+  leaveTeam, createTeam, joinTeam, teamCodeExists, getSetupBlob,
+  transferOwnership, removeMember, deleteTeam,
   getUserAvatar, saveTeamAsset, clearTeamAsset } from "./storage";
 import { processImageFile, IMG_ACCEPT_TYPES } from "./imageUpload";
 import { carAssetKey, teamLogoSrc } from "./teamAssets";
@@ -73,51 +75,91 @@ export function ChatPanel({
   msgs, h, t, lang, user, teamData, fmtClock, canManage,
   chatText, setChatText, onSend, onDelete, endRef,
 }) {
+  const disp = "var(--rc-font-display)";
+  /* Gün ayracı çipi — fiş 11-sohbet.md `chatDay` stil objesi (birebir). */
+  const dayChip = { alignSelf: "center", fontSize: 10, color: "var(--rc-text-3)",
+    border: "1px solid var(--rc-border)", borderRadius: 10, padding: "2px 12px",
+    textTransform: "uppercase", letterSpacing: ".1em" };
+  const today = new Date().toDateString();
+  const dayLabel = (ts) => new Date(ts).toDateString() === today
+    ? t("Bugün")
+    : new Date(ts).toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR",
+        { day: "2-digit", month: "long" });
   return (
-    <div className="chatwrap" style={h ? { height: h } : undefined}>
-      <div className="chatlist">
+    /* Sağ panelin iç gövdesi: mesaj listesi (flex:1, scroll) + giriş çubuğu.
+       `h` verildiyse (yarış sekmesi gömülü) sabit yükseklik; yoksa kapsayıcıyı doldurur
+       (ChatModal sağ panosunun başlığının altında flex:1). */
+    <div style={h
+      ? { height: h, display: "flex", flexDirection: "column" }
+      : { flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "16px 18px",
+        display: "flex", flexDirection: "column", gap: 10 }}>
         {!msgs.length && (
-          <div className="hint" style={{ margin: "auto", textAlign: "center" }}>
-            {t("Henüz mesaj yok — ilk yazan sen ol.")}</div>
+          /* fiş 11-sohbet.md boş durum bloğu (SVG + başlık + açıklama), birebir */
+          <div style={{ margin: "auto", textAlign: "center", display: "flex",
+            flexDirection: "column", alignItems: "center", gap: 9, padding: 24 }}>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none"
+              stroke="var(--rc-border-strong)" strokeWidth="1.6" strokeLinecap="round"
+              strokeLinejoin="round"><path d="M20 4H4a1.5 1.5 0 0 0-1.5 1.5V16A1.5 1.5 0 0 0 4 17.5h3V21l4-3.5h9A1.5 1.5 0 0 0 21.5 16V5.5A1.5 1.5 0 0 0 20 4Z" /></svg>
+            <div style={{ fontFamily: disp, fontWeight: 700, fontSize: 18 }}>
+              {t("Henüz mesaj yok")}</div>
+            <div style={{ fontSize: 12, color: "var(--rc-text-3)", lineHeight: 1.7, maxWidth: 320 }}>
+              {t("İlk yazan sen ol — bu kanaldaki mesajlar yarış boyunca takımda kalır.")}</div>
+          </div>
         )}
         {msgs.map((m, i) => {
           const me = m.uid === user?.uid;
           const prev = msgs[i - 1];
           const newDay = !prev || new Date(prev.at || 0).toDateString()
             !== new Date(m.at || 0).toDateString();
+          const nm = teamData?.names?.[m.uid] || m.name || t("isimsiz");
           return (
             <Fragment key={m.id}>
-              {newDay && <div className="chatday">
-                {new Date(m.at || 0).toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR",
-                  { day: "2-digit", month: "long" })}</div>}
-              <div className={`cmsg ${me ? "me" : ""}`}>
-                <div className="who">
-                  {!me && <Avatar uid={m.uid}
-                    name={teamData?.names?.[m.uid] || m.name} size={18} />}
-                  {!me && <b>{teamData?.names?.[m.uid] || m.name || t("isimsiz")}</b>}
-                  <span>{fmtClock(m.at || 0)}</span>
+              {newDay && <span style={dayChip}>{dayLabel(m.at || 0)}</span>}
+              <div style={{ display: "flex", flexDirection: "column", gap: 3, maxWidth: "78%",
+                alignSelf: me ? "flex-end" : "flex-start" }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 10.5,
+                  color: "var(--rc-text-3)", justifyContent: me ? "flex-end" : "flex-start" }}>
+                  {!me && <Avatar uid={m.uid} name={nm} size={18} />}
+                  {!me && <b style={{ fontSize: 12, color: "var(--rc-text-2)" }}>{nm}</b>}
+                  <span style={{ fontFamily: disp, fontSize: 10.5, color: "var(--rc-text-3)" }}>
+                    {fmtClock(m.at || 0)}</span>
                   {(me || canManage) && (
-                    <button className="del" title={t("Sil")}
-                      onClick={() => onDelete(m.id)}>✕</button>
+                    <button title={t("Sil")} onClick={() => onDelete(m.id)}
+                      style={{ background: "none", border: 0, color: "var(--rc-text-3)",
+                        cursor: "pointer", fontSize: 10, padding: "0 2px", lineHeight: 1 }}>✕</button>
                   )}
-                </div>
-                <div className="bub">{m.text}</div>
+                </span>
+                <span style={{ padding: "8px 12px", borderRadius: 10, fontSize: 14, lineHeight: 1.5,
+                  whiteSpace: "pre-wrap", wordBreak: "break-word", color: "var(--rc-text)",
+                  background: me ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)",
+                  border: `1px solid ${me ? "rgba(150,0,24,.55)" : "var(--rc-border)"}` }}>
+                  {m.text}</span>
               </div>
             </Fragment>
           );
         })}
         <div ref={endRef} />
       </div>
-      <div className="chatbar">
+      <div style={{ padding: "12px 18px", borderTop: "1px solid var(--rc-border)",
+        display: "flex", gap: 10, alignItems: "center" }}>
         <input type="text" value={chatText} maxLength={500}
-          placeholder={t("Mesaj yaz…")}
+          placeholder={t("Mesaj yaz…  (Enter gönderir)")}
           onChange={(e) => setChatText(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); }
-          }} />
-        <button className="gbtn ubtn" disabled={!chatText.trim()}
-          style={{ opacity: chatText.trim() ? 1 : .45 }}
-          onClick={onSend}>{t("Gönder")}</button>
+          }}
+          style={{ flex: 1, background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)",
+            borderRadius: 10, color: "var(--rc-text)", padding: "11px 14px", fontSize: 14,
+            margin: 0, textTransform: "none", letterSpacing: 0 }} />
+        <span style={{ fontSize: 10.5, color: "var(--rc-text-3)", fontFamily: disp }}>
+          {chatText.length}/500</span>
+        <button disabled={!chatText.trim()} onClick={onSend}
+          style={{ padding: "11px 22px", borderRadius: 10, border: "1px solid var(--rc-brand-bright)",
+            background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer",
+            fontFamily: disp, fontSize: 15, fontWeight: 700, letterSpacing: ".04em",
+            textTransform: "uppercase", opacity: chatText.trim() ? 1 : .45 }}>
+          {t("Gönder")}</button>
       </div>
     </div>
   );
@@ -255,6 +297,13 @@ const ICON_PATHS = {
   /* lastik — çizgi-ikon (tread halkası + jant + 4 diş); sekme çubuğundaki diğer
      ikonlarla aynı stil (Wheel/Icon: strokeWidth 2, currentColor). */
   tyre:     <><circle cx="12" cy="12" r="9.2" /><circle cx="12" cy="12" r="4" /><path d="M12 2.8v2.6M12 18.6v2.6M2.8 12h2.6M18.6 12h2.6" /></>,
+  /* v2.0 sol ray ikonları — docs/design-handoff/Yeni Tasarım.dc.html <nav> bloğundan
+     birebir alındı (yeni asset değil; aynı Lucide çizgi diliyle SVG path'leri). */
+  gauge:    <><path d="M4 13a8 8 0 0 1 16 0" /><path d="M4 13v3.2M20 13v3.2" /><path d="m12 13 4.2-3.4" /><circle cx="12" cy="13" r="1.6" fill="currentColor" stroke="none" /></>,
+  stopwatch: <><circle cx="12" cy="13.6" r="7.6" /><path d="M12 13.6V9.4" /><path d="M9.6 2.6h4.8" /><path d="M12 2.6V6" /><path d="m18.6 7.4 1.4-1.4" /></>,
+  steering: <><circle cx="12" cy="12" r="9.3" /><circle cx="12" cy="12" r="2.8" fill="currentColor" stroke="none" /><path d="M2.9 12h6.3M14.8 12h6.3M12 14.8v6.3" /></>,
+  cog:      <><path d="M10.4 2.6h3.2l.35 2.3a7.4 7.4 0 0 1 1.72 1l2.1-.98 1.6 2.77-1.75 1.53a7.4 7.4 0 0 1 0 1.98l1.75 1.53-1.6 2.77-2.1-.98a7.4 7.4 0 0 1-1.72 1l-.35 2.3h-3.2l-.35-2.3a7.4 7.4 0 0 1-1.72-1l-2.1.98-1.6-2.77 1.75-1.53a7.4 7.4 0 0 1 0-1.98L4.23 7.69l1.6-2.77 2.1.98a7.4 7.4 0 0 1 1.72-1l.35-2.3Z" /><circle cx="12" cy="12" r="3" /></>,
+  eye:      <><path d="M2.5 12S6 5.8 12 5.8 21.5 12 21.5 12 18 18.2 12 18.2 2.5 12 2.5 12Z" /><circle cx="12" cy="12" r="2.7" /></>,
 };
 export function Icon({ name, size = 16, style }) {
   const p = ICON_PATHS[name];
@@ -308,21 +357,28 @@ export function CommandPalette({ open, onClose, actions, t }) {
         role="dialog" aria-modal="true" aria-label={t("Komut paleti")}>
         <div className="cmdk-in">
           <Icon name="search" size={16} />
-          <input ref={inputRef} type="text" value={q} placeholder={`${t("Komut ara")}…`}
+          <input ref={inputRef} type="text" value={q}
+            placeholder={t("Yarış, ekran veya komut ara…")}
             onChange={(e) => setQ(e.target.value)} aria-label={t("Komut ara")} />
         </div>
         <div className="cmdk-list" role="listbox">
           {!filtered.length && (
             <div className="hint" style={{ padding: "12px 14px" }}>{t("Sonuç yok")}</div>)}
-          {filtered.map((a, i) => (
-            <button key={a.id} role="option" aria-selected={i === sel}
-              className={`cmdk-opt ${i === sel ? "on" : ""}`}
-              onMouseEnter={() => setSel(i)} onClick={() => run(a)}>
-              {a.icon && <span className="cmdk-i" aria-hidden="true">{a.icon}</span>}
-              <span className="cmdk-l">{a.label}</span>
-              {a.hint && <span className="cmdk-h">{a.hint}</span>}
-            </button>
-          ))}
+          {filtered.map((a, i) => {
+            const showHead = a.group && (i === 0 || filtered[i - 1].group !== a.group);
+            return (
+              <Fragment key={a.id}>
+                {showHead && <div className="cmdk-grp">{a.group}</div>}
+                <button role="option" aria-selected={i === sel}
+                  className={`cmdk-opt ${i === sel ? "on" : ""}`}
+                  onMouseEnter={() => setSel(i)} onClick={() => run(a)}>
+                  {a.icon && <span className="cmdk-i" aria-hidden="true">{a.icon}</span>}
+                  <span className="cmdk-l">{a.label}</span>
+                  {a.hint && <span className="cmdk-h">{a.hint}</span>}
+                </button>
+              </Fragment>
+            );
+          })}
         </div>
         <div className="cmdk-foot">
           <span>↑↓ {t("gezin")}</span><span>↵ {t("seç")}</span><span>esc {t("kapat")}</span>
@@ -353,9 +409,26 @@ export const hasBadge = (team, uid, id) => {
   return typeof b === "string" ? b === id : !!b?.[id];
 };
 
+/* Ondalık-güvenli sayı girişi (yarış datası paneli: VE tüketim / fuel ratio / pit
+   süreleri). Eskiden type="number" + parseFloat(...)||0 idi: alan boşaltılamıyor,
+   "0.85" güvenilmez şekilde sıfıra snap ediyordu. Artık kontrollü METİN tutar; step>=1
+   olan alanlar (strateji tur sayısı, extraLap, tyreLimit) yalnız tam sayı kabul eder. */
 export function Num({ v, onC, step = 0.01, w }) {
-  return <input type="number" step={step} value={v} style={w ? { width: w } : {}}
-    onChange={(e) => onC(parseFloat(e.target.value) || 0)} />;
+  const int = step >= 1;
+  const [txt, setTxt] = useState(v == null ? "" : String(v));
+  const emitted = useRef(v);
+  useEffect(() => {
+    if (v !== emitted.current) { emitted.current = v; setTxt(v == null ? "" : String(v)); }
+  }, [v]);
+  return <input type="text" inputMode={int ? "numeric" : "decimal"} value={txt}
+    style={w ? { width: w } : {}}
+    onChange={(e) => {
+      const s = e.target.value.replace(",", ".");
+      if (s !== "" && !(int ? /^\d*$/ : /^\d*\.?\d*$/).test(s)) return;
+      setTxt(s);
+      const n = (s === "" || s === ".") ? 0 : parseFloat(s);
+      if (!Number.isNaN(n)) { emitted.current = n; onC(n); }
+    }} />;
 }
 
 export function Donut({ data, size = 190, thickness = 34 }) {
@@ -909,8 +982,19 @@ export function Tyre({ size = 16 }) {
    gerekiyor → başlangıç paketine girmesin diye modal AÇILINCA dynamic import ile
    yüklenir, modül-seviyesi cache ile sonraki açılışlar anında. */
 let CHANGELOG_CACHE = null;
+/* Baştaki emojiyi ikon olarak ayır (fiş wnOpen: her not satırı ikon + metin
+   kartı). Emoji yoksa nötr bir madde imi kullanılır. */
+function splitNoteIcon(s) {
+  const m = /^(\p{Extended_Pictographic}(?:️|‍\p{Extended_Pictographic})*)\s+([\s\S]+)$/u.exec(s || "");
+  return m ? { ico: m[1], text: m[2] } : { ico: "•", text: s || "" };
+}
+
+/* Neler değişti — fiş wnOpen (Yeni Tasarım.dc.html). Tam ekran katman:
+   sol 132px sürüm rayı + sağ seçili sürümün ikon/metin not kartları. Eski
+   .wxmodal/.clgv liste tasarımının yerine geçti. */
 export function VersionModal({ open, onClose, t, lang, onStartGuide }) {
   const [list, setList] = useState(CHANGELOG_CACHE);
+  const [sel, setSel] = useState(null);
   useEffect(() => {
     if (!open || CHANGELOG_CACHE) return undefined;
     let on = true;
@@ -921,37 +1005,101 @@ export function VersionModal({ open, onClose, t, lang, onStartGuide }) {
     return () => { on = false; };
   }, [open]);
   if (!open) return null;
+  const disp = "var(--rc-font-display)";
+  const versions = list || [];
+  const selV = sel || versions[0]?.v;
+  const cur = versions.find((c) => c.v === selV) || versions[0];
+  const curItems = cur ? ((lang === "en" ? cur.en : cur.tr) || cur.tr || cur.en || []) : [];
+  const tagStyle = { fontSize: 9.5, fontWeight: 700, textTransform: "uppercase",
+    letterSpacing: ".06em", padding: "1px 6px", borderRadius: 999,
+    background: "rgba(55,214,122,.14)", color: "var(--rc-ok)",
+    border: "1px solid rgba(55,214,122,.35)", whiteSpace: "nowrap" };
   return (
-    <div className="wxmodal" onClick={onClose}>
-      <div className="wxmbox" style={{ width: "min(560px,94vw)" }}
-        onClick={(e) => e.stopPropagation()}>
-        <div className="wxmhead">
-          <span>ℹ {t("Neler değişti")}</span>
-          <button className="lbclose" onClick={onClose}>✕</button>
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 1000,
+      background: "rgba(10,6,10,.74)", backdropFilter: "blur(5px)", display: "flex",
+      alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: "min(860px,96vw)",
+        height: "min(680px,86vh)", background: "var(--rc-surface)",
+        border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden",
+        display: "flex", flexDirection: "column", boxShadow: "0 24px 70px rgba(0,0,0,.6)",
+        animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
+
+        {/* başlık */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 20px",
+          borderBottom: "1px solid var(--rc-border)" }}>
+          <span style={{ fontFamily: disp, textTransform: "uppercase", letterSpacing: ".07em",
+            fontSize: 19, fontWeight: 700 }}>{t("Neler değişti")}</span>
+          <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>
+            {t("Kurulu sürüm")} v{APP_VERSION}</span>
+          <button onClick={onClose} style={{ marginLeft: "auto", width: 32, height: 32,
+            borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)",
+            color: "var(--rc-text-2)", cursor: "pointer", fontSize: 15, lineHeight: 1 }}>✕</button>
         </div>
-        <div className="wxmlist" style={{ padding: 0, maxHeight: "62vh" }}>
-          {!list && <div className="hint" style={{ padding: 16 }}>{t("Yükleniyor…")}</div>}
-          {(list || []).map((c) => (
-            <div className="clgv" key={c.v}>
-              <h4>{c.v}{c.v === APP_VERSION &&
-                <span className="cur">{t("ŞU AN")}</span>}</h4>
-              <div className="cdate">{c.date}</div>
-              <ul>{((lang === "en" ? c.en : c.tr) || c.tr || c.en || []).map((x, i) =>
-                <li key={i}>{x}</li>)}</ul>
-            </div>
-          ))}
+
+        {/* gövde: sol sürüm rayı + sağ notlar */}
+        <div style={{ flex: 1, minHeight: 0, display: "flex" }}>
+          <div style={{ flex: "0 0 132px", borderRight: "1px solid var(--rc-border)",
+            overflowY: "auto", padding: "10px 8px", background: "var(--rc-surface-2)" }}>
+            {!list && <div style={{ padding: 12, fontSize: 12, color: "var(--rc-text-3)" }}>
+              {t("Yükleniyor…")}</div>}
+            {versions.map((c) => {
+              const on = c.v === selV;
+              return (
+                <button key={c.v} onClick={() => setSel(c.v)} style={{ display: "flex",
+                  flexDirection: "column", gap: 2, alignItems: "flex-start", width: "100%",
+                  textAlign: "left", cursor: "pointer", padding: "8px 9px", borderRadius: 9,
+                  marginBottom: 3, color: "var(--rc-text)",
+                  border: `1px solid ${on ? "var(--rc-brand-bright)" : "transparent"}`,
+                  background: on ? "rgba(150,0,24,.14)" : "transparent" }}>
+                  <b style={{ fontFamily: disp, fontSize: 12.5 }}>{c.v}</b>
+                  <span style={{ fontSize: 10, color: "var(--rc-text-3)" }}>{c.date}</span>
+                  {c.v === APP_VERSION && <span style={tagStyle}>{t("ŞU AN")}</span>}
+                </button>
+              );
+            })}
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0, overflowY: "auto", padding: "18px 22px 24px" }}>
+            {cur && (
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                  <span style={{ fontFamily: disp, fontWeight: 700, fontSize: 21,
+                    letterSpacing: ".02em" }}>{cur.v}</span>
+                  {cur.v === APP_VERSION && <span style={tagStyle}>{t("ŞU AN")}</span>}
+                  <span style={{ marginLeft: "auto", fontFamily: disp, fontSize: 11.5,
+                    color: "var(--rc-text-3)" }}>{cur.date}</span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {curItems.map((raw, i) => {
+                    const it = splitNoteIcon(raw);
+                    return (
+                      <div key={i} style={{ display: "flex", gap: 11, alignItems: "flex-start",
+                        border: "1px solid var(--rc-border)", borderRadius: 11,
+                        background: "var(--rc-surface-2)", padding: "12px 14px" }}>
+                        <span style={{ fontSize: 16, lineHeight: 1.35, flex: "0 0 auto" }}>{it.ico}</span>
+                        <span style={{ fontSize: 13, lineHeight: 1.65, color: "var(--rc-text-2)",
+                          textWrap: "pretty" }}>{it.text}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-        <div className="wxmfoot" style={{ justifyContent: "space-between" }}>
-          <span style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <a className="hint" {...extHref(`${REPO_URL}/commits/main`)}
-              style={{ color: "var(--muted)" }}>{t("GitHub'da tüm değişiklikler ↗")}</a>
-            <button className="hint" style={{ background: "none", border: 0,
-              color: "var(--teal)", cursor: "pointer", padding: 0,
-              textDecoration: "underline" }}
-              onClick={onStartGuide}>
-              🎓 {t("Rehberi başlat")}</button>
-          </span>
-          <button className="histbtn" onClick={onClose}>{t("Kapat")}</button>
+
+        {/* alt çubuk */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 20px",
+          borderTop: "1px solid var(--rc-border)", background: "var(--rc-surface-2)", flexWrap: "wrap" }}>
+          <a {...extHref(`${REPO_URL}/commits/main`)}
+            style={{ fontSize: 12, color: "var(--rc-text-3)" }}>{t("GitHub'da tüm değişiklikler ↗")}</a>
+          <button onClick={onStartGuide} style={{ background: "none", border: "none",
+            color: "var(--rc-brand-bright)", cursor: "pointer", fontSize: 12, padding: 0,
+            textDecoration: "underline", textUnderlineOffset: 3 }}>
+            🎓 {t("Rehberi başlat")}</button>
+          <button onClick={onClose} style={{ marginLeft: "auto", padding: "9px 20px",
+            borderRadius: 10, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)",
+            color: "var(--rc-text)", cursor: "pointer", fontSize: 13 }}>{t("Kapat")}</button>
         </div>
       </div>
     </div>
@@ -961,109 +1109,300 @@ export function VersionModal({ open, onClose, t, lang, onStartGuide }) {
 /* Yarış ekleme/düzenleme penceresi (form). App.jsx'ten çıkarıldı; sunum + form
    durumu (rForm) prop ile gelir. Kaydetme iş mantığı App'te (onSave callback).
    rForm=null iken null döner. */
-export function RaceEditModal({ rForm, setRForm, t, seasons, onSave }) {
+/* Yarış ekle/düzenle — fiş raceOpen (Yeni Tasarım.dc.html): tam ekran katman,
+   sol form + sağ pist/araç önizlemesi. Pist artık açılır liste değil, bayraklı
+   ızgara seçici. Aynı pencere hem eklemede hem düzenlemede (rForm.rid) kullanılır;
+   veri akışı (rForm/setRForm/onSave) değişmedi. Renk→token: #1E1418→surface-3,
+   #34232A→border, #4A2F38→border-strong, #150E10→surface-2, #A88C93→text-3. */
+export function RaceEditModal({ rForm, setRForm, t, seasons, onSave, lmuData }) {
+  const [trackOpen, setTrackOpen] = useState(false);
   if (!rForm) return null;
+  const disp = "var(--rc-font-display)";
+  const close = () => setRForm(null);
+  const hideImg = (e) => { e.currentTarget.style.display = "none"; };
+  const lbl = { display: "block", color: "var(--rc-text-3)", fontSize: 10,
+    textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 6 };
+  const fld = { width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)",
+    border: "1px solid var(--rc-border)", borderRadius: 10, color: "var(--rc-text)",
+    padding: "11px 12px", fontSize: 13 };
+  const raceStart = rForm.startsAt
+    ? new Date(rForm.startsAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—";
+  const setQual = (q) => setRForm({ ...rForm, qualMin: q,
+    startsAt: rForm.sessionStartMs + (q + OFFICIAL_FORMATION_MIN) * 60000 });
   return (
-    <div className="wxmodal" onClick={() => setRForm(null)}>
-      <div className="wxmbox" style={{ width: "min(560px,95vw)" }}
-        onClick={(e) => e.stopPropagation()}>
-        <div className="wxmhead">
-          <span>🏁 {rForm.rid ? t("Yarışı Düzenle") : t("Yarış Ekle")}</span>
-          <button className="lbclose" onClick={() => setRForm(null)}>✕</button>
+    <div onClick={close} style={{ position: "fixed", inset: 0, zIndex: 1030,
+      background: "rgba(10,6,10,.74)", backdropFilter: "blur(5px)", display: "flex",
+      alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: "min(820px,96vw)",
+        maxHeight: "88vh", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)",
+        borderRadius: 16, overflow: "hidden", display: "flex", flexDirection: "column",
+        boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
+
+        {/* başlık */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 20px",
+          borderBottom: "1px solid var(--rc-border)" }}>
+          <span style={{ fontFamily: disp, textTransform: "uppercase", letterSpacing: ".07em",
+            fontSize: 19, fontWeight: 700 }}>
+            {rForm.rid ? t("Yarışı Düzenle") : t("Yarış Ekle")}</span>
+          <button onClick={close} style={{ marginLeft: "auto", width: 32, height: 32,
+            borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)",
+            color: "var(--rc-text-2)", cursor: "pointer", fontSize: 15, lineHeight: 1 }}>✕</button>
         </div>
-        <div style={{ padding: "12px 16px", maxHeight: "62vh", overflow: "auto" }}>
-          <div className="row2">
-            <div><label>{t("Sezon")}</label>
-              <select value={rForm.seasonId || ""}
-                onChange={(e) => setRForm({ ...rForm, seasonId: e.target.value || null })}>
-                <option value="">{t("Takvim dışı (tekli yarış)")}</option>
-                {Object.entries(seasons).map(([sid, se]) => (
-                  <option key={sid} value={sid}>{se.name}</option>
-                ))}
-              </select></div>
-            <div><label>{t("Round")}</label>
-              <input type="number" value={rForm.round || ""}
-                onChange={(e) => setRForm({ ...rForm, round: e.target.value })} /></div>
-          </div>
-          <label>{t("Yarış adı")}</label>
-          <input type="text" value={rForm.name || ""} style={{ textTransform: "none" }}
-            placeholder={t("örn. 6 Hours of Spa")}
-            onChange={(e) => setRForm({ ...rForm, name: e.target.value })} />
-          <div className="row2">
-            <div><label>{t("Pist")}</label>
-              <select value={rForm.trackId || ""}
-                onChange={(e) => setRForm({ ...rForm, trackId: e.target.value })}>
-                <option value="">—</option>
-                {TRACKS.map((tr) => (
-                  <option key={tr.id} value={tr.id}>{tr.name}</option>
-                ))}
-              </select></div>
-            <div><label>{t("Yarış Süresi")}</label>
-              <input type="text" value={rForm.raceTime || ""} placeholder="6:00:00"
-                onChange={(e) => setRForm({ ...rForm, raceTime: e.target.value })} /></div>
-          </div>
-          <div className="row2">
-            <div><label>{t("Sınıf")}</label>
-              <select value={rForm.carClass || ""}
-                onChange={(e) => setRForm({ ...rForm, carClass: e.target.value, carId: "" })}>
-                {CAR_CLASSES.map(([id, nm]) => (
-                  <option key={id} value={id}>{nm}</option>
-                ))}
-              </select></div>
-            <div><label>{t("Araç")}</label>
-              <select value={rForm.carId || ""}
-                onChange={(e) => setRForm({ ...rForm, carId: e.target.value })}>
-                <option value="">—</option>
-                {(CARS[rForm.carClass] || []).map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select></div>
-          </div>
-          {/* Resmi yarıştan ön ayar (v1.7.5): listelenen saat SEANS (sıralama) başıdır;
-              gerçek yarış başı = seans + sıralama + 5 dk formasyon. Sıralama süresi
-              takvimde yok → kullanıcı girer, yarış başı canlı hesaplanır. */}
-          {rForm.sessionStartMs != null && (
-            <div className="hint" style={{ margin: "10px 0 4px", padding: "8px 10px",
-              border: "1px solid var(--line)", borderRadius: 8, background: "var(--panel)" }}>
-              🏁 {t("Resmi seans başı")}:{" "}
-              <b className="mono">{new Date(rForm.sessionStartMs)
-                .toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</b>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, margin: "6px 0" }}>
-                <span>{t("Sıralama süresi")}</span>
-                <input type="number" min={0} max={180} value={rForm.qualMin ?? 0}
-                  style={{ width: 64, margin: 0, textAlign: "right" }}
-                  onChange={(e) => {
-                    const q = Math.max(0, Math.min(180, Number(e.target.value) || 0));
-                    setRForm({ ...rForm, qualMin: q,
-                      startsAt: rForm.sessionStartMs + (q + OFFICIAL_FORMATION_MIN) * 60000 });
-                  }} />
-                <span>{t("dk")} + {OFFICIAL_FORMATION_MIN} {t("dk formasyon")}</span>
+
+        {/* gövde: sol form + sağ önizleme */}
+        <div style={{ overflowY: "auto", padding: "18px 20px 20px", display: "flex",
+          flexWrap: "wrap", gap: 18 }}>
+
+          {/* ── sol: form ── */}
+          <div style={{ flex: "1 1 380px", minWidth: 0, display: "flex",
+            flexDirection: "column", gap: 14 }}>
+            <div>
+              <label style={lbl}>{t("Yarış adı")}</label>
+              <input type="text" value={rForm.name || ""} placeholder={t("örn. 6 Hours of Spa")}
+                onChange={(e) => setRForm({ ...rForm, name: e.target.value })}
+                style={{ ...fld, border: "1px solid var(--rc-border-strong)", fontFamily: disp,
+                  fontSize: 20, fontWeight: 700, textTransform: "none", padding: "12px 14px" }} />
+            </div>
+
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <div style={{ flex: "2 1 200px", minWidth: 0 }}>
+                <label style={lbl}>{t("Sezon")}</label>
+                <select value={rForm.seasonId || ""} style={fld}
+                  onChange={(e) => setRForm({ ...rForm, seasonId: e.target.value || null })}>
+                  <option value="">{t("Takvim dışı (tekli yarış)")}</option>
+                  {Object.entries(seasons).map(([sid, se]) => (
+                    <option key={sid} value={sid}>{se.name}</option>
+                  ))}
+                </select>
               </div>
-              → {t("Yarış başı")}:{" "}
-              <b className="mono" style={{ color: "var(--teal)" }}>{new Date(rForm.startsAt)
-                .toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</b>
-              {/* Lastik seti sınırı (siteden) → kaydedilince st.tyreLimit'e uygulanır */}
-              {rForm.tyreSets != null && (
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
-                  <span>🛞 {t("Lastik seti")}</span>
-                  <input type="number" min={0} max={99} value={rForm.tyreSets ?? 0}
-                    style={{ width: 64, margin: 0, textAlign: "right" }}
-                    onChange={(e) => setRForm({ ...rForm,
-                      tyreSets: Math.max(0, Math.min(99, Number(e.target.value) || 0)) })} />
+              <div style={{ flex: "1 1 90px", minWidth: 0 }}>
+                <label style={lbl}>{t("Round")}</label>
+                <input type="number" value={rForm.round || ""}
+                  onChange={(e) => setRForm({ ...rForm, round: e.target.value })}
+                  style={{ ...fld, fontFamily: disp, fontSize: 16 }} />
+              </div>
+            </div>
+
+            {/* Pist — bayraklı açılır liste (ızgara çok uzun oluyordu). Kapalıyken
+                yalnız seçili pist; tıkla → kaydırmalı bayraklı liste açılır. */}
+            <div>
+              <label style={lbl}>{t("Pist")}</label>
+              <button onClick={() => setTrackOpen((v) => !v)}
+                style={{ ...fld, display: "flex", alignItems: "center", gap: 8, cursor: "pointer",
+                  textAlign: "left" }}>
+                {rForm.trackId ? (
+                  <>
+                    <img src={`${ASSET}flags/${TRACK_ASSET(rForm.trackId)}.png`} alt="" onError={hideImg}
+                      style={{ width: 22, borderRadius: 2, flex: "0 0 auto" }} />
+                    <span>{trackName(rForm.trackId)}</span>
+                  </>
+                ) : (
+                  <span style={{ color: "var(--rc-text-3)" }}>{t("Pist seç")}</span>
+                )}
+                <span style={{ marginLeft: "auto", color: "var(--rc-text-3)", fontSize: 11,
+                  transform: trackOpen ? "rotate(180deg)" : "none", transition: "transform .15s" }}>▾</span>
+              </button>
+              {trackOpen && (
+                <div style={{ marginTop: 6, maxHeight: 240, overflowY: "auto", overflowX: "hidden",
+                  border: "1px solid var(--rc-border)", borderRadius: 10,
+                  background: "var(--rc-surface-4)" }}>
+                  {TRACKS.map((tr) => {
+                    const on = rForm.trackId === tr.id;
+                    return (
+                      <button key={tr.id}
+                        onClick={() => { setRForm({ ...rForm, trackId: tr.id }); setTrackOpen(false); }}
+                        style={{ display: "flex", alignItems: "center", gap: 8, width: "100%",
+                          padding: "9px 12px", cursor: "pointer", textAlign: "left", border: "none",
+                          borderBottom: "1px solid var(--rc-border)", color: "var(--rc-text)",
+                          background: on ? "rgba(150,0,24,.14)" : "transparent" }}>
+                        <img src={`${ASSET}flags/${TRACK_ASSET(tr.id)}.png`} alt="" onError={hideImg}
+                          style={{ width: 22, borderRadius: 2, flex: "0 0 auto" }} />
+                        <span style={{ fontSize: 13 }}>{tr.name}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
-          )}
-          <label>{t("Başlangıç (yerel saat)")}</label>
-          <input type="datetime-local" value={msToLocalInput(rForm.startsAt || Date.now())}
-            onChange={(e) => {
-              const v = new Date(e.target.value).getTime();
-              if (!isNaN(v)) setRForm({ ...rForm, startsAt: v });
-            }} />
+
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <div style={{ flex: "1 1 150px", minWidth: 0 }}>
+                <label style={lbl}>{t("Sınıf")}</label>
+                <select value={rForm.carClass || ""} style={fld}
+                  onChange={(e) => setRForm({ ...rForm, carClass: e.target.value, carId: "" })}>
+                  {CAR_CLASSES.map(([id, nm]) => (
+                    <option key={id} value={id}>{nm}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ flex: "1 1 180px", minWidth: 0 }}>
+                <label style={lbl}>{t("Araç")}</label>
+                <select value={rForm.carId || ""} style={fld}
+                  onChange={(e) => setRForm({ ...rForm, carId: e.target.value })}>
+                  <option value="">—</option>
+                  {(CARS[rForm.carClass] || []).map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ flex: "1 1 130px", minWidth: 0 }}>
+                <label style={lbl}>{t("Yarış süresi")}</label>
+                <input type="text" value={rForm.raceTime || ""} placeholder="6:00:00"
+                  onChange={(e) => setRForm({ ...rForm, raceTime: e.target.value })}
+                  style={{ ...fld, fontFamily: disp, fontSize: 16 }} />
+              </div>
+            </div>
+
+            <div>
+              <label style={lbl}>{t("Başlangıç · yerel saat")}</label>
+              <input type="datetime-local" value={msToLocalInput(rForm.startsAt || Date.now())}
+                onChange={(e) => {
+                  const v = new Date(e.target.value).getTime();
+                  if (!isNaN(v)) setRForm({ ...rForm, startsAt: v });
+                }}
+                style={{ ...fld, border: "1px solid var(--rc-border-strong)", fontFamily: disp,
+                  fontSize: 15 }} />
+            </div>
+
+            {/* Resmi yarıştan ön ayar (v1.7.5 mantığı korunur): seans başı +
+                sıralama + formasyon = yarış başı. */}
+            {rForm.sessionStartMs != null && (
+              <div style={{ border: "1px solid var(--rc-border-strong)", borderRadius: 11,
+                background: "var(--rc-surface-2)", padding: "13px 15px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap",
+                  marginBottom: 10 }}>
+                  <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".1em",
+                    color: "var(--rc-brand-bright)", fontWeight: 600 }}>
+                    {t("Resmi yarıştan ön ayar")}</span>
+                  <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>
+                    {t("Seans başı")} <b style={{ fontFamily: disp, color: "var(--rc-text)" }}>
+                      {new Date(rForm.sessionStartMs).toLocaleTimeString([],
+                        { hour: "2-digit", minute: "2-digit" })}</b></span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 12, color: "var(--rc-text-2)" }}>{t("Sıralama süresi")}</span>
+                  <span style={{ display: "inline-flex", alignItems: "center",
+                    border: "1px solid var(--rc-border)", borderRadius: 9, overflow: "hidden" }}>
+                    <button onClick={() => setQual(Math.max(0, (rForm.qualMin ?? 0) - 5))}
+                      style={{ width: 32, height: 34, border: "none", background: "var(--rc-surface-3)",
+                        color: "var(--rc-text-2)", cursor: "pointer", fontSize: 14 }}>−</button>
+                    <b style={{ minWidth: 44, textAlign: "center", fontFamily: disp, fontSize: 16 }}>
+                      {rForm.qualMin ?? 0}</b>
+                    <button onClick={() => setQual(Math.min(180, (rForm.qualMin ?? 0) + 5))}
+                      style={{ width: 32, height: 34, border: "none", background: "var(--rc-surface-3)",
+                        color: "var(--rc-text-2)", cursor: "pointer", fontSize: 14 }}>+</button>
+                  </span>
+                  <span style={{ fontSize: 12, color: "var(--rc-text-3)" }}>
+                    {t("dk")} + {OFFICIAL_FORMATION_MIN} {t("dk formasyon")}</span>
+                  <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{t("Yarış başı")}</span>
+                    <b style={{ fontFamily: disp, fontSize: 19, color: "var(--rc-ok)" }}>{raceStart}</b>
+                  </span>
+                </div>
+                {rForm.tyreSets != null && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10,
+                    paddingTop: 10, borderTop: "1px solid var(--rc-border)" }}>
+                    <span style={{ fontSize: 12, color: "var(--rc-text-2)" }}>🛞 {t("Lastik seti")}</span>
+                    <input type="number" min={0} max={99} value={rForm.tyreSets ?? 0}
+                      onChange={(e) => setRForm({ ...rForm,
+                        tyreSets: Math.max(0, Math.min(99, Number(e.target.value) || 0)) })}
+                      style={{ width: 70, background: "var(--rc-surface-3)",
+                        border: "1px solid var(--rc-border)", borderRadius: 9, color: "var(--rc-text)",
+                        padding: "7px 10px", fontFamily: disp, fontSize: 14, textAlign: "right" }} />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ── sağ: önizleme (pist + araç) ── */}
+          <div style={{ flex: "1 1 240px", minWidth: 230, display: "flex",
+            flexDirection: "column", gap: 12 }}>
+            {rForm.trackId && (
+              <div style={{ border: "1px solid var(--rc-border-strong)", borderRadius: 12,
+                background: "radial-gradient(120% 160% at 100% 0,rgba(150,0,24,.20),var(--rc-surface-2) 62%)",
+                padding: 16, textAlign: "center" }}>
+                <img src={`${ASSET}tracks/${TRACK_ASSET(rForm.trackId)}.png`} alt="" onError={hideImg}
+                  style={{ display: "block", width: "100%", maxWidth: 190, height: "auto",
+                    margin: "0 auto 10px" }} />
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 7, fontFamily: disp,
+                  fontWeight: 700, fontSize: 17 }}>
+                  <img src={`${ASSET}flags/${TRACK_ASSET(rForm.trackId)}.png`} alt="" onError={hideImg}
+                    style={{ width: 20, borderRadius: 2 }} />
+                  {trackName(rForm.trackId)}
+                </div>
+              </div>
+            )}
+            {rForm.carId && (
+              <div style={{ border: "1px solid var(--rc-border)", borderRadius: 12,
+                background: "var(--rc-surface-2)", padding: 16, textAlign: "center" }}>
+                <img src={carImg(rForm.carClass, rForm.carId)} alt="" onError={hideImg}
+                  style={{ display: "block", width: "100%", maxWidth: 210, height: "auto",
+                    margin: "0 auto 8px" }} />
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 7, fontFamily: disp,
+                  fontWeight: 700, fontSize: 16 }}>
+                  {carName(rForm.carClass, rForm.carId)}
+                </div>
+              </div>
+            )}
+            {/* Ohne Speed tempo referansı — seçili pist+araç için tur süreleri
+                (DashTab büyütme tablosuyla aynı kademe/renkler). */}
+            {rForm.trackId && rForm.carId && (() => {
+              const d = lmuData?.data?.[rForm.trackId];
+              const carE = d?.[`${rForm.carClass}:${rForm.carId}`];
+              const clsE = d?.[rForm.carClass];
+              const tiers = clsE?.tiers;
+              const hot = carE?.hot || clsE?.hot;
+              if (!tiers && !hot) return null;
+              const ROWS = [
+                ["HOTLAP", hot, "#b06ffc"],
+                ["ALIEN · 100%", tiers?.alien, "#16a34a"],
+                ["COMPETITIVE · 1.01", tiers?.c101, "#65a30d"],
+                ["GOOD · 1.02", tiers?.c102, "#ca8a04"],
+                ["· 1.03", tiers?.c103, "#d97706"],
+                ["MIDPACK · 1.04", tiers?.c104, "#ea580c"],
+                ["· 1.05", tiers?.c105, "#f05252"],
+                ["TAIL-ENDER · 1.06", tiers?.c106, "#dc2626"],
+                ["OFFLINE · 1.07", tiers?.c107, "#991b1b"],
+              ].filter(([, v]) => v);
+              return (
+                <div style={{ border: "1px solid var(--rc-border)", borderRadius: 12,
+                  background: "var(--rc-surface-2)", padding: "12px 14px" }}>
+                  <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".1em",
+                    color: "var(--rc-text-3)", marginBottom: 8 }}>{t("Tempo referansı")}</div>
+                  {ROWS.map(([lb, v, col]) => (
+                    <div key={lb} style={{ display: "flex", alignItems: "center", gap: 8,
+                      padding: "3px 0" }}>
+                      <i style={{ width: 3, height: 12, borderRadius: 2, background: col,
+                        flex: "0 0 auto" }} />
+                      <span style={{ fontSize: 11, color: "var(--rc-text-2)", flex: 1,
+                        whiteSpace: "nowrap" }}>{lb}</span>
+                      <b className="mono" style={{ fontSize: 12, color: col }}>{v}</b>
+                    </div>
+                  ))}
+                  {lmuData?.source && (
+                    <div style={{ fontSize: 9.5, color: "var(--rc-text-3)", marginTop: 6,
+                      lineHeight: 1.4 }}>{lmuData.source}</div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
         </div>
-        <div className="wxmfoot" style={{ gap: 8 }}>
-          <button className="histbtn" onClick={() => setRForm(null)}>{t("Vazgeç")}</button>
-          <button className="gbtn ubtn" onClick={() => onSave(rForm)}>{t("Kaydet")}</button>
+
+        {/* alt çubuk */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 20px",
+          borderTop: "1px solid var(--rc-border)", background: "var(--rc-surface-2)" }}>
+          <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+            <button onClick={close} style={{ padding: "10px 18px", borderRadius: 10,
+              border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)",
+              color: "var(--rc-text-2)", cursor: "pointer", fontSize: 13 }}>{t("Vazgeç")}</button>
+            <button onClick={() => onSave(rForm)} style={{ padding: "10px 24px", borderRadius: 10,
+              border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)",
+              color: "var(--rc-on-brand)", cursor: "pointer", fontFamily: disp, fontSize: 16,
+              fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase" }}>
+              {t("İleri →")}</button>
+          </span>
         </div>
       </div>
     </div>
@@ -1073,35 +1412,132 @@ export function RaceEditModal({ rForm, setRForm, t, seasons, onSave }) {
 /* Sohbet penceresi (kanal sekmeleri + gövde). App.jsx'ten çıkarıldı; sohbet gövdesi
    (ChatPanel'i saran, iki yerde kullanılan) App'te kalıp `chatBody` render-prop'u ile
    gelir. open=false → null döner. */
-export function ChatModal({ open, onClose, t, chatSound, toggleChatSound, chatChans,
-  unreadOf, chatChan, setChatChan, teamData, curChan, chatBody }) {
+/* v2.0: `page` ile modal kabuğu yerine TAM SAYFA çizilir (sol raydan erişilir).
+   Gövde tek yerde kalsın diye kabuk Sheet'ten seçilir. */
+/* Sohbet — fiş 11-sohbet.md: iki pano. Sol 280px kanal listesi + sağ sohbet panosu
+   (başlık + mesaj akışı [ChatPanel] + giriş çubuğu). Modal/tam-sayfa kabuğu Sheet ile
+   korunur (App.jsx çağrısı değişmesin). className="chattabs" render testinin çıpası
+   olarak sol panoda kalır. */
+export function ChatModal({ open, onClose, page = false, t, lang, chatSound, toggleChatSound,
+  chatChans, unreadOf, chatChan, setChatChan, teamData, curChan, chatBody, chatAll }) {
   if (!open) return null;
-  return (
-    <div className="wxmodal" onClick={onClose}>
-      <div className="wxmbox" style={{ width: "min(560px,94vw)" }}
-        onClick={(e) => e.stopPropagation()}>
-        <div className="wxmhead">
-          <span>💬 {t("Sohbet")}</span>
-          <button className="lbclose" style={{ marginLeft: "auto", marginRight: 4 }}
-            title={chatSound ? t("Bildirim sesini kapat") : t("Bildirim sesini aç")}
-            onClick={toggleChatSound}>{chatSound ? "🔔" : "🔕"}</button>
-          <button className="lbclose" onClick={onClose}>✕</button>
+  const disp = "var(--rc-font-display)";
+  /* Kanal satırı önizlemesi + zamanı — gerçek veri (useChat chatAll[path]). */
+  const lastOf = (c) => {
+    const arr = chatAll?.[c.path] || [];
+    return arr.length ? arr[arr.length - 1] : null;
+  };
+  const fmtWhen = (ts) => {
+    if (!ts) return "";
+    const d = new Date(ts); const loc = lang === "en" ? "en-GB" : "tr-TR";
+    return new Date().toDateString() === d.toDateString()
+      ? d.toLocaleTimeString(loc, { hour: "2-digit", minute: "2-digit" })
+      : d.toLocaleDateString(loc, { day: "2-digit", month: "2-digit" });
+  };
+  const previewOf = (c) => {
+    const m = lastOf(c);
+    if (!m) return "";
+    const who = teamData?.names?.[m.uid] || m.name || "";
+    const first = who ? `${String(who).split(/\s+/)[0]}: ` : "";
+    return `${first}${m.text || ""}`;
+  };
+  const chanName = (c) => (c && c.id === "team"
+    ? (teamData?.meta?.name || t(c.lbl)) : (c ? t(c.lbl) : ""));
+  const memCount = teamData?.members ? Object.keys(teamData.members).length : null;
+  const curName = curChan ? chanName(curChan) : "";
+  const curMeta = curChan?.id === "race"
+    ? `${memCount ? `${memCount} ${t("üye")} · ` : ""}${t("yarışa özel kanal")}`
+    : (memCount ? `${memCount} ${t("üye")}` : "");
+  /* fiş renk→token: #1E1418→surface-3, #34232A→border, #A88C93→text-3,
+     #C9B3B9→text-2, #960018→brand, #FFE9ED→on-brand, #D24357→brand-bright */
+  const body = (
+      <div style={{ padding: "18px 20px", display: "flex", flexWrap: "wrap", gap: 16,
+        alignItems: "stretch", boxSizing: "border-box", animation: "rcin .26s ease-out",
+        ...(page ? { minHeight: "calc(100vh - 120px)" } : { flex: 1, minHeight: 0 }) }}>
+
+        {/* ── sol: kanallar ── */}
+        <div style={{ flex: "0 0 280px", minWidth: 240, border: "1px solid var(--rc-border)",
+          borderRadius: 12, background: "var(--rc-surface)", display: "flex",
+          flexDirection: "column", overflow: "hidden" }}>
+          <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--rc-border)",
+            display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontFamily: disp, textTransform: "uppercase", letterSpacing: ".08em",
+              fontSize: 15, fontWeight: 700 }}>{t("Kanallar")}</span>
+            <button onClick={toggleChatSound}
+              title={chatSound ? t("Bildirim sesini kapat") : t("Bildirim sesini aç")}
+              style={{ marginLeft: "auto", background: "none", border: "none",
+                color: "var(--rc-text-3)", cursor: "pointer", fontSize: 15 }}>
+              {chatSound ? "🔔" : "🔕"}</button>
+          </div>
+          <div className="chattabs" style={{ overflowY: "auto", padding: 8, display: "flex",
+            flexDirection: "column", gap: 0, border: 0 }}>
+            {chatChans.map((c) => {
+              const on = c.id === chatChan;
+              const u2 = unreadOf(c);
+              return (
+                <button key={c.id} onClick={() => setChatChan(c.id)}
+                  style={{ display: "flex", gap: 10, alignItems: "center", width: "100%",
+                    textAlign: "left", cursor: "pointer", padding: "9px 10px", borderRadius: 10,
+                    marginBottom: 2, color: "var(--rc-text)",
+                    border: `1px solid ${on ? "var(--rc-brand-bright)" : "transparent"}`,
+                    background: on ? "rgba(150,0,24,.14)" : "transparent" }}>
+                  <span style={{ width: 34, height: 34, borderRadius: 9, flex: "0 0 auto",
+                    background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)",
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 16 }}>{c.ico}</span>
+                  <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0,
+                    flex: 1, textAlign: "left" }}>
+                    <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <b style={{ fontFamily: disp, fontSize: 15, fontWeight: 700,
+                        whiteSpace: "nowrap" }}>{chanName(c)}</b>
+                      {u2 > 0 && (
+                        <span style={{ background: "var(--rc-brand)", color: "var(--rc-on-brand)",
+                          fontSize: 10, fontWeight: 700, borderRadius: 99, padding: "0 6px",
+                          minWidth: 16, textAlign: "center", lineHeight: "16px" }}>
+                          {u2 > 9 ? "9+" : u2}</span>
+                      )}
+                      <span style={{ marginLeft: "auto", fontSize: 10.5, color: "var(--rc-text-3)",
+                        fontFamily: disp }}>{fmtWhen(lastOf(c)?.at)}</span>
+                    </span>
+                    <span style={{ fontSize: 11.5, color: "var(--rc-text-3)", overflow: "hidden",
+                      textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{previewOf(c)}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
-        <div className="chattabs">
-          {chatChans.map((c) => {
-            const u2 = unreadOf(c);
-            return (
-              <button key={c.id} className={`ctab ${c.id === chatChan ? "on" : ""}`}
-                onClick={() => setChatChan(c.id)}>
-                {c.ico} {c.id === "team" ? (teamData?.meta?.name || t(c.lbl)) : t(c.lbl)}
-                {u2 > 0 && c.id !== chatChan && <b className="cdot">{u2 > 9 ? "9+" : u2}</b>}
-              </button>
-            );
-          })}
+
+        {/* ── sağ: sohbet panosu ── */}
+        <div style={{ flex: "1 1 520px", minWidth: 0, minHeight: 540,
+          border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)",
+          display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--rc-border)",
+            display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <span style={{ fontFamily: disp, textTransform: "uppercase", letterSpacing: ".06em",
+              fontSize: 17, fontWeight: 700 }}>{curName}</span>
+            <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{curMeta}</span>
+            <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+              <button onClick={toggleChatSound}
+                title={chatSound ? t("Bildirim sesini kapat") : t("Bildirim sesini aç")}
+                style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--rc-border)",
+                  background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer",
+                  fontSize: 12 }}>{chatSound ? "🔔" : "🔕"} {t("Sessize al")}</button>
+            </span>
+          </div>
+          {chatBody(curChan)}
         </div>
-        {chatBody(curChan)}
       </div>
-    </div>
+  );
+  /* v2.0: TAM SAYFA modda Sheet kabuğu YOK — fiş 11-sohbet.md kök div'i doğrudan
+     çizilir (gezinme 76px sol raydan; ✕/← yok). Modalda Sheet ile sarılır (üst
+     çubuktan açıldığında ✕ kapatma korunur). */
+  if (page) return body;
+  return (
+    <Sheet page={false} onClose={onClose} width="min(920px,96vw)"
+      title={<>💬 {t("Sohbet")}</>}>
+      {body}
+    </Sheet>
   );
 }
 
@@ -1161,7 +1597,7 @@ function useSetupBlob(su, open) {
 
 /* Setup içeriği penceresi — havuzdaki base64 (su.data) çözülüp .svm parse edilir; üstte
    özet çipleri (Arka Kanat vb.), altında bölüm bölüm anlamlı değerler. open=false → null. */
-export function SetupContentModal({ open, su, onClose, t }) {
+export function SetupContentModal({ open, su, onClose, t, onDownload, onAddCompare }) {
   const blob = useSetupBlob(su, open);
   const [q, setQ] = useState("");
   const [showAll, setShowAll] = useState(false);
@@ -1186,6 +1622,9 @@ export function SetupContentModal({ open, su, onClose, t }) {
     : cats;
   const title = [carName(su.cls, su.car) || su.car, trackName(su.track) || su.track]
     .filter(Boolean).join(" · ");
+  const hideImg = (e) => { e.currentTarget.style.display = "none"; };
+  const carPng = carImg(su.cls, su.car);
+  const disp = "var(--rc-font-display)";
   return (
     <div className="wxmodal" onClick={onClose}>
       <div className="wxmbox" style={{ width: "min(640px,95vw)" }}
@@ -1194,9 +1633,36 @@ export function SetupContentModal({ open, su, onClose, t }) {
           <span>🔧 {t("Setup İçeriği")}</span>
           <button className="lbclose" onClick={onClose}>✕</button>
         </div>
-        <div className="wxmlist" style={{ maxHeight: "74vh" }}>
+        {/* fiş 09 svOpen görsel banner: bayrak + araç + pist görseli + en iyi tur (gerçek su verisi) */}
+        <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px",
+          borderBottom: "1px solid var(--rc-line-soft)", flexWrap: "wrap",
+          background: "radial-gradient(120% 200% at 100% 0,rgba(150,0,24,.16),var(--rc-surface-2) 70%)" }}>
+          {su.track && <img src={`${ASSET}flags/${TRACK_ASSET(su.track)}.png`} alt="" onError={hideImg}
+            style={{ width: 26, borderRadius: 3, flex: "0 0 auto", border: "1px solid var(--rc-border)" }} />}
+          <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+            <b style={{ fontFamily: disp, fontSize: 15 }}>{trackName(su.track) || su.track || "—"}</b>
+            <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>
+              {[su.champ, `${su.cond === "wet" ? "🌧 Wet" : `☀️ ${t("Kuru")}`}`,
+                su.sess === "Q" ? t("Sıralama") : t("Yarış")].filter(Boolean).join(" · ")}</span>
+          </span>
+          {carPng && <img src={carPng} alt="" onError={hideImg}
+            style={{ height: 38, width: "auto", objectFit: "contain", flex: "0 0 auto" }} />}
+          <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+            <b style={{ fontSize: 12.5, whiteSpace: "nowrap" }}>{carName(su.cls, su.car) || su.car || "—"}</b>
+            {su.uname && <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{su.uname}</span>}
+          </span>
+          {su.lap && (
+            <span style={{ marginLeft: "auto", textAlign: "right" }}>
+              <div style={{ fontFamily: disp, fontSize: 24, fontWeight: 700, lineHeight: 1,
+                color: "var(--rc-ok)" }}>{su.lap}</div>
+              <div style={{ fontSize: 10, color: "var(--rc-text-3)", textTransform: "uppercase",
+                letterSpacing: ".09em" }}>{t("en iyi tur")}</div>
+            </span>
+          )}
+        </div>
+        <div className="wxmlist" style={{ maxHeight: "66vh" }}>
           <div className="hint" style={{ margin: "0 0 8px" }}>
-            {su.name}{title ? ` · ${title}` : ""}{su.lap ? ` · ⏱ ${su.lap}` : ""}</div>
+            {su.name}{title ? ` · ${title}` : ""}{su.note ? ` · 📝 ${su.note}` : ""}</div>
           {blob.loading ? (
             <div className="hint">⏳ {t("Dosya yükleniyor…")}</div>
           ) : !parsed.ok ? (
@@ -1250,6 +1716,22 @@ export function SetupContentModal({ open, su, onClose, t }) {
             </>
           )}
         </div>
+        {/* fiş 09 svOpen footer: karşılaştırmaya ekle + indir (gerçek handler'lar) */}
+        {(onAddCompare || onDownload) && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px",
+            borderTop: "1px solid var(--rc-border)" }}>
+            <span className="hint" style={{ margin: 0 }}>{t("LMU .svm dosyasından okundu")}</span>
+            <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+              {onAddCompare && (
+                <button className="act" onClick={() => { onAddCompare(su); onClose(); }}>
+                  ⚖ {t("Karşılaştırmaya ekle")}</button>
+              )}
+              {onDownload && (
+                <button className="gbtn ubtn" onClick={() => onDownload(su)}>⬇ {t("İndir")}</button>
+              )}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1352,6 +1834,7 @@ export function SessionSetupBox({ setup, meta, t, onSave }) {
    uyarı çipi çıkar (kıyas kullanıcının bilinçli kararı). open=false → null. */
 export function SetupCompareModal({ open, a, b, onClose, t }) {
   const [onlyDiff, setOnlyDiff] = useState(true);
+  const [copied, setCopied] = useState(false);
   const blobA = useSetupBlob(a, open);     // legacy: su.data · yeni: talep üzerine
   const blobB = useSetupBlob(b, open);
   useEffect(() => {
@@ -1377,6 +1860,34 @@ export function SetupCompareModal({ open, a, b, onClose, t }) {
     groups[gIdx[r.section]].list.push(r);
   }
   const mismatch = a.track !== b.track || a.cls !== b.cls;
+  /* Sayısal Δ — yalnız iki taraf da sayı ayrıştırıyorsa (etiket değerlerden türetilir). */
+  const numOf = (s) => { const m = String(s ?? "").match(/-?\d+(?:\.\d+)?/); return m ? +m[0] : null; };
+  const deltaOf = (r) => {
+    const na = numOf(r.a); const nb = numOf(r.b);
+    if (na == null || nb == null) return null;
+    const d = nb - na;
+    if (Math.abs(d) < 1e-9) return null;
+    return `${d > 0 ? "+" : ""}${(+d.toFixed(3)).toString()}`;
+  };
+  /* Farkları panoya kopyala — DAİMA yalnız gerçek fark satırlarından (görünümdeki
+     "yalnız farkları göster" kapalıyken de). Eskiden `groups` görünen tüm satırlardan
+     türediği için farksız satırlar da "A → B" olarak kopyalanıyordu (buton etiketiyle
+     çelişir). Görünümden bağımsız `rows.filter(r => r.differ)` üstünden gruplarız. */
+  const copyDiff = () => {
+    const diffRows = rows.filter((r) => r.differ);
+    const dGroups = []; const dIdx = {};
+    for (const r of diffRows) {
+      if (!(r.section in dIdx)) { dIdx[r.section] = dGroups.length; dGroups.push({ sec: r.section, list: [] }); }
+      dGroups[dIdx[r.section]].list.push(r);
+    }
+    const lines = [`A: ${a.name}`, `B: ${b.name}`, ""];
+    for (const g of dGroups) {
+      lines.push(`[${t(SVM_SECTIONS[g.sec] || g.sec)}]`);
+      for (const r of g.list) lines.push(`  ${t(SVM_FIELDS[r.key] || r.key)}: ${r.a} → ${r.b}`);
+    }
+    try { navigator.clipboard?.writeText(lines.join("\n"));
+      setCopied(true); setTimeout(() => setCopied(false), 1400); } catch { /* yoksay */ }
+  };
   const side = (su) => (
     <>
       <b className="setupmono" style={{ fontSize: 11, wordBreak: "break-all" }}>{su.name}</b>
@@ -1440,18 +1951,34 @@ export function SetupCompareModal({ open, a, b, onClose, t }) {
               {groups.map(({ sec, list }) => (
                 <div className="setupsec" key={sec}>
                   <div className="setupsec-h">{t(SVM_SECTIONS[sec] || sec)}</div>
-                  {list.map((r) => (
+                  {list.map((r) => {
+                    const dl = deltaOf(r);
+                    return (
                     <div className={`cmprow${r.differ ? " diffhl" : ""}`}
+                      style={{ gridTemplateColumns: "1.15fr 1fr 1fr 0.6fr" }}
                       key={`${r.section}/${r.key}`}>
                       <span className="setuprow-k">{t(SVM_FIELDS[r.key] || r.key)}</span>
                       <span className="cmpv setupmono">{r.a}</span>
                       <span className="cmpv setupmono">{r.b}</span>
+                      <span className="setupmono" style={{ textAlign: "right", fontSize: 11,
+                        color: dl ? "var(--rc-brand-bright)" : "var(--rc-text-3)" }}>{dl || ""}</span>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ))}
             </>
           )}
+        </div>
+        {/* fiş diffOpen footer: farkları kopyala + kapat (gerçek diff metni) */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px",
+          borderTop: "1px solid var(--rc-border)" }}>
+          <span className="hint" style={{ margin: 0 }}>{t("Fark yönü A → B")}</span>
+          <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+            <button className="act" disabled={!both || !diffCount} onClick={copyDiff}>
+              {copied ? `✓ ${t("Kopyalandı")}` : `📋 ${t("Farkları kopyala")}`}</button>
+            <button className="gbtn ubtn" onClick={onClose}>{t("Kapat")}</button>
+          </span>
         </div>
       </div>
     </div>
@@ -1461,23 +1988,25 @@ export function SetupCompareModal({ open, a, b, onClose, t }) {
 /* Lobi ortak setup havuzu penceresi — süzgeçler + liste. Yükleme formu (setupForm)
    ve tablo (setupTable) App'te kalıp render-prop ile gelir (Setup sekmesinde de
    kullanılıyor). open=false → null döner. */
-export function SetupModal({ open, onClose, t, suUpOpen, setSuUpOpen, suList, setups,
+/* v2.0: `page` ile modal yerine TAM SAYFA (Sheet page) çizilir — ana menü sol
+   rayından erişilince fişteki gibi tam ekran açılır. Gövde (süzgeç + form + tablo)
+   tek yerde kalır; kabuk Sheet'ten seçilir. */
+export function SetupModal({ open, onClose, page = false, t, suUpOpen, setSuUpOpen, suList, setups,
   suFTrack, setSuFTrack, suFCond, setSuFCond, suFSess, setSuFSess,
   suQuery, setSuQuery, suMine, setSuMine, suView, toggleSuView,
   suHasMore, loadMoreSetups, setupForm, setupTable }) {
   if (!open) return null;
+  const title = `🔧 ${t("Setup Havuzu")} · ${t("Ortak")} (${suList.length}/${setups.length})`;
+  const upBtn = (
+    <button className="lbclose" style={{ marginLeft: "auto", marginRight: 4 }}
+      title={t("Setup Ekle")}
+      onClick={() => setSuUpOpen((v) => !v)}>{suUpOpen ? "▾" : "＋"}</button>
+  );
   return (
-    <div className="wxmodal" onClick={onClose}>
-      <div className="wxmbox" style={{ width: "min(1080px,97vw)" }}
-        onClick={(e) => e.stopPropagation()}>
-        <div className="wxmhead">
-          <span>🔧 {t("Setup Havuzu")} · {t("Ortak")} ({suList.length}/{setups.length})</span>
-          <button className="lbclose" style={{ marginLeft: "auto", marginRight: 4 }}
-            title={t("Setup Ekle")}
-            onClick={() => setSuUpOpen((v) => !v)}>{suUpOpen ? "▾" : "＋"}</button>
-          <button className="lbclose" onClick={onClose}>✕</button>
-        </div>
-        <div style={{ padding: "12px 16px", maxHeight: "70vh", overflowY: "auto" }}>
+    <Sheet page={page} title={title} onClose={onClose} width="min(1080px,97vw)" headExtra={upBtn}>
+        <div style={page
+          ? { flex: 1, minHeight: 0, overflowY: "auto", padding: "14px 18px" }
+          : { padding: "12px 16px", maxHeight: "70vh", overflowY: "auto" }}>
           {suUpOpen && (
             <div className="card" style={{ marginBottom: 12 }}>
               <h2>🔧 {t("Setup Yükle")}</h2>
@@ -1537,8 +2066,7 @@ export function SetupModal({ open, onClose, t, suUpOpen, setSuUpOpen, suList, se
             </div>
           )}
         </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }
 
@@ -1549,61 +2077,279 @@ export function SetupModal({ open, onClose, t, suUpOpen, setSuUpOpen, suList, se
 /* Create & Join — sade takım OLUŞTUR / KATIL ekranı (v1.6). Team Management'tan
    AYRI: yalnız yeni takım kur + katılım kodu ile katıl. Yönetim (sezon/takvim/
    üye/izin) burada YOK — o TeamModal'da. Backend/Firebase davranışı değişmez. */
+/* Kur & Katıl — fiş cjOpen (Yeni Tasarım.dc.html:1763): 2 SEKMELİ (Takım kur /
+   Takıma Katıl) 2 kolonlu modal. Sol form + sağ bilgi paneli. Mevcut createTeam/
+   joinTeam mantığı KORUNUR; ek olarak logo (saveTeamAsset, takım oluştuktan SONRA)
+   ve ilk sezon (createSeason) uygulanır. Renk→token: #1E1418→surface-3, #34232A→
+   border, #4A2F38→border-strong, #150E10→surface-2, #A88C93→text-3.
+   FLAG: fişteki "kod doğrulama kartı" (katılmadan takım adı/üye sayısı) için koda
+   göre takım arayan bir backend fonksiyonu YOK (joinTeam meta okumadan katıyor) →
+   sahte veri yazmamak için kart konmadı, yerine bilgilendirme metni var. */
 export function CreateJoinModal({ open, onClose, user, t, userName,
   tForm, setTForm, setTErr, tErr, setCurTeam }) {
+  const [tab, setTab] = useState("create");
+  const [logoStage, setLogoStage] = useState("");   // işlenmiş dataUri (takım kurulunca uygulanır)
+  const [logoBusy, setLogoBusy] = useState(false);
+  const [season2026, setSeason2026] = useState(true); // ilk sezon: 2026 WEC ↔ boş başla
+  const [busy, setBusy] = useState(false);
+  const [codeChk, setCodeChk] = useState("idle");  // idle|checking|valid|invalid
+  const logoRef = useRef(null);
+  const codeRefs = useRef([]);
+  /* Katılım kodu canlı geçerlilik denetimi — 6 hane dolunca teamCodes indexine bakar
+     (kurallarca serbest okuma). Yalnız GEÇERLİLİK; takım adı/üye sayısı meta okuması
+     gerektirir (üyeye özel) → sızdırmamak için gösterilmez. */
+  useEffect(() => {
+    const code = (tForm.join || "").trim();
+    if (!open || code.length < 6) { setCodeChk("idle"); return undefined; }
+    setCodeChk("checking");
+    let alive = true;
+    const id = setTimeout(async () => {
+      const ok = await teamCodeExists(code);
+      if (alive) setCodeChk(ok ? "valid" : "invalid");
+    }, 350);
+    return () => { alive = false; clearTimeout(id); };
+  }, [tForm.join, open]);
+  /* Davet linkiyle (ön-dolu kod) açıldıysa doğrudan Katıl sekmesine geç. */
+  useEffect(() => { if (open && (tForm.join || "").length > 0) setTab("join"); }, [open]);
   if (!open || !user) return null;
+  const disp = "var(--rc-font-display)";
+  const join = tForm.join || "";
+  const setJoinStr = (s) => setTForm({ ...tForm,
+    join: String(s).toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6) });
+  const onBox = (i, e) => {
+    const raw = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (raw.length > 1) { setJoinStr(raw); codeRefs.current[Math.min(raw.length, 5)]?.focus(); return; }
+    const arr = join.split(""); while (arr.length < 6) arr.push("");
+    arr[i] = raw;
+    setJoinStr(arr.join("").replace(/\s/g, ""));
+    if (raw && i < 5) codeRefs.current[i + 1]?.focus();
+  };
+  const onBoxKey = (i, e) => {
+    if (e.key === "Backspace" && !join[i] && i > 0) codeRefs.current[i - 1]?.focus();
+  };
+  const onLogoFile = async (file) => {
+    if (!file) return;
+    setLogoBusy(true); setTErr("");
+    try { setLogoStage(await processImageFile(file, "logo")); }
+    catch { setTErr(t("Görsel işlenemedi")); }
+    finally { setLogoBusy(false); }
+  };
+  const doCreate = async () => {
+    const nm = (tForm.name || "").trim();
+    if (busy || !nm) return;
+    setBusy(true); setTErr("");
+    try {
+      const tid = await createTeam(user, nm, userName);
+      if (logoStage) await saveTeamAsset(tid, "logo", logoStage).catch(() => {});
+      if (season2026) await createSeason(tid, "2026 WEC", 2026).catch(() => {});
+      setCurTeam(tid); setTForm({ ...tForm, name: "" }); setLogoStage(""); onClose();
+    } catch { setTErr(t("Takım kurulamadı")); }
+    finally { setBusy(false); }
+  };
+  const doJoin = async () => {
+    const code = join.trim();
+    if (busy || code.length < 6) return;   // katılım kodu 6 hane
+    setBusy(true); setTErr("");
+    try {
+      const tid = await joinTeam(user, code, userName);
+      setCurTeam(tid); setTForm({ ...tForm, join: "" }); onClose();
+    } catch (e) {
+      setTErr(e.message === "NOT_FOUND" ? t("Takım bulunamadı") : t("Katılınamadı"));
+    } finally { setBusy(false); }
+  };
+
+  const lbl = { display: "block", color: "var(--rc-text-3)", fontSize: 10,
+    textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 6 };
+  const tabBtn = (active) => ({ display: "inline-flex", alignItems: "center", gap: 7,
+    padding: "9px 16px", borderRadius: 10, cursor: "pointer", fontSize: 13, fontWeight: 600,
+    border: `1px solid ${active ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
+    background: active ? "rgba(150,0,24,.18)" : "var(--rc-surface-3)",
+    color: active ? "var(--rc-text)" : "var(--rc-text-3)" });
+  const infoPanel = { flex: "1 1 240px", minWidth: 220, border: "1px solid var(--rc-border)",
+    borderRadius: 12, background: "var(--rc-surface-2)", padding: 16, alignSelf: "flex-start" };
+  const infoTtl = { fontFamily: disp, textTransform: "uppercase", letterSpacing: ".08em",
+    fontSize: 13, fontWeight: 700, color: "var(--rc-brand-bright)", marginBottom: 10 };
+  const infoList = { display: "flex", flexDirection: "column", gap: 9, fontSize: 12,
+    color: "var(--rc-text-2)", lineHeight: 1.5 };
+  const cancelBtn = { padding: "10px 18px", borderRadius: 10, border: "1px solid var(--rc-border)",
+    background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 13 };
+  const primaryBtn = (enabled) => ({ padding: "10px 24px", borderRadius: 10,
+    border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)",
+    color: "var(--rc-on-brand)", cursor: enabled ? "pointer" : "not-allowed", opacity: enabled ? 1 : .45,
+    fontFamily: disp, fontSize: 16, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase" });
+  const footBar = { display: "flex", alignItems: "center", gap: 12, padding: "14px 20px",
+    borderTop: "1px solid var(--rc-border)", background: "var(--rc-surface-2)", flexWrap: "wrap" };
+  const seasonChip = (active) => ({ padding: "8px 14px", borderRadius: 99, cursor: "pointer",
+    fontSize: 12.5, border: `1px solid ${active ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
+    background: active ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)",
+    color: active ? "var(--rc-text)" : "var(--rc-text-2)" });
+
   return (
-    <div className="wxmodal" onClick={onClose}>
-      <div className="wxmbox" style={{ width: "min(460px,94vw)" }}
-        onClick={(e) => e.stopPropagation()}>
-        <div className="wxmhead">
-          <span>🏢 {t("Kur & Katıl")}</span>
-          <button className="lbclose" onClick={onClose}>✕</button>
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 1000,
+      background: "rgba(10,6,10,.74)", backdropFilter: "blur(5px)", display: "flex",
+      alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: "min(760px,96vw)", maxHeight: "90vh",
+        background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16,
+        overflow: "hidden", display: "flex", flexDirection: "column",
+        boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
+
+        {/* başlık */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 20px",
+          borderBottom: "1px solid var(--rc-border)", flexWrap: "wrap" }}>
+          <span style={{ fontFamily: disp, textTransform: "uppercase", letterSpacing: ".07em",
+            fontSize: 19, fontWeight: 700 }}>{t("Takıma bağlan")}</span>
+          <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>
+            {t("Yeni takım kur ya da katılım koduyla katıl")}</span>
+          <button onClick={onClose} style={{ marginLeft: "auto", width: 32, height: 32, borderRadius: 9,
+            border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)",
+            color: "var(--rc-text-2)", cursor: "pointer", fontSize: 15, lineHeight: 1 }}>✕</button>
         </div>
-        <div className="wxmlist" style={{ padding: "14px 16px" }}>
-          <div className="hint" style={{ marginTop: 0, marginBottom: 16 }}>
-            {t("Yeni bir takım kur ya da katılım koduyla mevcut bir takıma katıl.")}
-          </div>
 
-          <div className="cjsec">
-            <div className="cjsec-h">➕ {t("Takım Kur")}</div>
-            <div className="cjrow">
-              <input placeholder={t("Yeni takım adı")} value={tForm.name}
-                onChange={(e) => setTForm({ ...tForm, name: e.target.value })}
-                style={{ textTransform: "none" }} />
-              <button className="gbtn ubtn" disabled={!tForm.name.trim()}
-                style={{ opacity: tForm.name.trim() ? 1 : .45 }}
-                onClick={async () => {
-                  setTErr("");
-                  try {
-                    const tid = await createTeam(user, tForm.name.trim(), userName);
-                    setCurTeam(tid); setTForm({ ...tForm, name: "" }); onClose();
-                  } catch { setTErr(t("Takım kurulamadı")); }
-                }}>{t("Takım Kur")}</button>
-            </div>
-          </div>
-
-          <div className="cjsec">
-            <div className="cjsec-h">🔑 {t("Takıma Katıl")}</div>
-            <div className="cjrow">
-              <input placeholder={t("KATILIM KODU")} maxLength={6} value={tForm.join}
-                onChange={(e) => setTForm({ ...tForm, join: e.target.value.toUpperCase() })} />
-              <button className="gbtn ubtn" disabled={tForm.join.trim().length < 4}
-                style={{ opacity: tForm.join.trim().length >= 4 ? 1 : .45 }}
-                onClick={async () => {
-                  setTErr("");
-                  try {
-                    const tid = await joinTeam(user, tForm.join, userName);
-                    setCurTeam(tid); setTForm({ ...tForm, join: "" }); onClose();
-                  } catch (e) {
-                    setTErr(e.message === "NOT_FOUND" ? t("Takım bulunamadı") : t("Katılınamadı"));
-                  }
-                }}>{t("Katıl")}</button>
-            </div>
-          </div>
-
-          {tErr && <div className="hint" style={{ color: "var(--red)", margin: 0 }}>{tErr}</div>}
+        {/* sekmeler */}
+        <div style={{ display: "flex", gap: 8, padding: "14px 20px 0" }}>
+          <button onClick={() => { setTab("create"); setTErr(""); }} style={tabBtn(tab === "create")}>
+            ➕ {t("Takım Kur")}</button>
+          <button onClick={() => { setTab("join"); setTErr(""); }} style={tabBtn(tab === "join")}>
+            🔑 {t("Takıma Katıl")}</button>
         </div>
+
+        {tab === "create" ? (
+          <>
+            <div style={{ overflowY: "auto", display: "flex", flexWrap: "wrap", gap: 20,
+              padding: "18px 20px 22px" }}>
+              <div style={{ flex: "1 1 320px", minWidth: 0, display: "flex", flexDirection: "column",
+                gap: 14 }}>
+                <div>
+                  <label style={lbl}>{t("Takım adı")}</label>
+                  <input type="text" value={tForm.name} placeholder={t("Yeni takım adı")}
+                    onChange={(e) => setTForm({ ...tForm, name: e.target.value })}
+                    style={{ width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)",
+                      border: "1px solid var(--rc-border-strong)", borderRadius: 10, color: "var(--rc-text)",
+                      padding: "12px 14px", fontFamily: disp, fontSize: 20, fontWeight: 700,
+                      textTransform: "none" }} />
+                  <div style={{ color: "var(--rc-text-3)", fontSize: 11, marginTop: 5 }}>
+                    {t("Yarış çubuğunda ve pit board'da görünür · en fazla 40 karakter")}</div>
+                </div>
+                <div>
+                  <label style={lbl}>{t("Takım logosu")}{" "}
+                    <span style={{ textTransform: "none", letterSpacing: 0 }}>({t("isteğe bağlı")})</span></label>
+                  <input ref={logoRef} type="file" accept={IMG_ACCEPT_TYPES.join(",")}
+                    style={{ display: "none" }}
+                    onChange={(e) => { onLogoFile(e.target.files?.[0]); e.target.value = ""; }} />
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div onClick={() => logoRef.current?.click()}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => { e.preventDefault(); onLogoFile(e.dataTransfer.files?.[0]); }}
+                      style={{ width: 76, height: 76, flex: "0 0 auto",
+                        border: "1.5px dashed var(--rc-border-strong)", borderRadius: 12,
+                        background: "var(--rc-surface-2)", display: "grid", placeItems: "center",
+                        color: "var(--rc-text-3)", fontSize: 20, cursor: "pointer", overflow: "hidden" }}>
+                      {logoStage
+                        ? <img src={logoStage} alt="" style={{ width: "100%", height: "100%",
+                            objectFit: "contain" }} />
+                        : (logoBusy ? "…" : "＋")}
+                    </div>
+                    <div style={{ minWidth: 0, color: "var(--rc-text-3)", fontSize: 11.5,
+                      lineHeight: 1.6 }}>
+                      {logoBusy ? t("Yükleniyor…")
+                        : <>{t("Sürükleyip bırak ya da seç.")}<br />{t("PNG / JPG · en az 256×256")}</>}
+                      {logoStage && !logoBusy && (
+                        <button onClick={() => setLogoStage("")}
+                          style={{ display: "block", marginTop: 5, background: "none", border: "none",
+                            color: "var(--rc-brand-bright)", cursor: "pointer", fontSize: 11,
+                            padding: 0, textDecoration: "underline" }}>{t("Kaldır")}</button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label style={lbl}>{t("İlk sezon")}</label>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button onClick={() => setSeason2026(true)} style={seasonChip(season2026)}>2026 WEC</button>
+                    <button onClick={() => setSeason2026(false)} style={seasonChip(!season2026)}>
+                      {t("Boş başla")}</button>
+                  </div>
+                </div>
+              </div>
+
+              <div style={infoPanel}>
+                <div style={infoTtl}>{t("Kurduğunda ne olur")}</div>
+                <div style={infoList}>
+                  <span>👑 {t("Takım sahibi sen olursun")}</span>
+                  <span>🔑 {t("6 haneli katılım kodu üretilir")}</span>
+                  <span>🏁 {t("Sezon takvimi ve yarış odaları açılır")}</span>
+                  <span>📚 {t("Setup havuzu takımla paylaşılır")}</span>
+                </div>
+              </div>
+            </div>
+            <div style={footBar}>
+              <span style={{ color: "var(--rc-text-3)", fontSize: 11.5 }}>
+                {userName || user.displayName || user.email} {t("olarak kurulacak")}</span>
+              {tErr && <span style={{ color: "var(--rc-danger)", fontSize: 11.5 }}>{tErr}</span>}
+              <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+                <button onClick={onClose} style={cancelBtn}>{t("Vazgeç")}</button>
+                <button onClick={doCreate} disabled={busy || !tForm.name.trim()}
+                  style={primaryBtn(!busy && !!tForm.name.trim())}>{t("Takımı kur")}</button>
+              </span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{ overflowY: "auto", display: "flex", flexWrap: "wrap", gap: 20,
+              padding: "22px 20px 24px" }}>
+              <div style={{ flex: "1 1 320px", minWidth: 0 }}>
+                <label style={lbl}>{t("Katılım kodu")}</label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {[0, 1, 2, 3, 4, 5].map((i) => (
+                    <input key={i} ref={(el) => { codeRefs.current[i] = el; }} type="text"
+                      maxLength={1} value={join[i] || ""} inputMode="text" autoComplete="off"
+                      onChange={(e) => onBox(i, e)} onKeyDown={(e) => onBoxKey(i, e)}
+                      onKeyUp={(e) => { if (e.key === "Enter") doJoin(); }}
+                      style={{ width: 46, height: 54, textAlign: "center", textTransform: "uppercase",
+                        boxSizing: "border-box", background: "var(--rc-surface-3)",
+                        border: `1px solid ${join[i] ? "var(--rc-brand-bright)" : "var(--rc-border-strong)"}`,
+                        borderRadius: 10, color: "var(--rc-text)", fontFamily: disp, fontSize: 24,
+                        fontWeight: 700 }} />
+                  ))}
+                </div>
+                <div style={{ color: "var(--rc-text-3)", fontSize: 11.5, marginTop: 10,
+                  lineHeight: 1.6 }}>
+                  {t("Kodu takım sahibinden al. Büyük/küçük harf farketmez; yapıştırırsan kutular kendiliğinden dolar.")}</div>
+                {codeChk !== "idle" && (
+                  <div style={{ marginTop: 10, display: "inline-flex", alignItems: "center", gap: 7,
+                    padding: "6px 12px", borderRadius: 99, fontSize: 12,
+                    border: `1px solid ${codeChk === "valid" ? "var(--rc-ok)"
+                      : codeChk === "invalid" ? "var(--rc-danger)" : "var(--rc-border)"}`,
+                    color: codeChk === "valid" ? "var(--rc-ok)"
+                      : codeChk === "invalid" ? "var(--rc-danger)" : "var(--rc-text-3)" }}>
+                    {codeChk === "checking" ? `⏳ ${t("Kod denetleniyor…")}`
+                      : codeChk === "valid" ? `✓ ${t("Geçerli katılım kodu")}`
+                      : `✗ ${t("Kod bulunamadı")}`}
+                  </div>
+                )}
+              </div>
+
+              <div style={infoPanel}>
+                <div style={infoTtl}>{t("Katıldığında")}</div>
+                <div style={infoList}>
+                  <span>🛞 {t("Sürücü olarak eklenirsin")}</span>
+                  <span>👀 {t("Yarış datasını görürsün, değiştiremezsin")}</span>
+                  <span>🎧 {t("Mühendis yetkisini sahip verir")}</span>
+                </div>
+              </div>
+            </div>
+            <div style={footBar}>
+              <span style={{ color: "var(--rc-text-3)", fontSize: 11.5 }}>
+                {t("Kod bulunamazsa takım sahibinden yenisini iste")}</span>
+              {tErr && <span style={{ color: "var(--rc-danger)", fontSize: 11.5 }}>{tErr}</span>}
+              <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+                <button onClick={onClose} style={cancelBtn}>{t("Vazgeç")}</button>
+                <button onClick={doJoin} disabled={busy || join.trim().length < 6}
+                  style={primaryBtn(!busy && join.trim().length >= 6)}>{t("Takıma katıl")}</button>
+              </span>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -1614,323 +2360,731 @@ export function CreateJoinModal({ open, onClose, user, t, userName,
    Kur/Katıl ARTIK burada değil (CreateJoinModal'a taşındı) → yönetim penceresi
    sade ve kompakt kalır. Tüm mevcut işlevler (ad düzenle, sezon/yarış CRUD,
    rol rozetleri, join code, ayrıl) korunur. */
-/* Görsel yükleme kutusu (v1.7.0) — sabit-aspect önizleme + Yükle/Değiştir/Kaldır.
-   current = takımın özel görseli; fallback = statik asset (varsa önizlemede görünür,
-   Kaldır yalnız özel görsel varken çıkar). Doğrulama/normalize processImageFile'da;
-   hata (tür/boyut/bozuk/kural reddi) kutunun altında hint warn ile gösterilir. */
-function AssetUpload({ label, current, fallback = "", specKey, aspect, w,
-  canEdit, t, onSave, onClear }) {
-  const [err, setErr] = useState("");
-  const [busy, setBusy] = useState(false);
-  const inpRef = useRef(null);
-  const pick = async (f) => {
-    if (!f) return;
-    setErr(""); setBusy(true);
-    try {
-      const uri = await processImageFile(f, specKey);
-      await onSave(uri);
-    } catch (e) {
-      setErr(t(e?.message || "Görsel işlenemedi — dosya bozuk olabilir."));
-    } finally {
-      setBusy(false);
-      if (inpRef.current) inpRef.current.value = "";
-    }
-  };
-  const shown = current || fallback;
-  return (
-    <div className="astbox">
-      <div className="astcap">{label}</div>
-      <div className="astprev" style={{ width: w, aspectRatio: aspect }}>
-        {shown
-          ? <img src={shown} alt=""
-              onError={(e) => { e.currentTarget.style.display = "none"; }} />
-          : <span className="hint" style={{ margin: 0 }}>{t("Görsel yok")}</span>}
-      </div>
-      {canEdit && (
-        <div className="astact">
-          <input ref={inpRef} type="file" accept={IMG_ACCEPT_TYPES.join(",")}
-            style={{ display: "none" }}
-            onChange={(e) => pick(e.target.files?.[0])} />
-          <button className="minibtn" style={{ width: "auto", padding: "0 10px" }}
-            disabled={busy} onClick={() => inpRef.current?.click()}>
-            {busy ? t("Yükleniyor…") : current ? t("Değiştir") : `⬆ ${t("Yükle")}`}
-          </button>
-          {current && (
-            <button className="minibtn" style={{ width: "auto", padding: "0 10px" }}
-              disabled={busy} title={t("Kaldır")}
-              onClick={() => { setErr(""); onClear(); }}>✕ {t("Kaldır")}</button>
-          )}
-        </div>
-      )}
-      {err && <div className="hint warn" style={{ margin: "4px 0 0" }}>{err}</div>}
-    </div>
-  );
-}
+/* FLAG: canlı takım-hareketleri akışı için veri kaynağı YOK. Fiş 10-takim.md
+   `feed` renderVals'ı örnek (statik) içerik olarak tanımlar; birebir kural gereği
+   aynen üretilir. Gerçek akış bağlanana dek bu örnek kullanılır. */
+const TEAM_FEED_SAMPLE = [
+  { icon: "🔧", who: "Kerem Y.", text: "spa_296_quali.svm setupunu havuza yükledi", at: "bugün 18:31", col: "#EF8A2B" },
+  { icon: "🛞", who: "Deniz K.", text: "6H Spa · S3 stintine atandı", at: "bugün 17:04", col: "#4C9AFF" },
+  { icon: "🏁", who: "Ahmet D.", text: "6H Fuji yarışını takvime ekledi", at: "dün 21:12", col: "#D24357" },
+  { icon: "📊", who: "Kerem Y.", text: "Stint B telemetrisini yükledi (16 tur)", at: "dün 19:48", col: "#B58BFF" },
+  { icon: "🎧", who: "Ahmet D.", text: "Deniz K.'ya mühendis yetkisi verdi", at: "14 Ağu 12:26", col: "#37D67A" },
+  { icon: "👤", who: "Selin A.", text: "katılım koduyla takıma katıldı", at: "12 Ağu 09:03", col: "#A88C93" },
+];
 
-export function TeamModal({ open, onClose, user, t, lang, myTeams, curTeam, setCurTeam,
-  teamData, tnEdit, setTnEdit, canManageTeam, canEditTeam, curSeason, setCurSeason,
+/* v2.0: `page` ile modal kabuğu yerine TAM SAYFA çizilir (sol raydan erişilir).
+   v3 (fiş 10-takim.md): iki kolon — sol kimlik + araç görselleri kartı; sağ üyeler
+   tablosu, sezon takvimi, takım hareketleri, tehlikeli işlemler. Sheet kabuğu App.jsx
+   çağrısı bozulmasın diye korunur. */
+export function TeamModal({ open, onClose, page = false, user, t, lang, myTeams, curTeam,
+  setCurTeam, teamData, tnEdit, setTnEdit, canManageTeam, canEditTeam, curSeason, setCurSeason,
   seasons, races, st, myRole,
   openRace, setRForm, setBadge, roleLabel, onCreateJoin }) {
-  /* Araç Görselleri kartı seçimi — hook'lar erken return'den ÖNCE (React kuralı). */
+  /* Hook'lar erken return'den ÖNCE (React kuralı). */
   const [astCls, setAstCls] = useState("hypercar");
   const [astCar, setAstCar] = useState("");
+  const [openMenu, setOpenMenu] = useState(null);   // ⋯ menüsü açık üye uid
+  const [busy, setBusy] = useState("");             // yüklenen asset: logo/side/top
+  const [copied, setCopied] = useState(false);
+  const [invOpen, setInvOpen] = useState(false);    // üye davet penceresi (katılım kodu)
+  const [linkCopied, setLinkCopied] = useState(false); // davet linki kopyalandı
+  const [seasonOpen, setSeasonOpen] = useState(false); // sezon düzenleme penceresi
+  const logoRef = useRef(null);
+  const sideRef = useRef(null);
+  const topRef = useRef(null);
   if (!open || !user) return null;
   const astKey = astCar ? carAssetKey(astCls, astCar) : "";
   const astCustom = (angle) => teamData?.assets?.cars?.[astKey]?.[angle] || "";
-  return (
-        <div className="wxmodal" onClick={onClose}>
-          <div className="wxmbox" style={{ width: "min(680px,95vw)" }}
-            onClick={(e) => e.stopPropagation()}>
-            <div className="wxmhead">
-              <span>⚙ {t("Yönet")} · {t("Takımlar")}</span>
-              <button className="lbclose" onClick={onClose}>✕</button>
+  /* ── türetilen değerler + stil yardımcıları (fiş 10-takim.md) ── */
+  const disp = "var(--rc-font-display)";
+  const memberEntries = Object.entries(teamData?.members || {});
+  const memCount = memberEntries.length;
+  const raceEntries = Object.entries(races || {})
+    .filter(([, r]) => !curSeason || r.seasonId === curSeason)
+    .sort(([, a], [, b]) => (a.startsAt || 0) - (b.startsAt || 0));
+  const raceCount = Object.keys(races || {}).length;
+  const seasonLbl = (curSeason && seasons?.[curSeason]?.name)
+    || Object.values(seasons || {})[0]?.name || `${Object.keys(seasons || {}).length} ${t("sezon")}`;
+  const logoSrc = teamLogoSrc(teamData?.assets);
+  const joinCode = teamData?.meta?.joinCode || "—";
+  const initialsOf = (n) => String(n || "").trim().split(/\s+/)
+    .map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+  const now = Date.now();
+  /* FLAG: yarış "durum" alanı veri katmanında yok — startsAt'ten türetildi (gerçek veri). */
+  const raceState = (r) => {
+    if (!r.startsAt) return { label: t("Planlı"), col: "var(--rc-text-3)" };
+    const d = r.startsAt - now;
+    if (d < -6 * 3600e3) return { label: t("Bitti"), col: "var(--rc-text-3)" };
+    if (d < 24 * 3600e3) return { label: t("Yakın"), col: "var(--rc-warn)" };
+    return { label: t("Yaklaşan"), col: "var(--rc-brand-bright)" };
+  };
+  const pickAsset = async (file, keyPath, specKey, which) => {
+    if (!file) return;
+    setBusy(which);
+    try {
+      const uri = await processImageFile(file, specKey);
+      await saveTeamAsset(curTeam, keyPath, uri);
+    } catch (e) { console.warn("görsel işlenemedi:", e?.message); }
+    finally { setBusy(""); }
+  };
+  const copyCode = () => {
+    try {
+      navigator.clipboard?.writeText(joinCode);
+      setCopied(true); setTimeout(() => setCopied(false), 1400);
+    } catch { /* yoksay */ }
+  };
+  const doLeave = () => { leaveTeam(curTeam, user.uid).catch(() => {}); setCurTeam(""); };
+  const newRace = () => setRForm({
+    rid: null, seasonId: curSeason || null, round: "", name: "",
+    trackId: st.track || "", carClass: st.carClass || "hypercar",
+    carId: st.car || "", raceTime: st.raceTime || "6:00:00", startsAt: Date.now(),
+  });
+  const card = { border: "1px solid var(--rc-border)", borderRadius: 12,
+    background: "var(--rc-surface)", overflow: "hidden" };
+  const cardHead = { display: "flex", alignItems: "center", gap: 10, padding: "14px 16px",
+    borderBottom: "1px solid var(--rc-border)", flexWrap: "wrap" };
+  const sectTtl = { fontFamily: disp, textTransform: "uppercase", letterSpacing: ".08em",
+    fontSize: 16, fontWeight: 700 };
+  const subBtn = { padding: "7px 14px", borderRadius: 9, border: "1px solid var(--rc-border)",
+    background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer", fontSize: 12 };
+  const miniBtn = { width: 26, height: 26, borderRadius: 7, border: "1px solid var(--rc-border)",
+    background: "var(--rc-surface-3)", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 11 };
+  const selStyle = { flex: 1, background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)",
+    borderRadius: 8, color: "var(--rc-text)", padding: "7px 9px", fontSize: 12 };
+  const tileCap = { position: "absolute", left: 0, right: 0, bottom: 0, padding: "3px 0",
+    textAlign: "center", background: "rgba(11,7,8,.8)", fontSize: 9, textTransform: "uppercase",
+    letterSpacing: ".08em", color: "var(--rc-text-3)" };
+  const mItem = { textAlign: "left", padding: "7px 10px", borderRadius: 7, border: "none",
+    background: "none", color: "var(--rc-text)", cursor: "pointer", fontSize: 12.5, whiteSpace: "nowrap" };
+  const mDanger = { ...mItem, color: "var(--rc-danger)" };
+  /* FLAG: th/thLeft renderVals'ta yok — DashTab gibi veri katmanıyla uyumlu türetildi. */
+  const th = { padding: "10px 12px", borderBottom: "1px solid var(--rc-border)", textAlign: "center",
+    color: "var(--rc-text-3)", fontSize: 10, fontWeight: 600, textTransform: "uppercase",
+    letterSpacing: ".08em" };
+  const thLeft = { ...th, textAlign: "left" };
+  const bd = BADGES.driver, be = BADGES.engineer;
+
+  const body = (
+      <div style={{ overflowY: "auto", ...(page ? {} : { flex: 1, minHeight: 0 }) }}>
+
+        {/* takım seçici (birden çok takım) */}
+        {Object.keys(myTeams || {}).length > 1 && (
+          <div className="tmtabs" style={{ padding: "12px 20px 0" }}>
+            {Object.entries(myTeams).map(([tid, nm]) => (
+              <button key={tid} className={curTeam === tid ? "on" : ""}
+                onClick={() => setCurTeam(tid)}>{nm}</button>
+            ))}
+          </div>
+        )}
+
+        {!curTeam && (
+          <div className="hint" style={{ padding: "16px 20px" }}>
+            {t("Henüz bir takımın yok. Yeni takım kur ya da katılım kodu ile katıl.")}
+            {onCreateJoin && (
+              <><br /><button className="gbtn ubtn" style={{ marginTop: 8 }}
+                onClick={onCreateJoin}>🏢 {t("Kur & Katıl")}</button></>
+            )}
+          </div>
+        )}
+
+        {curTeam && teamData && (
+          <div style={{ padding: "16px 20px", display: "flex", flexWrap: "wrap", gap: 16,
+            alignItems: "flex-start", animation: "rcin .26s ease-out" }}>
+
+            {/* ══════════ SOL: kimlik + araç görselleri ══════════ */}
+            <div style={{ flex: "1 1 300px", maxWidth: 360, display: "flex",
+              flexDirection: "column", gap: 12 }}>
+
+              {/* kimlik kartı (aria-label render testinin "Takım Kimliği" çıpası) */}
+              <section aria-label={t("Takım Kimliği")}
+                style={{ border: "1px solid var(--rc-border)", borderRadius: 12,
+                  background: "var(--rc-surface)", padding: 18, textAlign: "center" }}>
+                <div onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => { e.preventDefault();
+                    if (canEditTeam) pickAsset(e.dataTransfer.files?.[0], "logo", "logo", "logo"); }}
+                  style={{ position: "relative", width: 140, height: 140, margin: "0 auto 12px",
+                    border: "1.5px dashed var(--rc-border-strong)", borderRadius: 14,
+                    background: "var(--rc-surface-2)", display: "grid", placeItems: "center",
+                    overflow: "hidden" }}>
+                  {logoSrc
+                    ? <img src={logoSrc} alt=""
+                        onError={(e) => { e.currentTarget.style.display = "none"; }}
+                        style={{ maxWidth: "78%", maxHeight: "78%", objectFit: "contain", display: "block" }} />
+                    : <span style={{ fontFamily: disp, fontWeight: 700, fontSize: 34,
+                        color: "var(--rc-text-3)" }}>{initialsOf(teamData?.meta?.name)}</span>}
+                  <span style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "5px 0",
+                    background: "rgba(11,7,8,.82)", fontSize: 10, textTransform: "uppercase",
+                    letterSpacing: ".09em", color: "var(--rc-text-2)" }}>{t("sürükle-bırak")}</span>
+                </div>
+
+                {canEditTeam && (
+                  <div style={{ display: "flex", gap: 8, justifyContent: "center", marginBottom: 12 }}>
+                    <input ref={logoRef} type="file" accept={IMG_ACCEPT_TYPES.join(",")}
+                      style={{ display: "none" }}
+                      onChange={(e) => pickAsset(e.target.files?.[0], "logo", "logo", "logo")} />
+                    <button onClick={() => logoRef.current?.click()} disabled={busy === "logo"}
+                      style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid var(--rc-border)",
+                        background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer",
+                        fontSize: 12 }}>
+                      {busy === "logo" ? t("Yükleniyor…") : t("Logo değiştir")}</button>
+                    {logoSrc && (
+                      <button onClick={() => clearTeamAsset(curTeam, "logo").catch(() => {})}
+                        style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid var(--rc-border)",
+                          background: "var(--rc-surface-3)", color: "var(--rc-text-3)", cursor: "pointer",
+                          fontSize: 12 }}>{t("Kaldır")}</button>
+                    )}
+                  </div>
+                )}
+                <div style={{ color: "var(--rc-text-3)", fontSize: 10.5, margin: "-6px 0 12px",
+                  lineHeight: 1.5 }}>{t("PNG veya SVG · en az 256×256 · şeffaf zemin önerilir")}</div>
+
+                {tnEdit === null ? (
+                  <div onClick={() => canManageTeam && setTnEdit(teamData?.meta?.name || "")}
+                    title={canManageTeam ? t("Düzenle") : undefined}
+                    style={{ fontFamily: disp, fontWeight: 700, fontSize: 22, letterSpacing: ".02em",
+                      cursor: canManageTeam ? "pointer" : "default" }}>
+                    {teamData?.meta?.name || "—"}</div>
+                ) : (
+                  <div style={{ display: "flex", gap: 6, maxWidth: 300, margin: "0 auto" }}>
+                    <input type="text" value={tnEdit} maxLength={40} autoFocus
+                      onChange={(e) => setTnEdit(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Escape") setTnEdit(null); }}
+                      style={{ flex: 1, background: "var(--rc-surface-3)",
+                        border: "1px solid var(--rc-border-strong)", borderRadius: 8,
+                        color: "var(--rc-text)", padding: "6px 10px", fontSize: 14, textTransform: "none" }} />
+                    <button disabled={!tnEdit.trim()} style={{ ...subBtn, opacity: tnEdit.trim() ? 1 : .45 }}
+                      onClick={async () => {
+                        const nm = tnEdit.trim();
+                        setTnEdit(null);
+                        try {
+                          await renameTeam(curTeam, nm);
+                          await syncMyTeamName(user.uid, curTeam, nm);
+                        } catch (e) { console.warn("ad değiştirilemedi:", e?.message); }
+                      }}>{t("Kaydet")}</button>
+                    <button style={subBtn} onClick={() => setTnEdit(null)}>{t("Vazgeç")}</button>
+                  </div>
+                )}
+                <div style={{ color: "var(--rc-text-3)", fontSize: 12, marginTop: 2 }}>
+                  {`${seasonLbl} · ${memCount} ${t("üye")} · ${raceCount} ${t("yarış")}`}</div>
+
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12,
+                  background: "var(--rc-surface-3)", border: "1px solid var(--rc-border-strong)",
+                  borderRadius: 10, padding: "9px 14px", marginTop: 14 }}>
+                  <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".08em",
+                    color: "var(--rc-text-3)" }}>{t("Katılım kodu")}</span>
+                  <b style={{ fontFamily: disp, fontWeight: 700, letterSpacing: ".16em",
+                    fontSize: 18 }}>{joinCode}</b>
+                </div>
+                <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                  {/* "Yenile" (kod yenileme) backend'i yok → gizlendi; yalnız kopyala kaldı. */}
+                  <button onClick={copyCode}
+                    style={{ flex: 1, padding: "8px 12px", borderRadius: 9, border: "1px solid var(--rc-border)",
+                      background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer",
+                      fontSize: 12 }}>{copied ? t("Kopyalandı") : t("Kodu kopyala")}</button>
+                </div>
+              </section>
+
+              {/* araç görselleri kartı */}
+              <section style={{ ...card, padding: 16 }}>
+                <div style={{ fontFamily: disp, textTransform: "uppercase", letterSpacing: ".08em",
+                  fontSize: 14, fontWeight: 700, marginBottom: 12 }}>{t("Araç görselleri")}</div>
+                <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                  <select value={astCls} style={selStyle}
+                    onChange={(e) => { setAstCls(e.target.value); setAstCar(""); }}>
+                    {classOptions().map((o) => (
+                      <option key={o.value} value={o.value}>{t(o.label)}</option>
+                    ))}
+                  </select>
+                  <select value={astCar} disabled={!astCls} style={selStyle}
+                    onChange={(e) => setAstCar(e.target.value)}>
+                    <option value="">{t("Araç seç")}</option>
+                    {carOptions(astCls).map((o) => (
+                      <option key={o.value} value={o.value}>{t(o.label)}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <div onClick={() => astCar && canEditTeam && sideRef.current?.click()}
+                    title={astCar && canEditTeam ? t("Değiştir") : undefined}
+                    style={{ flex: 1, position: "relative", border: "1px solid var(--rc-border)",
+                      borderRadius: 9, background: "var(--rc-surface-2)", height: 92, display: "flex",
+                      alignItems: "center", justifyContent: "center", overflow: "hidden",
+                      cursor: astCar && canEditTeam ? "pointer" : "default" }}>
+                    {astCar
+                      ? <img src={astCustom("side") || carImg(astCls, astCar)} alt=""
+                          onError={(e) => { e.currentTarget.style.display = "none"; }}
+                          style={{ maxWidth: "94%", maxHeight: "74%", objectFit: "contain" }} />
+                      : <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{t("Araç seç")}</span>}
+                    <span style={tileCap}>{astCustom("side") ? t("özel") : t("varsayılan")} · side</span>
+                  </div>
+                  <div onClick={() => astCar && canEditTeam && topRef.current?.click()}
+                    title={astCar && canEditTeam ? t("Değiştir") : undefined}
+                    style={{ width: 92, position: "relative", border: "1px solid var(--rc-border)",
+                      borderRadius: 9, background: "var(--rc-surface-2)", height: 92, display: "flex",
+                      alignItems: "center", justifyContent: "center", overflow: "hidden",
+                      cursor: astCar && canEditTeam ? "pointer" : "default" }}>
+                    {astCar
+                      ? <img src={astCustom("top") || `${ASSET}cartop/default.png`} alt=""
+                          onError={(e) => { e.currentTarget.style.display = "none"; }}
+                          style={{ maxWidth: "92%", maxHeight: "66%", objectFit: "contain" }} />
+                      : <span style={{ fontSize: 9, color: "var(--rc-text-3)" }}>—</span>}
+                    <span style={tileCap}>top</span>
+                  </div>
+                </div>
+                {/* FLAG: fişte açık yükle/kaldır butonu yok; yükleme işlevini korumak için
+                    kutucuklar tıklanabilir yapıldı (canEditTeam). */}
+                {canEditTeam && astCar && (<>
+                  <input ref={sideRef} type="file" accept={IMG_ACCEPT_TYPES.join(",")}
+                    style={{ display: "none" }}
+                    onChange={(e) => pickAsset(e.target.files?.[0], `cars/${astKey}/side`, "carSide", "side")} />
+                  <input ref={topRef} type="file" accept={IMG_ACCEPT_TYPES.join(",")}
+                    style={{ display: "none" }}
+                    onChange={(e) => pickAsset(e.target.files?.[0], `cars/${astKey}/top`, "carTop", "top")} />
+                </>)}
+              </section>
             </div>
 
-            {/* takım seçici (birden çok takım) */}
-            {Object.keys(myTeams).length > 1 && (
-              <div className="tmtabs">
-                {Object.entries(myTeams).map(([tid, nm]) => (
-                  <button key={tid} className={curTeam === tid ? "on" : ""}
-                    onClick={() => setCurTeam(tid)}>{nm}</button>
-                ))}
-              </div>
-            )}
+            {/* ══════════ SAĞ: üyeler · takvim · hareketler · tehlikeli ══════════ */}
+            <div style={{ flex: "1 1 560px", minWidth: 0, display: "flex",
+              flexDirection: "column", gap: 16 }}>
 
-            <div className="wxmlist tmbody">
-              {!curTeam && (
-                <div className="hint" style={{ marginBottom: 4 }}>
-                  {t("Henüz bir takımın yok. Yeni takım kur ya da katılım kodu ile katıl.")}
-                  {onCreateJoin && (
-                    <><br /><button className="gbtn ubtn" style={{ marginTop: 8 }}
-                      onClick={onCreateJoin}>🏢 {t("Kur & Katıl")}</button></>
+              {/* ── Üyeler & yetkiler ── */}
+              <section style={card}>
+                <div style={cardHead}>
+                  <span style={sectTtl}>{t("Üyeler & yetkiler")}</span>
+                  <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>{memCount} {t("kişi")}</span>
+                  {/* Davet = katılım kodu modeli: pencere kodu + kopyala + rol notu gösterir. */}
+                  <button style={{ ...subBtn, marginLeft: "auto" }}
+                    onClick={() => setInvOpen(true)}>＋ {t("Üye davet et")}</button>
+                </div>
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 600 }}>
+                    <thead><tr>
+                      <th style={thLeft}>{t("Üye")}</th>
+                      <th style={thLeft}>{t("Rol")}</th>
+                      <th style={th}>🛞 {t("Sürücü")}</th>
+                      <th style={th}>🎧 {t("Mühendis")}</th>
+                      <th style={th}>{t("Son görülme")}</th>
+                      <th style={th}></th>
+                    </tr></thead>
+                    <tbody>
+                      {memberEntries.map(([uid, role]) => {
+                        const nm = teamData?.names?.[uid]
+                          || (uid === user.uid ? t("(sen)") : uid.slice(0, 10) + "…");
+                        const drvOn = hasBadge(teamData, uid, "driver");
+                        const engOn = hasBadge(teamData, uid, "engineer");
+                        const menuOpen = openMenu === uid;
+                        return (
+                          <tr key={uid} style={{ borderBottom: "1px solid var(--rc-line-soft)" }}>
+                            <td style={{ padding: "11px 14px", textAlign: "left" }}>
+                              <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                <Avatar uid={uid} name={teamData?.names?.[uid]} size={32} />
+                                <span style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                                  <b style={{ fontSize: 14 }}>{nm}</b>
+                                  <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>
+                                    {uid === user.uid ? t("sen") : ""}</span>
+                                </span>
+                              </span>
+                            </td>
+                            <td style={{ padding: "11px 14px" }}>
+                              <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 99,
+                                border: "1px solid var(--rc-border)", color: "var(--rc-text-2)",
+                                background: "var(--rc-surface-3)", whiteSpace: "nowrap" }}>
+                                {t(roleLabel(role))}</span>
+                            </td>
+                            <td style={{ padding: "11px 14px", textAlign: "center" }}>
+                              <button title={t(bd.lbl)}
+                                onClick={() => canManageTeam && setBadge(uid, "driver", !drvOn)}
+                                style={{ width: 34, height: 28, borderRadius: 8, fontSize: 14,
+                                  cursor: canManageTeam ? "pointer" : "default",
+                                  border: `1px solid ${drvOn ? bd.col : "var(--rc-border)"}`,
+                                  background: drvOn ? bd.bg : "var(--rc-surface-3)",
+                                  color: drvOn ? bd.col : "var(--rc-text)",
+                                  opacity: drvOn ? 1 : .5 }}>🛞</button>
+                            </td>
+                            <td style={{ padding: "11px 14px", textAlign: "center" }}>
+                              <button title={t(be.lbl)}
+                                onClick={() => canManageTeam && setBadge(uid, "engineer", !engOn)}
+                                style={{ width: 34, height: 28, borderRadius: 8, fontSize: 14,
+                                  cursor: canManageTeam ? "pointer" : "default",
+                                  border: `1px solid ${engOn ? be.col : "var(--rc-border)"}`,
+                                  background: engOn ? be.bg : "var(--rc-surface-3)",
+                                  color: engOn ? be.col : "var(--rc-text)",
+                                  opacity: engOn ? 1 : .5 }}>🎧</button>
+                            </td>
+                            {/* FLAG: "son görülme" verisi yok → — */}
+                            <td style={{ padding: "11px 14px", textAlign: "center",
+                              color: "var(--rc-text-3)", fontSize: 12 }}>—</td>
+                            <td style={{ padding: "11px 14px", textAlign: "center" }}>
+                              <span style={{ position: "relative", display: "inline-flex" }}>
+                                {canManageTeam && uid !== user.uid && (<>
+                                <button onClick={() => setOpenMenu(menuOpen ? null : uid)}
+                                  style={{ width: 28, height: 26, borderRadius: 7,
+                                    border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)",
+                                    color: "var(--rc-text-3)", cursor: "pointer", fontSize: 13,
+                                    lineHeight: 1 }}>⋯</button>
+                                <span style={{ position: "absolute", top: "100%", right: 0, marginTop: 4,
+                                  zIndex: 5, minWidth: 180, display: menuOpen ? "flex" : "none",
+                                  flexDirection: "column", background: "var(--rc-surface-4)",
+                                  border: "1px solid var(--rc-border-strong)", borderRadius: 10,
+                                  padding: 6, boxShadow: "0 8px 24px rgba(0,0,0,.4)" }}>
+                                  <button style={mItem} onClick={() => {
+                                    setOpenMenu(null);
+                                    if (window.confirm(`${t("Sahipliği bu üyeye devret?")}\n\n${nm}\n\n${t("Sen düzenleyici (editör) olursun.")}`))
+                                      transferOwnership(curTeam, user.uid, uid).catch(() => {});
+                                  }}>👑 {t("Sahipliği devret")}</button>
+                                  <button style={mItem} onClick={() => {
+                                    setOpenMenu(null); setInvOpen(true);
+                                  }}>✉ {t("Yeniden davet et")}</button>
+                                  <button style={mDanger} onClick={() => {
+                                    setOpenMenu(null);
+                                    if (window.confirm(`${t("Bu üye takımdan çıkarılsın mı?")}\n\n${nm}`))
+                                      removeMember(curTeam, uid).catch(() => {});
+                                  }}>✕ {t("Takımdan çıkar")}</button>
+                                </span>
+                                </>)}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+
+              {/* ── Sezon takvimi ── */}
+              <section style={card}>
+                <div style={cardHead}>
+                  <span style={sectTtl}>{t("Sezon takvimi")}</span>
+                  <span style={{ display: "flex", gap: 6, marginLeft: 12, flexWrap: "wrap" }}>
+                    {Object.entries(seasons || {}).map(([sid, se]) => {
+                      const on = curSeason === sid;
+                      return (
+                        <button key={sid} onClick={() => setCurSeason(sid)}
+                          style={{ padding: "5px 12px", borderRadius: 99, cursor: "pointer", fontSize: 12,
+                            border: `1px solid ${on ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
+                            background: on ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)",
+                            color: on ? "var(--rc-text)" : "var(--rc-text-2)" }}>{se.name}</button>
+                      );
+                    })}
+                    {canEditTeam && (
+                      <button style={{ padding: "5px 11px", borderRadius: 99,
+                        border: "1px dashed var(--rc-border-strong)", background: "transparent",
+                        color: "var(--rc-text-3)", cursor: "pointer", fontSize: 12 }}
+                        onClick={async () => {
+                          const nm = window.prompt(t("Sezon adı"), `${new Date().getFullYear()} WEC`);
+                          if (nm) await createSeason(curTeam, nm, new Date().getFullYear()).catch(() => {});
+                        }}>＋ {t("Sezon")}</button>
+                    )}
+                  </span>
+                  <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+                    {curSeason && (
+                      <button style={{ padding: "7px 12px", borderRadius: 9, border: "1px solid var(--rc-border)",
+                        background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer",
+                        fontSize: 12 }} onClick={() => setSeasonOpen(true)}>✎ {t("Sezonu düzenle")}</button>
+                    )}
+                    {canEditTeam && (
+                      <button style={subBtn} onClick={newRace}>＋ {t("Yarış ekle")}</button>
+                    )}
+                  </span>
+                </div>
+                {raceEntries.map(([rid, r]) => {
+                  const rst = raceState(r);
+                  return (
+                    <div key={rid} style={{ display: "flex", alignItems: "center", gap: 11,
+                      padding: "11px 16px", borderBottom: "1px solid var(--rc-surface-5)" }}>
+                      <span style={{ fontFamily: disp, fontWeight: 700, fontSize: 15,
+                        color: "var(--rc-text-3)", width: 34 }}>{r.round ? `R${r.round}` : "—"}</span>
+                      {r.trackId && (
+                        <img src={`${ASSET}flags/${TRACK_ASSET(r.trackId)}.png`} alt=""
+                          onError={(e) => { e.currentTarget.style.display = "none"; }}
+                          style={{ width: 26, borderRadius: 3, border: "1px solid var(--rc-border)" }} />
+                      )}
+                      <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0, flex: 1 }}>
+                        <b style={{ fontSize: 14 }}>{r.name || trackName(r.trackId) || "—"}</b>
+                        <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>
+                          {r.trackId ? trackName(r.trackId) : ""}
+                          {r.raceTime ? ` · ${r.raceTime}` : ""}
+                          {r.startsAt ? ` · ${new Date(r.startsAt)
+                            .toLocaleString(lang === "en" ? "en-GB" : "tr-TR",
+                              { day: "2-digit", month: "2-digit", hour: "2-digit",
+                                minute: "2-digit" })}` : ""}</span>
+                      </span>
+                      <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 99,
+                        whiteSpace: "nowrap", border: `1px solid ${rst.col}`, color: rst.col }}>
+                        {rst.label}</span>
+                      <span style={{ display: "flex", gap: 5, flex: "0 0 auto" }}>
+                        {/* ▲▼ sıralama backend'i yok → gizlendi (ölü buton bırakılmadı). */}
+                        {canEditTeam && (<>
+                          <button title={t("Düzenle")} style={miniBtn}
+                            onClick={() => setRForm({ rid, ...r })}>✎</button>
+                          <button title={t("Sil")} style={miniBtn}
+                            onClick={() => { if (window.confirm(t("Yarış silinsin mi?")))
+                              deleteRace(curTeam, rid).catch(() => {}); }}>✕</button>
+                        </>)}
+                      </span>
+                      <button style={subBtn} onClick={() => openRace(rid)}>{t("Aç")}</button>
+                    </div>
+                  );
+                })}
+                {raceEntries.length === 0 && (
+                  <div style={{ padding: "14px 16px", fontSize: 12, color: "var(--rc-text-3)" }}>
+                    {t("Takvimde yarış yok.")}</div>
+                )}
+              </section>
+
+              {/* ── Takım hareketleri (fiş örnek akışı) ── */}
+              <section style={card}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 16px",
+                  borderBottom: "1px solid var(--rc-border)" }}>
+                  <span style={sectTtl}>{t("Takım hareketleri")}</span>
+                  <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>{t("son 7 gün")}</span>
+                </div>
+                {TEAM_FEED_SAMPLE.map((f, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 11,
+                    padding: "11px 16px", borderBottom: "1px solid var(--rc-surface-5)" }}>
+                    <span style={{ width: 28, height: 28, borderRadius: 9, flex: "0 0 auto",
+                      background: "var(--rc-surface-3)", border: `1px solid ${f.col}55`,
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 13 }}>{f.icon}</span>
+                    <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, flex: 1 }}>
+                      <span style={{ fontSize: 12.5, lineHeight: 1.5 }}>
+                        <b>{f.who}</b> {t(f.text)}</span>
+                      <span style={{ fontSize: 10.5, color: "var(--rc-text-3)" }}>{t(f.at)}</span>
+                    </span>
+                  </div>
+                ))}
+              </section>
+
+              {/* ── Tehlikeli işlemler ── */}
+              <section style={{ border: "1px solid var(--rc-border-strong)", borderRadius: 12,
+                background: "var(--rc-surface)", overflow: "hidden" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 16px",
+                  borderBottom: "1px solid var(--rc-border)" }}>
+                  <span style={{ ...sectTtl, color: "var(--rc-danger)" }}>{t("Tehlikeli işlemler")}</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 16px",
+                  borderBottom: "1px solid var(--rc-surface-5)", flexWrap: "wrap" }}>
+                  <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, flex: 1 }}>
+                    <b style={{ fontSize: 13 }}>{t("Takımdan ayrıl")}</b>
+                    <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>
+                      {t("Yarış verilerine ve havuza erişimin kalkar. Sahipsen önce sahipliği devret.")}</span>
+                  </span>
+                  <button onClick={doLeave}
+                    style={{ padding: "8px 15px", borderRadius: 9, border: "1px solid var(--rc-warn)",
+                      background: "transparent", color: "var(--rc-warn)", cursor: "pointer",
+                      fontSize: 12.5, whiteSpace: "nowrap" }}>{t("Ayrıl")}</button>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 16px",
+                  flexWrap: "wrap" }}>
+                  <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, flex: 1 }}>
+                    <b style={{ fontSize: 13 }}>{t("Takımı sil")}</b>
+                    <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>
+                      {t("Sezonlar, yarışlar ve takım setupları kalıcı olarak silinir. Geri alınamaz.")}</span>
+                  </span>
+                  {/* Yalnız sahip siler; geri alınamaz → takım adını yazarak onay. */}
+                  {teamData?.meta?.ownerUid === user.uid && (
+                    <button onClick={() => {
+                      const nm = (teamData?.meta?.name || "").trim();
+                      const typed = window.prompt(
+                        `${t("Takımı KALICI olarak sil. Onaylamak için takım adını yaz:")}\n\n${nm}`);
+                      if (typed == null) return;
+                      if (nm && typed.trim() === nm) {
+                        deleteTeam(curTeam, user.uid, teamData?.meta?.joinCode)
+                          .then(() => { setCurTeam(""); onClose && onClose(); })
+                          .catch(() => {});
+                      } else {
+                        window.alert(t("Ad eşleşmedi — silme iptal edildi."));
+                      }
+                    }}
+                    style={{ padding: "8px 15px", borderRadius: 9, border: "1px solid var(--rc-danger)",
+                      background: "rgba(255,77,94,.10)", color: "var(--rc-danger)", cursor: "pointer",
+                      fontSize: 12.5, fontWeight: 600, whiteSpace: "nowrap" }}>{t("Takımı sil")}</button>
                   )}
                 </div>
-              )}
+              </section>
+            </div>
+          </div>
+        )}
 
-              {curTeam && teamData && (<>
-                {/* ── Takım Kimliği ── */}
-                <section className="tmcard">
-                  <div className="tmcard-h">🏷 {t("Takım Kimliği")}</div>
-                  {tnEdit === null ? (
-                    <div className="tmid">
-                      <b className="tmid-name">{teamData?.meta?.name || "—"}</b>
-                      {canManageTeam && (
-                        <button className="minibtn" style={{ width: "auto", padding: "0 10px" }}
-                          onClick={() => setTnEdit(teamData?.meta?.name || "")}>
-                          {t("Düzenle")}</button>
-                      )}
+        {/* ── Üye davet penceresi (fiş invOpen) — yalnız gerçek katılım-kodu akışı ──
+            E-posta daveti / bekleyen davet listesi backend'i YOK → eklenmedi. */}
+        {invOpen && (
+          <div className="wxmodal" onClick={() => setInvOpen(false)}>
+            <div className="wxmbox" style={{ width: "min(560px,95vw)" }}
+              onClick={(e) => e.stopPropagation()}>
+              <div className="wxmhead">
+                <span>✉ {t("Üye davet et")}</span>
+                <button className="lbclose" onClick={() => setInvOpen(false)}>✕</button>
+              </div>
+              <div className="wxmlist" style={{ padding: "16px 18px", display: "flex",
+                flexDirection: "column", gap: 14 }}>
+                <div style={{ border: "1px solid var(--rc-border-strong)", borderRadius: 12,
+                  background: "radial-gradient(120% 200% at 100% 0,rgba(150,0,24,.2),var(--rc-surface-2) 65%)",
+                  padding: "16px 18px" }}>
+                  <div style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase",
+                    letterSpacing: ".1em", marginBottom: 9 }}>{t("Katılım kodu")}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                    <b style={{ fontFamily: disp, fontWeight: 700, letterSpacing: ".2em", fontSize: 30,
+                      lineHeight: 1 }}>{joinCode}</b>
+                    <button className="act" style={{ marginLeft: "auto" }} onClick={copyCode}>
+                      {copied ? `✓ ${t("Kopyalandı")}` : `📋 ${t("Kopyala")}`}</button>
+                  </div>
+                  <div style={{ fontSize: 11.5, color: "var(--rc-text-3)", marginTop: 9, lineHeight: 1.6 }}>
+                    {t("Kodu paylaş — karşı taraf \"Kur & katıl\" penceresinden girer.")}</div>
+                </div>
+                {joinCode && typeof location !== "undefined" && (() => {
+                  const link = `${location.origin}${location.pathname}?join=${joinCode}`;
+                  return (
+                    <div style={{ border: "1px solid var(--rc-border)", borderRadius: 12,
+                      background: "var(--rc-surface-2)", padding: "14px 16px" }}>
+                      <div style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase",
+                        letterSpacing: ".1em", marginBottom: 8 }}>{t("Davet linki")}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                        <code style={{ flex: "1 1 220px", minWidth: 0, fontSize: 12,
+                          color: "var(--rc-text-2)", overflow: "hidden", textOverflow: "ellipsis",
+                          whiteSpace: "nowrap", fontFamily: "var(--rc-font-mono)" }}>{link}</code>
+                        <button className="act" onClick={() => {
+                          try { navigator.clipboard?.writeText(link);
+                            setLinkCopied(true); setTimeout(() => setLinkCopied(false), 1500);
+                          } catch { /* yoksay */ } }}>
+                          {linkCopied ? `✓ ${t("Kopyalandı")}` : `🔗 ${t("Linki kopyala")}`}</button>
+                      </div>
+                      <div style={{ fontSize: 11.5, color: "var(--rc-text-3)", marginTop: 8,
+                        lineHeight: 1.6 }}>{t("Link açılınca kod kutulara otomatik dolar.")}</div>
+                    </div>
+                  );
+                })()}
+                <div className="hint" style={{ margin: 0, lineHeight: 1.6 }}>
+                  🛞 {t("Sürücü")} · 🎧 {t("Mühendis")} — {t("yetkileri üye katıldıktan sonra üye listesinden verirsin.")}</div>
+              </div>
+              <div style={{ display: "flex", padding: "12px 18px", borderTop: "1px solid var(--rc-border)" }}>
+                <button className="gbtn ubtn" style={{ marginLeft: "auto" }}
+                  onClick={() => setInvOpen(false)}>{t("Kapat")}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Sezon düzenleme penceresi (fiş seasonOpen) — yarış listesi + sezonu sil ──
+            Sezon adı yeniden adlandırma backend'i (updateSeason) YOK → ad salt okunur. */}
+        {seasonOpen && (
+          <div className="wxmodal" onClick={() => setSeasonOpen(false)}>
+            <div className="wxmbox" style={{ width: "min(640px,96vw)" }}
+              onClick={(e) => e.stopPropagation()}>
+              <div className="wxmhead">
+                <span>✎ {t("Sezonu düzenle")}</span>
+                <button className="lbclose" onClick={() => setSeasonOpen(false)}>✕</button>
+              </div>
+              <div className="wxmlist" style={{ maxHeight: "74vh", padding: "16px 18px",
+                display: "flex", flexDirection: "column", gap: 14 }}>
+                <div>
+                  <div style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase",
+                    letterSpacing: ".1em", marginBottom: 6 }}>{t("Sezon")}</div>
+                  {canEditTeam ? (
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <input key={`${curSeason}n`} type="text"
+                        defaultValue={seasons?.[curSeason]?.name || ""} placeholder={t("Sezon adı")}
+                        onBlur={(e) => { const v = e.target.value.trim();
+                          if (v && v !== (seasons?.[curSeason]?.name || ""))
+                            updateSeason(curTeam, curSeason, { name: v }).catch(() => {}); }}
+                        style={{ flex: "2 1 200px", minWidth: 0, boxSizing: "border-box",
+                          background: "var(--rc-surface-3)", border: "1px solid var(--rc-border-strong)",
+                          borderRadius: 10, color: "var(--rc-text)", padding: "10px 13px",
+                          fontFamily: disp, fontSize: 18, fontWeight: 700, textTransform: "none" }} />
+                      <input key={`${curSeason}y`} type="number"
+                        defaultValue={seasons?.[curSeason]?.year || ""} placeholder={t("Yıl")}
+                        onBlur={(e) => { const y = Number(e.target.value) || 0;
+                          if (y && y !== (seasons?.[curSeason]?.year || 0))
+                            updateSeason(curTeam, curSeason, { year: y }).catch(() => {}); }}
+                        style={{ flex: "1 1 90px", minWidth: 0, boxSizing: "border-box",
+                          background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)",
+                          borderRadius: 10, color: "var(--rc-text)", padding: "10px 13px",
+                          fontFamily: disp, fontSize: 16 }} />
                     </div>
                   ) : (
-                    <>
-                      <div style={{ display: "flex", gap: 8, maxWidth: 420 }}>
-                        <input type="text" value={tnEdit} maxLength={40} autoFocus
-                          style={{ textTransform: "none", margin: 0 }}
-                          onChange={(e) => setTnEdit(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === "Escape") setTnEdit(null); }} />
-                        <button className="gbtn ubtn" disabled={!tnEdit.trim()}
-                          style={{ opacity: tnEdit.trim() ? 1 : .45 }}
-                          onClick={async () => {
-                            const nm = tnEdit.trim();
-                            setTnEdit(null);
-                            try {
-                              await renameTeam(curTeam, nm);
-                              await syncMyTeamName(user.uid, curTeam, nm);
-                            } catch (e) { console.warn("ad değiştirilemedi:", e?.message); }
-                          }}>{t("Kaydet")}</button>
-                        <button className="histbtn"
-                          onClick={() => setTnEdit(null)}>{t("Vazgeç")}</button>
-                      </div>
-                      <div className="hint" style={{ marginBottom: 0 }}>
-                        {t("Yeni ad diğer üyelerde uygulamayı açtıklarında güncellenir.")}</div>
-                    </>
+                    <b style={{ fontFamily: disp, fontSize: 19, fontWeight: 700 }}>{seasonLbl}</b>
                   )}
-                  {/* Takım logosu — ana menü kartı, başlık ve teambar'da görünür */}
-                  <div style={{ marginTop: 12 }}>
-                    <AssetUpload label={t("Takım Logosu")} specKey="logo"
-                      current={teamLogoSrc(teamData?.assets)} aspect="1 / 1" w={110}
-                      canEdit={canEditTeam} t={t}
-                      onSave={(uri) => saveTeamAsset(curTeam, "logo", uri)}
-                      onClear={() => clearTeamAsset(curTeam, "logo").catch(() => {})} />
-                  </div>
-                </section>
-
-                {/* ── Araç Görselleri (v1.7.0) ── */}
-                {canEditTeam && (
-                  <section className="tmcard">
-                    <div className="tmcard-h">🖼 {t("Araç Görselleri")}</div>
-                    <div className="hint">
-                      {t("Sınıf ve araç seç — yüklenen SIDE/TOP görseller o araç için tüm takım ekranlarında kullanılır. Yüklenmeyen araçlar varsayılan görselle kalır.")}
-                    </div>
-                    <div style={{ display: "flex", gap: 8, maxWidth: 460, marginBottom: 12 }}>
-                      <ImgSelect value={astCls} options={classOptions()} t={t}
-                        placeholder={t("Sınıf")}
-                        onChange={(v) => { setAstCls(v); setAstCar(""); }} />
-                      <ImgSelect value={astCar} options={carOptions(astCls)} t={t}
-                        placeholder={t("Araç")} disabled={!astCls}
-                        onChange={(v) => setAstCar(v)} />
-                    </div>
-                    {astCar ? (
-                      <div className="astgrid">
-                        <AssetUpload label={`${t("Yandan")} (SIDE · 1000×400)`}
-                          specKey="carSide" aspect="1000 / 400" w={300}
-                          current={astCustom("side")} fallback={carImg(astCls, astCar)}
-                          canEdit={canEditTeam} t={t}
-                          onSave={(uri) => saveTeamAsset(curTeam, `cars/${astKey}/side`, uri)}
-                          onClear={() => clearTeamAsset(curTeam, `cars/${astKey}/side`)
-                            .catch(() => {})} />
-                        <AssetUpload label={`${t("Üstten")} (TOP · 400×1000)`}
-                          specKey="carTop" aspect="400 / 1000" w={110}
-                          current={astCustom("top")}
-                          fallback={`${ASSET}cartop/default.png`}
-                          canEdit={canEditTeam} t={t}
-                          onSave={(uri) => saveTeamAsset(curTeam, `cars/${astKey}/top`, uri)}
-                          onClear={() => clearTeamAsset(curTeam, `cars/${astKey}/top`)
-                            .catch(() => {})} />
-                      </div>
-                    ) : (
-                      <div className="hint" style={{ marginBottom: 0 }}>
-                        {t("Görsel yüklemek için önce araç seç.")}</div>
-                    )}
-                  </section>
-                )}
-
-                {/* ── Sezonlar & Takvim ── */}
-                <section className="tmcard">
-                  <div className="tmcard-h">🏁 {t("Sezonlar & Takvim")}</div>
-                  <div className="tmtabs" style={{ padding: "0 0 10px" }}>
-                    <button className={curSeason === "" ? "on" : ""}
-                      onClick={() => setCurSeason("")}>{t("Tümü")}</button>
-                    {Object.entries(seasons).map(([sid, se]) => (
-                      <button key={sid} className={curSeason === sid ? "on" : ""}
-                        onClick={() => setCurSeason(sid)}>{se.name}</button>
-                    ))}
+                  <div style={{ fontSize: 12, color: "var(--rc-text-3)", marginTop: 6 }}>
+                    {raceEntries.length} {t("yarış")}
+                    {canEditTeam ? ` · ${t("değişiklik anında kaydedilir")}` : ""}</div>
+                </div>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 8 }}>
+                    <span style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase",
+                      letterSpacing: ".1em" }}>{t("Yarışlar")}</span>
                     {canEditTeam && (
-                      <button onClick={async () => {
-                        const nm = window.prompt(t("Sezon adı"), `${new Date().getFullYear()} WEC`);
-                        if (nm) await createSeason(curTeam, nm, new Date().getFullYear())
-                          .catch(() => {});
-                      }}>+ {t("Sezon")}</button>
+                      <button className="act" style={{ marginLeft: "auto" }}
+                        onClick={() => { setSeasonOpen(false); newRace(); }}>＋ {t("Yarış ekle")}</button>
                     )}
                   </div>
-                  {Object.entries(races)
-                    .filter(([, r]) => !curSeason || r.seasonId === curSeason)
-                    .sort(([, a], [, b]) => (a.startsAt || 0) - (b.startsAt || 0))
-                    .map(([rid, r]) => (
-                      <div key={rid} className="tmroom">
-                        {r.round ? <span className="rcode">R{r.round}</span> : null}
-                        <span className="rlabel">
-                          <b>{r.name || trackName(r.trackId) || "—"}</b>
-                          <span className="rmeta">
-                            {r.trackId ? trackName(r.trackId) : ""}
-                            {r.raceTime ? ` · ${r.raceTime}` : ""}
-                            {r.startsAt ? ` · ${new Date(r.startsAt)
-                              .toLocaleString(lang === "en" ? "en-GB" : "tr-TR",
-                                { day: "2-digit", month: "2-digit", hour: "2-digit",
-                                  minute: "2-digit" })}` : ""}
-                          </span>
-                        </span>
-                        <button className="gbtn ubtn" onClick={() => openRace(rid)}>
-                          {t("Aç")}</button>
+                  <div style={{ border: "1px solid var(--rc-border)", borderRadius: 11, overflow: "hidden" }}>
+                    {raceEntries.map(([rid, r], i) => (
+                      <div key={rid} style={{ display: "flex", alignItems: "center", gap: 10,
+                        padding: "9px 12px", borderTop: i ? "1px solid var(--rc-surface-5)" : "none" }}>
+                        <span style={{ fontFamily: disp, fontWeight: 700, fontSize: 13,
+                          color: "var(--rc-text-3)", width: 28, flex: "0 0 auto" }}>
+                          {r.round ? `R${r.round}` : "—"}</span>
+                        {r.trackId && (
+                          <img src={`${ASSET}flags/${TRACK_ASSET(r.trackId)}.png`} alt=""
+                            onError={(e) => { e.currentTarget.style.display = "none"; }}
+                            style={{ width: 22, borderRadius: 2, flex: "0 0 auto" }} />
+                        )}
+                        <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, whiteSpace: "nowrap",
+                          overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {r.name || trackName(r.trackId) || "—"}</span>
                         {canEditTeam && (<>
-                          <button className="minibtn" title={t("Düzenle")}
-                            onClick={() => setRForm({ rid, ...r })}>✎</button>
-                          <button className="minibtn" title={t("Sil")}
+                          <button title={t("Düzenle")} style={miniBtn}
+                            onClick={() => { setSeasonOpen(false); setRForm({ rid, ...r }); }}>✎</button>
+                          <button title={t("Sil")} style={miniBtn}
                             onClick={() => { if (window.confirm(t("Yarış silinsin mi?")))
                               deleteRace(curTeam, rid).catch(() => {}); }}>✕</button>
                         </>)}
                       </div>
                     ))}
-                  {Object.keys(races).length === 0 && (
-                    <div className="hint" style={{ marginBottom: 0 }}>{t("Takvimde yarış yok.")}</div>
-                  )}
-                  {canEditTeam && (
-                    <button className="gbtn ubtn" style={{ width: "100%", marginTop: 10 }}
-                      onClick={() => setRForm({
-                        rid: null, seasonId: curSeason || null, round: "", name: "",
-                        trackId: st.track || "", carClass: st.carClass || "hypercar",
-                        carId: st.car || "", raceTime: st.raceTime || "6:00:00",
-                        startsAt: Date.now(),
-                      })}>
-                      ➕ {t("Yarış Ekle")}
-                    </button>
-                  )}
-                </section>
-
-                {/* ── Üyeler & Yetkiler ── */}
-                <section className="tmcard">
-                  <div className="tmcard-h">👥 {t("Üyeler & Yetkiler")}</div>
-                  {canManageTeam && (
-                    <div className="tmlegend">
-                      <span>🎧 {t("Yarış Mühendisi")} — {t("yarış datasını değiştirebilir, üyelere dokunamaz")}</span>
-                      <span><span style={{ verticalAlign: -2 }}><Wheel size={12} /></span> {t("Sürücü")} — {t("her şeyi görür, hiçbir şeyi değiştiremez")}</span>
-                      <span>👑 {t("Takım Sahibi")} — {t("rozetleri ve yetkileri yönetir")}</span>
-                    </div>
-                  )}
-                  <div className="tmmembers">
-                    {Object.entries(teamData.members || {}).map(([uid, role]) => {
-                      const mbs = teamBadgesOf(teamData, uid, null);
-                      return (
-                        <div key={uid} className="tmmem2">
-                          <Avatar uid={uid} name={teamData?.names?.[uid]} size={24} />
-                          <span className="tmm-badges">
-                            {mbs.length ? mbs.map((b) => (
-                              <span key={b.lbl} className="ubadge" title={t(b.lbl)}
-                                style={{ color: b.col, background: b.bg, borderColor: b.col }}>
-                                {b.ico}</span>
-                            )) : <span className="ubadge" style={{ opacity: .25 }}>·</span>}
-                          </span>
-                          <span className="tmm-name">
-                            <b>{teamData?.names?.[uid]
-                              ? teamData.names[uid]
-                              : (uid === user.uid ? t("(sen)") : uid.slice(0, 10) + "…")}
-                              {teamData?.names?.[uid] && uid === user.uid ? ` ${t("(sen)")}` : ""}</b>
-                            <span className="tmm-role" title={t("Yetki")}>{t(roleLabel(role))}</span>
-                          </span>
-                          {canManageTeam && (
-                            <span className="tmm-act">
-                              {["driver", "engineer"].map((id) => {
-                                const on = hasBadge(teamData, uid, id);
-                                const b = BADGES[id];
-                                return (
-                                  <button key={id} className={`btgl ${on ? "on" : ""}`}
-                                    title={`${t(b.lbl)} — ${t(id === "engineer"
-                                      ? "datayı değiştirebilir" : "sadece görür")}`}
-                                    style={on ? { color: b.col, borderColor: b.col,
-                                      background: b.bg } : undefined}
-                                    onClick={() => setBadge(uid, id, !on)}>
-                                    {b.ico}
-                                  </button>
-                                );
-                              })}
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
+                    {raceEntries.length === 0 && (
+                      <div style={{ padding: 12, fontSize: 12, color: "var(--rc-text-3)" }}>
+                        {t("Takvimde yarış yok.")}</div>
+                    )}
                   </div>
-                </section>
-
-                {/* ── Takım Erişimi ── */}
-                <section className="tmcard">
-                  <div className="tmcard-h">🔑 {t("Takım Erişimi")}</div>
-                  <div className="tmcode">
-                    <span className="tmcode-k">{t("Katılım kodu")}</span>
-                    <b className="tmcode-v">{teamData?.meta?.joinCode || "—"}</b>
+                </div>
+                {canEditTeam && curSeason && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px",
+                    borderRadius: 11, border: "1px solid var(--rc-border-strong)",
+                    background: "rgba(255,77,94,.06)", flexWrap: "wrap" }}>
+                    <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, flex: 1 }}>
+                      <b style={{ fontSize: 12.5, color: "var(--rc-danger)" }}>{t("Sezonu sil")}</b>
+                      <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>
+                        {t("Sezon kaydı silinir. Yarışlar ve setup havuzu etkilenmez.")}</span>
+                    </span>
+                    <button style={{ padding: "8px 15px", borderRadius: 9, border: "1px solid var(--rc-danger)",
+                      background: "transparent", color: "var(--rc-danger)", cursor: "pointer",
+                      fontSize: 12.5, whiteSpace: "nowrap" }}
+                      onClick={() => { if (window.confirm(`${t("Sezon silinsin mi?")}\n\n${seasonLbl}`)) {
+                        deleteSeason(curTeam, curSeason)
+                          .then(() => { setCurSeason(""); setSeasonOpen(false); }).catch(() => {}); } }}>
+                      {t("Sezonu sil")}</button>
                   </div>
-                  <div className="hint" style={{ marginBottom: myRole !== "owner" ? 10 : 0 }}>
-                    {t("Bu kodu paylaş — üyeler katılırken girer.")}
-                    {" "}{t("PIN'leri yalnız düzenleyiciler görür.")}
-                  </div>
-                  {myRole !== "owner" && (
-                    <button className="histbtn" onClick={() => {
-                      leaveTeam(curTeam, user.uid).catch(() => {}); setCurTeam("");
-                    }}>{t("Takımdan ayrıl")}</button>
-                  )}
-                </section>
-              </>)}
+                )}
+              </div>
+              <div style={{ display: "flex", padding: "12px 18px", borderTop: "1px solid var(--rc-border)" }}>
+                <button className="gbtn ubtn" style={{ marginLeft: "auto" }}
+                  onClick={() => setSeasonOpen(false)}>{t("Kapat")}</button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
+      </div>
+  );
+  /* v2.0: TAM SAYFA modda Sheet kabuğu YOK — fiş 10-takim.md kök div'i doğrudan
+     çizilir (gezinme 76px sol raydan; ✕/← yok). Modalda Sheet ile sarılır. */
+  if (page) return body;
+  return (
+    <Sheet page={false} onClose={onClose} width="min(1000px,96vw)"
+      title={<>⚙ {t("Yönet")} · {t("Takımlar")}</>}>
+      {body}
+    </Sheet>
   );
 }
 

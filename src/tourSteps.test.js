@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { buildTourSteps, lobbySteps, coreSteps, liveSteps } from "./tourSteps";
+import { readFileSync, readdirSync } from "node:fs";
 
 /* t: kimlik (anahtar = Türkçe metin) — i18n'den bağımsız test */
 const t = (s) => s;
@@ -73,7 +74,7 @@ describe("tourSteps", () => {
   it("Canlı adımlarının HEPSİ Canlı sekmesini açar ve demoyu tetikler", () => {
     const c = ctx();
     const steps = liveSteps(t, c);
-    expect(steps.length).toBeGreaterThanOrEqual(8);
+    expect(steps.length).toBeGreaterThanOrEqual(7);
     for (const st of steps) {
       expect(typeof st.act, st.title).toBe("function");
       st.act();
@@ -86,7 +87,8 @@ describe("tourSteps", () => {
 
   it("Canlı bölümü Canlı Timing'in ana kutularını kapsar", () => {
     const sels = liveSteps(t, ctx()).map((x) => x.sel);
-    for (const need of ["livedemo", "liveconn", "livesession", "ownlive",
+    /* liveconn/livesession v2'de kaldırıldı (bilgi yarış çubuğuna taşındı). */
+    for (const need of ["livedemo", "ownlive",
       "livemap", "livefield", "livelapsbtn", "livepos", "livebig"]) {
       expect(sels, need).toContain(`[data-tour='${need}']`);
     }
@@ -97,5 +99,42 @@ describe("tourSteps", () => {
     for (const st of coreSteps(t, c)) if (st.act) st.act();
     expect(c.setTab).toHaveBeenCalled();
     expect(c.setSideOpen).toHaveBeenCalledWith(true);
+  });
+});
+
+/* v2.0 — çıpa bütünlüğü.
+   Tur adımları DOM'a [data-tour='…'] ile bağlanır. Ekranlar yeniden yazılırken
+   bir çıpanın silinmesi sessizce geçiyordu: adım açılıyor ama vurgulayacak
+   öğe bulunamıyordu. (Sekme çubuğu ve HUD şeridi kaldırılınca 'tabs' ve
+   'pitboard' çıpaları tam da böyle açıkta kalmıştı.) Burada her seçicinin
+   kaynak ağacında bir karşılığı olduğu doğrulanıyor. */
+describe("tourSteps — çıpa bütünlüğü (v2.0)", () => {
+  const SRC = new URL("./", import.meta.url);
+  const files = [];
+  const walk = (dir) => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const u = new URL(`${e.name}${e.isDirectory() ? "/" : ""}`, dir);
+      if (e.isDirectory()) walk(u);
+      else if (/\.jsx?$/.test(e.name) && !/\.test\.jsx?$/.test(e.name)) files.push(u);
+    }
+  };
+  walk(SRC);
+  const src = files.map((f) => readFileSync(f, "utf8")).join("\n");
+
+  /* Hem sabit (data-tour="x") hem koşullu (data-tour={... "x" ...}) yazımlar. */
+  const present = new Set([...src.matchAll(/data-tour=(?:"([\w-]+)"|\{[^}]*?"([\w-]+)"[^}]*\})/g)]
+    .flatMap((m) => [m[1], m[2]]).filter(Boolean));
+
+  const selectors = [...new Set(
+    [...readFileSync(new URL("./tourSteps.js", SRC), "utf8")
+      .matchAll(/data-tour='([\w-]+)'/g)].map((m) => m[1]))];
+
+  it("tur adımlarında en az 30 çıpa var (kapsam düşmesin)", () => {
+    expect(selectors.length).toBeGreaterThanOrEqual(30);
+  });
+
+  it("her tur seçicisinin DOM'da bir data-tour karşılığı var", () => {
+    const missing = selectors.filter((s) => !present.has(s));
+    expect(missing, `DOM'da karşılığı olmayan çıpalar: ${missing.join(", ")}`).toEqual([]);
   });
 });

@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback, lazy, Suspense, Fragment } from "react";
 import UpdateBanner from "./UpdateBanner";
+import NumInput from "./NumInput";
 import { isTauri } from "./tauriEnv";
 import { useLiveBridge } from "./useLiveBridge";
 import { useLive } from "./useLive";
@@ -13,16 +14,15 @@ import { useLmuSchedule } from "./useLmuSchedule";
 import { officialRaceToForm } from "./lmuSchedule";
 import { useRaceSync } from "./useRaceSync";
 import { useTelemetry } from "./useTelemetry";
-import TelemetryStandalone from "./TelemetryStandalone";
-import ScheduleStandalone from "./ScheduleStandalone";
 import { firebaseReady,
   requestAccess, watchAllUsers, setUserAllowed, updateProfile,
   setTeamRole, toggleTeamBadge, setTeamMemberName,
   deleteChat, syncMyTeamName,
   deleteSetup, addSetup,
   createRace, updateRace, deleteRace,
-  raceStateGet,
-  getUserAvatar, saveUserAvatar, clearUserAvatar } from "./storage";
+  raceStateGet, raceStateSet,
+  getUserAvatar, saveUserAvatar, clearUserAvatar,
+  availSet, availClear, availSubscribe } from "./storage";
 import { processImageFile, IMG_ACCEPT_TYPES } from "./imageUpload";
 import { carImageSrc, teamLogoSrc } from "./teamAssets";
 import { duckSetupToSvm, textToB64 } from "./setupParse";
@@ -34,9 +34,15 @@ import {
   computePlan, migrate, lastStintFuel,
 } from "./engine";
 import {
-  SLOT_COLORS, APP_VERSION, SEEN_VER_KEY, ASSET, AV,
-  TRACKS, PIT_LANE_TIMES, TRACK_ASSET, trackFlag,
-  CARS, CAR_CLASSES, trackName, carName, classId, venueToTrackId,
+  normalizeScreen, pushScreen, popScreen, hashForScreen, screenFromHash, showsRaceBar,
+} from "./nav";
+import { Rail, RaceBar, Guide, EmptyState } from "./shell";
+import { guideFor } from "./guides";
+import { pruneAssignments } from "./avail";
+import {
+  SLOT_COLORS, APP_VERSION, APP_VERSION_SUMMARY, SEEN_VER_KEY, ASSET, AV, SUPPORT_EMAIL,
+  TRACKS, PIT_LANE_TIMES, TRACK_ASSET,
+  CARS, CAR_CLASSES, trackName, carName, carImg, brandLogo, classId, classAccent, venueToTrackId,
   PIE_COLORS, DESKTOP_RELEASE_URL, BRIDGE_EXE_URL,
 } from "./constants";
 import {
@@ -48,7 +54,7 @@ import {
   applyMarkPit, applyUnmarkPit, applyResetPits,
 } from "./state";
 import { buildTourSteps } from "./tourSteps";
-import { poolEmptyReason } from "./setupPool";
+import { lapDeltas } from "./setupPool";
 import {
   TourOverlay, Wheel, Num, Bolt, Tyre, Ring, Icon, Btn, Avatar,
   BADGES, teamBadgesOf, hasBadge, ChatPanel, SetupForm, SetupTable, SetupCards,
@@ -96,6 +102,7 @@ const TyreTab = lazyRetry(() => import("./tabs/TyreTab"));
 const DriversTab = lazyRetry(() => import("./tabs/DriversTab"));
 const TeleTab = lazyRetry(() => import("./tabs/TeleTab"));
 const LiveTab = lazyRetry(() => import("./tabs/LiveTab"));
+const ScheduleTab = lazyRetry(() => import("./tabs/ScheduleTab"));
 
 /* ============================================================
    CASPIAN MOTORSPORT — RACE MONITOR  ·  Faz 2
@@ -161,9 +168,50 @@ function ytId(url) {
 }
 
 
+/* Ondalık girişli sayı alanı — kontrollü input'ta parseFlo(v)||0 her tuşta değeri
+   sayıya çevirdiği için "0." gibi ARA hali silip ondalık yazmayı engelliyordu.
+   Burada ham metin yerel tutulur (ondalık yazılabilir), dışarı SAYI verilir. */
 export default function App() {
   const [st, setSt] = useState(DEFAULT_STATE);
-  const [tab, setTab] = useState("dash");
+  /* ---------- v2.0 EKRAN YÖNLENDİRMESİ — TEK NOKTA ----------
+     v1'de gezinme ikiye bölünmüştü: erken-return zinciri (entered/pickDone/
+     setupDone/teleOnly/scheduleOnly) + ayrı bir `tab` state'i. Takım · Sohbet ·
+     Telemetri · Setup havuzu modal kabuğundan çıkıp tam sayfa olunca tek bir
+     yönlendirme şart oldu.
+
+     `screen` tek kaynak; `go()` history'ye de yazar → tarayıcı geri tuşu ve
+     masaüstü (Tauri) AYNI davranır: açık ekranı kapatmak yerine öncekine dönülür.
+     Tauri file:// altında pathname değiştirilemediği için hash kullanılır.
+     `tab`/`setTab` geri-uyum alias'ı — mevcut çağrı yerleri bozulmaz. */
+  const [screen, setScreen] = useState(() =>
+    screenFromHash(typeof window === "undefined" ? "" : window.location.hash, "home"));
+  const navStack = useRef([screen]);
+  const go = useCallback((next) => {
+    const s = normalizeScreen(next, "home");
+    if (navStack.current[navStack.current.length - 1] === s) return;
+    navStack.current = pushScreen(navStack.current, s);
+    try { window.history.pushState({ screen: s }, "", hashForScreen(s)); } catch { /* file:// */ }
+    setScreen(s);
+  }, []);
+  const back = useCallback(() => {
+    if (navStack.current.length > 1) { try { window.history.back(); return; } catch { /* ignore */ } }
+    go("home");
+  }, [go]);
+  useEffect(() => {
+    try { window.history.replaceState({ screen }, "", hashForScreen(screen)); } catch { /* file:// */ }
+    const onPop = (e) => {
+      const s = normalizeScreen(
+        e.state?.screen ?? screenFromHash(window.location.hash), "home");
+      navStack.current = popScreen(navStack.current).stack;
+      setScreen(s);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+    /* yalnız mount — screen'i bağımlılığa koymak her geçişte replaceState eder. */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const tab = screen;
+  const setTab = go;
 
   /* ---------- Faz 2: takım senkronizasyonu + yetki ---------- */
   const [lang, setLang] = useState(() => {
@@ -195,6 +243,13 @@ export default function App() {
   useEffect(() => {
     document.documentElement.lang = lang === "en" ? "en" : "tr";
   }, [lang]);
+  /* Sol ray açık/kapalı — tıklamayla kayarak gizlenir (README "Interactions"). */
+  const [railOpen, setRailOpen] = useState(() => {
+    try { return localStorage.getItem("crm-rail") !== "0"; } catch { return true; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("crm-rail", railOpen ? "1" : "0"); } catch { /* özel mod */ }
+  }, [railOpen]);
   /* Yoğunluk modu — varsayılan "compact" (yoğun pit-duvarı); "comfort" biraz daha
      nefes alan boşluk/tipografi. data-density html'de → tüm .rc köklerini kapsar. */
   const [density, setDensity] = useState(() => {
@@ -240,10 +295,15 @@ export default function App() {
     return () => window.removeEventListener("keydown", h);
   }, []);
   const [entered, setEntered] = useState(false); // lobi geçildi mi (solo/oda)
-  const [teleOnly, setTeleOnly] = useState(false); // bağımsız telemetri ekranı (Race Solo'dan AYRI)
-  const [scheduleOnly, setScheduleOnly] = useState(false); // bağımsız Resmi Yarışlar takvimi (yarıştan AYRI)
+  /* Bağımsız üst-düzey ekranlar artık ayrı bayrak değil, `screen`den türer —
+     böylece geri tuşu ve URL bunlarda da çalışır. */
+  const scheduleOnly = screen === "official";        // yarıştan AYRI resmi takvim
   const [pickDone, setPickDone] = useState(false); // pist/araç seçimi tamamlandı mı
   const [setupDone, setSetupDone] = useState(false); // data giriş adımı tamamlandı mı
+  /* Yarış ekle/düzenle sihirbazı: RaceEditModal "İleri" → data formu → Kaydet.
+     Dolu iken data formunun aksiyonu takvime kaydeder (canlı yarış başlatmaz). */
+  const [raceWizard, setRaceWizard] = useState(null); // { payload, rid, form } | null
+  const [trackQ, setTrackQ] = useState(""); // pist & araç ekranı: pist arama süzgeci
   const [userName, setUserName] = useState("");
   const [curRace, setCurRace] = useState("");    // aktif yarış id (takım içinde)
   /* canlı timing + yakıt öğrenici → useLive hook'u (aşağıda, curTeamRef kurulduktan
@@ -278,6 +338,7 @@ export default function App() {
       setCurRace(rid);
       setRole(canEditTeam ? "editor" : "viewer");
       setEntered(true); setPickDone(true); setSetupDone(true);
+      go("stint");   // yarış açılınca doğrudan Stint planına gir (Dash değil)
       setTeamOpen(false); setSyncMsg("");
       setTimeout(() => { sync.current.applying = false; }, 60);
     } catch (e) { setSyncMsg(t("Bağlantı hatası: ") + e.message); }
@@ -286,6 +347,7 @@ export default function App() {
   const leaveRace = () => {
     setCurRace(""); setRole("editor"); setLastSync(null); setSyncMsg("");
     setEntered(false); setPickDone(false); setSetupDone(false);
+    go("home");
   };
 
   /* Yetki muhafızı: viewer bir yarışta düzenleme denerse "yetkiniz yok" kutucuğu göster
@@ -366,6 +428,13 @@ export default function App() {
     if (blocked()) { showDeny(); return; }
     setSt((s) => ({ ...s, roster: [...s.roster, n] }));
     setNewDriver("");
+  };
+  /* Takım havuzundan kadroya ekle — addDriver gibi izin kapılı (viewer'da ham setSt
+     ile atlanıyordu: hayalet/senkronlanmayan yerel düzenleme, deny toast'ı yoktu). */
+  const addFromPool = (n) => {
+    if (!n || st.roster.includes(n)) return;
+    if (blocked()) { showDeny(); return; }
+    setSt((s) => (s.roster.includes(n) ? s : { ...s, roster: [...s.roster, n] }));
   };
   const removeDriver = (n) => edit((s) => ({
     ...s,
@@ -450,10 +519,13 @@ export default function App() {
   const liveInfo = useMemo(() => computeLiveInfo(st, racePlan, now),
     [now, st.raceStartMs, st.driverAssign, st.actualPits, st.pitRepairs, st.autoOvr, racePlan]);
   useEffect(() => {
-    const needed = liveInfo.status === "pre" || liveInfo.status === "live";
+    /* Lobide de saat işlesin: takvim geçmiş-eşiği (bitiş + 30 dk) ve hero geri
+       sayımı CANLI güncellensin — yoksa biten yarış Geçmiş'e düşmeden ekranda takılır. */
+    const needed = liveInfo.status === "pre" || liveInfo.status === "live"
+      || (!curRace && !entered);
     if (needed && !clockNeededRef.current) setNow(Date.now());   // durmuş saati tazele
     clockNeededRef.current = needed;
-  }, [liveInfo.status]);
+  }, [liveInfo.status, curRace, entered]);
 
   /* --- gerçek pit işaretleme (sadece düzenleyici) --- */
   const canEdit = !curRace || role === "editor";
@@ -490,7 +562,10 @@ export default function App() {
     return `${m}:${String(sec).padStart(2, "0")} ${ms >= 0 ? t("geç") : t("erken")}`;
   };
   /* --- PDF çıktısı: yazdırma penceresi açar, tarayıcının "PDF olarak kaydet"i kullanılır --- */
-  const exportPdf = (kind) => {
+  /* Rapor belgesini KURAR (yazdırmaz) — böylece aynı HTML hem gizli iframe ile
+     doğrudan yazdırılabilir hem de A4 önizleme penceresinde gösterilebilir
+     (README §16: önizleme + araç çubuğu). autoPrint=false önizleme içindir. */
+  const buildReportDoc = (kind, { autoPrint = true } = {}) => {
     const esc = (x) => String(x ?? "").replace(/[&<>]/g,
       (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
     /* PDF başlığı: seçili yarıştan otomatik — Sezon · Round N · Yarış Adı */
@@ -613,18 +688,7 @@ export default function App() {
  ${trackUrl ? `<div class="trackcard"><img src="${trackUrl}" alt="">
   <div class="tcap">${esc(trackName(st.track))}</div></div>` : ""}
 </div>`;
-    /* Yeni pencere yerine GİZLİ iframe: WebView2 (masaüstü) popup'ları engelliyor →
-       window.open null dönüyordu → PDF alınamıyordu. iframe'e yazınca içindeki
-       window.onload→print() iframe'i yazdırır (tarayıcı + WebView2 print diyaloğu). */
-    document.getElementById("pdfframe")?.remove();
-    const ifr = document.createElement("iframe");
-    ifr.id = "pdfframe";
-    ifr.setAttribute("aria-hidden", "true");
-    ifr.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
-    document.body.appendChild(ifr);
-    const doc = ifr.contentWindow.document;
-    doc.open();
-    doc.write(`<!doctype html><html><head><meta charset="utf-8">
+    return `<!doctype html><html><head><meta charset="utf-8">
 <title>${esc(docTitle || title)}</title>
 <style>
  *{box-sizing:border-box}
@@ -709,9 +773,54 @@ export default function App() {
 </div>
 ${html}
 ${bottomBar}
-<script>window.onload=function(){window.print()}<\/script></body></html>`);
+${autoPrint ? `<script>window.onload=function(){window.print()}<\/script>` : ""}
+</body></html>`;
+  };
+
+  /* Doğrudan yazdırma yolu (KORUNDU): yeni pencere yerine GİZLİ iframe —
+     WebView2 (masaüstü) popup'ları engelliyor, window.open null dönüyordu.
+     iframe'e yazınca içindeki window.onload→print() iframe'i yazdırır. */
+  const exportPdf = (kind) => {
+    document.getElementById("pdfframe")?.remove();
+    const ifr = document.createElement("iframe");
+    ifr.id = "pdfframe";
+    ifr.setAttribute("aria-hidden", "true");
+    ifr.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
+    document.body.appendChild(ifr);
+    const doc = ifr.contentWindow.document;
+    doc.open();
+    doc.write(buildReportDoc(kind));
     doc.close();
   };
+
+  /* A4 önizleme penceresi (README §16) — Dashboard'daki 🖨 PDF bunu açar.
+     Yazdır/PDF indir, önizlemedeki iframe'i yazdırır (tarayıcı diyaloğundan
+     "PDF olarak kaydet" seçilir; ayrı bir PDF kütüphanesi eklenmedi). */
+  const [pdfDoc, setPdfDoc] = useState(null);
+  const openPdfPreview = (kind) =>
+    setPdfDoc({ kind, html: buildReportDoc(kind, { autoPrint: false }) });
+  const printPreview = () => {
+    const f = document.getElementById("pdfpreviewframe");
+    try { f?.contentWindow?.focus(); f?.contentWindow?.print(); } catch { /* yoksay */ }
+  };
+  const pdfPreview = pdfDoc && (
+    <div className="wxmodal pdfwrap" onClick={() => setPdfDoc(null)}>
+      <div className="pdfbox" onClick={(e) => e.stopPropagation()}>
+        <div className="pdftoolbar">
+          <span className="ttl disp">🖨 {t("Yarış raporu")}</span>
+          <span className="spacer" />
+          <button className="rbbtn" onClick={printPreview}>{t("Yazdır")}</button>
+          <button className="rbbtn apply" onClick={printPreview}>
+            {t("PDF olarak indir")}</button>
+          <button className="lbclose" onClick={() => setPdfDoc(null)}>✕</button>
+        </div>
+        <div className="pdfscroll">
+          <iframe id="pdfpreviewframe" className="pdfpage" title={t("Yarış raporu")}
+            srcDoc={pdfDoc.html} />
+        </div>
+      </div>
+    </div>
+  );
   /* Son stintte pit YOK: phaseEnd = yarış bitişi olduğu için nextPitIn aslında
      bayrağa kalan süredir. "Sıradaki Pit" etiketi + son 5 dk'daki sarı pit alarmı
      olmayan bir pit için uyarı veriyordu → son stintte ikisi de kapalı. */
@@ -747,12 +856,50 @@ ${bottomBar}
   const access = udoc?.allowed === true;
   const isAdmin = udoc?.admin === true;
   const [adminOpen, setAdminOpen] = useState(false);
+  const [adminQ, setAdminQ] = useState("");        // üye yönetimi: arama
+  const [adminFilter, setAdminFilter] = useState("all"); // all | pending | allowed
   const [profOpen, setProfOpen] = useState(false);
   /* ---- takımlar ---- */
   const [teamOpen, setTeamOpen] = useState(false);
   const [createJoinOpen, setCreateJoinOpen] = useState(false); // v1.6 — sade Kur & Katıl ekranı (yönetimden ayrı)
   /* ---- takım/sezon/yarış abonelikleri → useTeams hook'u ---- */
   const { myTeams, curTeam, setCurTeam, teamData, seasons, races } = useTeams({ user, access });
+
+  /* ---------- PİLOT MÜSAİTLİĞİ (v2.0) ----------
+     teams/{tid}/races/{rid}/avail/{driverId} = [uygun OLMAYAN stintNo…]
+     "Yeni veri katmanı yok" kuralının bilinçli tek istisnası. Yarışsız (solo)
+     modda yalnız yerel tutulur — yazacak yarış düğümü yok. */
+  const [avail, setAvailState] = useState(null);
+  useEffect(() => {
+    if (!curTeam || !curRace) { setAvailState(null); return undefined; }
+    return availSubscribe(curTeam, curRace, setAvailState);
+  }, [curTeam, curRace]);
+
+  /* Uygunluk değişince: (a) yalnız DEĞİŞEN pilotu Firebase'e yaz, (b) artık
+     geçersiz kalan atamaları temizle (README §8: "mevcut atama otomatik kalkar"). */
+  const setAvail = (next) => {
+    if (blocked()) { showDeny(); return; }
+    const prev = avail || {};
+    setAvailState(next);
+    if (curTeam && curRace) {
+      const keys = new Set([...Object.keys(prev), ...Object.keys(next || {})]);
+      keys.forEach((k) => {
+        const a = JSON.stringify(prev[k] ?? null);
+        const b = JSON.stringify((next || {})[k] ?? null);
+        if (a !== b) availSet(curTeam, curRace, k, (next || {})[k] || []).catch(() => {});
+      });
+    }
+    setSt((s0) => {
+      const pruned = pruneAssignments(next, s0.driverAssign);
+      return pruned === s0.driverAssign ? s0 : { ...s0, driverAssign: pruned };
+    });
+  };
+  const resetAvail = () => {
+    if (blocked()) { showDeny(); return; }
+    setAvailState(null);
+    if (curTeam && curRace) availClear(curTeam, curRace).catch(() => {});
+  };
+
   /* .duckdb telemetrisine gömülü setup'ı Setup Havuzuna kaydet (v1.5.2): VM_/WM_ JSON'u
      .svm metnine çevir → mevcut addSetup borusuna ver (havuz bu formatı okur). Pist/sınıf
      telemetri meta'sından en iyi çaba etiketlenir. */
@@ -832,14 +979,16 @@ ${bottomBar}
   });
   /* Havuz görünümü (tablo/kart) — cihaz tercihi, odaya senkron edilmez. */
   const [suView, setSuView] = useState(() => {
-    try { return localStorage.getItem("rm_setup_view") || "table"; }
-    catch { return "table"; }
+    try { return localStorage.getItem("rm_setup_view") || "cards"; }
+    catch { return "cards"; }
   });
   const toggleSuView = () => setSuView((v) => {
     const next = v === "cards" ? "table" : "cards";
     try { localStorage.setItem("rm_setup_view", next); } catch { /* özel mod */ }
     return next;
   });
+  /* ⬆ Setup yükle → satır-içi yükleme paneli aç/kapa (fiş: openSu). */
+  const [poolUp, setPoolUp] = useState(false);
   const { setups, suFile, suMeta, setSuMeta, suErr, suMsg, suBusy,
     suUpOpen, setSuUpOpen, suFTrack, setSuFTrack,
     suFCond, setSuFCond, suFSess, setSuFSess,
@@ -852,7 +1001,9 @@ ${bottomBar}
 
   /* ---- lmugarage.com resmi LMU yarış takvimi — Ana Menü → Resmi Yarışlar ----
      Yarıştan BAĞIMSIZ: yalnız scheduleOnly görünürken abone olur; race state gerekmez. */
-  const lmu = useLmuSchedule({ user, udoc, active: scheduleOnly });
+  /* Ana menüde de resmi takvimi yükle → "Resmi yarışlar" fişi gerçek sıradaki
+     yarışı + geri sayımı gösterir (kullanıcı onayı). Yarışa girilince kapanır. */
+  const lmu = useLmuSchedule({ user, udoc, active: scheduleOnly || (!curRace && !entered) });
   /* Resmi Yarışlar → ön ayar (v1.7.3): bir resmi yarışın 📋 butonu, o yarışın
      pist/sınıf/süre/başlangıcıyla "Yarış Ekle" formunu doldurur ve takvimi kapatır
      → kullanıcı (belirli aracı seçip) Kaydet der → takım yarışı + strateji state
@@ -864,7 +1015,7 @@ ${bottomBar}
       fallbackRaceTime: DEFAULT_STATE.raceTime,
       classId,
     }));
-    setScheduleOnly(false);
+    back();
   };
 
   /* ---- yüzen mini oynatıcı → useMiniPlayer hook'u (konum/boyut/sürükle) ---- */
@@ -883,6 +1034,9 @@ ${bottomBar}
   const [lobSeason, setLobSeason] = useState("all"); // lobide şampiyona süzgeci
   const [lobQuery, setLobQuery] = useState("");      // geçmiş yarış araması (§1.3)
   const [pastLimit, setPastLimit] = useState(12);    // geçmiş yarış sayfalama (§1.3)
+  const [lobCal, setLobCal] = useState("up");        // menü takvim segmenti: Yaklaşan/Geçmiş
+  const [homeInfo, setHomeInfo] = useState(false);   // menü top bar: ℹ bilgi açılırı
+  const [homeAcct, setHomeAcct] = useState(false);   // menü top bar: hesap açılırı
   const [tnEdit, setTnEdit] = useState(null);        // takım adı düzenleme metni
 
   const myRole = teamData?.members?.[user?.uid] || "";
@@ -976,28 +1130,381 @@ ${bottomBar}
         sort={suSort} onSort={toggleSort} cmpSel={cmpSel} onCmpToggle={cmpToggle}
         onDownload={downloadSetup} onView={setViewSu} onDelete={onDeleteSetup} />;
 
-  /* ⚖ alt-sabit karşılaştırma çubuğu — seçim varken görünür; 2 seçilince aç. */
+  /* ⚖ alt-sabit karşılaştırma tepsisi (fiş 09: trayStyle/trayText) — seçim varken
+     görünür; 2 seçilince ⚖ Karşılaştır aktif. Konum sabit olduğundan kabuk
+     seviyesinde durması davranışı korur (tüm ekranlarda çalışır). */
   const cmpA = setups.find((x) => x.id === cmpSel[0]) || null;
   const cmpB = setups.find((x) => x.id === cmpSel[1]) || null;
+  const cmpReady = !!(cmpA && cmpB);
   const cmpBar = cmpSel.length > 0 && !cmpOpen && (
-    <div className="cmpbar">
-      <span>⚖ {cmpSel.length}/2</span>
-      {[cmpA, cmpB].filter(Boolean).map((s) => (
-        <span key={s.id} className="chip mono" style={{ fontSize: 11 }}>{s.name}</span>
-      ))}
-      <button className="act" disabled={!(cmpA && cmpB)}
-        onClick={() => setCmpOpen(true)}>{t("Karşılaştır")}</button>
-      <button className="act" onClick={() => setCmpSel([])}>✕ {t("Temizle")}</button>
+    <div style={{ position: "fixed", left: "50%", bottom: 20, transform: "translateX(-50%)",
+      zIndex: 40, display: "flex", alignItems: "center", gap: 12, padding: "10px 16px",
+      borderRadius: 12, background: "var(--rc-surface-2)", border: "1px solid var(--rc-brand-bright)",
+      boxShadow: "0 8px 30px rgba(0,0,0,.45)" }}>
+      <span style={{ fontSize: 12, color: "var(--rc-text-2)" }}>
+        {cmpSel.length} {t("setup seçili")}
+        {cmpSel.length === 1 ? " · " + t("bir tane daha seç") : ""}</span>
+      <button disabled={!cmpReady} onClick={() => setCmpOpen(true)}
+        style={{ padding: "7px 16px", borderRadius: 9, border: "1px solid var(--rc-brand-bright)",
+          background: "var(--rc-brand)", color: "var(--rc-on-brand)",
+          cursor: cmpReady ? "pointer" : "default", fontSize: 13, fontWeight: 600,
+          opacity: cmpReady ? 1 : 0.5 }}>⚖ {t("Karşılaştır")}</button>
+      <button onClick={() => setCmpSel([])}
+        style={{ padding: "7px 12px", borderRadius: 9, border: "1px solid var(--rc-border)",
+          background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer",
+          fontSize: 13 }}>{t("Temizle")}</button>
     </div>
   );
+
+  /* ── Setup havuzu ekranı (fiş 09-setup-havuzu.md) — birebir markup. Kabuk +
+     süzgeç çipleri + görünüm/sıralama + pist bazlı gruplar (liste & kart) + boş
+     durum. Satır/kart sunumu burada satır-içi; SetupTable/SetupCards (lobi
+     penceresi + render testleri) el değmeden korunur. Veri/handler'lar aynı
+     (useSetups + cmp seçimi). */
+  const setupScreen = () => {
+    const disp = "var(--rc-font-display)";
+    const hideImg = (e) => { e.currentTarget.style.display = "none"; };
+    const hasFile = (su) => !!(su?.data || su?.hasBlob);
+    const stop = (e) => e.stopPropagation();
+    const poolCards = suView === "cards";
+    const gridCols = "26px minmax(120px,1.2fr) 96px 1fr 92px 88px 168px";
+    const colLbl = { color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase",
+      letterSpacing: ".09em" };
+    const actBtn = { padding: "4px 10px", borderRadius: 7, border: "1px solid var(--rc-border)",
+      background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer", fontSize: 11 };
+    const upBtn = { border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)",
+      color: "var(--rc-on-brand)", cursor: "pointer", fontWeight: 600 };
+    const chipStyle = (active) => ({ padding: "6px 12px", borderRadius: 99, cursor: "pointer",
+      fontSize: 11.5, border: `1px solid ${active ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
+      background: active ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)",
+      color: active ? "var(--rc-text)" : "var(--rc-text-3)" });
+    const verChip = { fontSize: 10, padding: "1px 6px", borderRadius: 6, flex: "0 0 auto",
+      border: "1px solid var(--rc-border)", color: "var(--rc-text-3)",
+      fontFamily: "var(--rc-font-mono)", whiteSpace: "nowrap" };
+    const cmpChip = { display: "inline-flex", alignItems: "center", fontSize: 11, padding: "3px 8px",
+      borderRadius: 99, border: "1px solid var(--rc-brand-bright)", color: "var(--rc-brand-bright)",
+      whiteSpace: "nowrap" };
+    const condChip = { display: "inline-flex", alignItems: "center", fontSize: 11, padding: "3px 9px",
+      borderRadius: 99, border: "1px solid var(--rc-border)", color: "var(--rc-text-2)",
+      whiteSpace: "nowrap" };
+    /* Görünüm segmenti (fiş: viewCardsBtn/viewListBtn). */
+    const viewCardsBtn = { width: 34, height: 30, border: "none", cursor: "pointer", fontSize: 13,
+      background: poolCards ? "rgba(150,0,24,.28)" : "var(--rc-surface-3)",
+      color: poolCards ? "var(--rc-text)" : "var(--rc-text-3)" };
+    const viewListBtn = { width: 34, height: 30, border: "none", cursor: "pointer", fontSize: 13,
+      borderLeft: "1px solid var(--rc-border)",
+      background: poolCards ? "var(--rc-surface-3)" : "rgba(150,0,24,.28)",
+      color: poolCards ? "var(--rc-text-3)" : "var(--rc-text)" };
+    const setPoolView = (mode) => setSuView((v) => {
+      if (v === mode) return v;
+      try { localStorage.setItem("rm_setup_view", mode); } catch { /* özel mod */ }
+      return mode;
+    });
+
+    /* Süzgeç çipleri — mevcut süzgeç state'ine (cond/sess/mine) bağlı; fişteki
+       tekil poolFilter yerine çok boyutlu süzgeç korunur. */
+    /* Fiş (09-setup-havuzu.png) çip sırası: Tüm pistler · Şu anki pist · Kuru ·
+       Wet · Yarış · Benim setuplarım. "Şu anki pist" yalnız yüklü yarışın pisti
+       varken görünür (o piste süzer). */
+    const filterChips = [
+      { label: t("Tüm pistler"), active: !suFCond && !suFSess && !suMine && !suFTrack,
+        pick: () => { setSuFCond(""); setSuFSess(""); setSuMine(false); setSuFTrack(""); } },
+      ...(st.track ? [{ label: t("Şu anki pist"), active: suFTrack === st.track,
+        pick: () => setSuFTrack((v) => (v === st.track ? "" : st.track)) }] : []),
+      { label: `☀️ ${t("Kuru")}`, active: suFCond === "dry",
+        pick: () => setSuFCond((v) => (v === "dry" ? "" : "dry")) },
+      { label: `🌧 ${t("Wet")}`, active: suFCond === "wet",
+        pick: () => setSuFCond((v) => (v === "wet" ? "" : "wet")) },
+      { label: t("Yarış"), active: suFSess === "R",
+        pick: () => setSuFSess((v) => (v === "R" ? "" : "R")) },
+      { label: `👤 ${t("Benim setuplarım")}`, active: suMine,
+        pick: () => setSuMine((v) => !v) },
+    ];
+    /* Sıralama çipleri (fiş: sortChips) — mevcut toggleSort'a bağlı. "by"
+       (Yükleyen) veri katmanında yok → tarih sırasına düşer (bkz. rapor). */
+    const sortDefs = [
+      { id: "lap", label: t("Tur") },
+      { id: "date", label: t("Tarih") },
+      { id: "by", label: t("Yükleyen") },
+    ];
+
+    const deltas = lapDeltas(suList);
+    const groupMap = new Map();
+    for (const s of suList) {
+      const k = s.track || "";
+      if (!groupMap.has(k)) groupMap.set(k, []);
+      groupMap.get(k).push(s);
+    }
+    const groups = [...groupMap.entries()];
+    const poolEmpty = suList.length === 0;
+    const trackCount = new Set(suList.map((s) => s.track).filter(Boolean)).size;
+
+    const fmtDate = (at) => new Date(at || 0).toLocaleDateString(
+      lang === "en" ? "en-GB" : "tr-TR", { day: "2-digit", month: "2-digit", year: "2-digit" });
+    const lapText = (su) => {
+      if (!su.lap) return "—";
+      const sec = parseLap(su.lap);
+      return sec > 0 ? fmtLap(sec) : su.lap;
+    };
+    const lapColor = (su) => (!su.lap ? "var(--rc-text-3)"
+      : deltas.get(su.id)?.fastest ? "var(--rc-ok)" : "var(--rc-text)");
+    const condLabel = (su) => `${su.cond === "wet" ? "🌧" : "☀️"} ${su.sess === "Q" ? "Q" : "R"}`;
+    const metaLine = (su) => [su.champ, su.note].filter(Boolean).join(" · ");
+
+    const listRow = (su) => {
+      const file = hasFile(su);
+      const selected = cmpSel.includes(su.id);
+      const here = su.track === st.track;
+      return (
+        <div key={su.id} onClick={file ? () => cmpToggle(su) : undefined}
+          style={{ display: "grid", gridTemplateColumns: gridCols, gap: 10, alignItems: "center",
+            padding: "8px 12px", borderBottom: "1px solid var(--rc-border)",
+            cursor: file ? "pointer" : "default",
+            background: selected ? "rgba(150,0,24,.22)" : here ? "rgba(150,0,24,.08)" : "transparent" }}>
+          {/* Favori (★) kalıcılığı backend'de yok → grid hizası için boş hücre. */}
+          <span />
+          <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+              <b style={{ fontFamily: disp, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden",
+                textOverflow: "ellipsis" }}>{su.name}</b>
+              {su.ver && <span style={verChip}>{su.ver}</span>}
+            </span>
+            {metaLine(su) && <span style={{ fontSize: 10.5, color: "var(--rc-text-3)",
+              whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{metaLine(su)}</span>}
+          </span>
+          <span style={{ display: "flex", justifyContent: "flex-start" }}>
+            <span style={condChip}>{condLabel(su)}</span></span>
+          <span style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+            {su.car && brandLogo(carName(su.cls, su.car)) && (
+              <img src={brandLogo(carName(su.cls, su.car))} alt="" onError={hideImg}
+                style={{ height: 17, width: 17, objectFit: "contain", flex: "0 0 auto" }} />)}
+            {su.cls && <img src={`${ASSET}class/${su.cls}.png`} alt="" onError={hideImg}
+              style={{ height: 14, flex: "0 0 auto" }} />}
+            <span style={{ fontSize: 12, whiteSpace: "nowrap", overflow: "hidden",
+              textOverflow: "ellipsis" }}>{carName(su.cls, su.car) || "—"}</span>
+          </span>
+          <b style={{ fontFamily: disp, fontSize: 17, fontWeight: 700, textAlign: "right",
+            color: lapColor(su) }}>{lapText(su)}</b>
+          <span style={{ fontSize: 11, color: "var(--rc-text-3)", whiteSpace: "nowrap",
+            overflow: "hidden", textOverflow: "ellipsis" }}>{su.uname || "—"} · {fmtDate(su.at)}</span>
+          <span style={{ display: "flex", gap: 6, justifyContent: "flex-end", width: 168 }}>
+            {selected && <span style={cmpChip}>⚖</span>}
+            {file && <button onClick={(e) => { stop(e); setViewSu(su); }} style={actBtn}>
+              {t("İçerik")}</button>}
+            <button onClick={(e) => { stop(e); downloadSetup(su); }} style={actBtn}>{t("İndir")}</button>
+            {isAdmin && <button onClick={(e) => { stop(e); onDeleteSetup(su); }}
+              style={{ ...actBtn, color: "var(--rc-danger)" }} title={t("Sil")}>✕</button>}
+          </span>
+        </div>
+      );
+    };
+
+    const card = (su) => {
+      const file = hasFile(su);
+      const selected = cmpSel.includes(su.id);
+      const carPng = carImg(su.cls, su.car);
+      return (
+        <div key={su.id} onClick={file ? () => cmpToggle(su) : undefined}
+          style={{ position: "relative", overflow: "hidden", borderRadius: 14,
+            border: `1px solid ${selected ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
+            background: "var(--rc-surface-2)", padding: "16px 18px",
+            cursor: file ? "pointer" : "default" }}>
+          {su.track && <img src={`${ASSET}tracks/${TRACK_ASSET(su.track)}.png`} alt="" onError={hideImg}
+            style={{ position: "absolute", right: -10, top: -10, width: 150, opacity: 0.06,
+              pointerEvents: "none", filter: "grayscale(1)" }} />}
+          {carPng && <img src={carPng} alt="" onError={hideImg}
+            style={{ position: "absolute", right: 8, bottom: 8, height: 44, opacity: 0.16,
+              pointerEvents: "none" }} />}
+          <div style={{ position: "relative", display: "flex", alignItems: "flex-start", gap: 12 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, flex: 1 }}>
+              <span style={{ fontFamily: disp, fontWeight: 700, fontSize: 36, lineHeight: 0.95,
+                color: lapColor(su), fontVariantNumeric: "tabular-nums" }}>{lapText(su)}</span>
+              {metaLine(su) && <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>
+                {metaLine(su)}</span>}
+            </div>
+            <span style={condChip}>{condLabel(su)}</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, minWidth: 0 }}>
+            {su.car && brandLogo(carName(su.cls, su.car)) && (
+              <img src={brandLogo(carName(su.cls, su.car))} alt="" onError={hideImg}
+                style={{ height: 20, width: 20, objectFit: "contain" }} />)}
+            {su.cls && <img src={`${ASSET}class/${su.cls}.png`} alt="" onError={hideImg}
+              style={{ height: 16 }} />}
+            <span style={{ fontSize: 13, overflow: "hidden", textOverflow: "ellipsis",
+              whiteSpace: "nowrap" }}>{carName(su.cls, su.car) || "—"}</span>
+          </div>
+          <div style={{ fontFamily: disp, fontSize: 11, color: "var(--rc-text-2)", marginTop: 8,
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{su.name}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, paddingTop: 10,
+            borderTop: "1px solid var(--rc-border)" }}>
+            <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>
+              {su.uname || "—"} · {fmtDate(su.at)}</span>
+            <span style={{ marginLeft: "auto", display: "flex", gap: 6, alignItems: "center" }}>
+              {/* Favori (★) kalıcılığı backend'de yok → buton gizlendi. */}
+              {su.ver && <span style={verChip}>{su.ver}</span>}
+              {selected && <span style={cmpChip}>⚖ {t("seçili")}</span>}
+              {file && <button onClick={(e) => { stop(e); setViewSu(su); }} style={actBtn}>
+                {t("İçerik")}</button>}
+              <button onClick={(e) => { stop(e); downloadSetup(su); }} style={actBtn}>{t("İndir")}</button>
+              {isAdmin && <button onClick={(e) => { stop(e); onDeleteSetup(su); }}
+                style={{ ...actBtn, color: "var(--rc-danger)" }} title={t("Sil")}>✕</button>}
+            </span>
+          </div>
+        </div>
+      );
+    };
+
+    return (
+      <div data-tour="setuptab" style={{ padding: "16px 20px 90px", animation: "rcin .26s ease-out" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
+          marginBottom: 16 }}>
+          <h2 style={{ margin: 0, fontFamily: disp, textTransform: "uppercase", letterSpacing: ".06em",
+            fontSize: 22, fontWeight: 700 }}>{t("Setup havuzu")}</h2>
+          <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>
+            {suList.length} {t("dosya")} · {trackCount} {t("pist")}</span>
+          <span style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <input type="text" value={suQuery} placeholder={t("Dosya, araç, not ara…")}
+              onChange={(e) => setSuQuery(e.target.value)}
+              style={{ background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)",
+                borderRadius: 9, color: "var(--rc-text)", fontSize: 13, padding: "8px 12px",
+                width: 220 }} />
+            <button onClick={() => setPoolUp((v) => !v)}
+              style={{ ...upBtn, padding: "8px 14px", borderRadius: 9, fontSize: 13 }}>
+              ⬆ {t("Setup yükle")}</button>
+          </span>
+        </div>
+
+        {poolUp && (
+          <div style={{ border: "1px solid var(--rc-border)", borderRadius: 12,
+            background: "var(--rc-surface)", padding: "14px 16px", marginBottom: 18 }}>
+            {setupForm()}
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center",
+          marginBottom: 18 }}>
+          {filterChips.map((c) => (
+            <button key={c.label} onClick={c.pick} style={chipStyle(c.active)}>{c.label}</button>
+          ))}
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 7, marginLeft: "auto" }}>
+            <span style={{ display: "inline-flex", border: "1px solid var(--rc-border)",
+              borderRadius: 9, overflow: "hidden", marginRight: 5 }}>
+              <button onClick={() => setPoolView("cards")} style={viewCardsBtn}
+                title={t("Kart görünümü")}>⊞</button>
+              <button onClick={() => setPoolView("table")} style={viewListBtn}
+                title={t("Liste görünümü")}>☰</button>
+            </span>
+            <span style={{ fontSize: 10.5, color: "var(--rc-text-3)", textTransform: "uppercase",
+              letterSpacing: ".09em" }}>{t("Sırala")}</span>
+            {sortDefs.map((s) => {
+              const active = suSort.key === s.id;
+              const arrow = active ? (suSort.dir === "asc" ? " ▲" : " ▼") : "";
+              return (
+                <button key={s.id} onClick={() => toggleSort(s.id)} style={chipStyle(active)}>
+                  {s.label}{arrow}</button>
+              );
+            })}
+          </span>
+        </div>
+
+        {suDelErr && (
+          <div style={{ marginBottom: 14, fontSize: 12, color: "var(--rc-danger)" }}>⚠ {suDelErr}</div>
+        )}
+
+        {poolEmpty && (
+          <div style={{ border: "1.5px dashed var(--rc-border-strong)", borderRadius: 14,
+            background: "var(--rc-surface-2)", padding: "46px 24px", textAlign: "center",
+            display: "flex", flexDirection: "column", alignItems: "center", gap: 11 }}>
+            <svg width="44" height="44" viewBox="0 0 24 24" fill="none"
+              stroke="var(--rc-border-strong)" strokeWidth="1.6" strokeLinecap="round"
+              strokeLinejoin="round">
+              <path d="M15.5 4a4.5 4.5 0 0 0-4 6.6L4 18.1 5.9 20l7.5-7.5A4.5 4.5 0 1 0 15.5 4Z" />
+            </svg>
+            <div style={{ fontFamily: disp, fontWeight: 700, fontSize: 20 }}>
+              {suFCond === "wet" ? t("Yağmur setupu yok") : t("Senin yüklediğin setup yok")}</div>
+            <div style={{ fontSize: 12.5, color: "var(--rc-text-3)", lineHeight: 1.7, maxWidth: 420 }}>
+              {suFCond === "wet"
+                ? t("Bu filtreyle eşleşen setup bulunamadı. Islak zemin için bir setup yükle — takımdaki herkes görebilir.")
+                : t("Havuza henüz setup eklemedin. Yüklediğin dosyalar takımdaki herkese açık olur.")}</div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center",
+              marginTop: 4 }}>
+              <button onClick={() => setPoolUp(true)}
+                style={{ ...upBtn, padding: "9px 18px", borderRadius: 10, fontSize: 13 }}>
+                ⬆ {t("İlk setupu yükle")}</button>
+              <button onClick={() => { setSuFTrack(""); setSuFCond(""); setSuFSess("");
+                setSuQuery(""); setSuMine(false); }}
+                style={{ padding: "9px 16px", borderRadius: 10, cursor: "pointer", fontSize: 13,
+                  border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)",
+                  color: "var(--rc-text-2)" }}>{t("Filtreleri temizle")}</button>
+            </div>
+          </div>
+        )}
+
+        {groups.map(([track, items]) => (
+          <div key={track || "—"} style={{ marginBottom: 24 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10,
+              paddingBottom: 8, borderBottom: "1px solid var(--rc-border)" }}>
+              {track && <img src={`${ASSET}flags/${TRACK_ASSET(track)}.png`} alt="" onError={hideImg}
+                style={{ width: 24, borderRadius: 3, border: "1px solid var(--rc-border)" }} />}
+              <span style={{ fontFamily: disp, textTransform: "uppercase", letterSpacing: ".06em",
+                fontSize: 16, fontWeight: 700 }}>{trackName(track) || track || "—"}</span>
+              <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>
+                {items.length} {t("setup")}</span>
+              {track && track === st.track && (
+                <span style={{ marginLeft: "auto", padding: "2px 9px", borderRadius: 99, fontSize: 10,
+                  textTransform: "uppercase", letterSpacing: ".08em",
+                  border: "1px solid var(--rc-brand-bright)", color: "var(--rc-brand-bright)" }}>
+                  {t("şu anki pist")}</span>
+              )}
+            </div>
+
+            <div style={poolCards ? { display: "none" }
+              : { border: "1px solid var(--rc-border)", borderRadius: 12,
+                background: "var(--rc-surface)", overflow: "hidden" }}>
+              <div style={{ display: "grid", gridTemplateColumns: gridCols, gap: 10,
+                alignItems: "center", padding: "8px 12px", borderBottom: "1px solid var(--rc-border)",
+                background: "var(--rc-surface-2)" }}>
+                <span />
+                <span style={colLbl}>{t("Dosya")}</span>
+                <span style={{ ...colLbl, textAlign: "left" }}>{t("Koşul")}</span>
+                <span style={colLbl}>{t("Araç")}</span>
+                <span style={{ ...colLbl, textAlign: "right" }}>{t("Tur")}</span>
+                <span style={colLbl}>{t("Yükleyen")}</span>
+                <span style={{ ...colLbl, textAlign: "right" }}>{t("İşlem")}</span>
+              </div>
+              {items.map(listRow)}
+            </div>
+
+            <div style={poolCards
+              ? { display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 12 }
+              : { display: "none" }}>
+              {items.map(card)}
+            </div>
+          </div>
+        ))}
+
+        {suHasMore && (
+          <div style={{ textAlign: "center", marginTop: 10 }}>
+            <button onClick={loadMoreSetups}
+              style={{ padding: "8px 16px", borderRadius: 9, border: "1px solid var(--rc-border)",
+                background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer",
+                fontSize: 13 }}>⬇ {t("Daha fazla yükle")}</button>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const setupCompareModal = (
     <SetupCompareModal open={cmpOpen && !!cmpA && !!cmpB} a={cmpA} b={cmpB}
       onClose={() => setCmpOpen(false)} t={t} />
   );
 
-  const setupModal = (
-    <SetupModal open={suOpen} onClose={() => setSuOpen(false)} t={t}
+  /* v2.0: Ana menü sol rayından Setup TAM SAYFA (page) açılır; modal kabuğu yalnız
+     eski çağrılar için kalır. Gövde tek yerde — kabuk page bayrağıyla seçilir. */
+  const setupSheet = (page = false) => (
+    <SetupModal open={page ? screen === "setup" : suOpen} page={page}
+      onClose={page ? back : () => setSuOpen(false)} t={t}
       suUpOpen={suUpOpen} setSuUpOpen={setSuUpOpen} suList={suList} setups={setups}
       suFTrack={suFTrack} setSuFTrack={setSuFTrack} suFCond={suFCond} setSuFCond={setSuFCond}
       suFSess={suFSess} setSuFSess={setSuFSess} suQuery={suQuery} setSuQuery={setSuQuery}
@@ -1005,17 +1512,21 @@ ${bottomBar}
       suHasMore={suHasMore} loadMoreSetups={loadMoreSetups}
       setupForm={setupForm} setupTable={setupTable} />
   );
+  const setupModal = setupSheet(false);
 
   const setupContentModal = (
-    <SetupContentModal open={!!viewSu} su={viewSu} onClose={() => setViewSu(null)} t={t} />
+    <SetupContentModal open={!!viewSu} su={viewSu} onClose={() => setViewSu(null)} t={t}
+      onDownload={downloadSetup} onAddCompare={cmpToggle} />
   );
 
-  const chatModal = (
-    <ChatModal open={chatOpen && !!user && !!curChan} onClose={() => setChatOpen(false)}
-      t={t} chatSound={chatSound} toggleChatSound={toggleChatSound}
+  const chatSheet = (page = false) => (
+    <ChatModal open={(page || chatOpen) && !!user && !!curChan} page={page}
+      onClose={page ? back : () => setChatOpen(false)}
+      t={t} lang={lang} chatSound={chatSound} toggleChatSound={toggleChatSound}
       chatChans={chatChans} unreadOf={unreadOf} chatChan={chatChan} setChatChan={setChatChan}
-      teamData={teamData} curChan={curChan} chatBody={chatBody} />
+      teamData={teamData} curChan={curChan} chatBody={chatBody} chatAll={chatAll} />
   );
+  const chatModal = chatSheet(false);
 
   /* Mini oynatıcı: sekmeden bağımsız, köşede sabit. iframe hep aynı ağaçta kalır,
      küçültünce yalnız gizlenir — yayın kesilmez. */
@@ -1048,7 +1559,7 @@ ${bottomBar}
   );
 
   const chatBtn = user && (
-    <button className="adminbtn" data-tour="hchat" onClick={() => setChatOpen(true)}
+    <button className="adminbtn" data-tour="hchat" onClick={() => go("chat")}
       title={t("Takım Sohbeti")}>
       <Icon name="chat" size={14} /> {t("Sohbet")}
       {chatUnread > 0 && <b className="badge">{chatUnread > 99 ? "99+" : chatUnread}</b>}
@@ -1088,10 +1599,18 @@ ${bottomBar}
     setTour(null);
   };
 
+  /* Yarış datası paneli açık/taslak durumu — tourSteps useMemo'su setRdOpen'ı
+     okuduğu için ORADAN ÖNCE tanımlanmalı (aksi halde ilk render'da, tur açıkken
+     TDZ: "Cannot access 'setRdOpen' before initialization"). Panelin türetilen
+     değerleri ve JSX'i aşağıda (st/up/blocked tanımlandıktan sonra). */
+  const [rdOpen, setRdOpen] = useState(false);
+  const [rdDraft, setRdDraft] = useState(null);
+
   /* Adım listesi ./tourSteps.js'te (saf + test edilebilir). "live" bölümü demoyu
      açar → Canlı ekranı veri olmadan da dolu görünür, adımların hedefi oluşur. */
   const tourSteps = useMemo(
-    () => (tour ? buildTourSteps(tour, { t, setTab, setSideOpen, setTourDemo }) : []),
+    () => (tour ? /* v2.0: data adımları sağdan kayan panelde → setSideOpen yerine setRdOpen. */
+      buildTourSteps(tour, { t, setTab, setSideOpen: setRdOpen, setTourDemo }) : []),
     [tour, lang]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const tourOverlay = tour && (
@@ -1145,8 +1664,12 @@ ${bottomBar}
     if (!isAdmin || !adminOpen) return;
     return watchAllUsers((u) => setAllUsers(u || {}));
   }, [isAdmin, adminOpen]);
+  /* yama 2.0.2: giriş düğmesinin yükleniyor durumu — Google popup açıkken dönen
+     gösterge + "Bağlanılıyor…". Başarıda kullanıcı state'i dolar → kapı kapanır. */
+  const [signingIn, setSigningIn] = useState(false);
   const doSignIn = async (mode = "in") => {
-    setAuthErr(""); setAuthMode(mode);
+    if (signingIn) return;
+    setAuthErr(""); setAuthMode(mode); setSigningIn(true);
     try { await signInGoogle(); }
     catch (e) {
       const em = e?.message || String(e);
@@ -1159,7 +1682,7 @@ ${bottomBar}
         : isTauri
         ? t("Giriş tamamlanamadı — tarayıcıda açılan Google penceresinde giriş yapın. Sorun sürerse:") + " " + em
         : em);
-    }
+    } finally { setSigningIn(false); }
   };
   /* ---- sürüm notları penceresi ---- */
   const [verOpen, setVerOpen] = useState(false);
@@ -1190,22 +1713,27 @@ ${bottomBar}
       onDone={() => setDeny(0)} />
   );
   /* Komut paleti aksiyonları — sekmeler + hızlı ayarlar. */
+  /* Komut paleti aksiyonları — fiş cmdOpen (cmdGroups): kategori başlıklı gruplar.
+     `group` alanı CommandPalette'te başlık olarak çizilir; dizi sırası grup
+     kümelenmesini korur (Ekranlar → Genel). */
+  const gScreen = t("Ekranlar");
+  const gGeneral = t("Genel");
   const cmdActions = [
-    { id: "dash", label: t("Dashboard"), keywords: "dash panel", icon: <Icon name="chart" size={15} />, run: () => setTab("dash") },
-    { id: "schedule", label: t("Resmi Yarışlar"), keywords: "schedule takvim race yarış lmugarage resmi official", icon: "🏁", run: () => setScheduleOnly(true) },
-    { id: "stint", label: t("Stint"), keywords: "stint", icon: <Icon name="cap" size={15} />, run: () => setTab("stint") },
-    { id: "fuel", label: t("Son Stint Yakıtı"), keywords: "fuel yakıt", icon: <Icon name="zap" size={15} />, run: () => setTab("fuel") },
-    { id: "live", label: t("Canlı"), keywords: "live canlı timing", icon: <Icon name="live" size={15} />, run: () => setTab("live") },
-    { id: "tyre", label: t("Lastik"), keywords: "tyre lastik", icon: <Icon name="tyre" size={15} />, run: () => setTab("tyre") },
-    { id: "drivers", label: t("Pilotlar"), keywords: "drivers pilot", icon: <Wheel size={13} />, run: () => setTab("drivers") },
-    { id: "tele", label: t("Telemetri"), keywords: "telemetry telemetri", icon: <Icon name="chart" size={15} />, run: () => setTab("tele") },
-    { id: "setup", label: t("Setup"), keywords: "setup", icon: <Icon name="wrench" size={15} />, run: () => setTab("setup") },
-    ...(raceChan ? [{ id: "rchat", label: t("Yarış Sohbeti"), keywords: "chat sohbet", icon: <Icon name="chat" size={15} />, run: () => setTab("rchat") }] : []),
-    { id: "theme", label: theme === "light" ? t("Koyu temaya geç") : t("Açık temaya geç"), keywords: "theme tema dark light", icon: <Icon name={theme === "light" ? "moon" : "sun"} size={15} />, run: toggleTheme },
-    { id: "density", label: t("Yoğunluğu değiştir"), keywords: "density yoğunluk", icon: <Icon name="rows" size={15} />, run: toggleDensity },
-    { id: "lang", label: lang === "en" ? "Türkçe" : "English", keywords: "language dil", run: () => switchLang(lang === "en" ? "tr" : "en") },
-    ...(user ? [{ id: "chat", label: t("Sohbet"), keywords: "chat sohbet team", icon: <Icon name="chat" size={15} />, run: () => setChatOpen(true) }] : []),
-    ...(curRace ? [{ id: "home", label: t("Ana Menü"), keywords: "home ana menü lobby", icon: <Icon name="home" size={15} />, run: leaveRace }] : []),
+    { id: "dash", group: gScreen, label: t("Dashboard"), keywords: "dash panel", icon: <Icon name="chart" size={15} />, run: () => setTab("dash") },
+    { id: "stint", group: gScreen, label: t("Stint"), keywords: "stint", icon: <Icon name="cap" size={15} />, run: () => setTab("stint") },
+    { id: "fuel", group: gScreen, label: t("Son Stint Yakıtı"), keywords: "fuel yakıt", icon: <Icon name="zap" size={15} />, run: () => setTab("fuel") },
+    { id: "live", group: gScreen, label: t("Canlı"), keywords: "live canlı timing", icon: <Icon name="live" size={15} />, run: () => setTab("live") },
+    { id: "tyre", group: gScreen, label: t("Lastik"), keywords: "tyre lastik", icon: <Icon name="tyre" size={15} />, run: () => setTab("tyre") },
+    { id: "drivers", group: gScreen, label: t("Pilotlar"), keywords: "drivers pilot", icon: <Wheel size={13} />, run: () => setTab("drivers") },
+    { id: "tele", group: gScreen, label: t("Telemetri"), keywords: "telemetry telemetri", icon: <Icon name="chart" size={15} />, run: () => setTab("tele") },
+    { id: "setup", group: gScreen, label: t("Setup"), keywords: "setup", icon: <Icon name="wrench" size={15} />, run: () => setTab("setup") },
+    ...(raceChan ? [{ id: "rchat", group: gScreen, label: t("Yarış Sohbeti"), keywords: "chat sohbet", icon: <Icon name="chat" size={15} />, run: () => setTab("rchat") }] : []),
+    /* v2.0: tema ve yoğunluk komutları paletten de gizlendi (yukarıdaki
+       KALDIRILANLAR ile aynı karar). */
+    { id: "schedule", group: gGeneral, label: t("Resmi Yarışlar"), keywords: "schedule takvim race yarış lmugarage resmi official", icon: "🏁", run: () => go("official") },
+    ...(user ? [{ id: "chat", group: gGeneral, label: t("Sohbet"), keywords: "chat sohbet team", icon: <Icon name="chat" size={15} />, run: () => go("chat") }] : []),
+    ...(curRace ? [{ id: "home", group: gGeneral, label: t("Ana Menü"), keywords: "home ana menü lobby", icon: <Icon name="home" size={15} />, run: leaveRace }] : []),
+    { id: "lang", group: gGeneral, label: lang === "en" ? "Türkçe" : "English", keywords: "language dil", run: () => switchLang(lang === "en" ? "tr" : "en") },
   ];
   const cmdPalette = (
     <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} actions={cmdActions} t={t} />
@@ -1223,6 +1751,18 @@ ${bottomBar}
     fetch(`${ASSET}lmu-data.json`).then((r) => (r.ok ? r.json() : null))
       .then((j) => setLmuData(j)).catch(() => {});
   }, [access]);
+  /* Davet linki (?join=KOD) — açılışta kodu ön-doldur + Kur&Katıl'ı aç; URL'i
+     temizle ki yenilemede tekrar tetiklenmesin. */
+  useEffect(() => {
+    try {
+      const code = new URLSearchParams(window.location.search).get("join");
+      if (!code) return;
+      setTForm((f) => ({ ...f, join: code.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6) }));
+      setCreateJoinOpen(true);
+      window.history.replaceState({}, "",
+        window.location.origin + window.location.pathname + window.location.hash);
+    } catch { /* yoksay */ }
+  }, []);
   const lmuSuggest = (() => {
     const d = lmuData?.data?.[st.track];
     if (!d) return null;
@@ -1261,39 +1801,257 @@ ${bottomBar}
 
   /* yarış ekleme / düzenleme penceresi → RaceEditModal (sunum); kaydetme iş
      mantığı burada (createRace/updateRace + init state hazırlığı). */
-  const saveRaceForm = async (f) => {
-    const payload = {
-      seasonId: f.seasonId || null,
-      round: f.round ? Number(f.round) : null,
-      name: f.name || "", trackId: f.trackId || "",
-      carClass: f.carClass || "", carId: f.carId || "",
-      raceTime: f.raceTime || "", startsAt: f.startsAt || 0,
-    };
-    if (f.rid) {
-      await updateRace(curTeam, f.rid, payload).catch(() => {});
+  const raceFormPayload = (f) => ({
+    seasonId: f.seasonId || null,
+    round: f.round ? Number(f.round) : null,
+    name: f.name || "", trackId: f.trackId || "",
+    carClass: f.carClass || "", carId: f.carId || "",
+    raceTime: f.raceTime || "", startsAt: f.startsAt || 0,
+  });
+  /* RaceEditModal "İleri" → yarış datası adımına (setupDone formu) götür. Doğrudan
+     kaydetmez: st, meta + (düzenlemede) mevcut race state ile tohumlanır; Kaydet
+     formda yapılır (saveRaceWizard) → meta ile birlikte strateji state'i de yazılır. */
+  /* Sihirbaz "Geri → İleri" düzenleme kaybını önleyen tek-kullanımlık koruma:
+     Geri'de data-formundaki düzenlenmiş st stash'lenir, sonraki İleri AYNI yarış için
+     onu taban alır (yeni/düzenle açılışı wizResumeRef=null olduğu için asla miras almaz). */
+  const wizResumeRef = useRef(null);
+  const wizKey = (f, payload) => [f.rid || "", payload.trackId, payload.carClass,
+    payload.carId, payload.raceTime || "", payload.startsAt || ""].join("|");
+  const raceFormNext = async (f) => {
+    if (!curTeam) return;
+    const payload = raceFormPayload(f);
+    const resume = wizResumeRef.current;
+    wizResumeRef.current = null;        // tek kullanımlık — bir sonraki açılışa sızmasın
+    let base;
+    if (resume && resume.key === wizKey(f, payload)) {
+      base = resume.st;                // Geri→İleri: data-formu düzenlemelerini koru
     } else {
-      /* yarış verisi önceden hazırlanır: pist/araç/süre/başlangıç dolu gelir.
-         Resmi ön ayardan geldiyse lastik seti sınırı (f.tyreSets → st.tyreLimit). */
-      const init = migrate({
-        ...DEFAULT_STATE,
-        track: payload.trackId, carClass: payload.carClass, car: payload.carId,
-        raceTime: payload.raceTime || DEFAULT_STATE.raceTime,
-        raceStartMs: payload.startsAt || Date.now(),
-        pitLaneTime: PIT_LANE_TIMES[payload.trackId] ?? DEFAULT_STATE.pitLaneTime,
-        tyreLimit: f.tyreSets > 0 ? f.tyreSets : DEFAULT_STATE.tyreLimit,
-      });
-      await createRace(curTeam, payload, init, user?.uid).catch(() => {});
+      base = { ...DEFAULT_STATE };
+      if (f.rid) {                     // düzenleme → mevcut strateji state'ini yükle
+        const remote = await raceStateGet(curTeam, f.rid).catch(() => null);
+        const parsed = remote?.stateJson ? safeParseState(remote.stateJson) : null;
+        if (parsed) base = parsed;
+      }
     }
+    setSt(migrate({
+      ...base,
+      track: payload.trackId, carClass: payload.carClass, car: payload.carId,
+      raceTime: payload.raceTime || base.raceTime || DEFAULT_STATE.raceTime,
+      raceStartMs: payload.startsAt || base.raceStartMs || Date.now(),
+      pitLaneTime: PIT_LANE_TIMES[payload.trackId] ?? base.pitLaneTime ?? DEFAULT_STATE.pitLaneTime,
+      ...(f.tyreSets > 0 ? { tyreLimit: f.tyreSets } : {}),
+    }));
+    setRaceWizard({ payload, rid: f.rid || null, form: f });
     setRForm(null);
+    setEntered(true); setPickDone(true); setSetupDone(false);
+    go("data");
+  };
+  /* Data formunda "Kaydet" (sihirbaz modu) → meta + düzenlenmiş strateji state'ini
+     takvime yaz (canlı yarış BAŞLATMAZ), sonra lobiye dön. */
+  const saveRaceWizard = async () => {
+    if (!raceWizard || !curTeam) return;
+    const { payload, rid } = raceWizard;
+    const snap = migrate(st);
+    if (rid) {
+      await updateRace(curTeam, rid, payload).catch(() => {});
+      const remote = await raceStateGet(curTeam, rid).catch(() => null);
+      await raceStateSet(curTeam, rid, { rev: (remote?.rev || 0) + 1,
+        stateJson: JSON.stringify(snap), updatedBy: "plan", updatedAt: Date.now() }).catch(() => {});
+    } else {
+      await createRace(curTeam, payload, snap, user?.uid).catch(() => {});
+    }
+    setRaceWizard(null);
+    setEntered(false); setPickDone(false); setSetupDone(false);
+    go("home");
+  };
+  /* Data formunda "Geri" (sihirbaz modu) → meta penceresini yeniden aç. */
+  const backRaceWizard = () => {
+    const f = raceWizard?.form;
+    const payload = raceWizard?.payload;
+    if (f && payload) wizResumeRef.current = { key: wizKey(f, payload), st: migrate(st) };
+    setRaceWizard(null);
+    setEntered(false); setPickDone(false); setSetupDone(false);
+    go("home");
+    if (f) setRForm(f);
   };
   const raceForm = (
-    <RaceEditModal rForm={rForm} setRForm={setRForm} t={t} seasons={seasons} onSave={saveRaceForm} />
+    <RaceEditModal rForm={rForm} setRForm={setRForm} t={t} seasons={seasons} onSave={raceFormNext}
+      lmuData={lmuData} />
   );
+
+  /* Profil ve rozetler — fiş acctModalOpen (profil sekmesi). Hem ana menüden hem
+     yarış içinden AYNI pencere → değişkene çıkarıldı (eskiden yalnız yarış-içi
+     ağaçta render ediliyordu, menüden açılmıyordu). Bildirim ayarları sekmesi
+     ayrı iş (#13); şimdilik yalnız profil. Ad/avatar kaydetme akışı korundu. */
+  const profileModal = profOpen && user && (() => {
+    const disp = "var(--rc-font-display)";
+    const avSrc = avStage || myAvatar || user.photoURL || "";
+    const noref = /^https?:/.test(avSrc) ? "no-referrer" : undefined;
+    const profInitials = (profName || user.displayName || user.email || "?")
+      .split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "?";
+    const lbl = { display: "block", color: "var(--rc-text-3)", fontSize: 10,
+      textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 6 };
+    const closeProf = () => { setAvStage(""); setAvErr(""); setProfOpen(false); };
+    return (
+      <div onClick={closeProf} style={{ position: "fixed", inset: 0, zIndex: 1000,
+        background: "rgba(10,6,10,.74)", backdropFilter: "blur(5px)", display: "flex",
+        alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
+        <div onClick={(e) => e.stopPropagation()} style={{ width: "min(780px,96vw)", maxHeight: "86vh",
+          background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16,
+          overflow: "hidden", display: "flex", flexDirection: "column",
+          boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "18px 20px",
+            borderBottom: "1px solid var(--rc-border)" }}>
+            <span style={{ width: 52, height: 52, borderRadius: "50%", background: "var(--rc-brand)",
+              color: "var(--rc-on-brand)", display: "inline-flex", alignItems: "center",
+              justifyContent: "center", fontFamily: disp, fontWeight: 700, fontSize: 20, flex: "0 0 auto",
+              overflow: "hidden" }}>
+              {avSrc ? <img src={avSrc} alt="" referrerPolicy={noref}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : profInitials}
+            </span>
+            <span style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}>
+              <b style={{ fontFamily: disp, fontSize: 22, letterSpacing: ".02em" }}>
+                {profName || user.displayName || t("Kullanıcı")}</b>
+              <span style={{ fontSize: 11.5, color: "var(--rc-text-3)", overflow: "hidden",
+                textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {user.email}{teamData?.meta?.name ? ` · ${teamData.meta.name}` : ""}</span>
+            </span>
+            <button onClick={closeProf} style={{ marginLeft: "auto", width: 32, height: 32, borderRadius: 9,
+              border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)",
+              color: "var(--rc-text-2)", cursor: "pointer", fontSize: 15, lineHeight: 1 }}>✕</button>
+          </div>
+
+          <div style={{ overflowY: "auto", padding: "18px 20px 22px", display: "flex", flexWrap: "wrap",
+            gap: 18 }}>
+            <div style={{ flex: "1 1 300px", minWidth: 0, display: "flex", flexDirection: "column",
+              gap: 14 }}>
+              <div>
+                <label style={lbl}>{t("Görünen ad")}</label>
+                <input type="text" value={profName} onChange={(e) => setProfName(e.target.value)}
+                  style={{ width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)",
+                    border: "1px solid var(--rc-border-strong)", borderRadius: 10, color: "var(--rc-text)",
+                    padding: "11px 14px", fontFamily: disp, fontSize: 18, fontWeight: 700,
+                    textTransform: "none" }} />
+                <div style={{ color: "var(--rc-text-3)", fontSize: 11, marginTop: 5 }}>
+                  {t("Odalarda ve stint programında bu isim görünür.")}</div>
+              </div>
+              <div>
+                <label style={lbl}>{t("Profil görseli")}</label>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ width: 70, height: 70, flex: "0 0 auto",
+                    border: "1.5px dashed var(--rc-border-strong)", borderRadius: "50%",
+                    background: "var(--rc-surface-2)", display: "grid", placeItems: "center",
+                    fontFamily: disp, fontWeight: 700, fontSize: 20, color: "var(--rc-text-3)",
+                    overflow: "hidden" }}>
+                    {avSrc ? <img src={avSrc} alt="" referrerPolicy={noref}
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : profInitials}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                    <input id="avfile" type="file" accept={IMG_ACCEPT_TYPES.join(",")}
+                      style={{ display: "none" }}
+                      onChange={(e) => { onAvatarFile(e.target.files?.[0]); e.target.value = ""; }} />
+                    <span style={{ display: "flex", gap: 7 }}>
+                      <button disabled={avBusy} onClick={() => document.getElementById("avfile")?.click()}
+                        style={{ padding: "6px 13px", borderRadius: 8, border: "1px solid var(--rc-border)",
+                          background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer",
+                          fontSize: 12 }}>{avBusy ? t("Yükleniyor…") : t("Yükle")}</button>
+                      {(myAvatar || avStage) && (
+                        <button disabled={avBusy} onClick={async () => {
+                          setAvStage(""); setAvErr("");
+                          await clearUserAvatar(user.uid).catch(() => {});
+                          setMyAvatar("");
+                        }} style={{ padding: "6px 13px", borderRadius: 8,
+                          border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)",
+                          color: "var(--rc-text-3)", cursor: "pointer", fontSize: 12 }}>{t("Kaldır")}</button>
+                      )}
+                    </span>
+                    <span style={{ fontSize: 10.5, color: "var(--rc-text-3)" }}>
+                      {avStage ? t("Önizleme — Kaydet ile uygulanır")
+                        : t("Boşsa baş harflerin kullanılır")}</span>
+                    {avErr && <span style={{ fontSize: 11, color: "var(--rc-danger)" }}>{avErr}</span>}
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label style={lbl}>{t("Bu takımdaki rolün")}</label>
+                <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap" }}>
+                  {myBadges.length > 0 ? myBadges.map((b) => (
+                    <span key={b.lbl} style={{ display: "inline-flex", alignItems: "center", gap: 7,
+                      padding: "7px 14px", borderRadius: 99, border: `1px solid ${b.col}`, color: b.col,
+                      fontSize: 12.5 }}>{b.ico} {t(b.lbl)}</span>
+                  )) : (
+                    <span style={{ fontSize: 12, color: "var(--rc-text-3)" }}>{t(roleLabel(role))}</span>
+                  )}
+                  <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>
+                    {t("Rolleri takım ekranından yönetirsin")}</span>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ flex: "1 1 280px", minWidth: 260, display: "flex", flexDirection: "column",
+              gap: 12 }}>
+              <div style={{ border: "1px solid var(--rc-border)", borderRadius: 12,
+                background: "var(--rc-surface-2)", padding: 16 }}>
+                <div style={{ fontFamily: disp, textTransform: "uppercase", letterSpacing: ".08em",
+                  fontSize: 13, fontWeight: 700, color: "var(--rc-brand-bright)", marginBottom: 12 }}>
+                  {t("Rozetler")}</div>
+                {myBadges.length > 0 ? (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 9 }}>
+                    {myBadges.map((b) => (
+                      <span key={b.lbl} style={{ display: "inline-flex", alignItems: "center", gap: 8,
+                        padding: "8px 12px", borderRadius: 10, border: `1px solid ${b.col}`,
+                        background: b.bg, color: b.col }}>
+                        <span style={{ fontSize: 17, lineHeight: 1 }}>{b.ico}</span>
+                        <b style={{ fontSize: 12, whiteSpace: "nowrap" }}>{t(b.lbl)}</b>
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12, color: "var(--rc-text-3)", lineHeight: 1.6 }}>
+                    {t("Henüz rozetin yok — takım ekranından rozet alabilirsin.")}</div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 20px",
+            borderTop: "1px solid var(--rc-border)", background: "var(--rc-surface-2)" }}>
+            <span style={{ color: "var(--rc-text-3)", fontSize: 11.5 }}>
+              {t("Değişiklikler Kaydet ile uygulanır")}</span>
+            <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+              <button onClick={closeProf} style={{ padding: "10px 18px", borderRadius: 10,
+                border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)",
+                color: "var(--rc-text-2)", cursor: "pointer", fontSize: 13 }}>{t("Vazgeç")}</button>
+              <button disabled={!profName.trim()} style={{ padding: "10px 24px", borderRadius: 10,
+                border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)",
+                color: "var(--rc-on-brand)", cursor: profName.trim() ? "pointer" : "not-allowed",
+                opacity: profName.trim() ? 1 : .45, fontFamily: disp, fontSize: 16, fontWeight: 700,
+                letterSpacing: ".04em", textTransform: "uppercase" }}
+                onClick={async () => {
+                  const n = profName.trim().slice(0, 60);
+                  await updateProfile(user.uid, { fullName: n }).catch(() => {});
+                  if (avStage) {
+                    try { await saveUserAvatar(user.uid, avStage); setMyAvatar(avStage); }
+                    catch { setAvErr(t("Avatar kaydedilemedi — tekrar deneyin.")); return; }
+                    setAvStage("");
+                  }
+                  setUserName(n); setProfOpen(false);
+                }}>{t("Kaydet")}</button>
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  })();
 
   /* takım penceresi → TeamModal (sunum); depo fn'leri bileşende, navigasyon/
      rozet/rol yardımcıları (openRace/setRForm/setBadge/roleLabel) App'ten prop. */
-  const teamModal = (
-    <TeamModal open={teamOpen} onClose={() => setTeamOpen(false)} user={user} t={t} lang={lang}
+  /* v2.0: aynı bileşen hem pencere (lobi/başlık düğmesi) hem TAM SAYFA (sol ray)
+     olarak çizilir. Tam sayfada kapatma = GERİ (önceki ekrana dönülür). */
+  const teamSheet = (page = false) => (
+    <TeamModal open={page || teamOpen} page={page}
+      onClose={page ? back : () => setTeamOpen(false)} user={user} t={t} lang={lang}
       myTeams={myTeams} curTeam={curTeam} setCurTeam={setCurTeam} teamData={teamData}
       tnEdit={tnEdit} setTnEdit={setTnEdit} canManageTeam={canManageTeam} canEditTeam={canEditTeam}
       curSeason={curSeason} setCurSeason={setCurSeason} seasons={seasons} races={races} st={st}
@@ -1301,6 +2059,7 @@ ${bottomBar}
       roleLabel={roleLabel}
       onCreateJoin={() => { setTeamOpen(false); setCreateJoinOpen(true); }} />
   );
+  const teamModal = teamSheet(false);
 
   /* Create & Join — takım kur / katıl (yönetimden AYRI, sade ekran; v1.6) */
   const createJoinModal = (
@@ -1310,61 +2069,68 @@ ${bottomBar}
   );
 
   /* ---------- ortak data kartları (setup + ana arayüz sol kolon) ---------- */
-  const dataCards = (<>
+  /* Yarış datası kartları — SAHNELE + UYGULA için parametreli.
+   `dst` okunacak state (yarış datası panelinde taslak birleşimi), `dup` yazma
+   fonksiyonu. Kurulum adımında dataCardsWith(dst, up) ile ANINDA KAYDETME yolu
+   korunur; yarış datası panelinde dataCardsWith(rdSt, rdSet) ile değişiklikler
+   yerel taslakta birikir ve yalnız "Uygula" ile state'e/Firebase'e geçer
+   (ARAYUZ-YENILEME-PROMPT-v2: "Mevcut anında kaydetme yolu BU EKRAN için devre
+   dışı bırakılır; diğer ekranlarda dokunulmaz"). */
+  const dataCardsWith = (dst, dup) => (<>
     <div className="card" data-tour="data">
       <h2>{t("Yarış · Data")}</h2>
       <div className="row2">
         <div><label>Race Time (h:mm:ss)</label>
-          <input type="text" value={st.raceTime} onChange={(e) => up({ raceTime: e.target.value })} /></div>
+          <input type="text" value={dst.raceTime} onChange={(e) => dup({ raceTime: e.target.value })} /></div>
         <div><label>Avg Lap (m:ss.00)</label>
-          <input type="text" value={st.avgLap} onChange={(e) => up({ avgLap: e.target.value })} />
+          <input type="text" value={dst.avgLap} onChange={(e) => dup({ avgLap: e.target.value })} />
           {avgSug && canEdit && (
             <button className="act" style={{ marginTop: 4, fontSize: 11, padding: "3px 8px" }}
               title={t("Canlı son 5 turun ortalaması — tıkla, plana uygula")}
-              onClick={() => up({ avgLap: avgSug.txt })}>
+              onClick={() => dup({ avgLap: avgSug.txt })}>
               ⚡ {t("Canlı AVG5")}: <b className="mono">{avgSug.txt}</b> — {t("uygula")}</button>
           )}</div>
       </div>
       <div className="row4">
         {["A", "B", "C", "D"].map((k) => (
-          <Num key={k} v={st.strategies[k]} step={1}
-            onC={(v) => up({ strategies: { ...st.strategies, [k]: v } })} />
+          <Num key={k} v={dst.strategies[k]} step={1}
+            onC={(v) => dup({ strategies: { ...dst.strategies, [k]: v } })} />
         ))}
       </div>
       <label>{t("Seçili Strateji")}</label>
       <div className="strat">
         {["A", "B", "C", "D"].map((k) => (
-          <button key={k} className={st.chosen === k ? "on" : ""}
-            onClick={() => up({ chosen: k })}>{k} · {st.strategies[k]}</button>
+          <button key={k} className={dst.chosen === k ? "on" : ""}
+            onClick={() => dup({ chosen: k })}>{k} · {dst.strategies[k]}</button>
         ))}
       </div>
       <div className="row2">
         <div>
           <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
-            <input type="checkbox" checked={st.multiclass} style={{ width: "auto", margin: 0 }}
-              onChange={(e) => up({ multiclass: e.target.checked })} />
+            <input type="checkbox" checked={dst.multiclass} style={{ width: "auto", margin: 0 }}
+              onChange={(e) => dup({ multiclass: e.target.checked })} />
             {t("Multiclass Yarış")}
           </label>
-          <select value={st.leaderClass} disabled={!st.multiclass}
-            style={!st.multiclass ? { opacity: .45 } : undefined}
-            onChange={(e) => up({ leaderClass: e.target.value })}>
+          <select value={dst.leaderClass} disabled={!dst.multiclass}
+            style={!dst.multiclass ? { opacity: .45 } : undefined}
+            onChange={(e) => dup({ leaderClass: e.target.value })}>
             {CAR_CLASSES.map(([id, name]) => (
               <option key={id} value={id}>{name}</option>
             ))}
           </select>
         </div>
         <div><label>Extra Lap</label>
-          <Num v={st.extraLap} step={1} onC={(v) => up({ extraLap: v })} /></div>
+          <Num v={dst.extraLap} step={1} onC={(v) => dup({ extraLap: v })} /></div>
       </div>
-      {st.multiclass && (
+      {dst.multiclass && (
         <div className="row2">
           <div><label>🏁 {t("Lider Tur (m:ss.00)")}</label>
-            <input type="text" value={st.leaderLap} placeholder={st.avgLap}
-              onChange={(e) => up({ leaderLap: e.target.value })} /></div>
+            <input type="text" value={dst.leaderLap} placeholder={dst.avgLap}
+              onChange={(e) => dup({ leaderLap: e.target.value })} /></div>
           <div />
         </div>
       )}
-      {st.multiclass && racePlan.flagExtra > 0.5 && (
+      {dst.multiclass && racePlan.flagExtra > 0.5 && (
         <div className="hint">🏁 {t("Lider bayrağı")}: +{racePlan.flagExtra.toFixed(0)}s → {t("son tur otomatik eklenir")}</div>
       )}
     </div>
@@ -1372,9 +2138,9 @@ ${bottomBar}
     <div className="card" data-tour="rstart" style={{ marginTop: 12 }}>
       <h2>{t("Yarış Başlangıcı")}</h2>
       <label>{t("Start Tarih & Saat")}</label>
-      <input type="datetime-local" value={msToLocalInput(st.raceStartMs)}
+      <input type="datetime-local" value={msToLocalInput(dst.raceStartMs)}
         onChange={(e) => { const t = new Date(e.target.value).getTime();
-          if (!isNaN(t)) up({ raceStartMs: t }); }} />
+          if (!isNaN(t)) dup({ raceStartMs: t }); }} />
       <div style={{ marginTop: 10, background: "var(--panel2)",
         border: "1px solid var(--line)", borderRadius: 8, padding: "8px 12px",
         display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
@@ -1394,12 +2160,12 @@ ${bottomBar}
           onClick={() => {
             const el = liveInfo.status === "live"
               ? Math.max(0, Math.round(liveInfo.elapsed / 1000)) : 0;
-            let past = (st.weatherLog || []).filter((e) => e.t < el - 0.5);
-            const future = (st.weatherLog || []).filter((e) => e.t > el + 0.5);
+            let past = (dst.weatherLog || []).filter((e) => e.t < el - 0.5);
+            const future = (dst.weatherLog || []).filter((e) => e.t > el + 0.5);
             if (el < 1) past = [];
             const log = [...past, { t: el, w: wxSug.id, src: "live" }, ...future]
               .sort((a, b) => a.t - b.t);
-            up({ weather: wxSug.id, weatherLog: log });
+            dup({ weather: wxSug.id, weatherLog: log });
           }}>
           <WetIcon id={wxSug.id} size={15} /> {t("Canlı")}: 🌧 {t(wxSug.rainLbl)} ·{" "}
           <b>{t(wxSug.label)}</b> → {t("geçişi ekle")}
@@ -1407,18 +2173,18 @@ ${bottomBar}
       )}
       <div className="wxsel">
         {Object.entries(WEATHER).map(([id, w]) => (
-          <button key={id} className={st.weather === id ? "on" : ""}
-            style={st.weather === id ? { borderColor: w.col, color: w.col } : undefined}
+          <button key={id} className={dst.weather === id ? "on" : ""}
+            style={dst.weather === id ? { borderColor: w.col, color: w.col } : undefined}
             onClick={() => {
               const el = liveInfo.status === "live"
                 ? Math.max(0, Math.round(liveInfo.elapsed / 1000)) : 0;
-              let past = (st.weatherLog || []).filter((e) => e.t < el - 0.5);
-              const future = (st.weatherLog || []).filter((e) => e.t > el + 0.5);
+              let past = (dst.weatherLog || []).filter((e) => e.t < el - 0.5);
+              const future = (dst.weatherLog || []).filter((e) => e.t > el + 0.5);
               if (el < 1) past = [];
               const log = [...past, { t: el, w: id, src: "live" }, ...future]
                 .sort((a, b) => a.t - b.t);
               const cur = wxAtRel(log, el);
-              up({ weather: Object.keys(WEATHER).find((k) => WEATHER[k] === cur) || id,
+              dup({ weather: Object.keys(WEATHER).find((k) => WEATHER[k] === cur) || id,
                 weatherLog: log });
             }}>
             <WetIcon id={id} size={20} /> {t(w.lbl)}<br /><small>×{w.lap.toFixed(2)}</small>
@@ -1427,13 +2193,13 @@ ${bottomBar}
       </div>
       {(() => {
         /* "Efektif tur (şu an)": vurgulu hava düğmesiyle AYNI kaynağı kullan (şimdiki
-           hava = st.weather). WX(st) log'un EN İLERİ kaydını verir → ileride planlı bir
+           hava = dst.weather). WX(dst) log'un EN İLERİ kaydını verir → ileride planlı bir
            ıslak geçiş varsa gelecekteki çarpanı gösterirdi (etiket "şu an" ile çelişir). */
-        const wxNow = WEATHER[st.weather] || WEATHER.dry;
+        const wxNow = WEATHER[dst.weather] || WEATHER.dry;
         return wxNow.lap > 1 && (
           <div className="hint">
-            {t("Efektif tur")} ({t("şu an")}): <b className="mono">{st.avgLap}</b> ×{wxNow.lap.toFixed(2)} ={" "}
-            <b className="mono" style={{ color: wxNow.col }}>{fmtLap(parseLap(st.avgLap) * wxNow.lap)}</b>
+            {t("Efektif tur")} ({t("şu an")}): <b className="mono">{dst.avgLap}</b> ×{wxNow.lap.toFixed(2)} ={" "}
+            <b className="mono" style={{ color: wxNow.col }}>{fmtLap(parseLap(dst.avgLap) * wxNow.lap)}</b>
             {wxNow.fuel < 1 && <> · ⚡ {t("yakıt")} −{((1 - wxNow.fuel) * 100).toFixed(0)}%</>}
           </div>
         );
@@ -1441,24 +2207,24 @@ ${bottomBar}
       <div className="hint" style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
         <button className="histbtn" onClick={() => setWxHist(true)}>
           🕒 {t("Geçmiş / Planlı geçişler")}
-          {(st.weatherLog || []).length > 0 ? ` (${st.weatherLog.length})` : ""}</button>
+          {(dst.weatherLog || []).length > 0 ? ` (${dst.weatherLog.length})` : ""}</button>
       </div>
     </div>
 
     <div className="card" data-tour="pittimes" style={{ marginTop: 12 }}>
       <h2>{t("Pit · Süreler (s)")}</h2>
       <div className="row2">
-        <div><label>Pit Line</label><Num v={st.pitLaneTime} onC={(v) => up({ pitLaneTime: v })} />
-          {st.track && PIT_LANE_TIMES[st.track] != null && (
-            <div className="hint">{t("Pist verisi")}: {PIT_LANE_TIMES[st.track]}s · {trackName(st.track)}</div>
+        <div><label>Pit Line</label><Num v={dst.pitLaneTime} onC={(v) => dup({ pitLaneTime: v })} />
+          {dst.track && PIT_LANE_TIMES[dst.track] != null && (
+            <div className="hint">{t("Pist verisi")}: {PIT_LANE_TIMES[dst.track]}s · {trackName(dst.track)}</div>
           )}</div>
         <div><label style={{ display: "flex", alignItems: "center", gap: 5 }}>
           ⛽ Fuel &amp; <Bolt size={13} /> VE</label>
-          <Num v={st.fuelTime} onC={(v) => up({ fuelTime: v })} /></div>
+          <Num v={dst.fuelTime} onC={(v) => dup({ fuelTime: v })} /></div>
       </div>
       <div className="row2">
         <div><label style={{ display: "flex", alignItems: "center", gap: 5 }}><Tyre size={15} /> {t("Lastik Limiti (adet)")}</label>
-          <Num v={st.tyreLimit} step={1} onC={(v) => up({ tyreLimit: v })} /></div>
+          <Num v={dst.tyreLimit} step={1} onC={(v) => dup({ tyreLimit: v })} /></div>
         <div />
       </div>
     </div>
@@ -1466,8 +2232,8 @@ ${bottomBar}
     <div className="card" data-tour="ve" style={{ marginTop: 12 }}>
       <h2>⚡ Virtual Energy · Data</h2>
       <div className="row2">
-        <div><label>⚡ {t("VE Tüketim (%/tur)")}</label><Num v={st.consumption} onC={(v) => up({ consumption: v })} /></div>
-        <div><label>Fuel Ratio (L / %1)</label><Num v={st.fuelRatio} onC={(v) => up({ fuelRatio: v })} /></div>
+        <div><label>⚡ {t("VE Tüketim (%/tur)")}</label><Num v={dst.consumption} onC={(v) => dup({ consumption: v })} /></div>
+        <div><label>Fuel Ratio (L / %1)</label><Num v={dst.fuelRatio} onC={(v) => dup({ fuelRatio: v })} /></div>
       </div>
       <div className="row2">
         <div><label>⛽ {t("%100 = Taşınan Yakıt")}</label>
@@ -1479,15 +2245,66 @@ ${bottomBar}
     <div className="card" data-tour="stream" style={{ marginTop: 12 }}>
       <h2>📺 {t("Canlı Yayın")}</h2>
       <label>{t("YouTube linki")}</label>
-      <input type="text" value={st.streamUrl} placeholder="https://youtube.com/watch?v=..."
-        onChange={(e) => up({ streamUrl: e.target.value })} />
+      <input type="text" value={dst.streamUrl} placeholder="https://youtube.com/watch?v=..."
+        onChange={(e) => dup({ streamUrl: e.target.value })} />
       <div className="hint">
-        {ytId(st.streamUrl)
+        {ytId(dst.streamUrl)
           ? <>✅ {t("Yayın köşedeki mini oynatıcıda gösteriliyor.")}</>
           : t("Geçerli bir YouTube linki yapıştırın; köşede mini oynatıcı açılır.")}
       </div>
     </div>
   </>);
+  const dataCards = dataCardsWith(st, up);
+
+  /* ---------- YARIŞ DATASI PANELİ — SAHNELE + UYGULA (v2.0) ----------
+     Alan değişiklikleri YEREL TASLAKTA tutulur, Firebase'e yazılmaz. "Uygula"ya
+     basılmadan hiçbir şey kaydedilmez; panel kapatılırken bekleyen değişiklik
+     varsa onay sorulur. Mevcut anında kaydetme yolu YALNIZ bu ekran için devre
+     dışı — kurulum adımı dataCardsWith(st, up) ile eskisi gibi çalışır. */
+  const rdN = rdDraft ? Object.keys(rdDraft).length : 0;
+  const rdSt = rdDraft ? { ...st, ...rdDraft } : st;
+  const rdSet = (patch) => {
+    if (blocked()) { showDeny(); return; }
+    setRdDraft((d) => ({ ...(d || {}), ...patch }));
+  };
+  const rdApply = () => { if (rdDraft) up(rdDraft); setRdDraft(null); };
+  const rdDiscard = () => setRdDraft(null);
+  const rdClose = () => {
+    if (rdN > 0 && !window.confirm(
+      t("Kaydedilmemiş değişiklikler var — kapatılsın mı?"))) return;
+    setRdDraft(null); setRdOpen(false);
+  };
+  /* Sağdan kayan panel. Gövde izleyici modunda pasifleşir (README §18). */
+  const raceDataPanel = (
+    <>
+      {rdOpen && <div className="rdscrim" onClick={rdClose} />}
+      <aside className={`rdpanel${rdOpen ? " open" : ""}`}
+        aria-hidden={!rdOpen} aria-label={t("Yarış datası")}>
+        <div className="rdhead">
+          <span className="ttl disp">⚙ {t("Yarış datası")}</span>
+          <button className="lbclose" onClick={rdClose} aria-label={t("Kapat")}>✕</button>
+        </div>
+        <div className={`rdbody${curRace && role !== "editor" ? " ro-off" : ""}`}>
+          {dataCardsWith(rdSt, rdSet)}
+          <div className="rdaffect">
+            <b>{t("Bu değişiklik neyi etkiler")}</b>
+            <span>📋 {t("Stint planı süreleri ve pit pencereleri")}</span>
+            <span>⛽ {t("Son stint yakıtı hesabı")}</span>
+            <span>🛞 {t("Lastik limiti uyarıları")}</span>
+          </div>
+        </div>
+        <div className="rdfoot">
+          <span className={rdN ? "dirty" : "clean"}>
+            {rdN ? `${rdN} ${t("alan değişti")}` : t("Değişiklik yok")}</span>
+          <span className="spacer" />
+          <button className="rbbtn" onClick={rdDiscard} disabled={!rdN}>
+            {t("Geri al")}</button>
+          <button className="rbbtn apply" onClick={rdApply} disabled={!rdN}>
+            {t("Uygula")}</button>
+        </div>
+      </aside>
+    </>
+  );
 
   /* ---------- giriş kapısı: oturum yoksa uygulama açılmaz ----------
      langReady: EN sözlüğü lazy geldiğinden, EN kullanıcı sözlük inene dek
@@ -1495,39 +2312,97 @@ ${bottomBar}
      parlaması olmaz. Chunk aynı origin'den geldiği için bu bekleme pratikte
      auth'tan önce biter. */
   if (authReady && (authLoading || !langReady || !user)) {
+    /* Yükleme (auth/sözlük bekleniyor) → sade bekleme ekranı; giriş verisi
+       parlamasın diye yeni tasarım yalnız GİRİŞ GEREKTİĞİNDE gösterilir. */
+    if (authLoading || !langReady) {
+      return (
+        <div className="rc">
+          <UpdateBanner t={t} />
+          <div className="lobby">
+            <div className="box" style={{ textAlign: "center" }}>
+              <img className="logo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
+              <h1><b>RACE</b> MONITOR</h1>
+              <div className="sub">{APP_VERSION}</div>
+              <div className="hint" style={{ marginTop: 22 }}>{t("Yükleniyor…")}</div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    /* v2.0 giriş ekranı (yama 2.0.2) — iki kolon; kabuğun tamamını kaplar.
+       Eski çift düğme (giriş + kayıt) tek "Google ile devam et"e indirildi:
+       Google akışında ikisi aynı işlem. */
     return (
       <div className="rc">
         <UpdateBanner t={t} />
         {teamModal}{createJoinModal}{raceForm}
-        <div className="lobby">
-          <div className="box" style={{ textAlign: "center" }}>
-            <img className="logo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
-            <h1><b>RACE</b> MONITOR</h1>
-            <div className="sub">{APP_VERSION}</div>
-            {(authLoading || !langReady) ? (
-              <div className="hint" style={{ marginTop: 22 }}>{t("Yükleniyor…")}</div>
-            ) : (<>
-              <div className="hint" style={{ margin: "18px 0 14px" }}>
-                {t("Devam etmek için giriş yapın veya kayıt olun.")}</div>
-              <button className="gbtn" onClick={() => doSignIn("in")}>
-                <svg width="17" height="17" viewBox="0 0 48 48" aria-hidden="true">
-                  <path fill="#4285F4" d="M45.1 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h11.8c-.5 2.7-2 5-4.4 6.6v5.5h7.1c4.2-3.8 6.6-9.5 6.6-16.1z"/>
-                  <path fill="#34A853" d="M24 46c6 0 11-2 14.6-5.4l-7.1-5.5c-2 1.3-4.5 2.1-7.5 2.1-5.8 0-10.7-3.9-12.4-9.1H4.3v5.7C7.9 41 15.4 46 24 46z"/>
-                  <path fill="#FBBC05" d="M11.6 28.1c-.4-1.3-.7-2.7-.7-4.1s.3-2.8.7-4.1v-5.7H4.3C2.8 17.1 2 20.4 2 24s.8 6.9 2.3 9.8l7.3-5.7z"/>
-                  <path fill="#EA4335" d="M24 10.8c3.3 0 6.2 1.1 8.5 3.3l6.3-6.3C35 4.2 30 2 24 2 15.4 2 7.9 7 4.3 14.2l7.3 5.7c1.7-5.2 6.6-9.1 12.4-9.1z"/>
-                </svg>
-                {t("Google ile giriş yap")}
-              </button>
-              <div style={{ marginTop: 10 }}>
-                <button className="histbtn" onClick={() => doSignIn("up")}>
-                  {t("Google ile kayıt ol")}</button>
+        <div className="auth">
+          <span className="authlang">
+            {["tr", "en"].map((l) => (
+              <button key={l} className={lang === l ? "on" : ""}
+                onClick={() => switchLang(l)}>{l.toUpperCase()}</button>
+            ))}
+          </span>
+
+          <div className="authgrid">
+            {/* sol: marka bloğu */}
+            <div className="authbrand">
+              <img src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <h1 className="authttl disp"><b>{t("Race")}</b> {t("Monitor")}</h1>
+                <p className="authlede">
+                  {t("Caspian Motorsport pit wall aracı. Canlı zamanlama, stint planı, yakıt hesabı ve telemetri tek ekranda.")}</p>
               </div>
-              {authErr && <div className="hint" style={{ color: "var(--red)", marginTop: 10 }}>
-                {authErr}</div>}
-              <div className="hint" style={{ marginTop: 18, fontSize: 11 }}>
-                {t("Caspian Motorsport · pit wall aracı")}</div>
-            </>)}
+              <div className="authpts">
+                <span><i />{t("Yarış boyunca takımla ortak ekran")}</span>
+                <span><i />{t("Le Mans Ultimate köprüsüyle canlı veri")}</span>
+                <span><i />{t("Setup havuzu ve stint geçmişi")}</span>
+              </div>
+            </div>
+
+            {/* sağ: giriş kartı */}
+            <div className="authcard">
+              <div className="body">
+                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                  <h2>{t("Giriş yap")}</h2>
+                  <span className="lede">
+                    {t("Google hesabınla devam et. Hesabın yoksa ilk girişte oluşturulur.")}</span>
+                </div>
+
+                <button className="gbtn2" onClick={() => doSignIn("in")}
+                  aria-busy={signingIn} disabled={signingIn}>
+                  {signingIn ? <i className="gspin" /> : (
+                    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"
+                      style={{ flex: "0 0 auto" }}>
+                      <path fill="#4285F4" d="M45.1 24.5c0-1.6-.1-3.2-.4-4.7H24v8.9h11.8c-.5 2.8-2 5.1-4.4 6.7v5.5h7.1c4.2-3.8 6.6-9.5 6.6-16.4Z"/>
+                      <path fill="#34A853" d="M24 46c6 0 11-2 14.6-5.4l-7.1-5.5c-2 1.3-4.5 2.1-7.5 2.1-5.8 0-10.7-3.9-12.4-9.1H4.3v5.7C7.9 41 15.3 46 24 46Z"/>
+                      <path fill="#FBBC05" d="M11.6 28.1c-.4-1.3-.7-2.7-.7-4.1s.3-2.8.7-4.1v-5.7H4.3A22 22 0 0 0 2 24c0 3.6.9 6.9 2.3 9.8l7.3-5.7Z"/>
+                      <path fill="#EA4335" d="M24 10.8c3.3 0 6.2 1.1 8.5 3.3l6.3-6.3C35 4.3 30 2 24 2 15.3 2 7.9 7 4.3 14.2l7.3 5.7c1.7-5.2 6.6-9.1 12.4-9.1Z"/>
+                    </svg>
+                  )}
+                  <span>{signingIn ? t("Bağlanılıyor…") : t("Google ile devam et")}</span>
+                </button>
+
+                {/* Hata durumu tasarımda yoktu (YAMA.md); kart içinde kırmızı satır. */}
+                {authErr && <div className="autherr">{authErr}</div>}
+
+                <div className="authsteps">
+                  <span><b>1</b>{t("Girişten sonra takım kurabilir ya da davet koduyla katılabilirsin.")}</span>
+                  <span><b>2</b>{t("Yarış verisi için masaüstü köprüsünü kurman gerekir.")}</span>
+                </div>
+              </div>
+              <div className="authfoot">
+                <span className="terms">
+                  {t("Devam ederek")}{" "}
+                  <a href="#" onClick={(e) => e.preventDefault()}>
+                    {t("kullanım koşullarını")}</a>{t(" kabul edersin.")}</span>
+                <span className="ver">{APP_VERSION}</span>
+              </div>
+            </div>
           </div>
+
+          <span className="authcap">
+            {t("Caspian Motorsport · pit wall aracı — resmi olmayan topluluk projesi")}</span>
         </div>
       </div>
     );
@@ -1596,28 +2471,34 @@ ${bottomBar}
     );
   }
 
-  /* ---------- bağımsız Telemetri ekranı (Ana Menü → Telemetri) ----------
-     Race Solo yolundan (entered/pick/setup/race shell) TAMAMEN ayrı üst-düzey görünüm;
-     kendi (ikinci) useTelemetry örneğiyle beslenir. Çıkış (🏠 Ana Menü) yalnız teleOnly'yi
-     kapatır → lobiye döner; entered/curRace'e dokunmaz. */
-  if (teleOnly) {
-    return (
-      <TelemetryStandalone t={t} lang={lang} switchLang={switchLang} st={teleSt} up={() => {}}
-        onSaveDuckSetup={user ? saveTeleSetup : null}
-        onExit={() => setTeleOnly(false)} {...teleHook} />
-    );
-  }
+  /* Telemetri (Ana Menü → Telemetri) artık lobi kabuğu içinde (sol ray korunur) —
+     aşağıdaki screen==="tele" dalında çizilir; ayrı üst-düzey görünüm KALDIRILDI. */
 
-  /* ---------- bağımsız Resmi Yarışlar ekranı (Ana Menü → Resmi Yarışlar) ----------
-     Race Solo yolundan TAMAMEN ayrı üst-düzey görünüm; yarış seçmeye/oda-solo açmaya
-     gerek yok. Çıkış (🏠 Ana Menü) yalnız scheduleOnly'yi kapatır; entered/curRace'e
-     dokunmaz. curRace/entered'den ÖNCE gelir → yarış açıkken bile bağımsız açılır. */
+  /* ---------- Resmi Yarışlar ekranı (Ana Menü → Resmi Yarışlar) ----------
+     Sol ray KORUNUR (v2 kabuk). curRace/entered'den ÖNCE gelir → yarış açıkken de
+     açılabilir; bu yüzden lobi dalına katılmaz, kendi v2 kabuğunu çizer. Ray gezinmesi
+     ham `go` ile (homeGo lobi-kapsamlı); yeni ekran re-render'da doğru yerde çizilir. */
   if (scheduleOnly) {
     return (
-      <ScheduleStandalone t={t} lang={lang} switchLang={switchLang}
-        races={lmu.races} updatedAt={lmu.updatedAt}
-        loading={lmu.loading} onExit={() => setScheduleOnly(false)}
-        onPlan={curTeam ? planOfficialRace : undefined} />
+      <div className="rc v2">
+        <Rail t={t} screen={screen} go={go} onHome={() => go("home")}
+          open={railOpen} onToggle={() => setRailOpen((v) => !v)}
+          version={APP_VERSION} chatScreen="chat" unread={chatUnread}
+          onChat={() => go("chat")} />
+        <div className="v2main">
+          <UpdateBanner t={t} />
+          <div className="grid noside v2grid">
+            <div key={screen} className="v2screen">
+              <div id="tabpanel-main" role="region" aria-label={t("Ana içerik")} tabIndex={-1}>
+                <Suspense fallback={<div className="hint" style={{ padding: 20 }}>⏳ {t("Yükleniyor…")}</div>}>
+                  <ScheduleTab t={t} lang={lang} races={lmu.races} updatedAt={lmu.updatedAt}
+                    loading={lmu.loading} onPlan={curTeam ? planOfficialRace : undefined} />
+                </Suspense>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     );
   }
 
@@ -1686,357 +2567,1284 @@ ${bottomBar}
       </div>
     );
 
+    /* Menü ekranı — handoff-spec/ekranlar/01-menu.md (birebir). Sol ray + tam
+       genişlik içerik; ortalanmış dar kutu YOK. */
+    const teamName = teamData?.meta?.name || t("Takım");
+    const seasonTag = (curSeason && seasons[curSeason]?.name) || "";
+    const memberCount = teamData?.members ? Object.keys(teamData.members).length : 0;
+    const raceCount = Object.keys(races).length;
+    /* fiş 01-menu: Setup havuzu fişi "N dosya · M pist" gösterir. */
+    const suTrackCount = new Set(setups.map((s) => s.track).filter(Boolean)).size;
+    /* fiş 01-menu: "Resmi yarışlar" fişi sıradaki resmi yarışı + geri sayımı gösterir. */
+    const nextOfficial = lmu.upcoming?.[0] || null;
+    const nextOfficialTrack = nextOfficial
+      ? (trackName(nextOfficial.trackId) || nextOfficial.trackRaw || "") : "";
+    const nextOfficialCd = (() => {
+      if (!nextOfficial) return "";
+      const ms = (nextOfficial.startMs || 0) - now;
+      if (ms <= 0) return t("canlı");
+      const m = Math.floor(ms / 60000);
+      if (m < 60) return `${m} ${t("dk")}`;
+      const h = Math.floor(m / 60);
+      if (h < 24) return `${h} ${t("sa")}`;
+      return `${Math.floor(h / 24)} ${t("gün")}`;
+    })();
+    const initials = (userName || user?.displayName || user?.email || "?")
+      .split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "?";
+    const otherTeams = Object.entries(myTeams).filter(([tid]) => tid !== curTeam);
+    /* Ray'de yarış ekranları bir yarış açık olmasını ister; menüde sıradaki
+       yarışı açar. Yarış-dışı ekranlar kendi eylemine gider. */
+    const homeGo = (id) => {
+      if (id === "team") return go("team");
+      if (id === "chat") return go("chat");
+      if (id === "setup") return go("setup");
+      if (id === "tele") return go("tele");
+      if (nextEntry) return openRace(nextEntry[0]);
+      return undefined;
+    };
+    /* Geri sayım — sıradaki yarışın başlangıcına. */
+    const heroR = nextEntry ? nextEntry[1] : null;
+    const cdMs = heroR?.startsAt ? Math.max(0, heroR.startsAt - now) : 0;
+    const cdD = Math.floor(cdMs / 86400000);
+    const cdH = Math.floor((cdMs % 86400000) / 3600000);
+    const cdM = Math.floor((cdMs % 3600000) / 60000);
+    const pad2 = (n) => String(n).padStart(2, "0");
+    const heroLocal = heroR?.startsAt
+      ? (() => {
+          const d = new Date(heroR.startsAt); const loc = lang === "en" ? "en-GB" : "tr-TR";
+          return `${d.toLocaleDateString(loc, { day: "2-digit", month: "short" })} · ${
+            d.toLocaleTimeString(loc, { hour: "2-digit", minute: "2-digit" })}`;
+        })()
+      : "";
+    /* Takvim segmenti: Yaklaşan / Geçmiş. Arama iki segmentte de çalışır. */
+    const upSearched = upF.filter(matchQ);
+    const calList = lobCal === "up" ? upSearched : pastShown;
+    const calEmpty = calList.length === 0;
+    const seasonChips = [["all", t("Tümü")], ...seasonIds.filter(Boolean).map((sid) => [sid, sName(sid)])];
+    const CalRow = ([rid, r]) => {
+      const isNext = nextEntry && nextEntry[0] === rid;
+      const past = isRacePast(r, now);
+      return (
+        <div key={rid} className={`hmrow${isNext ? " next" : ""}`}>
+          <span className="rnd">{r.round ? `R${r.round}` : "—"}</span>
+          {r.trackId
+            ? <img className="flag" src={`${ASSET}flags/${TRACK_ASSET(r.trackId)}.png${AV}`} alt=""
+                onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
+            : <span className="flag" />}
+          {r.trackId
+            ? <img className="trk" src={`${ASSET}tracks/${TRACK_ASSET(r.trackId)}.png${AV}`} alt=""
+                onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
+            : <span className="trk" />}
+          <span className="info">
+            <b>{r.name || trackName(r.trackId) || "—"}</b>
+            <span>{[r.trackId ? trackName(r.trackId) : "", r.raceTime,
+              r.carId ? carName(r.carClass, r.carId) : ""].filter(Boolean).join(" · ")}</span>
+          </span>
+          <span className="date">{r.startsAt
+            ? new Date(r.startsAt).toLocaleString(lang === "en" ? "en-GB" : "tr-TR",
+                { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
+            : "—"}</span>
+          <span className="state">{isNext ? t("sıradaki") : past ? t("bitti") : t("planlı")}</span>
+          <button className="open" onClick={() => openRace(rid)}>{t("Aç")}</button>
+          {canEditTeam && (
+            <button className="icon" title={t("Düzenle")}
+              onClick={() => setRForm({ rid, ...r })}>✎</button>
+          )}
+          {canEditTeam && (
+            <button className="icon del mut" title={t("Sil")}
+              onClick={() => askDeleteRace(rid, r)}>🗑</button>
+          )}
+        </div>
+      );
+    };
+
     return (
-      <div className="rc">
+      <div className="rc v2">
+        {teamModal}{createJoinModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}{cmdPalette}{profileModal}
+        <Rail t={t} screen={screen} go={homeGo} onHome={() => go("home")}
+          open={railOpen} onToggle={() => setRailOpen((v) => !v)}
+          version={APP_VERSION} chatScreen="chat" unread={chatUnread}
+          onChat={() => go("chat")}
+          disabledIds={nextEntry ? [] : ["dash", "stint", "fuel", "live", "tyre", "drivers"]}
+          disabledTitle={t("Önce bir yarış aç (Takvimde ‘Aç’)")} />
+        <div className="v2main">
         <UpdateBanner t={t} />
-        {teamModal}{createJoinModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}{cmdPalette}
-        <div className="lobby">
-          <div className="box" style={{ maxWidth: 900 }}>
-            <div className="langsw" style={{ display: "flex", justifyContent: "flex-end",
-              alignItems: "center", gap: 6, marginBottom: 6 }}>
-              <button className="tourbtn" onClick={() => setTour("lobby")}
-                title={t("Rehberi başlat")}>🎓 {t("Rehber")}</button>
-              {["tr", "en"].map((l) => (
-                <button key={l} className={lang === l ? "on" : ""}
-                  onClick={() => switchLang(l)}>{l.toUpperCase()}</button>
-              ))}
-              {infoBtn}
-            </div>
-            <img className="logo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
-            <h1><b>RACE</b> MONITOR</h1>
-            <div className="sub">{APP_VERSION}</div>
-
-            {firebaseReady ? (<>
-              <div className="hint" style={{ marginBottom: 10 }}>
-                👤 {userName || t("isimsiz")}</div>
-
-              {Object.keys(myTeams).length === 0 ? (
-                <div className="lobbyfoot">
-                  <button className="bigbtn ghost" onClick={() => setCreateJoinOpen(true)}>
-                    🏢 {t("Kur & Katıl")}
-                  </button>
-                  <button className="bigbtn ghost" onClick={() => setScheduleOnly(true)}>
-                    🏁 {t("Resmi Yarışlar")}
-                  </button>
-                </div>
-              ) : (<>
-                {/* §1 — takım seçici: yatay kaydırılan kartlar (10+ ölçeklenir) */}
-                <div className="mmcap">{t("Takım")}</div>
-                <div className="mmteams">
-                  {Object.entries(myTeams).map(([tid, nm]) => (
-                    <button key={tid} className={`mmtm ${curTeam === tid ? "on" : ""}`}
-                      onClick={() => setCurTeam(tid)}>
-                      <span className="mmtlg">
-                        {tid === curTeam && teamLogoSrc(teamData?.assets)
-                          ? <img src={teamLogoSrc(teamData.assets)} alt="" />
-                          : "🏁"}
-                      </span>
-                      <span className="mmtnm">{nm}</span>
-                    </button>
-                  ))}
-                  <button className="mmtm add" onClick={() => setCreateJoinOpen(true)}>
-                    <span className="mmtlg">＋</span>
-                    <span className="mmtnm">{t("Kur & Katıl")}</span>
-                  </button>
-                </div>
-
-                {/* §1.2 — hızlı eylemler: 📊 Telemetri belirgin */}
-                <div className="mmquick">
-                  <button className="mmqa" onClick={() => setScheduleOnly(true)}>
-                    <span className="mmqi">🏁</span>
-                    <span className="mmql">{t("Resmi Yarışlar")}</span>
-                    <span className="mmqs">{t("resmi yarış takvimi")}</span>
-                  </button>
-                  <button className="mmqa"
-                    onClick={() => setTeleOnly(true)}>
-                    <span className="mmqi">📊</span>
-                    <span className="mmql">{t("Telemetri")}</span>
-                    <span className="mmqs">{t(".ld yükle · analiz")}</span>
-                  </button>
-                  <button className="mmqa" onClick={() => setSuOpen(true)}>
-                    <span className="mmqi">🔧</span>
-                    <span className="mmql">{t("Setup Havuzu")}
-                      {setups.length > 0 && <span className="mmbadge">{setups.length}</span>}</span>
-                    <span className="mmqs">{t("paylaşımlı setuplar")}</span>
-                  </button>
-                  <button className="mmqa" data-tour="chat" onClick={() => setChatOpen(true)}>
-                    <span className="mmqi">💬</span>
-                    <span className="mmql">{t("Sohbet")}
-                      {chatUnread > 0 && <span className="mmbadge">{chatUnread}</span>}</span>
-                    <span className="mmqs">{t("takım kanalları")}</span>
-                  </button>
-                  <button className="mmqa" data-tour="manage" onClick={() => setTeamOpen(true)}>
-                    <span className="mmqi">⚙</span>
-                    <span className="mmql">{canEditTeam ? t("Yönet") : t("Görüntüle")}</span>
-                    <span className="mmqs">{t("takvim & takım")}</span>
-                  </button>
-                </div>
-
-                {/* sezon süzgeci (çok sezon) — yaklaşanı ve geçmişi süzer */}
-                {seasonIds.length > 1 && (
-                  <div className="mmchips">
-                    {[["all", t("Tümü")], ...seasonIds.map((sid) => [sid, sName(sid)])]
-                      .map(([v, l]) => (
-                        <button key={v} className={`mmchip ${lobSeason === v ? "on" : ""}`}
-                          onClick={() => setLobSeason(v)}>{l}</button>
-                      ))}
-                  </div>
-                )}
-
-                <div className="mmraces" data-tour="races">
-                  {/* sıradaki yarış — vurgulu hero */}
-                  {nextEntry ? (() => {
-                    const [rid, r] = nextEntry;
-                    return (<>
-                      <div className="mmsec">🏁 {t("Sıradaki Yarış")}</div>
-                      <div className="mmnextwrap">
-                      <button className="mmnext" onClick={() => openRace(rid)}>
-                        {/* bayrak + pist görseli — mevcut asset sistemi (flags/ + tracks/,
-                            TRACK_ASSET ile). Emoji bayrak bazı OS'lerde "FR" harfine düşüyordu. */}
-                        <span className="mmntrk">
-                          {r.trackId ? (<>
-                            <img className="mmnflag"
-                              src={`${ASSET}flags/${TRACK_ASSET(r.trackId)}.png${AV}`} alt=""
-                              onError={(e) => { e.currentTarget.style.display = "none"; }} />
-                            <img className="mmntrkimg"
-                              src={`${ASSET}tracks/${TRACK_ASSET(r.trackId)}.png${AV}`} alt=""
-                              onError={(e) => { e.currentTarget.style.display = "none"; }} />
-                          </>) : "🏁"}
-                        </span>
-                        <span className="mmninfo">
-                          <span className="mmnrnd">
-                            {sName(sidOf(nextEntry))}{r.round ? ` · R${r.round}` : ""}</span>
-                          <span className="mmnttl">{r.name || trackName(r.trackId) || "—"}</span>
-                          <span className="mmnmt">
-                            {r.trackId ? trackName(r.trackId) : ""}
-                            {r.raceTime ? ` · ${r.raceTime}` : ""}
-                            {r.carId ? ` · ${carName(r.carClass, r.carId)}` : ""}</span>
-                        </span>
-                        <span className="mmncd">
-                          {r.startsAt ? (
-                            <span className="mmncdd">{new Date(r.startsAt)
-                              .toLocaleString(lang === "en" ? "en-GB" : "tr-TR",
-                                { day: "2-digit", month: "short",
-                                  hour: "2-digit", minute: "2-digit" })}</span>
-                          ) : null}
-                          <span className="mmngo">{t("Aç")} →</span>
-                        </span>
-                      </button>
-                      {canEditTeam && (
-                        <button className="mmdel" title={t("Yarışı sil")}
-                          onClick={() => askDeleteRace(rid, r)}>🗑</button>
-                      )}
-                      </div>
-                    </>);
-                  })() : (
-                    <div className="hint">{t("Takvimde yaklaşan yarış yok.")}</div>
-                  )}
-
-                  {/* kalan yaklaşanlar */}
-                  {restUp.length > 0 && (<>
-                    <div className="mmsec sub">{t("Yaklaşan")} ({restUp.length})</div>
-                    <div className="racegrid">
-                      {restUp.map((e) => (
-                        <Fragment key={e[0]}>
-                          {seasonIds.length > 1 && lobSeason === "all" && (
-                            <div className="lseason">{sName(sidOf(e))}</div>
-                          )}
-                          {RaceRow(e, false)}
-                        </Fragment>
-                      ))}
-                    </div>
-                  </>)}
-
-                  {/* §1.3 — geçmiş: ara + sayfalama */}
-                  {allPast.length > 0 && (<>
-                    <div className="mmpasthd">
-                      <div className="mmsec">📅 {t("Geçmiş Yarışlar")}</div>
-                      <input className="mmsrch" value={lobQuery}
-                        placeholder={t("ara: pist, yarış adı…")}
-                        onChange={(e) => { setLobQuery(e.target.value); setPastLimit(12); }} />
-                    </div>
-                    {pastShown.length === 0
-                      ? <div className="hint">{t("Aramayla eşleşen geçmiş yarış yok.")}</div>
-                      : <div className="racegrid">
-                        {pastShown.map((e) => (
-                          <Fragment key={e[0]}>
-                            {seasonIds.length > 1 && lobSeason === "all" && (
-                              <div className="lseason">{sName(sidOf(e))}</div>
-                            )}
-                            {RaceRow(e, false)}
-                          </Fragment>
-                        ))}
-                      </div>}
-                    {pastAll.length > pastLimit && (
-                      <button className="mmmore" onClick={() => setPastLimit((n) => n + 12)}>
-                        ↓ {t("Daha fazla göster")} ({pastShown.length} / {pastAll.length})</button>
-                    )}
-                  </>)}
-                </div>
-              </>)}
-
-              <div className="lmsg">{syncMsg}</div>
-            </>) : (
-              <div className="hint" style={{ textAlign: "center", marginBottom: 8 }}>
-                {t("Takım senkronizasyonu kapalı — ")}<b>src/firebase-config.js</b>{t(" dosyasını doldur.")}
-              </div>
-            )}
-
-            <div className="lobbyfoot">
-            <button className="solo" onClick={() => setEntered(true)}>
-              {t("Takımsız solo devam et →")}
-            </button>
-
-            {!isTauri && (<>
-              <div className="divider">{t("masaüstü uygulaması")}</div>
-              <a className="bigbtn ghost" href={DESKTOP_RELEASE_URL}
-                target="_blank" rel="noopener noreferrer"
-                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center",
-                  gap: 8, textDecoration: "none" }}>
-                🖥 {t("Masaüstü Uygulamasını İndir")}</a>
-              <div className="hint" style={{ textAlign: "center", marginTop: 6 }}>
-                {t("Tarayıcısız, kendi penceresinde açılır — canlı timing köprüsü dahil (oyunun PC'sinde 'Canlı Köprü Başlat'). Sonraki sürümler uygulama içinden otomatik gelir.")}</div>
-
-              <div className="divider">{t("sürüş PC'si için hafif köprü")}</div>
-              <a className="bigbtn ghost" href={BRIDGE_EXE_URL}
-                target="_blank" rel="noopener noreferrer"
-                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center",
-                  gap: 8, textDecoration: "none" }}>
-                🪶 {t("Hafif Köprüyü İndir (.exe)")}</a>
-              <div className="hint" style={{ textAlign: "center", marginTop: 6 }}>
-                {t("Oyunun çalıştığı PC için: tarayıcı motoru yok → oyunu yormaz. Paylaşımlı belleği okuyup canlı timing'i yayınlar; mühendisler web'den izler. (Kendi Google hesabınla giriş — bot gerekmez.)")}</div>
-            </>)}
-
-            {isTauri && (<>
-              <div className="divider">{t("sürüş PC'si için hafif köprü")}</div>
-              <button className="bigbtn ghost"
-                style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8 }}
-                onClick={async () => {
-                  if (!window.confirm(t("Race Monitor kapanacak ve tarayıcısız Hafif Köprü açılacak (oyunun donmasını önler). Devam edilsin mi?"))) return;
-                  try {
-                    const { invoke } = await import("@tauri-apps/api/core");
-                    await invoke("launch_bridge_and_quit");
-                  } catch (e) {
-                    window.alert(t("Hafif köprü açılamadı: ") + e);
-                  }
-                }}>
-                🏎 {t("Driver Moduna Geç")}</button>
-              <div className="hint" style={{ textAlign: "center", marginTop: 6 }}>
-                {t("Oyunun PC'sinde: ağır arayüzü kapatıp yalnız tarayıcısız köprüyü çalıştırır → oyun donmaz. Köprü tepside çalışır; mühendisler canlıyı web'den izler.")}</div>
-            </>)}
+        {/* v2.0: Takım/Sohbet ana menüden de TAM SAYFA (modal değil) — sol raydan
+            gezinir; Ana Menü'ye ray 🏠 ile dönülür. Yarış-içi kabuktaki
+            .v2grid > .v2screen yerleşimiyle birebir. */}
+        {(screen === "team" || screen === "chat" || screen === "setup" || screen === "tele") ? (
+        <div className="grid noside v2grid">
+          <div key={screen} className="v2screen">
+            {(() => { const g = guideFor(screen, t); return g
+              ? <Guide title={g.title} text={g.text} /> : null; })()}
+            <div id="tabpanel-main" role="region" aria-label={t("Ana içerik")} tabIndex={-1}>
+              {screen === "team" ? teamSheet(true)
+                : screen === "setup" ? setupScreen()
+                : screen === "tele" ? (
+                  <Suspense fallback={<div className="hint" style={{ padding: 20 }}>⏳ {t("Yükleniyor…")}</div>}>
+                    <TeleTab t={t} lang={lang} st={teleSt} up={() => {}} standalone
+                      {...teleHook} onSaveDuckSetup={user ? saveTeleSetup : null} />
+                  </Suspense>
+                ) : chatSheet(true)}
             </div>
           </div>
         </div>
+        ) : (
+        <div className="hm">
+
+          {/* ── üst şerit: takım kimliği + kontroller ── */}
+          <div className="hmbar">
+            <span className="hmteam">
+              <img src={curTeam ? (teamLogoSrc(teamData?.assets) || `${ASSET}logo.png`) : `${ASSET}logo.png`}
+                alt="" onError={(e) => { e.currentTarget.src = `${ASSET}logo.png`; }} />
+              <b>{teamName}</b>
+              {seasonTag && <span>{seasonTag}</span>}
+            </span>
+            {otherTeams.map(([tid, nm]) => (
+              <button key={tid} className="hmteam2" onClick={() => setCurTeam(tid)}>{nm}</button>
+            ))}
+            <button className="hmcj" onClick={() => setCreateJoinOpen(true)}>＋ {t("Kur & Katıl")}</button>
+
+            <span className="hmctl">
+              <span className="hmlang">
+                {["tr", "en"].map((l) => (
+                  <button key={l} className={lang === l ? "on" : ""}
+                    onClick={() => switchLang(l)}>{l.toUpperCase()}</button>
+                ))}
+              </span>
+              <button className="hmbtn" onClick={() => setTour("lobby")}>🎓 {t("Rehber")}</button>
+              <button className="hmbtn mut" title={t("Komut paleti · Ctrl/Cmd+K")}
+                onClick={() => setCmdOpen(true)}>🔎 {t("Ara")} <b>⌘K</b></button>
+              {isAdmin && (
+                <button className="hmbtn" title={t("Üye yönetimi")}
+                  onClick={() => setAdminOpen(true)}>🛡 {t("Üyeler")}</button>
+              )}
+              <span className="hmpop-wrap">
+                <button className={`hminfo${homeInfo ? " on" : ""}`} title={t("Sürüm ve bilgi")}
+                  onClick={() => { setHomeInfo((v) => !v); setHomeAcct(false); }}>ℹ</button>
+                {homeInfo && (
+                  <span className="hminfopop">
+                    <span className="hd">
+                      <img src={`${ASSET}logo.png`} alt="" />
+                      <span style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                        <b>Race Monitor</b>
+                        <span>{t("Sürüm")} {APP_VERSION} · Caspian Motorsport</span>
+                      </span>
+                    </span>
+                    <span className="st">
+                      <span className="r"><span>{t("Köprü")}</span>
+                        <b style={{ color: live?.ts ? "var(--rc-ok)" : undefined }}>
+                          {live?.ts ? t("bağlı") : t("bağlı değil")}</b></span>
+                      <span className="r"><span>{t("Takvim verisi")}</span>
+                        <b>{lmu?.updatedAt
+                          ? new Date(lmu.updatedAt).toLocaleTimeString(lang === "en" ? "en-GB" : "tr-TR",
+                              { hour: "2-digit", minute: "2-digit" }) : "—"}</b></span>
+                      <span className="r"><span>{t("Oyun")}</span><b>Le Mans Ultimate</b></span>
+                    </span>
+                    <span className="act">
+                      <button onClick={() => { setHomeInfo(false); openVersions(); }}>
+                        {t("Yenilikler · neler değişti")}</button>
+                      <a href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
+                        `Race Monitor — ${t("Hata bildir")} (${APP_VERSION})`)}&body=${encodeURIComponent(
+                        `\n\n———\n${t("Sürüm")}: ${APP_VERSION}`)}`}
+                        onClick={() => setHomeInfo(false)}>{t("Hata bildir")}</a>
+                    </span>
+                    <span className="ft">{t("Takvim kaynağı")}{" "}
+                      <a href="https://lmugarage.com" target="_blank" rel="noopener noreferrer">lmugarage.com</a>{" "}
+                      — {t("resmi olmayan topluluk projesi.")}</span>
+                  </span>
+                )}
+              </span>
+              <span className="hmpop-wrap">
+                <button className={`hmacct${homeAcct ? " on" : ""}`}
+                  onClick={() => { setHomeAcct((v) => !v); setHomeInfo(false); }}>
+                  <span className="av">{user?.photoURL
+                    ? <img src={user.photoURL} alt="" referrerPolicy="no-referrer" /> : initials}</span>
+                  <span className="nm">
+                    <b>{userName || user?.displayName || t("Kullanıcı")}</b>
+                    <span>{roleLabel(role)}</span>
+                  </span>
+                  <span className="ca">▾</span>
+                </button>
+                {homeAcct && (
+                  <span className="hmacctpop">
+                    <button onClick={() => { setHomeAcct(false); setProfOpen(true); }}>
+                      {t("Profil ve rozetler")}</button>
+                    <span className="sep" />
+                    <button className="danger" onClick={() => { setHomeAcct(false); signOut(); }}>
+                      {t("Çıkış yap")}</button>
+                  </span>
+                )}
+              </span>
+            </span>
+          </div>
+
+          {/* ── sürüm banner ── */}
+          {verNew && (
+            <div className="hmver">
+              <span className="i">⬆</span>
+              <span className="t">{t("Sürüm")} <b>{APP_VERSION}</b> {t("hazır")} — {t(APP_VERSION_SUMMARY)}</span>
+              <span className="btns">
+                <button onClick={openVersions}>{t("Neler değişti")}</button>
+                <button className="go" onClick={() => window.location.reload()}>{t("Güncelle")}</button>
+                <button className="later" onClick={() => { try { localStorage.setItem(SEEN_VER_KEY, APP_VERSION); } catch {} setSeenVer(APP_VERSION); }}>
+                  {t("Sonra")}</button>
+              </span>
+            </div>
+          )}
+
+          {/* ── hero + kısayollar ── */}
+          <div className="hmhero-row">
+            {heroR ? (
+              <div className="hmhero">
+                <div className="body">
+                  <span className="eyebrow">{t("Sıradaki yarış")}{heroR.round ? ` · R${heroR.round}` : ""}</span>
+                  <div className="ttl">
+                    <b>{heroR.name || trackName(heroR.trackId) || "—"}</b>
+                    <span>{[heroR.trackId ? trackName(heroR.trackId) : "", heroR.raceTime,
+                      heroR.carId ? carName(heroR.carClass, heroR.carId) : ""].filter(Boolean).join(" · ")}</span>
+                  </div>
+                  <div className="hmcd">
+                    <div className="box"><div className="n">{pad2(cdD)}</div><div className="l">{t("gün")}</div></div>
+                    <div className="box"><div className="n">{pad2(cdH)}</div><div className="l">{t("saat")}</div></div>
+                    <div className="box"><div className="n">{pad2(cdM)}</div><div className="l">{t("dakika")}</div></div>
+                    <div className="box wide"><div className="n sm">{heroLocal || "—"}</div>
+                      <div className="l">{t("yerel saat")}</div></div>
+                  </div>
+                  <div className="acts">
+                    <button className="open" onClick={() => openRace(nextEntry[0])}>{t("Yarışı aç")} →</button>
+                    <button className="setup" onClick={() => go("setup")}>
+                      {trackName(heroR.trackId)
+                        ? `${trackName(heroR.trackId)} ${t("setupları")}`
+                        : t("Setuplar")}{" "}
+                      ({heroR.trackId
+                        ? setups.filter((s) => s.track === heroR.trackId).length
+                        : setups.length})</button>
+                  </div>
+                </div>
+                <div className="vis">
+                  <div className="in">
+                    {heroR.trackId && (
+                      <img className="flag" src={`${ASSET}flags/${TRACK_ASSET(heroR.trackId)}.png${AV}`} alt=""
+                        onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                    )}
+                    {heroR.trackId && (
+                      <img className="trk" src={`${ASSET}tracks/${TRACK_ASSET(heroR.trackId)}.png${AV}`} alt=""
+                        onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="hmhero">
+                <div className="body">
+                  <span className="eyebrow">{t("Sıradaki yarış")}</span>
+                  <div className="ttl"><b>{t("Yarış yok")}</b>
+                    <span>{t("Takvime yarış ekle ya da resmi yarışlardan planla.")}</span></div>
+                  <div className="acts">
+                    {/* "Yarış ekle" yalnız takımı olan editör/owner'da — diğer tüm
+                       giriş noktalarıyla tutarlı. Eskiden guard yoktu: takımsız/viewer
+                       kullanıcı basınca modal açılıp İleri/Kaydet sessizce no-op oluyordu. */}
+                    {canEditTeam && curTeam && (
+                      <button className="setup" onClick={() => setRForm({})}>＋ {t("Yarış ekle")}</button>
+                    )}
+                    <button className="setup" onClick={() => go("official")}>{t("Resmi yarışlar")}</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="hmqa">
+              <button className="tile" onClick={() => go("setup")}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--rc-brand-bright)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15.5 4a4.5 4.5 0 0 0-4 6.6L4 18.1 5.9 20l7.5-7.5A4.5 4.5 0 1 0 15.5 4Z" /></svg>
+                <b>{t("Setup havuzu")}</b><span>{setups.length} {t("dosya")}
+                  {suTrackCount ? ` · ${suTrackCount} ${t("pist")}` : ""}</span>
+              </button>
+              <button className="tile" onClick={() => go("tele")}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--rc-brand-bright)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4v16h16" /><path d="m7 14 3-3 3 2 4-5" /></svg>
+                <b>{t("Telemetri")}</b><span>{t(".ld yükle · analiz")}</span>
+              </button>
+              <button className="tile" data-tour="chat" onClick={() => go("chat")}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--rc-brand-bright)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 4H4a1.5 1.5 0 0 0-1.5 1.5V16A1.5 1.5 0 0 0 4 17.5h3V21l4-3.5h9A1.5 1.5 0 0 0 21.5 16V5.5A1.5 1.5 0 0 0 20 4Z" /></svg>
+                <b>{t("Sohbet")}{chatUnread > 0 && <span className="cnt">{chatUnread}</span>}</b>
+                <span>{t("takım kanalları")}</span>
+              </button>
+              <button className="tile" data-tour="manage" onClick={() => go("team")}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--rc-brand-bright)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="3" width="16" height="18" rx="1.4" /><path d="M9 8h1M14 8h1M9 12h1M14 12h1M9 16h2v5" /></svg>
+                <b>{t("Takım & takvim")}</b>
+                <span>{memberCount} {t("üye")} · {raceCount} {t("yarış")}</span>
+              </button>
+              <button className="tile official" onClick={() => go("official")}>
+                <span className="ic">🏁</span>
+                <span className="tx"><b>{t("Resmi yarışlar")}</b>
+                  <span>{nextOfficial
+                    ? `${t("Sıradaki")}: ${nextOfficial.name}${
+                        nextOfficialTrack ? ` · ${nextOfficialTrack}` : ""}`
+                    : t("lmugarage günlük/haftalık")}</span></span>
+                {nextOfficialCd && <span className="cd">{nextOfficialCd}</span>}
+              </button>
+            </div>
+          </div>
+
+          {/* ── takvim ── */}
+          <div className="hmcalhd" data-tour="races">
+            <span className="cap">{t("Takvim")}</span>
+            <span className="seg">
+              <button className={`hmchip${lobCal === "up" ? " on" : ""}`}
+                onClick={() => setLobCal("up")}>{t("Yaklaşan")} ({allUp.filter(inFilter).length})</button>
+              <button className={`hmchip${lobCal === "past" ? " on" : ""}`}
+                onClick={() => setLobCal("past")}>{t("Geçmiş")} ({allPast.filter(inFilter).length})</button>
+            </span>
+            {seasonChips.length > 1 && <span className="vsep" />}
+            {seasonChips.length > 1 && (
+              <span className="seasons">
+                {seasonChips.map(([v, l]) => (
+                  <button key={v} className={`hmchip${lobSeason === v ? " on" : ""}`}
+                    onClick={() => setLobSeason(v)}>{l}</button>
+                ))}
+              </span>
+            )}
+            <input type="text" placeholder={t("ara: pist, yarış adı…")} value={lobQuery}
+              onChange={(e) => { setLobQuery(e.target.value); setPastLimit(12); }} />
+            {canEditTeam && curTeam && (
+              <button className="add" onClick={() => setRForm({})}>＋ {t("Yarış ekle")}</button>
+            )}
+          </div>
+
+          <div className="hmcal">
+            {calEmpty ? (
+              <div className="empty">
+                <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="var(--rc-border-strong)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></svg>
+                <div className="t">{t("Bu sezonda yarış yok")}</div>
+                <div className="d">{t("Takvime yarış ekle ya da resmi yarışlar listesinden planla — eklediğin yarışlar takımdaki herkeste görünür.")}</div>
+                <span className="b">
+                  {canEditTeam && curTeam && (
+                    <button className="hmrow-cta" style={{ padding: "8px 16px", borderRadius: 9, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontSize: 12.5, fontWeight: 600 }}
+                      onClick={() => setRForm({})}>＋ {t("Yarış ekle")}</button>
+                  )}
+                  <button style={{ padding: "8px 15px", borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12.5 }}
+                    onClick={() => go("official")}>{t("Resmi yarışlar")}</button>
+                </span>
+              </div>
+            ) : calList.map((e) => CalRow(e))}
+          </div>
+          {lobCal === "past" && pastAll.length > pastShown.length && (
+            <button className="hmmore" onClick={() => setPastLimit((n) => n + 12)}>
+              ↓ {t("Daha fazla göster")}</button>
+          )}
+
+          {/* ── solo + indirmeler ── */}
+          <div className="hmsolo">
+            <span className="tx">
+              <b>{t("Takım olmadan devam et")}</b>
+              <span>{t("Yarışlarını yerel olarak kur, stint planla ve canlı timing kullan. Setup havuzu ve sohbet takım gerektirir; sonradan katılabilirsin.")}</span>
+            </span>
+            <button className="go" onClick={() => { setEntered(true); go("pick"); }}>
+              {t("Solo devam et")} →</button>
+          </div>
+
+          <div className="hmdl">
+            <div className="card">
+              <span className="ic">🖥</span>
+              <span className="tx"><b>{t("Masaüstü uygulaması")}</b>
+                <span>{t("Tarayıcısız, kendi penceresinde açılır — canlı timing köprüsü dahil. Sonraki sürümler uygulama içinden gelir.")}</span></span>
+              <a href={DESKTOP_RELEASE_URL} target="_blank" rel="noopener noreferrer">{t("İndir")}</a>
+            </div>
+            <div className="card">
+              <span className="ic">🪶</span>
+              <span className="tx"><b>{t("Hafif köprü · .exe")}</b>
+                <span>{t("Oyunun çalıştığı PC için: tarayıcı motoru yok, oyunu yormaz. Paylaşımlı belleği okuyup canlı timing'i yayınlar.")}</span></span>
+              <a href={BRIDGE_EXE_URL} target="_blank" rel="noopener noreferrer">{t("İndir")}</a>
+            </div>
+          </div>
+
+        </div>
+        )}
+        </div>{/* /v2main */}
       </div>
     );
   }
 
-  /* ---------- setup 1: pist & araç seçimi ---------- */
+  /* ---------- setup 1: pist & araç seçimi ---------- */  /* ---------- setup 1: pist & araç seçimi ---------- */
   if (!pickDone) {
     const cls = st.carClass || "hypercar";
+    const clsCars = CARS[cls] || [];
+    const curCar = clsCars.find((c) => c.id === st.car);
+    const clsName = CAR_CLASSES.find(([id]) => id === cls)?.[1] || "";
+    const disp = "var(--rc-font-display)";
+    const trkPit = (id) => (PIT_LANE_TIMES[id] != null ? PIT_LANE_TIMES[id] : "—");
+    const shownTracks = TRACKS.filter((tk) =>
+      !trackQ.trim() || tk.name.toLowerCase().includes(trackQ.trim().toLowerCase()));
+    const numBadge = { width: 22, height: 22, borderRadius: "50%", background: "var(--rc-brand)",
+      color: "var(--rc-on-brand)", display: "grid", placeItems: "center", fontFamily: disp,
+      fontWeight: 700, fontSize: 12, flex: "0 0 auto" };
+    const secLbl = { fontFamily: disp, textTransform: "uppercase", letterSpacing: ".07em",
+      fontSize: 16, fontWeight: 700 };
+    const goData = () => { setPickDone(true); go("data"); };
     return (
-      <div className="rc">
+      <div className="rc v2">
         <UpdateBanner t={t} />
-        <div className="lobby" style={{ alignItems: "flex-start", paddingTop: 40 }}>
-          <div className="box" style={{ maxWidth: 720 }}>
-            <img className="logo" style={{ maxWidth: 190 }} src={`${ASSET}logo.png`} alt="" />
-            <h1><b>{t("PİST")}</b> {t("& ARAÇ")}</h1>
-            <div className="sub">
-              {curRace ? (<>{t("Yarış")}: <b className="roomcode">{races[curRace]?.name || curRace}</b></>)
-                : t("Solo mod")}
-            </div>
+        <div style={{ padding: "18px 20px 108px" }}>
+          {/* --- başlık --- */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 18 }}>
+            <button onClick={leaveRace} aria-label={t("Ana menü")}
+              style={{ width: 34, height: 34, borderRadius: 9, border: "1px solid var(--rc-border)",
+                background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 14 }}>←</button>
+            <h2 style={{ margin: 0, fontFamily: disp, textTransform: "uppercase", letterSpacing: ".06em",
+              fontSize: 22, fontWeight: 700 }}>{t("Pist & araç")}</h2>
+            <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".1em",
+              padding: "4px 11px", borderRadius: 99, border: "1px solid var(--rc-border-strong)",
+              color: "var(--rc-text-3)" }}>
+              {curRace ? (races[curRace]?.name || curRace) : t("Solo mod · veriler bu cihazda")}</span>
+          </div>
 
-            <div className="picksec">
-              <h3>{t("1 · Pist Seç")}</h3>
-              <div className="trackgrid">
-                {TRACKS.map((t) => (
-                  <button key={t.id} className={st.track === t.id ? "on" : ""}
-                    onClick={() => up({ track: t.id,
-                      ...(PIT_LANE_TIMES[t.id] != null ? { pitLaneTime: PIT_LANE_TIMES[t.id] } : {}) })}>
-                    <img src={`${ASSET}flags/${TRACK_ASSET(t.id)}.png`} alt="" />{t.name}
-                  </button>
-                ))}
+          {/* --- 1 · Pist seç + önizleme --- */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "flex-start", marginBottom: 22 }}>
+            <div style={{ flex: "1 1 520px", minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                <span style={numBadge}>1</span>
+                <span style={secLbl}>{t("Pist seç")}</span>
+                <input type="search" placeholder={t("Pist ara…")} value={trackQ}
+                  onChange={(e) => setTrackQ(e.target.value)}
+                  style={{ marginLeft: "auto", background: "var(--rc-surface-3)",
+                    border: "1px solid var(--rc-border)", borderRadius: 9, color: "var(--rc-text)",
+                    fontSize: 12.5, padding: "7px 12px", width: 180 }} />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(168px,1fr))", gap: 9 }}>
+                {shownTracks.map((tk) => {
+                  const sel = st.track === tk.id;
+                  return (
+                    <button key={tk.id}
+                      onClick={() => up({ track: tk.id,
+                        ...(PIT_LANE_TIMES[tk.id] != null ? { pitLaneTime: PIT_LANE_TIMES[tk.id] } : {}) })}
+                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
+                        borderRadius: 11, cursor: "pointer", color: "var(--rc-text)", minWidth: 0,
+                        border: `1px solid ${sel ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
+                        background: sel ? "rgba(150,0,24,.22)" : "var(--rc-surface-2)" }}>
+                      <img src={`${ASSET}flags/${TRACK_ASSET(tk.id)}.png`} alt=""
+                        style={{ width: 26, borderRadius: 3, border: "1px solid var(--rc-border)", flex: "0 0 auto" }}
+                        onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
+                      <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0, textAlign: "left" }}>
+                        <b style={{ fontFamily: disp, fontSize: 15, whiteSpace: "nowrap",
+                          overflow: "hidden", textOverflow: "ellipsis" }}>{tk.name}</b>
+                        <span style={{ fontSize: 10.5, color: "var(--rc-text-3)" }}>
+                          {t("Pit kaybı")} {trkPit(tk.id)}s</span>
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            {st.track && (
-              <img key={st.track} src={`${ASSET}tracks/${TRACK_ASSET(st.track)}.png${AV}`} alt=""
-                style={{ display: "block", margin: "14px auto 0", maxWidth: "100%",
-                  maxHeight: 220, filter: "drop-shadow(0 4px 12px rgba(0,0,0,.5))" }}
-                onError={(e) => { e.currentTarget.style.display = "none"; }} />
-            )}
-
-            <div className="picksec">
-              <h3>{t("2 · Sınıf Seç")}</h3>
-              <div className="classtoggle">
-                {CAR_CLASSES.map(([id, name]) => (
-                  <button key={id} className={cls === id ? "on" : ""}
-                    onClick={() => up({ carClass: id, car: "" })}>
-                    <img src={`${ASSET}class/${id}.png`} alt=""
-                      onError={(e) => { e.currentTarget.style.display = "none"; }} />{name}
-                  </button>
-                ))}
-              </div>
+            <div style={{ flex: "1 1 300px", minWidth: 280, border: "1px solid var(--rc-border)",
+              borderRadius: 12, background: "var(--rc-surface)", padding: 18, textAlign: "center" }}>
+              {st.track ? (
+                <>
+                  <img key={st.track} src={`${ASSET}tracks/${TRACK_ASSET(st.track)}.png${AV}`} alt=""
+                    style={{ display: "block", width: "100%", maxWidth: 280, height: "auto", margin: "0 auto",
+                      filter: "drop-shadow(0 6px 18px rgba(0,0,0,.5))" }}
+                    onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                  <div style={{ fontFamily: disp, fontWeight: 700, fontSize: 19, marginTop: 12 }}>
+                    {trackName(st.track)}</div>
+                  <div style={{ color: "var(--rc-text-3)", fontSize: 11.5, marginTop: 3 }}>
+                    {t("Pit kaybı")} {trkPit(st.track)} {t("sn · seçili pist")}</div>
+                </>
+              ) : (
+                <div style={{ color: "var(--rc-text-3)", fontSize: 12.5, padding: "40px 0" }}>
+                  {t("Önizleme için bir pist seç")}</div>
+              )}
             </div>
+          </div>
 
-            <div className="picksec">
-              <h3>{t("3 · Araç Seç")}</h3>
-              <div className="cargrid">
-                {CARS[cls].map((c) => (
-                  <button key={c.id} className={st.car === c.id ? "on" : ""}
-                    onClick={() => up({ carClass: cls, car: c.id })}>
-                    <img src={carImageSrc(teamData?.assets, cls, c.id, "side")} alt="" loading="lazy"
+          {/* --- 2 · Sınıf seç --- */}
+          <div style={{ marginBottom: 22 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+              <span style={numBadge}>2</span>
+              <span style={secLbl}>{t("Sınıf seç")}</span>
+            </div>
+            <div style={{ display: "flex", gap: 9, flexWrap: "wrap" }}>
+              {CAR_CLASSES.map(([id, name]) => {
+                const sel = cls === id;
+                const hasCars = (CARS[id] || []).length;
+                return (
+                  <button key={id}
+                    onClick={() => up({ carClass: id, car: (CARS[id] || [])[0]?.id || "" })}
+                    style={{ display: "flex", alignItems: "center", gap: 9, padding: "11px 16px",
+                      borderRadius: 11, cursor: "pointer", color: "var(--rc-text)",
+                      border: `1px solid ${sel ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
+                      background: sel ? "rgba(150,0,24,.22)" : "var(--rc-surface-2)", opacity: hasCars ? 1 : 0.5 }}>
+                    <img src={`${ASSET}class/${id}.png`} alt="" style={{ height: 22, flex: "0 0 auto" }}
                       onError={(e) => { e.currentTarget.style.display = "none"; }} />
-                    {c.name}
+                    <span style={{ fontFamily: disp, fontWeight: 700, fontSize: 15, letterSpacing: ".03em" }}>{name}</span>
+                    <span style={{ fontSize: 10.5, color: "var(--rc-text-3)" }}>{hasCars} {t("araç")}</span>
                   </button>
-                ))}
-              </div>
+                );
+              })}
             </div>
+          </div>
 
-            <button className="bigbtn" style={{ marginTop: 20 }}
-              disabled={!st.track || !st.car}
-              onClick={() => setPickDone(true)}>
-              {t("✓ Devam Et — Yarış Dataları")}
-            </button>
-            <div className="lmsg">
-              {(!st.track || !st.car) && t("Devam etmek için pist ve araç seç")}
+          {/* --- 3 · Araç seç --- */}
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+              <span style={numBadge}>3</span>
+              <span style={secLbl}>{t("Araç seç")}</span>
+              <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{clsName} · {clsCars.length} {t("araç")}</span>
             </div>
-            <button className="solo" onClick={() => setPickDone(true)}>
-              {t("Seçim yapmadan geç →")}
-            </button>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(230px,1fr))", gap: 12 }}>
+              {clsCars.map((c) => {
+                const sel = st.car === c.id;
+                return (
+                  <button key={c.id} onClick={() => up({ carClass: cls, car: c.id })}
+                    style={{ display: "flex", flexDirection: "column", alignItems: "center",
+                      padding: "14px 14px 12px", borderRadius: 12, cursor: "pointer", color: "var(--rc-text)",
+                      border: `1px solid ${sel ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
+                      background: sel ? "rgba(150,0,24,.16)" : "var(--rc-surface-2)" }}>
+                    <img src={carImageSrc(teamData?.assets, cls, c.id, "side")} alt="" loading="lazy"
+                      style={{ width: "100%", height: 96, objectFit: "contain", display: "block" }}
+                      onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
+                    <span style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, width: "100%" }}>
+                      <b style={{ fontFamily: disp, fontSize: 15, textAlign: "left", flex: 1, minWidth: 0,
+                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.name}</b>
+                      {sel && <span style={{ color: "var(--rc-ok)", fontSize: 14, flex: "0 0 auto" }}>✓</span>}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* --- sabit alt özet çubuğu --- */}
+          <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 30, display: "flex",
+            alignItems: "center", gap: 16, flexWrap: "wrap", padding: "13px 20px",
+            borderTop: "1px solid var(--rc-border-strong)", background: "rgba(18,12,14,.96)",
+            backdropFilter: "blur(8px)" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", minWidth: 0 }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {st.track && <img src={`${ASSET}flags/${TRACK_ASSET(st.track)}.png`} alt=""
+                  style={{ width: 22, borderRadius: 2 }} onError={(e) => { e.currentTarget.style.display = "none"; }} />}
+                <span style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                  <b style={{ fontFamily: disp, fontSize: 15 }}>{st.track ? trackName(st.track) : t("Seçilmedi")}</b>
+                  <span style={{ fontSize: 10, color: "var(--rc-text-3)", textTransform: "uppercase", letterSpacing: ".08em" }}>{t("Pist")}</span>
+                </span>
+              </span>
+              <span style={{ width: 1, height: 26, background: "var(--rc-border)" }} />
+              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <img src={`${ASSET}class/${cls}.png`} alt="" style={{ height: 18 }}
+                  onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                <span style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                  <b style={{ fontFamily: disp, fontSize: 15 }}>{clsName}</b>
+                  <span style={{ fontSize: 10, color: "var(--rc-text-3)", textTransform: "uppercase", letterSpacing: ".08em" }}>{t("Sınıf")}</span>
+                </span>
+              </span>
+              <span style={{ width: 1, height: 26, background: "var(--rc-border)" }} />
+              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                  <b style={{ fontFamily: disp, fontSize: 15, color: curCar ? "var(--rc-text)" : "var(--rc-text-3)" }}>
+                    {curCar ? curCar.name : t("Seçilmedi")}</b>
+                  <span style={{ fontSize: 10, color: "var(--rc-text-3)", textTransform: "uppercase", letterSpacing: ".08em" }}>{t("Araç")}</span>
+                </span>
+              </span>
+            </span>
+            <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <button onClick={goData}
+                style={{ background: "none", border: "none", color: "var(--rc-text-3)", cursor: "pointer",
+                  fontSize: 12.5, textDecoration: "underline", textUnderlineOffset: 3 }}>
+                {t("Seçim yapmadan geç →")}</button>
+              <button onClick={goData} disabled={!st.car}
+                style={{ padding: "11px 22px", borderRadius: 10, cursor: st.car ? "pointer" : "not-allowed",
+                  fontFamily: disp, fontSize: 16, fontWeight: 700, letterSpacing: ".04em",
+                  textTransform: "uppercase", whiteSpace: "nowrap",
+                  border: `1px solid ${st.car ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
+                  background: st.car ? "var(--rc-brand)" : "var(--rc-surface-3)",
+                  color: st.car ? "var(--rc-on-brand)" : "var(--rc-text-3)" }}>
+                {t("✓ Devam et — yarış dataları")}</button>
+            </span>
           </div>
         </div>
       </div>
     );
   }
 
-  /* ---------- setup 2: yarış datalarını gir ---------- */
-  if (!setupDone) {
+  /* ---------- setup 2: yarış datalarını gir (12-yaris-datalari.md · birebir) ---------- */
+  /* Hava geçişi penceresi bir değişkene çıkarıldı → hem yarış datası formunda hem
+     ana yarış görünümünde render edilir (buton her iki yerde de çalışsın). */
+  const weatherModal = wxHist && (() => {
+    /* fiş wxOpen: zaman çizelgesi + 5-buton hava seçici + "Plana etkisi" + hızlı
+       butonlar. Geçmiş/planlı-ekleme (st.weatherLog + up) KORUNUR; toplam etki
+       computePlan ile yeniden simüle edilir. */
+    const raceSec = racePlan.raceSec || parseHMS(st.raceTime) || 0;
+    const log = (st.weatherLog || []).slice().sort((a, b) => a.t - b.t);
+    const elapsedNow = liveInfo.status === "live"
+      ? Math.max(0, Math.round(liveInfo.elapsed / 1000)) : 0;
+    const wxColAt = (mid) => {
+      const cur = wxAtRel(log, mid);
+      return (WEATHER[Object.keys(WEATHER).find((k) => WEATHER[k] === cur)] || WEATHER.dry).col;
+    };
+    const bounds = Array.from(new Set([0,
+      ...log.map((e) => e.t).filter((x) => x > 0 && x < raceSec), raceSec]))
+      .sort((a, b) => a - b);
+    const segs = [];
+    for (let i = 0; i < bounds.length - 1; i++) {
+      const a = bounds[i]; const b = bounds[i + 1];
+      segs.push({ flex: Math.max(0.0001, b - a), col: wxColAt((a + b) / 2) });
+    }
+    const base = parseLap(st.avgLap);
+    const selW = WEATHER[wxPlanW] || WEATHER.dry;
+    const effLap = base * selW.lap;
+    const dLap = effLap - base;
+    const dFuelPct = (1 - selW.fuel) * 100;
+    const stintStart = liveInfo.status === "live"
+      ? (liveInfo.stintIdx === 0 ? 0 : (racePlan.rows[liveInfo.stintIdx - 1]?.endSec || 0)) : 0;
     return (
-      <div className="rc">
+    <div className="wxmodal" onClick={() => setWxHist(false)}>
+      <div className="wxmbox" style={{ width: "min(680px,95vw)" }}
+        onClick={(e) => e.stopPropagation()}>
+        <div className="wxmhead">
+          <span>🌦 {t("Hava geçişi ekle")}</span>
+          <span className="hint" style={{ margin: 0, fontSize: 11.5 }}>
+            {t("Yarış saatinde havanın değiştiği an")}</span>
+          <button className="lbclose" onClick={() => setWxHist(false)}>✕</button>
+        </div>
+
+        {raceSec > 0 && (
+          <div className="wxtl">
+            <div className="wxtl-bar">
+              {segs.map((s, i) => (
+                <i key={i} style={{ flex: s.flex, background: s.col, opacity: .5 }} />
+              ))}
+              {log.filter((e) => e.t > 0 && e.t < raceSec).map((e, i) => (
+                <span key={i} className="wxtl-mk"
+                  style={{ left: `${(e.t / raceSec) * 100}%`,
+                    background: (WEATHER[e.w] || WEATHER.dry).col }} />
+              ))}
+              {liveInfo.status === "live" && elapsedNow > 0 && elapsedNow < raceSec && (
+                <span className="wxtl-now" style={{ left: `${(elapsedNow / raceSec) * 100}%` }} />
+              )}
+            </div>
+            <div className="wxtl-ax"><span>0:00</span><span>{fmtHMS(raceSec)}</span></div>
+          </div>
+        )}
+
+        <div className="wxmlist">
+          {!(st.weatherLog || []).length && (
+            <div className="hint" style={{ padding: "10px 6px" }}>
+              {t("Henüz hava geçişi yok. Aşağıdan planlı geçiş ekleyin veya soldaki butonlarla canlı değiştirin.")}
+            </div>
+          )}
+          {(st.weatherLog || []).map((e, i) => {
+            const wx = WEATHER[e.w] || WEATHER.dry;
+            const isFuture = liveInfo.status === "live"
+              && e.t > liveInfo.elapsed / 1000 + 1;
+            return (
+              <div key={i} className="wxrow">
+                <span className="wxdot" style={{ background: wx.col }} />
+                <span className="wxnm" style={{ color: wx.col, display: "inline-flex",
+                  alignItems: "center", gap: 5 }}>
+                  <WetIcon id={WEATHER[e.w] ? e.w : "dry"} size={15} /> {t(wx.lbl)}</span>
+                <span className={`wxsrc ${e.src === "plan" ? "plan" : "live"}`}>
+                  {e.src === "plan" ? t("planlı") : t("canlı")}
+                  {isFuture ? " ⏳" : ""}</span>
+                <span className="wxat mono">@{fmtHMS(e.t)}</span>
+                <button className="minibtn" title={t("Sil")}
+                  onClick={() => {
+                    const logD = st.weatherLog.filter((_, j) => j !== i);
+                    up({ weather: logD.length ? logD[logD.length - 1].w : "dry",
+                      weatherLog: logD });
+                  }}>✕</button>
+              </div>
+            );
+          })}
+        </div>
+        <div className="wxmplan">
+          <div className="wxmptitle">➕ {t("Bu andan sonraki hava")}</div>
+          <div className="wxpick5">
+            {Object.entries(WEATHER).map(([id, w]) => (
+              <button key={id} className={`wxp5${wxPlanW === id ? " on" : ""}`}
+                style={wxPlanW === id ? { borderColor: w.col, color: w.col } : undefined}
+                onClick={() => setWxPlanW(id)}>
+                <WetIcon id={id} size={20} />
+                <span>{t(w.lbl)}</span>
+                <small>×{w.lap.toFixed(2)}</small>
+              </button>
+            ))}
+          </div>
+          <div className="wxeffect">
+            <span className="k">{t("Plana etkisi")}</span>
+            <b style={{ color: dLap > 0.05 ? "var(--rc-warn)" : "var(--rc-ok)" }}>
+              {t("tur")} {dLap >= 0 ? "+" : ""}{dLap.toFixed(1)} {t("sn")}</b>
+            <span className="sep">·</span>
+            <b>×{selW.lap.toFixed(2)} → {fmtLap(effLap)}</b>
+            {dFuelPct > 0.5 && (<>
+              <span className="sep">·</span>
+              <b>⚡ {t("yakıt")} −{dFuelPct.toFixed(0)}%</b></>)}
+          </div>
+          {(() => {
+            const tt = parseHMS(wxPlanT);
+            if (!(tt > 0) || !(racePlan.totalLaps > 0)) return null;
+            const logHyp = [...(st.weatherLog || []).filter((e) => Math.abs(e.t - tt) > 0.5),
+              { t: tt, w: wxPlanW, src: "plan" }].sort((a, b) => a.t - b.t);
+            const ph = computePlan({ ...st, weather: wxPlanW, weatherLog: logHyp }, "race");
+            const dL = ph.totalLaps - racePlan.totalLaps;
+            const dS = ph.fullStints - racePlan.fullStints;
+            const dF = ph.totalFuel - racePlan.totalFuel;
+            const col = dL < 0 ? "var(--rc-warn)" : dL > 0 ? "var(--rc-ok)" : "var(--rc-text-2)";
+            return (
+              <div className="wxeffect" style={{ marginTop: 6 }}>
+                <span className="k">@{fmtHMS(tt)} → {t("toplam")}</span>
+                <b style={{ color: col }}>{dL >= 0 ? "+" : ""}{dL.toFixed(0)} {t("tur")}</b>
+                {dS !== 0 && (<><span className="sep">·</span>
+                  <b>{dS >= 0 ? "+" : ""}{dS} {t("stint")}</b></>)}
+                {Math.abs(dF) > 0.05 && (<><span className="sep">·</span>
+                  <b>⚡ {dF >= 0 ? "+" : ""}{dF.toFixed(1)}L</b></>)}
+                <span className="sep">·</span>
+                <span className="hint" style={{ margin: 0 }}>
+                  {ph.totalLaps.toFixed(0)} {t("tur")} / {ph.fullStints} {t("stint")}</span>
+              </div>
+            );
+          })()}
+          <div className="wxmprow">
+            <input type="text" placeholder="s:dd:ss" value={wxPlanT}
+              onChange={(e) => setWxPlanT(e.target.value)}
+              title={t("Yarış saati (başlangıçtan itibaren)")} />
+            <button className="histbtn" onClick={() => {
+              const tt = parseHMS(wxPlanT);
+              if (tt <= 0) return;
+              const logN = [...(st.weatherLog || []).filter((e) => Math.abs(e.t - tt) > 0.5),
+                { t: tt, w: wxPlanW, src: "plan" }].sort((a, b) => a.t - b.t);
+              up({ weatherLog: logN });
+              setWxPlanT("");
+            }}>{t("Geçişi ekle")}</button>
+          </div>
+          <div className="wxmquick">
+            <button className="minibtn" style={{ width: "auto", padding: "0 8px" }}
+              title={t("Yarış saati (başlangıçtan itibaren)")}
+              onClick={() => setWxPlanT(fmtHMS(elapsedNow))}>{t("Şu an")}</button>
+            <button className="minibtn" style={{ width: "auto", padding: "0 8px" }}
+              title={t("Yarış saati (başlangıçtan itibaren)")}
+              onClick={() => setWxPlanT(fmtHMS(stintStart))}>{t("Stint başı")}</button>
+            {[["30 dk", 30], ["60 dk", 60], ["90 dk", 90]].map(([lbl, mn]) => (
+              <button key={mn} className="minibtn" style={{ width: "auto", padding: "0 8px" }}
+                title={t("Son X dk için geçiş zamanı")}
+                onClick={() => {
+                  const tt = Math.max(0, parseHMS(st.raceTime) - mn * 60);
+                  setWxPlanT(fmtHMS(tt));
+                }}>{t("Son")} {lbl}</button>
+            ))}
+          </div>
+        </div>
+        <div className="wxmfoot">
+          <button className="histbtn" onClick={() => {
+            up({ weather: "dry", weatherLog: [] }); setWxHist(false);
+          }}>{t("Tümünü Sıfırla")}</button>
+        </div>
+      </div>
+    </div>
+    );
+  })();
+
+  if (!setupDone) {
+    const disp = "var(--rc-font-display)";
+    const cls = st.carClass || "hypercar";
+    const curCar = (CARS[cls] || []).find((c) => c.id === st.car);
+    const wxNow = WEATHER[st.weather] || WEATHER.dry;
+    /* strateji değeri = stint uzunluğu (tur/stint). Pit sayısı buradan TÜRETİLİR
+       (model pit sayısı saklamaz) → toplam tur / stint tur − 1. */
+    const stopsOf = (L) => Math.max(0, Math.ceil((racePlan.totalLaps || 0) / (Number(L) || 1)) - 1);
+    const stintDur = (L) => fmtHMS(Math.max(0, Number(L) || 0) * parseLap(st.avgLap));
+    const chosenLaps = st.strategies[st.chosen] || 0;
+    const chosenStops = stopsOf(chosenLaps);
+    const pitPer = (Number(st.pitLaneTime) || 0) + (Number(st.fuelTime) || 0);
+    const pitRaceSec = pitPer * chosenStops;
+    const pitRace = `${Math.floor(pitRaceSec / 60)}:${String(Math.round(pitRaceSec % 60)).padStart(2, "0")}`;
+    const tankRange = st.consumption ? Math.round(100 / Number(st.consumption)) : 0;
+    const streamOn = !!ytId(st.streamUrl);
+    const wxFuture = (st.weatherLog || []).filter((e) => e.t > 0.5);
+    /* hava seçimi: kurulum ekranında yarış canlı değil → el=0; yine de dataCardsWith
+       ile BİREBİR aynı handler (weather + weatherLog) korunur. */
+    const pickWx = (id) => {
+      const el = liveInfo.status === "live"
+        ? Math.max(0, Math.round(liveInfo.elapsed / 1000)) : 0;
+      let past = (st.weatherLog || []).filter((e) => e.t < el - 0.5);
+      const future = (st.weatherLog || []).filter((e) => e.t > el + 0.5);
+      if (el < 1) past = [];
+      const log = [...past, { t: el, w: id, src: "live" }, ...future].sort((a, b) => a.t - b.t);
+      const cur = wxAtRel(log, el);
+      up({ weather: Object.keys(WEATHER).find((k) => WEATHER[k] === cur) || id, weatherLog: log });
+    };
+    const goPick = () => setPickDone(false);
+    const goLive = () => { setSetupDone(true); go("dash"); };
+
+    const card = { border: "1px solid var(--rc-border)", borderRadius: 12,
+      background: "var(--rc-surface)", padding: "16px 18px" };
+    const cardTtl = { fontFamily: disp, textTransform: "uppercase", letterSpacing: ".08em",
+      fontSize: 16, fontWeight: 700 };
+    const lbl = { display: "block", color: "var(--rc-text-3)", fontSize: 10,
+      textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 6 };
+    const subttl = { fontSize: 11.5, color: "var(--rc-text-3)" };
+    const stBtn = { width: 38, height: 44, border: "none", background: "var(--rc-surface-3)",
+      color: "var(--rc-text-2)", cursor: "pointer", fontSize: 16 };
+    const stepper = (val, onDec, onInc) => (
+      <span style={{ display: "inline-flex", alignItems: "center", border: "1px solid var(--rc-border)",
+        borderRadius: 10, overflow: "hidden" }}>
+        <button onClick={onDec} style={stBtn}>−</button>
+        <b style={{ minWidth: 52, textAlign: "center", fontFamily: disp, fontSize: 19 }}>{val}</b>
+        <button onClick={onInc} style={stBtn}>+</button>
+      </span>
+    );
+    const mcBtn = { display: "flex", alignItems: "center", gap: 10, width: "100%",
+      padding: "10px 13px", borderRadius: 10, cursor: "pointer", color: "var(--rc-text)",
+      border: `1px solid ${st.multiclass ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
+      background: st.multiclass ? "rgba(150,0,24,.18)" : "var(--rc-surface-3)" };
+    const mcBox = { width: 20, height: 20, borderRadius: 6, flex: "0 0 auto", display: "grid",
+      placeItems: "center", fontSize: 11,
+      border: `1px solid ${st.multiclass ? "var(--rc-brand-bright)" : "var(--rc-border-strong)"}`,
+      background: st.multiclass ? "var(--rc-brand)" : "transparent",
+      color: st.multiclass ? "var(--rc-on-brand)" : "transparent" };
+    const streamChip = streamOn
+      ? { fontSize: 10, textTransform: "uppercase", letterSpacing: ".09em", padding: "3px 10px",
+          borderRadius: 99, border: "1px solid var(--rc-ok)", color: "var(--rc-ok)" }
+      : { display: "none" };
+    const streamPrev = streamOn
+      ? { position: "relative", display: "block", marginTop: 12, height: 112, borderRadius: 10,
+          border: "1px solid var(--rc-border)", background: "var(--rc-surface-2)", overflow: "hidden" }
+      : { display: "none" };
+    const streamHint = streamOn
+      ? { display: "none" }
+      : { display: "block", marginTop: 10, fontSize: 11.5, color: "var(--rc-text-3)", lineHeight: 1.5 };
+
+    return (
+      <div className="rc v2">
         <UpdateBanner t={t} />
-        <div className="lobby" style={{ alignItems: "flex-start", paddingTop: 40 }}>
-          <div className="box" style={{ maxWidth: 560 }}>
-            <img className="logo" style={{ maxWidth: 190 }} src={`${ASSET}logo.png`} alt="" />
-            <h1><b>{t("YARIŞ")}</b> {t("DATALARI")}</h1>
-            <div className="sub">
-              {st.track && <><img className="flag" style={{ width: 16, verticalAlign: -2, marginRight: 4 }}
-                src={`${ASSET}flags/${st.track}.png`} alt="" />
-                {trackName(st.track)}{st.car && <> · {carName(st.carClass, st.car)}</>} — </>}
-              {curRace ? (<>
-                {t("Yarış")}: <b className="roomcode">{races[curRace]?.name || curRace}</b>
-              </>) : t("Solo mod — datalar sadece bu cihazda")}
+        <div style={{ padding: "18px 20px 108px" }}>
+          {weatherModal}
+          {/* --- başlık --- */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 18 }}>
+            <button onClick={raceWizard ? backRaceWizard : goPick} aria-label={t("Geri")}
+              style={{ width: 34, height: 34, borderRadius: 9, border: "1px solid var(--rc-border)",
+                background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 14 }}>←</button>
+            <h2 style={{ margin: 0, fontFamily: disp, textTransform: "uppercase", letterSpacing: ".06em",
+              fontSize: 22, fontWeight: 700 }}>{t("Yarış dataları")}</h2>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--rc-text-2)" }}>
+              {st.track && <img src={`${ASSET}flags/${TRACK_ASSET(st.track)}.png`} alt=""
+                style={{ width: 20, borderRadius: 2 }}
+                onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />}
+              {trackName(st.track) || t("Seçilmedi")}
+              <span style={{ color: "var(--rc-border-strong)" }}>·</span>
+              <img src={`${ASSET}class/${cls}.png`} alt="" style={{ height: 16 }}
+                onError={(e) => { e.currentTarget.style.display = "none"; }} />
+              {curCar ? curCar.name : t("Seçilmedi")}
+            </span>
+          </div>
+
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "flex-start" }}>
+
+            {/* ===== SOL KOLON ===== */}
+            <div style={{ flex: "1 1 420px", minWidth: 0, display: "flex", flexDirection: "column", gap: 16 }}>
+
+              {/* Yarış */}
+              <div style={card}>
+                <div style={{ ...cardTtl, marginBottom: 14 }}>{t("Yarış")}</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
+                  <div style={{ flex: "1 1 170px", minWidth: 0 }}>
+                    <label style={lbl}>{t("Yarış süresi · h:mm:ss")}</label>
+                    <input type="text" value={st.raceTime}
+                      onChange={(e) => up({ raceTime: e.target.value })}
+                      style={{ width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)",
+                        border: "1px solid var(--rc-border-strong)", borderRadius: 10, color: "var(--rc-text)",
+                        padding: "12px 14px", fontFamily: disp, fontSize: 22, fontWeight: 600 }} />
+                  </div>
+                  <div style={{ flex: "1 1 170px", minWidth: 0 }}>
+                    <label style={lbl}>{t("Ortalama tur · m:ss.00")}</label>
+                    <input type="text" value={st.avgLap}
+                      onChange={(e) => up({ avgLap: e.target.value })}
+                      style={{ width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)",
+                        border: "1px solid var(--rc-border-strong)", borderRadius: 10, color: "var(--rc-text)",
+                        padding: "12px 14px", fontFamily: disp, fontSize: 22, fontWeight: 600 }} />
+                    {avgSug && canEdit && (
+                      <button onClick={() => up({ avgLap: avgSug.txt })}
+                        style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 7,
+                          padding: "7px 12px", borderRadius: 9, border: "1px solid rgba(55,214,122,.45)",
+                          background: "rgba(55,214,122,.10)", color: "var(--rc-ok)", cursor: "pointer",
+                          fontSize: 11.5, width: "100%" }}>
+                        ⚡ {t("Canlı AVG5")} <b style={{ fontFamily: disp }}>{avgSug.txt}</b> — {t("uygula")}</button>
+                    )}
+                  </div>
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginTop: 14, alignItems: "flex-end" }}>
+                  <div style={{ flex: "0 0 auto" }}>
+                    <label style={lbl}>{t("Ekstra tur")}</label>
+                    {stepper(st.extraLap,
+                      () => up({ extraLap: Math.max(0, (st.extraLap || 0) - 1) }),
+                      () => up({ extraLap: (st.extraLap || 0) + 1 }))}
+                  </div>
+                  <div style={{ flex: "1 1 220px", minWidth: 0 }}>
+                    <button onClick={() => up({ multiclass: !st.multiclass })} style={mcBtn}>
+                      <span style={mcBox}>✓</span>
+                      <span style={{ display: "flex", flexDirection: "column", gap: 1, textAlign: "left" }}>
+                        <b style={{ fontSize: 13 }}>{t("Multiclass yarış")}</b>
+                        <span style={{ fontSize: 10.5, color: "var(--rc-text-3)" }}>{t("Lider sınıfa göre bayrak hesabı")}</span>
+                      </span>
+                    </button>
+                  </div>
+                </div>
+                {st.multiclass && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginTop: 14,
+                    paddingTop: 14, borderTop: "1px solid var(--rc-border)" }}>
+                    <div style={{ flex: "1 1 170px", minWidth: 0 }}>
+                      <label style={lbl}>{t("Lider sınıf")}</label>
+                      <select value={st.leaderClass} onChange={(e) => up({ leaderClass: e.target.value })}
+                        style={{ width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)",
+                          border: "1px solid var(--rc-border)", borderRadius: 10, color: "var(--rc-text)",
+                          padding: "11px 12px", fontSize: 13 }}>
+                        {CAR_CLASSES.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+                      </select>
+                    </div>
+                    <div style={{ flex: "1 1 170px", minWidth: 0 }}>
+                      <label style={lbl}>{t("Lider tur · m:ss.00")}</label>
+                      <input type="text" value={st.leaderLap} placeholder={st.avgLap}
+                        onChange={(e) => up({ leaderLap: e.target.value })}
+                        style={{ width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)",
+                          border: "1px solid var(--rc-border)", borderRadius: 10, color: "var(--rc-text)",
+                          padding: "11px 12px", fontFamily: disp, fontSize: 17 }} />
+                    </div>
+                    {racePlan.flagExtra > 0.5 && (
+                      <div style={{ flex: "1 1 100%", fontSize: 11.5, color: "var(--rc-warn)" }}>
+                        🏁 {t("Lider bayrağı")}: +{racePlan.flagExtra.toFixed(0)}s → {t("son tur otomatik eklenir")}</div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Strateji */}
+              <div style={card}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+                  <span style={cardTtl}>{t("Strateji")}</span>
+                  <span style={subttl}>{t("Pit sayısına göre stint uzunluğu")}</span>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 10 }}>
+                  {["A", "B", "C", "D"].map((k) => {
+                    const L = st.strategies[k] || 0;
+                    const on = k === st.chosen;
+                    return (
+                      <div key={k} onClick={() => up({ chosen: k })}
+                        style={{ display: "flex", flexDirection: "column", alignItems: "flex-start",
+                          padding: "13px 14px", borderRadius: 11, cursor: "pointer", color: "var(--rc-text)",
+                          border: `1px solid ${on ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
+                          background: on ? "rgba(150,0,24,.22)" : "var(--rc-surface-2)" }}>
+                        <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                          <b style={{ fontFamily: disp, fontSize: 26, fontWeight: 700, lineHeight: 1 }}>{k}</b>
+                          <span style={{ fontSize: 11.5, color: on ? "var(--rc-text)" : "var(--rc-text-3)" }}>
+                            {stopsOf(L)} {t("pit")}</span>
+                        </div>
+                        <div style={{ fontFamily: disp, fontSize: 15, marginTop: 8 }}>{stintDur(L)}</div>
+                        <div style={{ fontSize: 10, color: "var(--rc-text-3)", textTransform: "uppercase",
+                          letterSpacing: ".08em", marginTop: 2 }}>{t("stint")} · {L} {t("tur")}</div>
+                        <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+                          <button onClick={(e) => { e.stopPropagation();
+                            up({ strategies: { ...st.strategies, [k]: Math.max(0, L - 1) } }); }}
+                            style={{ width: 30, height: 26, borderRadius: 7, border: "1px solid var(--rc-border)",
+                              background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer",
+                              fontSize: 13, lineHeight: 1 }}>−</button>
+                          <button onClick={(e) => { e.stopPropagation();
+                            up({ strategies: { ...st.strategies, [k]: L + 1 } }); }}
+                            style={{ width: 30, height: 26, borderRadius: 7, border: "1px solid var(--rc-border)",
+                              background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer",
+                              fontSize: 13, lineHeight: 1 }}>+</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Pit · süreler */}
+              <div style={card}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+                  <span style={cardTtl}>{t("Pit · süreler")}</span>
+                  <span style={subttl}>{t("saniye")}</span>
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
+                  <div style={{ flex: "1 1 150px", minWidth: 0 }}>
+                    <label style={lbl}>{t("Pit line")}</label>
+                    <NumInput value={st.pitLaneTime} onNum={(n) => up({ pitLaneTime: n })}
+                      style={{ width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)",
+                        border: "1px solid var(--rc-border-strong)", borderRadius: 10, color: "var(--rc-text)",
+                        padding: "11px 13px", fontFamily: disp, fontSize: 19, fontWeight: 600 }} />
+                    {st.track && PIT_LANE_TIMES[st.track] != null && (
+                      <div style={{ fontSize: 10.5, color: "var(--rc-text-3)", marginTop: 5 }}>
+                        {t("Pist verisi")}: {PIT_LANE_TIMES[st.track]}s · {trackName(st.track)}</div>
+                    )}
+                  </div>
+                  <div style={{ flex: "1 1 150px", minWidth: 0 }}>
+                    <label style={lbl}>⛽ {t("Yakıt & VE")}</label>
+                    <NumInput value={st.fuelTime} onNum={(n) => up({ fuelTime: n })}
+                      style={{ width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)",
+                        border: "1px solid var(--rc-border)", borderRadius: 10, color: "var(--rc-text)",
+                        padding: "11px 13px", fontFamily: disp, fontSize: 19, fontWeight: 600 }} />
+                    <div style={{ fontSize: 10.5, color: "var(--rc-text-3)", marginTop: 5 }}>
+                      {t("Duraklamada geçen dolum süresi")}</div>
+                  </div>
+                  <div style={{ flex: "1 1 150px", minWidth: 0 }}>
+                    <label style={lbl}>🛞 {t("Lastik limiti · adet")}</label>
+                    {stepper(st.tyreLimit,
+                      () => up({ tyreLimit: Math.max(0, (st.tyreLimit || 0) - 1) }),
+                      () => up({ tyreLimit: (st.tyreLimit || 0) + 1 }))}
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14, padding: "11px 14px",
+                  borderRadius: 10, border: "1px solid var(--rc-border)", background: "var(--rc-surface-2)", flexWrap: "wrap" }}>
+                  <span style={subttl}>{t("Toplam pit kaybı")}</span>
+                  <b style={{ fontFamily: disp, fontSize: 17 }}>{pitPer} {t("sn")}</b>
+                  <span style={{ color: "var(--rc-border-strong)" }}>·</span>
+                  <span style={subttl}>{chosenStops} {t("pit")} {t("ile yarış boyunca")}</span>
+                  <b style={{ fontFamily: disp, fontSize: 17, color: "var(--rc-warn)" }}>{pitRace}</b>
+                </div>
+              </div>
+
+              {/* Virtual Energy */}
+              <div style={card}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+                  <span style={cardTtl}>⚡ Virtual Energy</span>
+                  <span style={subttl}>{t("Tüketim ve yakıt karşılığı")}</span>
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
+                  <div style={{ flex: "1 1 150px", minWidth: 0 }}>
+                    <label style={lbl}>{t("VE tüketim · %/tur")}</label>
+                    <NumInput value={st.consumption} onNum={(n) => up({ consumption: n })}
+                      style={{ width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)",
+                        border: "1px solid var(--rc-border-strong)", borderRadius: 10, color: "var(--rc-text)",
+                        padding: "11px 13px", fontFamily: disp, fontSize: 19, fontWeight: 600 }} />
+                  </div>
+                  <div style={{ flex: "1 1 150px", minWidth: 0 }}>
+                    <label style={lbl}>{t("Fuel ratio · L / %1")}</label>
+                    <NumInput value={st.fuelRatio} onNum={(n) => up({ fuelRatio: n })}
+                      style={{ width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)",
+                        border: "1px solid var(--rc-border)", borderRadius: 10, color: "var(--rc-text)",
+                        padding: "11px 13px", fontFamily: disp, fontSize: 19, fontWeight: 600 }} />
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
+                  <div style={{ flex: "1 1 150px", padding: "11px 14px", borderRadius: 10,
+                    border: "1px solid rgba(55,214,122,.35)", background: "rgba(55,214,122,.07)" }}>
+                    <div style={{ fontFamily: disp, fontSize: 19, fontWeight: 600, color: "var(--rc-ok)" }}>
+                      {fuelCarried.toFixed(1)} L</div>
+                    <div style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase",
+                      letterSpacing: ".08em", marginTop: 3 }}>{t("%100 = taşınan yakıt")}</div>
+                  </div>
+                  <div style={{ flex: "1 1 150px", padding: "11px 14px", borderRadius: 10,
+                    border: "1px solid var(--rc-border)", background: "var(--rc-surface-2)" }}>
+                    <div style={{ fontFamily: disp, fontSize: 19, fontWeight: 600 }}>{tankRange} {t("tur")}</div>
+                    <div style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase",
+                      letterSpacing: ".08em", marginTop: 3 }}>{t("Tam depo menzili")}</div>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {dataCards}
+            {/* ===== SAĞ KOLON ===== */}
+            <div style={{ flex: "1 1 340px", minWidth: 300, display: "flex", flexDirection: "column", gap: 16 }}>
 
-            <button className="bigbtn" style={{ marginTop: 18 }}
-              onClick={() => setSetupDone(true)}>
-              {t("✓ Devam Et — Arayüze Geç")}
-            </button>
-            <div className="hint" style={{ textAlign: "center", marginTop: 8 }}>
-              {t("Merak etme, tüm bu değerleri arayüzün sol kolonundan her an değiştirebilirsin.")}
+              {/* Plan özeti */}
+              <div style={{ border: "1px solid var(--rc-border-strong)", borderRadius: 12,
+                background: "radial-gradient(120% 160% at 100% 0,rgba(150,0,24,.22),var(--rc-surface-2) 62%)",
+                padding: "16px 18px" }}>
+                <div style={{ fontFamily: disp, textTransform: "uppercase", letterSpacing: ".08em",
+                  fontSize: 13, fontWeight: 700, color: "var(--rc-brand-bright)", marginBottom: 12 }}>{t("Plan özeti")}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+                  <div style={{ flex: "0 0 auto", textAlign: "center" }}>
+                    {st.track && <img src={`${ASSET}tracks/${TRACK_ASSET(st.track)}.png${AV}`} alt=""
+                      style={{ display: "block", width: 104, height: 64, objectFit: "contain" }}
+                      onError={(e) => { e.currentTarget.style.display = "none"; }} />}
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10.5,
+                      color: "var(--rc-text-2)", marginTop: 2 }}>
+                      {st.track && <img src={`${ASSET}flags/${TRACK_ASSET(st.track)}.png`} alt=""
+                        style={{ width: 15, borderRadius: 2 }}
+                        onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />}
+                      {trackName(st.track) || t("Seçilmedi")}</span>
+                  </div>
+                  <span style={{ width: 1, alignSelf: "stretch", background: "var(--rc-border-strong)" }} />
+                  <div style={{ flex: 1, minWidth: 0, textAlign: "center" }}>
+                    {st.car && <img src={carImageSrc(teamData?.assets, cls, st.car, "side")} alt=""
+                      style={{ display: "block", width: "100%", maxWidth: 170, height: 64,
+                        objectFit: "contain", margin: "0 auto" }}
+                      onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />}
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10.5,
+                      color: "var(--rc-text-2)", marginTop: 2 }}>
+                      <img src={`${ASSET}class/${cls}.png`} alt="" style={{ height: 13 }}
+                        onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                      {curCar ? curCar.name : t("Seçilmedi")}</span>
+                  </div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, paddingTop: 12,
+                  borderTop: "1px solid var(--rc-border-strong)" }}>
+                  <div>
+                    <div style={{ fontFamily: disp, fontWeight: 700, fontSize: 24, lineHeight: 1 }}>
+                      {(racePlan.totalLaps || 0).toFixed(0)}</div>
+                    <div style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase",
+                      letterSpacing: ".08em", marginTop: 2 }}>{t("Toplam tur")}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: disp, fontWeight: 700, fontSize: 24, lineHeight: 1 }}>
+                      {st.chosen} · {chosenStops} {t("pit")}</div>
+                    <div style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase",
+                      letterSpacing: ".08em", marginTop: 2 }}>{t("Seçili strateji")}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: disp, fontWeight: 600, fontSize: 19, lineHeight: 1.2 }}>
+                      {stintDur(chosenLaps)}</div>
+                    <div style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase",
+                      letterSpacing: ".08em", marginTop: 2 }}>{t("Stint uzunluğu")}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: disp, fontWeight: 600, fontSize: 19, lineHeight: 1.2 }}>
+                      {st.pitLaneTime} {t("sn")}</div>
+                    <div style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase",
+                      letterSpacing: ".08em", marginTop: 2 }}>{t("Pit kaybı")}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Yarış başlangıcı */}
+              <div style={card}>
+                <div style={{ ...cardTtl, marginBottom: 14 }}>{t("Yarış başlangıcı")}</div>
+                <label style={lbl}>{t("Start tarih & saat")}</label>
+                <input type="datetime-local" value={msToLocalInput(st.raceStartMs)}
+                  onChange={(e) => { const ms = new Date(e.target.value).getTime();
+                    if (!isNaN(ms)) up({ raceStartMs: ms }); }}
+                  style={{ width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)",
+                    border: "1px solid var(--rc-border-strong)", borderRadius: 10, color: "var(--rc-text)",
+                    padding: "11px 13px", fontFamily: disp, fontSize: 15 }} />
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+                  <button onClick={() => up({ raceStartMs: Date.now() })}
+                    style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--rc-border)",
+                      background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 11.5 }}>
+                    {t("Şimdi")}</button>
+                  <button onClick={() => up({ raceStartMs: (st.raceStartMs || Date.now()) + 15 * 60000 })}
+                    style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--rc-border)",
+                      background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 11.5 }}>
+                    {t("+15 dk")}</button>
+                  <button onClick={() => up({ raceStartMs: (st.raceStartMs || Date.now()) + 3600000 })}
+                    style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--rc-border)",
+                      background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 11.5 }}>
+                    {t("+1 sa")}</button>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 14, padding: "12px 14px",
+                  borderRadius: 10, border: "1px solid rgba(55,214,122,.35)", background: "rgba(55,214,122,.07)" }}>
+                  <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".1em",
+                    color: "var(--rc-text-3)" }}>{t("Hesaplanan bitiş")}</span>
+                  <b style={{ marginLeft: "auto", fontFamily: disp, fontSize: 22, color: "var(--rc-ok)" }}>
+                    {driverPlan ? fmtClock(driverPlan.finishMs, driverPlan.startMs) : "—"}</b>
+                </div>
+              </div>
+
+              {/* Hava durumu */}
+              <div style={card}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                  <span style={cardTtl}>{t("Hava durumu")}</span>
+                  <span style={{ marginLeft: "auto", ...subttl }}>{t("Efektif tur")} ×{wxNow.lap.toFixed(2)}</span>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 7 }}>
+                  {Object.entries(WEATHER).map(([id, w]) => {
+                    const on = id === st.weather;
+                    return (
+                      <button key={id} onClick={() => pickWx(id)}
+                        style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "9px 4px",
+                          borderRadius: 10, cursor: "pointer", textAlign: "center",
+                          border: `1px solid ${on ? w.col : "var(--rc-border)"}`,
+                          background: on ? "rgba(255,255,255,.05)" : "var(--rc-surface-3)",
+                          color: on ? w.col : "var(--rc-text-2)" }}>
+                        <WetIcon id={id} size={24} />
+                        <span style={{ fontSize: 11, marginTop: 4, lineHeight: 1.2 }}>{t(w.lbl)}</span>
+                        <span style={{ fontFamily: disp, fontSize: 10, color: "var(--rc-text-3)", marginTop: 2 }}>
+                          ×{w.lap.toFixed(2)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--rc-border)",
+                  display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  <span style={subttl}>{t("Planlı geçiş")}</span>
+                  {wxFuture.map((e, i) => (
+                    <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px",
+                      borderRadius: 99, border: "1px solid var(--rc-info)", color: "var(--rc-info)", fontSize: 11.5 }}>
+                      {fmtHMS(e.t)} · {t(WEATHER[e.w]?.lbl || "Dry")}</span>
+                  ))}
+                  <button onClick={() => setWxHist(true)}
+                    style={{ padding: "5px 11px", borderRadius: 8, border: "1px dashed var(--rc-border-strong)",
+                      background: "transparent", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 11.5 }}>
+                    ＋ {t("Geçiş ekle")}</button>
+                </div>
+              </div>
+
+              {/* Canlı yayın */}
+              <div style={card}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                  <span style={cardTtl}>📺 {t("Canlı yayın")}</span>
+                  <span style={streamChip}>{t("bağlı")}</span>
+                </div>
+                <label style={lbl}>{t("YouTube linki")}</label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input type="text" value={st.streamUrl} placeholder="https://youtube.com/watch?v=…"
+                    onChange={(e) => up({ streamUrl: e.target.value })}
+                    style={{ flex: 1, minWidth: 0, background: "var(--rc-surface-3)",
+                      border: "1px solid var(--rc-border-strong)", borderRadius: 10, color: "var(--rc-text)",
+                      padding: "11px 13px", fontSize: 12.5, fontFamily: disp }} />
+                  <button onClick={() => up({ streamUrl: "" })}
+                    style={{ padding: "0 14px", borderRadius: 10, border: "1px solid var(--rc-border)",
+                      background: "var(--rc-surface-3)", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 13 }}>
+                    {t("Temizle")}</button>
+                </div>
+                <div style={streamPrev}>
+                  <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center",
+                    color: "var(--rc-border-strong)", fontSize: 26 }}>▶</span>
+                  <span style={{ position: "absolute", left: 9, bottom: 8, fontSize: 10.5, color: "var(--rc-text-2)",
+                    background: "rgba(11,7,8,.75)", padding: "3px 8px", borderRadius: 6 }}>
+                    {t("Köşedeki mini oynatıcıda gösteriliyor")}</span>
+                </div>
+                <div style={streamHint}>{t("Geçerli bir YouTube linki yapıştır; köşede mini oynatıcı açılır.")}</div>
+                {/* Mini oynatıcı konum/boyut — gerçek useMiniPlayer handler'larına bağlı
+                   (eskiden onClick yoktu, ölü butonlardı). Aktif köşe vurgulanır. */}
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
+                  {[["tl", "◤", t("Sol üst")], ["br", "◢", t("Sağ alt")]].map(([c, ch, lbl]) => {
+                    const on = streamCorner === c;
+                    return (
+                      <button key={c} onClick={() => moveStream(c)}
+                        style={{ padding: "6px 12px", borderRadius: 8,
+                          border: `1px solid ${on ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
+                          background: on ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)",
+                          color: on ? "var(--rc-text)" : "var(--rc-text-2)", cursor: "pointer", fontSize: 11.5 }}>
+                        {ch} {lbl}</button>
+                    );
+                  })}
+                  <button onClick={() => setStreamMin(!streamMin)}
+                    style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--rc-border)",
+                      background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 11.5 }}>
+                    {t("Boyut")}: {streamMin ? t("küçük") : t("orta")}</button>
+                </div>
+              </div>
             </div>
+          </div>
+
+          {/* --- sabit alt çubuk --- */}
+          <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 30, display: "flex",
+            alignItems: "center", gap: 16, flexWrap: "wrap", padding: "13px 20px",
+            borderTop: "1px solid var(--rc-border-strong)", background: "rgba(18,12,14,.96)",
+            backdropFilter: "blur(8px)" }}>
+            <span style={{ fontSize: 12, color: "var(--rc-text-3)" }}>
+              {raceWizard ? t("Kaydedince takvime eklenir; dataları sonradan da değiştirebilirsin")
+                : t("Dataları sonradan sol panelden değiştirebilirsin")}</span>
+            <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
+              <button onClick={raceWizard ? backRaceWizard : goPick}
+                style={{ padding: "10px 18px", borderRadius: 10, border: "1px solid var(--rc-border)",
+                  background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 13 }}>
+                {t("Geri")}</button>
+              <button onClick={raceWizard ? saveRaceWizard : goLive}
+                style={{ padding: "11px 24px", borderRadius: 10, border: "1px solid var(--rc-brand-bright)",
+                  background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer",
+                  fontFamily: disp, fontSize: 16, fontWeight: 700, letterSpacing: ".04em",
+                  textTransform: "uppercase" }}>
+                {raceWizard ? t("Kaydet") : t("Yarışı aç →")}</button>
+            </span>
           </div>
         </div>
       </div>
@@ -2044,98 +3852,66 @@ ${bottomBar}
   }
 
   return (
-    <div className="rc">
+    <div className="rc v2">
+      {/* v2.0 kabuk: 76px sol ray tüm yarış ekranlarında sabit; sekme çubuğunun
+          yerini aldı. Ray tıklamayla kayarak gizlenir (‹ / açma tırnağı). */}
+      <Rail t={t} screen={screen} go={go} onHome={leaveRace}
+        open={railOpen} onToggle={() => setRailOpen((v) => !v)}
+        version={APP_VERSION} chatScreen="chat" unread={raceUnread} />
+      <div className="v2main">
       <UpdateBanner t={t} />
       {teamModal}{createJoinModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{streamPlayer}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}
-      {denyToast}{cmdPalette}
-      {profOpen && user && (
-        <div className="wxmodal" onClick={() => setProfOpen(false)}>
-          <div className="wxmbox" style={{ width: "min(420px,94vw)" }}
-            onClick={(e) => e.stopPropagation()}>
-            <div className="wxmhead">
-              <span>👤 {t("Profil")}</span>
-              <button className="lbclose" onClick={() => setProfOpen(false)}>✕</button>
-            </div>
-            <div style={{ padding: "14px 16px" }}>
-              <div className="userchip" style={{ marginBottom: 14 }}>
-                {(avStage || myAvatar || user.photoURL) && (
-                  <img src={avStage || myAvatar || user.photoURL} alt=""
-                    referrerPolicy={/^https?:/.test(avStage || myAvatar || user.photoURL)
-                      ? "no-referrer" : undefined} />
-                )}
-                <span className="uname" style={{ maxWidth: 260 }}>{user.email}</span>
-              </div>
-              {/* v1.7.0 — avatar yükleme: seç → önizleme → Kaydet yazar; Kaldır siler */}
-              <label>{t("Avatar")}</label>
-              <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
-                <input id="avfile" type="file" accept={IMG_ACCEPT_TYPES.join(",")}
-                  style={{ display: "none" }}
-                  onChange={(e) => { onAvatarFile(e.target.files?.[0]); e.target.value = ""; }} />
-                <button className="histbtn" disabled={avBusy}
-                  onClick={() => document.getElementById("avfile")?.click()}>
-                  {avBusy ? t("Yükleniyor…") : `⬆ ${t("Görsel Seç")}`}</button>
-                {(myAvatar || avStage) && (
-                  <button className="histbtn" disabled={avBusy}
-                    onClick={async () => {
-                      setAvStage(""); setAvErr("");
-                      await clearUserAvatar(user.uid).catch(() => {});
-                      setMyAvatar("");
-                    }}>✕ {t("Kaldır")}</button>
-                )}
-                {avStage && <span className="hint" style={{ margin: 0 }}>
-                  {t("Önizleme — Kaydet ile uygulanır")}</span>}
-              </div>
-              {avErr && <div className="hint warn" style={{ marginBottom: 8 }}>{avErr}</div>}
-              {myBadges.length > 0 && (
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
-                  {myBadges.map((b) => (
-                    <span key={b.lbl} className="bchip" style={{ color: b.col,
-                      background: b.bg, borderColor: b.col, marginBottom: 0 }}>
-                      {b.ico} {t(b.lbl)}
-                    </span>
-                  ))}
-                </div>
-              )}
-              <label>{t("Ad Soyad")}</label>
-              <input type="text" value={profName} style={{ textTransform: "none" }}
-                onChange={(e) => setProfName(e.target.value)} />
-              <div className="hint" style={{ marginTop: 6 }}>
-                {t("Odalarda ve stint programında bu isim görünür.")}</div>
-            </div>
-            <div className="wxmfoot" style={{ gap: 8 }}>
-              <button className="histbtn" onClick={() => {
-                setAvStage(""); setAvErr(""); setProfOpen(false);
-              }}>{t("Vazgeç")}</button>
-              <button className="gbtn ubtn" disabled={!profName.trim()}
-                style={{ opacity: profName.trim() ? 1 : .45 }}
-                onClick={async () => {
-                  const n = profName.trim().slice(0, 60);
-                  await updateProfile(user.uid, { fullName: n }).catch(() => {});
-                  if (avStage) {
-                    try { await saveUserAvatar(user.uid, avStage); setMyAvatar(avStage); }
-                    catch { setAvErr(t("Avatar kaydedilemedi — tekrar deneyin.")); return; }
-                    setAvStage("");
-                  }
-                  setUserName(n); setProfOpen(false);
-                }}>{t("Kaydet")}</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {denyToast}{cmdPalette}{raceDataPanel}{pdfPreview}
+      {profileModal}
       {adminOpen && isAdmin && (
         <div className="wxmodal" onClick={() => setAdminOpen(false)}>
           <div className="wxmbox" style={{ width: "min(620px,95vw)" }}
             onClick={(e) => e.stopPropagation()}>
             <div className="wxmhead">
-              <span>👥 {t("Üye Yönetimi")}</span>
+              <span>🛡 {t("Üye Yönetimi")}</span>
+              <span className="hint" style={{ margin: 0, fontSize: 11.5 }}>
+                {t("Site geneli erişim onayı")}</span>
               <button className="lbclose" onClick={() => setAdminOpen(false)}>✕</button>
             </div>
+            {(() => {
+              const entries = Object.entries(allUsers);
+              const cntAll = entries.length;
+              const cntPending = entries.filter(([, u]) => u?.requested && !u?.allowed
+                && u?.admin !== true).length;
+              const cntAllowed = entries.filter(([, u]) => u?.allowed || u?.admin === true).length;
+              const q = adminQ.trim().toLowerCase();
+              const rows = entries
+                .filter(([uid, u]) => {
+                  if (adminFilter === "pending"
+                    && !(u?.requested && !u?.allowed && u?.admin !== true)) return false;
+                  if (adminFilter === "allowed" && !(u?.allowed || u?.admin === true)) return false;
+                  if (!q) return true;
+                  return `${u?.name || ""} ${u?.email || uid}`.toLowerCase().includes(q);
+                })
+                .sort(([, a], [, b]) => (b?.requestedAt || 0) - (a?.requestedAt || 0));
+              const chip = (id, label, n) => (
+                <button className={`hmchip${adminFilter === id ? " on" : ""}`}
+                  style={{ whiteSpace: "nowrap" }}
+                  onClick={() => setAdminFilter(id)}>{label} {n}</button>
+              );
+              return (<>
+            <div className="admfilter">
+              <input type="search" value={adminQ} onChange={(e) => setAdminQ(e.target.value)}
+                placeholder={t("E-posta veya ad ara…")} />
+              <span className="chips">
+                {chip("all", t("Tümü"), cntAll)}
+                {chip("pending", t("Beklemede"), cntPending)}
+                {chip("allowed", t("Erişim var"), cntAllowed)}
+              </span>
+            </div>
             <div className="wxmlist">
-              {Object.entries(allUsers).length === 0 && (
+              {cntAll === 0 && (
                 <div className="hint" style={{ padding: 12 }}>{t("Kayıt yok.")}</div>
               )}
-              {Object.entries(allUsers)
-                .sort(([, a], [, b]) => (b?.requestedAt || 0) - (a?.requestedAt || 0))
+              {cntAll > 0 && rows.length === 0 && (
+                <div className="hint" style={{ padding: 12 }}>{t("Eşleşen üye yok.")}</div>
+              )}
+              {rows
                 .map(([uid, u]) => (
                   <div key={uid} className="urow">
                     <Avatar uid={uid} name={u?.name || u?.email} photo={u?.photo} size={32} />
@@ -2167,86 +3943,12 @@ ${bottomBar}
               <span className="hint" style={{ marginRight: "auto", fontSize: 11 }}>
                 {t("Onaylanan kişi sayfayı yenilemeden erişir.")}</span>
             </div>
+              </>);
+            })()}
           </div>
         </div>
       )}
-      {wxHist && (
-        <div className="wxmodal" onClick={() => setWxHist(false)}>
-          <div className="wxmbox" onClick={(e) => e.stopPropagation()}>
-            <div className="wxmhead">
-              <span>🕒 {t("Hava Geçmişi")}</span>
-              <button className="lbclose" onClick={() => setWxHist(false)}>✕</button>
-            </div>
-            <div className="wxmlist">
-              {!(st.weatherLog || []).length && (
-                <div className="hint" style={{ padding: "10px 6px" }}>
-                  {t("Henüz hava geçişi yok. Aşağıdan planlı geçiş ekleyin veya soldaki butonlarla canlı değiştirin.")}
-                </div>
-              )}
-              {(st.weatherLog || []).map((e, i) => {
-                const wx = WEATHER[e.w] || WEATHER.dry;
-                const isFuture = liveInfo.status === "live"
-                  && e.t > liveInfo.elapsed / 1000 + 1;
-                return (
-                  <div key={i} className="wxrow">
-                    <span className="wxdot" style={{ background: wx.col }} />
-                    <span className="wxnm" style={{ color: wx.col, display: "inline-flex",
-                      alignItems: "center", gap: 5 }}>
-                      <WetIcon id={WEATHER[e.w] ? e.w : "dry"} size={15} /> {t(wx.lbl)}</span>
-                    <span className={`wxsrc ${e.src === "plan" ? "plan" : "live"}`}>
-                      {e.src === "plan" ? t("planlı") : t("canlı")}
-                      {isFuture ? " ⏳" : ""}</span>
-                    <span className="wxat mono">@{fmtHMS(e.t)}</span>
-                    <button className="minibtn" title={t("Sil")}
-                      onClick={() => {
-                        const log = st.weatherLog.filter((_, j) => j !== i);
-                        up({ weather: log.length ? log[log.length - 1].w : "dry",
-                          weatherLog: log });
-                      }}>✕</button>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="wxmplan">
-              <div className="wxmptitle">➕ {t("Planlı geçiş ekle")}</div>
-              <div className="wxmprow">
-                <select value={wxPlanW} onChange={(e) => setWxPlanW(e.target.value)}>
-                  {Object.entries(WEATHER).map(([id, w]) => (
-                    <option key={id} value={id}>{w.ico} {t(w.lbl)}</option>
-                  ))}
-                </select>
-                <input type="text" placeholder="s:dd:ss" value={wxPlanT}
-                  onChange={(e) => setWxPlanT(e.target.value)}
-                  title={t("Yarış saati (başlangıçtan itibaren)")} />
-                <button className="histbtn" onClick={() => {
-                  const tt = parseHMS(wxPlanT);
-                  if (tt <= 0) return;
-                  const log = [...(st.weatherLog || []).filter((e) => Math.abs(e.t - tt) > 0.5),
-                    { t: tt, w: wxPlanW, src: "plan" }].sort((a, b) => a.t - b.t);
-                  up({ weather: WX({ weatherLog: log }).lap ? st.weather : st.weather,
-                    weatherLog: log });
-                  setWxPlanT("");
-                }}>{t("Ekle")}</button>
-              </div>
-              <div className="wxmquick">
-                {[["30 dk", 30], ["60 dk", 60], ["90 dk", 90]].map(([lbl, mn]) => (
-                  <button key={mn} className="minibtn" style={{ width: "auto", padding: "0 8px" }}
-                    title={t("Son X dk için geçiş zamanı")}
-                    onClick={() => {
-                      const tt = Math.max(0, parseHMS(st.raceTime) - mn * 60);
-                      setWxPlanT(fmtHMS(tt));
-                    }}>{t("Son")} {lbl}</button>
-                ))}
-              </div>
-            </div>
-            <div className="wxmfoot">
-              <button className="histbtn" onClick={() => {
-                up({ weather: "dry", weatherLog: [] }); setWxHist(false);
-              }}>{t("Tümünü Sıfırla")}</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {weatherModal}
       <header>
         <img className="hlogo" src={`${ASSET}logo.png`} alt="Caspian Motorsport" />
         <h1 className="disp" style={{ fontSize: 20 }}>RACE MONITOR</h1>
@@ -2262,16 +3964,11 @@ ${bottomBar}
             {t("Ana Menü")}
           </Btn>
         )}
-        <button className="adminbtn" onClick={toggleTheme}
-          title={theme === "light" ? t("Koyu temaya geç") : t("Açık temaya geç")}
-          aria-label={t("Temayı değiştir")} aria-pressed={theme === "light"}>
-          <Icon name={theme === "light" ? "moon" : "sun"} size={14} />
-        </button>
-        <button className="adminbtn" onClick={toggleDensity}
-          title={density === "comfort" ? t("Yoğunluk: Rahat") : t("Yoğunluk: Kompakt")}
-          aria-label={t("Yoğunluğu değiştir")} aria-pressed={density === "comfort"}>
-          <Icon name="rows" size={14} />
-        </button>
+        {/* v2.0 KALDIRILANLAR (ARAYUZ-YENILEME-PROMPT-v2):
+            · Açık tema kapsam dışı → ☀/🌙 anahtarı GİZLENDİ (toggleTheme ve
+              tema token'ları SİLİNMEDİ; açık palet sonraki turda üretilecek).
+            · Global yoğunluk anahtarı KALKTI → yoğunluk yalnız Canlı Timing'de
+              ("Pit duvarı ↔ Mühendis"); toggleDensity orada kullanılır. */}
         <span className="langsw">
           {["tr", "en"].map((l) => (
             <button key={l} className={lang === l ? "on" : ""}
@@ -2290,7 +3987,7 @@ ${bottomBar}
         )}
         {access && (
           <Btn variant="subtle" size="sm" data-tour="hteam"
-            onClick={() => setTeamOpen(true)} title={t("Takımlarım")}
+            onClick={() => go("team")} title={t("Takımlarım")}
             iconLeft={teamLogoSrc(teamData?.assets)
               ? <img className="hdteamlogo" src={teamLogoSrc(teamData.assets)} alt="" />
               : <Icon name="building" size={14} />}>
@@ -2329,100 +4026,123 @@ ${bottomBar}
         )}
       </header>
 
-      <div className={`teambar ${barOpen ? "" : "collapsed"}`}>
-        <span className={`dot ${curRace ? "on" : "off"}`} title={curRace ? t("Bağlı") : t("Solo mod")} />
-        {!barOpen && !curRace && <span className="syncinfo" style={{ marginLeft: 0 }}>
-          {t("Solo mod")}</span>}
-        <button className="bartoggle"
-          onClick={() => setBarOpen(!barOpen)}
-          title={barOpen ? t("Katılım çubuğunu gizle") : t("Katılım çubuğunu göster")}>
-          {barOpen ? "▲" : "▼"}</button>
-        {barOpen && (<>
-        {!curRace ? (
-          <span className="syncinfo" style={{ marginLeft: 0 }}>
-            {t("Solo mod — takım takvimi için lobiye dön.")}
-          </span>
-        ) : (<>
-          <span>{t("YARIŞ")}: <span className="roomcode">
-            {races[curRace]?.name || trackName(races[curRace]?.trackId) || curRace}</span></span>
-          {/* rol rozeti yok — yetki takım rozetlerinden (🛞 sürücü / 🎧 mühendis) belli */}
-          {teamData?.meta?.name && (
-            <span className="syncinfo" style={{ marginLeft: 0, display: "inline-flex",
-              alignItems: "center", gap: 5 }}>
-              {teamLogoSrc(teamData?.assets)
-                ? <img className="hdteamlogo" src={teamLogoSrc(teamData.assets)} alt="" />
-                : "🏢"} {teamData.meta.name}</span>
-          )}
-          <button className="leave" onClick={leaveRace}>{t("Takvime Dön")}</button>
-          <span className="syncinfo">
-            {lastSync ? `${t("Son güncelleme: ")}${lastSync.by} · ${new Date(lastSync.at).toLocaleTimeString(lang === "en" ? "en-GB" : "tr-TR")}` : t("Senkronize")}
-          </span>
-        </>)}
-        {syncMsg && <span style={{ color: "var(--yellow)" }}>{syncMsg}</span>}
-        </>)}
-      </div>
+      {/* teambar (YARIŞ:… · Takvime Dön · Son güncelleme) KALDIRILDI (kullanıcı isteği) —
+         v1 kalıntısıydı; yarış adı zaten RaceBar'da, Takvime Dön ray 🏠 + üst home
+         düğmesinde. Bağlantı hatası mesajı RaceBar altına taşındı. */}
+      {syncMsg && (
+        <div style={{ padding: "6px 16px", background: "var(--rc-surface-2)",
+          borderBottom: "1px solid var(--rc-border)", color: "var(--rc-warn)", fontSize: 12 }}>
+          {syncMsg}</div>
+      )}
 
-      {liveInfo.status === "live" && (() => {
+      {/* v2.0 BİRLEŞİK STICKY YARIŞ ÇUBUĞU (README §2) — v1'deki .hudstrip ve
+          .livestrip şeritlerinin yerini aldı. Aynı bilgiler tek çubukta:
+          bayrak + yarış adı (+ izleyici rozeti) · bayrağa kalan · sıradaki pit ·
+          pozisyon · enerji · sağ blok (canlı durum + Yarış datası + Pit Board). */}
+      {showsRaceBar(screen) && (() => {
+        const raceFrac = liveInfo.raceMs > 0
+          ? Math.min(100, Math.max(0, (liveInfo.elapsed / liveInfo.raceMs) * 100)) : 0;
         const pitTotal = liveInfo.phaseEnd - liveInfo.stintStartMs;
         const pitFrac = pitTotal > 0
-          ? Math.min(1, Math.max(0, (pitTotal - liveInfo.nextPitIn) / pitTotal)) : 0;
-        const raceFrac = liveInfo.raceMs > 0
-          ? Math.min(1, Math.max(0, liveInfo.elapsed / liveInfo.raceMs)) : 0;
+          ? Math.min(100, Math.max(0, ((pitTotal - liveInfo.nextPitIn) / pitTotal) * 100)) : 0;
+        const isLive = liveInfo.status === "live";
+        const own = live?.own || null;
+        const r = races[curRace];
+        /* Sınıf-içi pozisyon (fiş üst çubuk "· GT3 P2"): saha pozisyona göre sıralı
+           gelir → oyuncunun sınıfındaki araçları oyuncuya kadar say. */
+        const field = Array.isArray(live?.field) ? live.field : [];
+        const pcar = field.find((c) => c.isPlayer);
+        let posCls = null, posClsColor;
+        if (isLive && pcar?.carClass && classId(pcar.carClass)) {
+          const cid = classId(pcar.carClass);
+          let rank = 0;
+          for (const c of field) {
+            if (classId(c.carClass) === cid) { rank += 1; if (c === pcar) break; }
+          }
+          posCls = `${String(pcar.carClass).toUpperCase()} P${rank}`;
+          posClsColor = classAccent(pcar.carClass) || undefined;
+        }
         return (
-          <div className="hudstrip">
-            <div className="hcell hhero">
-              <span className="lbl">{t("Bayrağa Kalan")}</span>
-              <span className="hclock">{fmtHMS(liveInfo.remaining / 1000)}</span>
-              <div className="hbar"><i style={{ width: `${raceFrac * 100}%` }} /></div>
-              <span className="lbl">%{Math.round(raceFrac * 100)} {t("tamam")}</span>
-            </div>
-            <div className="hcell">
-              <span className="lbl">{t("Şu An")}</span>
-              <span className="hstint">S{liveInfo.stintIdx + 1}
-                <span style={{ color: "var(--muted)", fontSize: ".6em" }}>/{racePlan.fullStints}</span>
-                {liveInfo.phase === "pit" &&
-                  <span style={{ color: "var(--yellow)", fontSize: ".5em" }}> · PIT</span>}
-              </span>
-              {liveInfo.driver && <span className="hdrv">{liveInfo.driver}</span>}
-            </div>
-            <div className="hcell hgauge">
-              <span className="lbl">{liveInfo.phase === "pit" ? t("Pit Çıkışı") : onLastStint ? t("Bayrağa") : t("Sıradaki Pit")}</span>
-              <Ring value={pitFrac} size={78} fs={16} glow
-                color={pitSoon ? "var(--yellow)" : "var(--teal)"}
-                big={fmtHMS(liveInfo.nextPitIn / 1000)} />
-            </div>
-            <div className="hcell hgauge">
-              <span className="lbl">{t("Tamamlanan")}</span>
-              <Ring value={raceFrac} size={78} fs={19} color="var(--car)"
-                big={`%${Math.round(raceFrac * 100)}`} />
-            </div>
-            <button className="act hudpit" data-tour="pitboard"
-              onClick={() => setPitboard(true)}>📟 Pit Board</button>
-          </div>
+          <RaceBar t={t}
+            flagSrc={st.track ? `${ASSET}flags/${st.track}.png` : ""}
+            name={r?.name || trackName(st.track) || t("Solo")}
+            meta={[r?.round ? `R${r.round}` : "", trackName(st.track),
+              carName(st.carClass, st.car)].filter(Boolean).join(" · ")}
+            viewer={!!curRace && role !== "editor"}
+            remain={isLive ? fmtHMS(liveInfo.remaining / 1000)
+              : liveInfo.status === "pre" ? startCountdown(liveInfo)
+              : liveInfo.status === "done" ? t("🏁") : fmtHMS(racePlan.raceSec)}
+            remainLabel={isLive ? undefined
+              : liveInfo.status === "pre" ? t("Start'a")
+              : liveInfo.status === "done" ? t("Durum") : t("Yarış Süresi")}
+            remainPct={isLive ? raceFrac : 0}
+            nextPit={isLive ? fmtHMS(liveInfo.nextPitIn / 1000) : null}
+            nextPitSub={isLive
+              ? `S${liveInfo.stintIdx + 1}/${racePlan.fullStints}${liveInfo.driver ? ` · ${liveInfo.driver}` : ""}`
+              : null}
+            pitAlert={!!pitSoon}
+            pos={own?.pos != null ? `P${own.pos}` : null}
+            posCls={posCls} posClsColor={posClsColor}
+            posSub={pitFrac > 0 ? `%${Math.round(pitFrac)} ${t("stint")}` : null}
+            energy={own?.virtualEnergy != null ? `${Math.round(own.virtualEnergy)}%` : null}
+            energyPct={own?.virtualEnergy ?? 0}
+            liveOn={live?.ts ? true : false}
+            liveLabel={live?.ts ? t("canlı") : t("bağlı değil")}
+            bridge={live?.ts ? {
+              cars: live.cars != null ? live.cars : null,
+              laps: live.laps != null ? live.laps : null,
+              lastFrame: `${Math.max(0, (now - live.ts) / 1000).toFixed(1)} sn ${t("önce")}`,
+              fresh: (now - live.ts) < 5000,
+            } : null}
+            onBridge={() => go("live")}
+            onRaceData={() => setRdOpen(true)} dirtyN={rdN}
+            onPitBoard={() => setPitboard(true)} />
         );
       })()}
 
-      {(liveInfo.status === "pre" || liveInfo.status === "done") && (
-        <div className="livestrip">
-          {liveInfo.status === "pre" && (
-            <div><span className="lbl">{t("Start'a")}</span>
-              <span className={`big ${liveInfo.toStart < 86400000 ? "mono" : ""}`}
-                style={{ color: "var(--yellow)" }}>
-                {startCountdown(liveInfo)}</span></div>
-          )}
-          {liveInfo.status === "done" && (
-            <div><span className="lbl">{t("Durum")}</span>
-              <span className="big" style={{ color: "var(--green)" }}>{t("🏁 YARIŞ BİTTİ")}</span></div>
-          )}
-          <button className="act" style={{ marginLeft: "auto" }}
-            data-tour="pitboard" onClick={() => setPitboard(true)}>📟 Pit Board</button>
-        </div>
-      )}
 
       {pitboard && (
         <div className="pitboard" onClick={() => setPitboard(false)}>
           <button className="close" onClick={() => setPitboard(false)}>✕</button>
           <img className="plogo" src={`${ASSET}logo.png`} alt="" />
+          {/* fiş: üst kimlik çubuğu — yarış adı + canlı bayrak durumu + #no · pilot */}
+          {(() => {
+            const pbName = races[curRace]?.name || trackName(st.track) || t("Solo");
+            const pcar = Array.isArray(live?.field) ? live.field.find((c) => c.isPlayer) : null;
+            const pbNo = pcar?.number != null ? `#${pcar.number}` : null;
+            const pbDrv = liveInfo.driver || pcar?.driver || "";
+            const flag = live?.session?.flag;
+            const flagCol = !flag || flag === "Green" ? "var(--rc-ok)"
+              : (flag === "Yellow" || flag === "FCY") ? "var(--rc-flag-yellow)"
+              : "var(--rc-brand-bright)";
+            const flagLbl = !flag || flag === "Green" ? t("yeşil bayrak")
+              : flag === "Yellow" ? t("sarı bayrak")
+              : flag === "FCY" ? "FCY"
+              : flag === "Red" ? t("kırmızı bayrak") : t(flag);
+            return (
+              <div onClick={(e) => e.stopPropagation()}
+                style={{ position: "absolute", top: 16, left: 24, right: 76, display: "flex",
+                  alignItems: "center", gap: 14, flexWrap: "wrap", textAlign: "left" }}>
+                <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700,
+                  fontSize: "clamp(18px,2.4vw,26px)", letterSpacing: ".03em",
+                  color: "var(--rc-text)" }}>{pbName}</span>
+                {liveInfo.status === "live" && (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 11,
+                    textTransform: "uppercase", letterSpacing: ".12em", padding: "4px 12px",
+                    borderRadius: 99, border: `1px solid ${flagCol}`, color: flagCol }}>
+                    <i style={{ width: 8, height: 8, borderRadius: "50%", background: flagCol,
+                      boxShadow: `0 0 8px ${flagCol}`,
+                      animation: "rcpulse 1.2s ease-in-out infinite" }} />{flagLbl}
+                  </span>
+                )}
+                {(pbNo || pbDrv) && (
+                  <span style={{ fontFamily: "var(--rc-font-display)",
+                    fontSize: "clamp(13px,1.6vw,18px)", color: "var(--rc-text-3)" }}>
+                    {[pbNo, pbDrv].filter(Boolean).join(" · ")}</span>
+                )}
+              </div>
+            );
+          })()}
           {liveInfo.status === "pre" && (<>
             <div className="plbl">{t("Start'a")}</div>
             <div className="huge" style={{ color: "var(--yellow)" }}>
@@ -2578,7 +4298,7 @@ ${bottomBar}
                           placeholder="0"
                           onChange={(e) => setRepair(i, e.target.value)}
                           style={{ width: 64, padding: "3px 6px", borderRadius: 6,
-                            background: "var(--panel2)", color: "var(--text)",
+                            background: "var(--panel2)", color: "var(--txt)",
                             border: "1px solid var(--line)", fontSize: 13,
                             textAlign: "right" }} />
                         {(Number((st.pitRepairs || [])[i]) || 0) > 0 && (
@@ -2610,57 +4330,20 @@ ${bottomBar}
         </div>
       )}
 
-      <div className={`grid ${sideOpen ? "" : "noside"} ${role === "viewer" && curRace ? "viewonly" : ""}`}>
-        <button className={`sidetoggle ${sideOpen ? "" : "closed"}`}
-          onClick={() => setSideOpen(!sideOpen)}
-          title={sideOpen ? t("Paneli gizle") : t("Paneli göster")}>
-          {sideOpen ? "◀" : "▶"}</button>
-        {/* ================= SOL: DATA ================= */}
-        <div className="sidecol">
-          <div className="sideinner">{dataCards}</div>
-        </div>
-
-        {/* ================= SAĞ: SEKMELER ================= */}
-        <div>
-          {/* ARIA: role=tablist/tab + aria-selected; ok/Home/End ile gezinme (roving tabindex).
-              Erişilebilir ad = etiket metni (ikon span'i aria-hidden). */}
-          <div className="tabs" data-tour="tabs" role="tablist" aria-label={t("Ana sekmeler")}
-            onKeyDown={(e) => {
-              const keys = ["ArrowRight", "ArrowLeft", "Home", "End"];
-              if (!keys.includes(e.key)) return;
-              const btns = [...e.currentTarget.querySelectorAll('[role="tab"]')];
-              const i = btns.indexOf(document.activeElement);
-              if (i < 0) return;
-              e.preventDefault();
-              const n = e.key === "ArrowRight" ? (i + 1) % btns.length
-                : e.key === "ArrowLeft" ? (i - 1 + btns.length) % btns.length
-                : e.key === "Home" ? 0 : btns.length - 1;
-              btns[n].focus(); btns[n].click();
-            }}>
-            {[["dash", "Dashboard", <Icon name="chart" size={15} />], ["stint", "Stint", <Icon name="cap" size={15} />],
-              /* ["code80", "Code 80"], — şimdilik arayüzden gizli, kod korunuyor */
-              ["fuel", t("Son Stint Yakıtı"), <Icon name="zap" size={15} />],
-              /* Canlı timing tüm kullanıcılara açık (v1.4.79) — test aşaması bitti. */
-              ["live", t("Canlı"), <Icon name="live" size={15} />],
-              ["tyre", t("Lastik"), <Icon name="tyre" size={15} />],
-              ["drivers", t("Pilotlar"), <Wheel size={15} />],
-              ["tele", t("Telemetri"), <Icon name="chart" size={15} />],
-              ["setup", t("Setup"), <Icon name="wrench" size={15} />],
-              ...(raceChan ? [["rchat", t("Yarış Sohbeti"), <Icon name="chat" size={15} />]] : [])]
-              .map(([k, l, ico]) => (
-              <button key={k} id={`tab-${k}`} role="tab" aria-selected={tab === k}
-                aria-controls="tabpanel-main" tabIndex={tab === k ? 0 : -1}
-                className={`${tab === k ? "on" : ""} ${k === "code80" && tab === k ? "c80t" : ""}`}
-                onClick={() => setTab(k)} style={{ position: "relative" }}>
-                <span style={{ marginRight: 6 }} aria-hidden="true">{ico}</span>{l}
-                {k === "rchat" && raceUnread > 0 && tab !== "rchat" &&
-                  <b className="cdot" style={{ position: "absolute", top: 2, right: 3 }}>
-                    {raceUnread > 9 ? "9+" : raceUnread}</b>}
-              </button>
-            ))}
-          </div>
-
-          <div id="tabpanel-main" role="tabpanel" aria-labelledby={`tab-${tab}`} tabIndex={-1}>
+      {/* v2.0: SOL DATA KOLONU KALKTI — yarış datası artık sağdan kayan panelde
+          (SAHNELE + UYGULA). Ekranlar tam genişlikte; kabukta yalnız 76px sol ray
+          var. `.grid` sınıfı viewonly pasifleştirmesi için korundu. */}
+      <div className={`grid noside v2grid ${role === "viewer" && curRace ? "viewonly" : ""}`}>
+        <div key={screen} className="v2screen">
+          {/* Rehber kutuları (README §17) — her ekranın üstünde tek satır ipucu.
+              İkon ve kapatma düğmesi yok; metinler src/guides.js'te ekran
+              kimliğine göre. Statik ipuçları HEP AÇIK, opsiyonel interaktif tur
+              (tourSteps.js) ayrı durur. */}
+          {(() => { const g = guideFor(screen, t); return g
+            ? <Guide title={g.title} text={g.text} /> : null; })()}
+          {/* v2.0: sekme çubuğu KALKTI — gezinme 76px sol raydan (shell.jsx Rail).
+              tabpanel ARIA kimliği ray düğmesine bağlanır. */}
+          <div id="tabpanel-main" role="region" aria-label={t("Ana içerik")} tabIndex={-1}>
           <Suspense fallback={
             <div className="skelwrap" aria-busy="true" aria-label={t("Yükleniyor…")}>
               {[0, 1, 2, 3].map((i) => (
@@ -2674,88 +4357,19 @@ ${bottomBar}
               totalFuelL={totalFuelL} timeline={timeline} liveInfo={liveInfo} pitSoon={pitSoon}
               tyreInfo={tyreInfo} quickTyre={quickTyre} bumpLaps={bumpLaps} clearLaps={clearLaps}
               upStintLap={upStintLap} upTyre={upTyre} upPit={upPit} assignDriver={assignDriver}
-              upOvr={upOvr} setRepair={setRepair} />
+              upOvr={upOvr} setRepair={setRepair} driverPlan={driverPlan}
+              markPit={markPit} unmarkPit={unmarkPit} drift={drift}
+              liveSyncOpt={liveSyncOpt} canEdit={canEdit} />
           )}
 
           {tab === "dash" && (
-            <DashTab t={t} st={st} zoom={zoom} setZoom={setZoom} exportPdf={exportPdf}
+            <DashTab t={t} st={st} zoom={zoom} setZoom={setZoom} exportPdf={openPdfPreview}
               liveInfo={liveInfo} racePlan={racePlan} tyreInfo={tyreInfo} planLsf={planLsf}
               driverPlan={driverPlan} carriedAt={carriedAt} pitSoon={pitSoon} lmuData={lmuData}
               assets={teamData?.assets} />
           )}
 
-          {tab === "setup" && (<>
-            <div className="card" data-tour="setuptab">
-              <h2>🔧 {t("Setup Yükle")}</h2>
-              {setupForm()}
-            </div>
-
-            <div className="card" style={{ marginTop: 12 }}>
-              <h2>📚 {t("Setup Havuzu")} ({suList.length}/{setups.length})</h2>
-              {/* araç çubuğu: solda filtreler, sağda aksiyonlar — eşit yükseklik, sarınca da düzenli */}
-              <div className="toolbar">
-                <div className="tb-group">
-                  <select value={suFTrack} onChange={(e) => setSuFTrack(e.target.value)}>
-                    <option value="">{t("Tüm pistler")}</option>
-                    {TRACKS.filter((tr) => setups.some((x) => x.track === tr.id))
-                      .map((tr) =>
-                        <option key={tr.id} value={tr.id}>{trackFlag(tr.id)} {tr.name}</option>)}
-                  </select>
-                  <select value={suFCond} onChange={(e) => setSuFCond(e.target.value)}>
-                    <option value="">{t("Kuru + Wet")}</option>
-                    <option value="dry">☀️ {t("Kuru")}</option>
-                    <option value="wet">🌧 Wet</option>
-                  </select>
-                  <select value={suFSess} onChange={(e) => setSuFSess(e.target.value)}>
-                    <option value="">{t("Yarış + Sıralama")}</option>
-                    <option value="R">{t("Yarış")}</option>
-                    <option value="Q">{t("Sıralama")}</option>
-                  </select>
-                  <input type="text" value={suQuery} placeholder={`🔎 ${t("ara")}…`}
-                    style={{ textTransform: "none", minWidth: 150 }}
-                    onChange={(e) => setSuQuery(e.target.value)} />
-                </div>
-                <div className="tb-group">
-                  {st.track && setups.some((x) => x.track === st.track) && (
-                    <button className="act" style={{ fontSize: 11 }}
-                      onClick={() => setSuFTrack(st.track)}>
-                      📍 {trackName(st.track)}</button>
-                  )}
-                  <button className="act" style={{ fontSize: 11,
-                      ...(suMine ? { borderColor: "var(--green)", color: "var(--green)" } : {}) }}
-                    title={t("Yalnız senin yüklediklerin")}
-                    onClick={() => setSuMine((v) => !v)}>
-                    👤 {t("Benim setuplarım")}</button>
-                  <span className="tb-sep" />
-                  <button className="act" style={{ fontSize: 11 }}
-                    title={suView === "cards" ? t("Tablo") : t("Kartlar")}
-                    onClick={toggleSuView}>
-                    {suView === "cards" ? <>☰ {t("Tablo")}</> : <>⊞ {t("Kartlar")}</>}</button>
-                </div>
-              </div>
-              {suDelErr && <div className="hint warn">⚠ {suDelErr}</div>}
-              {/* Havuz doluyken süzgeç hiçbir şeyi tutmuyorsa "Henüz setup yok" demek
-                  yanıltıcıydı (başlıktaki 0/N ile çelişiyordu) → sebebe göre mesaj. */}
-              {!suList.length && (
-                <div className="hint">
-                  {poolEmptyReason(setups.length, suList.length) === "filtered"
-                    ? <>{t("Bu süzgeçle setup yok.")}{" "}
-                      <button className="act" style={{ fontSize: 11 }}
-                        onClick={() => { setSuFTrack(""); setSuFCond(""); setSuFSess("");
-                          setSuQuery(""); setSuMine(false); }}>
-                        ✕ {t("Süzgeçleri temizle")}</button></>
-                    : t("Henüz setup yok — ilk dosyayı yukarıdan yükle.")}
-                </div>
-              )}
-              {suList.length > 0 && setupTable(suList)}
-              {suHasMore && (
-                <div style={{ textAlign: "center", marginTop: 10 }}>
-                  <button className="act" onClick={loadMoreSetups}>
-                    ⬇ {t("Daha fazla yükle")}</button>
-                </div>
-              )}
-            </div>
-          </>)}
+          {tab === "setup" && setupScreen()}
 
           {tab === "live" && <LiveTab t={t} live={live} liveFuelObs={liveFuelObs}
             lapCapture={lapCapture}
@@ -2773,9 +4387,14 @@ ${bottomBar}
             <DriversTab t={t} st={st} up={up} driverPlan={driverPlan}
               fmtClock={fmtClock} removeDriver={removeDriver} newDriver={newDriver}
               setNewDriver={setNewDriver} addDriver={addDriver} teamDrivers={teamDrivers}
-              setSt={setSt} assignDriver={assignDriver} teamData={teamData}
-              clearAssign={clearAssign} />
+              addFromPool={addFromPool} assignDriver={assignDriver} teamData={teamData}
+              clearAssign={clearAssign} avail={avail} setAvail={setAvail}
+              resetAvail={resetAvail} canEdit={canEdit} />
           )}
+
+          {/* v2.0 TAM SAYFA (modal kabuğu kalktı) — sol raydan erişilir. */}
+          {screen === "team" && teamSheet(true)}
+          {screen === "chat" && chatSheet(true)}
 
           {tab === "rchat" && raceChan && (
             <div className="card">
@@ -2818,6 +4437,7 @@ ${bottomBar}
           </div>{/* /tabpanel-main */}
         </div>
       </div>
+      </div>{/* /v2main */}
     </div>
   );
 }

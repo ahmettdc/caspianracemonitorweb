@@ -5,6 +5,38 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v2.0.0",
+    date: "2026-08-16",
+    tr: [
+      "🎨 Arayüz baştan tasarlandı. Sekme çubuğu ve sol data kolonu kalktı; yerine 76px sol ray ve tüm yarış ekranlarında sabit duran birleşik yarış çubuğu geldi (bayrağa kalan, sıradaki pit, pozisyon, enerji ve canlı durum tek satırda).",
+      "🧭 Gezinme tek noktada toplandı: tarayıcı geri tuşu ve masaüstü uygulaması artık aynı davranıyor — açık ekranı kapatmak yerine önceki ekrana dönüyorsun. Adres çubuğundaki #/live gibi bağlantılar doğrudan o ekranı açıyor.",
+      "🗂 Takım, Sohbet, Telemetri ve Setup havuzu pencere olmaktan çıkıp tam sayfa ekran oldu; hepsine sol raydan geçiliyor.",
+      "🏁 Canlı Timing sadeleşti: sütun sırası yenilendi, ayrı Sınıf sütunu kalktı — sınıf-içi pozisyon artık Poz'un yanında sınıf renginde. Sınıf süzgeci tek noktada, 'Poz · Sınıf' başlığında. Satır yoğunluğu (Pit duvarı ↔ Mühendis) yalnız bu ekranda; sektör sütunu gizlenebiliyor.",
+      "⚖ Saha tablosunda bir rakip satırına tıklayınca alttan karşılaştırma tepsisi açılıyor: son tur, AVG5, S1–S3 ve enerji farkı renkli olarak yan yana.",
+      "⚙ Yarış datası sağdan kayan panele taşındı ve 'sahnele + uygula' modeline geçti: değişiklikler siz Uygula'ya basana kadar kaydedilmiyor, kaç alanın değiştiği panelde ve yarış çubuğunda görünüyor.",
+      "🕑 Pilot uygunluğu eklendi: hangi pilotun hangi stintte müsait olmadığını işaretleyebiliyorsun. Uygun değil işaretlenen pilot o stinte atanamıyor, varsa mevcut ataması kalkıyor; bir stintte hiç uygun pilot kalmazsa uyarı çıkıyor. Uygunluk yarış başına takımla paylaşılıyor.",
+      "⛽ Son Stint Yakıtı'na senaryolar eklendi: Planlanan, Tasarruflu ve Agresif tüketimle gereken enerji ve plandan fark yan yana.",
+      "🛞 Lastik ekranına wet sayacı ve set envanteri geldi — her setin kaç kez kullanıldığı ve kilitli köşesi tek bakışta görünüyor.",
+      "💡 Her ekranın üstüne tek satırlık rehber kutusu eklendi; boş ekranlar (canlı veri yok, kadro boş, sohbet boş) artık ne yapılacağını anlatıyor.",
+      "👁 İzleyici modu görsel olarak netleşti: yarış çubuğunda rozet, düzenleme yollarında tutarlı pasiflik — inceleme ve gezinme serbest kalıyor.",
+      "🌑 Bu sürüm tek koyu temayla çıkıyor; açık tema bir sonraki turda tamamlanacak.",
+    ],
+    en: [
+      "🎨 The interface has been redesigned. The tab bar and the left data column are gone; in their place a 76px side rail and a unified race bar that stays pinned on every race screen (time to the flag, next pit, position, energy and live status on one line).",
+      "🧭 Navigation now lives in one place: the browser back button and the desktop app behave the same — instead of closing the current screen you return to the previous one. Links like #/live open that screen directly.",
+      "🗂 Team, Chat, Telemetry and the Setup pool are no longer windows but full-page screens, all reachable from the side rail.",
+      "🏁 Live Timing is cleaner: the column order was reworked and the separate Class column is gone — your in-class position now sits next to Pos in the class colour. The class filter lives in one place, the 'Pos · Class' header. Row density (Pit wall ↔ Engineer) applies only to this screen, and the sector column can be hidden.",
+      "⚖ Click a rival's row in the field table and a comparison tray slides up: last lap, AVG5, S1–S3 and energy, with the deltas colour-coded.",
+      "⚙ Race data moved into a panel that slides in from the right and switched to a stage-and-apply model: nothing is saved until you press Apply, and the number of changed fields is shown in the panel and on the race bar.",
+      "🕑 Driver availability is new: mark which driver is unavailable for which stint. A driver marked unavailable can't be assigned to that stint and any existing assignment is removed; if a stint has no available driver left you get a warning. Availability is shared with the team per race.",
+      "⛽ Final Stint Fuel gained scenarios: the energy you need under Planned, Saving and Aggressive consumption, side by side with the difference from plan.",
+      "🛞 The Tyre screen gained a wet counter and a set inventory — how many times each set was used and which corner it is locked to, at a glance.",
+      "💡 Every screen now has a one-line guide box at the top, and empty screens (no live data, empty roster, empty chat) explain what to do next.",
+      "👁 Viewer mode is visually clearer: a badge on the race bar and consistent dimming on editing controls — reviewing and navigating stay unrestricted.",
+      "🌑 This release ships with a single dark theme; the light theme will be completed in the next round.",
+    ],
+  },
+  {
     v: "v1.8.20",
     date: "2026-08-15",
     tr: [

@@ -20,7 +20,7 @@ describe("modal bileşenleri: açık halde çökmeden render olur", () => {
   it("VersionModal", () => {
     const html = render(
       <VersionModal open onClose={noop} t={t} lang="tr" onStartGuide={noop} />);
-    expect(html).toContain("wxmodal");
+    expect(html).toContain("Neler değişti");
   });
 
   it("RaceEditModal (ekleme)", () => {
@@ -28,7 +28,7 @@ describe("modal bileşenleri: açık halde çökmeden render olur", () => {
       carClass: "hypercar", carId: "", raceTime: "6:00:00", startsAt: Date.now() };
     const html = render(
       <RaceEditModal rForm={rForm} setRForm={noop} t={t} seasons={{}} onSave={noop} />);
-    expect(html).toContain("wxmodal");
+    expect(html).toContain("Yarış Ekle");
   });
 
   it("ChatModal", () => {
@@ -45,6 +45,15 @@ describe("modal bileşenleri: açık halde çökmeden render olur", () => {
       <SetupModal open onClose={noop} t={t} suUpOpen={false} setSuUpOpen={noop}
         suList={[]} setups={[]} suFTrack="" setSuFTrack={noop} suFCond="" setSuFCond={noop}
         suFSess="" setSuFSess={noop} setupForm={() => null} setupTable={() => null} />);
+    expect(html).toContain("Setup");
+  });
+
+  it("SetupModal (tam sayfa / page)", () => {
+    const html = render(
+      <SetupModal open page onClose={noop} t={t} suUpOpen={false} setSuUpOpen={noop}
+        suList={[]} setups={[]} suFTrack="" setSuFTrack={noop} suFCond="" setSuFCond={noop}
+        suFSess="" setSuFSess={noop} setupForm={() => null} setupTable={() => null} />);
+    expect(html).toContain("v2page");            // Sheet tam-sayfa kabuğu
     expect(html).toContain("Setup");
   });
 
@@ -72,14 +81,15 @@ describe("modal bileşenleri: açık halde çökmeden render olur", () => {
     expect(html).toContain("Coco");               // üye satırı
   });
 
-  it("CreateJoinModal (v1.6 — sade kur/katıl, yönetim yok)", () => {
+  it("CreateJoinModal (fiş cjOpen — 2 sekmeli kur/katıl, yönetim yok)", () => {
     const html = render(
       <CreateJoinModal open onClose={noop} user={{ uid: "u1" }} t={t}
         userName="Ben" tForm={{ name: "", join: "" }} setTForm={noop}
         setTErr={noop} tErr="" setCurTeam={noop} />);
-    expect(html).toContain("Kur &amp; Katıl");   // & → &amp; (HTML escape)
-    expect(html).toContain("Takım Kur");
-    expect(html).toContain("Takıma Katıl");
+    expect(html).toContain("Takıma bağlan");      // başlık
+    expect(html).toContain("Takım Kur");           // sekme 1
+    expect(html).toContain("Takıma Katıl");        // sekme 2
+    expect(html).toContain("Kurduğunda ne olur");  // kur sekmesi bilgi paneli
     // yönetim bölümleri BU ekranda görünmemeli
     expect(html).not.toContain("Sezonlar & Takvim");
     expect(html).not.toContain("Üyeler & Yetkiler");

@@ -335,10 +335,11 @@ describe("applyMarkPit / applyUnmarkPit / applyResetPits", () => {
   it("applyResetPits elle girilen override'ları KORUR", () => {
     const overrides = [...st.overrides]; overrides[0] = "0:30:00"; overrides[1] = "0:25:00";
     const autoOvr = [false, true];
-    const patch = applyResetPits({ ...st, overrides, autoOvr });
+    const patch = applyResetPits({ ...st, overrides, autoOvr, pitRepairs: [30, 0, 15] });
     expect(patch.actualPits).toEqual([]);
     expect(patch.overrides[0]).toBe("0:30:00");  // elle → korunur
     expect(patch.overrides[1]).toBe("");         // otomatik → silinir
+    expect(patch.pitRepairs).toBeUndefined();    // elle girilen tamir süreleri korunur (patch'te yok)
   });
 });
 
@@ -432,5 +433,41 @@ describe("buildTimeline", () => {
     expect(tl[0].label).toBe("S1");
     expect(tl[1].cls).toBe("pit");
     expect(tl[2].label).toBe("S2");
+  });
+});
+
+/* v2.0 — set envanteri rozeti: kullanılmış bir set için allowedIn YALNIZ ilk
+   takıldığı sütunda true döner (kilitli köşe). TyreTab envanter çipi bunu
+   kullanıyor; davranış burada kilitleniyor.
+   NOT: DEFAULT_STATE.tyreQual = ["1","2","3","4"] — Qual satırı da köşe kilidi
+   yaratır. Testler bu yüzden Qual satırını boşaltıp izole ölçüyor. */
+describe("computeTyreInfo — kilitli köşe (set envanteri, v2.0)", () => {
+  const plan2 = { rows: [{}, {}] };
+  const mk = (stints) => base({ tyreQual: ["", "", "", ""], tyreStints: stints });
+
+  it("bir sütunda kullanılan set yalnız o sütunda izinli", () => {
+    const info = computeTyreInfo(mk([["3", "", "", ""], ["", "", "", ""]]), plan2);
+    expect([0, 1, 2, 3].filter((ci) => info.allowedIn("3", ci))).toEqual([0]);
+  });
+  it("hiç kullanılmamış set her sütunda izinli (rozet gösterilmez)", () => {
+    const info = computeTyreInfo(mk([["", "", "", ""], ["", "", "", ""]]), plan2);
+    expect([0, 1, 2, 3].filter((ci) => info.allowedIn("9", ci))).toEqual([0, 1, 2, 3]);
+  });
+  it("iki farklı köşede kullanılan set hiçbir sütunda izinli değil (ihlal)", () => {
+    const info = computeTyreInfo(mk([["5", "5", "", ""], ["", "", "", ""]]), plan2);
+    expect([0, 1, 2, 3].filter((ci) => info.allowedIn("5", ci))).toEqual([]);
+    expect(info.conflicts).toContain("5");
+  });
+  it("Qual satırı da köşe kilidi yaratır (varsayılan tyreQual ile)", () => {
+    /* Varsayılanda "3" Qual'da RL (sütun 2) → aynı seti FL'ye koymak ihlal. */
+    const info = computeTyreInfo(
+      base({ tyreStints: [["3", "", "", ""], ["", "", "", ""]] }), plan2);
+    expect(info.conflicts).toContain("3");
+  });
+  it("wet (W) limitten bağımsız — used (farklı KURU set) sayımına girmez", () => {
+    const info = computeTyreInfo(mk([["W", "W", "W", "W"], ["", "", "", ""]]), plan2);
+    expect(info.used).toBe(0);
+    expect(info.counts.W).toBe(4);
+    expect(info.conflicts).toEqual([]);
   });
 });

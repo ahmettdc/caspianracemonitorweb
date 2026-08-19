@@ -1,114 +1,47 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ReferenceLine, ReferenceDot, ResponsiveContainer } from "recharts";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { fmtLap } from "../engine";
-import { SLOT_COLORS } from "../constants";
-import { Tyre, BoxPlot, SessionSetupBox } from "../components";
-import { zoomViewAt, panView, zoomDomain, advanceCursor } from "../zoomView";
+import { SLOT_COLORS, quantile, venueToTrackId, brandLogo, carImg, CARS, ASSET, AV, TRACK_ASSET } from "../constants";
+import { SessionSetupBox } from "../components";
+import { zoomViewAt, panView, advanceCursor } from "../zoomView";
 import { sectorOf, sectorMarks } from "../ldTrace";
 import { detectApexes, cornerStats } from "../corners";
 
-/* İz karşılaştırma renkleri (A/B tur) */
-const CA = "#ff5470", CB = "#4d9fff";
+/* ============================================================
+   Telemetri sekmesi — handoff-spec/ekranlar/08-telemetri.md (birebir).
+   Markup + inline stil objeleri fişten; renkler --rc-* tokenlarına bağlı.
+   Grafikler fişteki EL-ÇİZİMİ inline <svg> ile yeniden kuruldu (kutu/tur-tur,
+   iz kanalları, mini pist haritası) — hepsi mevcut veri katmanından beslenir
+   (slotStats / st.telemetry / parsed / cmpData). Veri katmanı, prop imzası ve
+   handler'lar DEĞİŞMEDİ. TrackMini (etkileşimli pan/zoom/scrub) yalnız ⛶ Büyüt
+   penceresinde korunur; satır-içi mini harita fişteki statik SVG'dir.
+   ============================================================ */
 
-/* TraceRow prop kimlikleri modül sabiti — her render'da taze dizi/fonksiyon
-   üretilirse aşağıdaki grafik memo'ları hiç tutmaz. */
-const K_DT = ["dt"], C_DT = ["#F5C84C"], C_AB = [CA, CB];
-const K_SP = ["spA", "spB"], K_TH = ["thA", "thB"], K_BR = ["brA", "brB"],
-  K_G = ["gA", "gB"], K_RPM = ["rpmA", "rpmB"], K_ST = ["stA", "stB"];
+/* İz karşılaştırma renkleri (A/B tur) — fiş #ff5470 / #4d9fff */
+const CA = "var(--rc-danger-2)";   // A turu (kırmızı)
+const CB = "var(--rc-delta)";      // B turu (mavi)
+/* delta≈0 mini-segment: fişte #7a8797 → token yok, en yakın --rc-neutral (FLAG) */
+const NEUTRAL = "var(--rc-neutral)";
+const DISP = "var(--rc-font-display)";
+const UI = "var(--rc-font-ui)";
+
 const sp1 = (v) => (v == null ? "—" : v.toFixed(1));
-const pct = (v) => (v == null ? "—" : `${Math.round(v)}%`);
+const pct = (v) => (v == null ? "—" : `%${Math.round(v)}`);
 const dlt = (v) => (v == null ? "—" : `${v >= 0 ? "+" : ""}${v.toFixed(3)}s`);
 const int0 = (v) => (v == null ? "—" : String(Math.round(v)));
+const fmtLapSec = (sec) => fmtLap(sec);
 
-/* Eksen geometrisi bu dosyada sabittir (aşağıdaki playhead eşlemesi buna dayanır):
-   YAxis width=44, margin sağ=8/sol=0/üst=4/alt=0, XAxis yüksekliği=30 (recharts
-   varsayılanı). Lineer mesafe ekseni → yüzde eşlemesi kesindir. */
-const PLOT_L = 44, PLOT_R = 8, PLOT_T = 4, PLOT_B = 30;
-
-/* Tek kanal iz satırı — recharts syncId ile hepsi ortak imleç + ortak mesafe ekseni.
-   PLAYHEAD (cursorD) artık grafiğin İÇİNDE (ReferenceLine) değil, üstünde mutlak
-   konumlu ucuz bir div: oynatmada saniyede 25 kez değişen tek şey bu div olur;
-   600 noktalı Recharts ağacı useMemo ile SABİT kalır (eskiden 7 grafik × 25/sn
-   komple reconcile ediliyordu — ana yavaşlık buydu). Prop kimlikleri çağıran
-   tarafta sabitlendi (modül sabitleri + useCallback + useMemo). */
-function TraceRow({ data, title, unit, keys, colors, fmt, height = 132, zero, dashB, onCursor, onAnchor, xDomain, bounds, cursorD, dots }) {
-  const onMove = useMemo(() => ((onCursor || onAnchor) ? (s) => {
-    if (onCursor) onCursor(s && s.activeTooltipIndex != null ? s.activeTooltipIndex : null);
-    if (onAnchor && s && s.activeLabel != null) onAnchor(s.activeLabel);
-  } : undefined), [onCursor, onAnchor]);
-  const onLeave = useMemo(() => (onCursor ? () => onCursor(null) : undefined), [onCursor]);
-  const chart = useMemo(() => (
-    <ResponsiveContainer width="100%" height="100%">
-      <LineChart data={data} syncId="tele" margin={{ top: PLOT_T, right: PLOT_R, bottom: 0, left: 0 }}
-        onMouseMove={onMove}
-        onMouseLeave={onLeave}>
-        <CartesianGrid stroke="#2B3542" strokeDasharray="3 3" />
-        <XAxis dataKey="d" type="number" domain={xDomain || ["dataMin", "dataMax"]}
-          allowDataOverflow stroke="#8C97A5" fontSize={10} tickFormatter={(v) => Math.round(v)}
-          minTickGap={40} />
-        <YAxis stroke="#8C97A5" fontSize={10} width={PLOT_L}
-          domain={["auto", "auto"]} tickFormatter={fmt} />
-        <Tooltip contentStyle={{ background: "#1F2731", border: "1px solid #2B3542", fontSize: 12 }}
-          labelFormatter={(v) => `${Math.round(v)} ${unit}`}
-          formatter={(val, n) => [fmt ? fmt(val) : val, n]} />
-        {zero && <ReferenceLine y={0} stroke="#8C97A5" strokeDasharray="4 4" />}
-        {(dots || []).map((p, i) => (
-          <ReferenceDot key={`d${i}`} x={p.x} y={p.y} r={3} fill={p.c} stroke="#000"
-            strokeWidth={0.6} isFront />
-        ))}
-        {(bounds || []).map((b) => (
-          <ReferenceLine key={b.label} x={b.d} stroke="#6B7683" strokeDasharray="2 3"
-            label={{ value: `S${b.label.slice(-1)}`, position: "insideTopLeft",
-              fill: "#8C97A5", fontSize: 9 }} />
-        ))}
-        {keys.map((k, i) => (
-          <Line key={k} dataKey={k} name={k.endsWith("B") ? "B" : k.endsWith("A") ? "A" : k}
-            stroke={colors[i]} dot={false} strokeWidth={1.6} connectNulls
-            isAnimationActive={false}
-            strokeDasharray={dashB && k.endsWith("B") ? "5 3" : undefined} />
-        ))}
-      </LineChart>
-    </ResponsiveContainer>
-  ), [data, unit, keys, colors, fmt, zero, dashB, xDomain, bounds, dots, onMove, onLeave]);
-  /* playhead konumu: mesafe → görünür pencere kesri → CSS calc (ölçüm yok) */
-  const lo = xDomain ? xDomain[0] : (data?.length ? data[0].d : 0);
-  const hi = xDomain ? xDomain[1] : (data?.length ? data[data.length - 1].d : 0);
-  const frac = (cursorD != null && hi > lo)
-    ? Math.max(0, Math.min(1, (cursorD - lo) / (hi - lo))) : null;
-  return (
-    <div style={{ marginTop: 8 }}>
-      <div className="hint" style={{ margin: "0 0 2px", fontWeight: 600 }}>{title}</div>
-      <div style={{ height, position: "relative" }}>
-        {chart}
-        {frac != null && (
-          <div aria-hidden style={{ position: "absolute", top: PLOT_T, bottom: PLOT_B,
-            left: `calc(${PLOT_L}px + (100% - ${PLOT_L + PLOT_R}px) * ${frac})`,
-            width: 1.4, background: "#3ad07a", pointerEvents: "none" }} />
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* Mini pist haritası — turun XY şekli (konum kanalı ya da hız+G tahmini). Segmentler
-   delta işaretine göre renkli (kırmızı A hızlı / mavi B hızlı) → "hangi virajda ne
-   yaptık". İz üzerinde gezerken (cursor) haritada o nokta işaretlenir.
-   Fare tekerleğiyle yakınlaştır (viewBox state), sürükleyerek gez, çift-tık sıfırla —
-   nokta matematiği (scr/segment) DEĞİŞMEZ; yalnız viewBox pencere kayar/daralır. */
-function TrackMini({ t, data, cursor, src, big, marks, apex, onScrub }) {
+/* Mini pist haritası — turun XY şekli, delta işaretine göre renkli segmentler.
+   ⛶ Büyüt penceresinde etkileşimli (fare tekerleği yakınlaştırır, sürükle gezer,
+   daireyi sürükle konum seçer, çift-tık sıfırlar). viewBox pencere kayar/daralır;
+   nokta matematiği değişmez. */
+function TrackMini({ t, data, cursor, big, marks, apex, onScrub }) {
   const S = 240, PAD = 16;
   const [view, setView] = useState({ vx: 0, vy: 0, vw: S, vh: S });
   const svgRef = useRef(null);
-  const drag = useRef(null);   // { mode, x0, y0, v0, rect }
-  /* view'ın güncel değeri ref aynasıyla taşınır → native wheel dinleyicisi BİR KEZ
-     takılır (eskiden dependency'siz effect her render'da söküp takıyordu — oynatma
-     sırasında saniyede 25 kez addEventListener/removeEventListener). */
+  const drag = useRef(null);
   const viewRef = useRef(view);
   viewRef.current = view;
 
-  /* Geometri memo (v1.8.0): nokta matematiği yalnız data değişince kurulur.
-     scrPts = ekran-uzayı nokta önbelleği — nearest() ve segment üretimi her
-     çağrıda 600 scr() hesabı yerine bunun üzerinde döner. */
   const { scrPts, step } = useMemo(() => {
     const xs = data.map((d) => d.mapX), ys = data.map((d) => d.mapY);
     const minX = Math.min(...xs), maxX = Math.max(...xs);
@@ -116,27 +49,23 @@ function TrackMini({ t, data, cursor, src, big, marks, apex, onScrub }) {
     const spanX = (maxX - minX) || 1, spanY = (maxY - minY) || 1;
     const sc = Math.min((S - 2 * PAD) / spanX, (S - 2 * PAD) / spanY);
     const ox = (S - spanX * sc) / 2, oy = (S - spanY * sc) / 2;
-    const scr = (x, y) => [ox + (x - minX) * sc, S - (oy + (y - minY) * sc)];   // y yukarı → ekranda ters
-    const scrPts = data.map((d) => scr(d.mapX, d.mapY));
-    return { scrPts, step: Math.max(1, Math.floor(data.length / 220)) };
+    const scr = (x, y) => [ox + (x - minX) * sc, S - (oy + (y - minY) * sc)];
+    return { scrPts: data.map((d) => scr(d.mapX, d.mapY)), step: Math.max(1, Math.floor(data.length / 220)) };
   }, [data]);
 
-  /* ~220 renkli <line> segmenti — eskiden her render'da (oynatmada 25/sn) yeniden
-     üretiliyordu; artık yalnız data değişince. */
   const segs = useMemo(() => {
     const out = [];
     for (let k = 0; k + step < data.length; k += step) {
       const [x1, y1] = scrPts[k];
       const [x2, y2] = scrPts[k + step];
-      const dd = (data[k + step].dt ?? 0) - (data[k].dt ?? 0);   // +: B daha çok süre → A hızlı
-      const col = dd > 0.003 ? CA : dd < -0.003 ? CB : "#7a8797";
+      const dd = (data[k + step].dt ?? 0) - (data[k].dt ?? 0);
+      const col = dd > 0.003 ? CA : dd < -0.003 ? CB : NEUTRAL;
       out.push(<line key={k} x1={x1} y1={y1} x2={x2} y2={y2} stroke={col} strokeWidth={3.2}
         strokeLinecap="round" vectorEffect="non-scaling-stroke" />);
     }
     return out;
   }, [data, scrPts, step]);
 
-  /* imleç dairesi — kesirli cursor (oynatma) iki nokta ARASINDA interpole edilir → akıcı */
   const cur = (() => {
     if (cursor == null || !data.length) return null;
     const i = Math.max(0, Math.min(Math.floor(cursor), data.length - 1));
@@ -145,41 +74,34 @@ function TrackMini({ t, data, cursor, src, big, marks, apex, onScrub }) {
     if (!p1) return null;
     return [p1[0] + f * (p2[0] - p1[0]), p1[1] + f * (p2[1] - p1[1])];
   })();
-  const zf = view.vw / S;   // daire yarıçapı ekranda sabit kalsın diye ölçek
-  /* S/F + sektör sınırları: yolu KESEN kısa çizgi (teğete dik) + etiket — daire yok. */
-  const TICK = 7;   // yarı-uzunluk (SVG birimi) → yol bandını keser, zoom'la ölçeklenir
+  const zf = view.vw / S;
+  const TICK = 7;
   const secDivs = useMemo(() => {
     const perpTick = (idx) => {
       const i0 = Math.max(0, idx - step), i1 = Math.min(data.length - 1, idx + step);
-      const [ax, ay] = scrPts[i0];
-      const [bx, by] = scrPts[i1];
+      const [ax, ay] = scrPts[i0], [bx, by] = scrPts[i1];
       const dx = bx - ax, dy = by - ay, L = Math.hypot(dx, dy) || 1;
-      const px = -dy / L, py = dx / L;                     // teğete dik birim
+      const px = -dy / L, py = dx / L;
       const [cx, cy] = scrPts[idx];
       return { x1: cx - px * TICK, y1: cy - py * TICK, x2: cx + px * TICK, y2: cy + py * TICK, cx, cy };
     };
     return [
-      { idx: 0, label: "S/F", col: "#fff" },
-      ...(marks || []).map((m) => ({ idx: m.idx, label: `S${m.label.slice(-1)}`, col: "#cbb" })),
+      { idx: 0, label: "S/F", col: "var(--rc-white)" },
+      ...(marks || []).map((m) => ({ idx: m.idx, label: `S${m.label.slice(-1)}`, col: "var(--rc-text-2)" })),
     ].filter((m) => data[m.idx]).map((m) => ({ ...m, ...perpTick(m.idx) }));
   }, [data, marks, scrPts, step]);
-  /* viraj (apex) işaretleri — numaralı küçük daireler */
   const apexPts = useMemo(() => (apex || []).map((idx, i) => {
     const p = data[idx] ? scrPts[idx] : null;
     return p ? { no: i + 1, x: p[0], y: p[1] } : null;
   }).filter(Boolean), [data, apex, scrPts]);
   const zoomed = view.vw < S - 0.5;
 
-  /* SVG-koordinatına çevir (px → viewBox birimi) — view ref'ten okunur (stale olmaz) */
   const toSvg = (clientX, clientY) => {
     const r = svgRef.current?.getBoundingClientRect();
     if (!r || !r.width) return null;
     const v = viewRef.current;
-    return [v.vx + ((clientX - r.left) / r.width) * v.vw,
-      v.vy + ((clientY - r.top) / r.height) * v.vh];
+    return [v.vx + ((clientX - r.left) / r.width) * v.vw, v.vy + ((clientY - r.top) / r.height) * v.vh];
   };
-  /* Tekerlek: React onWheel passive → native non-passive dinleyici (sayfa kaymasın).
-     [] deps: dinleyici yalnız ref'lere dokunur → bir kez tak, bir kez sök. */
   useEffect(() => {
     const el = svgRef.current;
     if (!el) return undefined;
@@ -193,9 +115,6 @@ function TrackMini({ t, data, cursor, src, big, marks, apex, onScrub }) {
     return () => el.removeEventListener("wheel", onWheel);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  /* pist çizgisine en yakın tur noktası (ekran-px) → { idx, dist }.
-     rect parametresi: sürükleme boyunca onDown'da ölçülen kutu yeniden kullanılır —
-     eskiden HER pointermove'da getBoundingClientRect (forced layout) vardı. */
   const GRAB_PX = 18;
   const nearest = (clientX, clientY, rect) => {
     const r = rect || svgRef.current?.getBoundingClientRect();
@@ -213,21 +132,14 @@ function TrackMini({ t, data, cursor, src, big, marks, apex, onScrub }) {
   const onDown = (e) => {
     const rect = svgRef.current?.getBoundingClientRect() || null;
     const n = onScrub ? nearest(e.clientX, e.clientY, rect) : null;
-    if (n && n.dist <= GRAB_PX) {           // pist çizgisi/daire üstünde → scrub
-      drag.current = { mode: "scrub", rect }; onScrub(n.idx);
-    } else {                                 // boş alan → pan (v1.4.115)
-      drag.current = { mode: "pan", x0: e.clientX, y0: e.clientY, v0: view, rect };
-    }
+    if (n && n.dist <= GRAB_PX) { drag.current = { mode: "scrub", rect }; onScrub(n.idx); }
+    else { drag.current = { mode: "pan", x0: e.clientX, y0: e.clientY, v0: view, rect }; }
     e.currentTarget.setPointerCapture?.(e.pointerId);
   };
   const onMove = (e) => {
     const d0 = drag.current;
     if (!d0) return;
-    if (d0.mode === "scrub") {
-      const n = nearest(e.clientX, e.clientY, d0.rect);
-      if (n && onScrub) onScrub(n.idx);
-      return;
-    }
+    if (d0.mode === "scrub") { const n = nearest(e.clientX, e.clientY, d0.rect); if (n && onScrub) onScrub(n.idx); return; }
     const r = d0.rect;
     if (!r || !r.width) return;
     const dx = -((e.clientX - d0.x0) / r.width) * d0.v0.vw;
@@ -238,139 +150,97 @@ function TrackMini({ t, data, cursor, src, big, marks, apex, onScrub }) {
   const reset = () => setView({ vx: 0, vy: 0, vw: S, vh: S });
 
   return (
-    <div style={{ marginTop: 6 }}>
-      <div style={{ display: "flex", justifyContent: "center", position: "relative" }}>
-        <svg ref={svgRef} viewBox={`${view.vx} ${view.vy} ${view.vw} ${view.vh}`}
-          style={{ width: big ? undefined : "100%", maxWidth: big ? "none" : 360, height: "auto",
-            cursor: drag.current ? "grabbing" : "grab", touchAction: "none" }}
-          aria-label="track map" onDoubleClick={reset}
-          onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={onUp}>
-          {segs}
-          {secDivs.map((m) => (
-            <g key={m.label}>
-              <line x1={m.x1} y1={m.y1} x2={m.x2} y2={m.y2} stroke={m.col} strokeWidth={2}
-                strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-              <text x={m.cx + 6 * zf} y={m.cy + 3 * zf} fill={m.col}
-                fontSize={(m.label === "S/F" ? 9 : 8) * zf}>{m.label}</text>
-            </g>
-          ))}
-          {apexPts.map((a) => (
-            <text key={`ap${a.no}`} x={a.x} y={a.y} fill="#F5C84C" fontSize={9 * zf}
-              fontWeight="700" textAnchor="middle" dominantBaseline="central"
-              stroke="#000" strokeWidth={0.5} paintOrder="stroke"
-              vectorEffect="non-scaling-stroke">{a.no}</text>
-          ))}
-          {cur && <circle cx={cur[0]} cy={cur[1]} r={6 * zf} fill="#3ad07a" stroke="#000"
-            strokeWidth={1.4} vectorEffect="non-scaling-stroke" />}
-        </svg>
-        {zoomed && (
-          <button className="act" style={{ position: "absolute", top: 4, right: 4,
-            fontSize: 11, padding: "2px 8px" }} onClick={reset}
-            title={t("Yakınlaştırmayı sıfırla")}>⟳</button>
-        )}
-      </div>
-      <div className="hint" style={{ textAlign: "center", opacity: .8, marginTop: 2 }}>
-        <span style={{ color: CA }}>■</span> {t("A hızlı")} · <span style={{ color: CB }}>■</span> {t("B hızlı")}
-        {" · "}{src === "g" ? t("G-kuvveti tahmini (şekil yaklaşık)") : t("konum kanalından")}
-      </div>
-      <div className="hint" style={{ textAlign: "center", opacity: .6, marginTop: 1 }}>
-        🖱 {t("tekerlek: yakınlaştır · daireyi sürükle: konum · boş alanı sürükle: gez · çift-tık: sıfırla")}
-      </div>
+    <div style={{ display: "flex", flexDirection: "column", position: "relative" }}>
+      <svg ref={svgRef} viewBox={`${view.vx} ${view.vy} ${view.vw} ${view.vh}`}
+        style={{ width: big ? undefined : "100%", maxWidth: big ? "none" : 360, height: "auto",
+          margin: "0 auto", cursor: drag.current ? "grabbing" : "grab", touchAction: "none" }}
+        aria-label="track map" onDoubleClick={reset}
+        onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={onUp}>
+        {segs}
+        {secDivs.map((m) => (
+          <g key={m.label}>
+            <line x1={m.x1} y1={m.y1} x2={m.x2} y2={m.y2} stroke={m.col} strokeWidth={2}
+              strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+            <text x={m.cx + 6 * zf} y={m.cy + 3 * zf} fill={m.col}
+              fontSize={(m.label === "S/F" ? 9 : 8) * zf}>{m.label}</text>
+          </g>
+        ))}
+        {apexPts.map((a) => (
+          <text key={`ap${a.no}`} x={a.x} y={a.y} fill="var(--rc-warn-2)" fontSize={9 * zf}
+            fontWeight="700" textAnchor="middle" dominantBaseline="central"
+            vectorEffect="non-scaling-stroke">{a.no}</text>
+        ))}
+        {cur && <circle cx={cur[0]} cy={cur[1]} r={6 * zf} fill="var(--rc-ok-3)" stroke="#000"
+          strokeWidth={1.4} vectorEffect="non-scaling-stroke" />}
+      </svg>
+      {zoomed && (
+        <button style={{ position: "absolute", top: 4, right: 4, fontSize: 11, padding: "2px 8px",
+          borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)",
+          color: "var(--rc-text-2)", cursor: "pointer" }} onClick={reset}
+          title={t("Yakınlaştırmayı sıfırla")}>⟳</button>
+      )}
     </div>
   );
 }
 
-/* Tur karşılaştırma kartı — yüklü .ld üzerinde iki turu mesafe ekseninde üst üste
-   bindirir; pist haritası + hız/gaz/fren/vites/RPM/direksiyon izleri + zaman-delta +
-   sektör farkı. Yalnız gösterim (Firebase'e yazılmaz). cmpData buildCompare çıktısı. */
+/* Tur karşılaştırma kartı — iki turu mesafe ekseninde bindirir; mini pist haritası +
+   hız/gaz/fren/vites/RPM/direksiyon izleri (el-çizimi SVG) + zaman-delta + sektör/viraj
+   tabloları. Yalnız gösterim. cmpData = buildCompare çıktısı. */
 function TraceCompareCard({ t, sources, fallbackMeta, cmpASrc, setCmpASrc, cmpBSrc, setCmpBSrc,
-  cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy }) {
-  const [cursor, setCursor] = useState(null);   // ize gelince pist haritasında işaretlenen nokta
-  /* v1.7.1 — kesirli oynatma konumu: playhead yalnız tam index'e yuvarlanınca 600 nokta /
-     90 sn'lik turda ~7 kare/sn ZIPLAR (kullanıcının "10 fps" şikâyeti). Oynatma sırasında
-     kesir state'e yazılır; cursorD + harita dairesi noktalar ARASINDA interpole edilir →
-     çizgi 25 fps akıcı kayar. Hover/scrub tam sayı davranışında kalır (cursorF=null). */
+  cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy, openImport }) {
+  const [cursor, setCursor] = useState(null);
   const [cursorF, setCursorF] = useState(null);
-  const [big, setBig] = useState(false);        // harita tam pencere
-  const [xWin, setXWin] = useState(null);       // kanal mesafe penceresi (null = tam genişlik)
+  const [big, setBig] = useState(false);
+  const [zoom, setZoom] = useState(null);   // [z0,z1] index penceresi (null = tam tur)
   const [playing, setPlaying] = useState(false);
-  const [playSpeed, setPlaySpeed] = useState(1);
-  const playPosRef = useRef(0);                  // kesirli oynatma index'i
-  const lastDRef = useRef(null);                // tekerlek anchor'ı (imleçten bağımsız son mesafe)
+  const [pSpeed, setPSpeed] = useState(1);
+  const playPosRef = useRef(0);
   const tracesRef = useRef(null);
-  const cardRef = useRef(null);                 // PDF için karttaki SVG'leri toplamak
+  const cardRef = useRef(null);
+  const zoomRef = useRef(null); zoomRef.current = zoom;
+
   const srcOf = (k) => (sources || []).find((s) => s.key === k) || (sources || [])[0];
   const srcA = srcOf(cmpASrc), srcB = srcOf(cmpBSrc);
-  const lapsA = srcA?.laps || [];
-  const lapsB = srcB?.laps || [];
+  const lapsA = srcA?.laps || [], lapsB = srcB?.laps || [];
   const meta = srcA?.meta || fallbackMeta;
   const multiSrc = (sources || []).length > 1;
-  const srcLabel = (k) => (k === "cur"
-    ? (srcOf(k)?.meta?.venue || t("Yüklü dosya")) : `Stint ${k}`);
-  /* kaynak değişince o tarafın turunu en hızlı TAM tura al (index taşmasın) */
+  const srcLabel = (k) => (k === "cur" ? (srcOf(k)?.meta?.venue || t("Yüklü dosya")) : `Stint ${k}`);
   const pickFast = (laps) => {
     if (!laps?.length) return 0;
     const idx = laps.map((_, i) => i).sort((i, j) => laps[i].sec - laps[j].sec);
     const full = idx.filter((i) => !laps[i].partial);
     return (full[0] ?? idx[0]) ?? 0;
   };
-  const venDiff = srcA?.meta?.venue && srcB?.meta?.venue
-    && srcA.meta.venue !== srcB.meta.venue;
   const ch = cmpData?.chans || {};
   const data = cmpData?.data;
   const N = data?.length || 0;
-  const dLo = data?.length ? data[0].d : 0;
-  const dHi = data?.length ? data[data.length - 1].d : 0;
   const unit = cmpData?.distUnit === "frac" ? "%" : "m";
-  /* sektör sınırları (mesafe üçlüsü) — memo: taze dizi kimliği 7 grafiğin +
-     TrackMini'nin memo'larını her render'da kırıyordu */
+
   const marks = useMemo(() => (data ? sectorMarks(data) : []), [data]);
-  /* viraj tespiti: A'nın hız minimumları (apex) → apex hızları + fren mesafeleri (A/B) */
   const apexes = useMemo(() => (data?.length
     ? detectApexes(data.map((p) => p.spA), data.map((p) => p.d)) : []), [data]);
   const corners = useMemo(() => cornerStats(data, apexes), [data, apexes]);
-  const curSec = cursor != null && data?.[cursor]
-    ? sectorOf((data[cursor].frac ?? 0) / 100) : null;   // data.frac 0..100
-  /* imleç konumu: kesirli oynatma varsa iki nokta arası interpole (akıcı), yoksa tam index */
-  const cf = cursorF ?? cursor;
-  const cursorD = (() => {
-    if (cf == null || !data?.length) return null;
-    const i = Math.max(0, Math.min(Math.floor(cf), N - 1));
-    const f = cf - i;
-    const a = data[i], b = data[Math.min(i + 1, N - 1)];
-    return a ? a.d + f * (((b?.d) ?? a.d) - a.d) : null;
-  })();
-  const lapSecA = lapsA[cmpA]?.sec;
-  /* haritada daireyi sürükleyince (scrub): oynatmayı durdur + imleci o noktaya taşı.
-     useCallback: kimlikleri sabit → TraceRow/TrackMini memo'ları oynatma tick'inde
-     kırılmaz (state setter'lar zaten sabit). */
-  const onScrub = useCallback((i) => {
-    setPlaying(false); playPosRef.current = i; setCursorF(null); setCursor(i);
-  }, []);
-  /* grafik üzerinde hover — kesirli oynatma konumunu bırak, tam index'e geç */
-  const hoverCursor = useCallback((i) => { setCursorF(null); setCursor(i); }, []);
-  /* tekerlek yakınlaştırma çapası — tüm grafikler için tek, sabit kimlikli */
-  const anchorD = useCallback((d) => { lastDRef.current = d; }, []);
-  /* hız grafiği apex noktaları — kimlik yalnız corners değişince yenilensin */
-  const speedDots = useMemo(() => corners.flatMap((c) => [
-    c.aMin != null ? { x: c.apexD, y: c.aMin, c: CA } : null,
-    c.bMin != null ? { x: c.apexD, y: c.bMin, c: CB } : null].filter(Boolean)), [corners]);
 
-  /* Oynatma: setInterval (~40ms) imleci tur A süresi boyunca ilerletir; harita noktası +
-     tüm kanallarda playhead (ReferenceLine) noktalar arası interpole edilerek AKICI kayar. */
+  const z0 = zoom ? zoom[0] : 0;
+  const z1 = zoom ? zoom[1] : Math.max(0, N - 1);
+  const zoomed = !!zoom;
+  const cf = cursorF ?? cursor;
+  const cur = Math.max(0, Math.min(N - 1, cursor ?? 0));
+  const lapSecA = lapsA[cmpA]?.sec;
+
+  const onScrub = (i) => { setPlaying(false); playPosRef.current = i; setCursorF(null); setCursor(i); };
+
+  /* oynatma — imleci tur A süresi boyunca ilerletir (kesirli → akıcı) */
   useEffect(() => {
     if (!playing || N < 2) return undefined;
     const id = setInterval(() => {
-      playPosRef.current = advanceCursor(playPosRef.current, N, lapSecA, playSpeed, 40);
+      playPosRef.current = advanceCursor(playPosRef.current, N, lapSecA, pSpeed, 40);
       setCursorF(playPosRef.current);
       setCursor(Math.round(playPosRef.current));
     }, 40);
     return () => clearInterval(id);
-  }, [playing, playSpeed, N, lapSecA]);
-  // tur/dosya değişince oynatmayı durdur (index karışmasın)
+  }, [playing, pSpeed, N, lapSecA]);
   useEffect(() => { setPlaying(false); playPosRef.current = 0; setCursorF(null); }, [cmpA, cmpB]);
-
-  /* Esc → harita tam pencereyi kapat (TrackMap deseni) */
   useEffect(() => {
     if (!big) return undefined;
     const onKey = (e) => { if (e.key === "Escape") setBig(false); };
@@ -378,25 +248,73 @@ function TraceCompareCard({ t, sources, fallbackMeta, cmpASrc, setCmpASrc, cmpBS
     return () => document.removeEventListener("keydown", onKey);
   }, [big]);
 
-  /* Kanallar: tüm satırları saran kapsayıcıda native (passive:false) tekerlek → mesafe
-     penceresini imleç etrafında daralt/genişlet; tüm grafikler syncId ile birlikte yakınlaşır. */
+  /* kanalların üstünde native (passive:false) tekerlek → mesafe penceresini imleç
+     etrafında daralt/genişlet (index tabanlı, fişteki onTraceWheel mantığı). */
   useEffect(() => {
     const el = tracesRef.current;
-    if (!el || !(dHi > dLo)) return undefined;
+    if (!el || N < 2) return undefined;
     const onWheel = (e) => {
       e.preventDefault();
-      const anchor = lastDRef.current ?? (dLo + dHi) / 2;
-      setXWin((w) => zoomDomain(w || [dLo, dHi], anchor, e.deltaY < 0 ? 0.8 : 1.25, [dLo, dHi]));
+      const svg = e.target.closest && e.target.closest("svg");
+      const r = (svg || el).getBoundingClientRect();
+      const f = Math.min(1, Math.max(0, (e.clientX - r.left) / (r.width || 1)));
+      const [c0, c1] = zoomRef.current || [0, N - 1];
+      const anchor = c0 + f * (c1 - c0);
+      const span = c1 - c0;
+      const next = Math.max(30, Math.min(N - 1, Math.round(span * (e.deltaY > 0 ? 1.25 : 0.8))));
+      let a = Math.round(anchor - f * next);
+      a = Math.max(0, Math.min(N - 1 - next, a));
+      setZoom(a <= 0 && a + next >= N - 1 ? null : [a, a + next]);
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
-  }, [dLo, dHi]);
+  }, [N]);
+
+  const onTraceMove = (e) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const f = Math.min(1, Math.max(0, (e.clientX - r.left) / (r.width || 1)));
+    setPlaying(false); setCursorF(null); setCursor(Math.round(z0 + f * (z1 - z0)));
+  };
+
+  /* mini pist haritası geometrisi (statik — imleçten bağımsız) */
+  const mini = useMemo(() => {
+    if (!cmpData?.hasMap || !data?.length) return null;
+    const S = 240, PAD = 16;
+    const xs = data.map((d) => d.mapX), ys = data.map((d) => d.mapY);
+    const minX = Math.min(...xs), maxX = Math.max(...xs);
+    const minY = Math.min(...ys), maxY = Math.max(...ys);
+    const spanX = (maxX - minX) || 1, spanY = (maxY - minY) || 1;
+    const sc = Math.min((S - 2 * PAD) / spanX, (S - 2 * PAD) / spanY);
+    const ox = (S - spanX * sc) / 2, oy = (S - spanY * sc) / 2;
+    const scr = (i) => [ox + (data[i].mapX - minX) * sc, S - (oy + (data[i].mapY - minY) * sc)];
+    const segs = [];
+    for (let i = 0; i + 3 < data.length; i += 3) {
+      const [x1, y1] = scr(i), [x2, y2] = scr(Math.min(i + 3, N - 1));
+      const dd = (data[Math.min(i + 3, N - 1)].dt ?? 0) - (data[i].dt ?? 0);
+      segs.push({ x1, y1, x2, y2, c: dd > 0.003 ? CA : dd < -0.003 ? CB : NEUTRAL });
+    }
+    const perp = (m) => {
+      const p0 = scr(m.i), p1 = scr(Math.min(m.i + 3, N - 1));
+      const dx = p1[0] - p0[0], dy = p1[1] - p0[1], L = Math.hypot(dx, dy) || 1;
+      const px = -dy / L * 7, py = dx / L * 7;
+      return { label: m.label, c: m.c, x1: p0[0] - px, y1: p0[1] - py, x2: p0[0] + px, y2: p0[1] + py,
+        tx: p0[0] + 7, ty: p0[1] + 3 };
+    };
+    const markPts = [
+      { i: 0, label: "S/F", c: "var(--rc-white)" },
+      { i: Math.floor(N / 3), label: "S2", c: "var(--rc-text-2)" },
+      { i: Math.floor((2 * N) / 3), label: "S3", c: "var(--rc-text-2)" },
+    ].map(perp);
+    const apexPts = apexes.map((i, k) => { const [x, y] = scr(i); return { no: k + 1, x, y }; });
+    return { scr, segs, markPts, apexPts };
+  }, [cmpData, data, N, apexes]);
+  const miniCur = mini ? mini.scr(cur) : null;
+
   const lapOpt = (l, i) => (
-    <option key={i} value={i}>Lap {l.lap} · {fmtLap(l.sec)}{l.partial ? " (kısmi)" : ""}</option>
+    <option key={i} value={i}>Lap {l.lap} · {fmtLap(l.sec)}{l.partial ? ` (${t("kısmi")})` : ""}</option>
   );
 
-  /* PDF raporu: karttaki mevcut SVG'leri (harita + grafikler) serialize edip gizli iframe'e
-     yaz → window.print (App.exportPdf deseni, WebView2 popup'suz). Vektör → PDF'te net. */
+  /* PDF: karttaki SVG'leri (harita + izler) serialize edip gizli iframe'e yaz → print. */
   const exportTelePdf = () => {
     const host = cardRef.current;
     if (!host || !cmpData) return;
@@ -413,7 +331,7 @@ function TraceCompareCard({ t, sources, fallbackMeta, cmpASrc, setCmpASrc, cmpBS
     const lapTxt = (laps, i) => (laps[i] ? `Lap ${laps[i].lap} · ${fmtLap(laps[i].sec)}` : "—");
     const secRows = (cmpData.sectors || []).map((s) =>
       `<tr><td>S${s.sec}</td><td>${s.dA.toFixed(3)}</td><td>${s.dB.toFixed(3)}</td>
-        <td style="color:${s.diff > 0 ? CA : CB};font-weight:600">${dlt(s.diff)}</td></tr>`).join("");
+        <td style="font-weight:600">${dlt(s.diff)}</td></tr>`).join("");
     const cond = [meta?.venue, meta?.vehicle, meta?.driver,
       meta?.trk != null ? `${t("Pist")} ${meta.trk.toFixed(0)}°` : null,
       meta?.amb != null ? `${t("Hava")} ${meta.amb.toFixed(0)}°` : null]
@@ -442,9 +360,8 @@ function TraceCompareCard({ t, sources, fallbackMeta, cmpASrc, setCmpASrc, cmpBS
  .foot{color:#999;font-size:10px;margin-top:16px}
 </style></head><body>
 <h1><b>Caspian</b> ${esc(t("Telemetri Raporu"))}</h1>
-<div class="sub">${esc(t("Tur Karşılaştırma"))} — <b style="color:${CA}">A</b> ${esc(lapTxt(lapsA, cmpA))}
-  · <b style="color:${CB}">B</b> ${esc(lapTxt(lapsB, cmpB))}
-  · Δ ${esc(dlt(cmpData.totalDelta))}</div>
+<div class="sub">${esc(t("Tur karşılaştırma"))} — A ${esc(lapTxt(lapsA, cmpA))}
+  · B ${esc(lapTxt(lapsB, cmpB))} · Δ ${esc(dlt(cmpData.totalDelta))}</div>
 ${cond ? `<div class="meta">${cond}</div>` : ""}
 ${svgs}
 <table><thead><tr><th>${esc(t("Sektör"))}</th><th>A</th><th>B</th><th>Δ</th></tr></thead>
@@ -453,245 +370,359 @@ ${svgs}
 <scr${""}ipt>window.onload=function(){window.print()}</scr${""}ipt></body></html>`);
     doc.close();
   };
+
+  /* --- yeniden kullanılan tablo başlık stilleri (fiş thB deseninden) --- */
+  const th = { color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase",
+    letterSpacing: ".1em", textAlign: "right", padding: "9px 12px",
+    borderBottom: "1px solid var(--rc-border)", fontWeight: 600 };
+  const thLeft = { ...th, textAlign: "left" };
+  const thA = { ...th, color: CA };
+  const thB = { ...th, color: CB };
+
+  const totalDelta = cmpData?.totalDelta ?? 0;
+  const cmpSec = data?.length ? Math.min(3, Math.floor(cur / (N / 3)) + 1) : 1;
+  const cursorCells = data?.length ? [
+    ch.speed && { label: t("Hız"), a: Math.round(data[cur].spA), b: Math.round(data[cur].spB), d: Math.round(data[cur].spA - data[cur].spB) },
+    ch.throttle && { label: t("Gaz"), a: `%${Math.round(data[cur].thA)}`, b: `%${Math.round(data[cur].thB)}` },
+    ch.brake && { label: t("Fren"), a: `%${Math.round(data[cur].brA)}`, b: `%${Math.round(data[cur].brB)}` },
+    ch.gear && { label: t("Vites"), a: data[cur].gA, b: data[cur].gB },
+    ch.rpm && { label: t("RPM"), a: Math.round(data[cur].rpmA), b: Math.round(data[cur].rpmB) },
+    ch.steer && { label: t("Direksiyon"), a: data[cur].stA?.toFixed(1), b: data[cur].stB?.toFixed(1) },
+  ].filter(Boolean) : [];
+
+  /* iz kanalı tanımları — mevcut olanlar (cmpData.chans) sırayla */
+  const TRACE_DEFS = data?.length ? [
+    { title: `⏱ ${t("Zaman-Delta (B−A)")}`, a: "dt", fmt: dlt, h: 140, zero: true, solo: true },
+    ch.speed && { title: `🏁 ${t("Hız")} (km/h)`, a: "spA", b: "spB", fmt: sp1, h: 132 },
+    ch.throttle && { title: `🟢 ${t("Gaz")} %`, a: "thA", b: "thB", fmt: pct, h: 110 },
+    ch.brake && { title: `🔴 ${t("Fren")} %`, a: "brA", b: "brB", fmt: pct, h: 110 },
+    ch.gear && { title: `⚙ ${t("Vites")}`, a: "gA", b: "gB", fmt: int0, h: 100 },
+    ch.rpm && { title: `🔧 ${t("RPM")}`, a: "rpmA", b: "rpmB", fmt: int0, h: 100 },
+    ch.steer && { title: `🕹 ${t("Direksiyon")}`, a: "stA", b: "stB", fmt: sp1, h: 100 },
+  ].filter(Boolean) : [];
+
+  const traceGeom = (def) => {
+    const h = def.h;
+    const win = data.slice(z0, z1 + 1);
+    const n = win.length;
+    if (n < 2) return null;
+    const vals = win.map((p) => p[def.a]);
+    const valsB = def.b ? win.map((p) => p[def.b]) : null;
+    const all = (valsB ? vals.concat(valsB) : vals).filter((v) => v != null);
+    const lo = all.length ? Math.min(...all) : 0;
+    const hi = all.length ? Math.max(...all) : 1;
+    const span = (hi - lo) || 1;
+    const yN = (v) => h - 6 - ((v - lo) / span) * (h - 12);
+    const y = (v) => yN(v).toFixed(1);
+    const xN = (i) => (i / (n - 1)) * 720;
+    const poly = (arr) => arr.map((v, i) => (v == null ? null : `${xN(i).toFixed(1)},${y(v)}`)).filter(Boolean).join(" ");
+    const zY = yN(0);
+    const area = (sign) => {
+      let d = "", open = false;
+      vals.forEach((v, i) => {
+        const inSide = sign > 0 ? v > 0 : v < 0;
+        if (inSide && !open) { d += `M${xN(i).toFixed(1)} ${zY.toFixed(1)} `; open = true; }
+        if (inSide) d += `L${xN(i).toFixed(1)} ${y(v)} `;
+        if (!inSide && open) { d += `L${xN(i - 1).toFixed(1)} ${zY.toFixed(1)} Z `; open = false; }
+      });
+      if (open) d += `L${xN(n - 1).toFixed(1)} ${zY.toFixed(1)} Z`;
+      return d;
+    };
+    const ci = Math.min(n - 1, Math.max(0, cur - z0));
+    const cursorX = (xN(ci)).toFixed(1);
+    const solo = !!def.solo;
+    return {
+      h, h2: h - 4, range: `${def.fmt(lo)} – ${def.fmt(hi)}`,
+      marks: [1, 2].map((k) => (((k / 3) * 720).toFixed(1))),
+      zeroY: y(0), showZero: !!def.zero,
+      ptsA: poly(vals), ptsB: valsB ? poly(valsB) : "", hasB: !!valsB,
+      colA: solo ? "var(--rc-warn-2)" : CA,
+      fill: def.zero && solo, fillPos: def.zero && solo ? area(1) : "", fillNeg: def.zero && solo ? area(-1) : "",
+      cursorX, curAY: y(vals[ci] ?? lo), curBY: valsB ? y(valsB[ci] ?? lo) : "0",
+      curAVal: def.fmt(vals[ci]), curBVal: valsB ? def.fmt(valsB[ci]) : "",
+      valX: (xN(ci) + (ci / (n - 1) > 0.7 ? -8 : 8)).toFixed(1),
+      valX2: (xN(ci) + (ci / (n - 1) > 0.7 ? -54 : 54)).toFixed(1),
+      valAnchor: ci / (n - 1) > 0.7 ? "end" : "start",
+    };
+  };
+
+  const scrubVal = Math.round(((cur - z0) / Math.max(1, z1 - z0)) * 100);
+  const sel = { background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)",
+    borderRadius: 8, color: "var(--rc-text)", padding: "6px 9px", fontSize: 12 };
+  const cardHdrTtl = { fontFamily: DISP, textTransform: "uppercase", letterSpacing: ".08em",
+    fontSize: 16, fontWeight: 700 };
+
   return (
-    <div className="card" style={{ marginTop: 12 }} ref={cardRef}>
-      <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        🔬 {t("Tur Karşılaştırma")}
-        {cmpData && Number.isFinite(cmpData.totalDelta) && (
-          <span className="chip" style={{ fontSize: 12,
-            borderColor: cmpData.totalDelta > 0 ? CA : CB,
-            color: cmpData.totalDelta > 0 ? CA : CB }}>
-            Δ {dlt(cmpData.totalDelta)}</span>
+    <div ref={cardRef} style={{ border: "1px solid var(--rc-border)", borderRadius: 12,
+      background: "var(--rc-surface)", marginTop: 16, overflow: "hidden" }}>
+      {/* başlık şeridi */}
+      <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "13px 16px",
+        borderBottom: "1px solid var(--rc-border)", flexWrap: "wrap" }}>
+        <span style={cardHdrTtl}>🔬 {t("Tur karşılaştırma")}</span>
+        {cmpData && Number.isFinite(totalDelta) && (
+          <span style={{ fontSize: 12, padding: "3px 11px", borderRadius: 99, fontFamily: DISP,
+            border: `1px solid ${totalDelta > 0 ? CA : CB}`, color: totalDelta > 0 ? CA : CB }}>
+            Δ {dlt(totalDelta)}</span>
         )}
-        {curSec != null && (
-          <span className="chip" style={{ fontSize: 12 }}>📍 {t("Sektör")} S{curSec}</span>
+        {cmpData && (
+          <span style={{ fontSize: 12, padding: "3px 11px", borderRadius: 99,
+            border: "1px solid var(--rc-border)", color: "var(--rc-text-2)" }}>
+            📍 {t("Sektör")} S{cmpSec}</span>
         )}
-      </h2>
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", fontSize: 12 }}>
-        <label style={{ display: "flex", alignItems: "center", gap: 5, margin: 0 }}>
-          <span style={{ width: 10, height: 10, borderRadius: 2, background: CA, display: "inline-block" }} />
-          A
+        <button onClick={exportTelePdf} style={{ marginLeft: "auto", padding: "7px 13px",
+          borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)",
+          color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12 }}>📄 PDF</button>
+      </div>
+
+      {/* A / B tur seçiciler */}
+      <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap",
+        padding: "12px 16px", borderBottom: "1px solid var(--rc-line-soft)" }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
+          <i style={{ width: 11, height: 11, borderRadius: 3, background: CA, display: "inline-block" }} />
+          <b style={{ fontSize: 13 }}>A</b>
           {multiSrc && (
-            <select value={cmpASrc} onChange={(e) => { setCmpASrc(e.target.value);
+            <select value={cmpASrc} style={sel} onChange={(e) => { setCmpASrc(e.target.value);
               setCmpA(pickFast(srcOf(e.target.value)?.laps)); }}>
               {sources.map((s) => <option key={s.key} value={s.key}>{srcLabel(s.key)}</option>)}
             </select>
           )}
-          <select value={cmpA ?? 0} onChange={(e) => setCmpA(+e.target.value)}>{lapsA.map(lapOpt)}</select>
-        </label>
-        <label style={{ display: "flex", alignItems: "center", gap: 5, margin: 0 }}>
-          <span style={{ width: 10, height: 10, borderRadius: 2, background: CB, display: "inline-block" }} />
-          B
+          <select value={cmpA ?? 0} style={sel} onChange={(e) => setCmpA(+e.target.value)}>{lapsA.map(lapOpt)}</select>
+        </span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
+          <i style={{ width: 11, height: 11, borderRadius: 3, background: CB, display: "inline-block" }} />
+          <b style={{ fontSize: 13 }}>B</b>
           {multiSrc && (
-            <select value={cmpBSrc} onChange={(e) => { setCmpBSrc(e.target.value);
+            <select value={cmpBSrc} style={sel} onChange={(e) => { setCmpBSrc(e.target.value);
               setCmpB(pickFast(srcOf(e.target.value)?.laps)); }}>
               {sources.map((s) => <option key={s.key} value={s.key}>{srcLabel(s.key)}</option>)}
             </select>
           )}
-          <select value={cmpB ?? 0} onChange={(e) => setCmpB(+e.target.value)}>{lapsB.map(lapOpt)}</select>
-        </label>
-        {venDiff && (
-          <span className="chip" style={{ fontSize: 11, borderColor: "var(--yellow)",
-            color: "var(--yellow)" }}>⚠ {t("farklı pist — kıyas dikkatli")}</span>
+          <select value={cmpB ?? 0} style={sel} onChange={(e) => setCmpB(+e.target.value)}>{lapsB.map(lapOpt)}</select>
+        </span>
+        {meta && (meta.venue || meta.trk != null || meta.amb != null) && (
+          <span style={{ fontSize: 11, color: "var(--rc-text-3)", marginLeft: "auto" }}>
+            {meta.venue && <>🏁 {meta.venue} </>}
+            {meta.vehicle && <>· 🚗 {meta.vehicle} </>}
+            {meta.driver && <>· 👤 {meta.driver} </>}
+            {meta.trk != null && <>· 🛣 {meta.trk.toFixed(0)}° </>}
+            {meta.amb != null && <>/ 🌡 {meta.amb.toFixed(0)}°</>}
+          </span>
         )}
       </div>
-      {meta && (meta.venue || meta.trk != null || meta.amb != null) && (
-        <div className="hint" style={{ marginTop: 4, opacity: .85, display: "flex",
-          gap: 8, flexWrap: "wrap" }}>
-          {meta.venue && <span>🏁 {meta.venue}</span>}
-          {meta.vehicle && <span>· 🚗 {meta.vehicle}</span>}
-          {meta.driver && <span>· 👤 {meta.driver}</span>}
-          {meta.trk != null && <span>· 🛣 {t("Pist")} {meta.trk.toFixed(0)}°</span>}
-          {meta.amb != null && <span>· 🌡 {t("Hava")} {meta.amb.toFixed(0)}°</span>}
-        </div>
-      )}
 
-      {cmpBusy && <div className="hint" style={{ marginTop: 6 }}>⏳ {t("İzler hazırlanıyor…")}</div>}
-      {!cmpBusy && !cmpData && <div className="hint" style={{ marginTop: 6 }}>{t("İz verisi çıkarılamadı — bu dosyada hız/mesafe kanalı olmayabilir.")}</div>}
-
-      {cmpData && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-          <button className="act" style={{ fontSize: 13, padding: "3px 12px" }}
-            title={t("Telemetriyi oynat")} onClick={() => setPlaying((p) => !p)}>
-            {playing ? "⏸" : "▶"}</button>
-          <select value={playSpeed} onChange={(e) => setPlaySpeed(+e.target.value)}
-            style={{ fontSize: 12 }} title={t("Oynatma hızı")}>
-            <option value={0.5}>0.5×</option>
-            <option value={1}>1×</option>
-            <option value={2}>2×</option>
-          </select>
-          <input type="range" min={0} max={Math.max(0, N - 1)} value={cursor ?? 0}
-            onChange={(e) => { const i = +e.target.value; setPlaying(false);
-              playPosRef.current = i; setCursorF(null); setCursor(i); }}
-            style={{ flex: "1 1 140px", minWidth: 120 }} aria-label={t("Konum")} />
-          {cmpData.hasMap && (
-            <button className="act" style={{ fontSize: 11, padding: "3px 10px" }}
-              title={t("Haritayı büyük pencerede aç")} onClick={() => setBig(true)}>
-              ⛶ {t("Büyüt")}</button>
-          )}
-          <button className="act" style={{ fontSize: 11, padding: "3px 10px" }}
-            title={t("Grafikleri PDF rapor olarak çıkart (tam tur için önce ⟳ sıfırla)")}
-            onClick={exportTelePdf}>📄 PDF</button>
-        </div>
-      )}
-
-      {/* İmleç değer paneli: cursor (hover/scrub/oynatma) konumundaki tüm kanalların A/B değeri + fark */}
-      {cmpData && cursor != null && data?.[cursor] && (() => {
-        const p = data[cursor];
-        const cell = (lbl, aV, bV, fmtV, diff) => (
-          <span key={lbl} className="chip" style={{ fontSize: 11 }}>
-            {lbl} <b style={{ color: CA }}>{fmtV(aV)}</b>/<b style={{ color: CB }}>{fmtV(bV)}</b>
-            {diff && aV != null && bV != null && (
-              <span style={{ opacity: .7 }}> ({aV - bV >= 0 ? "+" : ""}{Math.round(aV - bV)})</span>
-            )}
-          </span>
-        );
-        const iv = (v) => (v == null ? "—" : String(Math.round(v)));
-        return (
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginTop: 8 }}>
-            <span className="chip" style={{ fontSize: 11 }}>📍 {Math.round(p.d)} {unit} · Δ {dlt(p.dt)}</span>
-            {ch.speed && cell(t("Hız"), p.spA, p.spB, iv, true)}
-            {ch.throttle && cell(t("Gaz"), p.thA, p.thB, pct)}
-            {ch.brake && cell(t("Fren"), p.brA, p.brB, pct)}
-            {ch.gear && cell(t("Vites"), p.gA, p.gB, iv)}
-            {ch.rpm && cell(t("RPM"), p.rpmA, p.rpmB, iv)}
-            {ch.steer && cell(t("Direksiyon"), p.stA, p.stB, sp1)}
-          </div>
-        );
-      })()}
-      {cmpData && cursor == null && (
-        <div className="hint" style={{ marginTop: 8, opacity: .6 }}>
-          {t("ize gel / oynat / daireyi sürükle → o noktadaki A/B değerleri")}
-        </div>
-      )}
-
-      {cmpData && cmpData.hasMap && (
-        <TrackMini t={t} data={cmpData.data} cursor={cf} src={cmpData.mapSrc} marks={marks} apex={apexes} onScrub={onScrub} />
-      )}
-      {cmpData && !cmpData.hasMap && (
-        <div className="hint" style={{ marginTop: 6, opacity: .7 }}>
-          🗺 {t("Pist haritası çizilemedi — bu dosyada konum ya da yanal-G kanalı yok.")}
-        </div>
+      {cmpBusy && <div style={{ padding: "12px 16px", fontSize: 12, color: "var(--rc-text-3)" }}>⏳ {t("İzler hazırlanıyor…")}</div>}
+      {!cmpBusy && !cmpData && (
+        <div style={{ padding: "12px 16px", fontSize: 12, color: "var(--rc-text-3)" }}>
+          {t("İz verisi çıkarılamadı — bu dosyada hız/mesafe kanalı olmayabilir.")}</div>
       )}
 
       {cmpData && (<>
-        <div className="hint" style={{ marginTop: 6, opacity: .8, display: "flex",
-          alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <span>{t("X ekseni")}: {unit === "%" ? t("tur kesri %") : t("mesafe (m)")} · {t("kırmızı A, mavi B")} ·
-            {" "}{t("delta > 0 = B daha yavaş")} · 🖱 {t("tekerlek: yakınlaştır")}</span>
-          {xWin && (
-            <button className="act" style={{ fontSize: 11, padding: "2px 8px" }}
-              onClick={() => setXWin(null)}>⟳ {t("Yakınlaştırmayı sıfırla")}</button>
-          )}
-        </div>
-        <div ref={tracesRef}>
-        <TraceRow data={cmpData.data} title={`⏱ ${t("Zaman-Delta (B−A)")}`} unit={unit}
-          keys={K_DT} colors={C_DT} fmt={dlt} height={140} zero
-          onCursor={hoverCursor} onAnchor={anchorD} xDomain={xWin} bounds={marks} cursorD={cursorD} />
-        {ch.speed && (
-          <TraceRow data={cmpData.data} title={`🏁 ${t("Hız")} (km/h)`} unit={unit}
-            keys={K_SP} colors={C_AB} fmt={sp1}
-            onCursor={hoverCursor} onAnchor={anchorD} xDomain={xWin} bounds={marks} cursorD={cursorD}
-            dots={speedDots} />
-        )}
-        {ch.throttle && (
-          <TraceRow data={cmpData.data} title={`🟢 ${t("Gaz")} %`} unit={unit}
-            keys={K_TH} colors={C_AB} fmt={pct} height={110} dashB
-            onCursor={hoverCursor} onAnchor={anchorD} xDomain={xWin} bounds={marks} cursorD={cursorD} />
-        )}
-        {ch.brake && (
-          <TraceRow data={cmpData.data} title={`🔴 ${t("Fren")} %`} unit={unit}
-            keys={K_BR} colors={C_AB} fmt={pct} height={110} dashB
-            onCursor={hoverCursor} onAnchor={anchorD} xDomain={xWin} bounds={marks} cursorD={cursorD} />
-        )}
-        {ch.gear && (
-          <TraceRow data={cmpData.data} title={`⚙ ${t("Vites")}`} unit={unit}
-            keys={K_G} colors={C_AB} fmt={int0} height={100} dashB
-            onCursor={hoverCursor} onAnchor={anchorD} xDomain={xWin} bounds={marks} cursorD={cursorD} />
-        )}
-        {ch.rpm && (
-          <TraceRow data={cmpData.data} title={`🔧 ${t("RPM")}`} unit={unit}
-            keys={K_RPM} colors={C_AB} fmt={int0} height={100}
-            onCursor={hoverCursor} onAnchor={anchorD} xDomain={xWin} bounds={marks} cursorD={cursorD} />
-        )}
-        {ch.steer && (
-          <TraceRow data={cmpData.data} title={`🕹 ${t("Direksiyon")}`} unit={unit}
-            keys={K_ST} colors={C_AB} fmt={sp1} height={100}
-            onCursor={hoverCursor} onAnchor={anchorD} xDomain={xWin} bounds={marks} cursorD={cursorD} />
-        )}
-        </div>
-
-        <table style={{ maxWidth: 420, marginTop: 10, fontSize: 12 }}>
-          <thead><tr>
-            <th>{t("Sektör")}</th><th style={{ color: CA }}>A</th>
-            <th style={{ color: CB }}>B</th><th>Δ</th>
-          </tr></thead>
-          <tbody>
-            {cmpData.sectors.map((s) => (
-              <tr key={s.sec}>
-                <td>S{s.sec}</td>
-                <td className="mono">{s.dA.toFixed(3)}</td>
-                <td className="mono">{s.dB.toFixed(3)}</td>
-                <td className="mono" style={{ color: s.diff > 0 ? CA : CB, fontWeight: 600 }}>{dlt(s.diff)}</td>
-              </tr>
+        {/* oynatma çubuğu */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
+          padding: "11px 16px", borderBottom: "1px solid var(--rc-line-soft)" }}>
+          <button onClick={() => setPlaying((p) => !p)} style={{ width: 38, height: 32, borderRadius: 9,
+            cursor: "pointer", fontSize: 13, border: `1px solid ${playing ? "var(--rc-ok)" : "var(--rc-border)"}`,
+            background: playing ? "rgba(55,214,122,.14)" : "var(--rc-surface-3)",
+            color: playing ? "var(--rc-ok)" : "var(--rc-text)" }} title={t("Telemetriyi oynat")}>
+            {playing ? "⏸" : "▶"}</button>
+          <span style={{ display: "flex", gap: 4 }}>
+            {[0.5, 1, 2].map((v) => (
+              <button key={v} onClick={() => setPSpeed(v)} style={{ padding: "6px 11px", borderRadius: 8,
+                cursor: "pointer", fontSize: 11.5, border: `1px solid ${pSpeed === v ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
+                background: pSpeed === v ? "var(--rc-glow-brand)" : "var(--rc-surface-3)",
+                color: pSpeed === v ? "var(--rc-text)" : "var(--rc-text-3)" }}>{v}×</button>
             ))}
-          </tbody>
-        </table>
-        <div className="hint" style={{ marginTop: 4, opacity: .6 }}>
-          {t("Sektörler tur-kesri üçlüsüdür (mesafe/3); gerçek S/F beacon'ı değil.")}
+          </span>
+          <input type="range" min={0} max={100} value={scrubVal}
+            onChange={(e) => { setPlaying(false); playPosRef.current = Math.round(z0 + (+e.target.value / 100) * (z1 - z0));
+              setCursorF(null); setCursor(playPosRef.current); }}
+            style={{ flex: "1 1 180px", minWidth: 140, accentColor: "var(--rc-ok)" }} aria-label={t("Konum")} />
+          <span style={{ fontFamily: DISP, fontSize: 12, color: "var(--rc-text-3)", whiteSpace: "nowrap" }}>
+            {data?.length ? Math.round(data[cur].d) : 0} {unit} · Δ {data?.length ? dlt(data[cur].dt) : "—"}</span>
+          {zoomed && (
+            <span style={{ fontSize: 11, padding: "5px 11px", borderRadius: 99, border: "1px solid var(--rc-warn)",
+              color: "var(--rc-warn)", whiteSpace: "nowrap" }}>
+              🔍 {`${Math.round(data[z0].d)}–${Math.round(data[z1].d)} ${unit}`}
+              <button onClick={() => setZoom(null)} style={{ marginLeft: 8, background: "none", border: "none",
+                color: "var(--rc-warn)", cursor: "pointer", fontSize: 11, padding: 0, textDecoration: "underline" }}>
+                {t("sıfırla")}</button></span>
+          )}
+          {cmpData.hasMap && (
+            <button onClick={() => setBig(true)} style={{ padding: "6px 12px", borderRadius: 8,
+              border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)",
+              cursor: "pointer", fontSize: 11.5, whiteSpace: "nowrap" }}>⛶ {t("Büyüt")}</button>
+          )}
+          <span style={{ fontSize: 10.5, color: "var(--rc-border-hi)", whiteSpace: "nowrap" }}>
+            {t("← → adım · Space oynat · tekerlek yakınlaştır")}</span>
         </div>
 
-        {/* Viraj analizi: apex (viraj ortası) hızları + fren mesafeleri (A/B) */}
-        {corners.length > 0 ? (<>
-          <h3 style={{ fontSize: 13, margin: "14px 0 4px" }}>🏁 {t("Viraj Analizi")}</h3>
-          <div style={{ overflowX: "auto" }}>
-          <table style={{ fontSize: 12 }}>
-            <thead><tr>
-              <th>{t("Viraj")}</th><th>{t("Mesafe")}</th>
-              <th style={{ color: CA }}>A {t("apex")}</th><th style={{ color: CB }}>B {t("apex")}</th><th>Δ</th>
-              <th style={{ color: CA }}>A {t("fren")}</th><th style={{ color: CB }}>B {t("fren")}</th>
-            </tr></thead>
-            <tbody>
-              {corners.map((c) => {
-                const spD = (c.aMin != null && c.bMin != null) ? c.aMin - c.bMin : null;
-                const bd = (v) => (v == null ? "—" : `${Math.round(v)} ${unit}`);
-                return (
-                  <tr key={c.no}>
-                    <td style={{ fontWeight: 700, color: "#F5C84C" }}>{c.no}</td>
-                    <td className="mono">{Math.round(c.apexD)} {unit}</td>
-                    <td className="mono">{c.aMin != null ? Math.round(c.aMin) : "—"}</td>
-                    <td className="mono">{c.bMin != null ? Math.round(c.bMin) : "—"}</td>
-                    <td className="mono" style={{ color: spD == null ? "inherit" : spD >= 0 ? CA : CB, fontWeight: 600 }}>
-                      {spD == null ? "—" : `${spD >= 0 ? "+" : ""}${Math.round(spD)}`}</td>
-                    <td className="mono">{bd(c.aBrakeDist)}</td>
-                    <td className="mono">{bd(c.bBrakeDist)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          </div>
-          <div className="hint" style={{ marginTop: 4, opacity: .6 }}>
-            {t("apex = viraj ortası (en düşük hız); fren = fren-başından apex'e mesafe. Sezgisel tespit (gerçek beacon değil).")}
-          </div>
-        </>) : (
-          <div className="hint" style={{ marginTop: 10, opacity: .6 }}>
-            {t("Viraj tespit edilemedi — hız/fren kanalı gerekli.")}
+        {/* imleç değer rozetleri */}
+        {cursorCells.length > 0 && (
+          <div style={{ display: "flex", gap: 7, flexWrap: "wrap", padding: "11px 16px",
+            borderBottom: "1px solid var(--rc-line-soft)" }}>
+            {cursorCells.map((c) => (
+              <span key={c.label} style={{ display: "inline-flex", alignItems: "baseline", gap: 6,
+                padding: "4px 11px", borderRadius: 99, border: "1px solid var(--rc-border)",
+                fontSize: 11.5, background: "var(--rc-surface-3)" }}>
+                <span style={{ color: "var(--rc-text-3)" }}>{c.label}</span>
+                <b style={{ color: CA, fontFamily: DISP }}>{c.a}</b>
+                <span style={{ color: "var(--rc-border-strong)" }}>/</span>
+                <b style={{ color: CB, fontFamily: DISP }}>{c.b}</b>
+                {c.d != null && <span style={{ color: "var(--rc-text-3)", fontSize: 10.5 }}>
+                  ({c.d >= 0 ? "+" : ""}{c.d})</span>}
+              </span>
+            ))}
           </div>
         )}
+
+        {/* mini harita + iz kanalları */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 16, padding: "14px 16px" }}>
+          {mini && (
+            <div style={{ flex: "0 1 320px", minWidth: 260 }}>
+              <svg viewBox="0 0 240 240" style={{ width: "100%", height: "auto", display: "block" }}>
+                {mini.segs.map((s, i) => (
+                  <line key={i} x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} stroke={s.c} strokeWidth={3.4} strokeLinecap="round" />
+                ))}
+                {mini.markPts.map((m) => (
+                  <g key={m.label}>
+                    <line x1={m.x1} y1={m.y1} x2={m.x2} y2={m.y2} stroke={m.c} strokeWidth={2} strokeLinecap="round" />
+                    <text x={m.tx} y={m.ty} fill={m.c} fontSize={8}>{m.label}</text>
+                  </g>
+                ))}
+                {mini.apexPts.map((a) => (
+                  <text key={a.no} x={a.x} y={a.y} fill="var(--rc-warn-2)" fontSize={9} fontWeight="700"
+                    textAnchor="middle" dominantBaseline="central">{a.no}</text>
+                ))}
+                {miniCur && <circle cx={miniCur[0]} cy={miniCur[1]} r={6} fill="var(--rc-ok-3)" stroke="#000" strokeWidth={1.2} />}
+              </svg>
+              <div style={{ textAlign: "center", fontSize: 11, color: "var(--rc-text-3)", marginTop: 5 }}>
+                <span style={{ color: CA }}>■</span> {t("A hızlı")} · <span style={{ color: CB }}>■</span> {t("B hızlı")} · {t("konum kanalından")}
+              </div>
+            </div>
+          )}
+          {!mini && (
+            <div style={{ flex: "0 1 320px", minWidth: 260, fontSize: 12, color: "var(--rc-text-3)" }}>
+              🗺 {t("Pist haritası çizilemedi — bu dosyada konum ya da yanal-G kanalı yok.")}</div>
+          )}
+
+          <div ref={tracesRef} style={{ flex: "1 1 420px", minWidth: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+            {TRACE_DEFS.map((def) => {
+              const g = traceGeom(def);
+              if (!g) return null;
+              return (
+                <div key={def.title}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: "var(--rc-text-2)" }}>{def.title}</span>
+                    <span style={{ marginLeft: "auto", fontFamily: DISP, fontSize: 10.5, color: "var(--rc-text-3)" }}>{g.range}</span>
+                  </div>
+                  <svg viewBox={`0 0 720 ${g.h}`} onMouseMove={onTraceMove}
+                    style={{ width: "100%", height: "auto", display: "block", background: "var(--rc-surface-2)",
+                      border: "1px solid var(--rc-line-soft)", borderRadius: 8, cursor: "crosshair", touchAction: "none" }}>
+                    {g.marks.map((mx, i) => (
+                      <line key={i} x1={mx} y1={4} x2={mx} y2={g.h2} stroke="var(--rc-border-strong)" strokeWidth={1} strokeDasharray="2 3" />
+                    ))}
+                    {g.showZero && <line x1={0} y1={g.zeroY} x2={720} y2={g.zeroY} stroke="var(--rc-border)" strokeWidth={1} strokeDasharray="4 4" />}
+                    {g.fill && <path d={g.fillPos} fill="rgba(255,84,112,.22)" />}
+                    {g.fill && <path d={g.fillNeg} fill="rgba(77,159,255,.22)" />}
+                    {g.hasB && <polyline points={g.ptsB} fill="none" stroke={CB} strokeWidth={1.7} strokeLinejoin="round" />}
+                    <polyline points={g.ptsA} fill="none" stroke={g.colA} strokeWidth={1.9} strokeLinejoin="round" />
+                    <line x1={g.cursorX} y1={0} x2={g.cursorX} y2={g.h} stroke="var(--rc-ok-3)" strokeWidth={1.4} />
+                    <circle cx={g.cursorX} cy={g.curAY} r={3.2} fill={g.colA} />
+                    {g.hasB && <circle cx={g.cursorX} cy={g.curBY} r={3.2} fill={CB} />}
+                    <text x={g.valX} y={14} textAnchor={g.valAnchor} fill={g.colA} fontSize={11.5} fontWeight="700" fontFamily={DISP}>{g.curAVal}</text>
+                    {g.hasB && <text x={g.valX2} y={14} textAnchor={g.valAnchor} fill={CB} fontSize={11.5} fontWeight="700" fontFamily={DISP}>{g.curBVal}</text>}
+                  </svg>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* sektör farkı + viraj analizi tabloları */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 16, padding: "0 16px 16px" }}>
+          <div style={{ flex: "1 1 300px", minWidth: 260 }}>
+            <div style={{ fontFamily: DISP, textTransform: "uppercase", letterSpacing: ".08em",
+              fontSize: 13, fontWeight: 700, marginBottom: 8 }}>{t("Sektör farkı")}</div>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead><tr>
+                <th style={thLeft}>{t("Sektör")}</th><th style={thA}>A</th><th style={thB}>B</th><th style={th}>Δ</th>
+              </tr></thead>
+              <tbody>
+                {cmpData.sectors.map((s) => (
+                  <tr key={s.sec}>
+                    <td style={{ padding: "8px 12px", borderBottom: "1px solid var(--rc-line-soft)", textAlign: "left",
+                      fontFamily: DISP, fontWeight: 700, fontSize: 15 }}>S{s.sec}</td>
+                    <td style={{ padding: "8px 12px", borderBottom: "1px solid var(--rc-line-soft)", textAlign: "right",
+                      fontFamily: DISP, fontSize: 12.5, color: "var(--rc-text-2)" }}>{s.dA.toFixed(3)}</td>
+                    <td style={{ padding: "8px 12px", borderBottom: "1px solid var(--rc-line-soft)", textAlign: "right",
+                      fontFamily: DISP, fontSize: 12.5, color: "var(--rc-text-2)" }}>{s.dB.toFixed(3)}</td>
+                    <td style={{ padding: "8px 12px", borderBottom: "1px solid var(--rc-line-soft)", textAlign: "right",
+                      fontFamily: DISP, fontSize: 12.5, fontWeight: 600, color: s.diff > 0 ? CA : CB }}>
+                      {`${s.diff >= 0 ? "+" : ""}${s.diff.toFixed(3)}s`}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div style={{ fontSize: 10.5, color: "var(--rc-border-strong)", marginTop: 6, lineHeight: 1.5 }}>
+              {t("Sektörler tur-kesri üçlüsüdür; gerçek S/F beacon'ı değil.")}</div>
+          </div>
+
+          <div style={{ flex: "1 1 420px", minWidth: 0 }}>
+            <div style={{ fontFamily: DISP, textTransform: "uppercase", letterSpacing: ".08em",
+              fontSize: 13, fontWeight: 700, marginBottom: 8 }}>🏁 {t("Viraj analizi")}</div>
+            {corners.length > 0 ? (
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 420 }}>
+                  <thead><tr>
+                    <th style={thLeft}>{t("Viraj")}</th><th style={th}>{t("Mesafe")}</th>
+                    <th style={thA}>A {t("apex")}</th><th style={thB}>B {t("apex")}</th><th style={th}>Δ</th>
+                    <th style={thA}>A {t("fren")}</th><th style={thB}>B {t("fren")}</th>
+                  </tr></thead>
+                  <tbody>
+                    {corners.map((c) => {
+                      const spD = (c.aMin != null && c.bMin != null) ? Math.round(c.aMin - c.bMin) : null;
+                      const bd = (v) => (v == null ? "—" : `${Math.round(v)} ${unit}`);
+                      const tdBase = { padding: "8px 12px", borderBottom: "1px solid var(--rc-line-soft)",
+                        textAlign: "right", fontFamily: DISP, fontSize: 12, color: "var(--rc-text-2)" };
+                      return (
+                        <tr key={c.no}>
+                          <td style={{ padding: "8px 12px", borderBottom: "1px solid var(--rc-line-soft)",
+                            textAlign: "left", fontWeight: 700, color: "var(--rc-warn-2)", fontSize: 13 }}>{c.no}</td>
+                          <td style={tdBase}>{Math.round(c.apexD)} {unit}</td>
+                          <td style={tdBase}>{c.aMin != null ? Math.round(c.aMin) : "—"}</td>
+                          <td style={tdBase}>{c.bMin != null ? Math.round(c.bMin) : "—"}</td>
+                          <td style={{ ...tdBase, fontWeight: 600, color: spD == null ? "var(--rc-text-2)" : spD >= 0 ? CA : CB }}>
+                            {spD == null ? "—" : `${spD >= 0 ? "+" : ""}${spD}`}</td>
+                          <td style={tdBase}>{bd(c.aBrakeDist)}</td>
+                          <td style={tdBase}>{bd(c.bBrakeDist)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div style={{ fontSize: 12, color: "var(--rc-text-3)" }}>{t("Viraj tespit edilemedi — hız/fren kanalı gerekli.")}</div>
+            )}
+            <div style={{ fontSize: 10.5, color: "var(--rc-border-strong)", marginTop: 6, lineHeight: 1.5 }}>
+              {t("apex = viraj ortası (en düşük hız); fren = fren başından apex'e mesafe. Sezgisel tespit.")}</div>
+          </div>
+        </div>
       </>)}
 
       {big && cmpData?.hasMap && (
-        <div className="wxmodal" onClick={() => setBig(false)} role="dialog" aria-modal="true">
-          <div className="wxmbox map" onClick={(e) => e.stopPropagation()}>
-            <div className="wxmhead">
-              <span>🗺 {t("Pist Haritası")}</span>
-              <button className="act" style={{ fontSize: 12, padding: "2px 10px" }}
-                title={t("Kapat")} onClick={() => setBig(false)}>✕</button>
+        <div onClick={() => setBig(false)} role="dialog" aria-modal="true"
+          style={{ position: "fixed", inset: 0, zIndex: 60, background: "var(--rc-scrim-strong)",
+            display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--rc-surface)",
+            border: "1px solid var(--rc-border-strong)", borderRadius: 14, padding: 16, maxWidth: 680, width: "100%" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+              <span style={cardHdrTtl}>🗺 {t("Pist haritası")}</span>
+              <button onClick={() => setBig(false)} style={{ marginLeft: "auto", padding: "2px 10px", borderRadius: 8,
+                border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)",
+                cursor: "pointer", fontSize: 12 }} title={t("Kapat")}>✕</button>
             </div>
-            <div className="mapwrap">
-              <TrackMini t={t} data={cmpData.data} cursor={cf} src={cmpData.mapSrc} marks={marks} apex={apexes} onScrub={onScrub} big />
-            </div>
+            <TrackMini t={t} data={cmpData.data} cursor={cf} marks={marks} apex={apexes} onScrub={onScrub} big />
           </div>
         </div>
       )}
@@ -699,9 +730,9 @@ ${svgs}
   );
 }
 
-/* Telemetri sekmesi — MoTeC içe aktarma, sütun eşleme, stint analizi + grafikler.
+/* Telemetri sekmesi — MoTeC içe aktarma, stint analizi + grafikler, tur karşılaştırma.
    Tüm state/derived (parsed/slotStats/chartData/loadedSlots/baseSlot) ve handler'lar
-   App'ten prop gelir. fmtMs lokal (fmtLap sarmalayıcı). */
+   App'ten prop gelir; veri katmanı değişmez. */
 export default function TeleTab({
   t, lang, st, slot, setSlot, rawTele, setRawTele, doParse, onTeleFile,
   parsed, mapping, setMapping, saveMotec, saveSlot, loadedSlots, slotStats,
@@ -709,10 +740,12 @@ export default function TeleTab({
   cmpMeta, cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy, savedMsg,
   cmpSources, cmpASrc, setCmpASrc, cmpBSrc, setCmpBSrc, onSaveDuckSetup, standalone,
 }) {
-  const fmtMs = (ms) => fmtLap(ms / 1000);
-  /* Yapıştırma alanı debounce'u: parseMotecLog tüm metni satır satır + karakter
-     karakter tarar (100 Hz × 200+ kanal log'unda büyük iş) — her tuş vuruşunda
-     değil, yazma durunca (300 ms) bir kez koşar. */
+  const fileRef = useRef(null);
+  const [importOpen, setImportOpen] = useState(false);   // fiş importOpen — yükleme penceresi
+  const openImport = () => setImportOpen(true);
+  const [colMap, setColMap] = useState(false);
+
+  /* yapıştırma alanı debounce'u (parseMotecLog ağır) — yazma durunca (300ms) koşar */
   const parseTimerRef = useRef(null);
   useEffect(() => () => clearTimeout(parseTimerRef.current), []);
   const onRawChange = (e) => {
@@ -721,282 +754,640 @@ export default function TeleTab({
     clearTimeout(parseTimerRef.current);
     parseTimerRef.current = setTimeout(() => doParse(v), 300);
   };
+
+  const parsedHasTable = !!(parsed && !parsed.loading && !parsed.error && parsed.motec);
+  const parsedHasMap = !!(parsed && !parsed.loading && !parsed.error && !parsed.motec && mapping && parsed.lapRows?.length);
+  const teleEmpty = loadedSlots.length === 0 && !parsedHasTable && !parsedHasMap
+    && !(cmpSources?.length) && !parsed?.loading;
+
+  const chartLine = chartMode === "line";
+
+  /* --- kutu/tur-tur grafiği: yüklü stintlerin turlarından (saniye) --- */
+  const boxes = useMemo(() => {
+    const rows = loadedSlots.map((id) => {
+      const laps = (st.telemetry[id]?.laps || []).filter((l) => l.use).map((l) => l.ms / 1000);
+      return { id, laps, c: SLOT_COLORS[id] };
+    }).filter((r) => r.laps.length);
+    if (!rows.length) return { rows: [], lo: 0, hi: 1 };
+    const all = rows.flatMap((r) => r.laps);
+    const lo = Math.min(...all), hi = Math.max(...all);
+    const pad = (hi - lo) * 0.08 || 0.5;
+    return {
+      rows: rows.map((r) => {
+        const v = [...r.laps].sort((a, b) => a - b);
+        return { ...r, min: v[0], max: v[v.length - 1],
+          q1: quantile(v, 0.25), med: quantile(v, 0.5), q3: quantile(v, 0.75), n: v.length };
+      }),
+      lo: lo - pad, hi: hi + pad,
+    };
+  }, [loadedSlots, st.telemetry]);
+
+  const BOX_LO = boxes.lo, BOX_HI = boxes.hi;
+  const by = (v) => 240 - ((v - BOX_LO) / (BOX_HI - BOX_LO || 1)) * 220;
+  const gridLines = [0, 1, 2, 3].map((i) => {
+    const v = BOX_LO + (i / 3) * (BOX_HI - BOX_LO);
+    const y = by(v);
+    return { y: y.toFixed(1), ty: (y + 4).toFixed(1), label: fmtLapSec(v) };
+  });
+  const maxLen = Math.max(1, ...boxes.rows.map((r) => r.n));
+  const xTicks = Array.from({ length: Math.min(7, maxLen) }, (_, k) => {
+    const idx = Math.round((k / Math.max(1, Math.min(7, maxLen) - 1)) * (maxLen - 1));
+    return { x: (60 + (idx / Math.max(1, maxLen - 1)) * 740).toFixed(1), label: String(idx + 1) };
+  });
+
+  /* özet kutucukları — mevcut slotStats'tan türetildi (fiş sabit demo değerler) */
+  const bs = slotStats[baseSlot] || {};
+  const other = loadedSlots.find((sl) => sl !== baseSlot && slotStats[sl] && !slotStats[sl].empty);
+  const delta1 = other ? (bs.avgMs - slotStats[other].avgMs) / 1000 : null;
+
+  /* Telemetri meta yalnız araç ADI verir (sınıf/car-id yok). Katalogda adı geçen
+     araç bulunursa yan görseli çözülür (venueToTrackId ile aynı gevşek eşleme);
+     bulunamazsa "" → yalnız marka logosu gösterilir (uydurma görsel yok). */
+  const carImgFromName = (name) => {
+    const s = String(name || "").toLowerCase();
+    if (!s) return "";
+    for (const [cls, list] of Object.entries(CARS)) {
+      const hit = list.find((c) => c.name && s.includes(c.name.toLowerCase()));
+      if (hit) return carImg(cls, hit.id);
+    }
+    return "";
+  };
+
+  /* --- seçili yuvanın seans bilgisi --- */
+  const sMeta = st.telemetry[slot]?.src;
+  const sStat = slotStats[slot];
+  const trackId = sMeta?.venue ? venueToTrackId(sMeta.venue) : "";
+  const carLogo = sMeta?.vehicle ? brandLogo(sMeta.vehicle) : "";
+  const sessRows = [
+    { k: t("Pist"), v: sMeta?.venue || "—" },
+    { k: t("Araç"), v: sMeta?.vehicle || "—" },
+    { k: t("Pilot"), v: sMeta?.driver || "—" },
+    { k: t("Sıcaklık"), v: sMeta?.trk != null ? `🛣 ${sMeta.trk.toFixed(0)}° / 🌡 ${sMeta.amb != null ? sMeta.amb.toFixed(0) + "°" : "—"}` : "—", mono: true },
+    { k: t("Turlar"), v: sStat && !sStat.empty ? `${sStat.laps} ${t("tur")}` : "—" },
+  ];
+  const hideImg = (e) => { e.currentTarget.style.display = "none"; };
+
+  /* çözümlenen turlar: parsed.laps (en iyi turu vurgula) */
+  const parsedLaps = parsed?.laps || [];
+  const bestSec = parsedLaps.length
+    ? Math.min(...parsedLaps.filter((l) => !l.partial && !l.pit).map((l) => l.sec).concat([Infinity]))
+    : Infinity;
+  const parsedMeta = parsed?.meta
+    ? [parsed.meta.venue, parsed.meta.vehicle, parsed.meta.driver].filter(Boolean).join(" · ") : "";
+
+  /* --- yeniden kullanılan tablo stilleri (fiş th deseninden) --- */
+  const th = { color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase",
+    letterSpacing: ".1em", textAlign: "right", padding: "9px 12px",
+    borderBottom: "1px solid var(--rc-border)", fontWeight: 600 };
+  const thLeft = { ...th, textAlign: "left" };
+  const td = { padding: "8px 14px", borderBottom: "1px solid var(--rc-line-soft)", textAlign: "right",
+    fontFamily: DISP, fontSize: 12, color: "var(--rc-text-2)" };
+  const tile = { flex: "1 1 180px", background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)",
+    borderRadius: 10, padding: "11px 14px" };
+  const tileLbl = { color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase",
+    letterSpacing: ".09em", marginTop: 3 };
+  const uploadBtn = { padding: "8px 16px", borderRadius: 9, border: "1px solid var(--rc-brand-bright)",
+    background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontSize: 13, fontWeight: 600 };
+  const saveBtn = () => { if (parsed?.motec) saveMotec(); else saveSlot(); };
+
   return (
-    <div>
-      <div className="card">
-        <h2 data-tour="teleimport">{t("Telemetri İçe Aktar (MoTeC)")}</h2>
-        <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-          {["A", "B", "C", "D"].map((sl) => (
-            <button key={sl} className="act"
-              style={slot === sl
-                ? { borderColor: SLOT_COLORS[sl], color: SLOT_COLORS[sl], fontWeight: 700 }
-                : {}}
-              onClick={() => setSlot(sl)}>
-              Stint {sl}{st.telemetry[sl] ? " ●" : ""}
-            </button>
-          ))}
-        </div>
-        <label>{t("MoTeC tur istatistiklerini yapıştır veya dosya seç (CSV/TSV) — .ld ve .duckdb doğrudan çalışır")}</label>
-        <textarea value={rawTele}
-          onChange={onRawChange}
-          placeholder={"Out Lap\t310127\t-6.403 ...\nLap 1\t237350\t-6.36 ..."}
-          style={{ width: "100%", height: 90, background: "var(--panel2)",
-            border: "1px solid var(--line)", borderRadius: 6, color: "var(--txt)",
-            fontFamily: "var(--font-mono)", fontSize: 11, padding: 8 }} />
-        <div style={{ margin: "6px 0" }}>
-          <input type="file" accept=".csv,.tsv,.txt,.ld,.duckdb" onChange={onTeleFile} />
-          {savedMsg && (
-            <span className="hint" style={{ color: "var(--green)", marginLeft: 10, fontWeight: 600 }}>
-              ✓ Stint {savedMsg} {t("kaydedildi")}</span>
-          )}
-        </div>
-        {parsed?.loading && <div className="hint">⏳ {parsed.duck
-          ? t("DuckDB çözümleniyor (ilk açılışta motor indirilir)…") : t(".ld çözümleniyor…")}</div>}
-        {parsed?.error && <div className="hint warn">⚠ {t(parsed.error)}</div>}
-        {parsed?.motec && (<>
-          <div className="hint" style={{ marginTop: 4 }}>
-            <b>{parsed.laps.length}</b> {t("tur çözümlendi")}
-            {parsed.meta.venue && <> · {parsed.meta.venue}</>}
-            {parsed.meta.vehicle && <> · {parsed.meta.vehicle}</>}
-            {parsed.meta.driver && <> · {parsed.meta.driver}</>}
-            {parsed.meta.trk != null && <> · {t("Pist")} {parsed.meta.trk.toFixed(0)}°C</>}
-            {parsed.meta.amb != null && <> / {t("Hava")} {parsed.meta.amb.toFixed(0)}°C</>}
-          </div>
-          <div style={{ overflowX: "auto", margin: "8px 0" }}>
-            <table style={{ fontSize: 11.5 }}>
-              <thead><tr>
-                <th>{t("Tur")}</th><th>{t("Süre")}</th><th>{t("Yakıt")}</th>
-                <th>VE %</th><th>{t("Aşınma")} FL/FR/RL/RR</th><th>{t("Ort/Max km/h")}</th>
-              </tr></thead>
-              <tbody>
-                {parsed.laps.map((l) => (
-                  <tr key={l.lap}>
-                    <td>{l.lap}{l.pit ? " 🅿" : ""}
-                      {l.partial && <span className="hint" style={{ marginLeft: 4 }}>
-                        {t("kısmi")}</span>}</td>
-                    <td className="mono">{fmtLap(l.sec)}</td>
-                    <td className="mono">{l.fuelL != null ? `${l.fuelL.toFixed(2)} L` : "—"}</td>
-                    <td className="mono">{l.fuelL != null && st.fuelRatio > 0
-                      ? `${(l.fuelL / st.fuelRatio).toFixed(2)}` : "—"}</td>
-                    <td className="mono">{l.w.map((x) =>
-                      x == null ? "—" : x.toFixed(1)).join(" / ")}</td>
-                    <td className="mono">{l.avgSpd != null
-                      ? `${Math.round(l.avgSpd)} / ${Math.round(l.maxSpd)}` : "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {!(st.fuelRatio > 0) && (
-            <div className="hint warn">{t("VE karşılığı için Yarış·Data'da yakıt oranı girilmeli.")}</div>
-          )}
-          <button className="act" style={{ borderColor: SLOT_COLORS[slot],
-            color: SLOT_COLORS[slot], marginTop: 4 }} onClick={saveMotec}>
-            {lang === "en" ? <>Save as Stint {slot}</> : <>Stint {slot} olarak kaydet</>}
-          </button>
-        </>)}
-        {parsed && !parsed.error && !parsed.motec && mapping && (<>
-          <div className="hint">
-            {parsed.lapRows.length} {t("tur satırı bulundu. Sütun eşleşmesini kontrol et:")}
-          </div>
-          {mapping.fuelCol >= 0 && (
-            <div className="hint" style={{ marginTop: 2 }}>
-              <label style={{ display: "inline-flex", alignItems: "center", gap: 5,
-                margin: 0, textTransform: "none", letterSpacing: 0 }}>
-                <input type="checkbox" checked={!!mapping.fuelIsLitre}
-                  onChange={(e) => setMapping({ ...mapping, fuelIsLitre: e.target.checked })} />
-                {t("Yakıt sütunu litre (VE % için orana bölünür)")}
-              </label>
-              {mapping.fuelIsLitre && !(st.fuelRatio > 0) &&
-                <span className="warn" style={{ marginLeft: 8 }}>
-                  {t("Yarış·Data'da yakıt oranı girilmeli")}</span>}
-            </div>
-          )}
-          <details style={{ margin: "6px 0" }}>
-          <summary style={{ cursor: "pointer", color: "var(--muted)", fontSize: 12 }}>
-            {t("Sütun eşleşmesini düzenle")}</summary>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", margin: "6px 0" }}>
-            {[["Tur Süresi", "timeCol"], ["VE Δ (%)", "fuelCol"]].map(([lbl, key]) => (
-              <div key={key}>
-                <label style={{ margin: 0 }}>{t(lbl)}</label>
-                <select value={mapping[key]}
-                  onChange={(e) => setMapping({ ...mapping, [key]: +e.target.value })}>
-                  <option value={-1}>—</option>
-                  {parsed.headers.map((h, i) =>
-                    <option key={i} value={i}>{i}: {h || t("(başlıksız)")}</option>)}
-                </select>
-              </div>
-            ))}
-            {["FL", "FR", "RL", "RR"].map((c, ci) => (
-              <div key={c}>
-                <label style={{ margin: 0 }}>{t("Aşınma")} {c}</label>
-                <select value={mapping.wear[ci]}
-                  onChange={(e) => {
-                    const wear = [...mapping.wear]; wear[ci] = +e.target.value;
-                    setMapping({ ...mapping, wear });
-                  }}>
-                  <option value={-1}>—</option>
-                  {parsed.headers.map((h, i) =>
-                    <option key={i} value={i}>{i}: {h || t("(başlıksız)")}</option>)}
-                </select>
-              </div>
-            ))}
-          </div>
-          </details>
-          <button className="act" style={{ borderColor: SLOT_COLORS[slot],
-            color: SLOT_COLORS[slot] }} onClick={saveSlot}
-            disabled={mapping.timeCol < 0}>
-            {lang === "en" ? <>Save as Stint {slot}</> : <>Stint {slot} olarak kaydet</>}
-          </button>
-          {mapping.timeCol < 0 &&
-            <span className="hint warn" style={{ marginLeft: 8 }}>{t("Tur süresi sütunu seçilmeli")}</span>}
-        </>)}
+    <div style={{ padding: "18px 20px 40px", animation: "rcin .26s ease-out" }}>
+      <input ref={fileRef} type="file" accept=".csv,.tsv,.txt,.ld,.duckdb" onChange={onTeleFile}
+        style={{ display: "none" }} />
+
+      {/* ══════════ başlık ══════════ */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+        <h2 style={{ margin: 0, fontFamily: DISP, textTransform: "uppercase", letterSpacing: ".06em",
+          fontSize: 22, fontWeight: 700 }}>{t("Telemetri")}</h2>
+        <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>MoTeC · .ld · .duckdb · CSV</span>
+        <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+          <button onClick={openImport} data-tour="teleimport" style={uploadBtn}>⬆ {t("Telemetri yükle")}</button>
+        </span>
       </div>
 
-      {loadedSlots.length > 0 && (
-        <div className="card" style={{ marginTop: 12 }}>
-          <h2>{t("Stint Analizi")}</h2>
-          <div className="kpis">
-            {loadedSlots.map((sl) => {
-              const s = slotStats[sl];
-              if (!s || s.empty) return null;
-              return (
-                <div className="kpi" key={sl} style={{ borderColor: SLOT_COLORS[sl] }}>
-                  <div className="v" style={{ color: SLOT_COLORS[sl], fontSize: 19 }}>
-                    {fmtMs(s.medMs)}</div>
-                  <div className="l">Stint {sl} {t("medyan tur")} · {s.laps} {t("Tur")}</div>
-                  <div className="hint" style={{ marginTop: 4 }}>
-                    {s.medFuel != null && <>⚡ {s.medFuel.toFixed(2)} %/tur VE
-                      {s.tankLaps && <> · %100 ≈ {Math.floor(s.tankLaps)} tur</>}<br /></>}
-                    {s.medW.some((w) => w != null) &&
-                      <><Tyre size={13} /> {s.medW.map((w) => w == null ? "–" : w.toFixed(1)).join(" / ")} {t("%/tur")}<br /></>}
-                    <span style={{ opacity: .7 }}>{t("ort.")} {fmtMs(s.avgMs)}
-                      {s.avgFuel != null && <> · {s.avgFuel.toFixed(2)} %/tur</>}<br />
-                      {t("en iyi")} {fmtMs(s.bestMs)} · %105 ≤ {fmtMs(s.lim105)}
-                      {s.dropped > 0 && <> · {s.dropped} {t("tur hariç")}</>}</span>
-                  </div>
-                  <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
-                    {/* Strateji "DATA'ya uygula"/"ort." yalnız Race Solo'da anlamlı (Data/strateji
-                        var). Bağımsız Telemetri ekranında (standalone) gizlenir. */}
-                    {!standalone && (<>
-                    <button className="act" style={{ fontSize: 11 }}
-                      onClick={() => up({
-                        avgLap: fmtMs(s.medMs),
-                        ...(s.medFuel != null
-                          ? { consumption: +s.medFuel.toFixed(2) } : {}),
-                      })}>{t("DATA'ya uygula")}</button>
-                    <button className="act" style={{ fontSize: 11, opacity: .75 }}
-                      title={t("Ortalamayı uygula")}
-                      onClick={() => up({
-                        avgLap: fmtMs(s.avgMs),
-                        ...(s.avgFuel != null
-                          ? { consumption: +s.avgFuel.toFixed(2) } : {}),
-                      })}>{t("ort.")}</button></>)}
-                    <button className="act" style={{ fontSize: 11, opacity: .75 }}
-                      title={t("En iyi turun %105'ini aşan turların tikini kaldır")}
-                      onClick={() => apply105Slot(sl)}>%105</button>
-                    <button className="act danger" style={{ fontSize: 11 }}
-                      onClick={() => removeSlot(sl)}>{t("Sil")}</button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+      {/* MoTeC yapıştırma alanı artık "Telemetri yükle" penceresinde (fiş importOpen). */}
+      {parsed?.loading && (
+        <div style={{ fontSize: 12, color: "var(--rc-text-3)", marginBottom: 12 }}>
+          ⏳ {parsed.duck ? t("DuckDB çözümleniyor (ilk açılışta motor indirilir)…") : t(".ld çözümleniyor…")}</div>
+      )}
+      {parsed?.error && (
+        <div style={{ fontSize: 12, color: "var(--rc-warn)", marginBottom: 12 }}>⚠ {t(parsed.error)}</div>
+      )}
 
-          <div style={{ display: "flex", gap: 6, margin: "4px 0 2px" }}>
-            {[["box", "Kutu grafiği"], ["line", "Tur tur"]].map(([m, lbl]) => (
-              <button key={m} className="act" style={{ fontSize: 11,
-                ...(chartMode === m ? { borderColor: "var(--teal)", color: "var(--teal)" } : {}) }}
-                onClick={() => setChartMode(m)}>{t(lbl)}</button>
-            ))}
-          </div>
-          {chartMode === "box" ? (
-            <div style={{ margin: "6px 0 2px" }}>
-              <BoxPlot height={300} fmt={(v) => fmtLap(v / 1000)}
-                series={loadedSlots.map((sl) => ({
-                  key: sl, label: `Stint ${sl}`, color: SLOT_COLORS[sl],
-                  values: st.telemetry[sl].laps.filter((l) => l.use).map((l) => l.ms),
-                })).filter((s) => s.values.length)} />
-            </div>
-          ) : (
-          <div style={{ height: 260 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
-                <CartesianGrid stroke="#2B3542" strokeDasharray="3 3" />
-                <XAxis dataKey="lap" stroke="#8C97A5" fontSize={11} />
-                <YAxis stroke="#8C97A5" fontSize={11} domain={["auto", "auto"]}
-                  tickFormatter={(v) => fmtLap(v)} width={70} />
-                <Tooltip contentStyle={{ background: "#1F2731", border: "1px solid #2B3542" }}
-                  labelFormatter={(l) => `Tur ${l}`}
-                  formatter={(v, n) => [fmtLap(v), `Stint ${n}`]} />
-                <Legend formatter={(v) => `Stint ${v}`} />
-                {loadedSlots.map((sl) => (
-                  <Line key={sl} dataKey={sl} stroke={SLOT_COLORS[sl]}
-                    dot={false} strokeWidth={2} connectNulls isAnimationActive={false} />
-                ))}
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-          )}
-
-          {loadedSlots.length > 1 && baseSlot && slotStats[baseSlot] && !slotStats[baseSlot].empty && (
-            <table style={{ maxWidth: 460, marginTop: 10 }}>
-              <thead><tr><th>{t("Karşılaştırma")}</th><th>{t("Ort. Fark")}</th><th>{t("Hızlı Olan")}</th></tr></thead>
-              <tbody>
-                {loadedSlots.slice(1).map((sl) => {
-                  const a = slotStats[baseSlot], b = slotStats[sl];
-                  /* karşılaştırma medyan üzerinden */
-                  if (!b || b.empty) return null;
-                  const d = (a.avgMs - b.avgMs) / 1000; // + ise rakip hızlı
-                  return (
-                    <tr key={sl}>
-                      <td>Stint {baseSlot} vs Stint {sl}</td>
-                      {/* işaret abs() ile soyuluyor → renge ek olarak ok ile yön belirt (renk-only olmasın) */}
-                      <td className={d > 0 ? "neg" : "pos"}>{d > 0 ? "▲" : "▼"} {Math.abs(d).toFixed(3)}s/tur</td>
-                      <td style={{ color: SLOT_COLORS[d > 0 ? sl : baseSlot] }}>
-                        Stint {d > 0 ? sl : baseSlot}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-
-          {loadedSlots.map((sl) => (
-            <details key={sl} style={{ marginTop: 10 }}>
-              <summary style={{ cursor: "pointer", color: SLOT_COLORS[sl] }}>
-                Stint {sl} — {t("tur listesi")} ({st.telemetry[sl].laps.length})</summary>
-              <table style={{ maxWidth: 560 }}>
-                <thead><tr>
-                  <th>{t("Dahil")}</th><th>{t("Tur")}</th><th>{t("Süre")}</th><th>VE %</th><th>FL/FR/RL/RR</th>
-                </tr></thead>
-                <tbody>
-                  {st.telemetry[sl].laps.map((l, li) => (
-                    <tr key={li} style={l.use ? {} : { opacity: .4 }}>
-                      <td><input type="checkbox" checked={l.use}
-                        onChange={() => toggleLap(sl, li)} /></td>
-                      <td>{l.label}</td>
-                      <td>{fmtMs(l.ms)}</td>
-                      <td>{l.fuel != null ? l.fuel.toFixed(2) : "–"}</td>
-                      <td>{l.w.map((w) => w == null ? "–" : w.toFixed(1)).join(" / ")}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </details>
-          ))}
+      {/* ══════════ boş durum ══════════ */}
+      {teleEmpty && (
+        <div style={{ border: "1.5px dashed var(--rc-border-strong)", borderRadius: 14,
+          background: "var(--rc-surface-2)", padding: "48px 24px", textAlign: "center",
+          display: "flex", flexDirection: "column", alignItems: "center", gap: 11, marginBottom: 16 }}>
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="var(--rc-border-strong)"
+            strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 4v16h16"></path><path d="m7 14 3-3 3 2 4-5"></path></svg>
+          <div style={{ fontFamily: DISP, fontWeight: 700, fontSize: 20 }}>{t("Henüz telemetri yok")}</div>
+          <div style={{ fontSize: 12.5, color: "var(--rc-text-3)", lineHeight: 1.7, maxWidth: 430 }}>
+            {t("Stint yuvalarına .ld veya .duckdb dosyası yükle; iki turu karşılaştırmak için en az bir dosya gerekir.")}</div>
+          <button onClick={openImport} style={{ ...uploadBtn, marginTop: 4, padding: "9px 18px", borderRadius: 10 }}>
+            ⬆ {t("Telemetri yükle")}</button>
         </div>
       )}
 
+      {/* ══════════ stint yuvaları ══════════ */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 16 }}>
+        {["A", "B", "C", "D"].map((sl) => {
+          const loaded = !!st.telemetry[sl];
+          const stt = slotStats[sl];
+          const has = loaded && stt && !stt.empty;
+          const seln = slot === sl;
+          const col = SLOT_COLORS[sl];
+          const meta = st.telemetry[sl]?.src;
+          const median = has ? fmtLapSec(stt.medMs / 1000) : "—";
+          const metaText = meta ? [meta.venue, meta.vehicle].filter(Boolean).join(" · ") : t("dosya bekleniyor");
+          const brand = meta?.vehicle ? brandLogo(meta.vehicle) : "";
+          const carPng = meta?.vehicle ? carImgFromName(meta.vehicle) : "";
+          return (
+            <button key={sl} onClick={() => setSlot(sl)} style={{ flex: "1 1 240px", minWidth: 0,
+              display: "flex", alignItems: "center", gap: 12, textAlign: "left", cursor: "pointer",
+              borderRadius: 12, padding: "12px 14px",
+              border: `1px solid ${seln ? col : "var(--rc-border)"}`,
+              background: seln ? "var(--rc-surface-2)" : "var(--rc-surface)" }}>
+              <span style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0, flex: 1 }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: 99, display: "inline-block",
+                    background: loaded ? col : "var(--rc-border-strong)" }} />
+                  <span style={{ fontFamily: DISP, fontWeight: 700, fontSize: 17, letterSpacing: ".04em",
+                    whiteSpace: "nowrap" }}>Stint {sl}</span>
+                  <span style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: ".08em",
+                    padding: "2px 8px", borderRadius: 99, whiteSpace: "nowrap",
+                    border: `1px solid ${loaded ? col : "var(--rc-border)"}`,
+                    color: loaded ? col : "var(--rc-text-3)" }}>
+                    {loaded ? (seln ? t("seçili") : t("yüklü")) : t("boş")}</span>
+                </span>
+                <span style={{ fontFamily: DISP, fontWeight: 700, fontSize: 20,
+                  color: has ? col : "var(--rc-text-3)" }}>{median}</span>
+                <span style={{ fontSize: 11, color: "var(--rc-text-3)", whiteSpace: "nowrap",
+                  overflow: "hidden", textOverflow: "ellipsis" }}>{metaText}</span>
+              </span>
+              {(brand || carPng) && (
+                <span style={{ flex: "0 0 auto", display: "flex", alignItems: "center", gap: 8,
+                  justifyContent: "flex-end" }}>
+                  {brand && <img src={brand} alt="" onError={hideImg}
+                    style={{ width: 26, height: 26, objectFit: "contain" }} />}
+                  {carPng && <img src={carPng} alt="" onError={hideImg}
+                    style={{ width: 96, height: 44, objectFit: "contain" }} />}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ══════════ stint analizi + seans ══════════ */}
+      {loadedSlots.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "stretch" }}>
+          {/* Stint analizi */}
+          <div style={{ flex: "1 1 620px", minWidth: 0, border: "1px solid var(--rc-border)",
+            borderRadius: 12, background: "var(--rc-surface)", padding: "16px 18px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+              <span style={{ fontFamily: DISP, textTransform: "uppercase", letterSpacing: ".08em",
+                fontSize: 16, fontWeight: 700 }}>{t("Stint analizi")}</span>
+              <span style={{ display: "flex", gap: 6, marginLeft: 12 }}>
+                {[["line", t("Tur tur")], ["box", t("Kutu grafiği")]].map(([m, lbl]) => {
+                  const on = chartMode === m;
+                  return (
+                    <button key={m} onClick={() => setChartMode(m)} style={{ padding: "6px 12px", borderRadius: 8,
+                      cursor: "pointer", fontSize: 11.5, border: `1px solid ${on ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
+                      background: on ? "var(--rc-glow-brand)" : "var(--rc-surface-3)",
+                      color: on ? "var(--rc-text)" : "var(--rc-text-3)" }}>{lbl}</button>
+                  );
+                })}
+              </span>
+              <span style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center",
+                fontSize: 11.5, color: "var(--rc-text-3)", flexWrap: "wrap" }}>
+                {boxes.rows.map((r) => (
+                  <span key={r.id} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                    <i style={{ width: 10, height: 3, background: r.c, display: "inline-block" }} />Stint {r.id}</span>
+                ))}
+              </span>
+            </div>
+
+            {/* kutu grafiği */}
+            {!chartLine && (
+              <svg viewBox="0 0 820 280" style={{ width: "100%", height: "auto", display: "block" }}>
+                <line x1="60" y1="20" x2="60" y2="240" stroke="var(--rc-border)" strokeWidth="1" />
+                <line x1="60" y1="240" x2="800" y2="240" stroke="var(--rc-border)" strokeWidth="1" />
+                {gridLines.map((g, i) => (
+                  <g key={i}>
+                    <line x1="60" y1={g.y} x2="800" y2={g.y} stroke="var(--rc-line-soft)" strokeWidth="1" strokeDasharray="3 4" />
+                    <text x="52" y={g.ty} textAnchor="end" fill="var(--rc-text-3)" fontSize="11" fontFamily={DISP}>{g.label}</text>
+                  </g>
+                ))}
+                {boxes.rows.map((b, k) => {
+                  const nB = boxes.rows.length;
+                  const step = 740 / nB;
+                  const cx = 60 + step * (k + 0.5);
+                  const w = Math.min(130, step - 40);
+                  const half = w / 2;
+                  const scatterW = Math.min(104, step - 30);
+                  return (
+                    <g key={b.id}>
+                      <line x1={cx} y1={by(b.min)} x2={cx} y2={by(b.max)} stroke={b.c} strokeWidth="1.6" strokeDasharray="3 3" />
+                      <line x1={cx - 34} y1={by(b.min)} x2={cx + 34} y2={by(b.min)} stroke={b.c} strokeWidth="2" />
+                      <line x1={cx - 34} y1={by(b.max)} x2={cx + 34} y2={by(b.max)} stroke={b.c} strokeWidth="2" />
+                      <rect x={cx - half} y={by(b.q3)} width={w} height={Math.max(0, by(b.q1) - by(b.q3))} rx="4"
+                        fill={b.c} fillOpacity="0.12" stroke={b.c} strokeWidth="2" />
+                      <line x1={cx - half} y1={by(b.med)} x2={cx + half} y2={by(b.med)} stroke={b.c} strokeWidth="3.4" />
+                      {b.laps.map((v, i) => (
+                        <circle key={i} cx={(cx - scatterW / 2 + (i * scatterW) / Math.max(1, b.n - 1)).toFixed(1)}
+                          cy={by(v).toFixed(1)} r="2.6" fill={b.c} opacity="0.55" />
+                      ))}
+                      <text x={cx} y="262" textAnchor="middle" fill="var(--rc-text-2)" fontSize="12" fontFamily={DISP} fontWeight="700">Stint {b.id}</text>
+                      <text x={cx} y={(by(b.med) - 9).toFixed(1)} textAnchor="middle" fill={b.c} fontSize="12" fontWeight="600" fontFamily={DISP}>{fmtLapSec(b.med)}</text>
+                    </g>
+                  );
+                })}
+              </svg>
+            )}
+
+            {/* kutu istatistik kartları */}
+            {!chartLine && (
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
+                {boxes.rows.map((b) => {
+                  const cells = [
+                    { k: t("medyan"), v: fmtLapSec(b.med), col: b.c },
+                    { k: t("en iyi"), v: fmtLapSec(b.min) },
+                    { k: "IQR", v: `${(b.q3 - b.q1).toFixed(2)}s` },
+                    { k: t("yayılım"), v: `${(b.max - b.min).toFixed(2)}s` },
+                  ];
+                  return (
+                    <div key={b.id} style={{ flex: "1 1 260px", background: "var(--rc-surface-3)",
+                      border: `1px solid ${b.c}44`, borderRadius: 10, padding: "11px 14px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                        <i style={{ width: 10, height: 10, borderRadius: 3, background: b.c, display: "inline-block", flex: "0 0 auto" }} />
+                        <b style={{ fontFamily: DISP, fontSize: 15, fontWeight: 700 }}>Stint {b.id}</b>
+                        <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--rc-text-3)" }}>{b.n} {t("tur")}</span>
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
+                        {cells.map((c) => (
+                          <span key={c.k} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                            <b style={{ fontFamily: DISP, fontSize: 14, fontWeight: 600, color: c.col || "var(--rc-text)" }}>{c.v}</b>
+                            <span style={{ fontSize: 9.5, color: "var(--rc-text-3)", textTransform: "uppercase", letterSpacing: ".08em" }}>{c.k}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* tur-tur grafiği */}
+            {chartLine && (
+              <svg viewBox="0 0 820 280" style={{ width: "100%", height: "auto", display: "block" }}>
+                <line x1="60" y1="20" x2="60" y2="240" stroke="var(--rc-border)" strokeWidth="1" />
+                <line x1="60" y1="240" x2="800" y2="240" stroke="var(--rc-border)" strokeWidth="1" />
+                {gridLines.map((g, i) => (
+                  <g key={i}>
+                    <line x1="60" y1={g.y} x2="800" y2={g.y} stroke="var(--rc-line-soft)" strokeWidth="1" strokeDasharray="3 4" />
+                    <text x="52" y={g.ty} textAnchor="end" fill="var(--rc-text-3)" fontSize="11" fontFamily={DISP}>{g.label}</text>
+                  </g>
+                ))}
+                {boxes.rows.map((b) => {
+                  const pts = b.laps.map((v, i) => `${(60 + (i * 740) / Math.max(1, b.n - 1)).toFixed(1)},${by(v).toFixed(1)}`).join(" ");
+                  return <polyline key={b.id} points={pts} fill="none" stroke={b.c} strokeWidth="2.5" strokeLinejoin="round" />;
+                })}
+                {boxes.rows.map((b, k) => b.laps.map((v, i) => {
+                  const x = 60 + (i * 740) / Math.max(1, b.n - 1);
+                  const y = by(v);
+                  return (
+                    <g key={`${b.id}-${i}`}>
+                      <circle cx={x.toFixed(1)} cy={y.toFixed(1)} r="3.2" fill={b.c} />
+                      {i % 2 === 0 && (
+                        <text x={x.toFixed(1)} y={(k === 0 ? y - 9 : y + 15).toFixed(1)} textAnchor="middle"
+                          fill={b.c} fontSize="10" fontFamily={DISP}>{fmtLapSec(v).replace(/^\d:/, "")}</text>
+                      )}
+                    </g>
+                  );
+                }))}
+                {xTicks.map((x, i) => (
+                  <text key={i} x={x.x} y="262" textAnchor="middle" fill="var(--rc-text-3)" fontSize="11" fontFamily={DISP}>{x.label}</text>
+                ))}
+              </svg>
+            )}
+
+            {/* özet kutucukları */}
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14, paddingTop: 14,
+              borderTop: "1px solid var(--rc-border)" }}>
+              <div style={tile}>
+                <div style={{ fontFamily: DISP, fontSize: 26, fontWeight: 700,
+                  color: delta1 == null ? "var(--rc-text)" : delta1 < 0 ? "var(--rc-ok-2)" : "var(--rc-danger-3)" }}>
+                  {delta1 == null ? "—" : `${delta1 < 0 ? "−" : "+"}${Math.abs(delta1).toFixed(2)} sn`}</div>
+                <div style={tileLbl}>
+                  {other ? `${baseSlot}, ${other}${t("'den hızlı (ort.)")}` : t("ort. fark (medyan)")}</div>
+              </div>
+              <div style={tile}>
+                <div style={{ fontFamily: DISP, fontSize: 26, fontWeight: 700 }}>
+                  {bs.medFuel != null ? `${bs.medFuel.toFixed(2)} %/tur` : "—"}</div>
+                <div style={tileLbl}>
+                  {t("Medyan VE")}{bs.tankLaps ? ` · %100 ≈ ${Math.floor(bs.tankLaps)} ${t("tur")}` : ""}</div>
+              </div>
+              <div style={tile}>
+                <div style={{ fontFamily: DISP, fontSize: 24, fontWeight: 700, whiteSpace: "nowrap" }}>
+                  {bs.medW && bs.medW.some((w) => w != null)
+                    ? bs.medW.map((w) => (w == null ? "–" : w.toFixed(1))).join(" / ") : "—"}</div>
+                <div style={tileLbl}>{t("Aşınma %/tur · FL FR RL RR")}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Seans */}
+          <div style={{ flex: "1 1 300px", minWidth: 280, display: "flex", flexDirection: "column",
+            gap: 12, alignSelf: "stretch" }}>
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", border: "1px solid var(--rc-border-strong)",
+              borderRadius: 12, padding: "14px 16px",
+              background: "radial-gradient(120% 160% at 100% 0,rgba(150,0,24,.24),var(--rc-surface-2) 62%)" }}>
+              <div style={{ fontFamily: DISP, textTransform: "uppercase", letterSpacing: ".08em",
+                fontSize: 14, fontWeight: 700, marginBottom: 10, color: "var(--rc-brand-bright)" }}>
+                {t("Seans")} · {slot}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12,
+                paddingBottom: 12, borderBottom: "1px solid var(--rc-line-soft)" }}>
+                {trackId
+                  ? <img src={`${ASSET}flags/${trackId}.png`} alt="" onError={hideImg}
+                      style={{ flex: "0 0 auto", width: 28, borderRadius: 3, border: "1px solid var(--rc-border)" }} />
+                  : <span style={{ flex: "0 0 auto", width: 28 }} />}
+                {carLogo
+                  ? <img src={carLogo} alt="" onError={hideImg}
+                      style={{ flex: "1 1 0", minWidth: 0, height: 52, objectFit: "contain" }} />
+                  : <span style={{ flex: "1 1 0" }} />}
+                <span style={{ width: 1, alignSelf: "stretch", background: "var(--rc-line-soft)" }} />
+                {trackId
+                  ? <img src={`${ASSET}tracks/${TRACK_ASSET(trackId)}.png${AV}`} alt="" onError={hideImg}
+                      style={{ flex: "0 0 auto", width: 82, height: 52, objectFit: "contain", opacity: 0.9 }} />
+                  : <span style={{ flex: "0 0 auto", width: 82 }} />}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {sessRows.map((r) => (
+                  <span key={r.k} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+                    <span style={{ width: 74, flex: "0 0 auto", color: "var(--rc-text-3)", fontSize: 10.5,
+                      textTransform: "uppercase", letterSpacing: ".08em" }}>{r.k}</span>
+                    <b style={{ fontSize: 12.5, fontFamily: r.mono ? DISP : UI }}>{r.v}</b>
+                  </span>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: "auto", paddingTop: 14,
+                borderTop: "1px solid var(--rc-line-soft)" }}>
+                {!standalone && (
+                  <button onClick={() => sStat && !sStat.empty && up({ avgLap: fmtLapSec(sStat.medMs / 1000),
+                    ...(sStat.medFuel != null ? { consumption: +sStat.medFuel.toFixed(2) } : {}) })}
+                    style={{ padding: "7px 14px", borderRadius: 9, border: "1px solid var(--rc-brand-bright)",
+                      background: "rgba(150,0,24,.22)", color: "var(--rc-text)", cursor: "pointer", fontSize: 12 }}>
+                    {t("Data'ya uygula")}</button>
+                )}
+                <button onClick={() => apply105Slot(slot)} style={{ padding: "7px 14px", borderRadius: 9,
+                  cursor: "pointer", fontSize: 12, border: "1px solid var(--rc-border)",
+                  background: "var(--rc-surface-3)", color: "var(--rc-text-2)" }}>{t("%105 filtre")}</button>
+                <button onClick={() => removeSlot(slot)} style={{ padding: "7px 14px", borderRadius: 9,
+                  border: "1px solid var(--rc-danger)", background: "transparent", color: "var(--rc-danger)",
+                  cursor: "pointer", fontSize: 12 }}>{t("Stinti sil")}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════ çözümlenen turlar ══════════ */}
+      {(parsedHasTable || parsedHasMap) && (
+        <div style={{ border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)",
+          overflow: "hidden", marginTop: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "13px 16px",
+            borderBottom: "1px solid var(--rc-border)", flexWrap: "wrap" }}>
+            <span style={{ fontFamily: DISP, textTransform: "uppercase", letterSpacing: ".08em",
+              fontSize: 15, fontWeight: 700 }}>{t("Çözümlenen turlar")}</span>
+            <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>
+              {parsedHasTable ? parsedLaps.length : (parsed.lapRows?.length || 0)} {t("tur")}
+              {parsedMeta ? ` · ${parsedMeta}` : ""}</span>
+            {parsedHasMap && (
+              <button onClick={() => setColMap((v) => !v)} style={{ padding: "7px 13px", borderRadius: 9,
+                cursor: "pointer", fontSize: 12, border: `1px solid ${colMap ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
+                background: colMap ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)", color: "var(--rc-text-2)" }}>
+                ⚙ {t("Sütun eşleme")}</button>
+            )}
+            <button onClick={saveBtn} disabled={parsedHasMap && mapping.timeCol < 0}
+              style={{ marginLeft: "auto", padding: "7px 14px", borderRadius: 9, border: "1px solid var(--rc-purple)",
+                background: "var(--rc-tint-purple)", color: "var(--rc-purple)", cursor: "pointer",
+                fontSize: 12, fontWeight: 600, opacity: parsedHasMap && mapping.timeCol < 0 ? 0.5 : 1 }}>
+              {t("Stint")} {slot} {t("olarak kaydet")}</button>
+            {savedMsg && (
+              <span style={{ fontSize: 12, color: "var(--rc-ok)", fontWeight: 600 }}>
+                ✓ {t("Stint")} {savedMsg} {t("kaydedildi")}</span>
+            )}
+          </div>
+
+          {/* sütun eşleme paneli (CSV) */}
+          {parsedHasMap && colMap && (
+            <div style={{ padding: "13px 16px", borderBottom: "1px solid var(--rc-line-soft)", background: "var(--rc-surface-2)" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))", gap: 10 }}>
+                {[["Tur süresi", "timeCol"], ["VE Δ (%)", "fuelCol"]].map(([lbl, key]) => (
+                  <div key={key}>
+                    <label style={{ display: "block", color: "var(--rc-text-3)", fontSize: 10,
+                      textTransform: "uppercase", letterSpacing: ".09em", marginBottom: 5 }}>{t(lbl)}</label>
+                    <select value={mapping[key]} onChange={(e) => setMapping({ ...mapping, [key]: +e.target.value })}
+                      style={{ width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)",
+                        border: "1px solid var(--rc-border)", borderRadius: 8, color: "var(--rc-text)",
+                        padding: "7px 9px", fontSize: 12 }}>
+                      <option value={-1}>—</option>
+                      {parsed.headers.map((h, i) => <option key={i} value={i}>{i}: {h || t("(başlıksız)")}</option>)}
+                    </select>
+                  </div>
+                ))}
+                {["FL", "FR", "RL", "RR"].map((c, ci) => (
+                  <div key={c}>
+                    <label style={{ display: "block", color: "var(--rc-text-3)", fontSize: 10,
+                      textTransform: "uppercase", letterSpacing: ".09em", marginBottom: 5 }}>{t("Aşınma")} {c}</label>
+                    <select value={mapping.wear[ci]} onChange={(e) => {
+                      const wear = [...mapping.wear]; wear[ci] = +e.target.value; setMapping({ ...mapping, wear }); }}
+                      style={{ width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)",
+                        border: "1px solid var(--rc-border)", borderRadius: 8, color: "var(--rc-text)",
+                        padding: "7px 9px", fontSize: 12 }}>
+                      <option value={-1}>—</option>
+                      {parsed.headers.map((h, i) => <option key={i} value={i}>{i}: {h || t("(başlıksız)")}</option>)}
+                    </select>
+                  </div>
+                ))}
+              </div>
+              {mapping.fuelCol >= 0 && (
+                <label style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 11,
+                  fontSize: 12, color: "var(--rc-text-2)" }}>
+                  <input type="checkbox" checked={!!mapping.fuelIsLitre} style={{ width: "auto", margin: 0 }}
+                    onChange={(e) => setMapping({ ...mapping, fuelIsLitre: e.target.checked })} />
+                  {t("Yakıt sütunu litre (VE % için orana bölünür)")}
+                </label>
+              )}
+            </div>
+          )}
+
+          {/* çözümlenen tur tablosu (.ld/.duckdb) */}
+          {parsedHasTable && (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 660 }}>
+                <thead><tr>
+                  <th style={thLeft}>{t("Tur")}</th><th style={th}>{t("Süre")}</th><th style={th}>{t("Yakıt")}</th>
+                  <th style={th}>VE %</th><th style={th}>{t("Aşınma")} FL/FR/RL/RR</th><th style={th}>{t("Ort / Max km/h")}</th>
+                </tr></thead>
+                <tbody>
+                  {parsedLaps.map((l, i) => {
+                    const best = !l.partial && !l.pit && l.sec === bestSec;
+                    return (
+                      <tr key={i} style={{ background: best ? "var(--rc-tint-purple)"
+                        : l.partial ? "rgba(245,178,61,.05)" : "transparent" }}>
+                        <td style={{ padding: "8px 14px", borderBottom: "1px solid var(--rc-line-soft)",
+                          textAlign: "left", fontSize: 12.5, whiteSpace: "nowrap" }}>
+                          Lap {l.lap}
+                          {(l.pit || l.partial) && (
+                            <span style={{ color: "var(--rc-warn)", fontSize: 10.5, marginLeft: 5 }}>
+                              {l.pit ? "🅿" : t("kısmi")}</span>
+                          )}
+                        </td>
+                        <td style={{ padding: "8px 14px", borderBottom: "1px solid var(--rc-line-soft)", textAlign: "right",
+                          fontFamily: DISP, fontSize: 13, color: best ? "var(--rc-purple)" : "var(--rc-text)",
+                          fontWeight: best ? 600 : 400 }}>{fmtLap(l.sec)}</td>
+                        <td style={td}>{l.fuelL != null ? `${l.fuelL.toFixed(2)} L` : "—"}</td>
+                        <td style={td}>{l.fuelL != null && st.fuelRatio > 0 ? (l.fuelL / st.fuelRatio).toFixed(2) : "—"}</td>
+                        <td style={{ padding: "8px 14px", borderBottom: "1px solid var(--rc-line-soft)", textAlign: "right",
+                          fontFamily: DISP, fontSize: 11.5, color: "var(--rc-text-3)" }}>
+                          {l.w.map((x) => (x == null ? "—" : x.toFixed(1))).join(" / ")}</td>
+                        <td style={td}>{l.avgSpd != null ? `${Math.round(l.avgSpd)} / ${Math.round(l.maxSpd)}` : "—"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {parsedHasMap && !parsedHasTable && (
+            <div style={{ padding: "12px 16px", fontSize: 12, color: "var(--rc-text-3)" }}>
+              {parsed.lapRows.length} {t("tur satırı bulundu. Sütun eşleşmesini kontrol et:")}
+              {mapping.timeCol < 0 && <span style={{ color: "var(--rc-warn)", marginLeft: 8 }}>{t("Tur süresi sütunu seçilmeli")}</span>}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Seans/setup kutusu — fişte yok; .duckdb setup kaydetme işlevi korunur (FLAG) */}
       {cmpMeta?.setup && (
         <SessionSetupBox setup={cmpMeta.setup} meta={cmpMeta} t={t} onSave={onSaveDuckSetup} />
       )}
 
+      {/* ══════════ tur karşılaştırma ══════════ */}
       {cmpSources?.length > 0 && (
         <TraceCompareCard t={t} sources={cmpSources} fallbackMeta={cmpMeta}
           cmpASrc={cmpASrc} setCmpASrc={setCmpASrc} cmpBSrc={cmpBSrc} setCmpBSrc={setCmpBSrc}
           cmpA={cmpA} setCmpA={setCmpA} cmpB={cmpB} setCmpB={setCmpB}
-          cmpData={cmpData} cmpBusy={cmpBusy} />
+          cmpData={cmpData} cmpBusy={cmpBusy} openImport={openImport} />
+      )}
+
+      {/* ══════════ Telemetri yükle penceresi (fiş importOpen) ══════════
+          Hedef yuva + sürükle-bırak + bilgisayardan seç + tablo yapıştır + durum.
+          Yükleme mantığı (onTeleFile/onRawChange/saveBtn) DEĞİŞMEDİ; modal sarar. */}
+      {importOpen && (
+        <div onClick={() => setImportOpen(false)} role="dialog" aria-modal="true"
+          style={{ position: "fixed", inset: 0, zIndex: 60, background: "var(--rc-scrim-strong)",
+            display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: "min(720px,96vw)", maxHeight: "88vh",
+            background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16,
+            overflow: "hidden", display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "15px 20px",
+              borderBottom: "1px solid var(--rc-border)" }}>
+              <span style={{ fontFamily: DISP, textTransform: "uppercase", letterSpacing: ".07em",
+                fontSize: 18, fontWeight: 700 }}>{t("Telemetri yükle")}</span>
+              <span style={{ fontSize: 12, color: "var(--rc-text-3)" }}>MoTeC · .ld · .duckdb · CSV</span>
+              <button onClick={() => setImportOpen(false)} style={{ marginLeft: "auto", width: 31, height: 31,
+                borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)",
+                color: "var(--rc-text-2)", cursor: "pointer", fontSize: 14, lineHeight: 1 }}>✕</button>
+            </div>
+            <div style={{ overflowY: "auto", padding: "16px 20px 18px", display: "flex",
+              flexDirection: "column", gap: 14 }}>
+              {/* hedef yuva */}
+              <div>
+                <div style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase",
+                  letterSpacing: ".1em", marginBottom: 7 }}>{t("Hedef yuva")}</div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {["A", "B", "C", "D"].map((sl) => {
+                    const on = slot === sl; const loaded = !!st.telemetry[sl]; const col = SLOT_COLORS[sl];
+                    return (
+                      <button key={sl} onClick={() => setSlot(sl)} style={{ display: "inline-flex",
+                        alignItems: "center", gap: 7, padding: "8px 14px", borderRadius: 9, cursor: "pointer",
+                        fontSize: 12.5, border: `1px solid ${on ? col : "var(--rc-border)"}`,
+                        background: on ? "var(--rc-surface-2)" : "var(--rc-surface-3)",
+                        color: on ? "var(--rc-text)" : "var(--rc-text-2)" }}>
+                        <i style={{ width: 8, height: 8, borderRadius: 99,
+                          background: loaded ? col : "var(--rc-border-strong)" }} />
+                        Stint {sl}
+                        <span style={{ fontSize: 9.5, textTransform: "uppercase", color: "var(--rc-text-3)" }}>
+                          {loaded ? t("yüklü") : t("boş")}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              {/* sürükle-bırak + dosya seç */}
+              <div onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => { e.preventDefault();
+                  if (e.dataTransfer?.files?.length) onTeleFile({ target: { files: e.dataTransfer.files } }); }}
+                style={{ border: "1.5px dashed var(--rc-border-strong)", borderRadius: 12,
+                  background: "var(--rc-surface-2)", padding: 20, textAlign: "center" }}>
+                <div style={{ fontSize: 24, marginBottom: 6 }}>⬇</div>
+                <div style={{ fontFamily: DISP, fontWeight: 700, fontSize: 16 }}>
+                  {t("Dosyayı buraya sürükle")}</div>
+                <div style={{ color: "var(--rc-text-3)", fontSize: 11.5, marginTop: 4, lineHeight: 1.6 }}>
+                  {t(".ld ve .duckdb doğrudan çözümlenir · CSV/TSV için sütun eşleme açılır")}</div>
+                <button onClick={() => fileRef.current?.click()} style={{ marginTop: 11, padding: "8px 16px",
+                  borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)",
+                  color: "var(--rc-text)", cursor: "pointer", fontSize: 12.5 }}>
+                  📁 {t("Bilgisayardan seç")}</button>
+              </div>
+              {/* durum: yükleniyor / hata / çözümlendi */}
+              {parsed?.loading && (
+                <div style={{ fontSize: 12, color: "var(--rc-text-3)" }}>
+                  ⏳ {parsed.duck ? t("DuckDB çözümleniyor (ilk açılışta motor indirilir)…") : t(".ld çözümleniyor…")}</div>
+              )}
+              {parsed?.error && (
+                <div style={{ fontSize: 12, color: "var(--rc-warn)" }}>⚠ {t(parsed.error)}</div>
+              )}
+              {(parsedHasTable || parsedHasMap) && !parsed?.loading && (
+                <div style={{ fontSize: 12, color: "var(--rc-ok)", fontWeight: 600 }}>
+                  ✓ {parsedHasTable ? parsed.laps?.length : (parsed.lapRows?.length || 0)} {t("tur çözümlendi")}</div>
+              )}
+              {/* …veya tur tablosunu yapıştır */}
+              <div>
+                <div style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase",
+                  letterSpacing: ".1em", marginBottom: 7 }}>{t("…veya tur tablosunu yapıştır")}</div>
+                <textarea value={rawTele} onChange={onRawChange}
+                  placeholder={"Out Lap\t310127\t-6.403 ...\nLap 1\t237350\t-6.36 ..."}
+                  style={{ width: "100%", boxSizing: "border-box", height: 120,
+                    background: "var(--rc-surface-2)", border: "1px solid var(--rc-border)", borderRadius: 10,
+                    color: "var(--rc-text)", fontFamily: "var(--rc-font-mono)", fontSize: 11.5, padding: 11,
+                    resize: "vertical", lineHeight: 1.6 }} />
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "13px 20px",
+              borderTop: "1px solid var(--rc-border)" }}>
+              <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>
+                {t("Kaydedince stint analizi ve tur karşılaştırma güncellenir")}</span>
+              <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+                <button onClick={() => setImportOpen(false)} style={{ padding: "9px 16px", borderRadius: 9,
+                  border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)",
+                  color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12.5 }}>{t("Vazgeç")}</button>
+                {(parsedHasTable || parsedHasMap) && (
+                  <button disabled={parsedHasMap && mapping.timeCol < 0}
+                    onClick={() => { saveBtn(); setImportOpen(false); }}
+                    style={{ padding: "9px 20px", borderRadius: 9, border: "1px solid var(--rc-brand-bright)",
+                      background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer",
+                      fontSize: 13, fontWeight: 600, opacity: parsedHasMap && mapping.timeCol < 0 ? 0.5 : 1 }}>
+                    {t("Stint")} {slot} {t("olarak kaydet")}</button>
+                )}
+              </span>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

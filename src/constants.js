@@ -3,8 +3,13 @@
 export const SLOT_COLORS = { A: "#40D68C", B: "#F0604D", C: "#F2A33C", D: "#6694FF" };
 
 /* ---------- pist & araç seçimi ---------- */
-export const APP_VERSION = "v1.8.20";   // tek kaynak — sürüm yazısı buradan
+export const APP_VERSION = "v2.0.0";   // tek kaynak — sürüm yazısı buradan
+/* Menü sürüm şeridindeki tek satırlık özet (en yeni sürüm). CHANGELOG'un ilk
+   kaydıyla elle senkron — büyük changelog.js'i erken yüklememek için ayrı. */
+export const APP_VERSION_SUMMARY = "Arayüz baştan tasarlandı — 76px sol ray, birleşik yarış çubuğu ve tam sayfa ekranlar.";
 export const REPO_URL = "https://github.com/ahmettdc/caspianracemonitorweb";
+/* Bilgi (ℹ) açılırındaki "Hata bildir" → e-posta ile bildirim. */
+export const SUPPORT_EMAIL = "ahmetdemircan55@gmail.com";
 export const SEEN_VER_KEY = "rm_seen_version";
 export const ASSET = import.meta.env.BASE_URL + "assets/";
 export const AV = "?v=3"; // görsel sürümü — dosya güncellenince artır (önbellek kırma)
@@ -185,6 +190,12 @@ export const carImg = (cls, id) => {
    BADGES/teamBadgesOf/hasBadge JSX (<Wheel/>) içerdiği için ./components.jsx'te. */
 export const PIE_COLORS = ["#2DD4BF", "#F2C94C", "#960018", "#9B6DFF", "#4C9AFF",
   "#FF8A3D", "#59C36A", "#EC5CA6", "#00B8D9", "#C0CA33"];
+
+/* Pilot rengi — TEK KAYNAK. Dashboard, Stint ve Pilotlar ekranları aynı pilotu
+   aynı renkte göstersin diye üçü de bunu çağırır. `names` = süre dağılımına
+   giren pilotlar (driverPlan.totals'ta karşılığı olanlar), sırası korunur. */
+export const driverColorOf = (names, n) =>
+  PIE_COLORS[Math.max(0, names.indexOf(n)) % PIE_COLORS.length];
 /* Takım renk paleti (pozisyon grafiği çizgileri) — CVD-güvenli kategorik 7'li
    (dataviz validator: dark yüzeyde TÜM kontroller PASS; light'ta CVD PASS, kontrast
    WARN → uç pilot-kodu etiketleri "relief" sağlar). #960018 OYUNCUYA ayrıldığı için
