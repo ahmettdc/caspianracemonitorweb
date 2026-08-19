@@ -51,7 +51,7 @@ import {
 import { buildTourSteps } from "./tourSteps";
 import { poolEmptyReason } from "./setupPool";
 import {
-  TourOverlay, Wheel, Num, Bolt, Tyre, Ring, Icon, Btn, Avatar,
+  TourOverlay, Wheel, Num, NumField, Bolt, Tyre, Ring, Icon, Btn, Avatar,
   BADGES, teamBadgesOf, hasBadge, ChatPanel, SetupForm, SetupTable, SetupCards,
   VersionModal, RaceEditModal,
   ChatModal, SetupModal, TeamModal, CreateJoinModal, DenyToast, SetupContentModal, SetupCompareModal,
@@ -1212,6 +1212,7 @@ ${bottomBar}
   const [wxHist, setWxHist] = useState(false); // hava geçmişi penceresi
   const [wxPlanW, setWxPlanW] = useState("wet"); // planlı geçiş: hava
   const [wxPlanT, setWxPlanT] = useState("");    // planlı geçiş: yarış saati
+  const [wxModal, setWxModal] = useState(false); // v2.0 Hava geçişi ekle modalı
   const [zoom, setZoom] = useState(null); // "car" | "track" | null — kart büyütme (lightbox)
   /* LMU referans verisi (Ohne Speed tablosundan gömülü JSON) — 47 KB; giriş/izin
      ekranlarında gerekmez → yalnız erişim onaylanınca çekilir. */
@@ -1284,9 +1285,111 @@ ${bottomBar}
     }
     setRForm(null);
   };
+  /* raceOpen "İlerle →": form datasını yerel yarışa uygula → data ekranı (pick atlanır) */
+  const raceToData = (f) => {
+    up({ track: f.trackId || "", carClass: f.carClass || "hypercar", car: f.carId || "",
+      raceTime: f.raceTime || "6:00:00", raceStartMs: f.startsAt || Date.now(),
+      ...(PIT_LANE_TIMES[f.trackId] != null ? { pitLaneTime: PIT_LANE_TIMES[f.trackId] } : {}) });
+    setRForm(null); setPickDone(true); setSetupDone(false); setEntered(true);
+  };
   const raceForm = (
-    <RaceEditModal rForm={rForm} setRForm={setRForm} t={t} seasons={seasons} onSave={saveRaceForm} />
+    <RaceEditModal rForm={rForm} setRForm={setRForm} t={t} seasons={seasons} onSave={saveRaceForm} onProceed={raceToData} />
   );
+
+  /* v2.0 Hava geçişi ekle modalı (handoff-spec/katmanlar/wxOpen.md). Planlı hava
+     geçişini yarış saatine ekler; weatherLog'a src:"plan" olarak yazılır. */
+  const wxTransModal = wxModal && (() => {
+    const raceTotal = parseHMS(st.raceTime) || 0;
+    const tSec = parseHMS(wxPlanT) || 0;
+    const pos = raceTotal > 0 ? Math.min(1, Math.max(0, tSec / raceTotal)) : 0;
+    const clockAt = st.raceStartMs ? new Date(st.raceStartMs + tSec * 1000) : null;
+    const mult = (WEATHER[wxPlanW] || WEATHER.dry).lap;
+    const lapDelta = (parseLap(st.avgLap) || 0) * (mult - 1);
+    const planList = (st.weatherLog || []).filter((e) => e.src === "plan").sort((a, b) => a.t - b.t);
+    const hh = Math.floor(tSec / 3600), mm = Math.floor((tSec % 3600) / 60);
+    const stops = st.strategies[st.chosen] ?? 0;
+    const stintSec = raceTotal / (stops + 1);
+    const addTrans = () => {
+      if (tSec <= 0) return;
+      const log = [...(st.weatherLog || []).filter((e) => Math.abs(e.t - tSec) > 0.5), { t: tSec, w: wxPlanW, src: "plan" }].sort((a, b) => a.t - b.t);
+      up({ weatherLog: log }); setWxModal(false); setWxPlanT("");
+    };
+    return (
+      <div onClick={() => setWxModal(false)} style={{ position: "fixed", inset: 0, zIndex: 1000, background: "var(--rc-scrim)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
+        <div onClick={(e) => e.stopPropagation()} style={{ width: "min(720px,96vw)", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 20px", borderBottom: "1px solid var(--rc-border)" }}>
+            <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".07em", fontSize: 19, fontWeight: 700 }}>{t("Hava geçişi ekle")}</span>
+            <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>{t("Yarış saatinde havanın değiştiği an")}</span>
+            <button onClick={() => setWxModal(false)} style={{ marginLeft: "auto", width: 32, height: 32, borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 15, lineHeight: 1 }}>✕</button>
+          </div>
+          <div style={{ padding: "18px 20px 20px", display: "flex", flexDirection: "column", gap: 18 }}>
+            <div>
+              <label style={{ display: "block", color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 8 }}>{t("Yarış saati")}</label>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <input type="text" value={wxPlanT} placeholder="s:dd:ss" onChange={(e) => setWxPlanT(e.target.value)} style={{ width: 150, background: "var(--rc-surface-3)", border: "1px solid var(--rc-border-strong)", borderRadius: 10, color: "var(--rc-text)", padding: "11px 14px", fontFamily: "var(--rc-font-display)", fontSize: 22, fontWeight: 600 }} />
+                <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{tSec > 0 ? `start + ${hh > 0 ? `${hh}sa ` : ""}${mm}dk${clockAt ? ` · ${t("saat")} ${clockAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}` : t("geçiş saatini gir")}</span>
+                <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+                  <button onClick={() => setWxPlanT(fmtHMS(liveInfo.status === "live" ? Math.round(liveInfo.elapsed / 1000) : 0))} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 11.5 }}>{t("Şu an")}</button>
+                  <button onClick={() => setWxPlanT(fmtHMS(Math.round((stintSec > 0 ? Math.max(1, Math.round(tSec / stintSec)) : 1) * stintSec)))} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 11.5 }}>{t("Stint başı")}</button>
+                </span>
+              </div>
+              <div style={{ position: "relative", height: 44, marginTop: 14, border: "1px solid var(--rc-border)", borderRadius: 10, background: "var(--rc-surface-2)", overflow: "hidden" }}>
+                <span style={{ position: "absolute", left: `${pos * 100}%`, top: 0, bottom: 0, width: 2, background: "var(--rc-brand-bright)" }} />
+                <span style={{ position: "absolute", left: `${pos * 100}%`, top: 5, transform: "translateX(-50%)", fontFamily: "var(--rc-font-display)", fontSize: 10, color: "var(--rc-brand-bright)", background: "var(--rc-surface-2)", padding: "0 5px" }}>{wxPlanT || "—"}</span>
+                <span style={{ position: "absolute", left: 10, bottom: 5, fontSize: 10, color: "var(--rc-text-3)", fontFamily: "var(--rc-font-display)" }}>0:00</span>
+                <span style={{ position: "absolute", right: 10, bottom: 5, fontSize: 10, color: "var(--rc-text-3)", fontFamily: "var(--rc-font-display)" }}>{st.raceTime}</span>
+              </div>
+            </div>
+            <div>
+              <label style={{ display: "block", color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 8 }}>{t("Bu andan sonraki hava")}</label>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 8 }}>
+                {Object.entries(WEATHER).map(([id, w]) => {
+                  const on = wxPlanW === id;
+                  return (
+                    <button key={id} onClick={() => setWxPlanW(id)} style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "12px 4px", borderRadius: 11, cursor: "pointer", textAlign: "center", border: `1px solid ${on ? w.col : "var(--rc-border)"}`, background: on ? "rgba(255,255,255,.05)" : "var(--rc-surface-3)", color: on ? w.col : "var(--rc-text-2)" }}>
+                      <WetIcon id={id} size={28} />
+                      <span style={{ fontSize: 12, marginTop: 5 }}>{t(w.lbl)}</span>
+                      <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 10.5, color: "var(--rc-text-3)", marginTop: 2 }}>×{w.lap.toFixed(2)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 12, padding: "11px 14px", borderRadius: 10, border: "1px solid var(--rc-border-strong)", background: "var(--rc-surface-2)", flexWrap: "wrap" }}>
+                <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{t("Plana etkisi")}</span>
+                <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 14, color: lapDelta > 0 ? "var(--rc-warn)" : "var(--rc-ok)" }}>tur {lapDelta >= 0 ? "+" : ""}{lapDelta.toFixed(1)} sn</b>
+                <span style={{ color: "var(--rc-border-strong)" }}>·</span>
+                <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 14 }}>×{mult.toFixed(2)} {t("çarpan")}</b>
+              </div>
+            </div>
+            <div>
+              <label style={{ display: "block", color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 8 }}>{t("Planlı geçişler")}</label>
+              <div style={{ border: "1px solid var(--rc-border)", borderRadius: 11, background: "var(--rc-surface-2)", overflow: "hidden" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 14px", borderBottom: planList.length ? "1px solid var(--rc-line-soft)" : "none" }}>
+                  <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 14, width: 64 }}>0:00:00</b>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12.5, color: "var(--rc-text-2)" }}>{t((WEATHER[(st.weatherLog || [])[0]?.w] || WEATHER.dry).lbl)}</span>
+                  <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".08em", padding: "2px 9px", borderRadius: 99, border: "1px solid var(--rc-border)", color: "var(--rc-text-3)" }}>{t("başlangıç")}</span>
+                </div>
+                {planList.map((e, i) => (
+                  <div key={`${e.t}-${i}`} style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 14px", borderTop: i > 0 ? "1px solid var(--rc-line-soft)" : "none" }}>
+                    <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 14, width: 64, color: "var(--rc-brand-bright)" }}>{fmtHMS(e.t)}</b>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12.5, color: (WEATHER[e.w] || WEATHER.dry).col }}>{t((WEATHER[e.w] || WEATHER.dry).lbl)}</span>
+                    <button onClick={() => up({ weatherLog: (st.weatherLog || []).filter((x) => x !== e) })} style={{ marginLeft: "auto", width: 30, height: 28, borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 12 }}>🗑</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 20px", borderTop: "1px solid var(--rc-border)", background: "var(--rc-surface-2)" }}>
+            <span style={{ color: "var(--rc-text-3)", fontSize: 11.5 }}>{t("Geçişler plan hesabına anında yansır")}</span>
+            <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+              <button onClick={() => setWxModal(false)} style={{ padding: "10px 18px", borderRadius: 10, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 13 }}>{t("Vazgeç")}</button>
+              <button onClick={addTrans} style={{ padding: "10px 22px", borderRadius: 10, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontFamily: "var(--rc-font-display)", fontSize: 15, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase" }}>{t("Geçişi ekle")}</button>
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  })();
 
   /* takım penceresi → TeamModal (sunum); depo fn'leri bileşende, navigasyon/
      rozet/rol yardımcıları (openRace/setRForm/setBadge/roleLabel) App'ten prop. */
@@ -1858,7 +1961,10 @@ ${bottomBar}
             name: r.name || "", trackId: r.trackId || "", carClass: r.carClass || "", carId: r.carId || "",
             raceTime: r.raceTime || "", startsAt: r.startsAt || 0 });
           /* + Yarış ekle: pist/araç seçimi → data formu → yarışı aç (stint) akışı */
-          const newRace = () => { setTab("stint"); setPickDone(false); setSetupDone(false); setEntered(true); };
+          /* + Yarış ekle → Yarış Ekle penceresi (raceOpen); İlerle → data ekranı */
+          const newRace = () => setRForm({ flow: "data", seasonId: "", round: "", name: "",
+            trackId: st.track || "", carClass: st.carClass || "hypercar", carId: st.car || "",
+            raceTime: st.raceTime || "6:00:00", startsAt: st.raceStartMs || Date.now() });
           const langBtn = (on) => ({
             padding: "6px 12px", border: "none", cursor: "pointer", fontSize: 12,
             fontFamily: "var(--rc-font-display)", fontWeight: 600, letterSpacing: ".04em",
@@ -2365,6 +2471,7 @@ ${bottomBar}
     return (
       <div className="rc">
         <UpdateBanner t={t} />
+        {wxTransModal}
         <div style={shell}>
           {renderRail("menu", (k) => { setTab(k); if (curRace) openRace(curRace); })}
           <div style={{ minWidth: 0 }}>
@@ -2467,12 +2574,12 @@ ${bottomBar}
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
                   <div style={{ flex: "1 1 150px", minWidth: 0 }}>
                     <label style={lbl}>Pit line</label>
-                    <input type="text" value={st.pitLaneTime} onChange={(e) => up({ pitLaneTime: Number(e.target.value) || 0 })} style={midInp} />
+                    <NumField value={st.pitLaneTime} onC={(v) => up({ pitLaneTime: v })} step="1" style={midInp} />
                     {st.track && PIT_LANE_TIMES[st.track] != null && <div style={{ fontSize: 10.5, color: "var(--rc-text-3)", marginTop: 5 }}>{t("Pist verisi")}: {PIT_LANE_TIMES[st.track]}s · {trackName(st.track)}</div>}
                   </div>
                   <div style={{ flex: "1 1 150px", minWidth: 0 }}>
                     <label style={lbl}>⛽ {t("Yakıt & VE")}</label>
-                    <input type="text" value={st.fuelTime} onChange={(e) => up({ fuelTime: Number(e.target.value) || 0 })} style={midInp} />
+                    <NumField value={st.fuelTime} onC={(v) => up({ fuelTime: v })} step="1" style={midInp} />
                     <div style={{ fontSize: 10.5, color: "var(--rc-text-3)", marginTop: 5 }}>{t("Duraklamada geçen dolum süresi")}</div>
                   </div>
                   <div style={{ flex: "1 1 150px", minWidth: 0 }}>
@@ -2493,11 +2600,11 @@ ${bottomBar}
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
                   <div style={{ flex: "1 1 150px", minWidth: 0 }}>
                     <label style={lbl}>{t("VE tüketim · %/tur")}</label>
-                    <input type="text" value={st.consumption} onChange={(e) => up({ consumption: Number(e.target.value) || 0 })} style={midInp} />
+                    <NumField value={st.consumption} onC={(v) => up({ consumption: v })} step="0.01" style={midInp} />
                   </div>
                   <div style={{ flex: "1 1 150px", minWidth: 0 }}>
                     <label style={lbl}>{t("Fuel ratio · L / %1")}</label>
-                    <input type="text" value={st.fuelRatio} onChange={(e) => up({ fuelRatio: Number(e.target.value) || 0 })} style={midInp} />
+                    <NumField value={st.fuelRatio} onC={(v) => up({ fuelRatio: v })} step="0.01" style={midInp} />
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
@@ -2566,6 +2673,13 @@ ${bottomBar}
                       </button>
                     );
                   })}
+                </div>
+                <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--rc-border)", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{t("Planlı geçiş")}</span>
+                  {(st.weatherLog || []).filter((e) => e.src === "plan").sort((a, b) => a.t - b.t).map((e, i) => (
+                    <span key={`${e.t}-${i}`} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 99, border: `1px solid ${(WEATHER[e.w] || WEATHER.dry).col}`, color: (WEATHER[e.w] || WEATHER.dry).col, fontSize: 11.5 }}>{fmtHMS(e.t)} · {t((WEATHER[e.w] || WEATHER.dry).lbl)}</span>
+                  ))}
+                  <button onClick={() => setWxModal(true)} style={{ padding: "5px 11px", borderRadius: 8, border: "1px dashed var(--rc-border-strong)", background: "transparent", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 11.5 }}>＋ {t("Geçiş ekle")}</button>
                 </div>
               </div>
 

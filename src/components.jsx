@@ -358,6 +358,19 @@ export function Num({ v, onC, step = 0.01, w }) {
     onChange={(e) => onC(parseFloat(e.target.value) || 0)} />;
 }
 
+/* v2.0 stilli sayısal alan — ondalık girişte trailing "." kaybolmaz: odaktayken
+   yerel metin (ham) tutulur, blur'da kanonik sayıya senkronlanır. onC sayı alır. */
+export function NumField({ value, onC, step = "0.01", style, placeholder }) {
+  const [txt, setTxt] = useState(value == null ? "" : String(value));
+  const [focused, setFocused] = useState(false);
+  useEffect(() => { if (!focused) setTxt(value == null ? "" : String(value)); }, [value, focused]);
+  return (
+    <input type="number" step={step} value={txt} style={style} placeholder={placeholder}
+      onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+      onChange={(e) => { setTxt(e.target.value); const n = parseFloat(e.target.value); onC(Number.isFinite(n) ? n : 0); }} />
+  );
+}
+
 export function Donut({ data, size = 190, thickness = 34 }) {
   const total = data.reduce((a, d) => a + d.value, 0) || 1;
   const r = (size - thickness) / 2;
@@ -1005,8 +1018,9 @@ export function VersionModal({ open, onClose, t, lang, onStartGuide }) {
 /* v2.0 katman — handoff-spec/katmanlar/raceOpen.md. İki kolon: solda form
    (ad, sezon/round, pist ızgarası, sınıf/araç/süre, başlangıç, resmi ön ayar),
    sağda pist + araç önizlemesi. Kaydet/Düzenle davranışı korundu. */
-export function RaceEditModal({ rForm, setRForm, t, seasons, onSave }) {
+export function RaceEditModal({ rForm, setRForm, t, seasons, onSave, onProceed }) {
   if (!rForm) return null;
+  const dataFlow = rForm.flow === "data"; // + Yarış ekle akışı: İlerle → data ekranı
   const lbl = { display: "block", color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 6 };
   const inp = { width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", borderRadius: 10, color: "var(--rc-text)", padding: "11px 12px", fontSize: 13 };
   const curTrackName = trackName(rForm.trackId) || t("Pist seçilmedi");
@@ -1137,7 +1151,7 @@ export function RaceEditModal({ rForm, setRForm, t, seasons, onSave }) {
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 20px", borderTop: "1px solid var(--rc-border)", background: "var(--rc-surface-2)" }}>
           <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
             <button onClick={() => setRForm(null)} style={{ padding: "10px 18px", borderRadius: 10, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 13 }}>{t("Vazgeç")}</button>
-            <button onClick={() => onSave(rForm)} style={{ padding: "10px 24px", borderRadius: 10, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontFamily: "var(--rc-font-display)", fontSize: 16, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase" }}>{t("Kaydet")}</button>
+            <button onClick={() => (dataFlow && onProceed ? onProceed(rForm) : onSave(rForm))} style={{ padding: "10px 24px", borderRadius: 10, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontFamily: "var(--rc-font-display)", fontSize: 16, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase" }}>{dataFlow ? `${t("İlerle")} →` : t("Kaydet")}</button>
           </span>
         </div>
       </div>
