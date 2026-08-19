@@ -21,6 +21,7 @@ import { fileTooBig, filterSetups, trimSetupMeta, staleTrackFilter,
 import { parseSvm, b64ToText } from "./setupParse";
 import { detectVehicle } from "./setupAutofill";
 import { carName } from "./constants";
+import { confirmDialog, alertDialog } from "./confirm";
 
 export function useSetups({ user, udoc, userName, teamData, t, active = true,
   raceSel = null }) {
@@ -128,9 +129,11 @@ export function useSetups({ user, udoc, userName, teamData, t, active = true,
     const hash = await b64Sha256Hex(suFile.b64);
     if (hash) {
       const dup = setups.find((x) => x.hash === hash);
-      if (dup && !window.confirm(
-        `${t("Bu dosya zaten havuzda")}: ${dup.name || "?"} · ${dup.uname || "?"}\n`
-        + t("Yine de yüklensin mi?"))) {
+      if (dup && !(await confirmDialog({
+        title: t("Mükerrer setup"),
+        message: `${t("Bu dosya zaten havuzda")}: ${dup.name || "?"} · ${dup.uname || "?"}\n`
+          + t("Yine de yüklensin mi?"),
+        confirmText: t("Yükle") }))) {
         setSuBusy(false);
         return;
       }
@@ -171,7 +174,7 @@ export function useSetups({ user, udoc, userName, teamData, t, active = true,
   const downloadSetup = async (su) => {
     try {
       const b64 = su.data || await getSetupBlob(su.id);
-      if (!b64) { window.alert(t("Dosya alınamadı — bağlantıyı kontrol et.")); return; }
+      if (!b64) { alertDialog(t("Dosya alınamadı — bağlantıyı kontrol et.")); return; }
       const bin = atob(b64);
       const arr = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);

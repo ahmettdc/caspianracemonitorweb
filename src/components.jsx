@@ -17,6 +17,7 @@ import { renameTeam, syncMyTeamName, createSeason, deleteRace,
   removeMember, transferOwnership, regenerateJoinCode, deleteTeam, updateRace } from "./storage";
 import { processImageFile, IMG_ACCEPT_TYPES } from "./imageUpload";
 import { carAssetKey, teamLogoSrc } from "./teamAssets";
+import { _bindConfirm, confirmDialog, promptDialog } from "./confirm";
 import { extHref } from "./tauriEnv";
 import { OFFICIAL_FORMATION_MIN } from "./lmuSchedule";
 
@@ -2074,7 +2075,7 @@ export function TeamScreen({ user, t, lang, myTeams, curTeam, setCurTeam,
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
               <button onClick={copyCode} style={{ ...c.sBtn, flex: 1, padding: "8px 12px" }}>{copied ? `✓ ${t("Kopyalandı")}` : t("Kodu kopyala")}</button>
               {isOwner && (
-                <button onClick={async () => { if (window.confirm(t("Katılım kodu yenilensin mi? Eski kod geçersiz olur.")))
+                <button onClick={async () => { if (await confirmDialog({ title: t("Kodu yenile"), message: t("Katılım kodu yenilensin mi? Eski kod geçersiz olur."), confirmText: t("Yenile") }))
                   await regenerateJoinCode(curTeam, teamData?.meta?.joinCode).catch(() => {}); }}
                   style={{ ...c.sBtn, flex: 1, padding: "8px 12px" }}>{t("Yenile")}</button>
               )}
@@ -2157,13 +2158,13 @@ export function TeamScreen({ user, t, lang, myTeams, curTeam, setCurTeam,
                                 <span onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: "110%", right: 0, zIndex: 20, minWidth: 180, background: "var(--rc-surface-2)", border: "1px solid var(--rc-border-strong)", borderRadius: 10, boxShadow: "var(--rc-shadow-card)", padding: 5, display: "flex", flexDirection: "column", gap: 2 }}>
                                   {!isSelf && (
                                     <button style={{ ...c.sBtn, border: "none", background: "transparent", textAlign: "left", padding: "8px 10px" }}
-                                      onClick={async () => { setMenuUid(""); if (window.confirm(t("Sahiplik bu üyeye devredilsin mi?"))) await transferOwnership(curTeam, uid, user.uid).catch(() => {}); }}>👑 {t("Sahipliği devret")}</button>
+                                      onClick={async () => { setMenuUid(""); if (await confirmDialog({ title: t("Sahipliği devret"), message: t("Sahiplik bu üyeye devredilsin mi?"), confirmText: t("Devret") })) await transferOwnership(curTeam, uid, user.uid).catch(() => {}); }}>👑 {t("Sahipliği devret")}</button>
                                   )}
                                   <button style={{ ...c.sBtn, border: "none", background: "transparent", textAlign: "left", padding: "8px 10px" }}
                                     onClick={() => { setMenuUid(""); copyCode(); }}>✉ {t("Yeniden davet et")}</button>
                                   {!isSelf && (
                                     <button style={{ border: "none", background: "transparent", textAlign: "left", padding: "8px 10px", color: "var(--rc-danger)", cursor: "pointer", fontSize: 12, borderRadius: 7 }}
-                                      onClick={async () => { setMenuUid(""); if (window.confirm(t("Üye takımdan çıkarılsın mı?"))) await removeMember(curTeam, uid).catch(() => {}); }}>✕ {t("Takımdan çıkar")}</button>
+                                      onClick={async () => { setMenuUid(""); if (await confirmDialog({ title: t("Üyeyi çıkar"), message: t("Üye takımdan çıkarılsın mı?"), confirmText: t("Çıkar"), danger: true })) await removeMember(curTeam, uid).catch(() => {}); }}>✕ {t("Takımdan çıkar")}</button>
                                   )}
                                 </span>
                               )}
@@ -2192,7 +2193,7 @@ export function TeamScreen({ user, t, lang, myTeams, curTeam, setCurTeam,
                     background: curSeason === sid ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)" }}>{se.name}</button>
                 ))}
                 {canEditTeam && (
-                  <button onClick={async () => { const nm = window.prompt(t("Sezon adı"), `${new Date().getFullYear()} WEC`);
+                  <button onClick={async () => { const nm = await promptDialog({ title: t("Yeni sezon"), message: t("Sezon adı"), defaultValue: `${new Date().getFullYear()} WEC`, confirmText: t("Ekle") });
                     if (nm) await createSeason(curTeam, nm, new Date().getFullYear()).catch(() => {}); }}
                     style={{ ...c.sBtn, borderRadius: 99, padding: "5px 11px", border: "1px dashed var(--rc-border-strong)", background: "transparent", color: "var(--rc-text-3)" }}>＋ {t("Sezon")}</button>
                 )}
@@ -2219,7 +2220,7 @@ export function TeamScreen({ user, t, lang, myTeams, curTeam, setCurTeam,
                     <button title={t("Yukarı taşı")} disabled={i === 0} onClick={() => swapRace(i, i - 1)} style={{ ...c.mini, opacity: i === 0 ? .4 : 1 }}>▲</button>
                     <button title={t("Aşağı taşı")} disabled={i === sortedRaces.length - 1} onClick={() => swapRace(i, i + 1)} style={{ ...c.mini, opacity: i === sortedRaces.length - 1 ? .4 : 1 }}>▼</button>
                     <button title={t("Düzenle")} onClick={() => setRForm({ rid, ...r })} style={c.mini}>✎</button>
-                    <button title={t("Sil")} onClick={() => { if (window.confirm(t("Yarış silinsin mi?"))) deleteRace(curTeam, rid).catch(() => {}); }} style={c.mini}>✕</button>
+                    <button title={t("Sil")} onClick={async () => { if (await confirmDialog({ title: t("Yarışı sil"), message: t("Yarış silinsin mi?"), confirmText: t("Sil"), danger: true })) deleteRace(curTeam, rid).catch(() => {}); }} style={c.mini}>✕</button>
                   </span>
                 )}
               </div>
@@ -2251,7 +2252,7 @@ export function TeamScreen({ user, t, lang, myTeams, curTeam, setCurTeam,
                 <b style={{ fontSize: 13 }}>{t("Takımdan ayrıl")}</b>
                 <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{t("Yarış verilerine ve havuza erişimin kalkar. Sahipsen önce sahipliği devret.")}</span>
               </span>
-              <button disabled={isOwner} onClick={async () => { if (window.confirm(t("Takımdan ayrılınsın mı?"))) { await leaveTeam(curTeam, user.uid).catch(() => {}); setCurTeam(""); onExit?.(); } }}
+              <button disabled={isOwner} onClick={async () => { if (await confirmDialog({ title: t("Takımdan ayrıl"), message: t("Takımdan ayrılınsın mı?"), confirmText: t("Ayrıl"), danger: true })) { await leaveTeam(curTeam, user.uid).catch(() => {}); setCurTeam(""); onExit?.(); } }}
                 style={{ padding: "8px 15px", borderRadius: 9, border: "1px solid var(--rc-warn)", background: "transparent", color: "var(--rc-warn)", cursor: isOwner ? "not-allowed" : "pointer", fontSize: 12.5, whiteSpace: "nowrap", opacity: isOwner ? .5 : 1 }}>{t("Ayrıl")}</button>
             </div>
             {isOwner && (
@@ -2260,7 +2261,7 @@ export function TeamScreen({ user, t, lang, myTeams, curTeam, setCurTeam,
                   <b style={{ fontSize: 13 }}>{t("Takımı sil")}</b>
                   <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{t("Sezonlar, yarışlar ve takım setupları kalıcı olarak silinir. Geri alınamaz.")}</span>
                 </span>
-                <button onClick={async () => { if (window.confirm(t("Takım kalıcı olarak silinsin mi? Bu işlem geri alınamaz."))) { await deleteTeam(curTeam, user.uid, teamData?.meta?.joinCode).catch(() => {}); setCurTeam(""); onExit?.(); } }}
+                <button onClick={async () => { if (await confirmDialog({ title: t("Takımı sil"), message: t("Takım kalıcı olarak silinsin mi? Bu işlem geri alınamaz."), confirmText: t("Takımı sil"), danger: true })) { await deleteTeam(curTeam, user.uid, teamData?.meta?.joinCode).catch(() => {}); setCurTeam(""); onExit?.(); } }}
                   style={{ padding: "8px 15px", borderRadius: 9, border: "1px solid var(--rc-danger)", background: "rgba(255,77,94,.10)", color: "var(--rc-danger)", cursor: "pointer", fontSize: 12.5, fontWeight: 600, whiteSpace: "nowrap" }}>{t("Takımı sil")}</button>
               </div>
             )}
@@ -2410,7 +2411,7 @@ export function TeamModal({ open, onClose, user, t, lang, myTeams, curTeam, setC
                     ))}
                     {canEditTeam && (
                       <button onClick={async () => {
-                        const nm = window.prompt(t("Sezon adı"), `${new Date().getFullYear()} WEC`);
+                        const nm = await promptDialog({ title: t("Yeni sezon"), message: t("Sezon adı"), defaultValue: `${new Date().getFullYear()} WEC`, confirmText: t("Ekle") });
                         if (nm) await createSeason(curTeam, nm, new Date().getFullYear())
                           .catch(() => {});
                       }}>+ {t("Sezon")}</button>
@@ -2439,7 +2440,7 @@ export function TeamModal({ open, onClose, user, t, lang, myTeams, curTeam, setC
                           <button className="minibtn" title={t("Düzenle")}
                             onClick={() => setRForm({ rid, ...r })}>✎</button>
                           <button className="minibtn" title={t("Sil")}
-                            onClick={() => { if (window.confirm(t("Yarış silinsin mi?")))
+                            onClick={async () => { if (await confirmDialog({ title: t("Yarışı sil"), message: t("Yarış silinsin mi?"), confirmText: t("Sil"), danger: true }))
                               deleteRace(curTeam, rid).catch(() => {}); }}>✕</button>
                         </>)}
                       </div>
@@ -2543,6 +2544,88 @@ export function TeamModal({ open, onClose, user, t, lang, myTeams, curTeam, setC
    App'te key={deny} ile remount edilir (her tıkta yeniden animasyon). Boş bağımlılıkla
    yalnız mount'ta ~2.6 sn'lik zamanlayıcı kurulur (parent re-render zamanlayıcıyı sıfırlamaz),
    sonra onDone() ile kendini kapatır. */
+/* ConfirmHost — global onay/uyarı/istem penceresi (confirm.js ile konuşur).
+   App kökünde BİR KEZ render edilir; native window.confirm/alert/prompt yerine
+   arayüzle uyumlu modal gösterir. Klavye: Esc → iptal, Enter → onayla. */
+export function ConfirmHost() {
+  const [req, setReq] = useState(null);
+  const [val, setVal] = useState("");
+  useEffect(() => _bindConfirm((r) => { setReq(r); setVal(r?.defaultValue || ""); }), []);
+  useEffect(() => {
+    if (!req) return undefined;
+    const isPrompt = req.variant === "prompt";
+    const onKey = (e) => {
+      if (e.key === "Escape") { e.preventDefault(); setReq(null); req.resolve(isPrompt ? null : false); }
+      else if (e.key === "Enter" && !isPrompt) { e.preventDefault(); setReq(null); req.resolve(req.variant === "alert" ? true : true); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [req, val]);
+  if (!req) return null;
+
+  const en = (() => { try { return localStorage.getItem("crm-lang") === "en"; } catch { return false; } })();
+  const L = en
+    ? { cancel: "Cancel", ok: "OK", title: "Are you sure?" }
+    : { cancel: "Vazgeç", ok: "Tamam", title: "Emin misin?" };
+  const alertOnly = req.variant === "alert";
+  const isPrompt = req.variant === "prompt";
+  const danger = !!req.danger;
+  const done = (v) => { setReq(null); req.resolve(v); };
+  const onConfirm = () => done(isPrompt ? (val.trim() || null) : true);
+  const onCancel = () => done(isPrompt ? null : false);
+
+  const overlay = { position: "fixed", inset: 0, zIndex: 3000, display: "flex",
+    alignItems: "center", justifyContent: "center", padding: "24px 18px",
+    background: "rgba(6,4,5,.72)", backdropFilter: "blur(6px)",
+    fontFamily: "var(--rc-font-ui)", animation: "rcfade .16s ease" };
+  const box = { width: "min(420px,94vw)", background: "var(--rc-surface)",
+    border: "1px solid var(--rc-border-strong)", borderRadius: 16,
+    boxShadow: "var(--rc-shadow-card)", color: "var(--rc-text)", overflow: "hidden",
+    animation: "rcpop .18s ease" };
+  const accent = danger ? "var(--rc-danger)" : "var(--rc-brand-bright)";
+
+  return (
+    <div style={overlay} onClick={onCancel}>
+      <div style={box} onClick={(e) => e.stopPropagation()}>
+        <div style={{ padding: "22px 22px 18px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+          <span style={{ width: 44, height: 44, borderRadius: 12, display: "grid", placeItems: "center",
+            border: `1px solid ${accent}`, background: danger ? "rgba(255,77,94,.10)" : "rgba(150,0,24,.16)" }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+              {danger
+                ? <><path d="M10.3 3.9 1.9 18a2 2 0 0 0 1.7 3h16.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /><path d="M12 9v4M12 17h.01" /></>
+                : <><circle cx="12" cy="12" r="9.2" /><path d="M12 8v5M12 16h.01" /></>}
+            </svg>
+          </span>
+          <h3 style={{ margin: 0, fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 19, letterSpacing: ".02em", color: danger ? "var(--rc-danger)" : "var(--rc-text)" }}>
+            {req.title || L.title}</h3>
+          {req.message && <p style={{ margin: 0, fontSize: 13, color: "var(--rc-text-2)", lineHeight: 1.6, whiteSpace: "pre-line" }}>{req.message}</p>}
+          {isPrompt && (
+            <input autoFocus value={val} placeholder={req.placeholder || ""}
+              onChange={(e) => setVal(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onConfirm(); } }}
+              style={{ width: "100%", boxSizing: "border-box", marginTop: 4, textTransform: "none",
+                background: "var(--rc-surface-3)", border: "1px solid var(--rc-border-strong)",
+                borderRadius: 10, color: "var(--rc-text)", padding: "11px 13px", fontSize: 15 }} />
+          )}
+        </div>
+        <div style={{ display: "flex", gap: 10, padding: "14px 22px", borderTop: "1px solid var(--rc-border)", background: "#0F090B" }}>
+          {!alertOnly && (
+            <button onClick={onCancel} style={{ flex: 1, padding: "11px 16px", borderRadius: 10,
+              border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)",
+              cursor: "pointer", fontFamily: "var(--rc-font-display)", fontWeight: 600, fontSize: 14, textTransform: "uppercase", letterSpacing: ".04em" }}>
+              {req.cancelText || L.cancel}</button>
+          )}
+          <button autoFocus={!isPrompt} onClick={onConfirm} style={{ flex: 1, padding: "11px 16px", borderRadius: 10,
+            border: `1px solid ${accent}`, background: danger ? "var(--rc-danger)" : "var(--rc-brand)",
+            color: "var(--rc-on-brand)", cursor: "pointer", fontFamily: "var(--rc-font-display)", fontWeight: 700,
+            fontSize: 14, textTransform: "uppercase", letterSpacing: ".04em" }}>
+            {req.confirmText || L.ok}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function DenyToast({ text, onDone }) {
   useEffect(() => {
     const id = setTimeout(() => onDone?.(), 2600);

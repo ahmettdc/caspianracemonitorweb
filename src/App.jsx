@@ -28,6 +28,7 @@ import { processImageFile, IMG_ACCEPT_TYPES } from "./imageUpload";
 import { carImageSrc, teamLogoSrc } from "./teamAssets";
 import { duckSetupToSvm, textToB64 } from "./setupParse";
 import { signInGoogle, signOut, authReady } from "./auth";
+import { confirmDialog, alertDialog } from "./confirm";
 import {
   parseHMS, fmtHMS, fmtLap, parseLap, msToLocalInput, isRacePast,
   DEFAULT_STATE, EMPTY_PIT, TYRE_2_SEC, TYRE_4_SEC,
@@ -478,8 +479,8 @@ export default function App() {
     const patch = applyUnmarkPit(st);
     if (patch) up(patch);
   };
-  const resetPits = () => {
-    if (!confirm(t("Gerçek pit işaretlemelerini sıfırla?"))) return;
+  const resetPits = async () => {
+    if (!(await confirmDialog({ title: t("Pitleri sıfırla"), message: t("Gerçek pit işaretlemelerini sıfırla?"), confirmText: t("Sıfırla"), danger: true }))) return;
     up(applyResetPits(st));
   };
   const setRepair = (i, v) => {
@@ -556,7 +557,7 @@ export default function App() {
         ["c-idx", "", "c-lap", "c-clk", "c-clk", "c-drv", "c-svc", "c-pit", "", "c-left"],
         (ri) => rows[ri].isLast ? "r-last" : "");
     } else {
-      if (!driverPlan) { alert(t("Pilotlar sekmesinden başlangıç zamanını gir")); return; }
+      if (!driverPlan) { alertDialog(t("Pilotlar sekmesinden başlangıç zamanını gir")); return; }
       title = t("Pilot Programı");
       const rows = driverPlan.rows;
       html = mkTable(
@@ -971,8 +972,8 @@ ${bottomBar}
 
   /* Silme hatası eskiden yutuluyordu (.catch(()=>{})) → kural reddi/ağ hatasında
      satır ekranda kalıyor, kullanıcı sebebini göremiyordu. Tablo + kart ortak. */
-  const onDeleteSetup = (su) => {
-    if (!window.confirm(t("Bu setup silinsin mi?") + "\n" + (su.name || ""))) return;
+  const onDeleteSetup = async (su) => {
+    if (!(await confirmDialog({ title: t("Setupu sil"), message: t("Bu setup silinsin mi?") + "\n" + (su.name || ""), confirmText: t("Sil"), danger: true }))) return;
     deleteSetup(su.id)
       .then(() => setSuDelErr(""))
       .catch((e) => setSuDelErr(t("Silinemedi:") + " " + (e?.message || "")));
@@ -2023,10 +2024,10 @@ ${bottomBar}
     /* Ana menüden yarış sil (owner/editor). Kart butonunun KARDEŞİ olan ayrı bir
        düğme çağırır (iç içe <button> olmasın) → onaydan sonra deleteRace. Firebase
        kuralı da write'ı owner/editor'e sınırlar (ikinci savunma). */
-    const askDeleteRace = (rid, r) => {
+    const askDeleteRace = async (rid, r) => {
       if (!curTeam || !rid) return;
       const label = r?.name || trackName(r?.trackId) || "—";
-      if (window.confirm(`${t("Bu yarışı silmek istediğinize emin misiniz?")}\n\n${label}`))
+      if (await confirmDialog({ title: t("Yarışı sil"), message: `${t("Bu yarışı silmek istediğinize emin misiniz?")}\n\n${label}`, confirmText: t("Sil"), danger: true }))
         deleteRace(curTeam, rid).catch(() => setSyncMsg(t("Yarış silinemedi.")));
     };
 
@@ -3198,7 +3199,7 @@ ${bottomBar}
                 {canEdit && curTeam && curRace && (
                   <span style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 16px" }}>
                     <button onClick={async () => {
-                        if (!window.confirm(t("Bu yarışın tüm '+' tur geçmişi silinsin mi? (Yeni turlar yine kaydedilir.)"))) return;
+                        if (!(await confirmDialog({ title: t("Tur geçmişini temizle"), message: t("Bu yarışın tüm '+' tur geçmişi silinsin mi? (Yeni turlar yine kaydedilir.)"), confirmText: t("Temizle"), danger: true }))) return;
                         try { await liveHistoryClearAll(curTeam, curRace); } catch { /* yoksay */ }
                       }}
                       style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--rc-border)",

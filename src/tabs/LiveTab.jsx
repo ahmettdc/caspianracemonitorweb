@@ -3,6 +3,7 @@ import { fmtLap, fmtHMS, fmtGap, WEATHER, wetnessLevel, rainLevel, rubberPct } f
 import { WetIcon } from "../WetIcon";
 import { GripIcon, gripColor } from "../GripIcon";
 import { Ring } from "../components";
+import { confirmDialog } from "../confirm";
 import { DESKTOP_RELEASE_URL, BRIDGE_EXE_URL, ASSET, classId, classAccent, brandKey, manufacturerKey } from "../constants";
 import { isTauri } from "../tauriEnv";
 import { liveLapsSubscribe, liveSecSubscribe, liveDrvSubscribe, liveTyreSubscribe,
@@ -284,7 +285,7 @@ function LapsModal({ t, tid, rid, row, canEdit, onClose }) {
             <button className="act" style={{ marginRight: "auto", fontSize: 11 }}
               title={t("Bu yarışın '+' tur geçmişini (eski koşulardan kalan turlar/pilotlar) sıfırla")}
               onClick={async () => {
-                if (!window.confirm(t("Bu yarışın tüm '+' tur geçmişi silinsin mi? (Yeni turlar yine kaydedilir.)"))) return;
+                if (!(await confirmDialog({ title: t("Tur geçmişini temizle"), message: t("Bu yarışın tüm '+' tur geçmişi silinsin mi? (Yeni turlar yine kaydedilir.)"), confirmText: t("Temizle"), danger: true }))) return;
                 try { await liveHistoryClearAll(tid, rid); setCleared(true); }
                 catch { /* yoksay */ }
               }}>🗑 {t("Tur geçmişini temizle")}</button>
@@ -520,7 +521,7 @@ function BridgeControl({ t, bridge, canBridge, canEdit, tid, rid }) {
           <button className="act" style={{ fontSize: 11, padding: "3px 8px" }}
             title={t("Bu yarışın '+' tur geçmişini (eski koşulardan kalan turlar/pilotlar) sıfırla")}
             onClick={async () => {
-              if (!window.confirm(t("Bu yarışın tüm '+' tur geçmişi silinsin mi? (Yeni turlar yine kaydedilir.)"))) return;
+              if (!(await confirmDialog({ title: t("Tur geçmişini temizle"), message: t("Bu yarışın tüm '+' tur geçmişi silinsin mi? (Yeni turlar yine kaydedilir.)"), confirmText: t("Temizle"), danger: true }))) return;
               try { await liveHistoryClearAll(tid, rid); setCleared(true); setTimeout(() => setCleared(false), 2500); }
               catch { /* yoksay */ }
             }}>🗑 {t("Tur geçmişini temizle")}</button>
