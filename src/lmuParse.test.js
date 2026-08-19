@@ -219,9 +219,9 @@ describe("parseWeekendMeta — tam 'Race weekend' paneli (v2.1)", () => {
   const DETAIL = `
     <div class="panel"><h3>Race weekend</h3>
       <div class="sessions">
-        <div class="ses"><span class="n">Practice</span><span class="weather"><span class="wx-sun">☀️</span></span><span class="d">4m</span></div>
-        <div class="ses"><span class="n">Qualifying</span><span class="weather"></span><span class="d">12m</span></div>
-        <div class="ses"><span class="n">Race</span><span class="weather"></span><span class="d">60m</span></div>
+        <div class="ses"><span class="n">Practice</span><span class="weather"><span class="wx-sun">☀️</span><span class="wx-sun">☀️</span></span><span class="d">4m</span></div>
+        <div class="ses"><span class="n">Qualifying</span><span class="weather"><span class="wx-cloud">☁️</span></span><span class="d">12m</span></div>
+        <div class="ses"><span class="n">Race</span><span class="weather"><span class="wx-cloud">☁️</span><span class="wx-rain">🌧️</span></span><span class="d">60m</span></div>
       </div>
       <div class="set-tiles tnum">
         <div class="tile"><svg></svg><div class="t-txt"><span class="t-val">38</span><span class="t-lab">Grid</span></div></div>
@@ -237,13 +237,14 @@ describe("parseWeekendMeta — tam 'Race weekend' paneli (v2.1)", () => {
   it("seans süreleri + tüm kutucukları doğru tiplerle çıkarır", () => {
     expect(parseWeekendMeta(DETAIL)).toEqual({
       practiceSec: 240, qualSec: 720, raceSec: 3600,
+      weather: { practice: ["sun", "sun"], qualifying: ["cloud"], race: ["cloud", "rain"] },
       grid: 38, privateQuali: true, fixedSetup: false, tyreSets: 10,
       tlPoints: 6, fuel: 1, tyreWear: 1, warmers: false,
     });
   });
   it("panel yoksa sayılar null, seanslar null (çökmez)", () => {
     expect(parseWeekendMeta("<div>yok</div>")).toEqual({
-      practiceSec: null, qualSec: null, raceSec: null,
+      practiceSec: null, qualSec: null, raceSec: null, weather: null,
       grid: null, privateQuali: null, fixedSetup: null, tyreSets: null,
       tlPoints: null, fuel: null, tyreWear: null, warmers: null,
     });

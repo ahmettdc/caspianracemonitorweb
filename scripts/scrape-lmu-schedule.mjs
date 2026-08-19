@@ -85,7 +85,7 @@ async function main() {
       if (w.tyreSets != null) r.tyreSets = w.tyreSets;                   // preset: lastik seti sınırı
       /* Tüm "Race weekend" panelini görüntüleme için sakla (yalnız var olan alanlar). */
       const wk = {};
-      for (const k of ["practiceSec", "qualSec", "raceSec", "grid", "privateQuali",
+      for (const k of ["practiceSec", "qualSec", "raceSec", "weather", "grid", "privateQuali",
         "fixedSetup", "tyreSets", "tlPoints", "fuel", "tyreWear", "warmers"]) {
         if (w[k] != null) wk[k] = w[k];
       }

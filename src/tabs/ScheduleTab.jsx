@@ -45,34 +45,38 @@ const durMin = (sec) => {
   if (m <= 0) return null;
   return m >= 60 ? `${Math.floor(m / 60)}s${m % 60 ? ` ${m % 60}dk` : ""}` : `${m}dk`;
 };
-/* "Race weekend" paneli → sıralı [etiket, değer] token'ları. r.weekend (scraper)
-   yoksa mevcut düz alanlara (qualSec/tyreSets/lenSec) düşer → veri zenginleşene
+const WX_ICON = { sun: "☀️", cloud: "☁️", rain: "🌧️", storm: "⛈️", fog: "🌫️" };
+const wxIcon = (c) => WX_ICON[c] || "•";
+/* "Race weekend" paneli → { sessions:[{label,dur,wx[]}], stats:[[etiket,değer]] }.
+   r.weekend (scraper) yoksa düz alanlara (qualSec/tyreSets) düşer → veri zenginleşene
    dek en azından onlar görünür. Yalnız var olan alanlar döner. */
-function weekendTokens(r, t) {
+function weekendData(r, t) {
   const wk = r.weekend || {};
+  const wx = wk.weather || {};
   const W = {
     practiceSec: wk.practiceSec,
     qualSec: wk.qualSec ?? r.qualSec,
-    raceSec: wk.raceSec,                       // yarış süresi zaten satırda (lenLabel) — tekrarlama
+    raceSec: wk.raceSec,
     grid: wk.grid, privateQuali: wk.privateQuali, fixedSetup: wk.fixedSetup,
     tyreSets: wk.tyreSets ?? r.tyreSets,
     tlPoints: wk.tlPoints, fuel: wk.fuel, tyreWear: wk.tyreWear, warmers: wk.warmers,
   };
+  const sessions = [];
+  const addS = (sec, label, key) => { const d = durMin(sec); if (d) sessions.push({ label, dur: d, wx: wx[key] || [] }); };
+  addS(W.practiceSec, t("Antr."), "practice");
+  addS(W.qualSec, t("Sıralama"), "qualifying");
+  addS(W.raceSec, t("Yarış"), "race");
   const yn = (b) => (b ? t("Evet") : t("Hayır"));
-  const out = [];
-  const p = durMin(W.practiceSec), q = durMin(W.qualSec), rc = durMin(W.raceSec);
-  if (p) out.push([t("Antr."), p]);
-  if (q) out.push([t("Sıralama"), q]);
-  if (rc) out.push([t("Yarış"), rc]);
-  if (W.grid != null) out.push([t("Grid"), String(W.grid)]);
-  if (W.privateQuali != null) out.push([t("Özel sıralama"), yn(W.privateQuali)]);
-  if (W.fixedSetup != null) out.push([t("Sabit setup"), yn(W.fixedSetup)]);
-  if (W.tyreSets != null) out.push([t("Lastik seti"), String(W.tyreSets)]);
-  if (W.tlPoints != null) out.push([t("TL puanı"), String(W.tlPoints)]);
-  if (W.fuel != null) out.push([t("Yakıt"), `×${W.fuel}`]);
-  if (W.tyreWear != null) out.push([t("Aşınma"), `×${W.tyreWear}`]);
-  if (W.warmers != null) out.push([t("Isıtıcı"), W.warmers ? t("Var") : t("Yok")]);
-  return out;
+  const stats = [];
+  if (W.grid != null) stats.push([t("Grid"), String(W.grid)]);
+  if (W.privateQuali != null) stats.push([t("Özel sıralama"), yn(W.privateQuali)]);
+  if (W.fixedSetup != null) stats.push([t("Sabit setup"), yn(W.fixedSetup)]);
+  if (W.tyreSets != null) stats.push([t("Lastik seti"), String(W.tyreSets)]);
+  if (W.tlPoints != null) stats.push([t("TL puanı"), String(W.tlPoints)]);
+  if (W.fuel != null) stats.push([t("Yakıt"), `×${W.fuel}`]);
+  if (W.tyreWear != null) stats.push([t("Aşınma"), `×${W.tyreWear}`]);
+  if (W.warmers != null) stats.push([t("Isıtıcı"), W.warmers ? t("Var") : t("Yok")]);
+  return { sessions, stats };
 }
 
 export default function ScheduleTab({ t, lang = "tr", races = [], updatedAt, loading, onPlan }) {
@@ -216,11 +220,18 @@ export default function ScheduleTab({ t, lang = "tr", races = [], updatedAt, loa
                     </span>
                   </span>
                   {(() => {
-                    const wk = weekendTokens(r, t);
-                    if (!wk.length) return null;
+                    const { sessions, stats } = weekendData(r, t);
+                    if (!sessions.length && !stats.length) return null;
                     return (
-                      <span style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "4px 8px", flex: "1.5 1 300px", minWidth: 0, justifyContent: "center" }}>
-                        {wk.map(([k, v]) => (
+                      <span style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "4px 7px", flex: "1.6 1 320px", minWidth: 0, justifyContent: "center" }}>
+                        {sessions.map((s) => (
+                          <span key={s.label} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px", borderRadius: 8, background: "var(--rc-surface-2)", border: "1px solid var(--rc-border)", whiteSpace: "nowrap" }}>
+                            <i style={{ fontStyle: "normal", fontSize: 9.5, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--rc-text-3)" }}>{s.label}</i>
+                            <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 12, fontWeight: 700, color: "var(--rc-text)" }}>{s.dur}</b>
+                            {s.wx.length > 0 && <span style={{ fontSize: 9, letterSpacing: "-1px", opacity: .9 }}>{s.wx.map(wxIcon).join("")}</span>}
+                          </span>
+                        ))}
+                        {stats.map(([k, v]) => (
                           <span key={k} style={{ display: "inline-flex", alignItems: "baseline", gap: 4, padding: "3px 9px", borderRadius: 8, background: "var(--rc-surface-2)", border: "1px solid var(--rc-border)", whiteSpace: "nowrap" }}>
                             <i style={{ fontStyle: "normal", fontSize: 9.5, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--rc-text-3)" }}>{k}</i>
                             <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 12, fontWeight: 700, color: "var(--rc-text)" }}>{v}</b>
