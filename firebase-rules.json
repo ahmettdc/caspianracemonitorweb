@@ -25,7 +25,7 @@
     "teamCodes": {
       ".read": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true",
       "$code": {
-        ".write": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && !data.exists()"
+        ".write": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && (!data.exists() || (!newData.exists() && root.child('teams').child(data.val()).child('members').child(auth.uid).val() == 'owner'))"
       }
     },
 

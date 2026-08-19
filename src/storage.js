@@ -364,6 +364,63 @@ export async function leaveTeam(tid, uid) {
   await remove(ref(db, `users/${uid}/teams/${tid}`));
 }
 
+/* Üyeyi takımdan çıkar (yalnız sahip). Kural: sahip members/names/photos/badges
+   altında her üyeye yazabilir. Çıkarılanın users/{uid}/teams/{tid} kaydını sahip
+   silemez (kural: kişi yalnız kendi kaydını siler) → o üyede "ölü" referans kalır;
+   takıma tekrar bakınca üye olmadığı görülür (members yok). */
+export async function removeMember(tid, uid) {
+  if (!db || !tid || !uid) return;
+  await update(ref(db), {
+    [`teams/${tid}/members/${uid}`]: null,
+    [`teams/${tid}/names/${uid}`]: null,
+    [`teams/${tid}/photos/${uid}`]: null,
+    [`teams/${tid}/badges/${uid}`]: null,
+  });
+}
+
+/* Sahipliği devret (yalnız mevcut sahip). Tek atomik güncelleme: meta.ownerUid +
+   iki üye rolü. Kural meta yazımını data.ownerUid == auth.uid ile denetler → güncelleme
+   ÖNCESİ değer (eski sahip = auth) geçerli olduğundan izin verilir. */
+export async function transferOwnership(tid, newUid, oldUid) {
+  if (!db || !tid || !newUid || !oldUid) return;
+  await update(ref(db), {
+    [`teams/${tid}/meta/ownerUid`]: newUid,
+    [`teams/${tid}/members/${newUid}`]: "owner",
+    [`teams/${tid}/members/${oldUid}`]: "editor",
+  });
+}
+
+/* Katılım kodunu yenile (yalnız sahip). Yeni kod üretir + meta.joinCode günceller +
+   yeni teamCodes eşlemesini yazar; eski kodu best-effort siler (kural sahibe izin
+   verirse). Yeni kodu döndürür. */
+export async function regenerateJoinCode(tid, oldCode) {
+  if (!db || !tid) return null;
+  const code = rnd(6);
+  await update(ref(db), {
+    [`teams/${tid}/meta/joinCode`]: code,
+    [`teamCodes/${code}`]: tid,
+  });
+  if (oldCode && oldCode !== code) {
+    await remove(ref(db, `teamCodes/${oldCode}`)).catch(() => {});
+  }
+  return code;
+}
+
+/* Takımı KALICI sil (yalnız sahip). Tüm teams/{tid}/* alt düğümlerini + sahibin
+   kendi users kaydını + katılım kodunu temizler. Diğer üyelerin users/{uid}/teams
+   kaydını kural gereği sahip silemez (ölü referans kalır, zararsız). GERİ ALINAMAZ. */
+export async function deleteTeam(tid, ownerUid, joinCode) {
+  if (!db || !tid) return;
+  const subs = ["meta", "members", "names", "photos", "badges", "seasons", "races",
+    "raceState", "assets", "chat", "raceChat", "live", "livelaps", "livepos", "livesec",
+    "livecond", "livedrv", "livetyre", "livewriter", "livetrack", "livetracksec", "livetrackpit"];
+  const updates = {};
+  for (const s of subs) updates[`teams/${tid}/${s}`] = null;
+  if (ownerUid) updates[`users/${ownerUid}/teams/${tid}`] = null;
+  await update(ref(db), updates);
+  if (joinCode) await remove(ref(db, `teamCodes/${joinCode}`)).catch(() => {});
+}
+
 /* Rozet (admin atar): "admin" | "driver" | "engineer" */
 export async function setUserBadge(uid, badge) {
   if (!db || !uid) return;

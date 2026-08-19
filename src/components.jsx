@@ -13,7 +13,8 @@ import { parseSvm, b64ToText, setupSummary, diffSetups, categorizeSetup,
   duckSetupToParsed } from "./setupParse";
 import { renameTeam, syncMyTeamName, createSeason, deleteRace,
   leaveTeam, createTeam, joinTeam, getSetupBlob,
-  getUserAvatar, saveTeamAsset, clearTeamAsset } from "./storage";
+  getUserAvatar, saveTeamAsset, clearTeamAsset,
+  removeMember, transferOwnership, regenerateJoinCode, deleteTeam, updateRace } from "./storage";
 import { processImageFile, IMG_ACCEPT_TYPES } from "./imageUpload";
 import { carAssetKey, teamLogoSrc } from "./teamAssets";
 import { extHref } from "./tauriEnv";
@@ -1903,6 +1904,369 @@ function AssetUpload({ label, current, fallback = "", specKey, aspect, w,
         </div>
       )}
       {err && <div className="hint warn" style={{ margin: "4px 0 0" }}>{err}</div>}
+    </div>
+  );
+}
+
+/* ============================================================
+   TeamScreen — v2.0 TAKIM tam ekranı (handoff: ekranlar/10-takim.md)
+   ------------------------------------------------------------
+   Sol: takım kimliği (logo sürükle-bırak + ad + katılım kodu) + araç görselleri.
+   Sağ: üyeler & yetkiler (rol + sürücü/mühendis + ⋯ menü) · sezon takvimi ·
+   takım hareketleri (yarış createdAt'ten türetilir) · tehlikeli işlemler.
+   Kabuk (shell + rail) App tarafından sağlanır; bu bileşen yalnız içeriktir.
+   ============================================================ */
+export function TeamScreen({ user, t, lang, myTeams, curTeam, setCurTeam,
+  teamData, tnEdit, setTnEdit, canManageTeam, canEditTeam, curSeason, setCurSeason,
+  seasons, races, st, myRole, openRace, setRForm, setBadge, roleLabel, onCreateJoin, onExit }) {
+  const [astCls, setAstCls] = useState("hypercar");
+  const [astCar, setAstCar] = useState("");
+  const [menuUid, setMenuUid] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [logoBusy, setLogoBusy] = useState(false);
+  const [logoErr, setLogoErr] = useState("");
+  const isOwner = myRole === "owner";
+  const astKey = astCar ? carAssetKey(astCls, astCar) : "";
+  const astCustom = (angle) => teamData?.assets?.cars?.[astKey]?.[angle] || "";
+
+  const c = {
+    card: { border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)", overflow: "hidden" },
+    hd: { display: "flex", alignItems: "center", gap: 10, padding: "14px 16px", borderBottom: "1px solid var(--rc-border)", flexWrap: "wrap" },
+    hdT: { fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 16, fontWeight: 700 },
+    dim: { color: "var(--rc-text-3)", fontSize: 12 },
+    sBtn: { padding: "7px 14px", borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer", fontSize: 12 },
+    mini: { width: 26, height: 26, borderRadius: 7, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 11, lineHeight: 1 },
+  };
+  const copyCode = () => {
+    const code = teamData?.meta?.joinCode || "";
+    if (!code) return;
+    try { navigator.clipboard?.writeText(code); } catch { /* yoksay */ }
+    setCopied(true); setTimeout(() => setCopied(false), 1500);
+  };
+  const onLogoFile = async (f) => {
+    if (!f || !canEditTeam) return;
+    setLogoErr(""); setLogoBusy(true);
+    try { await saveTeamAsset(curTeam, "logo", await processImageFile(f, "logo")); }
+    catch { setLogoErr(t("Logo yüklenemedi — PNG/SVG, en az 256×256.")); }
+    setLogoBusy(false);
+  };
+
+  const memberList = Object.entries(teamData?.members || {});
+  const memberCount = memberList.length;
+  const raceCount = Object.keys(races).length;
+  const seasonName = (curSeason && seasons[curSeason]?.name)
+    || Object.values(seasons)[0]?.name || t("Sezon yok");
+  const logoSrc = teamLogoSrc(teamData?.assets);
+
+  const sortedRaces = Object.entries(races)
+    .filter(([, r]) => !curSeason || r.seasonId === curSeason)
+    .sort(([, a], [, b]) => (a.startsAt || 0) - (b.startsAt || 0));
+  const swapRace = async (i, j) => {
+    const a = sortedRaces[i], b = sortedRaces[j];
+    if (!a || !b) return;
+    const as = a[1].startsAt || 0, bs = b[1].startsAt || 0;
+    await updateRace(curTeam, a[0], { startsAt: bs }).catch(() => {});
+    await updateRace(curTeam, b[0], { startsAt: as }).catch(() => {});
+  };
+
+  /* Hareket akışı — yarış createdAt/createdBy'den türetilir (uydurma yok). */
+  const feed = Object.entries(races)
+    .filter(([, r]) => r.createdAt)
+    .sort(([, a], [, b]) => (b.createdAt || 0) - (a.createdAt || 0))
+    .slice(0, 6)
+    .map(([rid, r]) => ({
+      id: rid, icon: "🏁", col: "var(--rc-brand-bright)",
+      who: teamData?.names?.[r.createdBy] || t("Bir üye"),
+      text: `${r.name || trackName(r.trackId) || t("yarış")} ${t("yarışını ekledi")}`,
+      at: new Date(r.createdAt).toLocaleString(lang === "en" ? "en-GB" : "tr-TR",
+        { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }),
+    }));
+
+  const roleChip = (role) => {
+    const own = role === "owner";
+    return { display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, padding: "3px 10px",
+      borderRadius: 99, border: `1px solid ${own ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
+      background: own ? "rgba(150,0,24,.20)" : "var(--rc-surface-3)", color: own ? "var(--rc-text)" : "var(--rc-text-2)",
+      textTransform: "uppercase", letterSpacing: ".05em", whiteSpace: "nowrap" };
+  };
+  const tgl = (on, col, bg) => ({ width: 30, height: 28, borderRadius: 8, cursor: "pointer", fontSize: 13,
+    border: `1px solid ${on ? col : "var(--rc-border)"}`, background: on ? bg : "var(--rc-surface-3)",
+    color: on ? col : "var(--rc-text-4)", lineHeight: 1 });
+
+  if (!curTeam || !teamData) {
+    return (
+      <div style={{ padding: "40px 24px", textAlign: "center", color: "var(--rc-text-3)", fontFamily: "var(--rc-font-ui)" }}>
+        <div style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 20, color: "var(--rc-text)", marginBottom: 8 }}>{t("Henüz bir takımın yok")}</div>
+        <div style={{ fontSize: 13, marginBottom: 16 }}>{t("Yeni takım kur ya da katılım kodu ile katıl.")}</div>
+        {onCreateJoin && (
+          <button onClick={onCreateJoin} style={{ padding: "10px 20px", borderRadius: 10, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 14, textTransform: "uppercase" }}>🏢 {t("Kur & Katıl")}</button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: "16px 20px 48px", fontFamily: "var(--rc-font-ui)", color: "var(--rc-text)", animation: "rcin .26s ease-out" }}
+      onClick={() => menuUid && setMenuUid("")}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+        <h2 style={{ margin: 0, fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".06em", fontSize: 22, fontWeight: 700 }}>{t("Takım")}</h2>
+        {Object.keys(myTeams).length > 1 && (
+          <span style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {Object.entries(myTeams).map(([tid, nm]) => (
+              <button key={tid} onClick={() => setCurTeam(tid)} style={{ ...c.sBtn,
+                border: `1px solid ${curTeam === tid ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
+                background: curTeam === tid ? "rgba(150,0,24,.20)" : "var(--rc-surface-3)" }}>{nm}</button>
+            ))}
+          </span>
+        )}
+        {onExit && <button onClick={onExit} style={{ ...c.sBtn, marginLeft: "auto" }}>{t("Kapat")}</button>}
+      </div>
+
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "flex-start" }}>
+        {/* ═══════════ SOL ═══════════ */}
+        <div style={{ flex: "1 1 300px", maxWidth: 360, display: "flex", flexDirection: "column", gap: 12 }}>
+          {/* Takım kimliği */}
+          <div style={{ ...c.card, padding: 18, textAlign: "center" }}>
+            <label
+              onDragOver={(e) => { e.preventDefault(); }}
+              onDrop={(e) => { e.preventDefault(); onLogoFile(e.dataTransfer?.files?.[0]); }}
+              style={{ position: "relative", width: 140, height: 140, margin: "0 auto 12px", border: "1.5px dashed var(--rc-border-strong)", borderRadius: 14, background: "var(--rc-surface-2)", display: "grid", placeItems: "center", overflow: "hidden", cursor: canEditTeam ? "pointer" : "default" }}>
+              {logoSrc
+                ? <img src={logoSrc} alt="" style={{ maxWidth: "78%", maxHeight: "78%", objectFit: "contain" }} />
+                : <img src={`${ASSET}logo.png`} alt="" style={{ maxWidth: "70%", maxHeight: "70%", objectFit: "contain", opacity: .5 }} />}
+              <span style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "5px 0", background: "rgba(11,7,8,.82)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".09em", color: "var(--rc-text-2)" }}>{logoBusy ? t("Yükleniyor…") : t("sürükle-bırak")}</span>
+              {canEditTeam && <input type="file" accept={IMG_ACCEPT_TYPES.join(",")} style={{ display: "none" }}
+                onChange={(e) => { onLogoFile(e.target.files?.[0]); e.target.value = ""; }} />}
+            </label>
+            {canEditTeam && (
+              <div style={{ display: "flex", gap: 8, justifyContent: "center", marginBottom: 10 }}>
+                <label style={{ ...c.sBtn, padding: "6px 14px" }}>{t("Logo değiştir")}
+                  <input type="file" accept={IMG_ACCEPT_TYPES.join(",")} style={{ display: "none" }}
+                    onChange={(e) => { onLogoFile(e.target.files?.[0]); e.target.value = ""; }} /></label>
+                {logoSrc && <button onClick={() => clearTeamAsset(curTeam, "logo").catch(() => {})} style={{ ...c.sBtn, padding: "6px 14px", color: "var(--rc-text-3)" }}>{t("Kaldır")}</button>}
+              </div>
+            )}
+            <div style={{ color: "var(--rc-text-3)", fontSize: 10.5, margin: "0 0 12px", lineHeight: 1.5 }}>{t("PNG veya SVG · en az 256×256 · şeffaf zemin önerilir")}</div>
+            {logoErr && <div style={{ color: "var(--rc-danger)", fontSize: 11, marginBottom: 10 }}>{logoErr}</div>}
+
+            {tnEdit === null || !canManageTeam ? (
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 8, justifyContent: "center" }}>
+                <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 22, letterSpacing: ".02em" }}>{teamData?.meta?.name || "—"}</span>
+                {canManageTeam && <button onClick={() => setTnEdit(teamData?.meta?.name || "")} title={t("Düzenle")} style={{ ...c.mini, width: 24, height: 24 }}>✎</button>}
+              </div>
+            ) : (
+              <div style={{ display: "flex", gap: 6, maxWidth: 300, margin: "0 auto" }}>
+                <input type="text" value={tnEdit} maxLength={40} autoFocus
+                  style={{ flex: 1, background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", borderRadius: 8, color: "var(--rc-text)", padding: "7px 10px", textTransform: "none", fontSize: 14 }}
+                  onChange={(e) => setTnEdit(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Escape") setTnEdit(null); }} />
+                <button disabled={!tnEdit.trim()} style={{ ...c.sBtn, opacity: tnEdit.trim() ? 1 : .45 }}
+                  onClick={async () => { const nm = tnEdit.trim(); setTnEdit(null);
+                    try { await renameTeam(curTeam, nm); await syncMyTeamName(user.uid, curTeam, nm); } catch { /* yoksay */ } }}>{t("Kaydet")}</button>
+              </div>
+            )}
+            <div style={{ color: "var(--rc-text-3)", fontSize: 12, marginTop: 4 }}>{seasonName} · {memberCount} {t("üye")} · {raceCount} {t("yarış")}</div>
+
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, background: "var(--rc-surface-3)", border: "1px solid var(--rc-border-strong)", borderRadius: 10, padding: "9px 14px", marginTop: 14 }}>
+              <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".08em", color: "var(--rc-text-3)" }}>{t("Katılım kodu")}</span>
+              <b style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, letterSpacing: ".16em", fontSize: 18 }}>{teamData?.meta?.joinCode || "—"}</b>
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              <button onClick={copyCode} style={{ ...c.sBtn, flex: 1, padding: "8px 12px" }}>{copied ? `✓ ${t("Kopyalandı")}` : t("Kodu kopyala")}</button>
+              {isOwner && (
+                <button onClick={async () => { if (window.confirm(t("Katılım kodu yenilensin mi? Eski kod geçersiz olur.")))
+                  await regenerateJoinCode(curTeam, teamData?.meta?.joinCode).catch(() => {}); }}
+                  style={{ ...c.sBtn, flex: 1, padding: "8px 12px" }}>{t("Yenile")}</button>
+              )}
+            </div>
+          </div>
+
+          {/* Araç görselleri */}
+          {canEditTeam && (
+            <div style={{ ...c.card, padding: 16 }}>
+              <div style={{ ...c.hdT, fontSize: 14, marginBottom: 12 }}>{t("Araç Görselleri")}</div>
+              <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                <ImgSelect value={astCls} options={classOptions()} t={t} placeholder={t("Sınıf")}
+                  onChange={(v) => { setAstCls(v); setAstCar(""); }} />
+                <ImgSelect value={astCar} options={carOptions(astCls)} t={t} placeholder={t("Araç")}
+                  disabled={!astCls} onChange={(v) => setAstCar(v)} />
+              </div>
+              {astCar ? (
+                <div style={{ display: "flex", gap: 10 }}>
+                  <AssetUpload label={`${t("Yandan")} (SIDE)`} specKey="carSide" aspect="1000 / 400" w={190}
+                    current={astCustom("side")} fallback={carImg(astCls, astCar)} canEdit={canEditTeam} t={t}
+                    onSave={(uri) => saveTeamAsset(curTeam, `cars/${astKey}/side`, uri)}
+                    onClear={() => clearTeamAsset(curTeam, `cars/${astKey}/side`).catch(() => {})} />
+                  <AssetUpload label={`${t("Üstten")} (TOP)`} specKey="carTop" aspect="400 / 1000" w={80}
+                    current={astCustom("top")} fallback={`${ASSET}cartop/default.png`} canEdit={canEditTeam} t={t}
+                    onSave={(uri) => saveTeamAsset(curTeam, `cars/${astKey}/top`, uri)}
+                    onClear={() => clearTeamAsset(curTeam, `cars/${astKey}/top`).catch(() => {})} />
+                </div>
+              ) : <div style={c.dim}>{t("Görsel yüklemek için önce araç seç.")}</div>}
+            </div>
+          )}
+        </div>
+
+        {/* ═══════════ SAĞ ═══════════ */}
+        <div style={{ flex: "1 1 560px", minWidth: 0, display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Üyeler & yetkiler */}
+          <div style={c.card}>
+            <div style={c.hd}>
+              <span style={c.hdT}>{t("Üyeler & Yetkiler")}</span>
+              <span style={c.dim}>{memberCount} {t("kişi")}</span>
+              <button onClick={copyCode} style={{ ...c.sBtn, marginLeft: "auto" }}>＋ {t("Üye davet et")}</button>
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 560 }}>
+                <thead><tr>
+                  {[t("Üye"), t("Rol"), "🛞 " + t("Sürücü"), "🎧 " + t("Mühendis"), t("Son görülme"), ""].map((h, i) => (
+                    <th key={i} style={{ textAlign: i < 2 ? "left" : "center", padding: "9px 14px", fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".07em", color: "var(--rc-text-3)", borderBottom: "1px solid var(--rc-border)", whiteSpace: "nowrap" }}>{h}</th>
+                  ))}
+                </tr></thead>
+                <tbody>
+                  {memberList.map(([uid, role]) => {
+                    const isSelf = uid === user.uid;
+                    const drvOn = hasBadge(teamData, uid, "driver");
+                    const engOn = hasBadge(teamData, uid, "engineer");
+                    return (
+                      <tr key={uid} style={{ borderBottom: "1px solid var(--rc-line-soft)" }}>
+                        <td style={{ padding: "10px 14px" }}>
+                          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <Avatar uid={uid} name={teamData?.names?.[uid]} size={26} />
+                            <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+                              <b style={{ fontSize: 14 }}>{teamData?.names?.[uid] || (isSelf ? t("(sen)") : uid.slice(0, 8) + "…")}{teamData?.names?.[uid] && isSelf ? ` ${t("(sen)")}` : ""}</b>
+                            </span>
+                          </span>
+                        </td>
+                        <td style={{ padding: "10px 14px" }}><span style={roleChip(role)}>{role === "owner" ? "👑 " : ""}{t(roleLabel(role))}</span></td>
+                        <td style={{ padding: "10px 14px", textAlign: "center" }}>
+                          <button disabled={!canManageTeam} onClick={() => canManageTeam && setBadge(uid, "driver", !drvOn)}
+                            title={t("Sürücü")} style={{ ...tgl(drvOn, BADGES.driver.col, BADGES.driver.bg), cursor: canManageTeam ? "pointer" : "default" }}>🛞</button>
+                        </td>
+                        <td style={{ padding: "10px 14px", textAlign: "center" }}>
+                          <button disabled={!canManageTeam} onClick={() => canManageTeam && setBadge(uid, "engineer", !engOn)}
+                            title={t("Mühendis")} style={{ ...tgl(engOn, BADGES.engineer.col, BADGES.engineer.bg), cursor: canManageTeam ? "pointer" : "default" }}>🎧</button>
+                        </td>
+                        <td style={{ padding: "10px 14px", textAlign: "center", color: "var(--rc-text-4)", fontSize: 12 }}>—</td>
+                        <td style={{ padding: "10px 14px", textAlign: "center" }}>
+                          {canManageTeam && (
+                            <span style={{ position: "relative", display: "inline-flex" }}>
+                              <button onClick={(e) => { e.stopPropagation(); setMenuUid(menuUid === uid ? "" : uid); }}
+                                style={{ ...c.mini, width: 28 }}>⋯</button>
+                              {menuUid === uid && (
+                                <span onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: "110%", right: 0, zIndex: 20, minWidth: 180, background: "var(--rc-surface-2)", border: "1px solid var(--rc-border-strong)", borderRadius: 10, boxShadow: "var(--rc-shadow-card)", padding: 5, display: "flex", flexDirection: "column", gap: 2 }}>
+                                  {!isSelf && (
+                                    <button style={{ ...c.sBtn, border: "none", background: "transparent", textAlign: "left", padding: "8px 10px" }}
+                                      onClick={async () => { setMenuUid(""); if (window.confirm(t("Sahiplik bu üyeye devredilsin mi?"))) await transferOwnership(curTeam, uid, user.uid).catch(() => {}); }}>👑 {t("Sahipliği devret")}</button>
+                                  )}
+                                  <button style={{ ...c.sBtn, border: "none", background: "transparent", textAlign: "left", padding: "8px 10px" }}
+                                    onClick={() => { setMenuUid(""); copyCode(); }}>✉ {t("Yeniden davet et")}</button>
+                                  {!isSelf && (
+                                    <button style={{ border: "none", background: "transparent", textAlign: "left", padding: "8px 10px", color: "var(--rc-danger)", cursor: "pointer", fontSize: 12, borderRadius: 7 }}
+                                      onClick={async () => { setMenuUid(""); if (window.confirm(t("Üye takımdan çıkarılsın mı?"))) await removeMember(curTeam, uid).catch(() => {}); }}>✕ {t("Takımdan çıkar")}</button>
+                                  )}
+                                </span>
+                              )}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Sezon takvimi */}
+          <div style={c.card}>
+            <div style={c.hd}>
+              <span style={c.hdT}>{t("Sezon Takvimi")}</span>
+              <span style={{ display: "flex", gap: 6, marginLeft: 8, flexWrap: "wrap" }}>
+                <button onClick={() => setCurSeason("")} style={{ ...c.sBtn, borderRadius: 99, padding: "5px 12px",
+                  border: `1px solid ${curSeason === "" ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
+                  background: curSeason === "" ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)" }}>{t("Tümü")}</button>
+                {Object.entries(seasons).map(([sid, se]) => (
+                  <button key={sid} onClick={() => setCurSeason(sid)} style={{ ...c.sBtn, borderRadius: 99, padding: "5px 12px",
+                    border: `1px solid ${curSeason === sid ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
+                    background: curSeason === sid ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)" }}>{se.name}</button>
+                ))}
+                {canEditTeam && (
+                  <button onClick={async () => { const nm = window.prompt(t("Sezon adı"), `${new Date().getFullYear()} WEC`);
+                    if (nm) await createSeason(curTeam, nm, new Date().getFullYear()).catch(() => {}); }}
+                    style={{ ...c.sBtn, borderRadius: 99, padding: "5px 11px", border: "1px dashed var(--rc-border-strong)", background: "transparent", color: "var(--rc-text-3)" }}>＋ {t("Sezon")}</button>
+                )}
+              </span>
+              {canEditTeam && (
+                <button onClick={() => setRForm({ rid: null, seasonId: curSeason || null, round: "", name: "",
+                  trackId: st.track || "", carClass: st.carClass || "hypercar", carId: st.car || "",
+                  raceTime: st.raceTime || "6:00:00", startsAt: Date.now() })}
+                  style={{ ...c.sBtn, marginLeft: "auto" }}>＋ {t("Yarış ekle")}</button>
+              )}
+            </div>
+            {sortedRaces.length === 0 && <div style={{ padding: "14px 16px", ...c.dim }}>{t("Takvimde yarış yok.")}</div>}
+            {sortedRaces.map(([rid, r], i) => (
+              <div key={rid} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", borderTop: i > 0 ? "1px solid var(--rc-line-soft)" : "none" }}>
+                <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 15, color: "var(--rc-text-3)", width: 34, flex: "0 0 auto" }}>{r.round ? `R${r.round}` : "—"}</span>
+                {r.trackId && <img src={`${ASSET}flags/${TRACK_ASSET(r.trackId)}.png${AV}`} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ width: 26, borderRadius: 3, border: "1px solid var(--rc-border)", flex: "0 0 auto" }} />}
+                <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0, flex: 1 }}>
+                  <b style={{ fontSize: 14 }}>{r.name || trackName(r.trackId) || "—"}</b>
+                  <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{[trackName(r.trackId), r.raceTime, r.startsAt ? new Date(r.startsAt).toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR", { day: "2-digit", month: "short" }) : ""].filter(Boolean).join(" · ")}</span>
+                </span>
+                <button onClick={() => openRace(rid)} style={{ padding: "7px 16px", borderRadius: 8, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontFamily: "var(--rc-font-display)", fontSize: 13, fontWeight: 700, textTransform: "uppercase", flex: "0 0 auto" }}>{t("Aç")}</button>
+                {canEditTeam && (
+                  <span style={{ display: "flex", gap: 5, flex: "0 0 auto" }}>
+                    <button title={t("Yukarı taşı")} disabled={i === 0} onClick={() => swapRace(i, i - 1)} style={{ ...c.mini, opacity: i === 0 ? .4 : 1 }}>▲</button>
+                    <button title={t("Aşağı taşı")} disabled={i === sortedRaces.length - 1} onClick={() => swapRace(i, i + 1)} style={{ ...c.mini, opacity: i === sortedRaces.length - 1 ? .4 : 1 }}>▼</button>
+                    <button title={t("Düzenle")} onClick={() => setRForm({ rid, ...r })} style={c.mini}>✎</button>
+                    <button title={t("Sil")} onClick={() => { if (window.confirm(t("Yarış silinsin mi?"))) deleteRace(curTeam, rid).catch(() => {}); }} style={c.mini}>✕</button>
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Takım hareketleri */}
+          <div style={c.card}>
+            <div style={c.hd}>
+              <span style={c.hdT}>{t("Takım Hareketleri")}</span>
+            </div>
+            {feed.length === 0 && <div style={{ padding: "14px 16px", ...c.dim }}>{t("Henüz hareket yok.")}</div>}
+            {feed.map((f) => (
+              <div key={f.id} style={{ display: "flex", alignItems: "flex-start", gap: 11, padding: "11px 16px", borderTop: "1px solid var(--rc-surface-5)" }}>
+                <span style={{ width: 28, height: 28, borderRadius: 9, flex: "0 0 auto", background: "var(--rc-surface-3)", border: `1px solid ${f.col}`, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>{f.icon}</span>
+                <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, flex: 1 }}>
+                  <span style={{ fontSize: 12.5, lineHeight: 1.5 }}><b>{f.who}</b> {f.text}</span>
+                  <span style={{ fontSize: 10.5, color: "var(--rc-text-3)" }}>{f.at}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Tehlikeli işlemler */}
+          <div style={{ ...c.card, border: "1px solid var(--rc-border-strong)" }}>
+            <div style={c.hd}><span style={{ ...c.hdT, color: "var(--rc-danger)" }}>{t("Tehlikeli İşlemler")}</span></div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", borderTop: "1px solid var(--rc-surface-5)", flexWrap: "wrap" }}>
+              <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, flex: 1 }}>
+                <b style={{ fontSize: 13 }}>{t("Takımdan ayrıl")}</b>
+                <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{t("Yarış verilerine ve havuza erişimin kalkar. Sahipsen önce sahipliği devret.")}</span>
+              </span>
+              <button disabled={isOwner} onClick={async () => { if (window.confirm(t("Takımdan ayrılınsın mı?"))) { await leaveTeam(curTeam, user.uid).catch(() => {}); setCurTeam(""); onExit?.(); } }}
+                style={{ padding: "8px 15px", borderRadius: 9, border: "1px solid var(--rc-warn)", background: "transparent", color: "var(--rc-warn)", cursor: isOwner ? "not-allowed" : "pointer", fontSize: 12.5, whiteSpace: "nowrap", opacity: isOwner ? .5 : 1 }}>{t("Ayrıl")}</button>
+            </div>
+            {isOwner && (
+              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", borderTop: "1px solid var(--rc-surface-5)", flexWrap: "wrap" }}>
+                <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, flex: 1 }}>
+                  <b style={{ fontSize: 13 }}>{t("Takımı sil")}</b>
+                  <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{t("Sezonlar, yarışlar ve takım setupları kalıcı olarak silinir. Geri alınamaz.")}</span>
+                </span>
+                <button onClick={async () => { if (window.confirm(t("Takım kalıcı olarak silinsin mi? Bu işlem geri alınamaz."))) { await deleteTeam(curTeam, user.uid, teamData?.meta?.joinCode).catch(() => {}); setCurTeam(""); onExit?.(); } }}
+                  style={{ padding: "8px 15px", borderRadius: 9, border: "1px solid var(--rc-danger)", background: "rgba(255,77,94,.10)", color: "var(--rc-danger)", cursor: "pointer", fontSize: 12.5, fontWeight: 600, whiteSpace: "nowrap" }}>{t("Takımı sil")}</button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

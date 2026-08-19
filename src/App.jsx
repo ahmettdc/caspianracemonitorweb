@@ -54,7 +54,7 @@ import {
   TourOverlay, Wheel, Num, NumField, Bolt, Tyre, Ring, Icon, Btn, Avatar,
   BADGES, teamBadgesOf, hasBadge, ChatPanel, SetupForm, SetupTable, SetupCards,
   VersionModal, RaceEditModal,
-  ChatModal, SetupModal, TeamModal, CreateJoinModal, DenyToast, SetupContentModal, SetupCompareModal,
+  ChatModal, SetupModal, TeamModal, TeamScreen, CreateJoinModal, DenyToast, SetupContentModal, SetupCompareModal,
   CommandPalette,
 } from "./components";
 import { WetIcon } from "./WetIcon";
@@ -288,6 +288,7 @@ export default function App() {
     setCurRace(""); setRole("editor"); setLastSync(null); setSyncMsg("");
     setEntered(false); setPickDone(false); setSetupDone(false);
     setScheduleOnly(false);   // rail "Menü" → bağımsız Resmi Yarışlar ekranından da çık
+    setTeamOpen(false);       // rail "Menü" → Takım ekranından da çık
   };
 
   /* Yetki muhafızı: viewer bir yarışta düzenleme denerse "yetkiniz yok" kutucuğu göster
@@ -1953,6 +1954,28 @@ ${bottomBar}
      Race Solo yolundan TAMAMEN ayrı üst-düzey görünüm; yarış seçmeye/oda-solo açmaya
      gerek yok. Çıkış (🏠 Ana Menü) yalnız scheduleOnly'yi kapatır; entered/curRace'e
      dokunmaz. curRace/entered'den ÖNCE gelir → yarış açıkken bile bağımsız açılır. */
+  /* ---------- Takım tam ekranı (rail TAKIM) — modal değil, kabuk içinde ---------- */
+  if (teamOpen) {
+    return (
+      <div className="rc">
+        {createJoinModal}{raceForm}{versionModal}{chatModal}
+        <div style={shell}>
+          {renderRail("menu", (k) => { setTeamOpen(false); setScheduleOnly(false); setTab(k); if (curRace) openRace(curRace); })}
+          <div style={{ minWidth: 0 }}>
+            <TeamScreen user={user} t={t} lang={lang}
+              myTeams={myTeams} curTeam={curTeam} setCurTeam={setCurTeam} teamData={teamData}
+              tnEdit={tnEdit} setTnEdit={setTnEdit} canManageTeam={canManageTeam} canEditTeam={canEditTeam}
+              curSeason={curSeason} setCurSeason={setCurSeason} seasons={seasons} races={races} st={st}
+              myRole={myRole} openRace={(rid) => { setTeamOpen(false); openRace(rid); }}
+              setRForm={setRForm} setBadge={setBadge} roleLabel={roleLabel}
+              onCreateJoin={() => { setTeamOpen(false); setCreateJoinOpen(true); }}
+              onExit={() => setTeamOpen(false)} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (scheduleOnly) {
     return (
       <div className="rc">
