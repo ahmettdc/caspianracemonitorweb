@@ -1722,6 +1722,23 @@ ${bottomBar}
       background: busy ? "#E3D9DC" : "#F5F1F2", color: "#160D10",
       cursor: busy ? "progress" : "pointer", fontFamily: "var(--rc-font-ui)",
     };
+    /* İkincil kutu: erişimi olmayan yeni kullanıcı için "Google ile başvur"
+       (aynı Google girişi; sonrasında erişim kapısında talep formuna düşer). */
+    const applyBtn = {
+      display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+      width: "100%", padding: "12px 16px", borderRadius: 11,
+      border: "1px solid var(--rc-border-strong)", background: "var(--rc-surface-3)",
+      color: "var(--rc-text)", cursor: busy ? "progress" : "pointer",
+      fontFamily: "var(--rc-font-ui)",
+    };
+    const gMark = (
+      <svg width="17" height="17" viewBox="0 0 48 48" style={{ flex: "0 0 auto" }} aria-hidden="true">
+        <path fill="#4285F4" d="M45.1 24.5c0-1.6-.1-3.2-.4-4.7H24v8.9h11.8c-.5 2.8-2 5.1-4.4 6.7v5.5h7.1c4.2-3.8 6.6-9.5 6.6-16.4Z" />
+        <path fill="#34A853" d="M24 46c6 0 11-2 14.6-5.4l-7.1-5.5c-2 1.3-4.5 2.1-7.5 2.1-5.8 0-10.7-3.9-12.4-9.1H4.3v5.7C7.9 41 15.3 46 24 46Z" />
+        <path fill="#FBBC05" d="M11.6 28.1c-.4-1.3-.7-2.7-.7-4.1s.3-2.8.7-4.1V14H4.3A22 22 0 0 0 2 24c0 3.6.9 6.9 2.3 9.8l7.3-5.7Z" />
+        <path fill="#EA4335" d="M24 10.8c3.3 0 6.2 1.1 8.5 3.3l6.3-6.3C35 4.3 30 2 24 2 15.3 2 7.9 7 4.3 14.2l7.3 5.7c1.7-5.2 6.6-9.1 12.4-9.1Z" />
+      </svg>
+    );
     return (
       <div className="rc">
         <UpdateBanner t={t} />
@@ -1801,6 +1818,23 @@ ${bottomBar}
                     fontSize: 15, letterSpacing: ".06em", textTransform: "uppercase" }}>
                     {busy ? t("Bağlanılıyor…") : t("Google ile devam et")}</span>
                 </button>
+
+                <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--rc-text-4)", fontSize: 11 }}>
+                  <span style={{ flex: 1, height: 1, background: "var(--rc-line-soft)" }} />
+                  {t("veya")}
+                  <span style={{ flex: 1, height: 1, background: "var(--rc-line-soft)" }} />
+                </div>
+
+                <div>
+                  <button onClick={() => doSignIn("apply")} disabled={busy} style={applyBtn}>
+                    {gMark}
+                    <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700,
+                      fontSize: 14, letterSpacing: ".05em", textTransform: "uppercase" }}>
+                      {t("Google ile başvur")}</span>
+                  </button>
+                  <span style={{ display: "block", marginTop: 7, fontSize: 11, color: "var(--rc-text-3)", lineHeight: 1.55 }}>
+                    {t("Erişimin yoksa başvur — yönetici onaylayınca giriş açılır.")}</span>
+                </div>
 
                 {authErr && (
                   <div style={{ fontSize: 12, color: "var(--rc-danger)", lineHeight: 1.55,
