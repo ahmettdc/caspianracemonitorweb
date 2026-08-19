@@ -3360,7 +3360,7 @@ ${bottomBar}
         <button className={`sidetoggle ${sideOpen ? "" : "closed"}`}
           onClick={() => setSideOpen(!sideOpen)}
           title={sideOpen ? t("Paneli gizle") : t("Paneli göster")}>
-          {sideOpen ? "◀" : "▶"}</button>
+          {sideOpen ? "▶" : "◀"}</button>
         {/* ================= SOL: DATA ================= */}
         <div className="sidecol">
           <div className="sideinner">{dataCards}</div>

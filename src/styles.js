@@ -112,15 +112,16 @@ export const css = `
 .rc header h1 b{color:var(--accent)}
 .rc header .ver{color:var(--dim);font-size:12px;margin-left:-4px;align-self:flex-end;
   padding-bottom:2px}
-.rc .grid{display:grid;grid-template-columns:300px 1fr;gap:16px;padding:16px 20px;
+/* v2.0: DATA paneli SAĞ tarafta (içerik solda). Panel order:2 ile 2. sütuna düşer. */
+.rc .grid{display:grid;grid-template-columns:1fr 300px;gap:16px;padding:16px 20px;
   align-items:start;transition:grid-template-columns .28s ease,gap .28s ease}
-.rc .grid.noside{grid-template-columns:0px 1fr;gap:0}
-.rc .sidecol{overflow:hidden;min-width:0}
+.rc .grid.noside{grid-template-columns:1fr 0px;gap:0}
+.rc .sidecol{overflow:hidden;min-width:0;order:2}
 .rc .sideinner{width:300px;transition:opacity .22s ease}
 .rc .grid.noside .sideinner{opacity:0;pointer-events:none}
-.rc .sidetoggle{position:fixed;left:0;top:50%;transform:translateY(-50%);z-index:40;
-  width:20px;height:72px;padding:0;border:1px solid var(--line);border-left:none;
-  border-radius:0 10px 10px 0;background:var(--panel2);color:var(--dim);
+.rc .sidetoggle{position:fixed;right:0;left:auto;top:50%;transform:translateY(-50%);z-index:40;
+  width:20px;height:72px;padding:0;border:1px solid var(--line);border-right:none;
+  border-radius:10px 0 0 10px;background:var(--panel2);color:var(--dim);
   cursor:pointer;font-size:11px;line-height:1;transition:color .15s,border-color .15s}
 .rc .sidetoggle:hover{color:var(--accent);border-color:var(--accent)}
 @media(max-width:900px){.rc .grid{grid-template-columns:1fr}.rc .sidetoggle{display:none}}
