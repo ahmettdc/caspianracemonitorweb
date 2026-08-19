@@ -339,7 +339,7 @@ function OwnCar({ t, own, liveFuelObs, topSrc = "" }) {
     : (tc.front || tc.rear || "");
   return (
     <div className="card" data-tour="ownlive" style={{ marginBottom: 12 }}>
-      <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+      <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", margin: "0 0 10px", fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 16, fontWeight: 700 }}>
         🏎 {t("Kendi Araç")}
         {compound && <span className="chip" style={{ fontSize: 11, color: "var(--teal)",
           borderColor: "var(--teal)" }}>🛞 {compound}</span>}
@@ -476,7 +476,7 @@ function BridgeControl({ t, bridge, canBridge, canEdit, tid, rid }) {
     : undefined;
   return (
     <div className="card" style={{ marginBottom: 12 }}>
-      <h2 style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <h2 style={{ display: "flex", alignItems: "center", gap: 10, margin: "0 0 10px", fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 16, fontWeight: 700 }}>
         🛰 {t("Canlı Köprü")}
         <span title={diagTitle} style={{ width: 9, height: 9, borderRadius: "50%", background: dot,
           boxShadow: `0 0 8px ${dot}`, cursor: diagTitle ? "help" : "default" }} />
@@ -662,7 +662,7 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
       <div data-tour="livecard">
         {bridgeCard}
         <div className="card">
-          <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", margin: "0 0 10px", fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 18, fontWeight: 700 }}>
             📡 {t("Canlı Timing")}
             {staleOff && <span className="livebadge off"><i /> {t("çevrimdışı")}</span>}
             <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
