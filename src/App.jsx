@@ -729,14 +729,12 @@ ${bottomBar}
   /* son stint VE — plandan (elle girilen countdown yerine gerçek kalan süreden) */
   const planLsf = lastStintFuel(fmtHMS(planLastCd), st, racePlan.flagExtra);
   const [autoCd, setAutoCd] = useState(true); // plandan otomatik countdown
-  const [barOpen, setBarOpen] = useState(true); // oda katılım çubuğu aç/kapa
   const [sideOpen, setSideOpen] = useState(true); // sol data sidebar aç/kapa
   const [rail, setRail] = useState(true);   // v2.0 kabuk: sol dikey menü rayı aç/kapa
-  const [guideOn] = useState(true); // v2.0 kabuk: ekran rehber kutusu (gizle kontrolü sonraki fişte)
   const [bridgePopOpen, setBridgePopOpen] = useState(false); // v2.0 üst çubuk: köprü açılır paneli
   const [menuInfo, setMenuInfo] = useState(false);  // v2.0 ana menü: bilgi (ℹ) açılır paneli
   const [menuAcct, setMenuAcct] = useState(false);  // v2.0 ana menü: hesap açılır menüsü
-  const [menuCal, setMenuCal] = useState("up");     // v2.0 ana menü: takvim görünümü (up|past)
+  const [menuCal, setMenuCal] = useState("up");     // v2.0 ana menü: takvim görünümü (active|up|past)
   const [pickTrackQ, setPickTrackQ] = useState(""); // v2.0 pist&araç: pist arama
   /* ---- kimlik doğrulama (Google) → useAuth hook'u ---- */
   const { user, authLoading, udoc } = useAuth();
@@ -1944,7 +1942,10 @@ ${bottomBar}
     /* Geçmiş eşiği yarışın SÜRESİNE göre (isRacePast): planlı bitiş + 30 dk. Eski sabit
        6h-başlangıçtan kuralı, 4h yarışı bitince 2h daha "Sonraki"de tutuyor, 24h yarışı ise
        sürerken Geçmiş'e düşürüyordu. */
-    const allUp = list.filter(([, r]) => !isRacePast(r, now));
+    /* Üç bölüm: Aktif (başladı, planlı bitiş + 30 dk geçmedi) · Yaklaşan (henüz
+       başlamadı) · Geçmiş (bitiş + 30 dk geçti = isRacePast). */
+    const allActive = list.filter(([, r]) => (r.startsAt || 0) <= now && !isRacePast(r, now));
+    const allUp = list.filter(([, r]) => (r.startsAt || 0) > now);
     const allPast = list.filter(([, r]) => isRacePast(r, now)).reverse();
     /* Şampiyonalar karışmasın: sezona göre grupla, istenirse süz. */
     const sidOf = ([, r]) => r.seasonId || "";
@@ -1957,6 +1958,7 @@ ${bottomBar}
     const matchQ = ([, r]) => !q
       || (r.name || "").toLowerCase().includes(q)
       || trackName(r.trackId).toLowerCase().includes(q);
+    const activeF = allActive.filter(inFilter).filter(matchQ); // aktif (başlamış) yarışlar
     const pastAll = allPast.filter(inFilter).filter(matchQ);   // §1.3 ara + süz
     const pastShown = pastAll.slice(0, pastLimit);             // §1.3 sayfalama
     /* Ana menüden yarış sil (owner/editor). Kart butonunun KARDEŞİ olan ayrı bir
@@ -1984,10 +1986,11 @@ ${bottomBar}
             : myRole === "editor" ? "🎧 " + t("Mühendis")
             : myRole === "viewer" ? "👁 " + t("İzleyici") : "🙋 " + t("Üye");
           const acctInitials = (userName || user?.email || "?").trim().slice(0, 2).toUpperCase();
+          const activeCount = activeF.length;
           const upCount = upF.length;
           const pastCount = pastAll.length;
-          const calList = menuCal === "up" ? upF : pastShown; // hero dahil tüm yaklaşanlar
-          const calEmpty = menuCal === "up" ? upCount === 0 : pastCount === 0;
+          const calList = menuCal === "active" ? activeF : menuCal === "up" ? upF : pastShown;
+          const calEmpty = calList.length === 0;
           const editRace = (rid, r) => setRForm({ rid, seasonId: r.seasonId || "", round: r.round || "",
             name: r.name || "", trackId: r.trackId || "", carClass: r.carClass || "", carId: r.carId || "",
             raceTime: r.raceTime || "", startsAt: r.startsAt || 0 });
@@ -2226,6 +2229,9 @@ ${bottomBar}
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
             <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 17, fontWeight: 700 }}>{t("Takvim")}</span>
             <span style={{ display: "flex", gap: 6 }}>
+              <button onClick={() => setMenuCal("active")} style={chip(menuCal === "active")}>
+                {activeCount > 0 && <i style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: "var(--rc-ok)", marginRight: 6, verticalAlign: "middle" }} />}
+                {t("Aktif")} ({activeCount})</button>
               <button onClick={() => setMenuCal("up")} style={chip(menuCal === "up")}>{t("Yaklaşan")} ({upCount})</button>
               <button onClick={() => setMenuCal("past")} style={chip(menuCal === "past")}>{t("Geçmiş")} ({pastCount})</button>
             </span>
@@ -2753,7 +2759,8 @@ ${bottomBar}
     chat: ["Sohbet", "Genel, takım ve yarışa özel kanallar. Yarış kanalı yalnız o yarışın katılımcılarına açıktır."],
     official: ["Resmi yarışlar", "lmugarage listesinden günlük ve haftalık yarışlar. Planla düğmesiyle takvimine ekleyebilirsin."],
   };
-  const guideWrap = guideOn && GUIDES[scr]
+  /* Ekran açıklama kutusu yalnız REHBER (tur) aktifken görünür; kapalıyken gizli. */
+  const guideWrap = tour && GUIDES[scr]
     ? {
         display: "flex", alignItems: "flex-start", gap: 11, margin: "14px 20px 0",
         padding: "12px 15px", borderRadius: 12,
@@ -3157,39 +3164,6 @@ ${bottomBar}
       </header>
         );
       })()}
-
-      <div className={`teambar ${barOpen ? "" : "collapsed"}`}>
-        <span className={`dot ${curRace ? "on" : "off"}`} title={curRace ? t("Bağlı") : t("Solo mod")} />
-        {!barOpen && !curRace && <span className="syncinfo" style={{ marginLeft: 0 }}>
-          {t("Solo mod")}</span>}
-        <button className="bartoggle"
-          onClick={() => setBarOpen(!barOpen)}
-          title={barOpen ? t("Katılım çubuğunu gizle") : t("Katılım çubuğunu göster")}>
-          {barOpen ? "▲" : "▼"}</button>
-        {barOpen && (<>
-        {!curRace ? (
-          <span className="syncinfo" style={{ marginLeft: 0 }}>
-            {t("Solo mod — takım takvimi için lobiye dön.")}
-          </span>
-        ) : (<>
-          <span>{t("YARIŞ")}: <span className="roomcode">
-            {races[curRace]?.name || trackName(races[curRace]?.trackId) || curRace}</span></span>
-          {/* rol rozeti yok — yetki takım rozetlerinden (🛞 sürücü / 🎧 mühendis) belli */}
-          {teamData?.meta?.name && (
-            <span className="syncinfo" style={{ marginLeft: 0, display: "inline-flex",
-              alignItems: "center", gap: 5 }}>
-              {teamLogoSrc(teamData?.assets)
-                ? <img className="hdteamlogo" src={teamLogoSrc(teamData.assets)} alt="" />
-                : "🏢"} {teamData.meta.name}</span>
-          )}
-          <button className="leave" onClick={leaveRace}>{t("Takvime Dön")}</button>
-          <span className="syncinfo">
-            {lastSync ? `${t("Son güncelleme: ")}${lastSync.by} · ${new Date(lastSync.at).toLocaleTimeString(lang === "en" ? "en-GB" : "tr-TR")}` : t("Senkronize")}
-          </span>
-        </>)}
-        {syncMsg && <span style={{ color: "var(--yellow)" }}>{syncMsg}</span>}
-        </>)}
-      </div>
 
       {pitboard && (
         <div className="pitboard" onClick={() => setPitboard(false)}>
