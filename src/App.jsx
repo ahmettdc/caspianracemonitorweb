@@ -1978,9 +1978,10 @@ ${bottomBar}
             raceTime: r.raceTime || "", startsAt: r.startsAt || 0 });
           /* + Yarış ekle: pist/araç seçimi → data formu → yarışı aç (stint) akışı */
           /* + Yarış ekle → Yarış Ekle penceresi (raceOpen); İlerle → data ekranı */
-          const newRace = () => setRForm({ flow: "data", seasonId: "", round: "", name: "",
-            trackId: st.track || "", carClass: st.carClass || "hypercar", carId: st.car || "",
-            raceTime: st.raceTime || "6:00:00", startsAt: st.raceStartMs || Date.now() });
+          /* + Yarış ekle → takım takvimine yaz (Kaydet → createRace). Solo yok. */
+          const newRace = () => setRForm({ seasonId: lobSeason !== "all" ? lobSeason : (seasonIds[0] || ""),
+            round: "", name: "", trackId: st.track || "", carClass: st.carClass || "hypercar",
+            carId: st.car || "", raceTime: st.raceTime || "6:00:00", startsAt: Date.now() });
           const langBtn = (on) => ({
             padding: "6px 12px", border: "none", cursor: "pointer", fontSize: 12,
             fontFamily: "var(--rc-font-display)", fontWeight: 600, letterSpacing: ".04em",
@@ -2173,7 +2174,7 @@ ${bottomBar}
 
             <div style={{ flex: "1 1 280px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, alignContent: "stretch" }}>
               <button onClick={() => setSuOpen(true)} style={qaBtn}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--rc-brand-bright)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15.5 4a4.5 4.5 0 0 0-4 6.6L4 18.1 5.9 20l7.5-7.5A4.5 4.5 0 1 0 15.5 4Z" /></svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--rc-brand-bright)" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M10.4 2.6h3.2l.35 2.3a7.4 7.4 0 0 1 1.72 1l2.1-.98 1.6 2.77-1.75 1.53a7.4 7.4 0 0 1 0 1.98l1.75 1.53-1.6 2.77-2.1-.98a7.4 7.4 0 0 1-1.72 1l-.35 2.3h-3.2l-.35-2.3a7.4 7.4 0 0 1-1.72-1l-2.1.98-1.6-2.77 1.75-1.53a7.4 7.4 0 0 1 0-1.98L4.23 7.69l1.6-2.77 2.1.98a7.4 7.4 0 0 1 1.72-1l.35-2.3Z" /><circle cx="12" cy="12" r="3" /></svg>
                 <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 15 }}>{t("Setup Havuzu")}</span>
                 <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{setups.length} {t("dosya")}</span>
               </button>
@@ -2272,18 +2273,6 @@ ${bottomBar}
             <button onClick={() => setPastLimit((n) => n + 12)}
               style={{ margin: "14px auto 0", display: "block", background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", color: "var(--rc-text-2)", borderRadius: 9, padding: "9px 20px", fontSize: 12.5, cursor: "pointer" }}>↓ {t("Daha fazla göster")} ({pastShown.length} / {pastAll.length})</button>
           )}
-
-          {/* ---- solo ---- */}
-          <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginTop: 26, padding: "16px 18px",
-            border: "1px dashed var(--rc-border-strong)", borderRadius: 12, background: "var(--rc-surface)" }}>
-            <span style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0, flex: 1 }}>
-              <b style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 16, letterSpacing: ".02em" }}>{t("Takım olmadan devam et")}</b>
-              <span style={{ fontSize: 11.5, color: "var(--rc-text-3)", lineHeight: 1.5 }}>{t("Yarışlarını yerel olarak kur, stint planla ve canlı timing kullan. Setup havuzu ve sohbet takım gerektirir; sonradan katılabilirsin.")}</span>
-            </span>
-            <button onClick={() => setEntered(true)}
-              style={{ flex: "0 0 auto", padding: "10px 20px", borderRadius: 10, border: "1px solid var(--rc-border-strong)", background: "var(--rc-surface-3)",
-                color: "var(--rc-text)", cursor: "pointer", fontFamily: "var(--rc-font-display)", fontSize: 15, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase" }}>{t("Solo devam et")} →</button>
-          </div>
 
           {/* ---- indirmeler ---- */}
           {!isTauri && (
