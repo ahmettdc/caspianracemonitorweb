@@ -77,7 +77,7 @@ describe("modal bileşenleri: açık halde çökmeden render olur", () => {
       <CreateJoinModal open onClose={noop} user={{ uid: "u1" }} t={t}
         userName="Ben" tForm={{ name: "", join: "" }} setTForm={noop}
         setTErr={noop} tErr="" setCurTeam={noop} />);
-    expect(html).toContain("Kur &amp; Katıl");   // & → &amp; (HTML escape)
+    expect(html).toContain("Takıma Bağlan");      // v2.0 başlık
     expect(html).toContain("Takım Kur");
     expect(html).toContain("Takıma Katıl");
     // yönetim bölümleri BU ekranda görünmemeli
