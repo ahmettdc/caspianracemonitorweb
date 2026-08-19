@@ -2338,32 +2338,259 @@ ${bottomBar}
 
   /* ---------- setup 2: yarış datalarını gir ---------- */
   if (!setupDone) {
+    /* v2.0 Yarış Dataları (handoff-spec/ekranlar/12-yaris-datalari.md) — kabuk içinde.
+       Aynı handler'lar (up, WEATHER, strategies, racePlan). Weather log mantığı dataCards ile aynı. */
+    const clsD = st.carClass || "hypercar";
+    const stops = st.strategies[st.chosen] ?? 0;
+    const totLaps = racePlan.totalLaps || 0;
+    const lapSec = parseLap(st.avgLap) || 0;
+    const stintLaps = stops >= 0 ? Math.round(totLaps / (stops + 1)) : 0;
+    const stintTime = lapSec > 0 && stintLaps > 0 ? fmtHMS(stintLaps * lapSec) : "—";
+    const pickWx = (id) => {
+      const el = liveInfo.status === "live" ? Math.max(0, Math.round(liveInfo.elapsed / 1000)) : 0;
+      let past = (st.weatherLog || []).filter((e) => e.t < el - 0.5);
+      const future = (st.weatherLog || []).filter((e) => e.t > el + 0.5);
+      if (el < 1) past = [];
+      const log = [...past, { t: el, w: id, src: "live" }, ...future].sort((a, b) => a.t - b.t);
+      up({ weather: id, weatherLog: log });
+    };
+    const lbl = { display: "block", color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 6 };
+    const bigInp = { width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)", border: "1px solid var(--rc-border-strong)", borderRadius: 10, color: "var(--rc-text)", padding: "12px 14px", fontFamily: "var(--rc-font-display)", fontSize: 22, fontWeight: 600 };
+    const midInp = { width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", borderRadius: 10, color: "var(--rc-text)", padding: "11px 13px", fontFamily: "var(--rc-font-display)", fontSize: 19, fontWeight: 600 };
+    const card = { border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)", padding: "16px 18px" };
+    const cardHd = { fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 16, fontWeight: 700 };
+    const stepBox = { display: "inline-flex", alignItems: "center", border: "1px solid var(--rc-border)", borderRadius: 10, overflow: "hidden" };
+    const stepBtn = { width: 38, height: 44, border: "none", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 16 };
+    const stepVal = { minWidth: 52, textAlign: "center", fontFamily: "var(--rc-font-display)", fontSize: 19 };
     return (
       <div className="rc">
         <UpdateBanner t={t} />
-        <div className="lobby" style={{ alignItems: "flex-start", paddingTop: 40 }}>
-          <div className="box" style={{ maxWidth: 560 }}>
-            <img className="logo" style={{ maxWidth: 190 }} src={`${ASSET}logo.png`} alt="" />
-            <h1><b>{t("YARIŞ")}</b> {t("DATALARI")}</h1>
-            <div className="sub">
-              {st.track && <><img className="flag" style={{ width: 16, verticalAlign: -2, marginRight: 4 }}
-                src={`${ASSET}flags/${st.track}.png`} alt="" />
-                {trackName(st.track)}{st.car && <> · {carName(st.carClass, st.car)}</>} — </>}
-              {curRace ? (<>
-                {t("Yarış")}: <b className="roomcode">{races[curRace]?.name || curRace}</b>
-              </>) : t("Solo mod — datalar sadece bu cihazda")}
+        <div style={shell}>
+          {renderRail("menu", (k) => { setTab(k); if (curRace) openRace(curRace); })}
+          <div style={{ minWidth: 0 }}>
+        <div style={{ padding: "18px 20px 108px", fontFamily: "var(--rc-font-ui)" }}>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 18 }}>
+            <button onClick={() => setPickDone(false)} style={{ width: 34, height: 34, borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 14 }}>←</button>
+            <h2 style={{ margin: 0, fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".06em", fontSize: 22, fontWeight: 700 }}>{t("Yarış Dataları")}</h2>
+            {st.track && <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--rc-text-2)" }}>
+              <img src={`${ASSET}flags/${TRACK_ASSET(st.track)}.png`} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ width: 20, borderRadius: 2 }} />{trackName(st.track)}
+              {st.car && <><span style={{ color: "var(--rc-border-strong)" }}>·</span><img src={`${ASSET}class/${clsD}.png`} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ height: 16 }} />{carName(clsD, st.car)}</>}
+            </span>}
+          </div>
+
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "flex-start" }}>
+            <div style={{ flex: "1 1 420px", minWidth: 0, display: "flex", flexDirection: "column", gap: 16 }}>
+
+              <div style={card}>
+                <div style={{ ...cardHd, marginBottom: 14 }}>{t("Yarış")}</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
+                  <div style={{ flex: "1 1 170px", minWidth: 0 }}>
+                    <label style={lbl}>{t("Yarış süresi · h:mm:ss")}</label>
+                    <input type="text" value={st.raceTime} onChange={(e) => up({ raceTime: e.target.value })} style={bigInp} />
+                  </div>
+                  <div style={{ flex: "1 1 170px", minWidth: 0 }}>
+                    <label style={lbl}>{t("Ortalama tur · m:ss.00")}</label>
+                    <input type="text" value={st.avgLap} onChange={(e) => up({ avgLap: e.target.value })} style={bigInp} />
+                    {avgSug && canEdit && (
+                      <button onClick={() => up({ avgLap: avgSug.txt })} style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 7, padding: "7px 12px", borderRadius: 9, border: "1px solid rgba(55,214,122,.45)", background: "rgba(55,214,122,.10)", color: "var(--rc-ok)", cursor: "pointer", fontSize: 11.5, width: "100%" }}>⚡ {t("Canlı AVG5")} <b style={{ fontFamily: "var(--rc-font-display)" }}>{avgSug.txt}</b> — {t("uygula")}</button>
+                    )}
+                  </div>
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginTop: 14, alignItems: "flex-end" }}>
+                  <div style={{ flex: "0 0 auto" }}>
+                    <label style={lbl}>{t("Ekstra tur")}</label>
+                    <span style={stepBox}>
+                      <button onClick={() => up({ extraLap: Math.max(0, (st.extraLap || 0) - 1) })} style={stepBtn}>−</button>
+                      <b style={stepVal}>{st.extraLap || 0}</b>
+                      <button onClick={() => up({ extraLap: (st.extraLap || 0) + 1 })} style={stepBtn}>+</button>
+                    </span>
+                  </div>
+                  <div style={{ flex: "1 1 220px", minWidth: 0 }}>
+                    <button onClick={() => up({ multiclass: !st.multiclass })} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 12px", borderRadius: 10, cursor: "pointer", color: "var(--rc-text)", border: `1px solid ${st.multiclass ? "var(--rc-brand-bright)" : "var(--rc-border)"}`, background: st.multiclass ? "rgba(150,0,24,.16)" : "var(--rc-surface-3)" }}>
+                      <span style={{ width: 20, height: 20, borderRadius: 6, flex: "0 0 auto", display: "grid", placeItems: "center", fontSize: 11, border: `1px solid ${st.multiclass ? "var(--rc-brand-bright)" : "var(--rc-border-strong)"}`, background: st.multiclass ? "var(--rc-brand)" : "transparent", color: st.multiclass ? "var(--rc-on-brand)" : "transparent" }}>✓</span>
+                      <span style={{ display: "flex", flexDirection: "column", gap: 1, textAlign: "left" }}>
+                        <b style={{ fontSize: 13 }}>{t("Multiclass yarış")}</b>
+                        <span style={{ fontSize: 10.5, color: "var(--rc-text-3)" }}>{t("Lider sınıfa göre bayrak hesabı")}</span>
+                      </span>
+                    </button>
+                  </div>
+                </div>
+                {st.multiclass && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--rc-border)" }}>
+                    <div style={{ flex: "1 1 170px", minWidth: 0 }}>
+                      <label style={lbl}>{t("Lider sınıf")}</label>
+                      <select value={st.leaderClass} onChange={(e) => up({ leaderClass: e.target.value })} style={{ width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", borderRadius: 10, color: "var(--rc-text)", padding: "11px 12px", fontSize: 13 }}>
+                        {CAR_CLASSES.map(([id, name]) => (<option key={id} value={id}>{name}</option>))}
+                      </select>
+                    </div>
+                    <div style={{ flex: "1 1 170px", minWidth: 0 }}>
+                      <label style={lbl}>{t("Lider tur · m:ss.00")}</label>
+                      <input type="text" value={st.leaderLap} placeholder={st.avgLap} onChange={(e) => up({ leaderLap: e.target.value })} style={{ ...midInp, fontSize: 17 }} />
+                    </div>
+                    {racePlan.flagExtra > 0.5 && <div style={{ flex: "1 1 100%", fontSize: 11.5, color: "var(--rc-warn)" }}>🏁 {t("Lider bayrağı")}: +{racePlan.flagExtra.toFixed(0)}s → {t("son tur otomatik eklenir")}</div>}
+                  </div>
+                )}
+              </div>
+
+              <div style={card}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+                  <span style={cardHd}>{t("Strateji")}</span>
+                  <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{t("Pit sayısına göre stint uzunluğu")}</span>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 10 }}>
+                  {["A", "B", "C", "D"].map((k) => {
+                    const on = st.chosen === k, s = st.strategies[k] ?? 0;
+                    const kl = Math.round(totLaps / (s + 1));
+                    return (
+                      <div key={k} onClick={() => up({ chosen: k })} style={{ padding: "12px 14px", borderRadius: 12, cursor: "pointer", border: `1px solid ${on ? "var(--rc-brand-bright)" : "var(--rc-border)"}`, background: on ? "rgba(150,0,24,.20)" : "var(--rc-surface-2)" }}>
+                        <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                          <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 26, fontWeight: 700, lineHeight: 1 }}>{k}</b>
+                          <span style={{ fontSize: 11, color: on ? "var(--rc-brand-bright)" : "var(--rc-text-3)" }}>{s} pit</span>
+                        </div>
+                        <div style={{ fontFamily: "var(--rc-font-display)", fontSize: 15, marginTop: 8 }}>{lapSec > 0 && kl > 0 ? fmtHMS(kl * lapSec) : "—"}</div>
+                        <div style={{ fontSize: 10, color: "var(--rc-text-3)", textTransform: "uppercase", letterSpacing: ".08em", marginTop: 2 }}>stint · {kl > 0 ? kl : "—"} tur</div>
+                        <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+                          <button onClick={(e) => { e.stopPropagation(); up({ strategies: { ...st.strategies, [k]: Math.max(0, s - 1) } }); }} style={{ width: 30, height: 26, borderRadius: 7, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 13, lineHeight: 1 }}>−</button>
+                          <button onClick={(e) => { e.stopPropagation(); up({ strategies: { ...st.strategies, [k]: s + 1 } }); }} style={{ width: 30, height: 26, borderRadius: 7, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 13, lineHeight: 1 }}>+</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div style={card}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+                  <span style={cardHd}>{t("Pit · Süreler")}</span><span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{t("saniye")}</span>
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
+                  <div style={{ flex: "1 1 150px", minWidth: 0 }}>
+                    <label style={lbl}>Pit line</label>
+                    <input type="text" value={st.pitLaneTime} onChange={(e) => up({ pitLaneTime: Number(e.target.value) || 0 })} style={midInp} />
+                    {st.track && PIT_LANE_TIMES[st.track] != null && <div style={{ fontSize: 10.5, color: "var(--rc-text-3)", marginTop: 5 }}>{t("Pist verisi")}: {PIT_LANE_TIMES[st.track]}s · {trackName(st.track)}</div>}
+                  </div>
+                  <div style={{ flex: "1 1 150px", minWidth: 0 }}>
+                    <label style={lbl}>⛽ {t("Yakıt & VE")}</label>
+                    <input type="text" value={st.fuelTime} onChange={(e) => up({ fuelTime: Number(e.target.value) || 0 })} style={midInp} />
+                    <div style={{ fontSize: 10.5, color: "var(--rc-text-3)", marginTop: 5 }}>{t("Duraklamada geçen dolum süresi")}</div>
+                  </div>
+                  <div style={{ flex: "1 1 150px", minWidth: 0 }}>
+                    <label style={lbl}>🛞 {t("Lastik limiti · adet")}</label>
+                    <span style={stepBox}>
+                      <button onClick={() => up({ tyreLimit: Math.max(0, (st.tyreLimit || 0) - 1) })} style={stepBtn}>−</button>
+                      <b style={stepVal}>{st.tyreLimit || 0}</b>
+                      <button onClick={() => up({ tyreLimit: (st.tyreLimit || 0) + 1 })} style={stepBtn}>+</button>
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div style={card}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+                  <span style={cardHd}>⚡ Virtual Energy</span><span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{t("Tüketim ve yakıt karşılığı")}</span>
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
+                  <div style={{ flex: "1 1 150px", minWidth: 0 }}>
+                    <label style={lbl}>{t("VE tüketim · %/tur")}</label>
+                    <input type="text" value={st.consumption} onChange={(e) => up({ consumption: Number(e.target.value) || 0 })} style={midInp} />
+                  </div>
+                  <div style={{ flex: "1 1 150px", minWidth: 0 }}>
+                    <label style={lbl}>{t("Fuel ratio · L / %1")}</label>
+                    <input type="text" value={st.fuelRatio} onChange={(e) => up({ fuelRatio: Number(e.target.value) || 0 })} style={midInp} />
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
+                  <div style={{ flex: "1 1 150px", padding: "11px 14px", borderRadius: 10, border: "1px solid rgba(55,214,122,.35)", background: "rgba(55,214,122,.07)" }}>
+                    <div style={{ fontFamily: "var(--rc-font-display)", fontSize: 19, fontWeight: 600, color: "var(--rc-ok)" }}>{fuelCarried.toFixed(1)} L</div>
+                    <div style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".08em", marginTop: 3 }}>{t("%100 = taşınan yakıt")}</div>
+                  </div>
+                  <div style={{ flex: "1 1 150px", padding: "11px 14px", borderRadius: 10, border: "1px solid var(--rc-border)", background: "var(--rc-surface-2)" }}>
+                    <div style={{ fontFamily: "var(--rc-font-display)", fontSize: 19, fontWeight: 600 }}>{st.consumption > 0 ? Math.round(100 / st.consumption) : "—"} tur</div>
+                    <div style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".08em", marginTop: 3 }}>{t("Tam depo menzili")}</div>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {dataCards}
+            <div style={{ flex: "1 1 340px", minWidth: 300, display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ border: "1px solid var(--rc-border-strong)", borderRadius: 12, background: "radial-gradient(120% 160% at 100% 0,rgba(150,0,24,.22),var(--rc-surface-2) 62%)", padding: "16px 18px" }}>
+                <div style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 13, fontWeight: 700, color: "var(--rc-brand-bright)", marginBottom: 12 }}>{t("Plan özeti")}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+                  <div style={{ flex: "0 0 auto", textAlign: "center" }}>
+                    {st.track && <img src={`${ASSET}tracks/${TRACK_ASSET(st.track)}.png`} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ display: "block", width: 104, height: 64, objectFit: "contain" }} />}
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10.5, color: "var(--rc-text-2)", marginTop: 2 }}>{st.track && <img src={`${ASSET}flags/${TRACK_ASSET(st.track)}.png`} alt="" style={{ width: 15, borderRadius: 2 }} />}{trackName(st.track) || "—"}</span>
+                  </div>
+                  <span style={{ width: 1, alignSelf: "stretch", background: "var(--rc-border-strong)" }} />
+                  <div style={{ flex: 1, minWidth: 0, textAlign: "center" }}>
+                    {st.car && <img src={carImageSrc(teamData?.assets, clsD, st.car, "side")} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ display: "block", width: "100%", maxWidth: 170, height: 64, objectFit: "contain", margin: "0 auto" }} />}
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10.5, color: "var(--rc-text-2)", marginTop: 2 }}>{st.car && <img src={`${ASSET}class/${clsD}.png`} alt="" style={{ height: 13 }} />}{st.car ? carName(clsD, st.car) : "—"}</span>
+                  </div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, paddingTop: 12, borderTop: "1px solid var(--rc-border-strong)" }}>
+                  <div><div style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 24, lineHeight: 1 }}>{totLaps.toFixed(0)}</div><div style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".08em", marginTop: 2 }}>{t("Toplam tur")}</div></div>
+                  <div><div style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 24, lineHeight: 1 }}>{st.chosen} · {stops} pit</div><div style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".08em", marginTop: 2 }}>{t("Seçili strateji")}</div></div>
+                  <div><div style={{ fontFamily: "var(--rc-font-display)", fontWeight: 600, fontSize: 19, lineHeight: 1.2 }}>{stintTime}</div><div style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".08em", marginTop: 2 }}>{t("Stint uzunluğu")}</div></div>
+                  <div><div style={{ fontFamily: "var(--rc-font-display)", fontWeight: 600, fontSize: 19, lineHeight: 1.2 }}>{st.pitLaneTime} sn</div><div style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".08em", marginTop: 2 }}>{t("Pit kaybı")}</div></div>
+                </div>
+              </div>
 
-            <button className="bigbtn" style={{ marginTop: 18 }}
-              onClick={() => setSetupDone(true)}>
-              {t("✓ Devam Et — Arayüze Geç")}
-            </button>
-            <div className="hint" style={{ textAlign: "center", marginTop: 8 }}>
-              {t("Merak etme, tüm bu değerleri arayüzün sol kolonundan her an değiştirebilirsin.")}
+              <div style={card}>
+                <div style={{ ...cardHd, marginBottom: 14 }}>{t("Yarış başlangıcı")}</div>
+                <label style={lbl}>{t("Start tarih & saat")}</label>
+                <input type="datetime-local" value={msToLocalInput(st.raceStartMs)} onChange={(e) => { const v = new Date(e.target.value).getTime(); if (!isNaN(v)) up({ raceStartMs: v }); }} style={{ width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)", border: "1px solid var(--rc-border-strong)", borderRadius: 10, color: "var(--rc-text)", padding: "11px 13px", fontFamily: "var(--rc-font-display)", fontSize: 15 }} />
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+                  {[[t("Şimdi"), 0], ["+15 dk", 15], ["+1 sa", 60]].map(([lb, mins]) => (
+                    <button key={lb} onClick={() => up({ raceStartMs: (mins === 0 ? Date.now() : (st.raceStartMs || Date.now())) + mins * 60000 })} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 11.5 }}>{lb}</button>
+                  ))}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 14, padding: "12px 14px", borderRadius: 10, border: "1px solid rgba(55,214,122,.35)", background: "rgba(55,214,122,.07)" }}>
+                  <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".1em", color: "var(--rc-text-3)" }}>{t("Hesaplanan bitiş")}</span>
+                  <b style={{ marginLeft: "auto", fontFamily: "var(--rc-font-display)", fontSize: 22, color: "var(--rc-ok)" }}>{driverPlan ? fmtClock(driverPlan.finishMs, driverPlan.startMs) : "—"}</b>
+                </div>
+              </div>
+
+              <div style={card}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                  <span style={cardHd}>{t("Hava Durumu")}</span>
+                  <span style={{ marginLeft: "auto", fontSize: 11.5, color: "var(--rc-text-3)" }}>{t("Efektif tur")} ×{(WEATHER[st.weather] || WEATHER.dry).lap.toFixed(2)}</span>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 7 }}>
+                  {Object.entries(WEATHER).map(([id, w]) => {
+                    const on = st.weather === id;
+                    return (
+                      <button key={id} onClick={() => pickWx(id)} style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "9px 4px", borderRadius: 10, cursor: "pointer", color: on ? w.col : "var(--rc-text-2)", border: `1px solid ${on ? w.col : "var(--rc-border)"}`, background: on ? "var(--rc-surface-2)" : "transparent" }}>
+                        <WetIcon id={id} size={22} />
+                        <span style={{ fontSize: 11, marginTop: 4, lineHeight: 1.2 }}>{t(w.lbl)}</span>
+                        <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 10, color: "var(--rc-text-3)", marginTop: 2 }}>×{w.lap.toFixed(2)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div style={card}>
+                <div style={{ ...cardHd, marginBottom: 12, fontSize: 16 }}>📺 {t("Canlı Yayın")}</div>
+                <label style={lbl}>{t("YouTube linki")}</label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input type="text" value={st.streamUrl} placeholder="https://youtube.com/watch?v=…" onChange={(e) => up({ streamUrl: e.target.value })} style={{ flex: 1, minWidth: 0, background: "var(--rc-surface-3)", border: "1px solid var(--rc-border-strong)", borderRadius: 10, color: "var(--rc-text)", padding: "11px 13px", fontSize: 12.5, fontFamily: "var(--rc-font-display)" }} />
+                  <button onClick={() => up({ streamUrl: "" })} style={{ padding: "0 14px", borderRadius: 10, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 13 }}>{t("Temizle")}</button>
+                </div>
+                <div style={{ fontSize: 11, color: "var(--rc-text-3)", marginTop: 8 }}>{ytId(st.streamUrl) ? <>✅ {t("Yayın köşedeki mini oynatıcıda gösteriliyor.")}</> : t("Geçerli bir YouTube linki yapıştır; köşede mini oynatıcı açılır.")}</div>
+              </div>
             </div>
           </div>
+
+        </div>
+          </div>
+        </div>
+
+        <div style={{ position: "fixed", left: rail ? 76 : 0, right: 0, bottom: 0, zIndex: 30, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", padding: "13px 20px", borderTop: "1px solid var(--rc-border-strong)", background: "rgba(18,12,14,.96)", backdropFilter: "blur(8px)", transition: "left .32s cubic-bezier(.4,0,.2,1)" }}>
+          <span style={{ fontSize: 12, color: "var(--rc-text-3)" }}>{t("Dataları sonradan sol panelden değiştirebilirsin")}</span>
+          <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
+            <button onClick={() => setPickDone(false)} style={{ padding: "10px 18px", borderRadius: 10, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 13 }}>{t("Geri")}</button>
+            <button onClick={() => setSetupDone(true)} style={{ padding: "11px 24px", borderRadius: 10, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontFamily: "var(--rc-font-display)", fontSize: 16, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase" }}>{t("Yarışı aç")} →</button>
+          </span>
         </div>
       </div>
     );
