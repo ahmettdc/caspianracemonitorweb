@@ -3186,63 +3186,6 @@ ${bottomBar}
         </>)}
       </div>
 
-      {liveInfo.status === "live" && (() => {
-        const pitTotal = liveInfo.phaseEnd - liveInfo.stintStartMs;
-        const pitFrac = pitTotal > 0
-          ? Math.min(1, Math.max(0, (pitTotal - liveInfo.nextPitIn) / pitTotal)) : 0;
-        const raceFrac = liveInfo.raceMs > 0
-          ? Math.min(1, Math.max(0, liveInfo.elapsed / liveInfo.raceMs)) : 0;
-        return (
-          <div className="hudstrip">
-            <div className="hcell hhero">
-              <span className="lbl">{t("Bayrağa Kalan")}</span>
-              <span className="hclock">{fmtHMS(liveInfo.remaining / 1000)}</span>
-              <div className="hbar"><i style={{ width: `${raceFrac * 100}%` }} /></div>
-              <span className="lbl">%{Math.round(raceFrac * 100)} {t("tamam")}</span>
-            </div>
-            <div className="hcell">
-              <span className="lbl">{t("Şu An")}</span>
-              <span className="hstint">S{liveInfo.stintIdx + 1}
-                <span style={{ color: "var(--muted)", fontSize: ".6em" }}>/{racePlan.fullStints}</span>
-                {liveInfo.phase === "pit" &&
-                  <span style={{ color: "var(--yellow)", fontSize: ".5em" }}> · PIT</span>}
-              </span>
-              {liveInfo.driver && <span className="hdrv">{liveInfo.driver}</span>}
-            </div>
-            <div className="hcell hgauge">
-              <span className="lbl">{liveInfo.phase === "pit" ? t("Pit Çıkışı") : onLastStint ? t("Bayrağa") : t("Sıradaki Pit")}</span>
-              <Ring value={pitFrac} size={78} fs={16} glow
-                color={pitSoon ? "var(--yellow)" : "var(--teal)"}
-                big={fmtHMS(liveInfo.nextPitIn / 1000)} />
-            </div>
-            <div className="hcell hgauge">
-              <span className="lbl">{t("Tamamlanan")}</span>
-              <Ring value={raceFrac} size={78} fs={19} color="var(--car)"
-                big={`%${Math.round(raceFrac * 100)}`} />
-            </div>
-            <button className="act hudpit" data-tour="pitboard"
-              onClick={() => setPitboard(true)}>📟 Pit Board</button>
-          </div>
-        );
-      })()}
-
-      {(liveInfo.status === "pre" || liveInfo.status === "done") && (
-        <div className="livestrip">
-          {liveInfo.status === "pre" && (
-            <div><span className="lbl">{t("Start'a")}</span>
-              <span className={`big ${liveInfo.toStart < 86400000 ? "mono" : ""}`}
-                style={{ color: "var(--yellow)" }}>
-                {startCountdown(liveInfo)}</span></div>
-          )}
-          {liveInfo.status === "done" && (
-            <div><span className="lbl">{t("Durum")}</span>
-              <span className="big" style={{ color: "var(--green)" }}>{t("🏁 YARIŞ BİTTİ")}</span></div>
-          )}
-          <button className="act" style={{ marginLeft: "auto" }}
-            data-tour="pitboard" onClick={() => setPitboard(true)}>📟 Pit Board</button>
-        </div>
-      )}
-
       {pitboard && (
         <div className="pitboard" onClick={() => setPitboard(false)}>
           <button className="close" onClick={() => setPitboard(false)}>✕</button>
