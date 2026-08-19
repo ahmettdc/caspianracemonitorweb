@@ -1334,8 +1334,23 @@ ${bottomBar}
                 </span>
               </div>
               <div style={{ position: "relative", height: 44, marginTop: 14, border: "1px solid var(--rc-border)", borderRadius: 10, background: "var(--rc-surface-2)", overflow: "hidden" }}>
-                <span style={{ position: "absolute", left: `${pos * 100}%`, top: 0, bottom: 0, width: 2, background: "var(--rc-brand-bright)" }} />
-                <span style={{ position: "absolute", left: `${pos * 100}%`, top: 5, transform: "translateX(-50%)", fontFamily: "var(--rc-font-display)", fontSize: 10, color: "var(--rc-brand-bright)", background: "var(--rc-surface-2)", padding: "0 5px" }}>{wxPlanT || "—"}</span>
+                {raceTotal > 0 && (() => {
+                  const trans = [...(st.weatherLog || [])].sort((a, b) => a.t - b.t);
+                  const startW = (trans.find((e) => e.t <= 0.5)?.w) || st.weather || "dry";
+                  const zones = []; let pT = 0, pW = startW;
+                  for (const e of trans.filter((x) => x.t > 0.5)) { zones.push({ from: pT, to: e.t, w: pW }); pT = e.t; pW = e.w; }
+                  zones.push({ from: pT, to: raceTotal, w: pW });
+                  return (<>
+                    {zones.map((z, i) => (
+                      <span key={`z${i}`} style={{ position: "absolute", left: `${(z.from / raceTotal) * 100}%`, width: `${Math.max(0, ((z.to - z.from) / raceTotal) * 100)}%`, top: 0, bottom: 0, background: (WEATHER[z.w] || WEATHER.dry).col, opacity: .22 }} />
+                    ))}
+                    {trans.filter((e) => e.t > 0.5).map((e, i) => (
+                      <span key={`m${i}`} style={{ position: "absolute", left: `${(e.t / raceTotal) * 100}%`, top: 0, bottom: 0, width: 2, background: (WEATHER[e.w] || WEATHER.dry).col }} title={`${fmtHMS(e.t)} · ${t((WEATHER[e.w] || WEATHER.dry).lbl)}`} />
+                    ))}
+                  </>);
+                })()}
+                {pos > 0 && <span style={{ position: "absolute", left: `${pos * 100}%`, top: 0, bottom: 0, width: 2, background: "var(--rc-brand-bright)", boxShadow: "0 0 6px var(--rc-brand-bright)" }} />}
+                {pos > 0 && <span style={{ position: "absolute", left: `${pos * 100}%`, top: 5, transform: "translateX(-50%)", fontFamily: "var(--rc-font-display)", fontSize: 10, color: "var(--rc-brand-bright)", background: "var(--rc-surface-2)", padding: "0 5px", whiteSpace: "nowrap" }}>{wxPlanT}</span>}
                 <span style={{ position: "absolute", left: 10, bottom: 5, fontSize: 10, color: "var(--rc-text-3)", fontFamily: "var(--rc-font-display)" }}>0:00</span>
                 <span style={{ position: "absolute", right: 10, bottom: 5, fontSize: 10, color: "var(--rc-text-3)", fontFamily: "var(--rc-font-display)" }}>{st.raceTime}</span>
               </div>
