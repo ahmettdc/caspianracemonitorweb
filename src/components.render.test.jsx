@@ -28,7 +28,7 @@ describe("modal bileşenleri: açık halde çökmeden render olur", () => {
       carClass: "hypercar", carId: "", raceTime: "6:00:00", startsAt: Date.now() };
     const html = render(
       <RaceEditModal rForm={rForm} setRForm={noop} t={t} seasons={{}} onSave={noop} />);
-    expect(html).toContain("wxmodal");
+    expect(html).toContain("Yarış Ekle");
   });
 
   it("ChatModal", () => {
