@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { fmtHMS, lastStintFuel } from "../engine";
+import { useState, useEffect } from "react";
+import { fmtHMS, lastStintFuel, WX } from "../engine";
 import { Bolt } from "../components";
 
 /* Son stint yakıtı (v2.0 · handoff-spec/ekranlar/05-yakit.md). Kalan süreye göre
@@ -12,12 +12,18 @@ export default function FuelTab({ t, st, up, lsf, autoCd, setAutoCd, planLastCd,
   const eff = isAuto ? fmtHMS(planLastCd) : st.lastStintCountdown;
   const r = isAuto ? lastStintFuel(eff, st, racePlan.flagExtra) : lsf;
   const applyDisabled = !liveFuelObs || !canEdit || (!liveFuelObs.obsCons && !liveFuelObs.obsRatio);
-  const cons = Number(st.consumption) || 0;
+  /* Hava-düzeltilmiş tüketim: engine refuel% ile aynı kaynak (effCons = consumption × WX.fuel).
+     Ekrandaki 'Tüketim' ve formül headline ile tutarlı olsun diye ham değil bunu göster. */
+  const cons = +((Number(st.consumption) || 0) * (WX(st).fuel || 1)).toFixed(3);
   const ratio = Number(st.fuelRatio) || 1;
 
   const [scen, setScen] = useState(() => ({
     plan: cons, save: +(cons * 0.95).toFixed(2), push: +(cons * 1.08).toFixed(2),
   }));
+  /* Tüketim değişince (ör. 'Yakıt modeline uygula') senaryolar donmasın — türet. */
+  useEffect(() => {
+    setScen((s) => ({ ...s, plan: cons, save: +(cons * 0.95).toFixed(2), push: +(cons * 1.08).toFixed(2) }));
+  }, [cons]);
 
   const card = { border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)", padding: "15px 16px" };
   const hdT = { fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 14, fontWeight: 700 };

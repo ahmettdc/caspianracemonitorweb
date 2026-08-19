@@ -100,7 +100,7 @@ export default function StintTab({
           <div style={{ display: "flex", height: 34, borderRadius: 8, overflow: "hidden", border: "1px solid var(--rc-border)" }}>
             {timeline.map((s, i) => (
               <div key={i} style={{ width: `${s.w}%`, flex: "0 0 auto", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", borderRight: "1px solid var(--rc-surface)", background: s.cls === "pit" ? "var(--rc-warn)" : s.cls === "live" ? "var(--rc-brand)" : (s.bg || "#2A171C") }}>
-                {s.label && s.w > 5 && <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 12, color: s.cls === "pit" ? "#0B0708" : "var(--rc-text)", letterSpacing: ".04em", whiteSpace: "nowrap" }}>{s.label}</span>}
+                {s.label && s.w > 2 && <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: s.w > 5 ? 12 : 9.5, color: s.cls === "pit" ? "#0B0708" : "var(--rc-text)", letterSpacing: ".02em", whiteSpace: "nowrap" }}>{s.label}</span>}
               </div>
             ))}
           </div>

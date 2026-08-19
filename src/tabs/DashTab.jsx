@@ -19,6 +19,8 @@ export default function DashTab({
   const roster = st.roster || [];
   const drvCol = (nm) => { const i = roster.indexOf(nm); return DRV_COLORS[(i >= 0 ? i : 0) % DRV_COLORS.length]; };
   const stintElapsed = live ? Math.max(0, liveInfo.phaseEnd - liveInfo.nextPitIn - liveInfo.stintStartMs) : 0;
+  const onLast = live && !!racePlan.rows[liveInfo.stintIdx]?.isLast;
+  const pitLabel = !live ? t("Sıradaki pit") : liveInfo.phase === "pit" ? t("Pit çıkışı") : onLast ? t("Bayrağa") : t("Sıradaki pit");
   const wx = WX(st);
 
   const stintTyre = (i) => {
@@ -78,7 +80,7 @@ export default function DashTab({
             <div style={kpi}><div style={{ ...kpiV, fontWeight: 600, color: "var(--rc-ok)" }}>{live ? fmtHMS(liveInfo.remaining / 1000) : fmtHMS(racePlan.raceSec)}</div><div style={kpiL}>{live ? t("Kalan") : t("Yarış Süresi")}</div></div>
             <div style={kpi}><div style={kpiV}>{st.chosen}<span style={{ color: "var(--rc-text-3)" }}>-</span>{racePlan.totalLaps.toFixed(0)}</div><div style={kpiL}>{t("Strateji · tur")}</div></div>
             <div style={kpi}><div style={kpiV}>{racePlan.rows.length}</div><div style={kpiL}>{t("Stint")}</div></div>
-            <div style={kpi}><div style={{ ...kpiV, fontWeight: 600, color: "var(--rc-warn)" }}>{live ? fmtHMS(liveInfo.nextPitIn / 1000) : "—"}</div><div style={kpiL}>{t("Sıradaki pit")}</div></div>
+            <div style={kpi}><div style={{ ...kpiV, fontWeight: 600, color: "var(--rc-warn)" }}>{live ? fmtHMS(liveInfo.nextPitIn / 1000) : "—"}</div><div style={kpiL}>{pitLabel}</div></div>
           </div>
           {live && (
             <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap", padding: "10px 14px", borderRadius: 11, border: "1px solid rgba(55,214,122,.3)", background: "rgba(55,214,122,.07)" }}>
@@ -144,9 +146,14 @@ export default function DashTab({
               <div><div style={{ fontFamily: "var(--rc-font-display)", fontSize: 34, fontWeight: 700, lineHeight: 1 }}>{tyreInfo.used}<span style={{ fontSize: ".5em", color: "var(--rc-text-3)" }}>/{st.tyreLimit}</span></div><div style={kpiL}>{t("Kullanılan")}</div></div>
               <div><div style={{ fontFamily: "var(--rc-font-display)", fontSize: 34, fontWeight: 700, lineHeight: 1, color: tyreInfo.available < 0 ? "var(--rc-danger)" : "var(--rc-ok)" }}>{tyreInfo.available}</div><div style={kpiL}>{t("Kalan")}</div></div>
               <div style={{ flex: 1, display: "flex", gap: 4, justifyContent: "flex-end" }}>
-                {Array.from({ length: Math.max(0, st.tyreLimit) }).slice(0, 12).map((_, i) => (
-                  <span key={i} style={{ display: "block", width: 9, height: 26, borderRadius: 3, background: i < tyreInfo.used ? "var(--rc-border-strong)" : "var(--rc-ok)", opacity: i < tyreInfo.used ? 1 : .8 }} />
-                ))}
+                {(() => {
+                  const lim = Math.max(0, st.tyreLimit);
+                  const bars = Math.min(lim, 12);
+                  const usedBars = lim > 0 ? Math.round((tyreInfo.used / lim) * bars) : 0;
+                  return Array.from({ length: bars }).map((_, i) => (
+                    <span key={i} style={{ display: "block", width: 9, height: 26, borderRadius: 3, background: i < usedBars ? "var(--rc-border-strong)" : "var(--rc-ok)", opacity: i < usedBars ? 1 : .8 }} />
+                  ));
+                })()}
               </div>
             </div>
             {live && racePlan.rows[liveInfo.stintIdx + 1] && (
@@ -182,7 +189,8 @@ export default function DashTab({
             <div style={{ ...card, padding: "16px 18px" }}>
               <div style={{ ...cardHdT, marginBottom: 12 }}>{t("Pilot Dağılımı")}</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {roster.filter((n) => driverPlan.totals[n]).map((n) => {
+                {[...roster.filter((n) => driverPlan.totals[n]),
+                  ...Object.keys(driverPlan.totals).filter((n) => !roster.includes(n))].map((n) => {
                   const tot = driverPlan.totals[n];
                   const pct = driverPlan.grandMs ? (tot.ms / driverPlan.grandMs) * 100 : 0;
                   const col = drvCol(n);

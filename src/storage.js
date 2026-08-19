@@ -387,6 +387,9 @@ export async function transferOwnership(tid, newUid, oldUid) {
     [`teams/${tid}/meta/ownerUid`]: newUid,
     [`teams/${tid}/members/${newUid}`]: "owner",
     [`teams/${tid}/members/${oldUid}`]: "editor",
+    // rozet→rol hizalama effect'i owner olmayan üyeyi engineer rozeti yoksa viewer'a
+    // düşürür → devirle verilen 'editor' kaybolmasın diye eski sahibe engineer rozeti ver.
+    [`teams/${tid}/badges/${oldUid}/engineer`]: true,
   });
 }
 

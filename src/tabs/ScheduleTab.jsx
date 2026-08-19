@@ -32,7 +32,7 @@ function countdown(ms, now, t) {
   if (s <= 0) return t("başlıyor");
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), d = Math.floor(h / 24);
   if (d >= 1) return `${d}${t("g")} ${h % 24}${t("s")}`;
-  return h > 0 ? `${h}s ${m}dk` : `${m}dk`;
+  return h > 0 ? `${h}${t("s")} ${m}${t("dk")}` : `${m}${t("dk")}`;
 }
 const fmtClock = (ms, lang) => new Date(ms)
   .toLocaleTimeString(lang === "en" ? "en-GB" : "tr-TR", { hour: "2-digit", minute: "2-digit" });
@@ -40,10 +40,10 @@ const fmtDate = (ms, lang) => new Date(ms)
   .toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR", { day: "2-digit", month: "long" });
 
 /* Saniye → kısa süre ("4m"→"4dk", "3600"→"1s"). 0/negatif → null. */
-const durMin = (sec) => {
+const durMin = (sec, t = (x) => x) => {
   const m = Math.round((sec || 0) / 60);
   if (m <= 0) return null;
-  return m >= 60 ? `${Math.floor(m / 60)}s${m % 60 ? ` ${m % 60}dk` : ""}` : `${m}dk`;
+  return m >= 60 ? `${Math.floor(m / 60)}${t("s")}${m % 60 ? ` ${m % 60}${t("dk")}` : ""}` : `${m}${t("dk")}`;
 };
 const WX_ICON = { sun: "☀️", cloud: "☁️", rain: "🌧️", storm: "⛈️", fog: "🌫️" };
 const wxIcon = (c) => WX_ICON[c] || "•";
@@ -62,7 +62,7 @@ function weekendData(r, t) {
     tlPoints: wk.tlPoints, fuel: wk.fuel, tyreWear: wk.tyreWear, warmers: wk.warmers,
   };
   const sessions = [];
-  const addS = (sec, label, key) => { const d = durMin(sec); if (d) sessions.push({ label, dur: d, wx: wx[key] || [] }); };
+  const addS = (sec, label, key) => { const d = durMin(sec, t); if (d) sessions.push({ label, dur: d, wx: wx[key] || [] }); };
   addS(W.practiceSec, t("Antr."), "practice");
   addS(W.qualSec, t("Sıralama"), "qualifying");
   addS(W.raceSec, t("Yarış"), "race");
@@ -97,9 +97,12 @@ export default function ScheduleTab({ t, lang = "tr", races = [], updatedAt, loa
     () => races.filter((r) => raceStatus(r, now) === "upcoming").length, [races, now]);
 
   const days = useMemo(() => {
-    const flat = [...grouped.live, ...grouped.upcoming].filter((r) => startOfDay(r.startMs) >= startOfDay(now));
+    // canlı yarışları başlangıç-günü eşiğinden muaf tut (gece yarısını geçen endurance
+    // yarışı düne ait olsa da bugünün grubuna girer) → 'Canlı: N' ile ajanda tutarlı.
+    const flat = [...grouped.live, ...grouped.upcoming]
+      .filter((r) => raceStatus(r, now) === "live" || startOfDay(r.startMs) >= startOfDay(now));
     const byDay = {};
-    for (const r of flat) { const k = startOfDay(r.startMs); (byDay[k] ||= []).push(r); }
+    for (const r of flat) { const k = Math.max(startOfDay(r.startMs), raceStatus(r, now) === "live" ? startOfDay(now) : 0); (byDay[k] ||= []).push(r); }
     return Object.keys(byDay).map(Number).sort((a, b) => a - b).map((k) => ({
       key: k, day: relDay(k, now, t).toLocaleUpperCase(lang === "en" ? "en" : "tr"),
       date: fmtDate(k, lang), races: byDay[k].sort((a, b) => a.startMs - b.startMs),
@@ -113,6 +116,8 @@ export default function ScheduleTab({ t, lang = "tr", races = [], updatedAt, loa
     background: on ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)", color: on ? "var(--rc-text)" : "var(--rc-text-2)",
   });
   const heroMin = next ? Math.max(0, Math.floor((next.startMs - now) / 60000)) : 0;
+  // özet sayaçlar: üçü de ham `races` (filtreden bağımsız genel özet) → tutarlı.
+  const liveTotal = races.filter((r) => raceStatus(r, now) === "live").length;
 
   return (
     <div style={{ padding: "18px 20px 40px", fontFamily: "var(--rc-font-ui)" }}>
@@ -136,13 +141,13 @@ export default function ScheduleTab({ t, lang = "tr", races = [], updatedAt, loa
           </div>
           {next && (
             <div style={{ textAlign: "right", flex: "0 0 auto" }}>
-              <div style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 38, lineHeight: 1, color: "var(--rc-warn)", fontVariantNumeric: "tabular-nums" }}>{heroMin < 100 ? heroMin : Math.floor(heroMin / 60)}<span style={{ fontSize: ".45em", color: "var(--rc-text-2)" }}> {heroMin < 100 ? t("dk") : t("sa")}</span></div>
+              <div style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 38, lineHeight: 1, color: "var(--rc-warn)", fontVariantNumeric: "tabular-nums" }}>{heroMin < 100 ? heroMin : heroMin < 1440 ? Math.floor(heroMin / 60) : Math.floor(heroMin / 1440)}<span style={{ fontSize: ".45em", color: "var(--rc-text-2)" }}> {heroMin < 100 ? t("dk") : heroMin < 1440 ? t("sa") : t("g")}</span></div>
               <div style={{ fontSize: 11, color: "var(--rc-text-3)", fontFamily: "var(--rc-font-display)" }}>{fmtClock(next.startMs, lang)} · {relDay(next.startMs, now, t).toLowerCase()}</div>
             </div>
           )}
         </div>
         <div style={{ flex: "0 1 300px", display: "flex", gap: 10 }}>
-          {[[races.length, t("Toplam"), null], [upcomingTotal, t("Yaklaşan"), null], [grouped.live.length, t("Canlı"), "var(--rc-ok)"]].map(([n, l, col]) => (
+          {[[races.length, t("Toplam"), null], [upcomingTotal, t("Yaklaşan"), null], [liveTotal, t("Canlı"), "var(--rc-ok)"]].map(([n, l, col]) => (
             <div key={l} style={{ flex: 1, background: "var(--rc-surface-2)", border: `1px solid ${col ? "rgba(55,214,122,.4)" : "var(--rc-border)"}`, borderRadius: 12, padding: 14, textAlign: "center" }}>
               <div style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 26, lineHeight: 1, color: col || "var(--rc-text)" }}>{n}</div>
               <div style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".09em", marginTop: 2 }}>{l}</div>

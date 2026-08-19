@@ -100,7 +100,7 @@ export function ChatPanel({
               )}
               <div style={{ display: "flex", flexDirection: "column", gap: 3, alignItems: me ? "flex-end" : "flex-start", maxWidth: "100%" }}>
                 <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                  {!me && <Avatar uid={m.uid} name={teamData?.names?.[m.uid] || m.name} size={18} />}
+                  {!me && <Avatar uid={m.uid} name={teamData?.names?.[m.uid] || m.name} photo={teamData?.photos?.[m.uid]} size={18} />}
                   <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 12.5, fontWeight: 700 }}>{me ? t("Sen") : (teamData?.names?.[m.uid] || m.name || t("isimsiz"))}</b>
                   <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 10.5, color: "var(--rc-text-3)" }}>{fmtClock(m.at || 0)}</span>
                   {(me || canManage) && <button onClick={() => onDelete(m.id)} title={t("Sil")} style={{ background: "none", border: "none", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 11, lineHeight: 1, padding: 0 }}>✕</button>}
@@ -1193,7 +1193,11 @@ export function RaceEditModal({ rForm, setRForm, t, seasons, onSave, onProceed, 
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 20px", borderTop: "1px solid var(--rc-border)", background: "var(--rc-surface-2)" }}>
           <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
             <button onClick={() => setRForm(null)} style={{ padding: "10px 18px", borderRadius: 10, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 13 }}>{t("Vazgeç")}</button>
-            <button onClick={() => (dataFlow && onProceed ? onProceed(rForm) : onSave(rForm))} style={{ padding: "10px 24px", borderRadius: 10, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontFamily: "var(--rc-font-display)", fontSize: 16, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase" }}>{dataFlow ? `${t("İlerle")} →` : t("Kaydet")}</button>
+            {(() => { const ready = !!rForm.trackId && !!rForm.carId; return (
+            <button disabled={!ready} onClick={() => { if (!ready) return; dataFlow && onProceed ? onProceed(rForm) : onSave(rForm); }}
+              title={ready ? undefined : t("Önce pist ve araç seç")}
+              style={{ padding: "10px 24px", borderRadius: 10, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: ready ? "pointer" : "not-allowed", opacity: ready ? 1 : .45, fontFamily: "var(--rc-font-display)", fontSize: 16, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase" }}>{dataFlow ? `${t("İlerle")} →` : t("Kaydet")}</button>
+            ); })()}
           </span>
         </div>
       </div>
@@ -1961,7 +1965,7 @@ export function TeamScreen({ user, t, lang, myTeams, curTeam, setCurTeam,
   const logoSrc = teamLogoSrc(teamData?.assets);
 
   const sortedRaces = Object.entries(races)
-    .filter(([, r]) => !curSeason || r.seasonId === curSeason)
+    .filter(([, r]) => !curSeason || !seasons[curSeason] || r.seasonId === curSeason)
     .sort(([, a], [, b]) => (a.startsAt || 0) - (b.startsAt || 0));
   const swapRace = async (i, j) => {
     const a = sortedRaces[i], b = sortedRaces[j];
@@ -2134,7 +2138,7 @@ export function TeamScreen({ user, t, lang, myTeams, curTeam, setCurTeam,
                       <tr key={uid} style={{ borderBottom: "1px solid var(--rc-line-soft)" }}>
                         <td style={{ padding: "10px 14px" }}>
                           <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                            <Avatar uid={uid} name={teamData?.names?.[uid]} size={26} />
+                            <Avatar uid={uid} name={teamData?.names?.[uid]} photo={teamData?.photos?.[uid]} size={26} />
                             <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
                               <b style={{ fontSize: 14 }}>{teamData?.names?.[uid] || (isSelf ? t("(sen)") : uid.slice(0, 8) + "…")}{teamData?.names?.[uid] && isSelf ? ` ${t("(sen)")}` : ""}</b>
                             </span>
@@ -2419,7 +2423,7 @@ export function TeamModal({ open, onClose, user, t, lang, myTeams, curTeam, setC
                     )}
                   </div>
                   {Object.entries(races)
-                    .filter(([, r]) => !curSeason || r.seasonId === curSeason)
+                    .filter(([, r]) => !curSeason || !seasons[curSeason] || r.seasonId === curSeason)
                     .sort(([, a], [, b]) => (a.startsAt || 0) - (b.startsAt || 0))
                     .map(([rid, r]) => (
                       <div key={rid} className="tmroom">
@@ -2551,13 +2555,18 @@ export function TeamModal({ open, onClose, user, t, lang, myTeams, curTeam, setC
 export function ConfirmHost() {
   const [req, setReq] = useState(null);
   const [val, setVal] = useState("");
-  useEffect(() => _bindConfirm((r) => { setReq(r); setVal(r?.defaultValue || ""); }), []);
+  useEffect(() => _bindConfirm((r) => {
+    // yeni istek gelince öncekini askıda bırakma — güvenli varsayılanla çöz.
+    setReq((prev) => { if (prev) prev.resolve(prev.variant === "prompt" ? null : prev.variant === "alert" ? true : false); return r; });
+    setVal(r?.defaultValue || "");
+  }), []);
   useEffect(() => {
     if (!req) return undefined;
-    const isPrompt = req.variant === "prompt";
+    const isPrompt = req.variant === "prompt", isAlert = req.variant === "alert";
     const onKey = (e) => {
-      if (e.key === "Escape") { e.preventDefault(); setReq(null); req.resolve(isPrompt ? null : false); }
-      else if (e.key === "Enter" && !isPrompt) { e.preventDefault(); setReq(null); req.resolve(req.variant === "alert" ? true : true); }
+      // alert iptal edilemez (tek buton onayı) → Esc/backdrop true çözer; diğerleri iptal.
+      if (e.key === "Escape") { e.preventDefault(); setReq(null); req.resolve(isPrompt ? null : isAlert ? true : false); }
+      else if (e.key === "Enter" && !isPrompt) { e.preventDefault(); setReq(null); req.resolve(true); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -2573,7 +2582,7 @@ export function ConfirmHost() {
   const danger = !!req.danger;
   const done = (v) => { setReq(null); req.resolve(v); };
   const onConfirm = () => done(isPrompt ? (val.trim() || null) : true);
-  const onCancel = () => done(isPrompt ? null : false);
+  const onCancel = () => done(isPrompt ? null : alertOnly ? true : false);
 
   const overlay = { position: "fixed", inset: 0, zIndex: 3000, display: "flex",
     alignItems: "center", justifyContent: "center", padding: "24px 18px",

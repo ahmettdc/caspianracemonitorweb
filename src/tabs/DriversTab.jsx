@@ -19,7 +19,8 @@ export default function DriversTab({
 }) {
   const poolExtra = teamDrivers.filter((n) => !st.roster.includes(n));
   const names = driverPlan ? st.roster.filter((n) => driverPlan.totals[n]) : [];
-  const colorOf = (n) => PIE_COLORS[Math.max(0, names.indexOf(n)) % PIE_COLORS.length];
+  /* Renk kararlı kaynaktan (kadro sırası) — names.indexOf(-1)→0 çakışmasını önler. */
+  const colorOf = (n) => { const i = (st.roster || []).indexOf(n); return i >= 0 ? PIE_COLORS[i % PIE_COLORS.length] : "var(--rc-text-3)"; };
   const stintsOf = {};
   if (driverPlan) driverPlan.rows.forEach((r, i) => {
     const n = st.driverAssign[i]; if (n && r.dur > 0) (stintsOf[n] = stintsOf[n] || []).push(r.idx);

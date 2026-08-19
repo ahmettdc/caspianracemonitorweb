@@ -36,9 +36,9 @@ export default function TyreTab({
         <div style={{ flex: "1 1 190px", ...card, padding: "13px 16px" }}>
           <div style={{ ...kpiL, marginBottom: 8 }}>{t("Lastik limiti")}</div>
           <div style={{ display: "inline-flex", alignItems: "center", border: "1px solid var(--rc-border)", borderRadius: 10, overflow: "hidden" }}>
-            <button onClick={() => up({ tyreLimit: Math.max(1, limit - 1) })} style={{ width: 34, height: 38, border: "none", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 15 }}>−</button>
+            <button onClick={() => up({ tyreLimit: Math.max(0, limit - 1) })} style={{ width: 34, height: 38, border: "none", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 15 }}>−</button>
             <b style={{ minWidth: 52, textAlign: "center", fontFamily: "var(--rc-font-display)", fontSize: 26, fontWeight: 700 }}>{limit}</b>
-            <button onClick={() => up({ tyreLimit: Math.min(24, limit + 1) })} style={{ width: 34, height: 38, border: "none", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 15 }}>+</button>
+            <button onClick={() => up({ tyreLimit: Math.min(40, limit + 1) })} style={{ width: 34, height: 38, border: "none", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 15 }}>+</button>
           </div>
         </div>
         <div style={kpi}><div style={kpiL}>{t("Kullanılan")}</div><div style={bigV}>{tyreInfo.used}</div></div>

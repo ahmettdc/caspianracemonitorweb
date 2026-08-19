@@ -18,7 +18,8 @@ export function _bindConfirm(fn) {
 export function confirmDialog(opts) {
   const o = typeof opts === "string" ? { message: opts } : (opts || {});
   return new Promise((resolve) => {
-    if (typeof emit !== "function") { resolve(o.variant === "prompt" ? null : false); return; }
+    // host mount değilse güvenli varsayılan: prompt→null, alert→true (tek buton onayı), diğer→false
+    if (typeof emit !== "function") { resolve(o.variant === "prompt" ? null : o.variant === "alert" ? true : false); return; }
     emit({ ...o, resolve });
   });
 }

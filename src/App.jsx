@@ -948,7 +948,7 @@ ${bottomBar}
       user={user}
       teamData={teamData}
       fmtClock={fmtClock}
-      canManage={canManageTeam}
+      canManage={chan?.id === "global" ? isAdmin : canManageTeam}
       chatText={chatText}
       setChatText={setChatText}
       onSend={() => doSendTo(chan)}
@@ -1803,7 +1803,7 @@ ${bottomBar}
                 </div>
 
                 <button onClick={() => doSignIn("in")} disabled={busy} style={googleBtn}>
-                  {!busy && (
+                  {!(busy && authMode !== "apply") && (
                     <svg width="18" height="18" viewBox="0 0 48 48" style={{ flex: "0 0 auto" }} aria-hidden="true">
                       <path fill="#4285F4" d="M45.1 24.5c0-1.6-.1-3.2-.4-4.7H24v8.9h11.8c-.5 2.8-2 5.1-4.4 6.7v5.5h7.1c4.2-3.8 6.6-9.5 6.6-16.4Z"/>
                       <path fill="#34A853" d="M24 46c6 0 11-2 14.6-5.4l-7.1-5.5c-2 1.3-4.5 2.1-7.5 2.1-5.8 0-10.7-3.9-12.4-9.1H4.3v5.7C7.9 41 15.3 46 24 46Z"/>
@@ -1811,14 +1811,14 @@ ${bottomBar}
                       <path fill="#EA4335" d="M24 10.8c3.3 0 6.2 1.1 8.5 3.3l6.3-6.3C35 4.3 30 2 24 2 15.3 2 7.9 7 4.3 14.2l7.3 5.7c1.7-5.2 6.6-9.1 12.4-9.1Z"/>
                     </svg>
                   )}
-                  {busy && (
+                  {busy && authMode !== "apply" && (
                     <i style={{ width: 16, height: 16, borderRadius: "50%",
                       border: "2px solid rgba(22,13,16,.25)", borderTopColor: "#960018",
                       animation: "rcspin .7s linear infinite", flex: "0 0 auto" }} />
                   )}
                   <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700,
                     fontSize: 15, letterSpacing: ".06em", textTransform: "uppercase" }}>
-                    {busy ? t("Bağlanılıyor…") : t("Google ile devam et")}</span>
+                    {busy && authMode !== "apply" ? t("Bağlanılıyor…") : t("Google ile devam et")}</span>
                 </button>
 
                 <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--rc-text-4)", fontSize: 11 }}>
@@ -1829,10 +1829,12 @@ ${bottomBar}
 
                 <div>
                   <button onClick={() => doSignIn("apply")} disabled={busy} style={applyBtn}>
-                    {gMark}
+                    {busy && authMode === "apply"
+                      ? <i style={{ width: 15, height: 15, borderRadius: "50%", border: "2px solid var(--rc-border-strong)", borderTopColor: "var(--rc-brand-bright)", animation: "rcspin .7s linear infinite", flex: "0 0 auto" }} />
+                      : gMark}
                     <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700,
                       fontSize: 14, letterSpacing: ".05em", textTransform: "uppercase" }}>
-                      {t("Google ile başvur")}</span>
+                      {busy && authMode === "apply" ? t("Bağlanılıyor…") : t("Google ile başvur")}</span>
                   </button>
                   <span style={{ display: "block", marginTop: 7, fontSize: 11, color: "var(--rc-text-3)", lineHeight: 1.55 }}>
                     {t("Erişimin yoksa başvur — yönetici onaylayınca giriş açılır.")}</span>
@@ -2058,7 +2060,7 @@ ${bottomBar}
              önce takım takvimine kaydeder (createRace), sonra DATA ekranında açar
              → kullanıcı stint/yakıt verisini girer. Solo mod yok. */
           const newRace = () => setRForm({ flow: "data",
-            seasonId: lobSeason !== "all" ? lobSeason : (seasonIds[0] || ""),
+            seasonId: lobSeason !== "all" ? lobSeason : "",
             round: "", name: "", trackId: st.track || "", carClass: st.carClass || "hypercar",
             carId: st.car || "", raceTime: st.raceTime || "6:00:00", startsAt: Date.now() });
           const langBtn = (on) => ({
@@ -2521,7 +2523,7 @@ ${bottomBar}
           </span>
           <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <button onClick={() => setPickDone(true)} style={{ background: "none", border: "none", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 12.5, textDecoration: "underline", textUnderlineOffset: 3 }}>{t("Seçim yapmadan geç →")}</button>
-            <button onClick={() => setPickDone(true)} style={{ padding: "11px 22px", borderRadius: 10, cursor: canGo ? "pointer" : "not-allowed", fontFamily: "var(--rc-font-display)", fontSize: 16, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase", whiteSpace: "nowrap",
+            <button disabled={!canGo} onClick={() => { if (canGo) setPickDone(true); }} style={{ padding: "11px 22px", borderRadius: 10, cursor: canGo ? "pointer" : "not-allowed", opacity: canGo ? 1 : .55, fontFamily: "var(--rc-font-display)", fontSize: 16, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase", whiteSpace: "nowrap",
               border: `1px solid ${canGo ? "var(--rc-brand-bright)" : "var(--rc-border)"}`, background: canGo ? "var(--rc-brand)" : "var(--rc-surface-3)", color: canGo ? "var(--rc-on-brand)" : "var(--rc-text-3)" }}>✓ {t("Devam et — yarış dataları")}</button>
           </span>
         </div>
