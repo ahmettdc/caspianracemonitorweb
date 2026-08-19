@@ -2,7 +2,7 @@
    App.jsx içe aktarır. */
 import { useState, useEffect, useRef, Fragment } from "react";
 import {
-  ASSET, quantile, TRACKS, TRACK_ASSET,
+  ASSET, AV, quantile, TRACKS, TRACK_ASSET,
   CAR_CLASSES, CARS, trackName, carImg, carName, brandLogo,
   APP_VERSION, REPO_URL, PIE_COLORS,
 } from "./constants";
