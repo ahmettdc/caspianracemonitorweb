@@ -454,9 +454,9 @@ ${svgs}
     doc.close();
   };
   return (
-    <div className="card" style={{ marginTop: 12 }} ref={cardRef}>
-      <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        🔬 {t("Tur Karşılaştırma")}
+    <div style={{ border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)", padding: "16px 18px", marginTop: 16 }} ref={cardRef}>
+      <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", margin: "0 0 10px", fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 16, fontWeight: 700 }}>
+        🔬 {t("Tur karşılaştırma")}
         {cmpData && Number.isFinite(cmpData.totalDelta) && (
           <span className="chip" style={{ fontSize: 12,
             borderColor: cmpData.totalDelta > 0 ? CA : CB,
@@ -721,11 +721,18 @@ export default function TeleTab({
     clearTimeout(parseTimerRef.current);
     parseTimerRef.current = setTimeout(() => doParse(v), 300);
   };
+  const teleHd = { fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 16, fontWeight: 700 };
+  const teleCard = { border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)", padding: "16px 18px" };
   return (
-    <div>
-      <div className="card">
-        <h2 data-tour="teleimport">{t("Telemetri İçe Aktar (MoTeC)")}</h2>
-        <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+    <div style={{ padding: "2px 0 8px", fontFamily: "var(--rc-font-ui)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+        <h2 style={{ margin: 0, fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".06em", fontSize: 22, fontWeight: 700 }}>{t("Telemetri")}</h2>
+        <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>MoTeC · .ld · .duckdb · CSV</span>
+      </div>
+
+      <div style={teleCard} data-tour="teleimport">
+        <div style={{ ...teleHd, marginBottom: 12 }}>⬆ {t("Telemetri yükle")}</div>
+        <div style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
           {["A", "B", "C", "D"].map((sl) => (
             <button key={sl} className="act"
               style={slot === sl
@@ -854,8 +861,8 @@ export default function TeleTab({
       </div>
 
       {loadedSlots.length > 0 && (
-        <div className="card" style={{ marginTop: 12 }}>
-          <h2>{t("Stint Analizi")}</h2>
+        <div style={{ ...teleCard, marginTop: 16 }}>
+          <div style={{ ...teleHd, marginBottom: 12 }}>{t("Stint analizi")}</div>
           <div className="kpis">
             {loadedSlots.map((sl) => {
               const s = slotStats[sl];
