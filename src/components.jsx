@@ -2204,7 +2204,7 @@ export function TeamScreen({ user, t, lang, myTeams, curTeam, setCurTeam,
                 )}
               </span>
               {canEditTeam && (
-                <button onClick={() => setRForm({ rid: null, seasonId: curSeason || null, round: "", name: "",
+                <button onClick={() => setRForm({ rid: null, flow: "data", seasonId: curSeason || null, round: "", name: "",
                   trackId: st.track || "", carClass: st.carClass || "hypercar", carId: st.car || "",
                   raceTime: st.raceTime || "6:00:00", startsAt: Date.now() })}
                   style={{ ...c.sBtn, marginLeft: "auto" }}>＋ {t("Yarış ekle")}</button>
@@ -2224,7 +2224,7 @@ export function TeamScreen({ user, t, lang, myTeams, curTeam, setCurTeam,
                   <span style={{ display: "flex", gap: 5, flex: "0 0 auto" }}>
                     <button title={t("Yukarı taşı")} disabled={i === 0} onClick={() => swapRace(i, i - 1)} style={{ ...c.mini, opacity: i === 0 ? .4 : 1 }}>▲</button>
                     <button title={t("Aşağı taşı")} disabled={i === sortedRaces.length - 1} onClick={() => swapRace(i, i + 1)} style={{ ...c.mini, opacity: i === sortedRaces.length - 1 ? .4 : 1 }}>▼</button>
-                    <button title={t("Düzenle")} onClick={() => setRForm({ rid, ...r })} style={c.mini}>✎</button>
+                    <button title={t("Düzenle")} onClick={() => setRForm({ rid, ...r, flow: "data" })} style={c.mini}>✎</button>
                     <button title={t("Sil")} onClick={async () => { if (await confirmDialog({ title: t("Yarışı sil"), message: t("Yarış silinsin mi?"), confirmText: t("Sil"), danger: true })) deleteRace(curTeam, rid).catch(() => {}); }} style={c.mini}>✕</button>
                   </span>
                 )}
@@ -2443,7 +2443,7 @@ export function TeamModal({ open, onClose, user, t, lang, myTeams, curTeam, setC
                           {t("Aç")}</button>
                         {canEditTeam && (<>
                           <button className="minibtn" title={t("Düzenle")}
-                            onClick={() => setRForm({ rid, ...r })}>✎</button>
+                            onClick={() => setRForm({ rid, ...r, flow: "data" })}>✎</button>
                           <button className="minibtn" title={t("Sil")}
                             onClick={async () => { if (await confirmDialog({ title: t("Yarışı sil"), message: t("Yarış silinsin mi?"), confirmText: t("Sil"), danger: true }))
                               deleteRace(curTeam, rid).catch(() => {}); }}>✕</button>

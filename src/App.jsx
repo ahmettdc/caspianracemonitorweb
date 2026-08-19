@@ -2047,7 +2047,14 @@ ${bottomBar}
           const pastCount = pastAll.length;
           const calList = menuCal === "active" ? activeF : menuCal === "up" ? upF : pastShown;
           const calEmpty = calList.length === 0;
-          const editRace = (rid, r) => setRForm({ rid, seasonId: r.seasonId || "", round: r.round || "",
+          /* Varsayılan yarış: kullanıcı yarış seçmeden Dash/Stint/Yakıt/Canlı'ya
+             tıklarsa kronolojik olarak AKTİF olan (en son başlamış) yarış; aktif
+             yoksa en yakın YAKLAŞAN; o da yoksa en son GEÇMİŞ yarış otomatik açılır. */
+          const defaultPick = allActive.length ? allActive[allActive.length - 1]
+            : allUp.length ? allUp[0]
+            : allPast.length ? allPast[0] : null;
+          const defaultRid = defaultPick ? defaultPick[0] : null;
+          const editRace = (rid, r) => setRForm({ rid, flow: "data", seasonId: r.seasonId || "", round: r.round || "",
             name: r.name || "", trackId: r.trackId || "", carClass: r.carClass || "", carId: r.carId || "",
             raceTime: r.raceTime || "", startsAt: r.startsAt || 0 });
           /* + Yarış ekle → Yarış Ekle penceresi; flow:"data" → "İlerle →" butonu:
@@ -2066,6 +2073,7 @@ ${bottomBar}
             padding: "7px 14px", borderRadius: 99, cursor: "pointer", fontSize: 12.5,
             border: `1px solid ${on ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
             background: on ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)", color: on ? "var(--rc-text)" : "var(--rc-text-2)",
+            transition: "background .18s ease, border-color .18s ease, color .18s ease",
           });
           const qaBtn = {
             display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 4,
@@ -2074,7 +2082,7 @@ ${bottomBar}
           };
           return (
         <div style={shell}>
-          {renderRail("menu", (k) => { setTab(k); if (curRace) openRace(curRace); })}
+          {renderRail("menu", (k) => { setTab(k); if (curRace) openRace(curRace); else if (defaultRid) openRace(defaultRid); })}
           <div style={{ minWidth: 0 }}>
         <div style={{ padding: "22px 24px 40px", fontFamily: "var(--rc-font-ui)" }}>
 
@@ -2307,7 +2315,7 @@ ${bottomBar}
             <button onClick={newRace} style={{ marginLeft: menuCal === "past" ? 0 : "auto", padding: "8px 16px", borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer", fontSize: 12.5 }}>＋ {t("Yarış ekle")}</button>
           </div>
 
-          <div style={{ border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)", overflow: "hidden" }}>
+          <div key={menuCal} style={{ border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)", overflow: "hidden", animation: "rcin .28s ease-out" }}>
             {calEmpty ? (
               <div style={{ padding: "40px 24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 9 }}>
                 <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="var(--rc-border-strong)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></svg>
@@ -2831,6 +2839,8 @@ ${bottomBar}
   const raceSub = [rcInfo.round ? `R${rcInfo.round}` : "", trackName(rcInfo.trackId || st.track),
     st.car ? carName(st.carClass, st.car) : ""].filter(Boolean).join(" · ");
   const readOnly = !!curRace && role === "viewer";
+  /* YARIŞ·DATA yan paneli yalnız Canlı Timing + Stint (ve Code80) ekranlarında. */
+  const showSide = tab === "live" || tab === "stint" || tab === "code80";
   const feed = !!(live && live.own && live.own.position != null && liveInfo.status === "live");
   const bPhase = bridge?.phase || "idle";
   const bWriter = bridge?.writerBy || "";
@@ -3412,14 +3422,18 @@ ${bottomBar}
         </div>
       )}
 
-      <div className={`grid ${sideOpen ? "" : "noside"} ${role === "viewer" && curRace ? "viewonly" : ""}`}>
-        <button className={`sidetoggle ${sideOpen ? "" : "closed"}`}
-          onClick={() => setSideOpen(!sideOpen)}
-          title={sideOpen ? t("Paneli gizle") : t("Paneli göster")}>
-          {sideOpen ? "▶" : "◀"}</button>
+      {/* YARIŞ·DATA yan paneli yalnız Canlı Timing ve Stint ekranlarında görünür;
+          diğer sekmelerde (Dash/Yakıt/Lastik/Pilot/Tele/Setup) gizlenir. */}
+      <div className={`grid ${sideOpen && showSide ? "" : "noside"} ${role === "viewer" && curRace ? "viewonly" : ""}`}>
+        {showSide && (
+          <button className={`sidetoggle ${sideOpen ? "" : "closed"}`}
+            onClick={() => setSideOpen(!sideOpen)}
+            title={sideOpen ? t("Paneli gizle") : t("Paneli göster")}>
+            {sideOpen ? "▶" : "◀"}</button>
+        )}
         {/* ================= SOL: DATA ================= */}
         <div className="sidecol">
-          <div className="sideinner">{dataCards}</div>
+          <div className="sideinner">{showSide ? dataCards : null}</div>
         </div>
 
         {/* ================= SAĞ: EKRAN ================= */}
