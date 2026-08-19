@@ -867,11 +867,13 @@ ${bottomBar}
      oluşur (saveRaceForm/createRace). Takım yoksa buton hiç görünmez (curTeam gate). */
   const planOfficialRace = (r) => {
     if (!curTeam) return;
-    setRForm(officialRaceToForm(r, {
+    /* flow:"data" → RaceEditModal 'İlerle →' butonu: önce takım takvimine kaydet,
+       sonra DATA ekranında aç (raceToData). '+ Yarış ekle' ile aynı akış. */
+    setRForm({ ...officialRaceToForm(r, {
       seasonId: curSeason || null,
       fallbackRaceTime: DEFAULT_STATE.raceTime,
       classId,
-    }));
+    }), flow: "data" });
     setScheduleOnly(false);
   };
 
