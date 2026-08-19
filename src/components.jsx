@@ -1018,9 +1018,30 @@ export function VersionModal({ open, onClose, t, lang, onStartGuide }) {
 /* v2.0 katman — handoff-spec/katmanlar/raceOpen.md. İki kolon: solda form
    (ad, sezon/round, pist ızgarası, sınıf/araç/süre, başlangıç, resmi ön ayar),
    sağda pist + araç önizlemesi. Kaydet/Düzenle davranışı korundu. */
-export function RaceEditModal({ rForm, setRForm, t, seasons, onSave, onProceed }) {
+export function RaceEditModal({ rForm, setRForm, t, seasons, onSave, onProceed, lmuData }) {
   if (!rForm) return null;
   const dataFlow = rForm.flow === "data"; // + Yarış ekle akışı: İlerle → data ekranı
+  /* LMU referans tempoları (Ohne Speed) — seçili pist+araç/sınıf için tier tablosu */
+  const tempoRows = (() => {
+    const d = lmuData?.data?.[rForm.trackId];
+    if (!d) return null;
+    const carE = d[`${rForm.carClass}:${rForm.carId}`];
+    const clsE = d[rForm.carClass];
+    const tiers = clsE?.tiers;
+    const hot = carE?.hot || clsE?.hot;
+    if (!tiers && !hot) return null;
+    return [
+      ["HOTLAP", hot, "#b06ffc"],
+      ["ALIEN · 100%", tiers?.alien, "#16a34a"],
+      ["COMPETITIVE · 1.01", tiers?.c101, "#65a30d"],
+      ["GOOD · 1.02", tiers?.c102, "#ca8a04"],
+      ["· 1.03", tiers?.c103, "#d97706"],
+      ["MIDPACK · 1.04", tiers?.c104, "#ea580c"],
+      ["· 1.05", tiers?.c105, "#f05252"],
+      ["TAIL-ENDER · 1.06", tiers?.c106, "#dc2626"],
+      ["OFFLINE · 1.07", tiers?.c107, "#991b1b"],
+    ].filter(([, v]) => v);
+  })();
   const lbl = { display: "block", color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 6 };
   const inp = { width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", borderRadius: 10, color: "var(--rc-text)", padding: "11px 12px", fontSize: 13 };
   const curTrackName = trackName(rForm.trackId) || t("Pist seçilmedi");
@@ -1142,6 +1163,23 @@ export function RaceEditModal({ rForm, setRForm, t, seasons, onSave, onProceed }
                 <img src={`${ASSET}cars/${rForm.carClass}/${rForm.carId}.png`} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ display: "block", width: "100%", maxWidth: 210, height: "auto", margin: "0 auto 8px" }} />
                 <div style={{ display: "inline-flex", alignItems: "center", gap: 7, fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 16 }}>
                   <img src={`${ASSET}class/${rForm.carClass}.png`} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ height: 15 }} />{carName(rForm.carClass, rForm.carId)}
+                </div>
+              </div>
+            )}
+            {tempoRows && (
+              <div style={{ border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface-2)", padding: "12px 14px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                  <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".07em", fontSize: 12, fontWeight: 700 }}>{t("Tempolar")}</span>
+                  <span style={{ marginLeft: "auto", fontSize: 9.5, color: "var(--rc-text-4)" }}>{lmuData?.source || "Ohne Speed"}</span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                  {tempoRows.map(([lbl, v, col]) => (
+                    <div key={lbl} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11 }}>
+                      <i style={{ width: 7, height: 7, borderRadius: 2, background: col, flex: "0 0 auto" }} />
+                      <span style={{ color: "var(--rc-text-3)", letterSpacing: ".02em" }}>{lbl}</span>
+                      <b style={{ marginLeft: "auto", fontFamily: "var(--rc-font-mono)", color: col }}>{v}</b>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

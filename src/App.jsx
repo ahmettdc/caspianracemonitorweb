@@ -1293,7 +1293,7 @@ ${bottomBar}
     setRForm(null); setPickDone(true); setSetupDone(false); setEntered(true);
   };
   const raceForm = (
-    <RaceEditModal rForm={rForm} setRForm={setRForm} t={t} seasons={seasons} onSave={saveRaceForm} onProceed={raceToData} />
+    <RaceEditModal rForm={rForm} setRForm={setRForm} t={t} seasons={seasons} onSave={saveRaceForm} onProceed={raceToData} lmuData={lmuData} />
   );
 
   /* v2.0 Hava geçişi ekle modalı (handoff-spec/katmanlar/wxOpen.md). Planlı hava
