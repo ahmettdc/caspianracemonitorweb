@@ -1023,6 +1023,7 @@ export function RaceEditModal({ rForm, setRForm, t, seasons, onSave, onProceed, 
   const dataFlow = rForm.flow === "data"; // + Yarış ekle akışı: İlerle → data ekranı
   /* LMU referans tempoları (Ohne Speed) — seçili pist+araç/sınıf için tier tablosu */
   const tempoRows = (() => {
+    if (!rForm.trackId || !rForm.carId) return null; // araç seçilmeden gösterme
     const d = lmuData?.data?.[rForm.trackId];
     if (!d) return null;
     const carE = d[`${rForm.carClass}:${rForm.carId}`];

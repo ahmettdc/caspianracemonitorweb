@@ -1307,8 +1307,7 @@ ${bottomBar}
     const lapDelta = (parseLap(st.avgLap) || 0) * (mult - 1);
     const planList = (st.weatherLog || []).filter((e) => e.src === "plan").sort((a, b) => a.t - b.t);
     const hh = Math.floor(tSec / 3600), mm = Math.floor((tSec % 3600) / 60);
-    const stops = st.strategies[st.chosen] ?? 0;
-    const stintSec = raceTotal / (stops + 1);
+    const stintSec = (st.strategies[st.chosen] ?? 0) * (parseLap(st.avgLap) || 0); // stint süresi = tur×lapSec
     const addTrans = () => {
       if (tSec <= 0) return;
       const log = [...(st.weatherLog || []).filter((e) => Math.abs(e.t - tSec) > 0.5), { t: tSec, w: wxPlanW, src: "plan" }].sort((a, b) => a.t - b.t);
@@ -2462,11 +2461,14 @@ ${bottomBar}
     /* v2.0 Yarış Dataları (handoff-spec/ekranlar/12-yaris-datalari.md) — kabuk içinde.
        Aynı handler'lar (up, WEATHER, strategies, racePlan). Weather log mantığı dataCards ile aynı. */
     const clsD = st.carClass || "hypercar";
-    const stops = st.strategies[st.chosen] ?? 0;
+    /* st.strategies[k] = STINT BAŞINA TUR (motor: engine.js walkFull nLaps). Pit türetilir. */
+    const lapsPerStint = st.strategies[st.chosen] ?? 0;
     const totLaps = racePlan.totalLaps || 0;
     const lapSec = parseLap(st.avgLap) || 0;
-    const stintLaps = stops >= 0 ? Math.round(totLaps / (stops + 1)) : 0;
-    const stintTime = lapSec > 0 && stintLaps > 0 ? fmtHMS(stintLaps * lapSec) : "—";
+    const stStints = racePlan.rows?.length || 0;
+    const chosenPits = stStints > 0 ? Math.max(0, stStints - 1)
+      : (lapsPerStint > 0 && totLaps > 0 ? Math.max(0, Math.ceil(totLaps / lapsPerStint) - 1) : 0);
+    const stintTime = lapSec > 0 && lapsPerStint > 0 ? fmtHMS(lapsPerStint * lapSec) : "—";
     const pickWx = (id) => {
       const el = liveInfo.status === "live" ? Math.max(0, Math.round(liveInfo.elapsed / 1000)) : 0;
       let past = (st.weatherLog || []).filter((e) => e.t < el - 0.5);
@@ -2558,23 +2560,23 @@ ${bottomBar}
               <div style={card}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
                   <span style={cardHd}>{t("Strateji")}</span>
-                  <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{t("Pit sayısına göre stint uzunluğu")}</span>
+                  <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{t("Stint başına tur · pit türetilir")}</span>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 10 }}>
                   {["A", "B", "C", "D"].map((k) => {
-                    const on = st.chosen === k, s = st.strategies[k] ?? 0;
-                    const kl = Math.round(totLaps / (s + 1));
+                    const on = st.chosen === k, laps = st.strategies[k] ?? 0;
+                    const pits = laps > 0 && totLaps > 0 ? Math.max(0, Math.ceil(totLaps / laps) - 1) : 0;
                     return (
                       <div key={k} onClick={() => up({ chosen: k })} style={{ padding: "12px 14px", borderRadius: 12, cursor: "pointer", border: `1px solid ${on ? "var(--rc-brand-bright)" : "var(--rc-border)"}`, background: on ? "rgba(150,0,24,.20)" : "var(--rc-surface-2)" }}>
                         <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
                           <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 26, fontWeight: 700, lineHeight: 1 }}>{k}</b>
-                          <span style={{ fontSize: 11, color: on ? "var(--rc-brand-bright)" : "var(--rc-text-3)" }}>{s} pit</span>
+                          <span style={{ fontSize: 11, color: on ? "var(--rc-brand-bright)" : "var(--rc-text-3)" }}>{laps} tur/stint</span>
                         </div>
-                        <div style={{ fontFamily: "var(--rc-font-display)", fontSize: 15, marginTop: 8 }}>{lapSec > 0 && kl > 0 ? fmtHMS(kl * lapSec) : "—"}</div>
-                        <div style={{ fontSize: 10, color: "var(--rc-text-3)", textTransform: "uppercase", letterSpacing: ".08em", marginTop: 2 }}>stint · {kl > 0 ? kl : "—"} tur</div>
+                        <div style={{ fontFamily: "var(--rc-font-display)", fontSize: 15, marginTop: 8 }}>{lapSec > 0 && laps > 0 ? fmtHMS(laps * lapSec) : "—"}</div>
+                        <div style={{ fontSize: 10, color: "var(--rc-text-3)", textTransform: "uppercase", letterSpacing: ".08em", marginTop: 2 }}>{pits} pit · stint {laps} tur</div>
                         <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
-                          <button onClick={(e) => { e.stopPropagation(); up({ strategies: { ...st.strategies, [k]: Math.max(0, s - 1) } }); }} style={{ width: 30, height: 26, borderRadius: 7, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 13, lineHeight: 1 }}>−</button>
-                          <button onClick={(e) => { e.stopPropagation(); up({ strategies: { ...st.strategies, [k]: s + 1 } }); }} style={{ width: 30, height: 26, borderRadius: 7, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 13, lineHeight: 1 }}>+</button>
+                          <button onClick={(e) => { e.stopPropagation(); up({ strategies: { ...st.strategies, [k]: Math.max(1, laps - 1) } }); }} style={{ width: 30, height: 26, borderRadius: 7, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 13, lineHeight: 1 }}>−</button>
+                          <button onClick={(e) => { e.stopPropagation(); up({ strategies: { ...st.strategies, [k]: laps + 1 } }); }} style={{ width: 30, height: 26, borderRadius: 7, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 13, lineHeight: 1 }}>+</button>
                         </div>
                       </div>
                     );
@@ -2651,7 +2653,7 @@ ${bottomBar}
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, paddingTop: 12, borderTop: "1px solid var(--rc-border-strong)" }}>
                   <div><div style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 24, lineHeight: 1 }}>{totLaps.toFixed(0)}</div><div style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".08em", marginTop: 2 }}>{t("Toplam tur")}</div></div>
-                  <div><div style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 24, lineHeight: 1 }}>{st.chosen} · {stops} pit</div><div style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".08em", marginTop: 2 }}>{t("Seçili strateji")}</div></div>
+                  <div><div style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 24, lineHeight: 1 }}>{st.chosen} · {chosenPits} pit</div><div style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".08em", marginTop: 2 }}>{t("Seçili strateji")}</div></div>
                   <div><div style={{ fontFamily: "var(--rc-font-display)", fontWeight: 600, fontSize: 19, lineHeight: 1.2 }}>{stintTime}</div><div style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".08em", marginTop: 2 }}>{t("Stint uzunluğu")}</div></div>
                   <div><div style={{ fontFamily: "var(--rc-font-display)", fontWeight: 600, fontSize: 19, lineHeight: 1.2 }}>{st.pitLaneTime} sn</div><div style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".08em", marginTop: 2 }}>{t("Pit kaybı")}</div></div>
                 </div>
