@@ -39,6 +39,42 @@ const fmtClock = (ms, lang) => new Date(ms)
 const fmtDate = (ms, lang) => new Date(ms)
   .toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR", { day: "2-digit", month: "long" });
 
+/* Saniye → kısa süre ("4m"→"4dk", "3600"→"1s"). 0/negatif → null. */
+const durMin = (sec) => {
+  const m = Math.round((sec || 0) / 60);
+  if (m <= 0) return null;
+  return m >= 60 ? `${Math.floor(m / 60)}s${m % 60 ? ` ${m % 60}dk` : ""}` : `${m}dk`;
+};
+/* "Race weekend" paneli → sıralı [etiket, değer] token'ları. r.weekend (scraper)
+   yoksa mevcut düz alanlara (qualSec/tyreSets/lenSec) düşer → veri zenginleşene
+   dek en azından onlar görünür. Yalnız var olan alanlar döner. */
+function weekendTokens(r, t) {
+  const wk = r.weekend || {};
+  const W = {
+    practiceSec: wk.practiceSec,
+    qualSec: wk.qualSec ?? r.qualSec,
+    raceSec: wk.raceSec,                       // yarış süresi zaten satırda (lenLabel) — tekrarlama
+    grid: wk.grid, privateQuali: wk.privateQuali, fixedSetup: wk.fixedSetup,
+    tyreSets: wk.tyreSets ?? r.tyreSets,
+    tlPoints: wk.tlPoints, fuel: wk.fuel, tyreWear: wk.tyreWear, warmers: wk.warmers,
+  };
+  const yn = (b) => (b ? t("Evet") : t("Hayır"));
+  const out = [];
+  const p = durMin(W.practiceSec), q = durMin(W.qualSec), rc = durMin(W.raceSec);
+  if (p) out.push([t("Antr."), p]);
+  if (q) out.push([t("Sıralama"), q]);
+  if (rc) out.push([t("Yarış"), rc]);
+  if (W.grid != null) out.push([t("Grid"), String(W.grid)]);
+  if (W.privateQuali != null) out.push([t("Özel sıralama"), yn(W.privateQuali)]);
+  if (W.fixedSetup != null) out.push([t("Sabit setup"), yn(W.fixedSetup)]);
+  if (W.tyreSets != null) out.push([t("Lastik seti"), String(W.tyreSets)]);
+  if (W.tlPoints != null) out.push([t("TL puanı"), String(W.tlPoints)]);
+  if (W.fuel != null) out.push([t("Yakıt"), `×${W.fuel}`]);
+  if (W.tyreWear != null) out.push([t("Aşınma"), `×${W.tyreWear}`]);
+  if (W.warmers != null) out.push([t("Isıtıcı"), W.warmers ? t("Var") : t("Yok")]);
+  return out;
+}
+
 export default function ScheduleTab({ t, lang = "tr", races = [], updatedAt, loading, onPlan }) {
   const [now, setNow] = useState(() => Date.now());
   const [filters, setFilters] = useState(EMPTY_FILTERS);
@@ -166,7 +202,7 @@ export default function ScheduleTab({ t, lang = "tr", races = [], updatedAt, loa
                   <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 15, color: live ? "var(--rc-ok)" : "var(--rc-text-2)", width: 46, flex: "0 0 auto" }}>{fmtClock(r.startMs, lang)}</span>
                   {r.trackId && <img src={`${ASSET}flags/${TRACK_ASSET(r.trackId)}.png${AV}`} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ width: 26, borderRadius: 3, border: "1px solid var(--rc-border)", flex: "0 0 auto" }} />}
                   {r.trackId && <img src={`${ASSET}tracks/${TRACK_ASSET(r.trackId)}.png${AV}`} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ width: 52, height: 32, objectFit: "contain", opacity: .75, flex: "0 0 auto" }} />}
-                  <span style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0, flex: 1 }}>
+                  <span style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0, flex: "1 1 200px" }}>
                     <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
                       <b style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 17, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.name}</b>
                       {live && <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10, padding: "2px 8px", borderRadius: 99, border: "1px solid var(--rc-ok)", color: "var(--rc-ok)", flex: "0 0 auto" }}>● {t("Canlı")}</span>}
@@ -179,6 +215,20 @@ export default function ScheduleTab({ t, lang = "tr", races = [], updatedAt, loa
                       <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{[trackName(r.trackId) || r.trackRaw, r.lenLabel].filter(Boolean).join(" · ")}</span>
                     </span>
                   </span>
+                  {(() => {
+                    const wk = weekendTokens(r, t);
+                    if (!wk.length) return null;
+                    return (
+                      <span style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "4px 8px", flex: "1.5 1 300px", minWidth: 0, justifyContent: "center" }}>
+                        {wk.map(([k, v]) => (
+                          <span key={k} style={{ display: "inline-flex", alignItems: "baseline", gap: 4, padding: "3px 9px", borderRadius: 8, background: "var(--rc-surface-2)", border: "1px solid var(--rc-border)", whiteSpace: "nowrap" }}>
+                            <i style={{ fontStyle: "normal", fontSize: 9.5, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--rc-text-3)" }}>{k}</i>
+                            <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 12, fontWeight: 700, color: "var(--rc-text)" }}>{v}</b>
+                          </span>
+                        ))}
+                      </span>
+                    );
+                  })()}
                   {r.sr && <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 11, textTransform: "uppercase", letterSpacing: ".05em", padding: "3px 9px", borderRadius: 8, border: "1px solid var(--rc-border-strong)", color: "var(--rc-text-2)", flex: "0 0 auto", whiteSpace: "nowrap" }}>SR {r.sr}</span>}
                   <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 12.5, color: live ? "var(--rc-ok)" : "var(--rc-text-3)", flex: "0 0 auto", whiteSpace: "nowrap", minWidth: 54, textAlign: "right" }}>{live ? t("başlıyor") : countdown(r.startMs, now, t)}</span>
                   <span style={{ display: "flex", gap: 6, flex: "0 0 auto" }}>

@@ -20,7 +20,7 @@
    Kullanım: node scripts/scrape-lmu-schedule.mjs [cikti.json]
    ============================================================ */
 import { writeFileSync } from "node:fs";
-import { parseRacingToday, parseCardsPage, parseRaceWeekend, parseTyreSets } from "../src/lmuParse.js";
+import { parseRacingToday, parseCardsPage, parseWeekendMeta } from "../src/lmuParse.js";
 
 const BASE = "https://lmugarage.com";
 const OUT = process.argv[2] || "lmu-schedule.json";
@@ -79,12 +79,17 @@ async function main() {
     try {
       const path = r.url.replace(/^https?:\/\/[^/]+/, "");
       const detail = await fetchHtml(path);
-      const w = parseRaceWeekend(detail);
-      const ts = parseTyreSets(detail);
-      if (w.qualSec != null) r.qualSec = w.qualSec;
+      const w = parseWeekendMeta(detail);
+      if (w.qualSec != null) r.qualSec = w.qualSec;                      // preset: gerçek sıralama süresi
       if (r.lenSec == null && w.raceSec != null) r.lenSec = w.raceSec;   // special/champ süresini doldur
-      if (ts != null) r.tyreSets = ts;                                   // lastik seti sınırı
-      if (w.qualSec != null || w.raceSec != null || ts != null) enriched++;
+      if (w.tyreSets != null) r.tyreSets = w.tyreSets;                   // preset: lastik seti sınırı
+      /* Tüm "Race weekend" panelini görüntüleme için sakla (yalnız var olan alanlar). */
+      const wk = {};
+      for (const k of ["practiceSec", "qualSec", "raceSec", "grid", "privateQuali",
+        "fixedSetup", "tyreSets", "tlPoints", "fuel", "tyreWear", "warmers"]) {
+        if (w[k] != null) wk[k] = w[k];
+      }
+      if (Object.keys(wk).length) { r.weekend = wk; enriched++; }
     } catch (err) {
       log(`[lmu] UYARI detay atlandı ${r.id}: ${err.message}`);
     }
