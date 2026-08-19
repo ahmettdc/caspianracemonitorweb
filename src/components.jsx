@@ -71,55 +71,56 @@ export function Avatar({ uid, name = "", photo = "", size = 24, bg = "", text = 
 
 /* Sohbet paneli — mesaj listesi + giriş çubuğu. Genel/takım/yarış kanalları
    için ortak (App.jsx'te iki yerde kullanılıyordu). Tüm veri prop ile gelir. */
+/* Sohbet mesaj paneli (v2.0 · handoff-spec/ekranlar/11-sohbet.md sağ kolonu).
+   Gün ayıracı + boş durum + avatar/ad/saat başlıklı balonlar + karakter sayaçlı
+   giriş çubuğu. Kanallar listesi ChatModal'da (bu panel yalnız mesaj akışı). */
 export function ChatPanel({
   msgs, h, t, lang, user, teamData, fmtClock, canManage,
   chatText, setChatText, onSend, onDelete, endRef,
 }) {
   return (
-    <div className="chatwrap" style={h ? { height: h } : undefined}>
-      <div className="chatlist">
+    <div style={{ display: "flex", flexDirection: "column", height: h || "100%", minHeight: 0, fontFamily: "var(--rc-font-ui)" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "16px 18px", display: "flex", flexDirection: "column", gap: 10, minHeight: 0 }}>
         {!msgs.length && (
-          <div className="hint" style={{ margin: "auto", textAlign: "center" }}>
-            {t("Henüz mesaj yok — ilk yazan sen ol.")}</div>
+          <div style={{ margin: "auto", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 9, padding: 24 }}>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--rc-border-strong)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M20 4H4a1.5 1.5 0 0 0-1.5 1.5V16A1.5 1.5 0 0 0 4 17.5h3V21l4-3.5h9A1.5 1.5 0 0 0 21.5 16V5.5A1.5 1.5 0 0 0 20 4Z" /></svg>
+            <div style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 18 }}>{t("Henüz mesaj yok")}</div>
+            <div style={{ fontSize: 12, color: "var(--rc-text-3)", lineHeight: 1.7, maxWidth: 320 }}>{t("İlk yazan sen ol — bu kanaldaki mesajlar yarış boyunca takımda kalır.")}</div>
+          </div>
         )}
         {msgs.map((m, i) => {
           const me = m.uid === user?.uid;
           const prev = msgs[i - 1];
-          const newDay = !prev || new Date(prev.at || 0).toDateString()
-            !== new Date(m.at || 0).toDateString();
+          const newDay = !prev || new Date(prev.at || 0).toDateString() !== new Date(m.at || 0).toDateString();
           return (
             <Fragment key={m.id}>
-              {newDay && <div className="chatday">
-                {new Date(m.at || 0).toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR",
-                  { day: "2-digit", month: "long" })}</div>}
-              <div className={`cmsg ${me ? "me" : ""}`}>
-                <div className="who">
-                  {!me && <Avatar uid={m.uid}
-                    name={teamData?.names?.[m.uid] || m.name} size={18} />}
-                  {!me && <b>{teamData?.names?.[m.uid] || m.name || t("isimsiz")}</b>}
-                  <span>{fmtClock(m.at || 0)}</span>
-                  {(me || canManage) && (
-                    <button className="del" title={t("Sil")}
-                      onClick={() => onDelete(m.id)}>✕</button>
-                  )}
-                </div>
-                <div className="bub">{m.text}</div>
+              {newDay && (
+                <span style={{ alignSelf: "center", fontSize: 10, color: "var(--rc-text-3)", border: "1px solid var(--rc-border)", borderRadius: 10, padding: "2px 12px", textTransform: "uppercase", letterSpacing: ".1em" }}>
+                  {new Date(m.at || 0).toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR", { day: "2-digit", month: "long" })}</span>
+              )}
+              <div style={{ display: "flex", flexDirection: "column", gap: 3, alignItems: me ? "flex-end" : "flex-start", maxWidth: "100%" }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                  {!me && <Avatar uid={m.uid} name={teamData?.names?.[m.uid] || m.name} size={18} />}
+                  <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 12.5, fontWeight: 700 }}>{me ? t("Sen") : (teamData?.names?.[m.uid] || m.name || t("isimsiz"))}</b>
+                  <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 10.5, color: "var(--rc-text-3)" }}>{fmtClock(m.at || 0)}</span>
+                  {(me || canManage) && <button onClick={() => onDelete(m.id)} title={t("Sil")} style={{ background: "none", border: "none", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 11, lineHeight: 1, padding: 0 }}>✕</button>}
+                </span>
+                <span style={{ maxWidth: "min(560px,88%)", padding: "8px 13px", borderRadius: 12, fontSize: 13.5, lineHeight: 1.55, wordBreak: "break-word", whiteSpace: "pre-wrap",
+                  border: `1px solid ${me ? "var(--rc-brand-bright)" : "var(--rc-border)"}`, background: me ? "rgba(150,0,24,.20)" : "var(--rc-surface-3)", color: "var(--rc-text)" }}>{m.text}</span>
               </div>
             </Fragment>
           );
         })}
         <div ref={endRef} />
       </div>
-      <div className="chatbar">
-        <input type="text" value={chatText} maxLength={500}
-          placeholder={t("Mesaj yaz…")}
+      <div style={{ padding: "12px 18px", borderTop: "1px solid var(--rc-border)", display: "flex", gap: 10, alignItems: "center" }}>
+        <input type="text" value={chatText} maxLength={500} placeholder={t("Mesaj yaz…  (Enter gönderir)")}
           onChange={(e) => setChatText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); }
-          }} />
-        <button className="gbtn ubtn" disabled={!chatText.trim()}
-          style={{ opacity: chatText.trim() ? 1 : .45 }}
-          onClick={onSend}>{t("Gönder")}</button>
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); } }}
+          style={{ flex: 1, background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", borderRadius: 10, color: "var(--rc-text)", padding: "11px 14px", fontSize: 14 }} />
+        <span style={{ fontSize: 10.5, color: "var(--rc-text-3)", fontFamily: "var(--rc-font-display)" }}>{chatText.length}/500</span>
+        <button onClick={onSend} disabled={!chatText.trim()}
+          style={{ padding: "11px 22px", borderRadius: 10, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: chatText.trim() ? "pointer" : "default", fontFamily: "var(--rc-font-display)", fontSize: 15, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase", opacity: chatText.trim() ? 1 : .45 }}>{t("Gönder")}</button>
       </div>
     </div>
   );
