@@ -363,14 +363,6 @@ export default function App() {
   };
 
   /* ---------- Faz 3: pilotlar ---------- */
-  const [newDriver, setNewDriver] = useState("");
-  const addDriver = () => {
-    const n = newDriver.trim();
-    if (!n || st.roster.includes(n)) return;
-    if (blocked()) { showDeny(); return; }
-    setSt((s) => ({ ...s, roster: [...s.roster, n] }));
-    setNewDriver("");
-  };
   const removeDriver = (n) => edit((s) => ({
     ...s,
     roster: s.roster.filter((x) => x !== n),
@@ -3546,8 +3538,7 @@ ${bottomBar}
 
           {tab === "drivers" && (
             <DriversTab t={t} st={st} up={up} driverPlan={driverPlan}
-              fmtClock={fmtClock} removeDriver={removeDriver} newDriver={newDriver}
-              setNewDriver={setNewDriver} addDriver={addDriver} teamDrivers={teamDrivers}
+              fmtClock={fmtClock} removeDriver={removeDriver} teamDrivers={teamDrivers}
               addPoolDriver={addPoolDriver} assignDriver={assignDriver} teamData={teamData}
               clearAssign={clearAssign} />
           )}

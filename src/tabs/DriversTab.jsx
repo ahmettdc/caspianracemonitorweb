@@ -14,8 +14,8 @@ function initials(name) {
    kartları + donut + stint→pilot atama programı. Türetilmiş driverPlan/teamDrivers
    ve handler'lar App'ten prop gelir. */
 export default function DriversTab({
-  t, st, up, driverPlan, fmtClock, removeDriver, newDriver, setNewDriver,
-  addDriver, teamDrivers, addPoolDriver, assignDriver, teamData, clearAssign,
+  t, st, up, driverPlan, fmtClock, removeDriver,
+  teamDrivers, addPoolDriver, assignDriver, teamData, clearAssign,
 }) {
   const poolExtra = teamDrivers.filter((n) => !st.roster.includes(n));
   const names = driverPlan ? st.roster.filter((n) => driverPlan.totals[n]) : [];
@@ -71,12 +71,9 @@ export default function DriversTab({
               <button onClick={() => removeDriver(n)} title={t("Kadrodan çıkar")} style={{ background: "none", border: "none", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "0 0 0 2px" }}>×</button>
             </span>
           ))}
-          {st.roster.length === 0 && <span style={dim}>{t("Henüz pilot yok — aşağıdan ekle.")}</span>}
-          <input type="text" placeholder={t("Pilot adı ekle…")} value={newDriver}
-            onChange={(e) => setNewDriver(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addDriver()}
-            style={{ background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", borderRadius: 9, color: "var(--rc-text)", fontSize: 12.5, padding: "8px 12px", width: 170 }} />
+          {st.roster.length === 0 && <span style={dim}>{t("Kadro boş — aşağıdan takım üyesi ekle.")}</span>}
         </div>
-        {poolExtra.length > 0 && (
+        {poolExtra.length > 0 ? (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 11, paddingTop: 11, borderTop: "1px solid var(--rc-line-soft)" }}>
             <span style={{ fontSize: 11, color: "var(--rc-text-3)", textTransform: "uppercase", letterSpacing: ".08em" }}>{t("Takımdan ekle")}</span>
             {poolExtra.map((n) => (
@@ -84,6 +81,8 @@ export default function DriversTab({
                 style={{ padding: "6px 12px", borderRadius: 99, border: "1px dashed var(--rc-border-strong)", background: "transparent", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12 }}>＋ {n}</button>
             ))}
           </div>
+        ) : st.roster.length > 0 && (
+          <div style={{ marginTop: 11, paddingTop: 11, borderTop: "1px solid var(--rc-line-soft)", fontSize: 11, color: "var(--rc-text-3)" }}>{t("Tüm takım üyeleri kadroda. Yeni pilot için takıma üye davet et.")}</div>
         )}
       </div>
 
