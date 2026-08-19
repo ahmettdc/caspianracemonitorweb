@@ -15,7 +15,7 @@ function initials(name) {
    ve handler'lar App'ten prop gelir. */
 export default function DriversTab({
   t, st, up, driverPlan, fmtClock, removeDriver, newDriver, setNewDriver,
-  addDriver, teamDrivers, setSt, assignDriver, teamData, clearAssign,
+  addDriver, teamDrivers, addPoolDriver, assignDriver, teamData, clearAssign,
 }) {
   const poolExtra = teamDrivers.filter((n) => !st.roster.includes(n));
   const names = driverPlan ? st.roster.filter((n) => driverPlan.totals[n]) : [];
@@ -80,7 +80,7 @@ export default function DriversTab({
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 11, paddingTop: 11, borderTop: "1px solid var(--rc-line-soft)" }}>
             <span style={{ fontSize: 11, color: "var(--rc-text-3)", textTransform: "uppercase", letterSpacing: ".08em" }}>{t("Takımdan ekle")}</span>
             {poolExtra.map((n) => (
-              <button key={n} onClick={() => setSt((s) => s.roster.includes(n) ? s : { ...s, roster: [...s.roster, n] })}
+              <button key={n} onClick={() => addPoolDriver(n)}
                 style={{ padding: "6px 12px", borderRadius: 99, border: "1px dashed var(--rc-border-strong)", background: "transparent", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12 }}>＋ {n}</button>
             ))}
           </div>
@@ -115,7 +115,7 @@ export default function DriversTab({
                   {av(n, 44)}
                   <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, flex: 1 }}>
                     <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 18, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{n}</b>
-                    <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{poolExtra.includes(n) ? `🏢 ${t("Takımdan")}` : t("Kadro")}</span>
+                    <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{teamDrivers.includes(n) ? `🏢 ${t("Takımdan")}` : t("Kadro")}</span>
                   </span>
                   <span style={{ textAlign: "right", flex: "0 0 auto" }}>
                     <span style={{ display: "block", fontFamily: "var(--rc-font-display)", fontSize: 19, fontWeight: 600 }}>{fmtHMS(d.ms / 1000)}</span>

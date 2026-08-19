@@ -52,7 +52,7 @@ export default function FuelTab({ t, st, up, lsf, autoCd, setAutoCd, planLastCd,
         <div style={{ flex: "1 1 420px", minWidth: 0, border: "1px solid var(--rc-border-strong)", borderRadius: 12, background: "radial-gradient(120% 170% at 100% 0,rgba(150,0,24,.20),var(--rc-surface-2) 62%)", padding: "16px 18px" }} data-tour="fuelcalc">
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
             <span style={{ ...hdT, fontSize: 15 }}>{t("Yarış sonu")}</span>
-            <button onClick={() => !readOnly && setAutoCd(!autoCd)} title={t("Stint planından otomatik — sondan önceki stintin Time Left değeri")}
+            <button onClick={() => { if (readOnly) return; if (autoCd && !String(st.lastStintCountdown || "").trim()) up({ lastStintCountdown: eff }); setAutoCd(!autoCd); }} title={t("Stint planından otomatik — sondan önceki stintin Time Left değeri")}
               style={{ padding: "4px 11px", borderRadius: 7, fontSize: 11, cursor: readOnly ? "not-allowed" : "pointer", border: `1px solid ${autoCd ? "var(--rc-brand-bright)" : "var(--rc-border)"}`, background: autoCd ? "var(--rc-brand)" : "var(--rc-surface-3)", color: autoCd ? "#FFE9ED" : "var(--rc-text-3)", opacity: readOnly ? .5 : 1 }}>📋 {t("Plan")}</button>
             <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--rc-text-3)" }}>{autoCd ? t("Stint planından otomatik") : t("elle girildi")}</span>
           </div>

@@ -380,6 +380,8 @@ export default function App() {
   const clearAssign = () => edit((s) => ({
     ...s, driverAssign: s.driverAssign.map(() => ""),
   }));
+  /* Takım havuzundan pilot ekle — düzenleme kapısından geçer (viewer'da deny toast). */
+  const addPoolDriver = (n) => edit((s) => (s.roster.includes(n) ? s : { ...s, roster: [...s.roster, n] }));
 
   const driverPlan = useMemo(() => computeDriverPlan(st, racePlan),
     [st.raceStartMs, st.driverAssign, racePlan]);
@@ -3546,7 +3548,7 @@ ${bottomBar}
             <DriversTab t={t} st={st} up={up} driverPlan={driverPlan}
               fmtClock={fmtClock} removeDriver={removeDriver} newDriver={newDriver}
               setNewDriver={setNewDriver} addDriver={addDriver} teamDrivers={teamDrivers}
-              setSt={setSt} assignDriver={assignDriver} teamData={teamData}
+              addPoolDriver={addPoolDriver} assignDriver={assignDriver} teamData={teamData}
               clearAssign={clearAssign} />
           )}
 
