@@ -287,6 +287,7 @@ export default function App() {
   const leaveRace = () => {
     setCurRace(""); setRole("editor"); setLastSync(null); setSyncMsg("");
     setEntered(false); setPickDone(false); setSetupDone(false);
+    setScheduleOnly(false);   // rail "Menü" → bağımsız Resmi Yarışlar ekranından da çık
   };
 
   /* Yetki muhafızı: viewer bir yarışta düzenleme denerse "yetkiniz yok" kutucuğu göster
@@ -1268,6 +1269,7 @@ ${bottomBar}
       carClass: f.carClass || "", carId: f.carId || "",
       raceTime: f.raceTime || "", startsAt: f.startsAt || 0,
     };
+    let rid = f.rid || null;
     if (f.rid) {
       await updateRace(curTeam, f.rid, payload).catch(() => {});
     } else {
@@ -1281,16 +1283,21 @@ ${bottomBar}
         pitLaneTime: PIT_LANE_TIMES[payload.trackId] ?? DEFAULT_STATE.pitLaneTime,
         tyreLimit: f.tyreSets > 0 ? f.tyreSets : DEFAULT_STATE.tyreLimit,
       });
-      await createRace(curTeam, payload, init, user?.uid).catch(() => {});
+      rid = await createRace(curTeam, payload, init, user?.uid).catch(() => null);
     }
     setRForm(null);
+    return rid;
   };
-  /* raceOpen "İlerle →": form datasını yerel yarışa uygula → data ekranı (pick atlanır) */
-  const raceToData = (f) => {
-    up({ track: f.trackId || "", carClass: f.carClass || "hypercar", car: f.carId || "",
-      raceTime: f.raceTime || "6:00:00", raceStartMs: f.startsAt || Date.now(),
-      ...(PIT_LANE_TIMES[f.trackId] != null ? { pitLaneTime: PIT_LANE_TIMES[f.trackId] } : {}) });
-    setRForm(null); setPickDone(true); setSetupDone(false); setEntered(true);
+  /* "İlerle →": önce yarışı TAKIM takvimine kaydet (solo değil), sonra o yarışı
+     data (setup) ekranında aç → kullanıcı stint/yakıt verisini girip planı kurar.
+     Kaydedilen yarış takım listesinde de görünür. */
+  const raceToData = async (f) => {
+    if (!curTeam) return;
+    const rid = await saveRaceForm(f);
+    if (!rid) return;
+    await openRace(rid);          // uzak state + sync kurulumu (setup done=true yapar)
+    setScheduleOnly(false);
+    setSetupDone(false);          // → race workspace yerine DATA ekranında başla
   };
   const raceForm = (
     <RaceEditModal rForm={rForm} setRForm={setRForm} t={t} seasons={seasons} onSave={saveRaceForm} onProceed={raceToData} lmuData={lmuData} />
@@ -1914,10 +1921,18 @@ ${bottomBar}
      dokunmaz. curRace/entered'den ÖNCE gelir → yarış açıkken bile bağımsız açılır. */
   if (scheduleOnly) {
     return (
-      <ScheduleStandalone t={t} lang={lang} switchLang={switchLang}
-        races={lmu.races} updatedAt={lmu.updatedAt}
-        loading={lmu.loading} onExit={() => setScheduleOnly(false)}
-        onPlan={curTeam ? planOfficialRace : undefined} />
+      <div className="rc">
+        {teamModal}{createJoinModal}{raceForm}{versionModal}{chatModal}
+        <div style={shell}>
+          {renderRail("menu", (k) => { setScheduleOnly(false); setTab(k); if (curRace) openRace(curRace); })}
+          <div style={{ minWidth: 0 }}>
+            <ScheduleStandalone t={t} lang={lang} switchLang={switchLang}
+              races={lmu.races} updatedAt={lmu.updatedAt}
+              loading={lmu.loading} onExit={() => setScheduleOnly(false)}
+              onPlan={curTeam ? planOfficialRace : undefined} embedded />
+          </div>
+        </div>
+      </div>
     );
   }
 
@@ -1976,10 +1991,11 @@ ${bottomBar}
           const editRace = (rid, r) => setRForm({ rid, seasonId: r.seasonId || "", round: r.round || "",
             name: r.name || "", trackId: r.trackId || "", carClass: r.carClass || "", carId: r.carId || "",
             raceTime: r.raceTime || "", startsAt: r.startsAt || 0 });
-          /* + Yarış ekle: pist/araç seçimi → data formu → yarışı aç (stint) akışı */
-          /* + Yarış ekle → Yarış Ekle penceresi (raceOpen); İlerle → data ekranı */
-          /* + Yarış ekle → takım takvimine yaz (Kaydet → createRace). Solo yok. */
-          const newRace = () => setRForm({ seasonId: lobSeason !== "all" ? lobSeason : (seasonIds[0] || ""),
+          /* + Yarış ekle → Yarış Ekle penceresi; flow:"data" → "İlerle →" butonu:
+             önce takım takvimine kaydeder (createRace), sonra DATA ekranında açar
+             → kullanıcı stint/yakıt verisini girer. Solo mod yok. */
+          const newRace = () => setRForm({ flow: "data",
+            seasonId: lobSeason !== "all" ? lobSeason : (seasonIds[0] || ""),
             round: "", name: "", trackId: st.track || "", carClass: st.carClass || "hypercar",
             carId: st.car || "", raceTime: st.raceTime || "6:00:00", startsAt: Date.now() });
           const langBtn = (on) => ({
