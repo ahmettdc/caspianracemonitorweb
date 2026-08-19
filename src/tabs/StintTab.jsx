@@ -183,7 +183,13 @@ export default function StintTab({
                     <td style={td(true)}>
                       <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 14 }}>{fmtHMS(r.stintSec)}</b>
-                        {r.isLast ? null : (
+                        {/* Son (FINISH) stintte tur sayısı otomatik doldurulur → normalde
+                            ayar kontrolü gizli. Ancak elle tur override'ı bu stinti son
+                            yapmışsa, kullanıcı geri alamadan kilitlenmesin: override
+                            varken FINISH satırında da ↺ "otomatiğe dön" butonu göster. */}
+                        {r.isLast ? (
+                          lapOvr && <button className="lapclr" title={t("Tur override'ını temizle — otomatiğe dön")} onClick={() => clearLaps(i)}>↺</button>
+                        ) : (
                           <span className="lapcell">
                             <button className="lapstep" disabled={timeLocked} title={timeLocked ? t("Önce süre override'ı temizle") : t("Tur −1")} onClick={() => bumpLaps(i, r.lapsInStint, -1)}>−</button>
                             <b className={lapOvr ? "lapman" : ""}>{r.lapsInStint}</b>

@@ -32,7 +32,7 @@ import { confirmDialog, alertDialog } from "./confirm";
 import {
   parseHMS, fmtHMS, fmtLap, parseLap, msToLocalInput, isRacePast,
   DEFAULT_STATE, EMPTY_PIT, TYRE_2_SEC, TYRE_4_SEC,
-  WEATHER, wxLog, wxAtRel, WX, effCons, tyState,
+  WEATHER, wxLog, wxAtRel, effCons, tyState,
   computePlan, migrate, lastStintFuel,
 } from "./engine";
 import {
@@ -2989,78 +2989,77 @@ ${bottomBar}
         </div>
       )}
       {wxHist && (
-        <div className="wxmodal" onClick={() => setWxHist(false)}>
-          <div className="wxmbox" onClick={(e) => e.stopPropagation()}>
-            <div className="wxmhead">
-              <span>🕒 {t("Hava Geçmişi")}</span>
-              <button className="lbclose" onClick={() => setWxHist(false)}>✕</button>
+        <div onClick={() => setWxHist(false)} style={{ position: "fixed", inset: 0, zIndex: 1000, background: "var(--rc-scrim)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: "min(560px,96vw)", maxHeight: "88vh", display: "flex", flexDirection: "column", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
+            {/* başlık */}
+            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 20px", borderBottom: "1px solid var(--rc-border)" }}>
+              <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".07em", fontSize: 19, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 9 }}>🕒 {t("Hava Geçmişi")}</span>
+              <button onClick={() => setWxHist(false)} style={{ marginLeft: "auto", width: 32, height: 32, borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 15, lineHeight: 1 }}>✕</button>
             </div>
-            <div className="wxmlist">
-              {!(st.weatherLog || []).length && (
-                <div className="hint" style={{ padding: "10px 6px" }}>
+            <div style={{ padding: "16px 20px", overflowY: "auto", display: "flex", flexDirection: "column", gap: 16 }}>
+              {/* geçiş listesi */}
+              {!(st.weatherLog || []).length ? (
+                <div style={{ padding: "18px 16px", textAlign: "center", fontSize: 12.5, color: "var(--rc-text-3)", lineHeight: 1.6, border: "1px dashed var(--rc-border)", borderRadius: 11, background: "var(--rc-surface-2)" }}>
                   {t("Henüz hava geçişi yok. Aşağıdan planlı geçiş ekleyin veya soldaki butonlarla canlı değiştirin.")}
                 </div>
+              ) : (
+                <div style={{ border: "1px solid var(--rc-border)", borderRadius: 11, background: "var(--rc-surface-2)", overflow: "hidden" }}>
+                  {(st.weatherLog || []).map((e, i) => {
+                    const wx = WEATHER[e.w] || WEATHER.dry;
+                    const isFuture = liveInfo.status === "live" && e.t > liveInfo.elapsed / 1000 + 1;
+                    return (
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 11, padding: "10px 13px", borderTop: i > 0 ? "1px solid var(--rc-line-soft)" : "none" }}>
+                        <span style={{ width: 9, height: 9, borderRadius: "50%", flex: "0 0 auto", background: wx.col, boxShadow: `0 0 7px ${wx.col}` }} />
+                        <span style={{ color: wx.col, display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600 }}>
+                          <WetIcon id={WEATHER[e.w] ? e.w : "dry"} size={15} /> {t(wx.lbl)}</span>
+                        <span style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: ".07em", padding: "2px 8px", borderRadius: 99, border: "1px solid var(--rc-border)", color: e.src === "plan" ? "var(--rc-brand-bright)" : "var(--rc-text-3)" }}>
+                          {e.src === "plan" ? t("planlı") : t("canlı")}{isFuture ? " ⏳" : ""}</span>
+                        <b style={{ marginLeft: "auto", fontFamily: "var(--rc-font-display)", fontSize: 13, color: "var(--rc-text-2)", fontVariantNumeric: "tabular-nums" }}>@{fmtHMS(e.t)}</b>
+                        <button title={t("Sil")} onClick={() => {
+                          const log = st.weatherLog.filter((_, j) => j !== i);
+                          up({ weather: log.length ? log[log.length - 1].w : "dry", weatherLog: log });
+                        }} style={{ width: 30, height: 28, flex: "0 0 auto", borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 12 }}>✕</button>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
-              {(st.weatherLog || []).map((e, i) => {
-                const wx = WEATHER[e.w] || WEATHER.dry;
-                const isFuture = liveInfo.status === "live"
-                  && e.t > liveInfo.elapsed / 1000 + 1;
-                return (
-                  <div key={i} className="wxrow">
-                    <span className="wxdot" style={{ background: wx.col }} />
-                    <span className="wxnm" style={{ color: wx.col, display: "inline-flex",
-                      alignItems: "center", gap: 5 }}>
-                      <WetIcon id={WEATHER[e.w] ? e.w : "dry"} size={15} /> {t(wx.lbl)}</span>
-                    <span className={`wxsrc ${e.src === "plan" ? "plan" : "live"}`}>
-                      {e.src === "plan" ? t("planlı") : t("canlı")}
-                      {isFuture ? " ⏳" : ""}</span>
-                    <span className="wxat mono">@{fmtHMS(e.t)}</span>
-                    <button className="minibtn" title={t("Sil")}
-                      onClick={() => {
-                        const log = st.weatherLog.filter((_, j) => j !== i);
-                        up({ weather: log.length ? log[log.length - 1].w : "dry",
-                          weatherLog: log });
-                      }}>✕</button>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="wxmplan">
-              <div className="wxmptitle">➕ {t("Planlı geçiş ekle")}</div>
-              <div className="wxmprow">
-                <select value={wxPlanW} onChange={(e) => setWxPlanW(e.target.value)}>
-                  {Object.entries(WEATHER).map(([id, w]) => (
-                    <option key={id} value={id}>{w.ico} {t(w.lbl)}</option>
-                  ))}
-                </select>
-                <input type="text" placeholder="s:dd:ss" value={wxPlanT}
-                  onChange={(e) => setWxPlanT(e.target.value)}
-                  title={t("Yarış saati (başlangıçtan itibaren)")} />
-                <button className="histbtn" onClick={() => {
-                  const tt = parseHMS(wxPlanT);
-                  if (tt <= 0) return;
-                  const log = [...(st.weatherLog || []).filter((e) => Math.abs(e.t - tt) > 0.5),
-                    { t: tt, w: wxPlanW, src: "plan" }].sort((a, b) => a.t - b.t);
-                  up({ weather: WX({ weatherLog: log }).lap ? st.weather : st.weather,
-                    weatherLog: log });
-                  setWxPlanT("");
-                }}>{t("Ekle")}</button>
-              </div>
-              <div className="wxmquick">
-                {[["30 dk", 30], ["60 dk", 60], ["90 dk", 90]].map(([lbl, mn]) => (
-                  <button key={mn} className="minibtn" style={{ width: "auto", padding: "0 8px" }}
-                    title={t("Son X dk için geçiş zamanı")}
-                    onClick={() => {
+              {/* planlı geçiş ekle */}
+              <div>
+                <label style={{ display: "block", color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 9 }}>➕ {t("Planlı geçiş ekle")}</label>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <select value={wxPlanW} onChange={(e) => setWxPlanW(e.target.value)}
+                    style={{ flex: "1 1 150px", background: "var(--rc-surface-3)", border: "1px solid var(--rc-border-strong)", borderRadius: 10, color: "var(--rc-text)", padding: "10px 12px", fontSize: 13 }}>
+                    {Object.entries(WEATHER).map(([id, w]) => (
+                      <option key={id} value={id}>{w.ico} {t(w.lbl)}</option>
+                    ))}
+                  </select>
+                  <input type="text" placeholder="s:dd:ss" value={wxPlanT} onChange={(e) => setWxPlanT(e.target.value)}
+                    title={t("Yarış saati (başlangıçtan itibaren)")}
+                    style={{ width: 110, background: "var(--rc-surface-3)", border: "1px solid var(--rc-border-strong)", borderRadius: 10, color: "var(--rc-text)", padding: "10px 12px", fontFamily: "var(--rc-font-display)", fontSize: 15, textAlign: "center" }} />
+                  <button onClick={() => {
+                    const tt = parseHMS(wxPlanT);
+                    if (tt <= 0) return;
+                    const log = [...(st.weatherLog || []).filter((e) => Math.abs(e.t - tt) > 0.5),
+                      { t: tt, w: wxPlanW, src: "plan" }].sort((a, b) => a.t - b.t);
+                    up({ weatherLog: log });
+                    setWxPlanT("");
+                  }} style={{ padding: "10px 18px", borderRadius: 10, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontFamily: "var(--rc-font-display)", fontSize: 13, fontWeight: 700, letterSpacing: ".03em", textTransform: "uppercase" }}>{t("Ekle")}</button>
+                </div>
+                <div style={{ display: "flex", gap: 7, marginTop: 10, flexWrap: "wrap" }}>
+                  {[["30 dk", 30], ["60 dk", 60], ["90 dk", 90]].map(([lbl, mn]) => (
+                    <button key={mn} title={t("Son X dk için geçiş zamanı")} onClick={() => {
                       const tt = Math.max(0, parseHMS(st.raceTime) - mn * 60);
                       setWxPlanT(fmtHMS(tt));
-                    }}>{t("Son")} {lbl}</button>
-                ))}
+                    }} style={{ padding: "6px 13px", borderRadius: 99, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12 }}>{t("Son")} {lbl}</button>
+                  ))}
+                </div>
               </div>
             </div>
-            <div className="wxmfoot">
-              <button className="histbtn" onClick={() => {
-                up({ weather: "dry", weatherLog: [] }); setWxHist(false);
-              }}>{t("Tümünü Sıfırla")}</button>
+            {/* alt: tümünü sıfırla */}
+            <div style={{ display: "flex", alignItems: "center", padding: "13px 20px", borderTop: "1px solid var(--rc-border)", background: "var(--rc-surface-2)" }}>
+              <button onClick={() => { up({ weather: "dry", weatherLog: [] }); setWxHist(false); }}
+                style={{ marginLeft: "auto", padding: "9px 18px", borderRadius: 10, border: "1px solid var(--rc-border-strong)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12.5 }}>{t("Tümünü Sıfırla")}</button>
             </div>
           </div>
         </div>
