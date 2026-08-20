@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from "react";
 import { fmtLap, fmtHMS, fmtGap, WEATHER, wetnessLevel, rainLevel, rubberPct } from "../engine";
 import { WetIcon } from "../WetIcon";
 import { GripIcon, gripColor } from "../GripIcon";
-import { Ring } from "../components";
 import { confirmDialog } from "../confirm";
 import { DESKTOP_RELEASE_URL, BRIDGE_EXE_URL, ASSET, classId, classAccent, brandKey, manufacturerKey } from "../constants";
 import { isTauri } from "../tauriEnv";
@@ -299,160 +298,86 @@ function LapsModal({ t, tid, rid, row, canEdit, onClose }) {
   );
 }
 
-/* Sürüş panosu pedal çubuğu — gaz (yeşil) / fren (kırmızı). val 0..1; yoksa "—". */
-function PedalBar({ label, val, color }) {
-  const has = val != null && Number.isFinite(Number(val));
-  const pct = Math.round(Math.max(0, Math.min(1, Number(val) || 0)) * 100);
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <span className="l" style={{ width: 34, fontSize: 11, color: "var(--dim)" }}>{label}</span>
-      <div style={{ flex: 1, height: 10, background: "var(--line)", borderRadius: 5, overflow: "hidden" }}>
-        {/* köprü ~2.5 Hz kare atar; geçiş ~kare aralığı (0.4s) + linear → çubuk bir
-            sonraki kareye kadar sabit hızla akar (snap+donma yerine akıcı) */}
-        <div style={{ width: `${has ? pct : 0}%`, height: "100%", background: color,
-          transition: "width .4s linear" }} />
-      </div>
-      <span className="mono" style={{ width: 38, textAlign: "right", fontSize: 11 }}>
-        {has ? `${pct}%` : "—"}</span>
-    </div>
-  );
-}
-
 /* Vites: -1=R, 0=N, 1+=n; veri yoksa "—". */
 const gearLabel = (g) => (g == null ? "—" : g === -1 ? "R" : g === 0 ? "N" : String(g));
 
 function OwnCar({ t, own, liveFuelObs, topSrc = "" }) {
-  const cap = own.fuelCapacity > 0 ? own.fuelCapacity : 0;
-  const frac = cap ? Math.max(0, Math.min(1, own.fuel / cap)) : 0;
-  const veFrac = own.virtualEnergy != null
-    ? Math.max(0, Math.min(1, own.virtualEnergy / 100)) : 0;
   const corners = [["FL", "fl"], ["FR", "fr"], ["RL", "rl"], ["RR", "rr"]];
   const ty = own.tyres || {};
+  const acc = classAccent(own.carClass);
+  const clsRaw = own.carClass || "";
   // Mevcut yakıtla ~kaç tur kaldığı — App'in canlı öğrenicisinden (litre/tur).
   const lpl = liveFuelObs?.litersPerLap;
   const lapsLeft = (lpl > 0 && own.fuel > 0) ? Math.floor(own.fuel / lpl) : null;
-  const sec = (v) => (v > 0 ? `${v.toFixed(1)}` : "—");
-  // lastik bileşimi (ön/arka aynıysa tek göster)
-  const tc = own.tyreCompound || {};
-  const compound = tc.front && tc.rear
-    ? (tc.front === tc.rear ? tc.front : `${tc.front}/${tc.rear}`)
-    : (tc.front || tc.rear || "");
+  const tempCol = (v) => (v == null ? "var(--dim)" : v > 100 ? "var(--red)" : v > 92 ? "var(--yellow)" : "var(--green)");
+  const name = [own.number != null ? `#${own.number}` : "", own.driver || t("Kendi Araç")].filter(Boolean).join(" ");
+  const statBox = { background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", borderRadius: 10, padding: "10px 12px" };
+  const statV = (col) => ({ fontFamily: "var(--rc-font-display)", fontSize: 20, fontWeight: 600, ...(col ? { color: col } : {}) });
+  const statL = { color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".08em", marginTop: 3 };
+  const pedal = (label, val, color) => {
+    const pct = Math.round(Math.max(0, Math.min(1, Number(val) || 0)) * 100);
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span style={{ width: 40, fontSize: 10, color: "var(--rc-text-3)", textTransform: "uppercase", letterSpacing: ".08em" }}>{label}</span>
+        <div style={{ flex: 1, height: 8, background: "var(--rc-line-soft)", borderRadius: 4, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${val != null ? pct : 0}%`, background: color, transition: "width .4s linear" }} />
+        </div>
+      </div>
+    );
+  };
+  // v2.1 — handoff-spec/ekranlar/02-canli-timing.md #55 kartı: lastik ızgarası + araç
+  // görseli + istatistik kutuları + hız/vites/pedal. Veriler canlı own'dan.
   return (
-    <div className="card" data-tour="ownlive" style={{ marginBottom: 12 }}>
-      <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", margin: "0 0 10px", fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 16, fontWeight: 700 }}>
-        🏎 {t("Kendi Araç")}
-        {compound && <span className="chip" style={{ fontSize: 11, color: "var(--teal)",
-          borderColor: "var(--teal)" }}>🛞 {compound}</span>}
-        {own.inPits && <span className="chip"
-          style={{ color: "var(--yellow)", borderColor: "var(--yellow)", fontSize: 11 }}>PIT</span>}
-      </h2>
-      <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
-        {/* VE (Sanal Enerji) yakıttan önemli → önce ve daha büyük, yeşil */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-          <Ring value={veFrac} size={104} thickness={11} fs={26} color="var(--green)"
-            big={own.virtualEnergy != null ? `${Math.round(own.virtualEnergy)}%` : "—"} />
-          <div className="l" style={{ color: "var(--dim)", fontSize: 11 }}>VE ({t("Sanal Enerji")})</div>
-        </div>
-        {/* Yakıt → sarı, biraz küçük */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-          <Ring value={frac} size={84} thickness={9} fs={20} color="var(--yellow)"
-            big={cap ? `${Math.round(frac * 100)}%` : "—"} />
-          <div className="l" style={{ color: "var(--dim)", fontSize: 11 }}>
-            {t("Yakıt")} {own.fuel != null ? `${own.fuel.toFixed(1)} L` : "—"}
-            {cap ? ` / ${cap.toFixed(0)}` : ""}</div>
-          {lapsLeft != null && (
-            <div className="l" style={{ color: "var(--teal)", fontSize: 11, fontWeight: 600 }}>
-              ~{lapsLeft} {t("tur")}</div>
-          )}
-        </div>
-        <div className="kpis" style={{ flex: 1, minWidth: 220, marginBottom: 0 }}>
-          <div className="kpi"><div className="v">{own.position || "—"}</div>
-            <div className="l">{t("Pozisyon")}</div></div>
-          <div className="kpi"><div className="v mono">
-            {own.curLapSec > 0 ? fmtLap(own.curLapSec) : "—"}</div>
-            <div className="l">{t("Mevcut Tur")}</div></div>
-          <div className="kpi"><div className="v mono">{lap(own.lastLapSec)}</div>
-            <div className="l">{t("Son Tur")}</div></div>
-          <div className="kpi"><div className="v mono" style={{ color: "var(--purple)" }}>
-            {lap(own.bestLapSec)}</div><div className="l">{t("En İyi")}</div></div>
-          <div className="kpi"><div className="v">{own.lapsDone ?? "—"}</div>
-            <div className="l">{t("Tur")}</div></div>
-          <div className="kpi"><div className="v">{own.pitStops ?? "—"}</div>
-            <div className="l">{t("Pit")}</div></div>
-          <div className="kpi"><div className="v" style={{ color: (own.damage || 0) > 0.15
-            ? "var(--red)" : (own.damage || 0) > 0.02 ? "var(--yellow)" : "var(--txt)" }}>
-            {own.damage != null ? `${Math.round(own.damage * 100)}%` : "—"}</div>
-            <div className="l">{t("Hasar")}</div></div>
-          <div className="kpi"><div className="v mono" style={{ fontSize: 15 }}>
-            {sec(own.s1)} <span style={{ color: "var(--dim)" }}>/</span> {sec(own.s2)}
-            <span style={{ color: "var(--dim)" }}>/</span> {sec(own.s3)}</div>
-            <div className="l">S1 / S2 / S3</div></div>
-          <div className="kpi"><div className="v mono">{lap(own.avg5Sec)}</div>
-            <div className="l">AVG5</div></div>
-          <div className="kpi"><div className="v mono">{lap(own.avgSec)}</div>
-            <div className="l">AVG</div></div>
-          <div className="kpi"><div className="v mono">
-            {own.stintSec > 0 ? fmtHMS(own.stintSec) : "—"}</div>
-            <div className="l">{t("Stint")}</div></div>
-        </div>
+    <div data-tour="ownlive" style={{ border: "1px solid var(--rc-border-strong)", borderRadius: 12,
+      background: "radial-gradient(120% 160% at 100% 0,rgba(150,0,24,.20),var(--rc-surface-2) 62%)", padding: "14px 16px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+        <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 14, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</span>
+        {own.inPits && <span className="chip" style={{ color: "var(--yellow)", borderColor: "var(--yellow)", fontSize: 10 }}>PIT</span>}
+        {clsRaw && <span style={{ marginLeft: "auto", fontSize: 10, padding: "2px 8px", borderRadius: 99, border: `1px solid ${acc || "var(--rc-border-strong)"}`, color: acc || "var(--rc-text-3)" }}>{clsRaw.toUpperCase()}</span>}
       </div>
-      {/* Sürüş panosu: hız · vites · gaz/fren çubukları · RPM (canlı telemetri) */}
-      <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap",
-        marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--line)" }}>
-        <div style={{ textAlign: "center", minWidth: 76 }}>
-          <div className="disp" style={{ fontSize: 30, lineHeight: 1 }}>
-            {own.speedKph != null ? own.speedKph : "—"}</div>
-          <div className="l" style={{ color: "var(--dim)", fontSize: 11 }}>km/h · {t("Hız")}</div>
-        </div>
-        <div style={{ textAlign: "center", minWidth: 52 }}>
-          <div className="disp" style={{ fontSize: 30, lineHeight: 1, color: "var(--teal)" }}>
-            {gearLabel(own.gear)}</div>
-          <div className="l" style={{ color: "var(--dim)", fontSize: 11 }}>{t("Vites")}</div>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: "1 1 220px", minWidth: 200 }}>
-          <PedalBar label={t("Gaz")} val={own.throttle} color="var(--green)" />
-          <PedalBar label={t("Fren")} val={own.brake} color="var(--red)" />
-          {own.rpmMax > 0 && (() => {
-            const r = Math.max(0, Math.min(1, (own.rpm || 0) / own.rpmMax));
-            const col = r > 0.92 ? "var(--red)" : r > 0.8 ? "var(--yellow)" : "var(--teal)";
-            return (
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span className="l" style={{ width: 34, fontSize: 11, color: "var(--dim)" }}>RPM</span>
-                <div style={{ flex: 1, height: 6, background: "var(--line)", borderRadius: 3, overflow: "hidden" }}>
-                  <div style={{ width: `${Math.round(r * 100)}%`, height: "100%", background: col,
-                    transition: "width .4s linear" }} />
-                </div>
-                <span className="mono" style={{ width: 46, textAlign: "right", fontSize: 11,
-                  color: "var(--dim)" }}>{own.rpm || 0}</span>
-              </div>
-            );
-          })()}
-        </div>
-      </div>
-      {/* Araç üstten görseli + 4 köşede lastik verisi (sıcaklık/basınç/aşınma). */}
-      <div style={{ position: "relative", height: 300, margin: "14px auto 0", maxWidth: 360 }}>
-        <img src={topSrc || `${ASSET}cartop/default.png`} alt={t("Kendi Araç")}
-          style={{ height: "100%", width: "auto", display: "block", margin: "0 auto" }} />
-        {corners.map(([lbl, k]) => {
+      {/* Lastik ızgarası + orta araç görseli */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 62px 1fr", gap: "8px 12px", alignItems: "center", marginBottom: 12 }}>
+        {corners.map(([lbl, k], idx) => {
           const c = ty[k] || {};
+          const left = idx % 2 === 0;
           const wear = c.wear != null ? Math.round(c.wear * 100) : null;
-          const pos = { fl: { top: 46, left: 4 }, fr: { top: 46, right: 4 },
-            rl: { bottom: 46, left: 4 }, rr: { bottom: 46, right: 4 } }[k];
           return (
-            <div key={k} style={{ position: "absolute", textAlign: "center",
-              minWidth: 54, ...pos }}>
-              <div className="mono" style={{ fontSize: 13, fontWeight: 700 }}>
-                {c.tempC != null ? `${Math.round(c.tempC)}°` : "—"}</div>
-              <div style={{ fontSize: 10, color: "var(--dim)" }}>
-                {c.pressKpa != null ? `${Math.round(c.pressKpa)} kPa` : "—"}</div>
-              <div style={{ marginTop: 3, display: "inline-block", minWidth: 30,
-                padding: "2px 7px", borderRadius: 6, fontWeight: 800, fontSize: 14,
-                color: "#0b0708", background: wearColor(c.wear) }}>
-                {wear != null ? wear : "—"}</div>
-              <div style={{ fontSize: 9, color: "var(--dim)", marginTop: 1 }}>{lbl}</div>
+            <div key={k} style={{ gridColumn: left ? 1 : 3, gridRow: idx < 2 ? 1 : 2, background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", borderRadius: 9, padding: "7px 9px", textAlign: left ? "left" : "right" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: left ? "flex-start" : "flex-end" }}>
+                {left && <span style={{ fontSize: 9.5, color: "var(--rc-text-3)", letterSpacing: ".09em", fontFamily: "var(--rc-font-display)" }}>{lbl}</span>}
+                <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 17, fontWeight: 700, lineHeight: 1, color: wearColor(c.wear) }}>{wear != null ? `%${wear}` : "—"}</b>
+                {!left && <span style={{ fontSize: 9.5, color: "var(--rc-text-3)", letterSpacing: ".09em", fontFamily: "var(--rc-font-display)" }}>{lbl}</span>}
+              </div>
+              <div style={{ display: "flex", gap: 7, marginTop: 3, whiteSpace: "nowrap", fontFamily: "var(--rc-font-display)", fontSize: 11.5, justifyContent: left ? "flex-start" : "flex-end" }}>
+                <span style={{ color: tempCol(c.tempC) }} title={t("İç lastik sıcaklığı")}>{c.tempC != null ? `${Math.round(c.tempC)}°` : "—°"}</span>
+                <span style={{ color: "var(--rc-text-3)" }} title={t("Lastik basıncı")}>{c.pressKpa != null ? Math.round(c.pressKpa) : "—"}<span style={{ fontSize: 9 }}> kPa</span></span>
+              </div>
             </div>
           );
         })}
+        <img src={topSrc || `${ASSET}cartop/default.png`} alt="" style={{ gridColumn: 2, gridRow: "1 / span 2", width: 62, height: 128, objectFit: "contain", display: "block", filter: "drop-shadow(0 6px 16px rgba(0,0,0,.5))" }} />
+      </div>
+      {/* İstatistik kutuları */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div style={statBox}><div style={statV("var(--purple)")}>{lap(own.bestLapSec)}</div><div style={statL}>{t("En iyi")}</div></div>
+        <div style={statBox}><div style={statV()}>{lap(own.lastLapSec)}</div><div style={statL}>{t("Son tur")}</div></div>
+        <div style={statBox}><div style={statV("var(--rc-warn)")}>{own.fuel != null ? `${own.fuel.toFixed(1)} L` : "—"}</div><div style={statL}>{t("Yakıt")}{lapsLeft != null ? ` · ~${lapsLeft} ${t("tur")}` : ""}</div></div>
+        <div style={statBox}><div style={statV()}>{own.stintSec > 0 ? fmtHMS(own.stintSec) : "—"}</div><div style={statL}>{t("Stint süresi")}</div></div>
+      </div>
+      {/* Hız · vites · pedal */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12 }}>
+        <div style={{ flex: "0 0 auto", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: 66, height: 52, borderRadius: 11, border: "1px solid var(--rc-border-strong)", background: "var(--rc-surface-3)" }}>
+          <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 26, fontWeight: 700, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>{own.speedKph != null ? own.speedKph : "—"}</span>
+          <span style={{ fontSize: 9, color: "var(--rc-text-3)", textTransform: "uppercase", letterSpacing: ".09em" }}>km/h</span>
+        </div>
+        <div style={{ flex: "0 0 auto", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: 52, height: 52, borderRadius: 11, border: "1px solid var(--rc-border-strong)", background: "var(--rc-surface-3)" }}>
+          <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 26, fontWeight: 700, lineHeight: 1, color: "var(--rc-brand-bright)" }}>{gearLabel(own.gear)}</span>
+          <span style={{ fontSize: 9, color: "var(--rc-text-3)", textTransform: "uppercase", letterSpacing: ".09em" }}>{t("Vites")}</span>
+        </div>
+        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 7 }}>
+          {pedal(t("Gaz"), own.throttle, "var(--green)")}
+          {pedal(t("Fren"), own.brake, "var(--red)")}
+        </div>
       </div>
     </div>
   );
