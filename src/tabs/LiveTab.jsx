@@ -807,11 +807,16 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
                           </span>
                         </span>
                       </td>
-                      <td style={{ fontFamily: "var(--font-ui)", whiteSpace: "nowrap" }}>
-                        <Brand manufacturer={c.manufacturer} vehicleName={c.vehicleName} />
-                        {c.number != null && <span style={{ color: "var(--dim)", fontSize: 11,
-                          marginRight: 5 }}>#{c.number}</span>}
-                        {showTeam ? (c.team || c.driver || "—") : (c.driver || "—")}</td>
+                      {/* Pilot (fişteki r.tdName): marka logosu + isim / #no · takım (2 satır) */}
+                      <td style={{ whiteSpace: "nowrap" }}>
+                        <span style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                          <Brand manufacturer={c.manufacturer} vehicleName={c.vehicleName} />
+                          <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+                            <span style={{ fontFamily: "var(--rc-font-ui)", fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis" }}>{showTeam ? (c.team || c.driver || "—") : (c.driver || "—")}</span>
+                            <span style={{ fontSize: 10.5, color: "var(--rc-text-3)", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              {showTeam ? (c.driver || "") : `${c.number != null ? `#${c.number}` : ""}${c.number != null && c.team ? " · " : ""}${c.team || ""}`}</span>
+                          </span>
+                        </span></td>
                       <td>{c.lapsDone ?? "—"}</td>
                       {/* Gap/Aralık + mini çubuk (fişteki barTrack/barFill) */}
                       <td style={gapMode ? { color: "var(--dim)" } : undefined}>
