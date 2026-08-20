@@ -557,6 +557,7 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
   const [lapMode, setLapMode] = useState(false);   // Son ↔ En İyi tek sütun geçişi
   const [avgMode, setAvgMode] = useState(false);   // AVG5 ↔ AVG tek sütun geçişi
   const [gapMode, setGapMode] = useState(false);   // Gap ↔ Aralık tek sütun geçişi
+  const [side, setSide] = useState(true);          // sağ yan panel (harita/kendi araç/strateji) aç/kapa
   // DEMO: yerel sahte veri (oyun/köprü/Firebase gerekmez) — UI düzenlemek için
   const [demo, setDemo] = useState(false);
   const [demoData, setDemoData] = useState(null);
@@ -733,130 +734,91 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
   const thBtn = { background: "none", border: 0, color: "inherit", font: "inherit",
     cursor: "pointer", padding: 0, textDecoration: "underline dotted" };
 
+  /* Bayrak rengi (canlı s.flag'a bağlı, salt-okunur) */
+  const flagCol = s.flag === "Green" ? "var(--rc-ok)"
+    : (s.flag === "Yellow" || s.flag === "FCY") ? "var(--rc-warn)" : "var(--rc-text-2)";
+  const clsCount = Object.keys(classCounts).length;
+  const hchip = { display: "inline-flex", alignItems: "center", gap: 7 };
+  const hchipV = { fontFamily: "var(--rc-font-display)", fontSize: 17, fontWeight: 700, lineHeight: 1 };
   return (
     <div data-tour="livecard" ref={rootRef} className={big ? "bigboard" : ""}>
       {!big && bridgeCard}
-      <div className="card" style={{ marginBottom: 12 }}>
-        <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          📡 {t("Canlı Timing")}
-          <span className={`livebadge ${conn.cls}`} data-tour="liveconn">
-            <i /> {t(conn.lbl)} · {ageSec}s</span>
-          <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-            {!big && guideBtn}
-            {demoBtn}
-            {document.fullscreenEnabled && (
-              <button className="act" data-tour="livebig"
-                style={{ fontSize: 11, padding: "3px 10px" }}
-                onClick={toggleBig}>{big ? t("✕ Küçült") : t("⛶ Büyük Pano")}</button>
-            )}
-          </span>
-        </h2>
-        {/* Tur geçmişi OKUYUCU-tarafı hasat göstergesi (v1.8.12): kayıt artık bu tarayıcıda
-            yapılıyor → köprü sürümünden bağımsız, HER ZAMAN görünür. Eski köprü bunu
-            bastıramaz. Yalnız editör yazar; demo modunda gösterilmez (Firebase'e yazmaz). */}
-        {!demoOn && lapCapture?.writing && (
-          <div className="hint" style={{ marginTop: 6, color: "var(--green)" }}>
-            🔴 {t("Tur geçmişi kaydediliyor")} · {lapCapture.cars} {t("araç")} · {lapCapture.laps} {t("tur")}
-          </div>
-        )}
-        {/* Köprü kaydı görünürlüğü (v1.8.13): köprü web'den BAĞIMSIZ kaydediyor →
-            frame.bridgeVer + frame.lapsWritten. bridgeVer yoksa köprü ESKİ sürüm
-            (kablo üzerinde artık sürüm var) → güncelleme uyarısı. */}
-        {!demoOn && (live.bridgeVer ? (
-          <div className="hint" style={{ marginTop: 6, color: "var(--dim)" }}>
-            🛰 {t("Köprü")} v{live.bridgeVer}
-            {typeof live.lapsWritten === "number"
-              ? <> · 📼 {live.lapsWritten} {t("tur kaydetti")}</> : null}
-          </div>
-        ) : (
-          <div className="hint warn" style={{ marginTop: 6 }}>
-            ⚠ {t("Köprü eski sürüm — sürüş PC'sinde köprüyü güncelle (kayıt yine web'den yapılıyor)")}
-          </div>
-        ))}
-        <div className="kpis" data-tour="livesession" style={{ marginBottom: 0 }}>
-          <div className="kpi"><div className="v disp">{s.sessionType ? t(s.sessionType) : "—"}</div>
-            <div className="l">{t("Seans")}</div></div>
-          <div className="kpi"><div className="v disp" style={{
-            color: s.flag === "Green" ? "var(--green)"
-              : (s.flag === "Yellow" || s.flag === "FCY") ? "var(--yellow)" : undefined }}>
-            {s.flag ? t(s.flag) : (s.phase || "—")}
-            {s.flag === "Yellow" && s.yellowSectors?.length > 0 && (
-              <span style={{ fontSize: 13 }}> S{s.yellowSectors.join("·S")}</span>
-            )}</div>
-            <div className="l">{t("Bayrak / Faz")}</div></div>
-          <div className="kpi"><div className="v mono">
-            {s.timeLeftSec != null ? fmtHMS(s.timeLeftSec) : "—"}</div>
-            <div className="l">{t("Kalan")}</div></div>
-          <div className="kpi"><div className="v">🛣 {s.trackTemp != null ? `${Math.round(s.trackTemp)}°` : "—"}
-            <span style={{ fontSize: 13, color: "var(--dim)" }}> {t("pist")}</span></div>
-            <div className="l">{t("Pist")} · {t("Ortam")} {s.ambientTemp != null ? `${Math.round(s.ambientTemp)}°` : "—"}</div></div>
-          <div className="kpi"><div className="v">
-            {/* oyunun kelimesi (yüzde tooltip'te) — sayı yerine ad daha okunur */}
-            {(() => {
-              const lv = rainLevel(s.rain);
-              if (!lv) return s.raining ? `🌧 ${t("Yağmur")}` : `☀️ ${t("Kuru")}`;
-              return <span title={`%${Math.round(s.rain)}`}>{lv.ico} {t(lv.lbl)}</span>;
-            })()}</div>
-            <div className="l">{t("Yağmur")}</div></div>
-          <div className="kpi"><div className="v">
-            {(() => {
-              const id = wetnessLevel(s.wetness);
-              if (!id) return "—";
-              // ikon HERO (büyük), kelime daha küçük etiket — kullanıcı isteği
-              return <span title={`%${Math.round(s.wetness)}`}
-                style={{ color: WEATHER[id].col, display: "inline-flex", alignItems: "center", gap: 8 }}>
-                <WetIcon id={id} size={34} title={t(WEATHER[id].lbl)} />
-                <span style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.05 }}>
-                  {t(WEATHER[id].lbl)}</span></span>;
-            })()}</div>
-            <div className="l">{t("Zemin ıslaklığı")}</div></div>
-          {/* Tutuş (rubber) — TinyPedal gibi turlardan MODELLENMİŞ tahmin, gerçek
-              okuma değil (title'da "tahmini"). Sahadaki tüm araçların tur toplamı. */}
-          <div className="kpi"><div className="v">
-            {fieldAll.length > 0
-              ? (() => {
-                  const g = rubberPct(s.sessionType, fieldAll.reduce((a, c) => a + (c.lapsDone || 0), 0));
-                  return <span title={t("Turlardan modellenmiş tahmin (gerçek okuma değil)")}
-                    style={{ display: "inline-flex", alignItems: "center", gap: 7, color: gripColor(g) }}>
-                    <GripIcon pct={g} size={30} title={t("Tutuş")} />%{g}</span>;
-                })()
-              : "—"}</div>
-            <div className="l">{t("Tutuş")}</div></div>
-        </div>
-      </div>
+      {/* v2.1 — handoff-spec/ekranlar/02-canli-timing.md: 2 kolon (sol: Saha başlık +
+          tablo + pozisyon grafiği · sağ: harita/kendi araç/strateji yan paneli).
+          Görsel düzen fişle birebir; TÜM veriler canlı köprüden gelir (mock değil). */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "flex-start", animation: "rcin .26s ease-out" }}>
 
-      {/* Strateji artık Pist Haritası kutusunun İÇİNDE en üstte (aşağıda topSlot).
-          Harita yoksa (trackLength/posX gelmemiş) kaybolmasın diye yedek: bağımsız. */}
-      {!big && !(s.trackLength > 0 && fieldAll.some((c) => c.posX != null)) && (
-        <StrategyBar t={t} field={fieldAll} />
-      )}
+        {/* ================= SOL: SAHA + TABLO + GRAFİK ================= */}
+        <div style={{ flex: "1 1 720px", minWidth: 0, border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)", overflow: "hidden" }}>
 
-      {/* Pist haritası (sol, strateji üstünde) + Kendi Araç (sağ) yan yana */}
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
-        {s.trackLength > 0 && fieldAll.some((c) => c.posX != null) && (
-          <div style={{ flex: "1 1 360px", minWidth: 300 }}>
-            <TrackMap t={t} field={fieldAll} session={s} trackLength={s.trackLength}
-              tid={tid} trackKey={binKey(s.trackName, s.trackLength)} canSave={canEdit}
-              topSlot={!big ? <StrategyBar t={t} field={fieldAll} embedded /> : null} />
-          </div>
-        )}
-        {own && (
-          <div style={{ flex: "1 1 420px", minWidth: 300 }}>
-            <OwnCar t={t} own={own} liveFuelObs={liveFuelObs} topSrc={ownTopSrc} />
-          </div>
-        )}
-      </div>
+          {/* Saha başlık çubuğu (bayrak · sıcaklık · yağış · ıslaklık · tutuş) */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: "1px solid var(--rc-border)", flexWrap: "wrap" }}>
+            <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 15, fontWeight: 700 }}>{t("Saha")}</span>
+            <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>{fieldAll.length} {t("araç")} · {clsCount} {t("sınıf")}</span>
+            <span className={`livebadge ${conn.cls}`} data-tour="liveconn"><i /> {t(conn.lbl)} · {ageSec}s</span>
 
-      <div className="card" data-tour="livefield">
-        <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          🏁 {t("Saha")} ({shown.length})
-          {myClassOnly && playerClass && (
-            <span style={{ fontSize: 11, color: "var(--teal)" }}>· {t("Kendi sınıfım")}</span>
+            <span style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", paddingLeft: 16, marginLeft: 2, borderLeft: "1px solid var(--rc-border)" }}>
+              <span style={{ ...hchip, color: flagCol }} title={t("Bayrak / Faz")}>
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" style={{ flex: "0 0 auto" }}><path d="M5.6 3.2v17.6" stroke="var(--rc-border-hi)" strokeWidth="1.8" strokeLinecap="round" /><path d="M7 4.4c3.4-1.8 6.8 1.8 10.2 0v7.8c-3.4 1.8-6.8-1.8-10.2 0V4.4Z" fill={flagCol} opacity=".9" /></svg>
+                <span style={{ ...hchipV, color: flagCol }}>{s.flag ? t(s.flag) : (s.phase || "—")}{s.flag === "Yellow" && s.yellowSectors?.length > 0 ? ` S${s.yellowSectors.join("·S")}` : ""}</span>
+              </span>
+              <span style={hchip} title={t("Kalan")}>
+                <span style={{ fontSize: 10, color: "var(--rc-text-3)", textTransform: "uppercase", letterSpacing: ".08em" }}>{t("Kalan")}</span>
+                <span style={hchipV}>{s.timeLeftSec != null ? fmtHMS(s.timeLeftSec) : "—"}</span>
+              </span>
+              <span style={hchip} title={t("Pist / ortam sıcaklığı")}>
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" style={{ flex: "0 0 auto" }}><rect x="9.1" y="2.6" width="5.8" height="13" rx="2.9" stroke="var(--rc-brand-bright)" strokeWidth="1.6" /><path d="M12 6.4v6.2" stroke="var(--rc-brand-bright)" strokeWidth="1.6" strokeLinecap="round" /><circle cx="12" cy="17.6" r="3.6" fill="var(--rc-brand-bright)" opacity=".85" /></svg>
+                <span style={hchipV}>{s.trackTemp != null ? `${Math.round(s.trackTemp)}°` : "—"}<span style={{ fontSize: 11, color: "var(--rc-text-3)" }}> / {s.ambientTemp != null ? `${Math.round(s.ambientTemp)}°` : "—"}</span></span>
+              </span>
+              {(() => {
+                const lv = rainLevel(s.rain);
+                return (
+                  <span style={hchip} title={t("Yağış")}>
+                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" style={{ flex: "0 0 auto" }}><circle cx="12" cy="9.4" r="4.2" fill="var(--rc-warn-2)" /><g stroke="var(--rc-warn-2)" strokeWidth="1.5" strokeLinecap="round"><path d="M12 1.6v2.2M12 15v2.2M4.4 9.4H2.2M21.8 9.4h-2.2M6.6 4l-1.5-1.5M18.9 16.3l-1.5-1.5M17.4 4l1.5-1.5M5.1 16.3l1.5-1.5" /></g></svg>
+                    <span style={hchipV}>{lv ? t(lv.lbl) : s.raining ? t("Yağmur") : t("Yağmur yok")}</span>
+                  </span>
+                );
+              })()}
+              {(() => {
+                const id = wetnessLevel(s.wetness);
+                return (
+                  <span style={hchip} title={t("Zemin ıslaklığı")}>
+                    {id ? <WetIcon id={id} size={19} /> : <svg width="19" height="19" viewBox="0 0 24 24" fill="none" style={{ flex: "0 0 auto" }}><path d="M8.5 21.2h7" stroke="var(--rc-neutral-2)" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="1.2 2.6" /><path d="M12 3.4c0 0-5.1 6.4-5.1 9.6a5.1 5.1 0 0 0 10.2 0c0-3.2-5.1-9.6-5.1-9.6Z" stroke="var(--rc-neutral)" strokeWidth="1.5" strokeLinejoin="round" /></svg>}
+                    <span style={{ ...hchipV, color: id ? WEATHER[id].col : undefined }}>{id ? t(WEATHER[id].lbl) : t("Kuru")}{s.wetness != null ? <span style={{ fontSize: 12, fontWeight: 500, color: "var(--rc-text-3)" }}> %{Math.round(s.wetness)}</span> : null}</span>
+                  </span>
+                );
+              })()}
+              {(() => {
+                const g = fieldAll.length > 0 ? rubberPct(s.sessionType, fieldAll.reduce((a, c) => a + (c.lapsDone || 0), 0)) : null;
+                return (
+                  <span style={hchip} title={t("Turlardan modellenmiş tahmin (gerçek okuma değil)")}>
+                    <GripIcon pct={g || 0} size={19} title={t("Tutuş")} />
+                    <span style={{ ...hchipV, color: g != null ? gripColor(g) : "var(--rc-text-3)" }}>{g != null ? `%${g}` : "—"}</span>
+                  </span>
+                );
+              })()}
+            </span>
+
+            <span style={{ marginLeft: "auto", display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {!big && guideBtn}
+              {demoBtn}
+              {document.fullscreenEnabled && (
+                <button className="act" data-tour="livebig" style={{ fontSize: 11, padding: "3px 10px" }} onClick={toggleBig}>{big ? t("✕ Küçült") : t("⛶ Büyük Pano")}</button>
+              )}
+            </span>
+          </div>
+          {/* kayıt göstergesi (okuyucu-tarafı hasat) */}
+          {!demoOn && lapCapture?.writing && (
+            <div className="hint" style={{ margin: 0, padding: "6px 16px", color: "var(--green)" }}>🔴 {t("Tur geçmişi kaydediliyor")} · {lapCapture.cars} {t("araç")} · {lapCapture.laps} {t("tur")}</div>
           )}
-        </h2>
-        {!shown.length && <div className="hint">{t("Henüz araç verisi yok.")}</div>}
-        {shown.length > 0 && (
-          <div style={{ overflowX: "auto" }}>
+          {!demoOn && !live.bridgeVer && (
+            <div className="hint warn" style={{ margin: 0, padding: "6px 16px" }}>⚠ {t("Köprü eski sürüm — sürüş PC'sinde köprüyü güncelle (kayıt yine web'den yapılıyor)")}</div>
+          )}
+
+          {/* Saha tablosu — canlı köprü verisi (kolonlar/veri değişmedi) */}
+          {!shown.length && <div className="hint" style={{ padding: 16 }}>{t("Henüz araç verisi yok.")}</div>}
+          {shown.length > 0 && (
+            <div style={{ overflowX: "auto" }} data-tour="livefield">
             <table aria-label={t("Canlı timing tablosu")}>
               <thead><tr>
                 <th>#</th>
@@ -978,9 +940,36 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
             </table>
           </div>
         )}
+          {/* Pozisyon grafiği (sol kolonun altında) */}
+          {!big && isRace && (
+            <div style={{ padding: "14px 16px", borderTop: "1px solid var(--rc-border)" }}>
+              <PosChart t={t} tid={tid} rid={rid} field={fieldAll} myClassOnly={myClassOnly} playerClass={playerClass} />
+            </div>
+          )}
+        </div>
+
+        {/* yan paneli aç düğmesi (panel kapalıyken) */}
+        {!big && !side && (
+          <button onClick={() => setSide(true)} title={t("Yan paneli aç")}
+            style={{ position: "fixed", right: 0, top: 132, zIndex: 15, width: 26, height: 74, borderRadius: "10px 0 0 10px", border: "1px solid var(--rc-border-strong)", borderRight: "none", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 14 }}>‹</button>
+        )}
+
+        {/* ================= SAĞ: YAN PANEL (harita · kendi araç · strateji) ================= */}
+        {!big && (
+          <div style={{ flex: side ? "0 0 340px" : "0 0 0px", minWidth: 0, overflow: "hidden", alignSelf: "stretch", transition: "flex-basis .32s cubic-bezier(.4,0,.2,1), min-width .32s cubic-bezier(.4,0,.2,1)" }}>
+            <div style={{ width: 336, marginLeft: "auto", display: "flex", flexDirection: "column", gap: 12, transform: side ? "translateX(0)" : "translateX(102%)", opacity: side ? 1 : 0, transition: "transform .32s cubic-bezier(.4,0,.2,1), opacity .24s ease" }}>
+              <button onClick={() => setSide(false)} style={{ alignSelf: "flex-end", display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 11px", borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 11.5 }}>{t("Paneli kapat")} ›</button>
+              {s.trackLength > 0 && fieldAll.some((c) => c.posX != null) && (
+                <TrackMap t={t} field={fieldAll} session={s} trackLength={s.trackLength}
+                  tid={tid} trackKey={binKey(s.trackName, s.trackLength)} canSave={canEdit}
+                  topSlot={<StrategyBar t={t} field={fieldAll} embedded />} />
+              )}
+              {own && <OwnCar t={t} own={own} liveFuelObs={liveFuelObs} topSrc={ownTopSrc} />}
+              {!(s.trackLength > 0 && fieldAll.some((c) => c.posX != null)) && <StrategyBar t={t} field={fieldAll} />}
+            </div>
+          </div>
+        )}
       </div>
-      {!big && isRace && <PosChart t={t} tid={tid} rid={rid} field={fieldAll}
-        myClassOnly={myClassOnly} playerClass={playerClass} />}
 
       {/* v1.6.3 — satırı TAZE kareden bul: modal açıkken lapsDone canlı güncellenir →
           bayat-veri cap'i (capLapEntries) yeni turları anında gösterir, snapshot'ta
