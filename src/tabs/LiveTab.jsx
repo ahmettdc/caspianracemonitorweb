@@ -730,6 +730,8 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
   });
   const shown = myClassOnly && playerClass
     ? rows.filter((r) => r.id === playerClass) : rows;
+  /* Gap mini-çubuğu ölçeği (fişteki barFill görseli): en büyük gap'e göre orantı. */
+  const maxGap = Math.max(1, ...shown.map((r) => r.c.gapSec || 0));
   /* Tıklanabilir sütun başlığı stili (Pilot↔Takım, Sınıf süzgeci, Son↔En İyi, AVG5↔AVG). */
   const thBtn = { background: "none", border: 0, color: "inherit", font: "inherit",
     cursor: "pointer", padding: 0, textDecoration: "underline dotted" };
@@ -821,30 +823,29 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
             <div style={{ overflowX: "auto" }} data-tour="livefield">
             <table aria-label={t("Canlı timing tablosu")}>
               <thead><tr>
-                <th>#</th>
-                <th><button onClick={() => setShowTeam((v) => !v)}
-                  title={t("Pilot / Takım değiştir")} style={thBtn}>
-                  {showTeam ? t("Takım") : t("Pilot")}</button></th>
                 <th>{playerClass ? (
                   <button onClick={() => setMyClassOnly((v) => !v)}
                     title={t("Kendi sınıfım süzgeci")}
                     style={{ ...thBtn, ...(myClassOnly && { color: "var(--teal)", fontWeight: 700 }) }}>
-                    {t("Sınıf")}</button>
-                ) : t("Sınıf")}</th>
+                    {t("Poz")} · {t("Sınıf")}</button>
+                ) : `${t("Poz")} · ${t("Sınıf")}`}</th>
+                <th><button onClick={() => setShowTeam((v) => !v)}
+                  title={t("Pilot / Takım değiştir")} style={thBtn}>
+                  {showTeam ? t("Takım") : t("Pilot")}</button></th>
                 <th>{t("Tur")}</th>
                 <th><button onClick={() => setGapMode((v) => !v)}
                   title={t("Gap / Aralık değiştir")} style={thBtn}>
-                  {gapMode ? t("Aralık") : "Gap"}</button></th>
+                  {gapMode ? t("Aralık") : "Gap"} ⇄</button></th>
                 <th><button onClick={() => setLapMode((v) => !v)}
                   title={t("Son / En İyi değiştir")} style={thBtn}>
-                  {lapMode ? t("En İyi") : t("Son")}</button></th>
+                  {lapMode ? t("En İyi") : t("Son")} ⇄</button></th>
                 <th>{t("Sektör")}</th>
                 <th><button onClick={() => setAvgMode((v) => !v)}
                   title={t("AVG5 / AVG değiştir")} style={thBtn}>
-                  {avgMode ? "AVG" : "AVG5"}</button></th>
-                <th>VE</th><th>{t("VE/tur")}</th>
-                <th>Stint</th><th>{t("Lastik")}</th>
-                <th>{t("Hasar")}</th><th>Pit</th><th>{t("Ceza")}</th>
+                  {avgMode ? "AVG" : "AVG5"} ⇄</button></th>
+                <th>{t("Enerji")}</th><th>{t("VE/tur")}</th>
+                <th>{t("Lastik")}</th><th>Stint</th>
+                <th>{t("Hasar")}</th><th>Incident</th><th>Pit</th>
                 <th aria-label={t("Turlar")}></th>
               </tr></thead>
               <tbody>
@@ -863,32 +864,43 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
                         fl === "purple" ? "flashpurple" : fl === "green" ? "flashgreen" : ""]
                         .filter(Boolean).join(" ")}
                       style={!c.isPlayer && acc ? { borderLeft: `3px solid ${acc}` } : undefined}>
-                      <td className="disp" style={{ fontSize: 15, whiteSpace: "nowrap" }}>
-                        {c.pos ?? i + 1}
-                        {dirRef.current[c.lapKey || c.driver] === "up" && <span
-                          style={{ color: "var(--green)", fontSize: 10, marginLeft: 3 }}>▲</span>}
-                        {dirRef.current[c.lapKey || c.driver] === "down" && <span
-                          style={{ color: "var(--red)", fontSize: 10, marginLeft: 3 }}>▼</span>}
+                      {/* Poz · Sınıf (birleşik): pozisyon rozeti + sınıf içi poz + yön oku */}
+                      <td style={{ whiteSpace: "nowrap" }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ display: "inline-grid", placeItems: "center", minWidth: 26, height: 26, borderRadius: 8, fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 14,
+                            background: c.isPlayer ? "var(--rc-brand)" : "var(--rc-surface-3)", color: c.isPlayer ? "var(--rc-on-brand)" : "var(--rc-text)",
+                            border: `1px solid ${c.isPlayer ? "var(--rc-brand-bright)" : (acc || "var(--rc-border)")}` }}>{c.pos ?? i + 1}</span>
+                          <span style={{ display: "inline-flex", flexDirection: "column", alignItems: "flex-start", gap: 1 }}>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                              <ClassBadge raw={c.carClass} />
+                              {id && <span style={{ fontSize: 10, color: classPos === 1 ? "var(--yellow)" : "var(--dim)", fontWeight: classPos === 1 ? 700 : 400 }}>P{classPos}</span>}
+                            </span>
+                            <span style={{ fontSize: 9, lineHeight: 1 }}>
+                              {dirRef.current[c.lapKey || c.driver] === "up" && <span style={{ color: "var(--green)" }}>▲</span>}
+                              {dirRef.current[c.lapKey || c.driver] === "down" && <span style={{ color: "var(--red)" }}>▼</span>}
+                            </span>
+                          </span>
+                        </span>
                       </td>
                       <td style={{ fontFamily: "var(--font-ui)", whiteSpace: "nowrap" }}>
                         <Brand manufacturer={c.manufacturer} vehicleName={c.vehicleName} />
                         {c.number != null && <span style={{ color: "var(--dim)", fontSize: 11,
                           marginRight: 5 }}>#{c.number}</span>}
                         {showTeam ? (c.team || c.driver || "—") : (c.driver || "—")}</td>
-                      <td style={{ whiteSpace: "nowrap" }}>
-                        <ClassBadge raw={c.carClass} />
-                        {id && <span style={{ fontSize: 10, marginLeft: 5,
-                          color: classPos === 1 ? "var(--yellow)" : "var(--dim)",
-                          fontWeight: classPos === 1 ? 700 : 400 }}>P{classPos}</span>}
-                      </td>
                       <td>{c.lapsDone ?? "—"}</td>
-                      {/* Gap/Aralık tek sütun (başlıktan geçiş); Tur'dan hemen sonra 5. sıra. */}
+                      {/* Gap/Aralık + mini çubuk (fişteki barTrack/barFill) */}
                       <td style={gapMode ? { color: "var(--dim)" } : undefined}>
-                        {gapMode
-                          ? (lapsDownNext >= 1 ? `+${lapsDownNext} ${t("Tur")}`
-                              : interval != null ? gap(interval) : "—")
-                          : (i === 0 ? t("Lider") : lapsDown >= 1 ? `+${lapsDown} ${t("Tur")}`
-                              : gap(c.gapSec))}</td>
+                        <span style={{ display: "flex", flexDirection: "column", gap: 3, alignItems: "flex-end" }}>
+                          <span>{gapMode
+                            ? (lapsDownNext >= 1 ? `+${lapsDownNext} ${t("Tur")}`
+                                : interval != null ? gap(interval) : "—")
+                            : (i === 0 ? t("Lider") : lapsDown >= 1 ? `+${lapsDown} ${t("Tur")}`
+                                : gap(c.gapSec))}</span>
+                          <span style={{ width: 54, height: 4, background: "var(--rc-line-soft)", borderRadius: 2, overflow: "hidden" }}>
+                            <i style={{ display: "block", height: "100%", width: `${Math.round(Math.min(1, (c.gapSec || 0) / maxGap) * 100)}%`, background: c.isPlayer ? "var(--rc-brand-bright)" : (acc || "var(--rc-text-3)") }} />
+                          </span>
+                        </span>
+                      </td>
                       {/* Son/En İyi tek sütun (başlıktan geçiş); En İyi'de sınıf en hızlısı mor. */}
                       <td style={{ color: lapMode ? (isFastest ? "var(--purple)" : "var(--dim)") : undefined,
                         fontWeight: lapMode && isFastest ? 700 : 400 }}>
@@ -897,31 +909,36 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
                         title={t("Son turun S1·S2·S3 sektör süreleri")}>{secStr(c.lastSectors)}</td>
                       {/* AVG5/AVG tek sütun (başlıktan geçiş). */}
                       <td style={{ color: "var(--dim)" }}>{lap(avgMode ? c.avgSec : c.avg5Sec)}</td>
-                      <td style={{ color: veColor(c.virtualEnergy), fontSize: 12 }}>
-                        {c.virtualEnergy != null ? `${Math.round(c.virtualEnergy)}%` : "—"}</td>
+                      {/* Enerji (VE) + mini çubuk (fişteki veBarTrack/veBarFill) */}
+                      <td>
+                        <span style={{ display: "flex", alignItems: "center", gap: 7, justifyContent: "flex-end" }}>
+                          <span style={{ width: 40, height: 6, background: "var(--rc-line-soft)", borderRadius: 3, overflow: "hidden" }}>
+                            <i style={{ display: "block", height: "100%", width: `${c.virtualEnergy != null ? Math.round(Math.max(0, Math.min(100, c.virtualEnergy))) : 0}%`, background: veColor(c.virtualEnergy) }} />
+                          </span>
+                          <b style={{ color: veColor(c.virtualEnergy), fontSize: 12 }}>{c.virtualEnergy != null ? `${Math.round(c.virtualEnergy)}%` : "—"}</b>
+                        </span>
+                      </td>
                       <td style={{ color: "var(--dim)", fontSize: 12 }}
                         title={t("Tur başına VE tüketimi")}>
                         {c.vePerLap != null ? `${c.vePerLap.toFixed(1)}%` : "—"}</td>
+                      {/* Lastik (birleşik): hamur ikonu + köşe-köşe aşınma % */}
+                      <td><TyreCell c={c} t={t} /></td>
                       <td className="mono" style={{ color: "var(--dim)", fontSize: 12 }}>
                         {c.stintSec > 0 ? fmtHMS(c.stintSec) : "—"}</td>
-                      {/* Lastik (birleşik): hamur ikonu + en kötü aşınma %. Renkli nokta
-                          yok. Pit lastik değişimi artık "+" tur geçmişinde. Tooltip'te
-                          hamur (ön/arka) + köşe-köşe aşınma; bayat telemetride soluk. */}
-                      <td><TyreCell c={c} t={t} /></td>
                       <td style={{ fontSize: 12, color: (c.damage || 0) > 0.15 ? "var(--red)"
                         : (c.damage || 0) > 0.02 ? "var(--yellow)" : "var(--dim)" }}>
                         {c.damage != null ? `${Math.round(c.damage * 100)}%` : "—"}</td>
-                      <td style={{ whiteSpace: "nowrap" }}>
-                        {c.inPits && <span className="chip" style={{ marginRight: 4,
-                          color: "var(--yellow)", borderColor: "var(--yellow)" }}>PIT</span>}
-                        <span style={{ color: "var(--dim)" }}>{c.pitStops ?? "—"}</span>
-                      </td>
                       <td style={{ textAlign: "center" }}
                         title={t("Ceza sayısı (cut/puan cezaları dahil)")}>
                         {c.penalties > 0
                           ? <span className="chip" style={{ color: "var(--red)",
                               borderColor: "var(--red)", fontWeight: 700 }}>⚠ {c.penalties}</span>
                           : <span style={{ color: "var(--dim)" }}>—</span>}
+                      </td>
+                      <td style={{ whiteSpace: "nowrap" }}>
+                        {c.inPits && <span className="chip" style={{ marginRight: 4,
+                          color: "var(--yellow)", borderColor: "var(--yellow)" }}>PIT</span>}
+                        <span style={{ color: "var(--dim)" }}>{c.pitStops ?? "—"}</span>
                       </td>
                       <td style={{ textAlign: "center" }}>
                         {c.lapsDone > 0 && c.lapKey && (

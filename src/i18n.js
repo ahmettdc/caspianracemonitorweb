@@ -649,7 +649,7 @@ export const EN = {
   "delta > 0 = B daha yavaş": "delta > 0 = B slower",
   "Zaman-Delta (B−A)": "Time-Delta (B−A)",
   "Direksiyon": "Steering",
-  "Sektör": "Sector",
+  "Sektör": "Sector", "Poz": "Pos", "Enerji": "Energy",
   "Sektörler tur-kesri üçlüsüdür (mesafe/3); gerçek S/F beacon'ı değil.":
     "Sectors are lap-fraction thirds (distance/3), not the real S/F beacon.",
   "A hızlı": "A faster",
