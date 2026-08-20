@@ -1571,10 +1571,14 @@ ${bottomBar}
                         <span style={{ fontSize: 11.5, color: on ? "var(--rc-text)" : "var(--rc-text-3)" }}>{pits} pit</span>
                       </div>
                       <div style={{ fontFamily: "var(--rc-font-display)", fontSize: 15, marginTop: 8 }}>{fmtStint(laps)}</div>
-                      <div style={{ fontSize: 10, color: "var(--rc-text-3)", textTransform: "uppercase", letterSpacing: ".08em", marginTop: 2 }}>stint · {laps} {t("tur")}</div>
-                      <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
-                        <button onClick={(e) => { e.stopPropagation(); up({ strategies: { ...st.strategies, [k]: Math.max(1, laps - 1) } }); }} style={{ width: 30, height: 26, borderRadius: 7, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 13, lineHeight: 1 }}>−</button>
-                        <button onClick={(e) => { e.stopPropagation(); up({ strategies: { ...st.strategies, [k]: laps + 1 } }); }} style={{ width: 30, height: 26, borderRadius: 7, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 13, lineHeight: 1 }}>+</button>
+                      {/* − + STINT BAŞINA TUR sayısını değiştirir (pit değil; pit türetilir) */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", border: "1px solid var(--rc-border)", borderRadius: 8, overflow: "hidden", background: "var(--rc-surface-3)" }}>
+                          <button onClick={(e) => { e.stopPropagation(); up({ strategies: { ...st.strategies, [k]: Math.max(1, laps - 1) } }); }} style={{ width: 28, height: 28, border: "none", background: "transparent", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 14, lineHeight: 1 }}>−</button>
+                          <b style={{ minWidth: 30, textAlign: "center", fontFamily: "var(--rc-font-display)", fontSize: 16 }}>{laps}</b>
+                          <button onClick={(e) => { e.stopPropagation(); up({ strategies: { ...st.strategies, [k]: laps + 1 } }); }} style={{ width: 28, height: 28, border: "none", background: "transparent", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 14, lineHeight: 1 }}>+</button>
+                        </span>
+                        <span style={{ fontSize: 10, color: "var(--rc-text-3)", textTransform: "uppercase", letterSpacing: ".08em" }}>{t("tur")} / stint</span>
                       </div>
                     </div>
                   );
