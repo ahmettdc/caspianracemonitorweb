@@ -66,7 +66,7 @@ export const EN = {
     "Don't worry — you can change all of these anytime from the left column.",
   // data kartları
   "Yarış · Data": "Race · Data", "Stint Turları — A / B / C / D": "Stint Laps — A / B / C / D",
-  "Seçili Strateji": "Selected Strategy", "Yarış Başlangıcı": "Race Start",
+  "Seçili Strateji": "Selected Strategy", "tur / stint": "laps / stint", "Yarış Başlangıcı": "Race Start",
   "Start Tarih & Saat": "Start Date & Time", "Hesaplanan Bitiş": "Calculated Finish",
   "Canlı yarış modu, pilot planı ve geri sayım bu zamana göre çalışır.":
     "Live race mode, driver plan and countdown are based on this time.",

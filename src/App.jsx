@@ -1480,7 +1480,7 @@ ${bottomBar}
 
         {/* ---- Strateji ---- */}
         <div style={card}>
-          <label style={lbl}>{t("Seçili Strateji")} · {t("pit sayısı")}</label>
+          <label style={lbl}>{t("Seçili Strateji")} · {t("tur / stint")}</label>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 6 }}>
             {["A", "B", "C", "D"].map((k) => {
               const on = st.chosen === k;
