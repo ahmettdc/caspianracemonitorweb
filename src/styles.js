@@ -159,6 +159,10 @@ export const css = `
 .rc input[type=number]::-webkit-outer-spin-button{
   -webkit-appearance:inner-spin-button;appearance:auto;opacity:1;
   height:24px;cursor:pointer;filter:invert(.85) hue-rotate(300deg)}
+/* .stepnum: yanlarda − + butonlu sayı alanı → native yukarı/aşağı okları gizle */
+.rc .stepnum input[type=number]{-moz-appearance:textfield;appearance:textfield}
+.rc .stepnum input[type=number]::-webkit-inner-spin-button,
+.rc .stepnum input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;appearance:none;margin:0}
 .rc .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .rc .row4{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .rc .strat{display:flex;gap:6px;margin-top:4px}

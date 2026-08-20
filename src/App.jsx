@@ -1464,10 +1464,22 @@ ${bottomBar}
     const card = { border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)", padding: "16px 18px" };
     const hd = { fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 16, fontWeight: 700 };
     const bigInp = { width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)", border: "1px solid var(--rc-border-strong)", borderRadius: 10, color: "var(--rc-text)", padding: "12px 14px", fontFamily: "var(--rc-font-display)", fontSize: 22, fontWeight: 600 };
-    const midInp = { width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", borderRadius: 10, color: "var(--rc-text)", padding: "11px 13px", fontFamily: "var(--rc-font-display)", fontSize: 19, fontWeight: 600 };
     const stepWrap = { display: "inline-flex", alignItems: "center", border: "1px solid var(--rc-border)", borderRadius: 10, overflow: "hidden" };
     const stepB = { width: 38, height: 44, border: "none", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 16 };
     const stepV = { minWidth: 52, textAlign: "center", fontFamily: "var(--rc-font-display)", fontSize: 19 };
+    /* yanlarda − + butonlu, ortada elle yazılabilir (ondalık-güvenli) sayı alanı
+       → native yukarı/aşağı ok yerine soldan/sağdan artır-azalt. */
+    const stepSideB = { width: 36, height: 44, border: "none", background: "transparent", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 18, lineHeight: 1, flex: "0 0 auto" };
+    const stepField = (value, onC, step, dec = 0) => {
+      const r = (n) => (dec ? Math.round(n * 100) / 100 : Math.round(n));
+      return (
+        <span className="stepnum" style={{ display: "flex", alignItems: "center", border: "1px solid var(--rc-border)", borderRadius: 10, overflow: "hidden", background: "var(--rc-surface-3)" }}>
+          <button onClick={() => onC(Math.max(0, r((Number(value) || 0) - step)))} style={stepSideB}>−</button>
+          <NumField value={value} onC={onC} step={String(step)} style={{ flex: 1, minWidth: 0, textAlign: "center", background: "transparent", border: "none", color: "var(--rc-text)", padding: "11px 2px", fontFamily: "var(--rc-font-display)", fontSize: 19, fontWeight: 600 }} />
+          <button onClick={() => onC(r((Number(value) || 0) + step))} style={stepSideB}>+</button>
+        </span>
+      );
+    };
     const statBox = (ok) => ({ flex: "1 1 150px", padding: "11px 14px", borderRadius: 10, border: `1px solid ${ok ? "rgba(55,214,122,.35)" : "var(--rc-border)"}`, background: ok ? "rgba(55,214,122,.07)" : "var(--rc-surface-2)" });
     const statV = (ok) => ({ fontFamily: "var(--rc-font-display)", fontSize: 19, fontWeight: 600, ...(ok ? { color: "var(--rc-ok)" } : {}) });
     const statL = { color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".08em", marginTop: 3 };
@@ -1578,12 +1590,12 @@ ${bottomBar}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
                 <div style={{ flex: "1 1 150px", minWidth: 0 }}>
                   <label style={lbl}>Pit line</label>
-                  <NumField value={st.pitLaneTime} onC={(v) => up({ pitLaneTime: v })} step="1" style={midInp} />
+                  {stepField(st.pitLaneTime, (v) => up({ pitLaneTime: v }), 1)}
                   {st.track && PIT_LANE_TIMES[st.track] != null && <div style={{ fontSize: 10.5, color: "var(--rc-text-3)", marginTop: 5 }}>{t("Pist verisi")}: {PIT_LANE_TIMES[st.track]}s · {trackName(st.track)}</div>}
                 </div>
                 <div style={{ flex: "1 1 150px", minWidth: 0 }}>
                   <label style={{ ...lbl, display: "flex", alignItems: "center", gap: 4 }}>⛽ {t("Yakıt")} & <Bolt size={11} /> VE</label>
-                  <NumField value={st.fuelTime} onC={(v) => up({ fuelTime: v })} step="1" style={midInp} />
+                  {stepField(st.fuelTime, (v) => up({ fuelTime: v }), 1)}
                   <div style={{ fontSize: 10.5, color: "var(--rc-text-3)", marginTop: 5 }}>{t("Duraklamada geçen dolum süresi")}</div>
                 </div>
                 <div style={{ flex: "1 1 150px", minWidth: 0 }}>
@@ -1612,11 +1624,11 @@ ${bottomBar}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
                 <div style={{ flex: "1 1 150px", minWidth: 0 }}>
                   <label style={lbl}>{t("VE tüketim · %/tur")}</label>
-                  <NumField value={st.consumption} onC={(v) => up({ consumption: v })} step="0.01" style={midInp} />
+                  {stepField(st.consumption, (v) => up({ consumption: v }), 0.1, 2)}
                 </div>
                 <div style={{ flex: "1 1 150px", minWidth: 0 }}>
                   <label style={lbl}>Fuel ratio · L / %1</label>
-                  <NumField value={st.fuelRatio} onC={(v) => up({ fuelRatio: v })} step="0.01" style={midInp} />
+                  {stepField(st.fuelRatio, (v) => up({ fuelRatio: v }), 0.01, 2)}
                 </div>
               </div>
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
