@@ -64,6 +64,7 @@ export function demoLive(el) {
     const veh = i < 3 ? VEH_HY[i] : VEH_GT[(i - 3) % VEH_GT.length];
     const last = lapT + Math.sin(el / 7 + i) * 0.3;
     rows.push({
+      lapKey: `demo${i}`,   // "+" tur geçmişi butonu demoda da görünsün
       driver: NAMES[i], team: TEAMS[i % TEAMS.length],
       vehicleName: veh, manufacturer: manufOf(veh), number: 10 + i,
       carClass: i < 3 ? "Hypercar" : "LMGT3",

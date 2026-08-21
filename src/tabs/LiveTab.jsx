@@ -45,20 +45,6 @@ function connOf(ts) {
   return { cls: "off", lbl: "bağlantı koptu" };
 }
 
-/* Sınıf rozeti — pick ekranındaki renkli vektör (assets/class/<id>.png).
-   Görsel yüklenmezse sınıf adını nötr çip olarak gösterir. */
-function ClassBadge({ raw }) {
-  const [err, setErr] = useState(false);
-  const id = classId(raw);
-  if (id && !err) {
-    return (
-      <img src={`${ASSET}class/${id}.png`} alt={raw || ""} title={raw || ""}
-        style={{ height: 18, verticalAlign: "middle", borderRadius: 3 }}
-        onError={() => setErr(true)} />
-    );
-  }
-  return <span className="chip" style={{ fontSize: 10 }}>{raw || "—"}</span>;
-}
 
 /* Tek hamur ikonu (assets/tyre-compound/<cls>.png) — ClassBadge deseni: ikon
    yüklenmezse renkli disk + harf yedeği. size: ikon yüksekliği (px). */
@@ -160,7 +146,7 @@ function Brand({ manufacturer, vehicleName }) {
    Geçmiş kalıcı livelaps düğümünden (teams/{tid}/livelaps/{rid}/{lapKey}) talep üzerine
    okunur → tüm yarış (300+ tur) kapsanır. En yeni üstte; en hızlı tur mor, out/pit turu
    (best'in %110'undan büyük) soluk. wxmodal desenini yeniden kullanır. */
-function LapsModal({ t, tid, rid, row, canEdit, onClose }) {
+function LapsModal({ t, tid, rid, row, canEdit, demo, onClose }) {
   const [lapMap, setLapMap] = useState(null);   // {n: sec} livelaps'ten
   const [secMap, setSecMap] = useState(null);   // {n: "s1,s2,s3"} livesec'ten
   const [drvMap, setDrvMap] = useState(null);   // {n: "ad"} livedrv'den (SEYREK)
@@ -178,6 +164,35 @@ function LapsModal({ t, tid, rid, row, canEdit, onClose }) {
       setLapMap(null); setSecMap(null); setDrvMap(null); setTyreMap(null); setCondMap(null);
       return undefined;
     }
+    /* DEMO: Firebase yerine sentetik tur geçmişi üret → "+" penceresinin yeni
+       tasarımı gerçek veri olmadan önizlenebilir (best/pit/out lap, pilot değişimi,
+       sektör, koşul). Gerçek yarışta bu blok atlanır. */
+    if (demo) {
+      const done = Math.max(6, row.lapsDone || 46);
+      const from = Math.max(1, done - 45);
+      const base = row.bestSec || 88.2;
+      const main = row.driver || "Kerem Yılmaz";
+      const second = "Ahmet Demirci";
+      const lm = {}, sm = {}, dm = {}, tm = {}, cm = {};
+      dm[from] = second;              // stint 1 (seyrek: yalnız değişim turlarında)
+      dm[done - 9] = main;            // pilot değişimi
+      for (let nn = from; nn <= done; nn++) {
+        const isPit = nn === done - 4, isOut = nn === done - 3, isBest = nn === done - 6;
+        let sec = base + 0.4 + Math.abs(Math.sin(nn * 1.3)) * 1.9;
+        if (isBest) sec = base;
+        if (isPit) sec = base + 64;
+        if (isOut) sec = base + 22;
+        lm[nn] = +sec.toFixed(3);
+        sm[nn] = `${(sec * 0.25).toFixed(1)},${(sec * 0.44).toFixed(1)},${(sec * 0.31).toFixed(1)}`;
+        if (isPit) tm[nn] = "4|Medium";
+        const temp = 39 - Math.floor((done - nn) / 6);
+        const wet = nn < from + 2 ? 62 : nn < from + 4 ? 40 : 0;   // başta ıslak → kuruyor
+        const grip = Math.min(96, 71 + (nn - from));
+        cm[nn] = `${temp},${wet},${grip}`;
+      }
+      setLapMap(lm); setSecMap(sm); setDrvMap(dm); setTyreMap(tm); setCondMap(cm);
+      return undefined;
+    }
     // boş/silinmiş düğüm (null) → {}: "yükleniyor…" yerine "tur yok" göstersin
     const off1 = liveLapsSubscribe(tid, rid, row.lapKey, (v) => setLapMap(v || {}));
     const off2 = liveSecSubscribe(tid, rid, row.lapKey, setSecMap);
@@ -185,7 +200,7 @@ function LapsModal({ t, tid, rid, row, canEdit, onClose }) {
     const off4 = liveTyreSubscribe(tid, rid, row.lapKey, setTyreMap);
     const off5 = liveCondSubscribe(tid, rid, row.lapKey, setCondMap);
     return () => { off1(); off2(); off3(); off4(); off5(); };
-  }, [tid, rid, row?.lapKey]);
+  }, [tid, rid, row?.lapKey, demo, row?.lapsDone, row?.bestSec, row?.driver]);
   /* v1.6.3 — BAYAT-VERİ KORUMASI: yalnız aracın GÜNCEL lapsDone'una kadar olan turlar.
      Araç kimliği (c{mID}) oyun tarafından yeniden kullanıldığından, aynı yarışın önceki
      koşusundan kalan turlar/pilotlar ("Vanthoor" hayaleti) yazıcı temizlemesi ateşlenmediyse
@@ -765,18 +780,14 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
                         fl === "purple" ? "flashpurple" : fl === "green" ? "flashgreen" : ""]
                         .filter(Boolean).join(" ")}
                       style={!c.isPlayer && acc ? { borderLeft: `3px solid ${acc}` } : undefined}>
-                      {/* Poz · Sınıf (birleşik): pozisyon rozeti + sınıf içi poz + yön oku */}
+                      {/* Poz · Sınıf: büyük genel pozisyon + küçük SINIF İÇİ pozisyon
+                          (sınıf renginde) + yön oku. Sınıf logosu (HY/GT3) yok. */}
                       <td style={{ whiteSpace: "nowrap" }}>
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                          <span style={{ display: "inline-grid", placeItems: "center", minWidth: 26, height: 26, borderRadius: 8, fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 14,
-                            background: c.isPlayer ? "var(--rc-brand)" : "var(--rc-surface-3)", color: c.isPlayer ? "var(--rc-on-brand)" : "var(--rc-text)",
-                            border: `1px solid ${c.isPlayer ? "var(--rc-brand-bright)" : (acc || "var(--rc-border)")}` }}>{c.pos ?? i + 1}</span>
-                          <span style={{ display: "inline-flex", flexDirection: "column", alignItems: "flex-start", gap: 1 }}>
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                              <ClassBadge raw={c.carClass} />
-                              {id && <span style={{ fontSize: 10, color: classPos === 1 ? "var(--yellow)" : "var(--dim)", fontWeight: classPos === 1 ? 700 : 400 }}>P{classPos}</span>}
-                            </span>
-                            <span style={{ fontSize: 9, lineHeight: 1 }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                          <b style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 18, lineHeight: 1, color: c.isPlayer ? "var(--rc-brand-bright)" : "var(--rc-text)" }}>{c.pos ?? i + 1}</b>
+                          <span style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 1, lineHeight: 1 }}>
+                            {id && <b style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 11.5, color: acc || "var(--rc-text-3)" }}>{classPos}</b>}
+                            <span style={{ fontSize: 8.5, lineHeight: 1 }}>
                               {dirRef.current[c.lapKey || c.driver] === "up" && <span style={{ color: "var(--green)" }}>▲</span>}
                               {dirRef.current[c.lapKey || c.driver] === "down" && <span style={{ color: "var(--red)" }}>▼</span>}
                             </span>
@@ -893,7 +904,7 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
         const fk = lapsFor.lapKey || lapsFor.driver;
         const fresh = fieldAll.find((c) => (c.lapKey || c.driver) === fk) || lapsFor;
         return <LapsModal t={t} tid={tid} rid={rid} row={fresh} canEdit={canEdit}
-          onClose={() => setLapsFor(null)} />;
+          demo={demoOn} onClose={() => setLapsFor(null)} />;
       })()}
     </div>
   );
