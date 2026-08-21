@@ -523,7 +523,9 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
     </div>
 
     {zoom && createPortal(
-      <div className="wxmodal" onClick={() => setZoom(false)} role="dialog" aria-modal="true">
+      /* .rc sarmalayıcı ŞART: .wxmodal/.wxmbox stilleri `.rc ...` altında scope'lu;
+         body'e doğrudan portallandığında .rc atası olmadan stilsiz kalıp "kayboluyordu". */
+      <div className="rc" style={{ display: "contents" }}><div className="wxmodal" onClick={() => setZoom(false)} role="dialog" aria-modal="true">
         <div className="wxmbox map" onClick={(e) => e.stopPropagation()}>
           <div className="wxmhead">
             <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -544,7 +546,7 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
           </div>
           {legend}
         </div>
-      </div>,
+      </div></div>,
       document.body
     )}
   </>);

@@ -261,16 +261,19 @@ function LapsModal({ t, tid, rid, row, canEdit, demo, onClose }) {
                 <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 14.5, width: 76, flex: "0 0 auto", color: isBest ? "var(--purple)" : (pit || isOut) ? "var(--rc-warn)" : "var(--rc-text)" }}>{fmtLap(sec)}</b>
                 <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 12, width: 60, flex: "0 0 auto", color: (pit || isOut) ? "var(--rc-border-strong)" : isBest ? "var(--rc-ok)" : "var(--rc-danger)" }}>{(pit || isOut) ? "—" : isBest ? "−0.00" : `+${(sec - best).toFixed(2)}`}</span>
                 <span title="S1 · S2 · S3" style={{ fontFamily: "var(--rc-font-display)", fontSize: 11.5, color: "var(--rc-text-3)", flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{sc && sc.length === 3 && sc.every((v) => v > 0) ? `${sc[0].toFixed(1)} · ${sc[1].toFixed(1)} · ${sc[2].toFixed(1)}` : ""}</span>
-                {cond && (
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 9, flex: "0 0 auto", fontSize: 11, color: "var(--rc-text-3)" }}>
+                {/* etiket (OUT LAP / PİT / Pilot değişimi) KOŞUL bloğunun SOLUNDA:
+                    böylece koşul (sıcaklık/tutuş/ıslaklık) tüm satırlarda sağda hizalı
+                    kalır, etiketli satırlarda kayma olmaz. */}
+                {tag && <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".08em", padding: "2px 9px", borderRadius: 99, flex: "0 0 auto", whiteSpace: "nowrap", border: `1px solid ${tagCol}`, color: tagCol }}>{tag}</span>}
+                <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "flex-end", gap: 9, flex: "0 0 auto", width: 150, fontSize: 11, color: "var(--rc-text-3)" }}>
+                  {cond && (<>
                     {cond.temp != null && <span title={t("Asfalt sıcaklığı")}>🛣 {cond.temp}°</span>}
                     {cond.grip != null && <span title={t("Yol tutuş")} style={{ color: gripColor(cond.grip) }}>%{cond.grip}</span>}
                     {cond.wet != null && (condWx
                       ? <span title={t("Zemin ıslaklığı")} style={{ display: "inline-flex", alignItems: "center", gap: 3, color: WEATHER[condWx].col }}><WetIcon id={condWx} size={12} /> {t(WEATHER[condWx].lbl)}</span>
                       : <span title={t("Zemin ıslaklığı")}>💧 %{cond.wet}</span>)}
-                  </span>
-                )}
-                {tag && <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".08em", padding: "2px 9px", borderRadius: 99, flex: "0 0 auto", whiteSpace: "nowrap", border: `1px solid ${tagCol}`, color: tagCol }}>{tag}</span>}
+                  </>)}
+                </span>
               </div>
             );
           })}
