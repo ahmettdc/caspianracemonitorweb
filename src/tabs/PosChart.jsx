@@ -22,12 +22,40 @@ function code(name) {
   return (parts[parts.length - 1] || s).slice(0, 3).toUpperCase();
 }
 
-export default function PosChart({ t, tid, rid, field, myClassOnly, playerClass }) {
-  const [posMap, setPosMap] = useState(null);   // {lapKey: {n: pos}} (pit → negatif)
+export default function PosChart({ t, tid, rid, field, myClassOnly, playerClass, demo }) {
+  const [posMapState, setPosMapState] = useState(null);   // {lapKey: {n: pos}} (pit → negatif)
   useEffect(() => {
-    if (!tid || !rid) { setPosMap(null); return undefined; }
-    return livePosSubscribe(tid, rid, setPosMap);
-  }, [tid, rid]);
+    if (demo || !tid || !rid) { setPosMapState(null); return undefined; }
+    return livePosSubscribe(tid, rid, setPosMapState);
+  }, [tid, rid, demo]);
+
+  /* DEMO: livepos yerine sentetik pozisyon geçmişi üret → grafik gerçek köprü
+     olmadan da görünür. Her araç güncel pozisyonu etrafında salınıp son turda
+     kendi pozisyonuna oturur. */
+  const posFp = (Array.isArray(field) ? field : [])
+    .filter((c) => c.lapKey).map((c) => `${c.lapKey}:${c.pos}:${c.lapsDone || 0}`).join(",");
+  const demoPos = useMemo(() => {
+    if (!demo) return null;
+    const rows = (Array.isArray(field) ? field : []).filter((c) => c.lapKey);
+    if (!rows.length) return null;
+    const end = Math.max(1, ...rows.map((c) => c.lapsDone || 40));
+    const from = Math.max(1, end - 14);
+    const map = {};
+    rows.forEach((c) => {
+      const cur = c.pos || 1;
+      const o = {};
+      for (let n = from; n <= end; n++) {
+        const prog = (n - from) / Math.max(1, end - from);
+        const amp = Math.round((1 - prog) * 3 * Math.sin(n * 0.9 + cur));
+        o[n] = Math.max(1, cur + amp);
+      }
+      o[end] = cur;
+      map[c.lapKey] = o;
+    });
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [demo, posFp]);
+  const posMap = demo ? demoPos : posMapState;
 
   // sınıf süzgeci: yalnız oyuncunun sınıfı + sınıf-içi pozisyon (1..N)
   const only = myClassOnly && playerClass ? playerClass : null;

@@ -881,7 +881,7 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
           {/* Pozisyon grafiği (sol kolonun altında) */}
           {!big && isRace && (
             <div style={{ padding: "14px 16px", borderTop: "1px solid var(--rc-border)" }}>
-              <PosChart t={t} tid={tid} rid={rid} field={fieldAll} myClassOnly={myClassOnly} playerClass={playerClass} />
+              <PosChart t={t} tid={tid} rid={rid} field={fieldAll} myClassOnly={myClassOnly} playerClass={playerClass} demo={demoOn} />
             </div>
           )}
         </div>
