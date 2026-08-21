@@ -474,6 +474,7 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
   const [avgMode, setAvgMode] = useState(false);   // AVG5 ↔ AVG tek sütun geçişi
   const [gapMode, setGapMode] = useState(false);   // Gap ↔ Aralık tek sütun geçişi
   const [side, setSide] = useState(true);          // sağ yan panel (harita/kendi araç/strateji) aç/kapa
+  const [cmpCar, setCmpCar] = useState(null);      // satıra tıklayınca kendi pilotla karşılaştırma
   // DEMO: yerel sahte veri (oyun/köprü/Firebase gerekmez) — UI düzenlemek için
   const [demo, setDemo] = useState(false);
   const [demoData, setDemoData] = useState(null);
@@ -618,6 +619,11 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
   const isRace = s.sessionType === "Yarış";   // pozisyon grafiği yalnız YARIŞ seansında anlamlı
   const own = live.own || null;
   const fieldAll = Array.isArray(live.field) ? live.field : [];
+  /* KARŞILAŞTIRMA: kendi pilot satırı (meRow) varsa başka satıra tıklayınca alt
+     tepside kendi pilotumuzla kıyaslanır. cmpCar snapshot; taze kareden tazelenir. */
+  const meRow = fieldAll.find((c) => c.isPlayer) || null;
+  const cmpFresh = cmpCar
+    ? (fieldAll.find((c) => carKey(c) === carKey(cmpCar)) || cmpCar) : null;
   const ageSec = Math.max(0, Math.round((serverNow() - live.ts) / 1000));
 
   // türetilmiş: sınıf-içi pozisyon, seans en hızlı turu, oyuncu sınıfı
@@ -776,10 +782,13 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
                        animasyonu yeniden başlıyordu). Stabil key ile React satırı
                        taşır. */
                     <tr key={carKey(c) ?? (c.pos ?? i)}
+                      onClick={meRow && !c.isPlayer ? () => setCmpCar((p) => (p && carKey(p) === carKey(c) ? null : c)) : undefined}
                       className={[c.isPlayer ? "live" : "",
                         fl === "purple" ? "flashpurple" : fl === "green" ? "flashgreen" : ""]
                         .filter(Boolean).join(" ")}
-                      style={!c.isPlayer && acc ? { borderLeft: `3px solid ${acc}` } : undefined}>
+                      style={{ ...(!c.isPlayer && acc ? { borderLeft: `3px solid ${acc}` } : {}),
+                        ...(meRow && !c.isPlayer ? { cursor: "pointer" } : {}),
+                        ...(cmpFresh && carKey(cmpFresh) === carKey(c) ? { background: "rgba(76,154,255,.12)" } : {}) }}>
                       {/* Poz · Sınıf: büyük genel pozisyon + küçük SINIF İÇİ pozisyon
                           (sınıf renginde) + yön oku. Sınıf logosu (HY/GT3) yok. */}
                       <td style={{ whiteSpace: "nowrap" }}>
@@ -856,7 +865,7 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
                             /* rehber turu ilk satırın "+"ını vurgular */
                             data-tour={shown[0]?.c === c ? "livelapsbtn" : undefined}
                             style={{ fontSize: 14, lineHeight: 1, padding: "1px 8px" }}
-                            onClick={() => setLapsFor(c)}>+</button>
+                            onClick={(e) => { e.stopPropagation(); setLapsFor(c); }}>+</button>
                         )}
                       </td>
                     </tr>
@@ -896,6 +905,47 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
           </div>
         )}
       </div>
+
+      {/* ===== KARŞILAŞTIRMA tepsisi (fişteki cmpTray) — kendi pilot ↔ tıklanan pilot ===== */}
+      {cmpFresh && meRow && (() => {
+        const sN = (arr, k) => (Array.isArray(arr) && arr[k] != null ? arr[k] : null);
+        const fs = (v) => (v != null ? v.toFixed(1) : "—");
+        const rows = [
+          { label: t("Son tur"), mine: lap(meRow.lastSec), theirs: lap(cmpFresh.lastSec), d: (meRow.lastSec || 0) - (cmpFresh.lastSec || 0) },
+          { label: "AVG5", mine: lap(meRow.avg5Sec), theirs: lap(cmpFresh.avg5Sec), d: (meRow.avg5Sec || 0) - (cmpFresh.avg5Sec || 0) },
+          { label: "S1", mine: fs(sN(meRow.lastSectors, 0)), theirs: fs(sN(cmpFresh.lastSectors, 0)), d: (sN(meRow.lastSectors, 0) || 0) - (sN(cmpFresh.lastSectors, 0) || 0) },
+          { label: "S2", mine: fs(sN(meRow.lastSectors, 1)), theirs: fs(sN(cmpFresh.lastSectors, 1)), d: (sN(meRow.lastSectors, 1) || 0) - (sN(cmpFresh.lastSectors, 1) || 0) },
+          { label: "S3", mine: fs(sN(meRow.lastSectors, 2)), theirs: fs(sN(cmpFresh.lastSectors, 2)), d: (sN(meRow.lastSectors, 2) || 0) - (sN(cmpFresh.lastSectors, 2) || 0) },
+          { label: t("Enerji"), mine: `%${Math.round(meRow.virtualEnergy || 0)}`, theirs: `%${Math.round(cmpFresh.virtualEnergy || 0)}`, d: (cmpFresh.virtualEnergy || 0) - (meRow.virtualEnergy || 0) },
+        ];
+        const myName = `${meRow.number != null ? `#${meRow.number} ` : ""}${meRow.driver || t("Kendi Araç")}`;
+        const theirName = `${cmpFresh.number != null ? `#${cmpFresh.number} ` : ""}${cmpFresh.driver || "—"}`;
+        return (
+          <div style={{ position: "fixed", left: "50%", bottom: 18, zIndex: 60, width: "min(920px,94vw)", background: "var(--rc-surface-2)", border: "1px solid var(--rc-border-strong)", borderRadius: 14, overflow: "hidden", boxShadow: "0 16px 46px rgba(0,0,0,.55)", transform: "translateX(-50%)", animation: "rcin .24s ease-out" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "9px 16px", borderBottom: "1px solid var(--rc-border)" }}>
+              <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 13, fontWeight: 700 }}>{t("Karşılaştırma")}</span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+                <b style={{ color: "var(--rc-text)" }}>{myName}</b>
+                <span style={{ color: "var(--rc-border-strong)" }}>↔</span>
+                <b style={{ color: "var(--rc-info)" }}>{theirName}</b>
+              </span>
+              <button onClick={() => setCmpCar(null)} style={{ marginLeft: "auto", width: 26, height: 26, borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 13, lineHeight: 1 }}>✕</button>
+            </div>
+            <div style={{ display: "flex", overflowX: "auto" }}>
+              {rows.map((r) => (
+                <div key={r.label} style={{ flex: "1 1 118px", minWidth: 112, padding: "10px 14px", borderRight: "1px solid var(--rc-line-soft)" }}>
+                  <div style={{ color: "var(--rc-text-3)", fontSize: 9.5, textTransform: "uppercase", letterSpacing: ".1em" }}>{r.label}</div>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 7, marginTop: 5 }}>
+                    <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 16 }}>{r.mine}</b>
+                    <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 12, color: r.d < 0 ? "var(--rc-ok)" : r.d > 0 ? "var(--rc-danger)" : "var(--rc-text-3)" }}>{`${r.d > 0 ? "+" : ""}${r.d.toFixed(2)}`}</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--rc-info)", fontFamily: "var(--rc-font-display)", marginTop: 3, opacity: .85 }}>{r.theirs}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* v1.6.3 — satırı TAZE kareden bul: modal açıkken lapsDone canlı güncellenir →
           bayat-veri cap'i (capLapEntries) yeni turları anında gösterir, snapshot'ta
