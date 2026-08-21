@@ -182,6 +182,9 @@ export const css = `
 .rc td{padding:7px 8px;border-bottom:1px solid #2E1D21;font-family:var(--font-mono);
   font-size:12.5px}
 .rc tr.last td{background:rgba(64,214,140,.06)}
+/* Canlı timing tablosu: yeni arayüzde satırlar daha ferah (yüksek satır) */
+.rc table.lttable td{padding-top:12px;padding-bottom:12px}
+.rc table.lttable th{padding-top:9px;padding-bottom:9px}
 .rc .neg{color:var(--red)} .rc .pos{color:var(--green)}
 .rc .chip{display:inline-block;padding:1px 7px;border-radius:99px;font-size:11px;
   border:1px solid var(--line);color:var(--dim)}

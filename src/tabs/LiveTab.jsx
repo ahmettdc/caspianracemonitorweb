@@ -12,7 +12,7 @@ import { detectFlashes, carKey } from "../liveFlash";
 import { binKey } from "../trackShape";
 import { demoLive } from "../liveDemo";
 import { tyreTitle, teleStale } from "../tyreInfo";
-import { compoundAxles, compoundInfo, parseTyreLog } from "../tyreCompound";
+import { compoundAxles, parseTyreLog } from "../tyreCompound";
 import TrackMap from "./TrackMap";
 import PosChart from "./PosChart";
 import StrategyBar from "./StrategyBar";
@@ -95,7 +95,7 @@ function CompoundIcons({ ax }) {
 /* Birleşik LASTİK hücresi: hamur ikonu/ikonları (ön/arka) + DÖRT KÖŞE aşınma % (FL·FR /
    RL·RR, renkli 2×2). Köşe-köşe HAMUR oyunda yok (yalnız ön/arka) — bu yüzden 4 köşe
    yalnız AŞINMA için. tyres4 yoksa tek "en kötü" aşınmaya düşer. Bayat telemetride soluk. */
-function TyreCell({ c, t }) {
+function TyreCell({ c, t, single }) {
   const ax = compoundAxles(c.tyreComp);
   const stale = teleStale(c.teleLag);
   const t4 = Array.isArray(c.tyres4) && c.tyres4.length >= 4 ? c.tyres4 : null;
@@ -107,6 +107,18 @@ function TyreCell({ c, t }) {
     : "";
   const title = [compTitle, tyreTitle(c, t)].filter(Boolean).join("\n");
   const pct = (f) => (f != null ? Math.round(f * 100) : "—");
+  /* single: fişteki tek-lastik gösterimi → hamur ikonu + tek aşınma/sağlık %
+     (en kötü köşe: en düşük değer). */
+  if (single) {
+    const one = c.tyreWear != null ? c.tyreWear
+      : (t4 ? Math.min(...t4.filter((x) => x != null)) : null);
+    return (
+      <span style={{ opacity: stale ? 0.4 : 1, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 7 }} title={title}>
+        {ax && <CompoundIcons ax={ax} />}
+        {one != null && <b style={{ color: wearColor(one), fontFamily: "var(--rc-font-display)", fontSize: 12.5 }}>%{Math.round(one * 100)}</b>}
+      </span>
+    );
+  }
   return (
     <span style={{ opacity: stale ? 0.4 : 1, whiteSpace: "nowrap",
       display: "inline-flex", alignItems: "center", gap: 5 }} title={title}>
@@ -187,111 +199,75 @@ function LapsModal({ t, tid, rid, row, canEdit, onClose }) {
       .filter((e) => e.sec > 0).sort((a, b) => a.n - b.n)
     : [];
   const best = entries.length ? Math.min(...entries.map((e) => e.sec)) : 0;
+  const avg = entries.length ? entries.reduce((a, e) => a + e.sec, 0) / entries.length : 0;
   const items = entries.slice().reverse();
+  /* pilot avatar rengi — ada göre kararlı palet (fişteki DRV_COL karşılığı) */
+  const DRVP = ["#4C9AFF", "#F5B23D", "#37D67A", "#B58BFF", "#EF8A2B", "#F0506E", "#22C1C3"];
+  const drvColor = (nm) => { const s = String(nm || ""); let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return DRVP[h % DRVP.length]; };
+  const initialsOf = (nm) => String(nm || "").trim().split(/\s+/).map((w) => w[0] || "").slice(0, 2).join("").toUpperCase() || "—";
+  const clearHistory = async () => {
+    if (!(await confirmDialog({ title: t("Tur geçmişini temizle"), message: t("Bu yarışın tüm '+' tur geçmişi silinsin mi? (Yeni turlar yine kaydedilir.)"), confirmText: t("Temizle"), danger: true }))) return;
+    try { await liveHistoryClearAll(tid, rid); setCleared(true); } catch { /* yoksay */ }
+  };
   return (
-    <div className="wxmodal" onClick={onClose} role="dialog" aria-modal="true">
-      <div className="wxmbox laps" onClick={(e) => e.stopPropagation()}>
-        <div className="wxmhead">
-          <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <ClassBadge raw={row.carClass} /> {row.driver || "—"}
-            <span style={{ fontSize: 12, color: "var(--dim)", textTransform: "none",
-              letterSpacing: 0 }}>· {entries.length} {t("tur")}</span>
-          </span>
-          <button className="act" style={{ fontSize: 12, padding: "2px 10px" }}
-            onClick={onClose}>✕</button>
+    <div onClick={onClose} role="dialog" aria-modal="true"
+      style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(10,6,10,.74)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
+      <div onClick={(e) => e.stopPropagation()}
+        style={{ width: "min(880px,96vw)", maxHeight: "84vh", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
+        {/* başlık */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "15px 20px", borderBottom: "1px solid var(--rc-border)", flexWrap: "wrap" }}>
+          <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".07em", fontSize: 18, fontWeight: 700 }}>{t("Tur geçmişi")}</span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "var(--rc-text-2)", marginRight: "auto" }}>{row.number != null ? `#${row.number} · ` : ""}{entries.length} {t("tur")}</span>
+          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 15, lineHeight: 1 }}>✕</button>
         </div>
-        <div className="wxmlist">
-          {lapMap == null && <div className="hint">{t("Tur geçmişi yükleniyor…")}</div>}
-          {lapMap != null && !items.length && <div className="hint">{t("Henüz tamamlanmış tur yok.")}</div>}
+        {/* liste */}
+        <div style={{ overflowY: "auto" }}>
+          {lapMap == null && <div style={{ padding: "16px 20px", color: "var(--rc-text-3)", fontSize: 12.5 }}>{t("Tur geçmişi yükleniyor…")}</div>}
+          {lapMap != null && !items.length && <div style={{ padding: "16px 20px", color: "var(--rc-text-3)", fontSize: 12.5 }}>{t("Henüz tamamlanmış tur yok.")}</div>}
           {items.map(({ n, sec }) => {
             const isBest = sec > 0 && sec === best;
             const isOut = best > 0 && sec > best * 1.10;
-            const sc = secMap && secMap[n]
-              ? String(secMap[n]).split(",").map(Number) : null;
-            /* PİLOT (endurance driver swap): livedrv seyrek — o tur için geçerli ad
-               ileri doldurmayla bulunur. Bir önceki turdan farklıysa DEĞİŞİM satırı. */
-            const drv = driverAtLap(drvMap, n);
-            const swap = !!drv && drv !== driverAtLap(drvMap, n - 1);
-            const shortDrv = drv ? drv.split(/\s+/).pop() : "";
-            /* PİT: bu turda lastik değişimi/durak varsa "N× hamur ikonu" (livetyre). */
+            const sc = secMap && secMap[n] ? String(secMap[n]).split(",").map(Number) : null;
+            const drv = driverAtLap(drvMap, n) || row.driver;
+            const swap = !!driverAtLap(drvMap, n) && driverAtLap(drvMap, n) !== driverAtLap(drvMap, n - 1);
             const pit = tyreMap && tyreMap[n] ? parseTyreLog(tyreMap[n]) : null;
-            /* PİST KOŞULU (livecond): o turdaki asfalt sıcaklığı · yol tutuş · zemin ıslaklığı */
             const cond = condMap ? parseLapCond(condMap[n]) : null;
             const condWx = cond && cond.wet != null ? wetnessLevel(cond.wet) : null;
-            /* v1.8.15 — TEK SATIR kompakt: tüm alanlar inline (zorunlu satır kırması yok);
-               dar ekranda yalnız doğal sarar. Sektör/koşul küçük punto, etiketler title'da. */
+            const tag = swap ? t("Pilot değişimi") : pit ? "PİT" : isOut ? "OUT LAP" : null;
+            const tagCol = swap ? "var(--rc-ok)" : "var(--rc-warn)";
             return (
-              <div key={n} className="wxrow laprow"
-                style={swap ? { borderTop: "1px solid var(--teal)" } : undefined}>
-                <span className="wxnm" style={{ minWidth: 46, color: "var(--dim)" }}>
-                  {t("Tur")} {n}</span>
-                {/* pilot YALNIZ değişim turunda (yer kazan) */}
-                {swap && (
-                  <span title={drv || undefined} style={{ maxWidth: 90, fontSize: 11,
-                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                    color: "var(--teal)", fontWeight: 700 }}>
-                    {shortDrv}</span>
-                )}
-                <span className="mono" style={{ minWidth: 62, fontSize: 14,
-                  fontWeight: isBest ? 700 : 500,
-                  color: isBest ? "var(--purple)" : isOut ? "var(--yellow)" : "var(--txt)" }}>
-                  {fmtLap(sec)}</span>
-                <span className="mono" style={{ minWidth: 42, fontSize: 11, color: "var(--dim)" }}>
-                  {isBest ? "★" : best > 0 ? `+${(sec - best).toFixed(2)}` : ""}</span>
-                {sc && sc.length === 3 && sc.every((v) => v > 0) && (
-                  <span className="mono"
-                    title={`S1 ${sc[0].toFixed(1)} · S2 ${sc[1].toFixed(1)} · S3 ${sc[2].toFixed(1)}`}
-                    style={{ fontSize: 10.5, color: "var(--dim)" }}>
-                    {sc[0].toFixed(1)}·{sc[1].toFixed(1)}·{sc[2].toFixed(1)}</span>
-                )}
+              <div key={n} style={{ display: "flex", alignItems: "center", gap: 14, padding: "9px 20px", borderBottom: "1px solid var(--rc-line-soft)",
+                background: isBest ? "rgba(181,139,255,.10)" : (pit || isOut) ? "rgba(245,178,61,.08)" : "transparent" }}>
+                <b style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 15, width: 32, color: "var(--rc-text-3)", flex: "0 0 auto" }}>{n}</b>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 7, width: 132, flex: "0 0 auto" }}>
+                  <span style={{ width: 20, height: 20, borderRadius: "50%", flex: "0 0 auto", background: drvColor(drv), color: "#0B0708", display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 9 }}>{initialsOf(drv)}</span>
+                  <span style={{ fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: swap ? "var(--rc-ok)" : "var(--rc-text-2)" }}>{drv || "—"}</span>
+                </span>
+                <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 14.5, width: 76, flex: "0 0 auto", color: isBest ? "var(--purple)" : (pit || isOut) ? "var(--rc-warn)" : "var(--rc-text)" }}>{fmtLap(sec)}</b>
+                <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 12, width: 60, flex: "0 0 auto", color: (pit || isOut) ? "var(--rc-border-strong)" : isBest ? "var(--rc-ok)" : "var(--rc-danger)" }}>{(pit || isOut) ? "—" : isBest ? "−0.00" : `+${(sec - best).toFixed(2)}`}</span>
+                <span title="S1 · S2 · S3" style={{ fontFamily: "var(--rc-font-display)", fontSize: 11.5, color: "var(--rc-text-3)", flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{sc && sc.length === 3 && sc.every((v) => v > 0) ? `${sc[0].toFixed(1)} · ${sc[1].toFixed(1)} · ${sc[2].toFixed(1)}` : ""}</span>
                 {cond && (
-                  <span style={{ fontSize: 10.5, color: "var(--dim)", display: "inline-flex",
-                    alignItems: "center", gap: 8 }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 9, flex: "0 0 auto", fontSize: 11, color: "var(--rc-text-3)" }}>
                     {cond.temp != null && <span title={t("Asfalt sıcaklığı")}>🛣 {cond.temp}°</span>}
-                    {cond.grip != null && <span title={t("Yol tutuş")} style={{ display: "inline-flex",
-                      alignItems: "center", gap: 2, color: gripColor(cond.grip) }}>
-                      <GripIcon pct={cond.grip} size={12} /> %{cond.grip}</span>}
+                    {cond.grip != null && <span title={t("Yol tutuş")} style={{ color: gripColor(cond.grip) }}>%{cond.grip}</span>}
                     {cond.wet != null && (condWx
-                      ? <span title={t("Zemin ıslaklığı")} style={{ display: "inline-flex",
-                          alignItems: "center", gap: 2, color: WEATHER[condWx].col }}>
-                          <WetIcon id={condWx} size={12} /> {t(WEATHER[condWx].lbl)}</span>
+                      ? <span title={t("Zemin ıslaklığı")} style={{ display: "inline-flex", alignItems: "center", gap: 3, color: WEATHER[condWx].col }}><WetIcon id={condWx} size={12} /> {t(WEATHER[condWx].lbl)}</span>
                       : <span title={t("Zemin ıslaklığı")}>💧 %{cond.wet}</span>)}
                   </span>
                 )}
-                {pit && (
-                  <span title={pit.n > 0
-                    ? `${t("Pit")}: ${pit.n} ${t("lastik")}${pit.comp ? ` · ${pit.comp}` : ""}`
-                    : t("Pit (yalnız yakıt/servis)")}
-                    style={{ display: "inline-flex", alignItems: "center", gap: 3,
-                      fontSize: 11, color: "var(--yellow)" }}>
-                    {pit.n > 0 ? <>
-                      {pit.n}×
-                      {(() => { const info = compoundInfo(pit.comp);
-                        return info ? <CompoundIcon info={info} size={14} /> : null; })()}
-                    </> : <span className="chip" style={{ fontSize: 10,
-                      color: "var(--yellow)", borderColor: "var(--yellow)" }}>PIT</span>}
-                  </span>
-                )}
+                {tag && <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".08em", padding: "2px 9px", borderRadius: 99, flex: "0 0 auto", whiteSpace: "nowrap", border: `1px solid ${tagCol}`, color: tagCol }}>{tag}</span>}
               </div>
             );
           })}
         </div>
-        <div className="wxmfoot" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {/* v1.6.3 — bayat geçmişi ELLE sıfırla (owner/editor): köprü yarışın ortasında
-              açıldıysa oto-temizleme ateşlenmez; bu düğme rid'in TÜM canlı geçmişini
-              (livelaps/pos/sec/drv/tyre/cond) siler. Web + masaüstü. */}
+        {/* alt: en hızlı · ortalama + temizle */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", borderTop: "1px solid var(--rc-border)", background: "var(--rc-surface-2)" }}>
+          <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{t("En hızlı")} <b style={{ fontFamily: "var(--rc-font-display)", color: "var(--purple)" }}>{best > 0 ? fmtLap(best) : "—"}</b> · {t("ortalama")} <b style={{ fontFamily: "var(--rc-font-display)", color: "var(--rc-text)" }}>{avg > 0 ? fmtLap(avg) : "—"}</b></span>
+          {cleared && <span style={{ color: "var(--rc-ok)", fontSize: 11.5 }}>✓ {t("temizlendi")}</span>}
           {canEdit && tid && rid && (
-            <button className="act" style={{ marginRight: "auto", fontSize: 11 }}
-              title={t("Bu yarışın '+' tur geçmişini (eski koşulardan kalan turlar/pilotlar) sıfırla")}
-              onClick={async () => {
-                if (!(await confirmDialog({ title: t("Tur geçmişini temizle"), message: t("Bu yarışın tüm '+' tur geçmişi silinsin mi? (Yeni turlar yine kaydedilir.)"), confirmText: t("Temizle"), danger: true }))) return;
-                try { await liveHistoryClearAll(tid, rid); setCleared(true); }
-                catch { /* yoksay */ }
-              }}>🗑 {t("Tur geçmişini temizle")}</button>
+            <button onClick={clearHistory} title={t("Bu yarışın '+' tur geçmişini (eski koşulardan kalan turlar/pilotlar) sıfırla")}
+              style={{ marginLeft: "auto", padding: "8px 14px", borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12 }}>🗑 {t("Tur geçmişini temizle")}</button>
           )}
-          {cleared && <span className="hint" style={{ margin: 0, color: "var(--green)" }}>
-            ✓ {t("temizlendi")}</span>}
-          <button className="act" onClick={onClose}>{t("Kapat")}</button>
         </div>
       </div>
     </div>
@@ -746,7 +722,7 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
           {!shown.length && <div className="hint" style={{ padding: 16 }}>{t("Henüz araç verisi yok.")}</div>}
           {shown.length > 0 && (
             <div style={{ overflowX: "auto" }} data-tour="livefield">
-            <table aria-label={t("Canlı timing tablosu")}>
+            <table className="lttable" aria-label={t("Canlı timing tablosu")}>
               <thead><tr>
                 <th>{playerClass ? (
                   <button onClick={() => setMyClassOnly((v) => !v)}
@@ -839,32 +815,24 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
                         title={t("Son turun S1·S2·S3 sektör süreleri")}>{secStr(c.lastSectors)}</td>
                       {/* AVG5/AVG tek sütun (başlıktan geçiş). */}
                       <td style={{ color: "var(--dim)" }}>{lap(avgMode ? c.avgSec : c.avg5Sec)}</td>
-                      {/* Enerji (VE) + mini çubuk (fişteki veBarTrack/veBarFill) */}
-                      <td>
-                        <span style={{ display: "flex", alignItems: "center", gap: 7, justifyContent: "flex-end" }}>
-                          <span style={{ width: 40, height: 6, background: "var(--rc-line-soft)", borderRadius: 3, overflow: "hidden" }}>
-                            <i style={{ display: "block", height: "100%", width: `${c.virtualEnergy != null ? Math.round(Math.max(0, Math.min(100, c.virtualEnergy))) : 0}%`, background: veColor(c.virtualEnergy) }} />
-                          </span>
-                          <b style={{ color: veColor(c.virtualEnergy), fontSize: 12 }}>{c.virtualEnergy != null ? `${Math.round(c.virtualEnergy)}%` : "—"}</b>
-                        </span>
-                      </td>
+                      {/* Enerji (VE): çubuksuz, renkli % (fişteki yeni tasarım) */}
+                      <td style={{ textAlign: "right" }}>
+                        <b style={{ color: veColor(c.virtualEnergy), fontSize: 12.5, fontFamily: "var(--rc-font-display)" }}>{c.virtualEnergy != null ? `%${Math.round(c.virtualEnergy)}` : "—"}</b></td>
                       <td style={{ color: "var(--dim)", fontSize: 12 }}
                         title={t("Tur başına VE tüketimi")}>
                         {c.vePerLap != null ? `${c.vePerLap.toFixed(1)}%` : "—"}</td>
-                      {/* Lastik (birleşik): hamur ikonu + köşe-köşe aşınma % */}
-                      <td><TyreCell c={c} t={t} /></td>
+                      {/* Lastik: hamur ikonu + tek aşınma % (fişteki tek-lastik gösterimi) */}
+                      <td><TyreCell c={c} t={t} single /></td>
                       <td className="mono" style={{ color: "var(--dim)", fontSize: 12 }}>
                         {c.stintSec > 0 ? fmtHMS(c.stintSec) : "—"}</td>
-                      <td style={{ fontSize: 12, color: (c.damage || 0) > 0.15 ? "var(--red)"
+                      <td style={{ fontSize: 12, fontFamily: "var(--rc-font-display)", color: (c.damage || 0) > 0.15 ? "var(--red)"
                         : (c.damage || 0) > 0.02 ? "var(--yellow)" : "var(--dim)" }}>
-                        {c.damage != null ? `${Math.round(c.damage * 100)}%` : "—"}</td>
-                      <td style={{ textAlign: "center" }}
-                        title={t("Ceza sayısı (cut/puan cezaları dahil)")}>
-                        {c.penalties > 0
-                          ? <span className="chip" style={{ color: "var(--red)",
-                              borderColor: "var(--red)", fontWeight: 700 }}>⚠ {c.penalties}</span>
-                          : <span style={{ color: "var(--dim)" }}>—</span>}
-                      </td>
+                        {c.damage != null ? `%${Math.round(c.damage * 100)}` : "—"}</td>
+                      {/* Incident: fişteki gibi "N.Nx" (çarpan/olay puanı) */}
+                      <td style={{ textAlign: "right", fontFamily: "var(--rc-font-display)", fontSize: 12.5,
+                        color: (c.penalties || 0) > 0 ? "var(--red)" : "var(--dim)", fontWeight: (c.penalties || 0) > 0 ? 700 : 400 }}
+                        title={t("Olay puanı (cut/puan cezaları dahil)")}>
+                        {`${(c.penalties || 0).toFixed(1)}x`}</td>
                       <td style={{ whiteSpace: "nowrap" }}>
                         {c.inPits && <span className="chip" style={{ marginRight: 4,
                           color: "var(--yellow)", borderColor: "var(--yellow)" }}>PIT</span>}
@@ -906,13 +874,13 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
           <div style={{ flex: side ? "0 0 340px" : "0 0 0px", minWidth: 0, overflow: "hidden", alignSelf: "stretch", transition: "flex-basis .32s cubic-bezier(.4,0,.2,1), min-width .32s cubic-bezier(.4,0,.2,1)" }}>
             <div style={{ width: 336, marginLeft: "auto", display: "flex", flexDirection: "column", gap: 12, transform: side ? "translateX(0)" : "translateX(102%)", opacity: side ? 1 : 0, transition: "transform .32s cubic-bezier(.4,0,.2,1), opacity .24s ease" }}>
               <button onClick={() => setSide(false)} style={{ alignSelf: "flex-end", display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 11px", borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 11.5 }}>{t("Paneli kapat")} ›</button>
+              {/* Sıra (kullanıcı isteği): 1) Pist haritası 2) Kendi araç 3) Strateji */}
               {s.trackLength > 0 && fieldAll.some((c) => c.posX != null) && (
                 <TrackMap t={t} field={fieldAll} session={s} trackLength={s.trackLength}
-                  tid={tid} trackKey={binKey(s.trackName, s.trackLength)} canSave={canEdit}
-                  topSlot={<StrategyBar t={t} field={fieldAll} embedded />} />
+                  tid={tid} trackKey={binKey(s.trackName, s.trackLength)} canSave={canEdit} />
               )}
               {own && <OwnCar t={t} own={own} liveFuelObs={liveFuelObs} topSrc={ownTopSrc} />}
-              {!(s.trackLength > 0 && fieldAll.some((c) => c.posX != null)) && <StrategyBar t={t} field={fieldAll} />}
+              <StrategyBar t={t} field={fieldAll} />
             </div>
           </div>
         )}
