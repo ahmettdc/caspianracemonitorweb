@@ -1,0 +1,41 @@
+name: PR Preview (Firebase Hosting)
+
+# Her PR için ayrı, geçici bir önizleme URL'i yayınlar (Firebase Hosting preview
+# channel). Canlı siteyi (main → GitHub Pages) HİÇ etkilemez. Bot, önizleme
+# adresini PR'a yorum olarak bırakır; tabletten/telefondan açılıp giriş yapılabilir
+# (Firebase, preview-channel alan adlarını auth için otomatik yetkilendirir).
+#
+# Gerekli tek sır: FIREBASE_TOKEN (rules deploy'unda zaten kullanılıyor).
+# ÖN KOŞUL: Firebase konsolunda proje için Hosting bir kez etkinleştirilmeli
+# (Hosting → Get started). Aksi halde channel deploy adımı hata verir.
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseToken: ${{ secrets.FIREBASE_TOKEN }}
+          projectId: caspian-race-control
+          expires: 30d
