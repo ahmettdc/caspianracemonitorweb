@@ -56,6 +56,8 @@ export function sortSetups(rows, key = "date", dir = "desc") {
       if (vb == null) return -1;
       return (va - vb) * mul;
     });
+  } else if (key === "uploader") {
+    list.sort((a, b) => String(a?.uname || "").localeCompare(String(b?.uname || ""), "tr", { sensitivity: "base" }) * mul);
   } else {
     list.sort((a, b) => ((a?.at || 0) - (b?.at || 0)) * mul);
   }

@@ -852,62 +852,55 @@ export function SetupTable({ rows, t, st, lang, isAdmin, onDownload, onDelete, o
 export function SetupCards({ rows, t, st, lang, isAdmin, onDownload, onDelete, onView,
   cmpSel, onCmpToggle }) {
   const deltas = lapDeltas(rows);
+  const smBtn = { padding: "4px 10px", borderRadius: 7, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer", fontSize: 11, whiteSpace: "nowrap" };
   return (
-    <div className="sucards">
-      {rows.map((su) => (
-        <div key={su.id}
-          className={`sucard${su.track === st.track ? " here" : ""}`}
-          onClick={() => hasFile(su) && onView?.(su)}
-          style={hasFile(su) && onView ? { cursor: "pointer" } : undefined}>
-          <div className="sucard-img">
-            <img src={`${ASSET}tracks/${TRACK_ASSET(su.track)}.png`} alt=""
-              onError={(e) => { e.currentTarget.style.display = "none"; }} />
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 12 }}>
+      {rows.map((su) => {
+        const d = deltas.get(su.id);
+        const lapColor = d?.fastest ? "var(--rc-ok)" : "var(--rc-text)";
+        const lapNote = su.note || (d?.fastest ? t("sınıf en hızlısı") : d && d.delta > 0 ? `+${d.delta.toFixed(2)}` : "");
+        const here = su.track === st.track;
+        return (
+          <div key={su.id} onClick={() => hasFile(su) && onView?.(su)}
+            style={{ position: "relative", overflow: "hidden", border: `1px solid ${here ? "var(--rc-brand-bright)" : "var(--rc-border)"}`, borderRadius: 14, background: "var(--rc-surface)", padding: "14px 16px", cursor: hasFile(su) && onView ? "pointer" : "default" }}>
+            {/* pist arka planı */}
+            {su.track && <img src={`${ASSET}tracks/${TRACK_ASSET(su.track)}.png`} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }}
+              style={{ position: "absolute", right: -10, top: 8, width: 150, opacity: .10, pointerEvents: "none" }} />}
+            {/* araç ön planı */}
+            {su.car && <img src={carImg(su.cls, su.car)} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }}
+              style={{ position: "absolute", right: 10, bottom: 46, height: 46, width: "auto", objectFit: "contain", pointerEvents: "none" }} />}
+            {/* üst: tur + koşul */}
+            <div style={{ position: "relative", display: "flex", alignItems: "flex-start", gap: 12 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, flex: 1 }}>
+                <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 36, lineHeight: .95, color: lapColor, fontVariantNumeric: "tabular-nums" }}>{su.lap || "—"}</span>
+                {lapNote && <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{lapNote}</span>}
+              </div>
+              <CondSess su={su} t={t} />
+            </div>
+            {/* araç */}
+            <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 8, marginTop: 12, minWidth: 0 }}>
+              {su.car && brandLogo(carName(su.cls, su.car)) && (
+                <img src={brandLogo(carName(su.cls, su.car))} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ height: 20, width: 20, objectFit: "contain" }} />)}
+              {su.cls && <img src={`${ASSET}class/${su.cls}.png`} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ height: 16 }} />}
+              <span style={{ fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{carName(su.cls, su.car) || "—"}</span>
+            </div>
+            <div style={{ position: "relative", fontFamily: "var(--rc-font-display)", fontSize: 11, color: "var(--rc-text-2)", marginTop: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{su.name}</div>
+            {/* alt */}
+            <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 8, marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--rc-border)" }} onClick={(e) => e.stopPropagation()}>
+              <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{su.uname || "—"} · {new Date(su.at || 0).toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR", { day: "2-digit", month: "2-digit" })}</span>
+              <span style={{ marginLeft: "auto", display: "flex", gap: 6, alignItems: "center" }}>
+                {su.ver && <span style={{ fontSize: 10, color: "var(--rc-text-3)", padding: "2px 8px", borderRadius: 99, border: "1px solid var(--rc-border)" }}>{su.ver}</span>}
+                {onCmpToggle && hasFile(su) && (
+                  <button style={{ ...smBtn, padding: "4px 8px", ...(cmpSel?.includes(su.id) ? { borderColor: "var(--rc-brand-bright)", color: "var(--rc-brand-bright)", background: "rgba(150,0,24,.18)" } : {}) }}
+                    title={t("Karşılaştırmak için seç (en çok 2)")} onClick={() => onCmpToggle(su)}>⚖</button>)}
+                {onView && hasFile(su) && <button style={smBtn} onClick={() => onView(su)}>{t("İçerik")}</button>}
+                <button style={smBtn} onClick={() => onDownload(su)}>{t("İndir")}</button>
+                {isAdmin && <button style={{ ...smBtn, borderColor: "var(--rc-danger)", color: "var(--rc-danger)" }} onClick={() => onDelete(su)}>✕</button>}
+              </span>
+            </div>
           </div>
-          <div className="sucard-row">
-            {su.track && <img className="fl" src={`${ASSET}flags/${TRACK_ASSET(su.track)}.png`}
-              alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} />}
-            <b>{trackName(su.track) || su.track || "—"}</b>
-            <span style={{ marginLeft: "auto" }}><CondSess su={su} t={t} /></span>
-          </div>
-          <div className="sucard-row">
-            {su.cls && <img className="cb" src={`${ASSET}class/${su.cls}.png`} alt=""
-              onError={(e) => { e.currentTarget.style.display = "none"; }} />}
-            {su.car && brandLogo(carName(su.cls, su.car)) && (
-              <img className="br" src={brandLogo(carName(su.cls, su.car))} alt=""
-                onError={(e) => { e.currentTarget.style.display = "none"; }} />)}
-            <span className="nm">{carName(su.cls, su.car) || "—"}</span>
-          </div>
-          <div className="sucard-lap setupmono">
-            <LapCell su={su} d={deltas.get(su.id)} t={t} /></div>
-          <div className="sucard-file setupmono">{su.name}</div>
-          {(su.champ || su.ver || su.note) && (
-            <div className="hint" style={{ margin: 0 }}>
-              {[su.champ, su.ver, su.note].filter(Boolean).join(" · ")}</div>
-          )}
-          <div className="sucard-foot" onClick={(e) => e.stopPropagation()}>
-            <span className="hint" style={{ margin: 0 }}>
-              {su.uname || "—"} · {new Date(su.at || 0)
-                .toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR",
-                  { day: "2-digit", month: "2-digit", year: "2-digit" })}</span>
-            <span style={{ marginLeft: "auto", display: "flex", gap: 4 }}>
-              {onCmpToggle && hasFile(su) && (
-                <button className="act" style={{ fontSize: 11,
-                    ...(cmpSel?.includes(su.id)
-                      ? { borderColor: "var(--teal)", color: "var(--teal)" } : {}) }}
-                  title={t("Karşılaştırmak için seç (en çok 2)")}
-                  onClick={() => onCmpToggle(su)}>⚖</button>)}
-              {onView && hasFile(su) && (
-                <button className="act" style={{ fontSize: 11 }}
-                  onClick={() => onView(su)}>🔍</button>)}
-              <button className="act" style={{ fontSize: 11 }}
-                onClick={() => onDownload(su)}>⬇</button>
-              {isAdmin && (
-                <button className="act danger" style={{ fontSize: 11 }}
-                  onClick={() => onDelete(su)}>✕</button>)}
-            </span>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

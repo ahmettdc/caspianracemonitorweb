@@ -3544,19 +3544,27 @@ ${bottomBar}
                 <span style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <input type="text" value={suQuery} placeholder={t("Dosya, araç, not ara…")} onChange={(e) => setSuQuery(e.target.value)}
                     style={{ background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", borderRadius: 9, color: "var(--rc-text)", fontSize: 13, padding: "8px 12px", width: 220, textTransform: "none" }} />
+                  <button onClick={() => { const el = document.getElementById("su-upload"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }}
+                    style={{ padding: "8px 14px", borderRadius: 9, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>⬆ {t("Setup yükle")}</button>
                 </span>
               </div>
 
-              {/* filtre + görünüm */}
+              {/* filtre + görünüm + sıralama */}
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 16 }}>
                 <button onClick={() => setSuFTrack("")} style={chip(!suFTrack)}>{t("Tümü")}</button>
                 {poolTracks.map((tr) => <button key={tr.id} onClick={() => setSuFTrack(tr.id)} style={chip(suFTrack === tr.id)}>{trackFlag(tr.id)} {tr.name}</button>)}
                 <span style={{ width: 1, height: 22, background: "var(--rc-border)" }} />
                 {[["", t("Kuru + Wet")], ["dry", "☀️ " + t("Kuru")], ["wet", "🌧 Wet"]].map(([v, l]) => <button key={v || "all"} onClick={() => setSuFCond(v)} style={chip(suFCond === v)}>{l}</button>)}
                 <button onClick={() => setSuMine((v) => !v)} style={chip(suMine)}>👤 {t("Benim")}</button>
-                <span style={{ marginLeft: "auto", display: "flex", border: "1px solid var(--rc-border)", borderRadius: 9, overflow: "hidden" }}>
-                  <button onClick={() => suView !== "cards" && toggleSuView()} title={t("Kartlar")} style={{ width: 34, height: 30, border: "none", cursor: "pointer", fontSize: 13, background: suView === "cards" ? "rgba(150,0,24,.28)" : "var(--rc-surface-3)", color: suView === "cards" ? "var(--rc-text)" : "var(--rc-text-3)" }}>⊞</button>
-                  <button onClick={() => suView === "cards" && toggleSuView()} title={t("Liste")} style={{ width: 34, height: 30, border: "none", borderLeft: "1px solid var(--rc-border)", cursor: "pointer", fontSize: 13, background: suView !== "cards" ? "rgba(150,0,24,.28)" : "var(--rc-surface-3)", color: suView !== "cards" ? "var(--rc-text)" : "var(--rc-text-3)" }}>☰</button>
+                <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
+                  <span style={{ display: "flex", border: "1px solid var(--rc-border)", borderRadius: 9, overflow: "hidden" }}>
+                    <button onClick={() => suView !== "cards" && toggleSuView()} title={t("Kartlar")} style={{ width: 34, height: 30, border: "none", cursor: "pointer", fontSize: 13, background: suView === "cards" ? "rgba(150,0,24,.28)" : "var(--rc-surface-3)", color: suView === "cards" ? "var(--rc-text)" : "var(--rc-text-3)" }}>⊞</button>
+                    <button onClick={() => suView === "cards" && toggleSuView()} title={t("Liste")} style={{ width: 34, height: 30, border: "none", borderLeft: "1px solid var(--rc-border)", cursor: "pointer", fontSize: 13, background: suView !== "cards" ? "rgba(150,0,24,.28)" : "var(--rc-surface-3)", color: suView !== "cards" ? "var(--rc-text)" : "var(--rc-text-3)" }}>☰</button>
+                  </span>
+                  <span style={{ fontSize: 10.5, color: "var(--rc-text-3)", textTransform: "uppercase", letterSpacing: ".09em" }}>{t("Sırala")}</span>
+                  {[["lap", t("Tur")], ["date", t("Tarih")], ["uploader", t("Yükleyen")]].map(([k, l]) => (
+                    <button key={k} onClick={() => toggleSort(k)} style={chip(suSort.key === k)}>{l}{suSort.key === k ? (suSort.dir === "asc" ? " ▲" : " ▼") : ""}</button>
+                  ))}
                 </span>
               </div>
 
@@ -3592,7 +3600,7 @@ ${bottomBar}
               )}
 
               {/* Setup yükle */}
-              <div style={{ ...suCard, padding: "16px 18px", marginTop: 8 }}>
+              <div id="su-upload" style={{ ...suCard, padding: "16px 18px", marginTop: 8, scrollMarginTop: 12 }}>
                 <div style={{ ...suHd, marginBottom: 12 }}>⬆ {t("Setup yükle")}</div>
                 {setupForm()}
               </div>

@@ -191,16 +191,16 @@ describe("SetupTable / SetupCards", () => {
     const html = render(
       <SetupCards rows={rows} t={t} st={st} lang="tr" isAdmin
         onDownload={noop} onDelete={noop} onView={noop} />);
-    expect(html).toContain("sucards");
-    expect(html).toContain("sucard here");      // aktif pist vurgusu (spa)
-    expect(html).toContain("fastlap");
+    expect(html).toContain("grid-template-columns");   // kart ızgarası
+    expect(html).toContain("var(--rc-brand-bright)");   // aktif pist vurgusu (spa) kenarlığı
+    expect(html).toContain("var(--rc-ok)");             // en hızlı tur yeşil
     expect(html).toContain("spa_low.svm");
     expect(html).toContain("✕");                // admin silme
   });
 
   it("boş satır listesi çökmeden render olur", () => {
     expect(render(<SetupCards rows={[]} t={t} st={st} lang="tr" isAdmin={false}
-      onDownload={noop} onDelete={noop} />)).toContain("sucards");
+      onDownload={noop} onDelete={noop} />)).toContain("grid-template-columns");
     expect(render(<SetupTable rows={[]} t={t} st={st} lang="tr" isAdmin={false}
       onDownload={noop} onDelete={noop} />)).toContain("table");
   });
