@@ -1424,52 +1424,59 @@ export function SessionSetupBox({ setup, meta, t, onSave }) {
     catch (e) { setErr(String(e?.message || t("Kaydedilemedi"))); }
     finally { setSaving(false); }
   };
+  const segBtn = (on) => ({ padding: "7px 14px", borderRadius: 8, cursor: "pointer", fontSize: 12, whiteSpace: "nowrap",
+    border: `1px solid ${on ? "var(--rc-brand-bright)" : "var(--rc-border)"}`, background: on ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)", color: on ? "var(--rc-text)" : "var(--rc-text-2)" });
   return (
-    <div className="card sessetup">
-      <h2>🔧 {t("Bu Seansın Setup'ı")} <span className="newtag">{t("YENİ")}</span>
-        <span className="n">{[meta?.driver, meta?.session].filter(Boolean).join(" · ")}
-          {count ? ` · ${count} ${t("ayar")}` : ""}</span></h2>
+    <div style={{ border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)", padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".07em", fontSize: 15, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 8 }}>🔧 {t("Bu Seansın Setup'ı")}</span>
+        <span style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: ".09em", padding: "2px 8px", borderRadius: 99, border: "1px solid var(--rc-ok)", color: "var(--rc-ok)" }}>{t("YENİ")}</span>
+        <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{[meta?.driver, meta?.session].filter(Boolean).join(" · ")}{count ? ` · ${count} ${t("ayar")}` : ""}</span>
+      </div>
       {summary.length > 0 && (
-        <div className="setupsum">
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
           {summary.map((s) => (
-            <span className="setupchip" key={s.label}><b>{t(s.label)}</b> {s.value}</span>
+            <span key={s.label} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 11px", borderRadius: 99, border: "1px solid var(--rc-border)", background: "var(--rc-surface-2)", fontSize: 11.5 }}>
+              <b style={{ fontFamily: "var(--rc-font-display)", color: "var(--rc-brand-bright)" }}>{t(s.label)}</b>
+              <span style={{ fontFamily: "var(--rc-font-display)" }}>{s.value}</span></span>
           ))}
         </div>
       )}
-      <div className="setuptools">
-        <div className="seg" role="group">
-          <button aria-pressed={!open} onClick={() => setOpen(false)}>{t("Özet")}</button>
-          <button aria-pressed={open} onClick={() => setOpen(true)}>{t("Detay")}</button>
-        </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <span role="group" style={{ display: "inline-flex", gap: 6 }}>
+          <button aria-pressed={!open} onClick={() => setOpen(false)} style={segBtn(!open)}>{t("Özet")}</button>
+          <button aria-pressed={open} onClick={() => setOpen(true)} style={segBtn(open)}>{t("Detay")}</button>
+        </span>
         {open && (
-          <input className="setupsearch" value={q} onChange={(e) => setQ(e.target.value)}
-            placeholder={t("ara: kanat, basınç…")} aria-label={t("Setup alanı ara")} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("ara: kanat, basınç…")} aria-label={t("Setup alanı ara")}
+            style={{ flex: "1 1 150px", minWidth: 0, background: "var(--rc-surface-3)", border: "1px solid var(--rc-border-strong)", borderRadius: 9, color: "var(--rc-text)", padding: "8px 12px", fontSize: 12.5 }} />
         )}
         {onSave && (
-          <button className="act" onClick={doSave} disabled={saving || saved}
-            style={{ marginLeft: "auto" }}>
+          <button onClick={doSave} disabled={saving || saved}
+            style={{ marginLeft: "auto", padding: "8px 14px", borderRadius: 9, cursor: saving || saved ? "default" : "pointer", fontSize: 12,
+              border: `1px solid ${saved ? "var(--rc-ok)" : "var(--rc-brand-bright)"}`, background: saved ? "rgba(55,214,122,.12)" : "var(--rc-brand)", color: saved ? "var(--rc-ok)" : "var(--rc-on-brand)", opacity: saving ? .6 : 1 }}>
             {saved ? `✓ ${t("Havuza kaydedildi")}` : saving ? t("Kaydediliyor…") : `⬆ ${t("Havuza Kaydet")}`}
           </button>
         )}
       </div>
-      {err && <div className="hint warn">⚠ {err}</div>}
+      {err && <div style={{ fontSize: 11.5, color: "var(--rc-warn)" }}>⚠ {err}</div>}
       {open && (shown.length ? (
-        <div className="setupcats">
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {shown.map((c) => (
-            <section className="setupcat" key={c.cat}>
-              <h4 className="setupcat-h">
-                <span className="ic">{CAT_META[c.cat]?.icon || "•"}</span>
+            <section key={c.cat} style={{ border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface-2)", overflow: "hidden" }}>
+              <h4 style={{ margin: 0, display: "flex", alignItems: "center", gap: 8, padding: "9px 13px", borderBottom: "1px solid var(--rc-line-soft)", fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".06em", fontSize: 12.5, fontWeight: 700 }}>
+                <span>{CAT_META[c.cat]?.icon || "•"}</span>
                 {t(CAT_META[c.cat]?.tr || c.cat)}
-                <span className="n">{c.rows.length}</span></h4>
-              {c.rows.map((r) => (
-                <div className="setuprow" key={r.key}>
-                  <span className="setuprow-k">{fieldName(r.key)}</span>
+                <span style={{ marginLeft: "auto", fontSize: 10.5, color: "var(--rc-text-3)", padding: "1px 8px", borderRadius: 99, border: "1px solid var(--rc-border)", fontWeight: 400 }}>{c.rows.length}</span></h4>
+              {c.rows.map((r, i) => (
+                <div key={r.key} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 13px", borderTop: i > 0 ? "1px solid var(--rc-line-soft)" : "none" }}>
+                  <span style={{ fontSize: 12, color: "var(--rc-text-2)", flex: 1, minWidth: 0 }}>{fieldName(r.key)}</span>
                   {r.kind === "axle" ? (
-                    <span className="setuprow-v axle">
-                      <span><b>{t("ÖN")}</b>{r.front}</span>
-                      <span><b>{t("ARKA")}</b>{r.rear}</span></span>
+                    <span style={{ display: "inline-flex", gap: 12, fontFamily: "var(--rc-font-display)", fontSize: 13, flex: "0 0 auto" }}>
+                      <span style={{ display: "inline-flex", gap: 4 }}><b style={{ color: "var(--rc-text-3)", fontSize: 9.5, alignSelf: "center" }}>{t("ÖN")}</b>{r.front}</span>
+                      <span style={{ display: "inline-flex", gap: 4 }}><b style={{ color: "var(--rc-text-3)", fontSize: 9.5, alignSelf: "center" }}>{t("ARKA")}</b>{r.rear}</span></span>
                   ) : (
-                    <span className="setuprow-v">{r.value}</span>
+                    <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 13, flex: "0 0 auto" }}>{r.value}</span>
                   )}
                 </div>
               ))}
@@ -1477,7 +1484,7 @@ export function SessionSetupBox({ setup, meta, t, onSave }) {
           ))}
         </div>
       ) : (
-        <div className="hint">{t("Eşleşen alan yok.")}</div>
+        <div style={{ color: "var(--rc-text-3)", fontSize: 12.5 }}>{t("Eşleşen alan yok.")}</div>
       ))}
     </div>
   );
