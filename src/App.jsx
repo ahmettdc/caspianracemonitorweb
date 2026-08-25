@@ -2404,7 +2404,7 @@ ${bottomBar}
               <button onClick={() => setTeleOnly(true)} style={qaBtn}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--rc-brand-bright)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4v16h16" /><path d="m7 14 3-3 3 2 4-5" /></svg>
                 <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 15 }}>{t("Telemetri")}</span>
-                <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{t(".ld yükle · analiz")}</span>
+                <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{t(".duckdb yükle · analiz")}</span>
               </button>
               <button onClick={() => setChatOpen(true)} data-tour="chat" style={qaBtn}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--rc-brand-bright)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 4H4a1.5 1.5 0 0 0-1.5 1.5V16A1.5 1.5 0 0 0 4 17.5h3V21l4-3.5h9A1.5 1.5 0 0 0 21.5 16V5.5A1.5 1.5 0 0 0 20 4Z" /></svg>

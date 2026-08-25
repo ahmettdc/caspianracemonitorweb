@@ -805,7 +805,7 @@ export default function TeleTab({
           </button>
         ))}
       </div>
-      <label>{t("MoTeC tur istatistiklerini yapıştır veya dosya seç (CSV/TSV) — .ld ve .duckdb doğrudan çalışır")}</label>
+      <label>{t("MoTeC tur istatistiklerini yapıştır veya dosya seç (CSV/TSV) — .duckdb doğrudan çalışır")}</label>
       <textarea value={rawTele}
         onChange={onRawChange}
         placeholder={"Out Lap\t310127\t-6.403 ...\nLap 1\t237350\t-6.36 ..."}
@@ -813,14 +813,14 @@ export default function TeleTab({
           border: "1px solid var(--rc-border)", borderRadius: 8, color: "var(--rc-text)",
           fontFamily: "var(--font-mono)", fontSize: 11, padding: 8 }} />
       <div style={{ margin: "8px 0" }}>
-        <input type="file" accept=".csv,.tsv,.txt,.ld,.duckdb" onChange={onTeleFile} />
+        <input type="file" accept=".csv,.tsv,.txt,.duckdb" onChange={onTeleFile} />
         {savedMsg && (
           <span className="hint" style={{ color: "var(--rc-ok)", marginLeft: 10, fontWeight: 600 }}>
             ✓ Stint {savedMsg} {t("kaydedildi")}</span>
         )}
       </div>
       {parsed?.loading && <div className="hint">⏳ {parsed.duck
-        ? t("DuckDB çözümleniyor (ilk açılışta motor indirilir)…") : t(".ld çözümleniyor…")}</div>}
+        ? t("DuckDB çözümleniyor (ilk açılışta motor indirilir)…") : t("Telemetri çözümleniyor…")}</div>}
       {parsed?.error && <div className="hint warn">⚠ {t(parsed.error)}</div>}
       {parsed?.motec && (<>
         <div className="hint" style={{ marginTop: 4 }}>
@@ -928,7 +928,7 @@ export default function TeleTab({
       {/* başlık + yükle */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
         <h2 style={{ margin: 0, fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".06em", fontSize: 22, fontWeight: 700 }}>{t("Telemetri")}</h2>
-        <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>MoTeC · .ld · .duckdb · CSV</span>
+        <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>MoTeC · .duckdb · CSV</span>
         <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
           <button onClick={() => setImpOpen(true)}
             style={{ padding: "8px 16px", borderRadius: 9, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>⬆ {t("Telemetri yükle")}</button>
@@ -940,7 +940,7 @@ export default function TeleTab({
         <div style={{ border: "1.5px dashed var(--rc-border-strong)", borderRadius: 14, background: "var(--rc-surface-2)", padding: "48px 24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 11, marginBottom: 16 }}>
           <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="var(--rc-border-strong)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4v16h16" /><path d="m7 14 3-3 3 2 4-5" /></svg>
           <div style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 20 }}>{t("Henüz telemetri yok")}</div>
-          <div style={{ fontSize: 12.5, color: "var(--rc-text-3)", lineHeight: 1.7, maxWidth: 430 }}>{t("Stint yuvalarına .ld veya .duckdb dosyası yükle; iki turu karşılaştırmak için en az bir dosya gerekir.")}</div>
+          <div style={{ fontSize: 12.5, color: "var(--rc-text-3)", lineHeight: 1.7, maxWidth: 430 }}>{t("Stint yuvalarına .duckdb dosyası yükle; iki turu karşılaştırmak için en az bir dosya gerekir.")}</div>
           <button onClick={() => setImpOpen(true)} style={{ marginTop: 4, padding: "9px 18px", borderRadius: 10, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>⬆ {t("Telemetri yükle")}</button>
         </div>
       )}
@@ -1128,7 +1128,7 @@ export default function TeleTab({
             style={{ width: "min(760px,96vw)", maxHeight: "90vh", display: "flex", flexDirection: "column", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .22s cubic-bezier(.2,.9,.3,1.05)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "15px 20px", borderBottom: "1px solid var(--rc-border)" }}>
               <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".07em", fontSize: 18, fontWeight: 700 }}>{t("Telemetri yükle")}</span>
-              <span style={{ fontSize: 12, color: "var(--rc-text-3)", marginRight: "auto" }}>MoTeC · .ld · .duckdb · CSV</span>
+              <span style={{ fontSize: 12, color: "var(--rc-text-3)", marginRight: "auto" }}>MoTeC · .duckdb · CSV</span>
               <button onClick={() => setImpOpen(false)} style={{ width: 31, height: 31, borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 14, lineHeight: 1 }}>✕</button>
             </div>
             <div style={{ padding: "18px 20px", overflowY: "auto" }}>
