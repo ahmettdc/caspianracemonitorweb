@@ -1,6 +1,7 @@
 /* Sunum komponentleri — durum tutmayan görsel parçalar.
    App.jsx içe aktarır. */
-import { useState, useEffect, useRef, Fragment } from "react";
+import { useState, useEffect, useRef, useCallback, Fragment } from "react";
+import { createPortal } from "react-dom";
 import {
   ASSET, AV, quantile, TRACKS, TRACK_ASSET,
   CAR_CLASSES, CARS, trackName, carImg, carName, brandLogo,
@@ -121,106 +122,6 @@ export function ChatPanel({
         <span style={{ fontSize: 10.5, color: "var(--rc-text-3)", fontFamily: "var(--rc-font-display)" }}>{chatText.length}/500</span>
         <button onClick={onSend} disabled={!chatText.trim()}
           style={{ padding: "11px 22px", borderRadius: 10, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: chatText.trim() ? "pointer" : "default", fontFamily: "var(--rc-font-display)", fontSize: 15, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase", opacity: chatText.trim() ? 1 : .45 }}>{t("Gönder")}</button>
-      </div>
-    </div>
-  );
-}
-
-export function TourOverlay({ steps, onClose, lang }) {
-  const [idx, setIdx] = useState(0);
-  const [rect, setRect] = useState(null);
-  const nextRef = useRef(null);
-  /* Adım listesi BİR KEZ süzülür (mount'ta), her render'da değil.
-     Eskiden her render'da document.querySelector ile süzülüyordu: act() sekme
-     değiştirince koşullu hedefler (pitboard/pdf/tabs) listeye girip çıkıyor,
-     "n / N" sayacı zıplıyor ve idx başka bir adıma denk gelebiliyordu.
-     act'li adımlar hedefi kendisi render eder → DOM'da olmasa da tutulur. */
-  const [live] = useState(() =>
-    steps.filter((st2) => !st2.sel || st2.act || document.querySelector(st2.sel)));
-  const safeIdx = Math.min(idx, Math.max(0, live.length - 1));
-  const step = live[safeIdx];
-
-  useEffect(() => {
-    if (!step) return undefined;
-    if (step.act) step.act();                       // sekmeyi aç / demoyu aç
-    /* hareket azaltma tercihi: yumuşak kaydırma yerine anında */
-    const smooth = !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    let el = null;
-    const measure = () => {
-      el = step.sel ? document.querySelector(step.sel) : null;
-      if (el) el.scrollIntoView({ block: "center", behavior: smooth ? "smooth" : "auto" });
-      if (!el) { setRect(null); return; }
-      const r = el.getBoundingClientRect();
-      setRect({ x: r.left - 8, y: r.top - 8, w: r.width + 16, h: r.height + 16 });
-    };
-    const t0 = setTimeout(measure, 340);            // sekme + scroll otursun
-    const t1 = setTimeout(measure, 800);            // sidebar animasyonu bitince tekrar
-    const remeasure = () => {
-      if (!el) return;
-      const r = el.getBoundingClientRect();
-      setRect({ x: r.left - 8, y: r.top - 8, w: r.width + 16, h: r.height + 16 });
-    };
-    window.addEventListener("resize", remeasure);
-    window.addEventListener("scroll", remeasure, true);
-    return () => { clearTimeout(t0); clearTimeout(t1);
-      window.removeEventListener("resize", remeasure);
-      window.removeEventListener("scroll", remeasure, true); };
-  }, [safeIdx, step]);
-
-  /* adım değişince "İleri" düğmesine odak → klavye ve ekran okuyucu takip eder */
-  useEffect(() => { nextRef.current?.focus(); }, [safeIdx]);
-
-  useEffect(() => {
-    const k = (e) => {
-      if (e.key === "Escape") onClose();
-      /* son adımda İleri/Enter turu BİTİRİR (eskiden clamp'lenip takılıyordu) */
-      if (e.key === "ArrowRight" || e.key === "Enter") {
-        setIdx((i) => (i >= live.length - 1 ? (onClose(), i) : i + 1));
-      }
-      if (e.key === "ArrowLeft") setIdx((i) => Math.max(i - 1, 0));
-    };
-    window.addEventListener("keydown", k);
-    return () => window.removeEventListener("keydown", k);
-  }, [live.length, onClose]);
-
-  /* adım kalmadıysa render sırasında değil, effect'te kapat (React anti-pattern'i giderir) */
-  useEffect(() => { if (!step) onClose(); }, [step, onClose]);
-  if (!step) return null;
-  const last = safeIdx === live.length - 1;
-  const vw = window.innerWidth, vh = window.innerHeight;
-  /* balon konumu: hedefin altına; sığmazsa üstüne; hedef yoksa ortaya */
-  const CW = Math.min(360, vw - 24);
-  let cx = vw / 2 - CW / 2, cy = vh / 2 - 90;
-  if (rect) {
-    cx = Math.max(12, Math.min(rect.x + rect.w / 2 - CW / 2, vw - CW - 12));
-    cy = rect.y + rect.h + 14;
-    if (cy > vh - 190) cy = Math.max(12, rect.y - 178);
-  }
-  /* NOT: sarmalayıcıya onClick={onClose} YOK — balon dışına değen tık 20 adımlık
-     turu kazara bitiriyordu. Çıkış yalnız Geç / Esc / Bitti ile. */
-  return (
-    <div className="tourwrap" role="dialog" aria-modal="true" aria-labelledby="tourttl">
-      {rect && <div className="tourhole" style={{
-        left: rect.x, top: rect.y, width: rect.w, height: rect.h }} />}
-      {!rect && <div className="tourdim" />}
-      <div className="tourcard" style={{ left: cx, top: cy, width: CW }}>
-        <div className="tourstep">{safeIdx + 1} / {live.length}</div>
-        <div className="tourbar" aria-hidden="true">
-          <i style={{ width: `${((safeIdx + 1) / live.length) * 100}%` }} />
-        </div>
-        <h3 id="tourttl">{step.title}</h3>
-        <p>{step.body}</p>
-        <div className="tourbtns">
-          <button className="histbtn" onClick={onClose}>
-            {lang === "en" ? "Skip" : "Geç"}</button>
-          <span style={{ flex: 1 }} />
-          {safeIdx > 0 && <button className="histbtn"
-            onClick={() => setIdx(safeIdx - 1)}>←</button>}
-          <button className="gbtn ubtn" ref={nextRef}
-            onClick={() => (last ? onClose() : setIdx(safeIdx + 1))}>
-            {last ? (lang === "en" ? "Done ✓" : "Bitti ✓")
-              : (lang === "en" ? "Next →" : "İleri →")}</button>
-        </div>
       </div>
     </div>
   );
@@ -487,6 +388,266 @@ export const hasBadge = (team, uid, id) => {
 export function Num({ v, onC, step = 0.01, w }) {
   return <input type="number" step={step} value={v} style={w ? { width: w } : {}}
     onChange={(e) => onC(parseFloat(e.target.value) || 0)} />;
+}
+
+/* ═══════════ Rehber (koçmark turu) — rehber fişi ═══════════
+   Uygulamanın üstünde açılan 11 adımlı tanıtım turu. Her adım arkadaki ekranı
+   o bölüme geçirir (onGo), sol menüdeki ilgili düğmeyi spot ışığıyla işaretler
+   (data-tour çapası) ve panelde bölüme özel bir animasyon oynatır. */
+const TOUR = [
+  { id: "welcome", scr: null, anchor: null, label: "Hoş geldin", title: "Caspian'a hoş geldin",
+    body: "Bu tur pit-wall'ın bölümlerini tek tek gezdirir. İleri ok ya da noktalarla ilerle; istediğin an Esc ile çık." },
+  { id: "dash", scr: "dash", anchor: "nav-dash", label: "Dash", title: "Dash · yarışın tek ekran özeti",
+    body: "Bayrağa kalan süre, sıradaki pit, pozisyon ve enerji yan yana durur. Yarış sırasında en çok bakılan ekran bu; diğer bölümlere buradan dallanırsın." },
+  { id: "stint", scr: "stint", anchor: "nav-stint", label: "Stint", title: "Stint · yakıt ve pit planı",
+    body: "Stint uzunlukları, yakıt/VE tüketimi ve pit anları burada planlanır; zaman çizelgesi planı görselleştirir." },
+  { id: "live", scr: "live", anchor: "nav-live", label: "Canlı", title: "Canlı · gerçek zamanlı timing",
+    body: "Sahadaki tüm araçların pozisyon, tur ve sektör verisi köprüden canlı akar." },
+  { id: "tyre", scr: "tyre", anchor: "nav-tyre", label: "Lastik", title: "Lastik · set ve sıcaklık",
+    body: "Set envanteri, köşe sıcaklıkları ve stint ataması; hangi sete hangi stintte gireceğini planla." },
+  { id: "drivers", scr: "drivers", anchor: "nav-drivers", label: "Pilot", title: "Pilot · sürüş dağılımı",
+    body: "Sürücüleri stintlere ata, uygunlukları işaretle; sürüş süresi dengesi grafikte görünür." },
+  { id: "tele", scr: "tele", anchor: "nav-tele", label: "Tele", title: "Tele · telemetri karşılaştırma",
+    body: "İki turu mesafe ekseninde üst üste bindir; hız, gaz, fren ve delta eğrilerini karşılaştır." },
+  { id: "setup", scr: "setup", anchor: "nav-setup", label: "Setup", title: "Setup · havuz ve karşılaştırma",
+    body: "Takımın setup havuzuna yükle, içerikleri incele ve iki setupu alan alan karşılaştır." },
+  { id: "team", scr: "team", anchor: "nav-team", label: "Takım", title: "Takım · üyeler ve yetkiler",
+    body: "Üyeleri yönet, sürücü/mühendis rozetleriyle yetki ver; sezon takvimini düzenle." },
+  { id: "sys", scr: "sys", anchor: "topbar-bridge", label: "Sistem", title: "Sistem · bağlantı durumu",
+    body: "Köprü ve oyun bağlantısının canlı durumu; kesinti olduğunda buradan görürsün." },
+  { id: "done", scr: null, anchor: null, label: "Bitirme", title: "Hazırsın!",
+    body: "Tur tamam. Bu rehbere istediğin an üst bardaki ? düğmesinden dönebilirsin. İyi yarışlar!" },
+];
+export const TOUR_FOR = { dash: 1, stint: 2, fuel: 2, live: 3, tyre: 4, drivers: 5, tele: 6, setup: 7, team: 8, sys: 9 };
+
+/* Adım animasyonu (112px panel içi) — rehber fişi §8 tablosu. */
+function TourAnim({ id }) {
+  const box = { height: 112, border: "1px solid var(--rc-border)", borderRadius: 10, background: "var(--rc-surface-inset)", overflow: "hidden", padding: 14, marginBottom: 13, position: "relative", boxSizing: "border-box" };
+  let inner = null;
+  if (id === "welcome") {
+    inner = (
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(8,1fr)", gridTemplateRows: "repeat(2,1fr)", gap: 3, height: "100%" }}>
+        {Array.from({ length: 16 }).map((_, i) => { const col = i % 8; const dark = (Math.floor(i / 8) + col) % 2; return <span key={i} style={{ background: dark ? "var(--rc-text)" : "var(--rc-surface-3)", borderRadius: 2, animation: `tgCell 2.4s ${col * 0.11}s ease-in-out infinite` }} />; })}
+      </div>);
+  } else if (id === "dash") {
+    const cols = ["var(--rc-danger)", "var(--rc-warn)", "var(--rc-ok)", "var(--rc-info)"];
+    inner = (
+      <div style={{ display: "flex", gap: 8, height: "100%", alignItems: "stretch" }}>
+        {cols.map((c, i) => (
+          <div key={i} style={{ flex: 1, border: "1px solid var(--rc-border)", borderRadius: 6, background: "var(--rc-surface-3)", display: "flex", alignItems: "flex-end", padding: 8, animation: `tgUp 2.6s ${i * 0.13}s ease-in-out infinite` }}>
+            <span style={{ height: 4, borderRadius: 2, width: "100%", background: c, transformOrigin: "left", animation: `tgFill 2.6s ${i * 0.13}s ease-in-out infinite` }} />
+          </div>))}
+      </div>);
+  } else if (id === "stint") {
+    inner = (
+      <div style={{ height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", gap: 10 }}>
+        <div style={{ height: 8, borderRadius: 4, background: "var(--rc-track-2)", overflow: "hidden" }}>
+          <span style={{ display: "block", height: "100%", background: "var(--rc-brand)", transformOrigin: "left", animation: "tgDrain 3s ease-in-out infinite" }} /></div>
+        <div style={{ display: "flex", gap: 4 }}>{Array.from({ length: 6 }).map((_, i) => <span key={i} style={{ flex: 1, height: 16, borderRadius: 3, background: i % 2 ? "var(--rc-surface-3)" : "var(--rc-brand-deep, #5E0B18)" }} />)}</div>
+        <span style={{ position: "absolute", top: 12, bottom: 12, width: 3, background: "var(--rc-warn)", animation: "tgSweepX 3s linear infinite" }} />
+      </div>);
+  } else if (id === "live") {
+    inner = (
+      <div style={{ height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", gap: 6 }}>
+        {[0, 1, 2].map((r) => <div key={r} style={{ height: 20, borderRadius: 6, border: "1px solid var(--rc-line-soft)", background: "var(--rc-surface-3)", animation: r === 0 ? "tgRowUp 2.8s ease-in-out infinite" : r === 1 ? "tgRowDn 2.8s ease-in-out infinite" : "none" }} />)}
+      </div>);
+  } else if (id === "tyre") {
+    inner = (
+      <div style={{ display: "flex", gap: 14, height: "100%", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2,26px)", gridTemplateRows: "repeat(2,26px)", gap: 6 }}>
+          {Array.from({ length: 4 }).map((_, i) => <span key={i} style={{ borderRadius: 5, animation: `tgHeat 2.6s ${i * 0.18}s ease-in-out infinite` }} />)}</div>
+        <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 24, fontWeight: 700, color: "var(--rc-warn)", animation: "tgVal 2.6s ease-in-out infinite" }}>84°</span>
+      </div>);
+  } else if (id === "drivers") {
+    const badge = { width: 40, height: 40, borderRadius: 10, border: "1px solid var(--rc-border)", display: "inline-flex", alignItems: "center", justifyContent: "center" };
+    inner = (
+      <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 18, position: "relative" }}>
+        <span style={{ ...badge, color: "var(--rc-info)", animation: "tgGlowA 2.6s ease-in-out infinite" }}><RoleIcon name="drv" size={18} /></span>
+        <span style={{ position: "absolute", top: "50%", width: 3, height: 22, transform: "translateY(-50%)", background: "var(--rc-warn)", animation: "tgSweepX 2.6s ease-in-out infinite" }} />
+        <span style={{ ...badge, color: "var(--rc-ok)", animation: "tgGlowB 2.6s ease-in-out infinite" }}><RoleIcon name="eng" size={18} /></span>
+      </div>);
+  } else if (id === "tele") {
+    inner = (
+      <svg viewBox="0 0 240 84" style={{ width: "100%", height: "100%", display: "block" }}>
+        <polyline points="4,60 40,40 76,48 112,22 148,34 184,16 236,26" fill="none" stroke="var(--rc-danger-2)" strokeWidth="2.2" strokeLinejoin="round" strokeDasharray="420" style={{ animation: "tgDraw 3s ease-in-out infinite" }} />
+        <polyline points="4,66 40,52 76,44 112,40 148,28 184,32 236,18" fill="none" stroke="var(--rc-delta)" strokeWidth="2.2" strokeLinejoin="round" strokeDasharray="420" style={{ animation: "tgDraw 3s .25s ease-in-out infinite" }} />
+        <rect x="4" y="74" width="232" height="6" rx="3" fill="var(--rc-track-2)" />
+        <rect x="4" y="74" height="6" rx="3" fill="var(--rc-warn)" width="150" style={{ transformOrigin: "left", animation: "tgFill 3s ease-in-out infinite" }} />
+      </svg>);
+  } else if (id === "setup") {
+    inner = (
+      <div style={{ height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", gap: 14 }}>
+        {[0, 1, 2].map((i) => (
+          <div key={i} style={{ position: "relative", height: 6, borderRadius: 3, background: "var(--rc-track-2)" }}>
+            <span style={{ position: "absolute", top: "50%", transform: "translateY(-50%)", width: 14, height: 14, borderRadius: "50%", background: "var(--rc-brand-bright)", animation: `tgKnob 2.8s ${i * 0.2}s ease-in-out infinite` }} />
+          </div>))}
+      </div>);
+  } else if (id === "team") {
+    const tb = { width: 28, height: 22, borderRadius: 6, display: "inline-flex", alignItems: "center", justifyContent: "center" };
+    inner = (
+      <div style={{ height: "100%", display: "flex", flexDirection: "column", justifyContent: "center", gap: 12 }}>
+        {[0, 1].map((r) => (
+          <div key={r} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ width: 22, height: 22, borderRadius: "50%", background: "var(--rc-surface-3)", flex: "0 0 auto" }} />
+            <span style={{ flex: 1, height: 8, borderRadius: 4, background: "var(--rc-track-2)" }} />
+            <span style={{ ...tb, animation: `tgOn 2.8s ${r * 0.2}s ease-in-out infinite` }}><RoleIcon name="drv" size={13} /></span>
+            <span style={{ ...tb, animation: `tgOn2 2.8s ${r * 0.2}s ease-in-out infinite` }}><RoleIcon name="eng" size={13} /></span>
+          </div>))}
+      </div>);
+  } else if (id === "sys") {
+    inner = (
+      <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center", height: "100%" }}>
+        {[0, 1, 2, 3, 4].map((i) => <span key={i} style={{ width: 13, height: 13, borderRadius: "50%", background: "var(--rc-ok)", animation: i === 3 ? "tgWarn 2.8s ease-in-out infinite" : `tgDot 1.8s ${i * 0.2}s ease-in-out infinite` }} />)}
+      </div>);
+  } else if (id === "done") {
+    inner = (
+      <div style={{ height: "100%", display: "grid", placeItems: "center", position: "relative" }}>
+        <span style={{ position: "absolute", width: 46, height: 46, borderRadius: "50%", border: "2px solid var(--rc-ok)", animation: "tgRingOut 2.4s ease-out infinite" }} />
+        <svg viewBox="0 0 24 24" width="42" height="42" fill="none" stroke="var(--rc-ok)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.2 4.2L19 7" strokeDasharray="44" style={{ animation: "tgCheck 2.4s ease-in-out infinite" }} /></svg>
+      </div>);
+  }
+  return <div className={`tg-anim-${id}`} style={box}>{inner}</div>;
+}
+
+export function CoachTour({ open, start = 0, onClose, onGo, t }) {
+  const [idx, setIdx] = useState(start);
+  const [dir, setDir] = useState(1);
+  const [auto, setAuto] = useState(false);
+  const [rect, setRect] = useState(null);
+  const idxRef = useRef(idx); idxRef.current = idx;
+  const onGoRef = useRef(onGo); onGoRef.current = onGo;
+
+  const go = useCallback((n) => {
+    const c = Math.max(0, Math.min(TOUR.length - 1, n));
+    setDir(c >= idxRef.current ? 1 : -1);
+    setIdx(c);
+    if (TOUR[c].scr) onGoRef.current?.(TOUR[c].scr);
+  }, []);
+
+  /* açılışta baştaki adıma dön + o ekrana geç */
+  useEffect(() => {
+    if (!open) return;
+    setIdx(start); setDir(1); setAuto(false);
+    if (TOUR[start]?.scr) onGoRef.current?.(TOUR[start].scr);
+  }, [open, start]);
+
+  /* ölçüm — ekran oturduktan sonra (rAF); eşitlik kontrolü sonsuz döngüyü önler */
+  const measure = useCallback(() => {
+    const st = TOUR[idxRef.current];
+    if (!st?.anchor) { setRect((o) => (o ? null : o)); return; }
+    const el = document.querySelector(`[data-tour="${st.anchor}"]`);
+    if (!el) { setRect((o) => (o ? null : o)); return; }
+    const r = el.getBoundingClientRect();
+    const nx = { t: Math.round(r.top), l: Math.round(r.left), w: Math.round(r.width), h: Math.round(r.height) };
+    setRect((o) => (!o || o.t !== nx.t || o.l !== nx.l || o.w !== nx.w || o.h !== nx.h ? nx : o));
+  }, []);
+  useEffect(() => {
+    if (!open) return undefined;
+    const raf = requestAnimationFrame(measure);
+    const raf2 = requestAnimationFrame(() => requestAnimationFrame(measure)); // rail animasyonu bitince
+    return () => { cancelAnimationFrame(raf); cancelAnimationFrame(raf2); };
+  }, [idx, open, measure]);
+  useEffect(() => {
+    if (!open) return undefined;
+    const onRz = () => measure();
+    window.addEventListener("resize", onRz);
+    return () => window.removeEventListener("resize", onRz);
+  }, [open, measure]);
+
+  /* otomatik oynatma — 4.8 s; son adımda kapanır */
+  useEffect(() => {
+    if (!open || !auto) return undefined;
+    const id = setInterval(() => {
+      if (idxRef.current >= TOUR.length - 1) { setAuto(false); return; }
+      go(idxRef.current + 1);
+    }, 4800);
+    return () => clearInterval(id);
+  }, [open, auto, go]);
+
+  /* klavye — capture: tur açıkken Cmd+K ve telemetri okları gölgelenir */
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (e) => {
+      if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onClose(); }
+      else if (e.key === "ArrowRight") { e.preventDefault(); e.stopPropagation(); go(idxRef.current + 1); }
+      else if (e.key === "ArrowLeft") { e.preventDefault(); e.stopPropagation(); go(idxRef.current - 1); }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [open, go, onClose]);
+
+  if (!open) return null;
+  const step = TOUR[idx];
+  const last = idx >= TOUR.length - 1;
+  const ring = rect
+    ? { position: "fixed", left: rect.l - 6, top: rect.t - 6, width: rect.w + 12, height: rect.h + 12, borderRadius: 14, border: "1px solid var(--rc-brand-bright)", boxShadow: "0 0 0 9999px rgba(9,6,7,.82), 0 0 24px rgba(210,67,87,.5)", zIndex: 200, transition: "left .34s cubic-bezier(.4,0,.2,1), top .34s cubic-bezier(.4,0,.2,1), width .34s, height .34s", pointerEvents: "none" }
+    : { position: "fixed", inset: 0, background: "rgba(9,6,7,.86)", zIndex: 200 };
+  const footBtn = (primary) => ({ padding: "7px 13px", borderRadius: 8, cursor: "pointer", fontSize: 11.5, whiteSpace: "nowrap", fontFamily: "inherit", border: `1px solid ${primary ? "var(--rc-brand-bright)" : "var(--rc-border)"}`, background: primary ? "var(--rc-brand)" : "var(--rc-surface-3)", color: primary ? "var(--rc-on-brand)" : "var(--rc-text-2)" });
+
+  return createPortal(
+    <div className="rc" style={{ display: "contents" }}>
+      {/* karartma + spot ışığı */}
+      <div style={ring} aria-hidden="true" />
+      {/* etkileşim yutucu (panel dışı tık) */}
+      <div onClick={(e) => e.stopPropagation()} style={{ position: "fixed", inset: 0, zIndex: 199 }} aria-hidden="true" />
+      {/* panel */}
+      <div role="dialog" aria-modal="true" aria-label={t("Rehber")}
+        style={{ position: "fixed", right: 22, top: "50%", transform: "translateY(-50%)", zIndex: 201, display: "flex", width: 580, maxWidth: "calc(100vw - 44px)", maxHeight: "calc(100vh - 44px)", border: "1px solid var(--rc-border-strong)", borderRadius: 14, overflow: "hidden", background: "var(--rc-surface-2)", boxShadow: "0 26px 64px rgba(0,0,0,.66)", fontFamily: "var(--rc-font-ui)" }}>
+        {/* sol: bölümler */}
+        <div style={{ flex: "0 0 174px", borderRight: "1px solid var(--rc-border)", background: "var(--rc-surface)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div style={{ padding: "12px 14px 8px", fontSize: 10, letterSpacing: ".12em", textTransform: "uppercase", color: "var(--rc-text-3)" }}>{t("Bölümler")}</div>
+          <div style={{ overflowY: "auto", padding: "0 8px 8px" }}>
+            {TOUR.map((s, i) => {
+              const on = i === idx;
+              return (
+                <button key={s.id} onClick={() => go(i)}
+                  style={{ display: "flex", alignItems: "center", gap: 9, width: "100%", padding: "8px 10px", borderRadius: 8, cursor: "pointer", textAlign: "left", marginBottom: 1,
+                    border: `1px solid ${on ? "var(--rc-border-strong)" : "transparent"}`, background: on ? "var(--rc-surface-3)" : "transparent", color: on ? "var(--rc-text)" : "var(--rc-text-3)" }}>
+                  <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 11, color: on ? "var(--rc-brand-bright)" : "var(--rc-text-3)" }}>{String(i + 1).padStart(2, "0")}</b>
+                  <span style={{ fontSize: 12.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t(s.label)}</span>
+                </button>);
+            })}
+          </div>
+        </div>
+        {/* sağ */}
+        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "13px 14px 0" }}>
+            <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".1em", fontSize: 12, fontWeight: 700, color: "var(--rc-brand-bright)" }}>{t("Rehber")}</span>
+            <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 12, color: "var(--rc-text-3)", whiteSpace: "nowrap" }}>{idx + 1} / {TOUR.length}</span>
+            <button onClick={onClose} style={{ marginLeft: "auto", width: 28, height: 28, borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 14, lineHeight: 1 }}>✕</button>
+          </div>
+          <div style={{ height: 3, background: "var(--rc-track, var(--rc-line-soft))", margin: "10px 14px 0", borderRadius: 2, overflow: "hidden" }}>
+            <span style={{ display: "block", height: "100%", background: "var(--rc-brand-bright)", width: `${((idx + 1) / TOUR.length) * 100}%`, transition: "width .32s" }} /></div>
+          <div style={{ padding: "13px 14px", overflowY: "auto", flex: 1, minWidth: 0 }}>
+            <div key={idx} style={{ animation: `tgIn${dir > 0 ? "R" : "L"}${idx % 2 ? "b" : "a"} .38s cubic-bezier(.2,.7,.3,1) both` }}>
+              <TourAnim id={step.id} />
+              <div style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 18, marginBottom: 6 }}>{t(step.title)}</div>
+              <div style={{ fontSize: 13, color: "var(--rc-text-2)", lineHeight: 1.6 }}>{t(step.body)}</div>
+            </div>
+          </div>
+          {/* alt kontroller */}
+          <div style={{ marginTop: "auto", borderTop: "1px solid var(--rc-border)", padding: "11px 14px", display: "flex", flexDirection: "column", gap: 9 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <button onClick={() => go(idx - 1)} style={{ ...footBtn(false), opacity: idx === 0 ? .4 : 1 }}>‹ {t("Geri")}</button>
+              <span style={{ flex: 1, display: "flex", gap: 5, justifyContent: "center", alignItems: "center" }}>
+                {TOUR.map((_, i) => (
+                  <button key={i} onClick={() => go(i)} aria-label={`${i + 1}`}
+                    style={{ width: i === idx ? 18 : 6, height: 6, borderRadius: 99, border: "none", padding: 0, cursor: "pointer",
+                      background: i === idx ? "var(--rc-brand-bright)" : i < idx ? "var(--rc-icon-off)" : "var(--rc-border)", transition: "width .26s, background .26s" }} />))}
+              </span>
+              <button onClick={() => (last ? onClose() : go(idx + 1))} style={footBtn(true)}>{last ? t("Bitir") : t("İleri ›")}</button>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <button onClick={() => setAuto((a) => !a)}
+                style={{ padding: "6px 12px", borderRadius: 8, cursor: "pointer", fontSize: 11.5, border: `1px solid ${auto ? "var(--rc-ok)" : "var(--rc-border)"}`, background: auto ? "rgba(55,214,122,.14)" : "var(--rc-surface-3)", color: auto ? "var(--rc-ok)" : "var(--rc-text-2)" }}>{auto ? `‖ ${t("Duraklat")}` : `▶ ${t("Otomatik")}`}</button>
+              {step.scr && <button onClick={() => { onGoRef.current?.(step.scr); onClose(); }} style={{ padding: "6px 12px", borderRadius: 8, cursor: "pointer", fontSize: 11.5, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)" }}>{t("Bu ekrana git")} ›</button>}
+              <button onClick={onClose} style={{ marginLeft: "auto", padding: "6px 12px", borderRadius: 8, cursor: "pointer", fontSize: 11.5, border: "none", background: "transparent", color: "var(--rc-text-3)" }}>{t("Rehberi atla")}</button>
+            </div>
+            <div style={{ fontSize: 10, color: "var(--rc-icon-off)" }}>{t("Ok tuşlarıyla gez · Esc ile çık")}</div>
+          </div>
+        </div>
+      </div>
+    </div>, document.body);
 }
 
 /* v2.0 stilli sayısal alan — ondalık girişte trailing "." kaybolmaz: odaktayken

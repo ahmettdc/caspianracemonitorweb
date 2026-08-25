@@ -49,10 +49,9 @@ import {
   computeLiveInfo, buildTimeline,
   applyMarkPit, applyUnmarkPit, applyResetPits,
 } from "./state";
-import { buildTourSteps } from "./tourSteps";
 import { poolEmptyReason } from "./setupPool";
 import {
-  TourOverlay, Wheel, RoleIcon, NumField, Bolt, Tyre, Ring, Icon, Btn, Avatar,
+  CoachTour, TOUR_FOR, Wheel, RoleIcon, NumField, Bolt, Tyre, Ring, Icon, Btn, Avatar,
   BADGES, teamBadgesOf, hasBadge, ChatPanel, SetupForm, SetupTable, SetupCards,
   VersionModal, RaceEditModal,
   ChatModal, SetupModal, TeamModal, TeamScreen, CreateJoinModal, DenyToast, SetupContentModal, SetupCompareModal,
@@ -812,13 +811,9 @@ ${bottomBar}
   const { sync: liveSyncOpt, setSyncOpt, drift, lastAuto, wxSug, avgSug, pitMismatch } =
     useLiveSync({ live, st, liveInfo, up, markPit, canEdit, user });
   /* ---- sohbet: genel / takım / yarış kanalları ---- */
-  /* ---- rehber turu ---- */
-  const [tour, setTour] = useState(null);            // "lobby" | "main" | "live" | null
-  /* rehber Canlı adımlarındayken demoyu açar (LiveTab'e prop) — tur kapanınca sıfırlanır */
-  const [tourDemo, setTourDemo] = useState(false);
-  const TOUR_L = "rm_tour_lobby", TOUR_M = "rm_tour_main";
-  const seenTour = (k) => { try { return localStorage.getItem(k) === "1"; } catch { return true; } };
-  const markTour = (k) => { try { localStorage.setItem(k, "1"); } catch { /* yoksay */ } };
+  /* ---- rehber (koçmark turu) — CoachTour bileşeni ---- */
+  const [coachOpen, setCoachOpen] = useState(false);
+  const [coachStart, setCoachStart] = useState(0);
 
   /* ---- setup deposu → useSetups hook'u (liste/yükle/indir/süzgeç) ---- */
   /* active: havuz yalnız görünürken abone olunur (Setup sekmesi ya da lobi penceresi).
@@ -1065,38 +1060,18 @@ ${bottomBar}
     syncMyTeamName(user.uid, curTeam, nm).catch(() => {});
   }, [curTeam, user, teamData, myTeams]);
 
-  /* ilk girişte lobi turu, ilk yarış açılışında ana tur kendiliğinden başlar */
-  useEffect(() => {
-    if (!user || !udoc?.allowed) return;
-    if (!curRace && !entered && !seenTour(TOUR_L)) {
-      const t0 = setTimeout(() => setTour("lobby"), 700);
-      return () => clearTimeout(t0);
-    }
-    return undefined;
-  }, [user, udoc, curRace, entered]);
-  useEffect(() => {
-    if (!curRace || !seenTour(TOUR_L) || seenTour(TOUR_M)) return undefined;
-    const t0 = setTimeout(() => setTour("main"), 900);
-    return () => clearTimeout(t0);
-  }, [curRace]);
-
-  const closeTour = () => {
-    /* "live" bölümü elle başlatılır (Canlı sekmesindeki 🎓) → otomatik-başlatma
-       damgasını bozmasın; yalnız lobi/ana tur damgalanır. */
-    if (tour === "lobby") markTour(TOUR_L);
-    else if (tour === "main") markTour(TOUR_M);
-    setTourDemo(false);          // rehberin açtığı demoyu kapat
-    setTour(null);
+  /* Koçmark turu: yarış üst barındaki ? düğmesiyle, bulunulan ekranın adımından açılır.
+     onCoachGo(scr) arkadaki ekranı senkronlar (sekme/takım). */
+  const openCoach = () => { setCoachStart(TOUR_FOR[tab] ?? 0); setCoachOpen(true); };
+  const onCoachGo = (scr) => {
+    if (!scr) return;
+    if (scr === "team") { setTeamOpen(true); return; }
+    if (scr === "sys") { setBridgePopOpen(true); return; }
+    setTeamOpen(false);
+    setTab(scr);
   };
-
-  /* Adım listesi ./tourSteps.js'te (saf + test edilebilir). "live" bölümü demoyu
-     açar → Canlı ekranı veri olmadan da dolu görünür, adımların hedefi oluşur. */
-  const tourSteps = useMemo(
-    () => (tour ? buildTourSteps(tour, { t, setTab, setSideOpen, setTourDemo }) : []),
-    [tour, lang]);   // eslint-disable-line react-hooks/exhaustive-deps
-
-  const tourOverlay = tour && (
-    <TourOverlay steps={tourSteps} onClose={closeTour} lang={lang} />
+  const tourOverlay = (
+    <CoachTour open={coachOpen} start={coachStart} onClose={() => setCoachOpen(false)} onGo={onCoachGo} t={t} />
   );
 
   const wantRole = (uid) => (hasBadge(teamData, uid, "engineer") ? "editor" : "viewer");
@@ -1177,7 +1152,7 @@ ${bottomBar}
   const verNew = seenVer !== APP_VERSION;
   const versionModal = (
     <VersionModal open={verOpen} onClose={() => setVerOpen(false)} t={t} lang={lang}
-      onStartGuide={() => { setVerOpen(false); setTour(curRace ? "main" : "lobby"); }} />
+      onStartGuide={() => { setVerOpen(false); setCoachStart(TOUR_FOR[tab] ?? 0); setCoachOpen(true); }} />
   );
   /* Yetki reddi kutucuğu — viewer bir yarışta düzenleme deneyince belirir (edit() muhafızı).
      key={deny} her tıkta remount → animasyon yeniden oynar; ~2.6 sn sonra kendini kapatır. */
@@ -1806,7 +1781,7 @@ ${bottomBar}
           <span style={railLabel}>{t("Menü")}</span>
         </button>
         <span style={{ ...railSep, margin: "6px 0 8px" }} />
-        <button onClick={() => setTeamOpen(true)} style={navBtn(teamOpen)}>
+        <button onClick={() => setTeamOpen(true)} data-tour="nav-team" style={navBtn(teamOpen)}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="3" width="16" height="18" rx="1.4" /><path d="M9 8h1M14 8h1M9 12h1M14 12h1M9 16h2v5" /></svg>
           <span style={railLabel}>{t("Takım")}</span>
         </button>
@@ -1820,7 +1795,7 @@ ${bottomBar}
           ["tele", t("Tele"), <svg key="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4v16h16" /><path d="m7 14 3-3 3 2 4-5" /></svg>],
           ["setup", t("Setup"), <svg key="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M10.4 2.6h3.2l.35 2.3a7.4 7.4 0 0 1 1.72 1l2.1-.98 1.6 2.77-1.75 1.53a7.4 7.4 0 0 1 0 1.98l1.75 1.53-1.6 2.77-2.1-.98a7.4 7.4 0 0 1-1.72 1l-.35 2.3h-3.2l-.35-2.3a7.4 7.4 0 0 1-1.72-1l-2.1.98-1.6-2.77 1.75-1.53a7.4 7.4 0 0 1 0-1.98L4.23 7.69l1.6-2.77 2.1.98a7.4 7.4 0 0 1 1.72-1l.35-2.3Z" /><circle cx="12" cy="12" r="3" /></svg>],
         ].map(([k, lbl, ico]) => (
-          <button key={k} id={`tab-${k}`} onClick={() => onTab(k)} style={navBtn(activeKey === k)}>
+          <button key={k} id={`tab-${k}`} data-tour={`nav-${k}`} onClick={() => onTab(k)} style={navBtn(activeKey === k)}>
             {ico}<span style={railLabel}>{lbl}</span>
           </button>
         ))}
@@ -2251,7 +2226,7 @@ ${bottomBar}
                 <button onClick={() => switchLang("tr")} style={langBtn(lang !== "en")}>TR</button>
                 <button onClick={() => switchLang("en")} style={langBtn(lang === "en")}>EN</button>
               </span>
-              <button onClick={() => setTour("lobby")} data-tour="info"
+              <button onClick={() => { setCoachStart(0); setCoachOpen(true); }}
                 style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8,
                   border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12 }}>🎓 {t("Rehber")}</button>
               <button onClick={() => setCmdOpen(true)} title={t("Komut paleti · ⌘K")}
@@ -2948,34 +2923,9 @@ ${bottomBar}
     );
   }
 
-  /* ================= v2.0 KABUK — sol dikey menü rayı + rehber kutusu =================
+  /* ================= v2.0 KABUK — sol dikey menü rayı =================
      Kaynak: handoff-spec/ekranlar/00-kabuk.md. Yatay sekme çubuğunun yerine geçen sabit
-     sol ray. Değerler fişteki dinamik stil objelerinden birebir; hex → var(--rc-*).
-     GUIDES metinleri i18n-EN.md (§1) TR karşılıklarından alındı. */
-  const scr = tab === "rchat" ? "chat" : tab; // rehber kutusu anahtarı
-  const GUIDES = {
-    home: ["Ana menü", "Sıradaki yarışı buradan aç, hızlı eylemlerle setup havuzuna, telemetriye ve takım takvimine geç."],
-    dash: ["Dashboard", "Yarışın özeti: pozisyon, enerji, lastik ve stint dağılımı. Araç ve pist görseline tıklayınca tempo referansı açılır."],
-    stint: ["Stint planı", "Stintleri süre ve pilotla planla; pit satırında lastik seçimini işaretle. PIT düğmesi gerçek pit anını kaydeder."],
-    fuel: ["Son stint yakıtı", "Kalan süreye göre gereken enerji yüzdesi. 📋 Plan açıkken geri sayım stint planından gelir; canlı veriyle tüketimi güncelleyebilirsin."],
-    live: ["Canlı timing", "Sütun başlıklarına tıklayınca değer değişir (Gap ⇄ Aralık, Son ⇄ En iyi). Bir rakip satırına tıkla, altta karşılaştırma açılır."],
-    tyre: ["Lastik stratejisi", "Her hücreye tıklayarak set ata; bir lastik ilk takıldığı köşeye kilitlenir. Hızlı atama penceresi tüm kombinasyonları verir."],
-    drivers: ["Pilotlar", "Stintlere pilot ata, sürüş süresi dağılımını izle. Uygunluk penceresinde kapattığın saatlere atama yapılamaz."],
-    tele: ["Telemetri", "Stint yuvalarına dosya yükle, iki turu A/B karşılaştır. Grafiklerde imleçle gez, tekerlekle yakınlaştır, Space ile oynat."],
-    setup: ["Setup havuzu", "Setupları pist bazında gör, ⚖ ile iki tanesini karşılaştır. Yıldızladıkların listenin başında durur."],
-    team: ["Takım", "Üye yetkilerini, sezon takvimini ve takım kimliğini buradan yönet. Katılım kodunu paylaşarak yeni üye davet edebilirsin."],
-    chat: ["Sohbet", "Genel, takım ve yarışa özel kanallar. Yarış kanalı yalnız o yarışın katılımcılarına açıktır."],
-    official: ["Resmi yarışlar", "lmugarage listesinden günlük ve haftalık yarışlar. Planla düğmesiyle takvimine ekleyebilirsin."],
-  };
-  /* Ekran açıklama kutusu yalnız REHBER (tur) aktifken görünür; kapalıyken gizli. */
-  const guideWrap = tour && GUIDES[scr]
-    ? {
-        display: "flex", alignItems: "flex-start", gap: 11, margin: "14px 20px 0",
-        padding: "12px 15px", borderRadius: 12,
-        border: "1px solid var(--rc-border-strong)", background: "rgba(181,139,255,.07)",
-      }
-    : { display: "none" };
-
+     sol ray. Değerler fişteki dinamik stil objelerinden birebir; hex → var(--rc-*). */
   /* ---- v2.0 yarış üst çubuğu (handoff-spec/ekranlar/00-yaris-ust-cubugu.md) ---- */
   const isRace = ["live", "dash", "stint", "fuel", "tyre", "drivers"].includes(tab);
   const rcInfo = races[curRace] || {};
@@ -3114,12 +3064,6 @@ ${bottomBar}
         {renderRail(tab, (k) => setTab(k))}
 
         <div style={{ minWidth: 0 }}>
-          <div style={guideWrap}>
-            <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, flex: 1 }}>
-              <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 14, letterSpacing: ".02em" }}>{t((GUIDES[scr] || ["", ""])[0])}</b>
-              <span style={{ fontSize: 11.5, color: "var(--rc-text-2)", lineHeight: 1.6 }}>{t((GUIDES[scr] || ["", ""])[1])}</span>
-            </span>
-          </div>
       {isRace && (() => {
         const age = live?.ts ? Math.max(0, Math.round((now - live.ts) / 1000)) : null;
         const bVer = bridge?.ver || APP_VERSION.replace(/^v/, "");
@@ -3194,7 +3138,7 @@ ${bottomBar}
         <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "stretch",
           gap: 7, padding: "10px 18px", borderLeft: "1px solid var(--rc-border)" }}>
           <span style={{ position: "relative", display: "flex" }}>
-            <button onClick={() => setBridgePopOpen((v) => !v)} title={t("Köprü durumu ve kaydı")}
+            <button onClick={() => setBridgePopOpen((v) => !v)} title={t("Köprü durumu ve kaydı")} data-tour="topbar-bridge"
               style={{ display: "flex", flex: 1, alignItems: "center", justifyContent: "center", gap: 6, fontSize: 11,
                 fontFamily: "var(--rc-font-display)", letterSpacing: ".04em", padding: "5px 11px", borderRadius: 8,
                 border: `1px solid ${bLive ? "rgba(55,214,122,.5)" : "var(--rc-border)"}`, background: "transparent",
@@ -3258,6 +3202,8 @@ ${bottomBar}
                 )}
               </span>
             )}
+            <button onClick={openCoach} title={t("Bu ekranın rehberi")}
+              style={{ flex: "0 0 auto", marginLeft: 6, width: 26, height: 26, borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontFamily: "var(--rc-font-display)", fontSize: 14, fontWeight: 700, lineHeight: 1 }}>?</button>
           </span>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
             <button onClick={() => setSideOpen((v) => !v)}
@@ -3594,7 +3540,7 @@ ${bottomBar}
           {tab === "live" && <LiveTab t={t} live={live} liveFuelObs={liveFuelObs}
             lapCapture={lapCapture}
             bridge={bridge} canEdit={canEditTeam} canBridge={isMember} tid={curTeam} rid={curRace}
-            tourDemo={tourDemo} onGuide={() => setTour("live")} isAdmin={isAdmin}
+            isAdmin={isAdmin}
             ownTopSrc={carImageSrc(teamData?.assets, st.carClass, st.car, "top")} />}
 
           {tab === "tyre" && (

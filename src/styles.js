@@ -38,6 +38,8 @@ export const css = `
   --rc-border-hi:#5C3B44; --rc-border-mute:#6B4A52;
   /* Kapalı/kilitli rol ikonu (rozet fişi) */
   --rc-icon-off:#6B4A54;
+  /* Rehber (koçmark) — animasyon paneli + dolgu çubukları */
+  --rc-surface-inset:#0F0A0C; --rc-track-2:#2A1A1F;
   /* Metin */
   --rc-text:#F3EAEC; --rc-text-2:#C9B3B9; --rc-text-3:#A88C93;
   --rc-text-4:#7A6F75; --rc-text-5:#5B5157;
@@ -1262,5 +1264,33 @@ export const css = `
   .rc .sch-thumb{display:none}
   .rc .sch-side{margin-left:0;width:100%;justify-content:space-between}
   .rc .sch-sel select{min-width:0}
+}
+
+/* ═══ Rehber (koçmark turu) — geçiş + adım animasyonları (rehber fişi §7-8) ═══ */
+@keyframes tgInRa{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}
+@keyframes tgInRb{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}
+@keyframes tgInLa{from{opacity:0;transform:translateX(-24px)}to{opacity:1;transform:none}}
+@keyframes tgInLb{from{opacity:0;transform:translateX(-24px)}to{opacity:1;transform:none}}
+@keyframes tgCell{0%,72%,100%{opacity:.14}26%{opacity:1}}
+@keyframes tgUp{0%,100%{opacity:.28;transform:translateY(7px)}20%,78%{opacity:1;transform:none}}
+@keyframes tgFill{0%,100%{transform:scaleX(.08)}30%,80%{transform:scaleX(1)}}
+@keyframes tgDrain{0%{transform:scaleX(1)}88%,100%{transform:scaleX(.1)}}
+@keyframes tgSweepX{0%{left:0}100%{left:calc(100% - 3px)}}
+@keyframes tgRowUp{0%,24%{transform:none;border-color:#241519}48%,86%{transform:translateY(-26px);border-color:#37D67A}100%{transform:none;border-color:#241519}}
+@keyframes tgRowDn{0%,24%{transform:none}48%,86%{transform:translateY(26px)}100%{transform:none}}
+@keyframes tgHeat{0%,100%{background:rgba(76,154,255,.28)}50%{background:rgba(239,138,43,.62)}}
+@keyframes tgGlowA{0%,42%{border-color:#4C9AFF;opacity:1}62%,100%{border-color:#34232A;opacity:.4}}
+@keyframes tgGlowB{0%,42%{border-color:#34232A;opacity:.4}62%,100%{border-color:#37D67A;opacity:1}}
+@keyframes tgDraw{0%{stroke-dashoffset:420}44%,84%{stroke-dashoffset:0}100%{stroke-dashoffset:420}}
+@keyframes tgKnob{0%,100%{left:14%}50%{left:74%}}
+@keyframes tgOn{0%,42%{background:#1E1418;color:#6B4A54}58%,100%{background:rgba(76,154,255,.18);color:#4C9AFF}}
+@keyframes tgOn2{0%,42%{background:#1E1418;color:#6B4A54}58%,100%{background:rgba(55,214,122,.18);color:#37D67A}}
+@keyframes tgDot{0%,100%{opacity:.3}50%{opacity:1}}
+@keyframes tgWarn{0%,58%{background:#37D67A}68%,88%{background:#F5B23D}100%{background:#37D67A}}
+@keyframes tgCheck{0%{stroke-dashoffset:44}40%,88%{stroke-dashoffset:0}100%{stroke-dashoffset:44}}
+@keyframes tgRingOut{0%{transform:scale(.6);opacity:.85}70%,100%{transform:scale(1.55);opacity:0}}
+@keyframes tgVal{0%,45%{opacity:.34}55%,100%{opacity:1}}
+@media (prefers-reduced-motion:reduce){
+  .rc [class^="tg-anim"] *,.rc .tg-slide{animation:none !important}
 }
 `;

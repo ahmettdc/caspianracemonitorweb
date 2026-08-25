@@ -468,7 +468,7 @@ function CopyBtn({ text, t }) {
 
 export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge = false,
   liveFuelObs, lapCapture, tid, rid,
-  tourDemo, onGuide, isAdmin = false, ownTopSrc = "" }) {
+  isAdmin = false, ownTopSrc = "" }) {
   const [myClassOnly, setMyClassOnly] = useState(false);
   const [big, setBig] = useState(false);
   const [lapsFor, setLapsFor] = useState(null);   // "+" ile açılan tur listesi satırı
@@ -481,10 +481,7 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
   // DEMO: yerel sahte veri (oyun/köprü/Firebase gerekmez) — UI düzenlemek için
   const [demo, setDemo] = useState(false);
   const [demoData, setDemoData] = useState(null);
-  /* tourDemo: rehber turu Canlı adımlarında demoyu geçici açar — veri yokken
-     tablo/harita DOM'da olmadığı için adımların vurgulayacağı hedef kalmıyordu.
-     Prop verilmezse davranış birebir eskisi gibi (yalnız kendi 🎬 düğmesi). */
-  const demoOn = demo || !!tourDemo;
+  const demoOn = demo;
   useEffect(() => {
     if (!demoOn) { setDemoData(null); return undefined; }
     const t0 = Date.now();
@@ -494,20 +491,14 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
     return () => clearInterval(id);
   }, [demoOn]);
   const live = demoOn ? demoData : liveProp;
-  /* 🎬 Demo düğmesi yalnız adminlerde: normal kullanıcılar için gizlenir (rehber turu
-     tourDemo ile herkes için çalışmaya devam eder — o ayrı bir yol). */
+  /* 🎬 Demo düğmesi yalnız adminlerde: normal kullanıcılar için gizlenir. */
   const demoBtn = isAdmin ? (
-    <button className={`act${demo ? " on" : ""}`} data-tour="livedemo"
+    <button className={`act${demo ? " on" : ""}`}
       onClick={() => setDemo((v) => !v)}
       style={{ fontSize: 11, padding: "3px 10px",
         ...(demo && { borderColor: "var(--yellow)", color: "var(--yellow)" }) }}>
       🎬 {demo ? t("Demo kapat") : t("Demo")}</button>
   ) : null;
-  /* yalnız Canlı bölümünü anlatan kısa rehber (9 adım) — App setTour("live") yapar */
-  const guideBtn = onGuide && (
-    <button className="act" style={{ fontSize: 11, padding: "3px 10px" }}
-      onClick={onGuide} title={t("Canlı Timing rehberi")}>🎓</button>
-  );
   const rootRef = useRef(null);
   const posRef = useRef({});   // sürücü → son pozisyon
   const dirRef = useRef({});   // sürücü → 'up'|'down' (son değişim yönü kalır)
@@ -606,7 +597,6 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
                 style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "9px 16px", borderRadius: 10, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 13, textDecoration: "none" }}>🪶 {t("Hafif Köprüyü İndir (.exe)")}</a>
             </>) : demoBtn}
             {!isTauri && demoBtn}
-            {guideBtn}
           </div>
           {staleOff && !!live?.ts && (
             <div style={{ fontSize: 11, color: "var(--rc-border-strong)", fontFamily: "var(--rc-font-display)", marginTop: 2 }}>
@@ -725,7 +715,6 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
             </span>
 
             <span style={{ marginLeft: "auto", display: "flex", gap: 6, flexWrap: "wrap" }}>
-              {!big && guideBtn}
               {demoBtn}
               {document.fullscreenEnabled && (
                 <button className="act" data-tour="livebig" style={{ fontSize: 11, padding: "3px 10px" }} onClick={toggleBig}>{big ? t("✕ Küçült") : t("⛶ Büyük Pano")}</button>
