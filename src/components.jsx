@@ -2018,7 +2018,7 @@ export function CreateJoinModal({ open, onClose, user, t, userName,
               </div>
               <div style={panel}>
                 <div style={panelH}>{t("Kurduğunda ne olur")}</div>
-                {bullet("👑", "Takım sahibi sen olursun")}
+                {bullet(<span style={{ color: "var(--rc-warn)", display: "inline-flex" }}><RoleIcon name="owner" size={14} /></span>, "Takım sahibi sen olursun")}
                 {bullet("🔑", "6 haneli katılım kodu üretilir")}
                 {bullet("🏁", "Sezon takvimi ve yarış odaları açılır")}
                 {bullet("📋", "Setup havuzu takımla paylaşılır")}
@@ -2038,7 +2038,7 @@ export function CreateJoinModal({ open, onClose, user, t, userName,
               <div style={panel}>
                 <div style={panelH}>{t("Katıldığında ne olur")}</div>
                 {bullet("🏢", "Takımın tüm yarış takvimini görürsün")}
-                {bullet("🎧", "Yarış odalarına ortak ekranla katılırsın")}
+                {bullet(<span style={{ color: "var(--rc-ok)", display: "inline-flex" }}><RoleIcon name="eng" size={14} /></span>, "Yarış odalarına ortak ekranla katılırsın")}
                 {bullet("📋", "Takımın setup havuzuna erişirsin")}
                 {bullet("🛡", "Yetkiler takım sahibince atanır")}
               </div>
