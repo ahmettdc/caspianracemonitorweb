@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { fmtHMS, msToLocalInput } from "../engine";
 import { PIE_COLORS } from "../constants";
 import { Avatar } from "../components";
@@ -34,6 +35,23 @@ export default function DriversTab({
   const hdT = { fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 14, fontWeight: 700 };
   const dim = { fontSize: 11.5, color: "var(--rc-text-3)" };
   const unassigned = driverPlan ? driverPlan.rows.filter((r, i) => r.dur > 0 && !st.driverAssign[i]).length : 0;
+
+  /* ---- Pilot uygunluğu (🕑) ---- pilotların hangi stintte uygun olmadığını işaretle.
+     st.driverUnavail = { [pilotAdı]: { [stintIdx]: true } }. Varsayılan: tüm stintlerde uygun. */
+  const [avOpen, setAvOpen] = useState(false);
+  const availRoster = ((st.roster && st.roster.length ? st.roster : teamDrivers) || []).filter(Boolean);
+  const stintRows = driverPlan ? driverPlan.rows.filter((r) => r.dur > 0) : [];
+  const unavail = st.driverUnavail || {};
+  const isUnavail = (n, idx) => !!(unavail[n] && unavail[n][idx]);
+  const toggleAvail = (n, idx) => {
+    const du = { ...(st.driverUnavail || {}) };
+    const row = { ...(du[n] || {}) };
+    if (row[idx]) delete row[idx]; else row[idx] = true;
+    if (Object.keys(row).length) du[n] = row; else delete du[n];
+    up({ driverUnavail: du });
+  };
+  /* uygun pilot kalmayan stintler (uyarı) */
+  const noAvailStints = stintRows.filter((r) => availRoster.length > 0 && availRoster.every((n) => isUnavail(n, r.idx)));
 
   // donut segmentleri
   const C = 2 * Math.PI * 48;
@@ -163,7 +181,10 @@ export default function DriversTab({
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "13px 16px", borderBottom: "1px solid var(--rc-border)", flexWrap: "wrap" }}>
             <span style={hdT}>{t("Stint programı")}</span>
             <span style={dim}>{t("saatler yarış saatine göre")}</span>
-            {unassigned > 0 && <span style={{ marginLeft: "auto", fontSize: 11, padding: "3px 10px", borderRadius: 99, border: "1px solid var(--rc-warn)", color: "var(--rc-warn)", whiteSpace: "nowrap" }}>⚠ {unassigned} {t("stint atanmadı")}</span>}
+            <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              {unassigned > 0 && <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 99, border: "1px solid var(--rc-warn)", color: "var(--rc-warn)", whiteSpace: "nowrap" }}>⚠ {unassigned} {t("stint atanmadı")}</span>}
+              <button onClick={() => setAvOpen(true)} style={{ padding: "6px 12px", borderRadius: 8, border: `1px solid ${noAvailStints.length ? "var(--rc-warn)" : "var(--rc-border)"}`, background: "var(--rc-surface-3)", color: noAvailStints.length ? "var(--rc-warn)" : "var(--rc-text-2)", cursor: "pointer", fontSize: 11.5, whiteSpace: "nowrap" }}>🕑 {t("Uygunluk")}{noAvailStints.length ? ` · ${noAvailStints.length}⚠` : ""}</button>
+            </span>
           </div>
           {driverPlan.rows.map((r, i) => {
             const cur = st.driverAssign[i] || "";
@@ -178,6 +199,7 @@ export default function DriversTab({
                 </span>
                 <span style={{ display: "block", width: 120, height: 6, borderRadius: 3, background: "var(--rc-line-soft)", overflow: "hidden", flex: "0 0 auto" }}><i style={{ display: "block", height: "100%", width: `${barPct}%`, background: cur ? col : "var(--rc-border-strong)" }} /></span>
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 8, flex: "0 0 auto" }}>
+                  {cur && isUnavail(cur, r.idx) && <span title={t("Bu pilot bu stintte uygun değil")} style={{ color: "var(--rc-danger)", fontSize: 13 }}>⚠</span>}
                   {cur && driverPlan.totals[cur] && av(cur, 20)}
                   <select value={cur} onChange={(e) => assignDriver(i, e.target.value)}
                     style={{ width: 168, padding: "7px 10px", borderRadius: 9, cursor: "pointer", fontSize: 12.5, background: "var(--rc-surface-3)", border: `1px solid ${cur ? col + "66" : "var(--rc-border)"}`, color: cur ? "var(--rc-text)" : "var(--rc-text-3)" }}>
@@ -189,6 +211,71 @@ export default function DriversTab({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* ===== Pilot uygunluğu penceresi ===== */}
+      {avOpen && (
+        <div onClick={() => setAvOpen(false)} role="dialog" aria-modal="true"
+          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(10,6,10,.74)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
+          <div onClick={(e) => e.stopPropagation()}
+            style={{ width: "min(820px,96vw)", maxHeight: "88vh", display: "flex", flexDirection: "column", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .22s cubic-bezier(.2,.9,.3,1.05)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "15px 20px", borderBottom: "1px solid var(--rc-border)", flexWrap: "wrap" }}>
+              <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".07em", fontSize: 18, fontWeight: 700 }}>{t("Pilot uygunluğu")}</span>
+              <span style={{ fontSize: 12, color: "var(--rc-text-3)" }}>{t("Stinte tıkla · o pilot o saatte uygun değil işaretlenir")}</span>
+              <button onClick={() => setAvOpen(false)} style={{ marginLeft: "auto", width: 31, height: 31, borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 14, lineHeight: 1 }}>✕</button>
+            </div>
+            <div style={{ overflow: "auto", padding: "16px 20px 18px" }}>
+              {!availRoster.length || !stintRows.length ? (
+                <div style={{ color: "var(--rc-text-3)", fontSize: 12.5, lineHeight: 1.7 }}>{!availRoster.length ? t("Önce kadroya pilot ekle.") : t("Plan için önce yarış datalarını gir.")}</div>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: `minmax(150px,1.4fr) repeat(${stintRows.length}, minmax(48px,1fr))`, gap: 6, alignItems: "center" }}>
+                  <span />
+                  {stintRows.map((r) => (
+                    <span key={r.idx} style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: 2 }}>
+                      <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 14, fontWeight: 700 }}>S{r.idx}</b>
+                      <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 9.5, color: "var(--rc-text-3)" }}>{fmtClock(r.start, driverPlan.startMs)}</span>
+                    </span>
+                  ))}
+                  {availRoster.map((n) => {
+                    const okCount = stintRows.filter((r) => !isUnavail(n, r.idx)).length;
+                    return (
+                      <span key={n} style={{ display: "contents" }}>
+                        <span style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0, paddingRight: 8 }}>
+                          {av(n, 22)}
+                          <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+                            <b style={{ fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{n}</b>
+                            <span style={{ fontSize: 10.5, color: okCount === 0 ? "var(--rc-danger)" : "var(--rc-text-3)" }}>{okCount}/{stintRows.length} {t("uygun")}</span>
+                          </span>
+                        </span>
+                        {stintRows.map((r) => {
+                          const un = isUnavail(n, r.idx);
+                          return (
+                            <button key={r.idx} onClick={() => toggleAvail(n, r.idx)} title={t("Uygunluk")}
+                              style={{ height: 34, borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 700,
+                                border: `1px solid ${un ? "var(--rc-danger)" : "var(--rc-ok)"}`,
+                                background: un ? "rgba(255,77,94,.16)" : "rgba(55,214,122,.20)",
+                                color: un ? "var(--rc-danger)" : "var(--rc-ok)" }}>{un ? "✕" : "✓"}</button>
+                          );
+                        })}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 14 }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 11.5, color: "var(--rc-text-2)" }}><i style={{ width: 12, height: 12, borderRadius: 4, background: "rgba(55,214,122,.22)", border: "1px solid var(--rc-ok)", display: "inline-block" }} />{t("Uygun")}</span>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 11.5, color: "var(--rc-text-2)" }}><i style={{ width: 12, height: 12, borderRadius: 4, background: "rgba(255,77,94,.16)", border: "1px solid var(--rc-danger)", display: "inline-block" }} />{t("Uygun değil")}</span>
+                <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{t("Varsayılan tüm stintlerde uygun")}</span>
+              </div>
+              {noAvailStints.length > 0 && (
+                <div style={{ marginTop: 14, display: "flex", alignItems: "flex-start", gap: 9, padding: "11px 14px", borderRadius: 11, border: "1px solid var(--rc-warn)", background: "rgba(245,178,61,.08)", fontSize: 12, color: "var(--rc-warn)", lineHeight: 1.6 }}>
+                  <span style={{ flex: "0 0 auto", fontSize: 14 }}>⚠</span>
+                  <span><b>{noAvailStints.map((r) => `S${r.idx}`).join(", ")}</b> {t("için hiç uygun pilot kalmadı — bu stint atanamaz.")}</span>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
