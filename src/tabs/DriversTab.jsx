@@ -46,9 +46,16 @@ export default function DriversTab({
   const toggleAvail = (n, idx) => {
     const du = { ...(st.driverUnavail || {}) };
     const row = { ...(du[n] || {}) };
+    const nowUnavail = !row[idx];         // bu tıkla "uygun değil" mi yapılıyor
     if (row[idx]) delete row[idx]; else row[idx] = true;
     if (Object.keys(row).length) du[n] = row; else delete du[n];
     up({ driverUnavail: du });
+    /* Uygunsuz yapıldıysa ve o pilot o stinte ATANMIŞSA atamayı otomatik temizle
+       (dropdown boş kalır). Stint idx → plan satır indeksi. */
+    if (nowUnavail && driverPlan) {
+      const ri = driverPlan.rows.findIndex((r) => r.idx === idx);
+      if (ri >= 0 && st.driverAssign[ri] === n) assignDriver(ri, "");
+    }
   };
   /* uygun pilot kalmayan stintler (uyarı) */
   const noAvailStints = stintRows.filter((r) => availRoster.length > 0 && availRoster.every((n) => isUnavail(n, r.idx)));
