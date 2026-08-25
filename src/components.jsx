@@ -1242,12 +1242,6 @@ export function ChatModal({ open, onClose, t, chatSound, toggleChatSound, chatCh
 
 /* .svm alan anahtarları → kısa TR ad (yoksa ham anahtar gösterilir). Bölüm başlıkları
    da TR'ye çevrilir. Liste uzun olduğu için yalnız sık bakılanlar; gerisi ham key. */
-const SVM_SECTIONS = {
-  GENERAL: "Genel", FRONTWING: "Ön Kanat", REARWING: "Arka Kanat", BODYAERO: "Gövde/Aero",
-  SUSPENSION: "Süspansiyon", CONTROLS: "Kontroller", ENGINE: "Motor", DRIVELINE: "Aktarma",
-  FRONTLEFT: "Ön Sol", FRONTRIGHT: "Ön Sağ", REARLEFT: "Arka Sol", REARRIGHT: "Arka Sağ",
-  BASIC: "Temel", LEFTFENDER: "Sol Çamurluk", RIGHTFENDER: "Sağ Çamurluk",
-};
 const SVM_FIELDS = {
   FuelSetting: "Yakıt", VirtualEnergySetting: "Sanal Enerji (VE)", FWSetting: "Ön Kanat",
   RWSetting: "Arka Kanat", WaterRadiatorSetting: "Su Radyatörü", OilRadiatorSetting: "Yağ Radyatörü",
@@ -1296,12 +1290,14 @@ function useSetupBlob(su, open) {
 
 /* Setup içeriği penceresi — havuzdaki base64 (su.data) çözülüp .svm parse edilir; üstte
    özet çipleri (Arka Kanat vb.), altında bölüm bölüm anlamlı değerler. open=false → null. */
-export function SetupContentModal({ open, su, onClose, t }) {
+const CAT_ACC = { aero: "#4C9AFF", tyre: "#F5B23D", susp: "#37D67A", align: "#B58BFF", brake: "#FF4D5E", diff: "#EF8A2B", elec: "#4C9AFF", engine: "#C9B3B9", other: "#A88C93" };
+
+export function SetupContentModal({ open, su, onClose, t, onDownload, onAddCompare, inCompare }) {
   const blob = useSetupBlob(su, open);
-  const [q, setQ] = useState("");
-  const [showAll, setShowAll] = useState(false);
+  const [cat, setCat] = useState("all");
   useEffect(() => {
     if (!open) return undefined;
+    setCat("all");
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -1310,82 +1306,124 @@ export function SetupContentModal({ open, su, onClose, t }) {
   const parsed = parseSvm(b64ToText(blob.b64));
   const summary = setupSummary(parsed);
   const fieldName = (key) => t(SVM_FIELDS[key] || key);
-  const cats = categorizeSetup(parsed, showAll);
-  const needle = q.trim().toLowerCase();
-  const shown = needle
-    ? cats.map((c) => ({ ...c, rows: c.rows.filter((r) => {
-      const nm = fieldName(r.key).toLowerCase();
-      const val = (r.kind === "axle" ? `${r.front} ${r.rear}` : r.value || "").toLowerCase();
-      return nm.includes(needle) || val.includes(needle);
-    }) })).filter((c) => c.rows.length)
-    : cats;
-  const title = [carName(su.cls, su.car) || su.car, trackName(su.track) || su.track]
-    .filter(Boolean).join(" · ");
-  const segBtn = (on) => ({ padding: "7px 14px", borderRadius: 8, cursor: "pointer", fontSize: 12, whiteSpace: "nowrap",
+  const cats = categorizeSetup(parsed);
+  const totalFields = cats.reduce((a, c) => a + c.rows.length, 0);
+  const shownCats = cat === "all" ? cats : cats.filter((c) => c.cat === cat);
+  const dateStr = su.at ? new Date(su.at).toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit" }) : "";
+  const chip = (on) => ({ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 13px", borderRadius: 99, cursor: "pointer", fontSize: 12, whiteSpace: "nowrap",
     border: `1px solid ${on ? "var(--rc-brand-bright)" : "var(--rc-border)"}`, background: on ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)", color: on ? "var(--rc-text)" : "var(--rc-text-2)" });
+  const carTitle = carName(su.cls, su.car) || su.car || "—";
   return (
     <div onClick={onClose} role="dialog" aria-modal="true"
-      style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(10,6,10,.74)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
+      style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(10,6,10,.78)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
       <div onClick={(e) => e.stopPropagation()}
-        style={{ width: "min(640px,95vw)", maxHeight: "86vh", display: "flex", flexDirection: "column", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
+        style={{ width: "min(880px,96vw)", maxHeight: "90vh", display: "flex", flexDirection: "column", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .22s cubic-bezier(.2,.9,.3,1.05)" }}>
         {/* başlık */}
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "15px 20px", borderBottom: "1px solid var(--rc-border)", flexWrap: "wrap" }}>
-          <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".07em", fontSize: 18, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 9 }}>🔧 {t("Setup İçeriği")}</span>
-          <span style={{ fontSize: 11.5, color: "var(--rc-text-3)", marginRight: "auto", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{su.name}{title ? ` · ${title}` : ""}{su.lap ? ` · ⏱ ${su.lap}` : ""}</span>
-          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 15, lineHeight: 1 }}>✕</button>
+          <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".07em", fontSize: 18, fontWeight: 700 }}>{t("Setup İçeriği")}</span>
+          <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 13, color: "var(--rc-text-2)", marginRight: "auto", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{su.name}</span>
+          <button onClick={onClose} style={{ width: 31, height: 31, borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 14, lineHeight: 1 }}>✕</button>
         </div>
-        <div style={{ overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
+
+        {/* bilgi şeridi: pist · araç · en iyi tur */}
+        <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 20px", borderBottom: "1px solid var(--rc-line-soft)", flexWrap: "wrap", background: "radial-gradient(120% 200% at 100% 0,rgba(150,0,24,.16),var(--rc-surface-2) 70%)" }}>
+          {su.track && <img src={`${ASSET}flags/${TRACK_ASSET(su.track)}.png`} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ width: 26, borderRadius: 3, flex: "0 0 auto" }} />}
+          <span style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 16 }}>{trackName(su.track) || su.track || "—"}</b>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--rc-text-3)" }}><CondSess su={su} t={t} />{dateStr ? ` · ${dateStr}` : ""}</span>
+          </span>
+          {su.car && <img src={carImg(su.cls, su.car)} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ height: 40, width: "auto", objectFit: "contain", flex: "0 0 auto" }} />}
+          <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+            <b style={{ fontSize: 13, whiteSpace: "nowrap" }}>{carTitle}</b>
+            <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{[su.uname ? `${su.uname} ${t("yükledi")}` : "", su.champ, su.ver].filter(Boolean).join(" · ")}</span>
+          </span>
+          {su.lap && (
+            <span style={{ marginLeft: "auto", textAlign: "right" }}>
+              <div style={{ fontFamily: "var(--rc-font-display)", fontSize: 26, fontWeight: 700, lineHeight: 1, color: "var(--rc-ok)" }}>{su.lap}</div>
+              <div style={{ fontSize: 10, color: "var(--rc-text-3)", textTransform: "uppercase", letterSpacing: ".09em" }}>{t("en iyi tur")}</div>
+            </span>
+          )}
+        </div>
+
+        {/* not */}
+        {su.note && (
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 9, padding: "11px 20px", borderBottom: "1px solid var(--rc-line-soft)", fontSize: 13, color: "var(--rc-text-2)", lineHeight: 1.6 }}>
+            <span style={{ flex: "0 0 auto" }}>📝</span><span>{su.note}</span>
+          </div>
+        )}
+
+        <div style={{ overflowY: "auto" }}>
           {blob.loading ? (
-            <div style={{ color: "var(--rc-text-3)", fontSize: 12.5 }}>⏳ {t("Dosya yükleniyor…")}</div>
+            <div style={{ padding: "18px 20px", color: "var(--rc-text-3)", fontSize: 12.5 }}>⏳ {t("Dosya yükleniyor…")}</div>
           ) : !parsed.ok ? (
-            <div style={{ color: "var(--rc-warn)", fontSize: 12.5, lineHeight: 1.6 }}>⚠ {t("İçerik okunamadı — bu bir LMU setup dosyası değil ya da bozuk.")}</div>
+            <div style={{ padding: "18px 20px", color: "var(--rc-warn)", fontSize: 12.5, lineHeight: 1.6 }}>⚠ {t("İçerik okunamadı — bu bir LMU setup dosyası değil ya da bozuk.")}</div>
           ) : (
             <>
+              {/* öne çıkanlar */}
               {summary.length > 0 && (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
-                  {summary.map((s) => (
-                    <span key={s.label} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 11px", borderRadius: 99, border: "1px solid var(--rc-border)", background: "var(--rc-surface-2)", fontSize: 11.5 }}>
-                      <b style={{ fontFamily: "var(--rc-font-display)", color: "var(--rc-brand-bright)" }}>{t(s.label)}</b>
-                      <span style={{ fontFamily: "var(--rc-font-display)" }}>{s.value}</span></span>
-                  ))}
+                <div style={{ padding: "13px 20px", borderBottom: "1px solid var(--rc-line-soft)" }}>
+                  <div style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 9 }}>{t("Öne çıkanlar")}</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: 8 }}>
+                    {summary.map((s) => (
+                      <div key={s.label} style={{ background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", borderRadius: 10, padding: "9px 11px" }}>
+                        <div style={{ fontFamily: "var(--rc-font-display)", fontSize: 17, fontWeight: 700, lineHeight: 1.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.value}</div>
+                        <div style={{ fontSize: 10, color: "var(--rc-text-3)", textTransform: "uppercase", letterSpacing: ".07em", marginTop: 3 }}>{t(s.label)}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
-              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                <span role="group" style={{ display: "inline-flex", gap: 6 }}>
-                  <button aria-pressed={!showAll} onClick={() => setShowAll(false)} style={segBtn(!showAll)}>{t("Anlamlı alanlar")}</button>
-                  <button aria-pressed={showAll} onClick={() => setShowAll(true)} style={segBtn(showAll)}>{t("Tümünü göster")}</button>
-                </span>
-                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("ara: kanat, basınç…")} aria-label={t("Setup alanı ara")}
-                  style={{ flex: "1 1 160px", minWidth: 0, background: "var(--rc-surface-3)", border: "1px solid var(--rc-border-strong)", borderRadius: 9, color: "var(--rc-text)", padding: "8px 12px", fontSize: 12.5 }} />
+              {/* kategori filtre çipleri */}
+              <div style={{ display: "flex", gap: 7, flexWrap: "wrap", padding: "11px 20px", borderBottom: "1px solid var(--rc-line-soft)" }}>
+                <button onClick={() => setCat("all")} style={chip(cat === "all")}>▦ {t("Tümü")}</button>
+                {cats.map((c) => (
+                  <button key={c.cat} onClick={() => setCat(c.cat)} style={chip(cat === c.cat)}>{CAT_META[c.cat]?.icon || "•"} {t(CAT_META[c.cat]?.tr || c.cat)}</button>
+                ))}
               </div>
-              {shown.length ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  {shown.map((c) => (
-                    <section key={c.cat} style={{ border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface-2)", overflow: "hidden" }}>
-                      <h4 style={{ margin: 0, display: "flex", alignItems: "center", gap: 8, padding: "9px 13px", borderBottom: "1px solid var(--rc-line-soft)", fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".06em", fontSize: 12.5, fontWeight: 700 }}>
-                        <span>{CAT_META[c.cat]?.icon || "•"}</span>
-                        {t(CAT_META[c.cat]?.tr || c.cat)}
-                        <span style={{ marginLeft: "auto", fontSize: 10.5, color: "var(--rc-text-3)", padding: "1px 8px", borderRadius: 99, border: "1px solid var(--rc-border)", fontWeight: 400 }}>{c.rows.length}</span></h4>
-                      {c.rows.map((r, i) => (
-                        <div key={r.key} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 13px", borderTop: i > 0 ? "1px solid var(--rc-line-soft)" : "none" }}>
-                          <span style={{ fontSize: 12, color: "var(--rc-text-2)", flex: 1, minWidth: 0 }}>{fieldName(r.key)}</span>
-                          {r.kind === "axle" ? (
-                            <span style={{ display: "inline-flex", gap: 12, fontFamily: "var(--rc-font-display)", fontSize: 13, flex: "0 0 auto" }}>
-                              <span style={{ display: "inline-flex", gap: 4 }}><b style={{ color: "var(--rc-text-3)", fontSize: 9.5, alignSelf: "center" }}>{t("ÖN")}</b>{r.front}</span>
-                              <span style={{ display: "inline-flex", gap: 4 }}><b style={{ color: "var(--rc-text-3)", fontSize: 9.5, alignSelf: "center" }}>{t("ARKA")}</b>{r.rear}</span></span>
-                          ) : (
-                            <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 13, flex: "0 0 auto" }}>{r.value}</span>
-                          )}
+              {/* kategori kartları */}
+              <div style={{ padding: "14px 20px 18px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 12 }}>
+                  {shownCats.map((c) => {
+                    const acc = CAT_ACC[c.cat] || "#A88C93";
+                    return (
+                      <div key={c.cat} style={{ border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface-2)", overflow: "hidden" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 13px", borderBottom: `1px solid ${acc}33`, background: `${acc}14`, fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".06em", fontSize: 12.5, fontWeight: 700, color: acc }}>
+                          {CAT_META[c.cat]?.icon || "•"} {t(CAT_META[c.cat]?.tr || c.cat)}
                         </div>
-                      ))}
-                    </section>
-                  ))}
+                        {c.rows.map((r, i) => (
+                          <div key={r.key} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 13px", borderTop: i > 0 ? "1px solid var(--rc-line-soft)" : "none" }}>
+                            <span style={{ fontSize: 12, color: "var(--rc-text-2)", flex: 1, minWidth: 0 }}>{fieldName(r.key)}</span>
+                            {r.kind === "axle" ? (
+                              <span style={{ display: "inline-flex", gap: 12, flex: "0 0 auto" }}>
+                                <span style={{ display: "inline-flex", alignItems: "baseline", gap: 5 }}><span style={{ fontSize: 9.5, color: "var(--rc-text-3)", textTransform: "uppercase" }}>{t("Ön")}</span><b style={{ fontFamily: "var(--rc-font-display)", fontSize: 14 }}>{r.front}</b></span>
+                                <span style={{ display: "inline-flex", alignItems: "baseline", gap: 5 }}><span style={{ fontSize: 9.5, color: "var(--rc-text-3)", textTransform: "uppercase" }}>{t("Arka")}</span><b style={{ fontFamily: "var(--rc-font-display)", fontSize: 14 }}>{r.rear}</b></span>
+                              </span>
+                            ) : (
+                              <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 14, flex: "0 0 auto" }}>{r.value}</b>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
                 </div>
-              ) : (
-                <div style={{ color: "var(--rc-text-3)", fontSize: 12.5 }}>{t("Eşleşen alan yok.")}</div>
-              )}
+              </div>
             </>
           )}
+        </div>
+
+        {/* alt: alan sayısı + karşılaştırmaya ekle / indir */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 20px", borderTop: "1px solid var(--rc-border)", background: "var(--rc-surface-2)" }}>
+          <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{totalFields} {t("alan")} · {t("LMU .svm dosyasından okundu")}</span>
+          <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+            {onAddCompare && (
+              <button onClick={() => onAddCompare(su)} style={{ padding: "8px 15px", borderRadius: 9, cursor: "pointer", fontSize: 12.5,
+                border: `1px solid ${inCompare ? "var(--rc-brand-bright)" : "var(--rc-border)"}`, background: inCompare ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)", color: inCompare ? "var(--rc-text)" : "var(--rc-text-2)" }}>⚖ {t("Karşılaştırmaya ekle")}</button>
+            )}
+            {onDownload && (
+              <button onClick={() => onDownload(su)} style={{ padding: "8px 18px", borderRadius: 9, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontSize: 12.5, fontWeight: 600 }}>⬇ {t("İndir")}</button>
+            )}
+          </span>
         </div>
       </div>
     </div>
@@ -1512,83 +1550,123 @@ export function SetupCompareModal({ open, a, b, onClose, t }) {
   const both = pa.ok && pb.ok;
   const rows = both ? diffSetups(pa, pb) : [];
   const diffCount = rows.filter((r) => r.differ).length;
+  const sameCount = rows.length - diffCount;
   const shown = onlyDiff ? rows.filter((r) => r.differ) : rows;
-  /* bölüm sırasını koruyarak grupla */
+  /* KATEGORİYE göre grupla (fişteki bölümler: Aero/Lastik/Süspansiyon…) */
   const groups = [];
   const gIdx = {};
   for (const r of shown) {
-    if (!(r.section in gIdx)) { gIdx[r.section] = groups.length; groups.push({ sec: r.section, list: [] }); }
-    groups[gIdx[r.section]].list.push(r);
+    const c = r.cat || "other";
+    if (!(c in gIdx)) { gIdx[c] = groups.length; groups.push({ cat: c, list: [] }); }
+    groups[gIdx[c]].list.push(r);
   }
   const mismatch = a.track !== b.track || a.cls !== b.cls;
-  const side = (su, right) => (
-    <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, textAlign: right ? "right" : "left" }}>
-      <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 12, wordBreak: "break-all" }}>{su.name}</b>
-      <span style={{ fontSize: 10.5, color: "var(--rc-text-3)" }}>
-        {[carName(su.cls, su.car) || su.car, trackName(su.track) || su.track, su.uname].filter(Boolean).join(" · ")}</span>
-    </span>
+  const A_COL = "#ff5470", B_COL = "#4d9fff";
+  const num = (s) => { const m = String(s ?? "").match(/-?\d+(?:\.\d+)?/); return m ? parseFloat(m[0]) : null; };
+  const deltaOf = (r) => {
+    if (!r.differ) return "";
+    const na = num(r.a), nb = num(r.b);
+    if (na == null || nb == null) return "";
+    const d = nb - na; if (Math.abs(d) < 1e-9) return "";
+    const s = d.toFixed(2).replace(/\.?0+$/, "");
+    return d > 0 ? `+${s}` : s;
+  };
+  const lapSec = (s) => { const m = String(s || "").match(/(\d+):(\d+(?:\.\d+)?)/); if (m) return +m[1] * 60 + +m[2]; const f = parseFloat(s); return Number.isFinite(f) ? f : NaN; };
+  const la = lapSec(a.lap), lb = lapSec(b.lap);
+  const lapD = (Number.isFinite(la) && Number.isFinite(lb)) ? lb - la : null;
+  const dateOf = (su) => (su.at ? new Date(su.at).toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit" }) : "");
+  const copyDiffs = () => {
+    const txt = rows.filter((r) => r.differ).map((r) => `${t(SVM_FIELDS[r.key] || r.key)}: ${r.a} → ${r.b}`).join("\n");
+    try { navigator.clipboard?.writeText(txt); } catch { /* yoksay */ }
+  };
+  const sideCard = (su, letter, dot, lapColor, delta) => (
+    <div style={{ flex: 1, minWidth: 0, padding: "12px 18px", background: letter === "A" ? "rgba(255,84,112,.07)" : "rgba(77,159,255,.07)", borderRight: letter === "A" ? "1px solid var(--rc-line-soft)" : "none" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+        <i style={{ width: 10, height: 10, borderRadius: 3, background: dot, flex: "0 0 auto" }} />
+        <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 15, fontWeight: 700 }}>{letter}</b>
+        <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 12.5, color: "var(--rc-text-2)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{su.name}</span>
+      </div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 9, flexWrap: "wrap" }}>
+        <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 24, fontWeight: 700, color: lapColor }}>{su.lap || "—"}</span>
+        {delta != null && <span style={{ fontSize: 11, color: delta > 0 ? "var(--rc-danger)" : "var(--rc-ok)" }}>{delta > 0 ? "+" : ""}{delta.toFixed(2)}</span>}
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, color: "var(--rc-text-3)" }}>{su.uname ? `${su.uname} · ` : ""}<CondSess su={su} t={t} />{dateOf(su) ? ` · ${dateOf(su)}` : ""}</span>
+      </div>
+    </div>
   );
   return (
     <div onClick={onClose} role="dialog" aria-modal="true"
-      style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(10,6,10,.74)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
+      style={{ position: "fixed", inset: 0, zIndex: 1010, background: "rgba(10,6,10,.8)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
       <div onClick={(e) => e.stopPropagation()}
-        style={{ width: "min(760px,96vw)", maxHeight: "88vh", display: "flex", flexDirection: "column", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "15px 20px", borderBottom: "1px solid var(--rc-border)" }}>
-          <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".07em", fontSize: 18, fontWeight: 700, marginRight: "auto" }}>⚖ {t("Setup Karşılaştır")}</span>
-          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 15, lineHeight: 1 }}>✕</button>
+        style={{ width: "min(940px,96vw)", maxHeight: "92vh", display: "flex", flexDirection: "column", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .22s cubic-bezier(.2,.9,.3,1.05)" }}>
+        {/* başlık */}
+        <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "15px 20px", borderBottom: "1px solid var(--rc-border)" }}>
+          <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".07em", fontSize: 18, fontWeight: 700 }}>⚖ {t("Setup Karşılaştır")}</span>
+          {both && <span style={{ fontSize: 12, color: "var(--rc-warn)" }}><b>{diffCount}</b> {t("alan farklı")} · {sameCount} {t("alan aynı")}</span>}
+          <button onClick={onClose} style={{ marginLeft: "auto", width: 31, height: 31, borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 14, lineHeight: 1 }}>✕</button>
         </div>
-        <div style={{ overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
-          {/* başlık: iki taraf + tur zamanları */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 14px", borderRadius: 12, border: "1px solid var(--rc-border)", background: "var(--rc-surface-2)" }}>
-            {side(a)}
-            <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 12, color: "var(--rc-text-3)", flex: "0 0 auto", textAlign: "center" }}>{(a.lap || b.lap) ? <>{a.lap || "—"} ↔ {b.lap || "—"}</> : "↔"}</span>
-            {side(b, true)}
+
+        {/* A / B başlık kartları */}
+        <div style={{ display: "flex", alignItems: "stretch", borderBottom: "1px solid var(--rc-line-soft)" }}>
+          {sideCard(a, "A", A_COL, (lapD == null || lapD >= 0) ? "var(--rc-ok)" : "var(--rc-text)", null)}
+          {sideCard(b, "B", B_COL, (lapD != null && lapD < 0) ? "var(--rc-ok)" : "var(--rc-text)", lapD)}
+        </div>
+        {mismatch && <div style={{ fontSize: 11.5, color: "var(--rc-warn)", padding: "8px 20px", borderBottom: "1px solid var(--rc-line-soft)" }}>⚠ {t("Farklı pist ya da sınıf — kıyası dikkatli oku.")}</div>}
+
+        {/* araç çubuğu: yalnız farklar + lejant */}
+        {both && (
+          <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "11px 20px", borderBottom: "1px solid var(--rc-line-soft)", flexWrap: "wrap" }}>
+            <button onClick={() => setOnlyDiff((v) => !v)} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 13px", borderRadius: 99, cursor: "pointer", fontSize: 12,
+              border: `1px solid ${onlyDiff ? "var(--rc-warn)" : "var(--rc-border)"}`, background: onlyDiff ? "rgba(245,178,61,.14)" : "var(--rc-surface-3)", color: onlyDiff ? "var(--rc-warn)" : "var(--rc-text-2)" }}>◈ {t("Yalnız farklar")}</button>
+            <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{t("Aynı olan alanlar")} {onlyDiff ? t("gizli") : t("gösteriliyor")}</span>
+            <span style={{ marginLeft: "auto", display: "flex", gap: 12, fontSize: 10.5, color: "var(--rc-text-3)" }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><i style={{ width: 9, height: 9, borderRadius: 2, background: "var(--rc-warn)", display: "inline-block" }} />{t("farklı")}</span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><i style={{ width: 9, height: 9, borderRadius: 2, background: "var(--rc-border)", display: "inline-block" }} />{t("aynı")}</span>
+            </span>
           </div>
-          {mismatch && (
-            <div style={{ fontSize: 11.5, color: "var(--rc-warn)" }}>⚠ {t("Farklı pist ya da sınıf — kıyası dikkatli oku.")}</div>
-          )}
+        )}
+
+        <div style={{ overflowY: "auto" }}>
           {loading ? (
-            <div style={{ color: "var(--rc-text-3)", fontSize: 12.5 }}>⏳ {t("Dosya yükleniyor…")}</div>
+            <div style={{ padding: "18px 20px", color: "var(--rc-text-3)", fontSize: 12.5 }}>⏳ {t("Dosya yükleniyor…")}</div>
           ) : !both ? (
-            <div style={{ color: "var(--rc-warn)", fontSize: 12.5 }}>⚠ {t("İçerik okunamadı — bu bir LMU setup dosyası değil ya da bozuk.")}</div>
+            <div style={{ padding: "18px 20px", color: "var(--rc-warn)", fontSize: 12.5 }}>⚠ {t("İçerik okunamadı — bu bir LMU setup dosyası değil ya da bozuk.")}</div>
+          ) : !shown.length ? (
+            <div style={{ padding: "18px 20px", color: "var(--rc-text-3)", fontSize: 12.5 }}>{diffCount === 0 ? t("İki setup'ın tüm anlamlı değerleri aynı.") : t("Gösterilecek satır yok.")}</div>
           ) : (
-            <>
-              {[pa, pb].map((p, i) => {
-                const sum = setupSummary(p);
-                if (!sum.length) return null;
-                return (
-                  <div key={i} style={{ display: "flex", flexWrap: "wrap", gap: 7, alignItems: "center" }}>
-                    <span style={{ width: 20, height: 20, borderRadius: 6, flex: "0 0 auto", display: "grid", placeItems: "center", fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 11, border: "1px solid var(--rc-border-strong)", color: "var(--rc-text-2)" }}>{i ? "B" : "A"}</span>
-                    {sum.map((s) => (
-                      <span key={s.label} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 99, border: "1px solid var(--rc-border)", background: "var(--rc-surface-2)", fontSize: 11 }}>
-                        <b style={{ fontFamily: "var(--rc-font-display)", color: "var(--rc-brand-bright)" }}>{t(s.label)}</b>
-                        <span style={{ fontFamily: "var(--rc-font-display)" }}>{s.value}</span></span>
-                    ))}
+            groups.map(({ cat, list }) => {
+              const acc = CAT_ACC[cat] || "#A88C93";
+              const dn = list.filter((r) => r.differ).length;
+              return (
+                <div key={cat}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 20px", background: `${acc}14`, borderBottom: `1px solid ${acc}33`, fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".06em", fontSize: 13, fontWeight: 700, color: acc }}>
+                    <span>{CAT_META[cat]?.icon || "•"} {t(CAT_META[cat]?.tr || cat)}</span>
+                    {dn > 0 && <span style={{ marginLeft: "auto", fontSize: 10, padding: "2px 9px", borderRadius: 99, border: "1px solid var(--rc-warn)", color: "var(--rc-warn)" }}>{dn} {t("fark")}</span>}
                   </div>
-                );
-              })}
-              <label style={{ display: "flex", alignItems: "center", gap: 7, cursor: "pointer", fontSize: 12, color: "var(--rc-text-2)" }}>
-                <input type="checkbox" checked={onlyDiff} onChange={(e) => setOnlyDiff(e.target.checked)} style={{ width: "auto", margin: 0, accentColor: "var(--rc-brand)" }} />
-                {t("Yalnız farkları göster")} ({diffCount})
-              </label>
-              {!shown.length && (
-                <div style={{ color: "var(--rc-text-3)", fontSize: 12.5 }}>
-                  {diffCount === 0 ? t("İki setup'ın tüm anlamlı değerleri aynı.") : t("Gösterilecek satır yok.")}</div>
-              )}
-              {groups.map(({ sec, list }) => (
-                <section key={sec} style={{ border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface-2)", overflow: "hidden" }}>
-                  <div style={{ padding: "8px 13px", borderBottom: "1px solid var(--rc-line-soft)", fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".06em", fontSize: 12, fontWeight: 700, color: "var(--rc-text-2)" }}>{t(SVM_SECTIONS[sec] || sec)}</div>
-                  {list.map((r, i) => (
-                    <div key={`${r.section}/${r.key}`} style={{ display: "grid", gridTemplateColumns: "1fr auto auto", alignItems: "center", gap: 12, padding: "7px 13px", borderTop: i > 0 ? "1px solid var(--rc-line-soft)" : "none", background: r.differ ? "rgba(245,178,61,.08)" : "transparent" }}>
-                      <span style={{ fontSize: 12, color: "var(--rc-text-2)", minWidth: 0 }}>{t(SVM_FIELDS[r.key] || r.key)}</span>
-                      <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 13, textAlign: "right", minWidth: 64, color: r.differ ? "var(--rc-warn)" : "var(--rc-text)" }}>{r.a}</span>
-                      <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 13, textAlign: "right", minWidth: 64, color: r.differ ? "var(--rc-brand-bright)" : "var(--rc-text)" }}>{r.b}</span>
-                    </div>
-                  ))}
-                </section>
-              ))}
-            </>
+                  {list.map((r) => {
+                    const d = deltaOf(r);
+                    return (
+                      <div key={`${r.section}/${r.key}`} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 20px", borderBottom: "1px solid var(--rc-line-soft)", borderLeft: `3px solid ${r.differ ? "var(--rc-warn)" : "transparent"}`, background: r.differ ? "rgba(245,178,61,.05)" : "transparent" }}>
+                        <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: "var(--rc-text-2)" }}>{t(SVM_FIELDS[r.key] || r.key)}</span>
+                        <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 14, textAlign: "right", minWidth: 60, color: r.differ ? A_COL : "var(--rc-text-3)" }}>{r.a}</b>
+                        <span style={{ color: "var(--rc-border-strong)", fontSize: 12, flex: "0 0 auto" }}>→</span>
+                        <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 14, textAlign: "left", minWidth: 60, color: r.differ ? "var(--rc-text)" : "var(--rc-text-3)" }}>{r.b}</b>
+                        <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 12, textAlign: "right", minWidth: 48, color: A_COL }}>{d}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })
           )}
+        </div>
+
+        {/* alt: fark yönü + kopyala + kapat */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 20px", borderTop: "1px solid var(--rc-border)", background: "var(--rc-surface-2)" }}>
+          <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{t("Fark yönü")} A → B</span>
+          <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+            <button onClick={copyDiffs} style={{ padding: "8px 15px", borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12.5 }}>📋 {t("Farkları kopyala")}</button>
+            <button onClick={onClose} style={{ padding: "8px 18px", borderRadius: 9, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontSize: 12.5, fontWeight: 600 }}>{t("Kapat")}</button>
+          </span>
         </div>
       </div>
     </div>

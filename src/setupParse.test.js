@@ -168,7 +168,7 @@ describe("diffSetups", () => {
 
   it("farklı değer differ=true, insan etiketleri a/b'de", () => {
     expect(row("REARWING", "RWSetting")).toEqual({
-      section: "REARWING", key: "RWSetting", a: "8.3 deg", b: "6.9 deg", differ: true });
+      section: "REARWING", key: "RWSetting", cat: "aero", a: "8.3 deg", b: "6.9 deg", differ: true });
     expect(row("FRONTLEFT", "PressureSetting").differ).toBe(true);
     expect(row("FRONTLEFT", "PressureSetting").b).toBe("145 kPa");
   });

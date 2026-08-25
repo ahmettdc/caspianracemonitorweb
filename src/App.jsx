@@ -1013,7 +1013,8 @@ ${bottomBar}
   );
 
   const setupContentModal = (
-    <SetupContentModal open={!!viewSu} su={viewSu} onClose={() => setViewSu(null)} t={t} />
+    <SetupContentModal open={!!viewSu} su={viewSu} onClose={() => setViewSu(null)} t={t}
+      onDownload={downloadSetup} onAddCompare={cmpToggle} inCompare={!!viewSu && cmpSel.includes(viewSu.id)} />
   );
 
   const chatModal = (

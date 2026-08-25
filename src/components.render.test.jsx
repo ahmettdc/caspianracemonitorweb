@@ -244,11 +244,11 @@ describe("SetupCompareModal", () => {
 
   it("farklı değer vurgulu + tur zamanları başlıkta", () => {
     const html = render(<SetupCompareModal open a={a} b={b} onClose={noop} t={t} />);
-    expect(html).toContain("rgba(245,178,61,.08)");   // farklı satır vurgu arka planı
+    expect(html).toContain("#ff5470");                 // A-tarafı fark rengi
     expect(html).toContain("8.3 deg");
     expect(html).toContain("6.9 deg");
-    expect(html).toContain("1:58.2");
-    expect(html).toContain("↔");
+    expect(html).toContain("1:58.2");                  // A tur zamanı başlık kartında
+    expect(html).toContain("alan farklı");             // fark sayacı
     /* aynı değerler varsayılan "yalnız farklar" görünümünde gizli */
     expect(html).not.toContain("540 deg");
   });
