@@ -204,8 +204,8 @@ export default function DriversTab({
                   <select value={cur} onChange={(e) => assignDriver(i, e.target.value)}
                     style={{ width: 168, padding: "7px 10px", borderRadius: 9, cursor: "pointer", fontSize: 12.5, background: "var(--rc-surface-3)", border: `1px solid ${cur ? col + "66" : "var(--rc-border)"}`, color: cur ? "var(--rc-text)" : "var(--rc-text-3)" }}>
                     <option value="">{t("— pilot seç —")}</option>
-                    {st.roster.length > 0 && <optgroup label={t("Kadro")}>{st.roster.map((n) => <option key={n} value={n}>{n}</option>)}</optgroup>}
-                    {poolExtra.length > 0 && <optgroup label={teamData?.meta?.name || t("Takım")}>{poolExtra.map((n) => <option key={n} value={n}>{n}</option>)}</optgroup>}
+                    {st.roster.length > 0 && <optgroup label={t("Kadro")}>{st.roster.map((n) => { const un = isUnavail(n, r.idx); return <option key={n} value={n} disabled={un}>{n}{un ? ` — ${t("uygun değil")}` : ""}</option>; })}</optgroup>}
+                    {poolExtra.length > 0 && <optgroup label={teamData?.meta?.name || t("Takım")}>{poolExtra.map((n) => { const un = isUnavail(n, r.idx); return <option key={n} value={n} disabled={un}>{n}{un ? ` — ${t("uygun değil")}` : ""}</option>; })}</optgroup>}
                   </select>
                 </span>
               </div>
