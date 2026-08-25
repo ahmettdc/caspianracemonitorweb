@@ -596,117 +596,136 @@ export function ImgSelect({ value, options, onChange, placeholder, disabled, t }
 
 export function SetupForm({
   t, onSetupFile, onSetupDrop, suFile, suMeta, setSuMeta, seasons, suErr, suMsg, suBusy,
-  saveSetup,
+  saveSetup, onCancel,
 }) {
   const [dragOn, setDragOn] = useState(false);   // sürükleme vurgusu
+  const set = (patch) => setSuMeta({ ...suMeta, ...patch });
+  const lbl = { display: "block", color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 6 };
+  const inp = { width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", borderRadius: 9, color: "var(--rc-text)", padding: "9px 11px", fontSize: 12.5, textTransform: "none" };
+  const sel = { ...inp, cursor: "pointer" };
+  const tog = (on) => ({ flex: 1, padding: "9px 8px", borderRadius: 9, cursor: "pointer", fontSize: 12.5, whiteSpace: "nowrap", border: `1px solid ${on ? "var(--rc-brand-bright)" : "var(--rc-border)"}`, background: on ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)", color: on ? "var(--rc-text)" : "var(--rc-text-2)" });
+  const trackChip = (on) => ({ display: "inline-flex", alignItems: "center", gap: 8, padding: "9px 11px", borderRadius: 9, cursor: "pointer", overflow: "hidden",
+    border: `1px solid ${on ? "var(--rc-brand-bright)" : "var(--rc-border)"}`, background: on ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)", color: on ? "var(--rc-text)" : "var(--rc-text-2)" });
+  const canSave = !!suFile && !!suMeta.track && !suBusy;
   return (
-    <div className="suform">
-      <div className="suform-2">
-        <div>
-          <label>{t("Dosya")}</label>
-          {/* sürükle-bırak bölgesi — dosya seçici de içinde; .svm bırakılınca
-              sınıf/araç dosyadan kendiliğinden algılanır (setupAutofill) */}
-          <div className={`sudrop${dragOn ? " on" : ""}`}
-            onDragOver={(e) => e.preventDefault()}
-            onDragEnter={() => setDragOn(true)}
-            onDragLeave={() => setDragOn(false)}
-            onDrop={(e) => { setDragOn(false); onSetupDrop?.(e); }}>
-            <input type="file" onChange={onSetupFile} />
-            <div className="hint" style={{ margin: 0 }}>
-              {t("ya da .svm dosyasını buraya sürükle")}</div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {/* sürükle-bırak + önizleme kartı */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 14, alignItems: "stretch" }}>
+        <div onDragOver={(e) => e.preventDefault()} onDragEnter={() => setDragOn(true)} onDragLeave={() => setDragOn(false)}
+          onDrop={(e) => { setDragOn(false); onSetupDrop?.(e); }}
+          style={{ flex: "1 1 300px", minWidth: 0, border: `1.5px dashed ${dragOn ? "var(--rc-brand-bright)" : "var(--rc-border-strong)"}`, borderRadius: 12, background: dragOn ? "rgba(150,0,24,.10)" : "var(--rc-surface-2)", padding: 16, display: "flex", flexDirection: "column", justifyContent: "center", textAlign: "center" }}>
+          <div style={{ fontSize: 22, marginBottom: 5 }}>⬇</div>
+          <div style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 15 }}>{t(".svm dosyasını sürükle")}</div>
+          <div style={{ color: "var(--rc-text-3)", fontSize: 11, marginTop: 4, lineHeight: 1.6 }}>{t("Sınıf ve araç dosyanın içinden otomatik algılanır — elle seçtiklerin ezilmez")}</div>
+          <label style={{ marginTop: 10, alignSelf: "center", padding: "7px 15px", borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer", fontSize: 12.5 }}>
+            📁 {t("Dosya seç")}<input type="file" style={{ display: "none" }} onChange={onSetupFile} /></label>
+          {suFile && <div style={{ marginTop: 10, fontSize: 11.5, color: "var(--rc-text-2)" }}>📄 {suFile.name} · {(suFile.size / 1024).toFixed(1)} KB</div>}
+        </div>
+        <div style={{ flex: "0 1 250px", minWidth: 210, border: "1px solid var(--rc-border-strong)", borderRadius: 12, background: "radial-gradient(120% 160% at 100% 0,rgba(150,0,24,.22),var(--rc-surface-2) 62%)", padding: 14, textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+          {suMeta.track && <img key={suMeta.track} src={`${ASSET}tracks/${TRACK_ASSET(suMeta.track)}.png`} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ display: "block", width: "100%", maxWidth: 180, height: 78, objectFit: "contain", margin: "0 auto 8px" }} />}
+          {suMeta.car && <img src={carImg(suMeta.cls, suMeta.car)} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ display: "block", width: "100%", maxWidth: 170, height: 52, objectFit: "contain", margin: "0 auto 8px" }} />}
+          <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 15 }}>
+            {suMeta.track && <img src={`${ASSET}flags/${TRACK_ASSET(suMeta.track)}.png`} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ width: 20, borderRadius: 2 }} />}
+            {trackName(suMeta.track) || t("Pist seç")}</div>
+          <div style={{ fontSize: 11, color: "var(--rc-text-3)", marginTop: 2 }}>{suMeta.car ? `${carName(suMeta.cls, suMeta.car)}${suMeta.cls ? ` · ${(classOptions().find((o) => o.value === suMeta.cls) || {}).label || suMeta.cls}` : ""}` : "—"}</div>
+        </div>
+      </div>
+
+      {/* PIST çipleri */}
+      <div>
+        <label style={lbl}>{t("Pist")} *</label>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(148px,1fr))", gap: 8, maxHeight: 168, overflowY: "auto" }}>
+          {trackOptions().map((o) => (
+            <button key={o.value} onClick={() => set({ track: o.value })} style={trackChip(suMeta.track === o.value)}>
+              <img src={o.icon} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ width: 20, borderRadius: 2, flex: "0 0 auto" }} />
+              <span style={{ fontSize: 12.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{o.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* koşul · seans · sınıf · araç */}
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ flex: "1 1 150px", minWidth: 0 }}>
+          <label style={lbl}>{t("Koşul")}</label>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button onClick={() => set({ cond: "dry" })} style={tog(suMeta.cond === "dry")}>☀️ {t("Kuru")}</button>
+            <button onClick={() => set({ cond: "wet" })} style={tog(suMeta.cond === "wet")}>🌧 Wet</button>
           </div>
-          {suFile && <div className="hint">
-            📄 {suFile.name} · {(suFile.size / 1024).toFixed(1)} KB</div>}
         </div>
-        <div>
-          <label>{t("Pist")} *</label>
-          <ImgSelect t={t} value={suMeta.track} options={trackOptions()}
-            placeholder="—" onChange={(v) => setSuMeta({ ...suMeta, track: v })} />
+        <div style={{ flex: "1 1 150px", minWidth: 0 }}>
+          <label style={lbl}>{t("Seans")}</label>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button onClick={() => set({ sess: "R" })} style={tog(suMeta.sess === "R")}>{t("Yarış")}</button>
+            <button onClick={() => set({ sess: "Q" })} style={tog(suMeta.sess === "Q")}>{t("Sıralama")}</button>
+          </div>
         </div>
-      </div>
-      {/* Pist seçilince pist görseli (kullanıcı: "pistte görüntü yok") — pick-ekranı deseni */}
-      {suMeta.track && (
-        <img key={suMeta.track} src={`${ASSET}tracks/${TRACK_ASSET(suMeta.track)}.png`} alt=""
-          style={{ display: "block", margin: "8px 0 4px", maxWidth: "100%", maxHeight: 130,
-            borderRadius: 8, filter: "drop-shadow(0 3px 10px rgba(0,0,0,.45))" }}
-          onError={(e) => { e.currentTarget.style.display = "none"; }} />
-      )}
-      <div className="suform-4">
-        <div>
-          <label>{t("Koşul")}</label>
-          <select value={suMeta.cond}
-            onChange={(e) => setSuMeta({ ...suMeta, cond: e.target.value })}>
-            <option value="dry">☀️ {t("Kuru")}</option>
-            <option value="wet">🌧 Wet</option>
+        <div style={{ flex: "1 1 140px", minWidth: 0 }}>
+          <label style={lbl}>{t("Sınıf")}</label>
+          <select value={suMeta.cls} onChange={(e) => set({ cls: e.target.value, car: "" })} style={sel}>
+            <option value="">—</option>
+            {classOptions().map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>
-        <div>
-          <label>{t("Seans")}</label>
-          <select value={suMeta.sess}
-            onChange={(e) => setSuMeta({ ...suMeta, sess: e.target.value })}>
-            <option value="R">{t("Yarış")}</option>
-            <option value="Q">{t("Sıralama")}</option>
+        <div style={{ flex: "1 1 190px", minWidth: 0 }}>
+          <label style={lbl}>{t("Araç")}</label>
+          <select value={suMeta.car} disabled={!suMeta.cls} onChange={(e) => set({ car: e.target.value })} style={{ ...sel, opacity: suMeta.cls ? 1 : .5 }}>
+            <option value="">—</option>
+            {carOptions(suMeta.cls).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>
-        <div>
-          <label>{t("Sınıf")}</label>
-          <ImgSelect t={t} value={suMeta.cls} options={classOptions()}
-            placeholder="—" onChange={(v) => setSuMeta({ ...suMeta, cls: v, car: "" })} />
-        </div>
-        <div>
-          <label>{t("Araç")}</label>
-          <ImgSelect t={t} value={suMeta.car} options={carOptions(suMeta.cls)}
-            placeholder="—" disabled={!suMeta.cls}
-            onChange={(v) => setSuMeta({ ...suMeta, car: v })} />
-        </div>
       </div>
-      <div className="suform-4">
-        <div>
-          <label>{t("Şampiyona")}</label>
-          {/* maxLength kaydetmedeki kırpma sözleşmesiyle eşit (setupPool.SETUP_LIMITS)
-              — eskiden sınır yoktu, uzun metin kayıtta sessizce kısalıyordu. */}
-          <input type="text" list="su-champs" value={suMeta.champ}
-            maxLength={SETUP_LIMITS.champ}
-            placeholder={t("örn. ELMS / Official / Online")}
-            style={{ textTransform: "none" }}
-            onChange={(e) => setSuMeta({ ...suMeta, champ: e.target.value })} />
+
+      {/* şampiyona · lmu · tur · pilot */}
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ flex: "1 1 170px", minWidth: 0 }}>
+          <label style={lbl}>{t("Şampiyona")}</label>
+          <input type="text" list="su-champs" value={suMeta.champ} maxLength={SETUP_LIMITS.champ} placeholder={t("örn. ELMS / Official / Online")} style={inp} onChange={(e) => set({ champ: e.target.value })} />
           <datalist id="su-champs">
-            {Object.values(seasons).map((se) =>
-              <option key={se.name} value={se.name} />)}
+            {Object.values(seasons || {}).map((se) => <option key={se.name} value={se.name} />)}
             <option value="Official" /><option value="Online" />
           </datalist>
         </div>
-        <div>
-          <label>{t("LMU Sürümü")}</label>
-          <input type="text" value={suMeta.ver} placeholder="V1.2"
-            maxLength={SETUP_LIMITS.ver}
-            style={{ textTransform: "none" }}
-            onChange={(e) => setSuMeta({ ...suMeta, ver: e.target.value })} />
+        <div style={{ flex: "0 1 120px", minWidth: 100 }}>
+          <label style={lbl}>{t("LMU Sürümü")}</label>
+          <input type="text" value={suMeta.ver} placeholder="V1.2" maxLength={SETUP_LIMITS.ver} style={{ ...inp, fontFamily: "var(--rc-font-display)", fontSize: 14 }} onChange={(e) => set({ ver: e.target.value })} />
         </div>
-        <div>
-          {/* opsiyonel best-lap — havuzda hangi setup hızlı bir bakışta görünsün */}
-          <label>{t("Tur Zamanı")}</label>
-          <input type="text" value={suMeta.lap} placeholder="1:58.234"
-            maxLength={SETUP_LIMITS.lap} inputMode="decimal"
-            style={{ textTransform: "none" }}
-            onChange={(e) => setSuMeta({ ...suMeta, lap: e.target.value })} />
+        <div style={{ flex: "0 1 140px", minWidth: 120 }}>
+          <label style={lbl}>{t("Tur Zamanı")}</label>
+          <input type="text" value={suMeta.lap} placeholder="1:58.234" maxLength={SETUP_LIMITS.lap} inputMode="decimal" style={{ ...inp, border: "1px solid var(--rc-border-strong)", fontFamily: "var(--rc-font-display)", fontSize: 16, fontWeight: 700 }} onChange={(e) => set({ lap: e.target.value })} />
         </div>
-        <div style={{ gridColumn: "span 2" }}>
-          <label>{t("Not")}</label>
-          <input type="text" value={suMeta.note} maxLength={SETUP_LIMITS.note}
-            placeholder={t("örn. düşük kanat, uzun stint dengesi")}
-            style={{ textTransform: "none" }}
-            onChange={(e) => setSuMeta({ ...suMeta, note: e.target.value })} />
+        <div style={{ flex: "1 1 180px", minWidth: 150 }}>
+          <label style={lbl}>{t("Pilot")}</label>
+          <input type="text" value={suMeta.pilot || ""} placeholder={t("turu atan pilot")} maxLength={40} style={inp} onChange={(e) => set({ pilot: e.target.value })} />
         </div>
       </div>
-      {suErr && <div className="hint warn">⚠ {suErr}</div>}
-      {suMsg && <div className="hint" style={{ color: "var(--green)" }}>{suMsg}</div>}
-      <button className="gbtn ubtn" disabled={!suFile || !suMeta.track || suBusy}
-        style={{ opacity: suFile && suMeta.track && !suBusy ? 1 : .45, marginTop: 6 }}
-        onClick={saveSetup}>
-        {suBusy ? t("Yükleniyor…") : t("Yükle")}</button>
-      <div className="hint" style={{ marginTop: 6 }}>
-        {t("Yüklenen setup tüm takımlara açık ortak havuza gider. Tarih otomatik kaydedilir.")}</div>
+
+      {/* not */}
+      <div>
+        <label style={lbl}>{t("Not")}</label>
+        <input type="text" value={suMeta.note} maxLength={SETUP_LIMITS.note} placeholder={t("örn. düşük kanat, uzun stint dengesi")} style={inp} onChange={(e) => set({ note: e.target.value })} />
+      </div>
+
+      {/* dosyadan algılandı bildirimi */}
+      {suFile && suMeta.cls && suMeta.car && (
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 9, padding: "11px 14px", borderRadius: 11, border: "1px solid rgba(55,214,122,.35)", background: "rgba(55,214,122,.08)", fontSize: 12, color: "var(--rc-ok)", lineHeight: 1.6 }}>
+          <span style={{ flex: "0 0 auto", fontSize: 14 }}>✨</span>
+          <span>{t("Dosyadan algılandı")}: <b>{[(classOptions().find((o) => o.value === suMeta.cls) || {}).label || suMeta.cls, carName(suMeta.cls, suMeta.car)].filter(Boolean).join(" · ")}</b> — {t("elle seçtiğin alanlara dokunulmadı.")}</span>
+        </div>
+      )}
+      {suErr && <div style={{ fontSize: 12, color: "var(--rc-warn)" }}>⚠ {suErr}</div>}
+      {suMsg && <div style={{ fontSize: 12, color: "var(--rc-ok)" }}>{suMsg}</div>}
+
+      {/* alt: hint + Vazgeç + Havuza yükle */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, paddingTop: 10, borderTop: "1px solid var(--rc-border)", flexWrap: "wrap" }}>
+        <span style={{ fontSize: 11, color: "var(--rc-text-3)", lineHeight: 1.5 }}>{t("Yüklenen setup ortak havuza gider · tarih otomatik")}</span>
+        <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+          {onCancel && <button onClick={onCancel} style={{ padding: "9px 16px", borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12.5 }}>{t("Vazgeç")}</button>}
+          <button onClick={saveSetup} disabled={!canSave}
+            style={{ padding: "9px 18px", borderRadius: 9, border: `1px solid ${canSave ? "var(--rc-brand-bright)" : "var(--rc-border)"}`, background: canSave ? "var(--rc-brand)" : "var(--rc-surface-3)", color: canSave ? "var(--rc-on-brand)" : "var(--rc-text-3)", cursor: canSave ? "pointer" : "not-allowed", fontSize: 12.5, fontWeight: 600, opacity: suBusy ? .6 : 1 }}>
+            {suBusy ? t("Yükleniyor…") : t("Havuza yükle")}</button>
+        </span>
+      </div>
     </div>
   );
 }

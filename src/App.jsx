@@ -957,11 +957,11 @@ ${bottomBar}
   /* Ortak setup yükleme formu — pit wall sekmesi ve lobi penceresi. */
   /* setupForm/setupTable artik <SetupForm>/<SetupTable> (./components) —
      ince sarmalayicilar dogru prop'lari iletir; lobi ve Setup sekmesi ayni. */
-  const setupForm = () => (
+  const setupForm = (onCancel) => (
     <SetupForm t={t} onSetupFile={onSetupFile} onSetupDrop={onSetupDrop}
       suFile={suFile} suMeta={suMeta}
       setSuMeta={setSuMeta} seasons={seasons} suErr={suErr} suMsg={suMsg} suBusy={suBusy}
-      saveSetup={saveSetup} />
+      saveSetup={saveSetup} onCancel={onCancel} />
   );
 
   /* Silme hatası eskiden yutuluyordu (.catch(()=>{})) → kural reddi/ağ hatasında
@@ -3544,7 +3544,7 @@ ${bottomBar}
                 <span style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <input type="text" value={suQuery} placeholder={t("Dosya, araç, not ara…")} onChange={(e) => setSuQuery(e.target.value)}
                     style={{ background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", borderRadius: 9, color: "var(--rc-text)", fontSize: 13, padding: "8px 12px", width: 220, textTransform: "none" }} />
-                  <button onClick={() => { const el = document.getElementById("su-upload"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }}
+                  <button onClick={() => setSuUpOpen(true)}
                     style={{ padding: "8px 14px", borderRadius: 9, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>⬆ {t("Setup yükle")}</button>
                 </span>
               </div>
@@ -3599,11 +3599,23 @@ ${bottomBar}
                 </div>
               )}
 
-              {/* Setup yükle */}
-              <div id="su-upload" style={{ ...suCard, padding: "16px 18px", marginTop: 8, scrollMarginTop: 12 }}>
-                <div style={{ ...suHd, marginBottom: 12 }}>⬆ {t("Setup yükle")}</div>
-                {setupForm()}
-              </div>
+              {/* Setup yükle — modal */}
+              {suUpOpen && (
+                <div onClick={() => setSuUpOpen(false)} role="dialog" aria-modal="true"
+                  style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(10,6,10,.78)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
+                  <div onClick={(e) => e.stopPropagation()}
+                    style={{ width: "min(760px,96vw)", maxHeight: "90vh", display: "flex", flexDirection: "column", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .22s cubic-bezier(.2,.9,.3,1.05)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "15px 20px", borderBottom: "1px solid var(--rc-border)" }}>
+                      <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".07em", fontSize: 18, fontWeight: 700 }}>{t("Setup yükle")}</span>
+                      <span style={{ fontSize: 12, color: "var(--rc-text-3)", marginRight: "auto" }}>{t(".svm dosyası · havuz tüm takımlara açık")}</span>
+                      <button onClick={() => setSuUpOpen(false)} style={{ width: 31, height: 31, borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 14, lineHeight: 1 }}>✕</button>
+                    </div>
+                    <div style={{ padding: "18px 20px", overflowY: "auto" }}>
+                      {setupForm(() => setSuUpOpen(false))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
             );
           })()}

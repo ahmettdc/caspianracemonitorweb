@@ -28,7 +28,7 @@ export function useSetups({ user, udoc, userName, teamData, t, active = true,
   const [setups, setSetups] = useState([]);
   const [suFile, setSuFile] = useState(null);       // { name, b64, size }
   const [suMeta, setSuMeta] = useState({ track: "", cls: "", car: "",
-    cond: "dry", sess: "R", champ: "", ver: "", note: "", lap: "" });
+    cond: "dry", sess: "R", champ: "", ver: "", note: "", lap: "", pilot: "" });
   const [suErr, setSuErr] = useState("");
   const [suMsg, setSuMsg] = useState("");          // başarı geri bildirimi ("✓ yüklendi")
   const [suBusy, setSuBusy] = useState(false);
@@ -146,6 +146,7 @@ export function useSetups({ user, udoc, userName, teamData, t, active = true,
         track: trimmed.track, cls: trimmed.cls, car: trimmed.car,
         cond: trimmed.cond, sess: trimmed.sess,
         champ: trimmed.champ, ver: trimmed.ver, note: trimmed.note, lap: trimmed.lap,
+        ...((suMeta.pilot || "").trim() ? { pilot: (suMeta.pilot || "").trim().slice(0, 40) } : {}),
         ...(hash ? { hash } : {}),
       }, suFile.b64);
       const nm = suFile.name;
