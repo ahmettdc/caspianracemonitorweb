@@ -52,7 +52,7 @@ import {
 import { buildTourSteps } from "./tourSteps";
 import { poolEmptyReason } from "./setupPool";
 import {
-  TourOverlay, Wheel, NumField, Bolt, Tyre, Ring, Icon, Btn, Avatar,
+  TourOverlay, Wheel, RoleIcon, NumField, Bolt, Tyre, Ring, Icon, Btn, Avatar,
   BADGES, teamBadgesOf, hasBadge, ChatPanel, SetupForm, SetupTable, SetupCards,
   VersionModal, RaceEditModal,
   ChatModal, SetupModal, TeamModal, TeamScreen, CreateJoinModal, DenyToast, SetupContentModal, SetupCompareModal,
@@ -2179,9 +2179,12 @@ ${bottomBar}
              lobiden yeniden kullanıldı. Genel kontroller (dil/hesap/çıkış/üyeler/info) buraya
              taşındı — yarış üst çubuğundan kaldırılanların v2.0'daki kalıcı evi. */
           const teamName = teamData?.meta?.name || (curTeam && myTeams[curTeam]) || "Caspian Motorsport";
-          const roleLabel = myRole === "owner" ? "👑 " + t("Sahip")
-            : myRole === "editor" ? "🎧 " + t("Mühendis")
-            : myRole === "viewer" ? "👁 " + t("İzleyici") : "🙋 " + t("Üye");
+          const roleLabel = (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+              {myRole === "owner" ? <><RoleIcon name="owner" size={11} /> {t("Sahip")}</>
+                : myRole === "editor" ? <><RoleIcon name="eng" size={11} /> {t("Mühendis")}</>
+                : myRole === "viewer" ? <>👁 {t("İzleyici")}</> : <>🙋 {t("Üye")}</>}
+            </span>);
           const acctInitials = (userName || user?.email || "?").trim().slice(0, 2).toUpperCase();
           const activeCount = activeF.length;
           const upCount = upF.length;
@@ -3063,12 +3066,18 @@ ${bottomBar}
                   <div style={{ border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface-2)", padding: 16 }}>
                     <div style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 13, fontWeight: 700, color: "var(--rc-brand-bright)", marginBottom: 12 }}>{t("Rozetler")}</div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 9 }}>
-                      {myBadges.map((b) => (
-                        <span key={b.lbl} title={t(b.lbl)} style={{ display: "inline-flex", alignItems: "center", gap: 9, padding: "9px 13px", borderRadius: 10, border: `1px solid ${b.col}`, background: "var(--rc-surface-3)" }}>
-                          <span style={{ fontSize: 17, lineHeight: 1 }}>{b.ico}</span>
-                          <b style={{ fontSize: 12, whiteSpace: "nowrap", color: b.col }}>{t(b.lbl)}</b>
-                        </span>
-                      ))}
+                      {myBadges.map((b) => {
+                        const on = !b.locked;
+                        return (
+                          <span key={b.lbl} title={t(b.lbl)} style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "8px 13px 8px 9px", borderRadius: 10, border: `1px solid ${on ? b.col + "66" : "var(--rc-border)"}`, background: on ? "var(--rc-surface-3)" : "transparent", opacity: on ? 1 : .5 }}>
+                            <span style={{ width: 27, height: 27, flex: "0 0 auto", borderRadius: 8, display: "inline-flex", alignItems: "center", justifyContent: "center", background: on ? b.col + "1F" : "var(--rc-surface-3)", color: on ? b.col : "var(--rc-icon-off)" }}>{b.ico}</span>
+                            <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+                              <b style={{ fontSize: 12, whiteSpace: "nowrap" }}>{t(b.lbl)}</b>
+                              {b.note && <span style={{ fontSize: 10, color: "var(--rc-text-3)", whiteSpace: "nowrap" }}>{t(b.note)}</span>}
+                            </span>
+                          </span>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>

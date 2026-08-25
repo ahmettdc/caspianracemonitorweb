@@ -440,12 +440,35 @@ export function AdminModal({ open, onClose, users, meUid, onToggle, t, lang }) {
   );
 }
 
-/* Rozetler — driver ikonu <Wheel/> JSX içerdiği için bu modülde (App + App JSX ortak). */
+/* Rol/rozet ikon seti (rozet fişi · çizgi SVG) — emoji yerine. currentColor kullanır,
+   renk üst elemandan gelir; 12px altında stroke-width 1.9, üstünde 1.7. */
+const ROLE_PATHS = {
+  drv: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3.1" /><path d="M12 15.1V21M9.1 10.6 4 7.9M14.9 10.6 20 7.9" /></>,
+  eng: <><path d="M4 14v-2.4a8 8 0 0 1 16 0V14" /><path d="M4 13.2h1.9a1 1 0 0 1 1 1v3.4a1 1 0 0 1-1 1H4.9A1.9 1.9 0 0 1 3 16.7v-1.6a1.9 1.9 0 0 1 1-1.9ZM20 13.2h-1.9a1 1 0 0 0-1 1v3.4a1 1 0 0 0 1 1h1a1.9 1.9 0 0 0 1.9-1.9v-1.6a1.9 1.9 0 0 0-1-1.9Z" /><path d="M11.6 20.6h2.3a2 2 0 0 0 2-2v-.6" /></>,
+  owner: <path d="M3 8.4l4 3.4 5-7.4 5 7.4 4-3.4-1.9 10.2H4.9L3 8.4Z" />,
+  pod: <><path d="M7.4 3.6h9.2v5.1a4.6 4.6 0 0 1-9.2 0V3.6Z" /><path d="M7.4 5.1H4.6v1.6a3.2 3.2 0 0 0 2.8 3.1M16.6 5.1h2.8v1.6a3.2 3.2 0 0 1-2.8 3.1" /><path d="M12 13.3v3.6M8.4 20.4h7.2l-.7-3.5H9.1l-.7 3.5Z" /></>,
+  setup: <><path d="M8.4 3.6h9a1.6 1.6 0 0 1 1.6 1.6v11.6a1.6 1.6 0 0 1-1.6 1.6h-9A1.6 1.6 0 0 1 6.8 16.8V5.2a1.6 1.6 0 0 1 1.6-1.6Z" /><path d="M4.2 6.8v12a1.6 1.6 0 0 0 1.6 1.6h9.4M10 7.6h5.4M10 11h5.4M10 14.4h3.2" /></>,
+  clock: <><circle cx="12" cy="13.4" r="7.6" /><path d="M12 9.6v3.8l2.6 1.9M10.2 3.2h3.6M12 3.2v2.6M18.4 6l1.5-1.5" /></>,
+};
+export function RoleIcon({ name, size = 14 }) {
+  const p = ROLE_PATHS[name];
+  if (!p) return null;
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth={size < 12 ? 1.9 : 1.7} strokeLinecap="round" strokeLinejoin="round"
+      style={{ flex: "0 0 auto" }} aria-hidden="true">{p}</svg>
+  );
+}
+
+/* Rozetler — rol ikonları RoleIcon (çizgi SVG) ile; renkler rozet fişinden. */
 export const BADGES = {
-  admin:    { lbl: "Admin",            ico: "🛡", col: "#E11D2E", bg: "rgba(225,29,46,.14)" },
-  owner:    { lbl: "Takım Sahibi",     ico: "👑", col: "#C9A227", bg: "rgba(201,162,39,.14)" },
-  driver:   { lbl: "Sürücü",           ico: <Wheel />, col: "#26C6DA", bg: "rgba(38,198,218,.14)" },
-  engineer: { lbl: "Yarış Mühendisi",  ico: "🎧", col: "#F2C94C", bg: "rgba(242,201,76,.14)" },
+  admin:    { lbl: "Admin",            ico: "🛡",                            col: "#E11D2E", bg: "rgba(225,29,46,.14)" },
+  owner:    { lbl: "Takım Sahibi",     ico: <RoleIcon name="owner" />,       col: "#F5B23D", bg: "rgba(245,178,61,.14)" },
+  driver:   { lbl: "Sürücü",           ico: <RoleIcon name="drv" />,         col: "#4C9AFF", bg: "rgba(76,154,255,.14)" },
+  engineer: { lbl: "Yarış Mühendisi",  ico: <RoleIcon name="eng" />,         col: "#37D67A", bg: "rgba(55,214,122,.14)" },
+  podium:   { lbl: "Podyum",           ico: <RoleIcon name="pod" />,         col: "#B58BFF", bg: "rgba(181,139,255,.14)" },
+  setup:    { lbl: "Setup katkısı",    ico: <RoleIcon name="setup" />,       col: "#EF8A2B", bg: "rgba(239,138,43,.14)" },
+  clock:    { lbl: "24H bitirdi",      ico: <RoleIcon name="clock" />,       col: "#A88C93", bg: "rgba(168,140,147,.14)" },
 };
 export const teamBadgesOf = (team, uid, udocLocal) => {
   const out = [];
@@ -2185,9 +2208,10 @@ export function TeamScreen({ user, t, lang, myTeams, curTeam, setCurTeam,
       background: own ? "rgba(150,0,24,.20)" : "var(--rc-surface-3)", color: own ? "var(--rc-text)" : "var(--rc-text-2)",
       textTransform: "uppercase", letterSpacing: ".05em", whiteSpace: "nowrap" };
   };
-  const tgl = (on, col, bg) => ({ width: 30, height: 28, borderRadius: 8, cursor: "pointer", fontSize: 13,
+  const tgl = (on, col, bg) => ({ width: 40, height: 30, borderRadius: 8, cursor: "pointer",
+    display: "inline-flex", alignItems: "center", justifyContent: "center",
     border: `1px solid ${on ? col : "var(--rc-border)"}`, background: on ? bg : "var(--rc-surface-3)",
-    color: on ? col : "var(--rc-text-4)", lineHeight: 1 });
+    color: on ? col : "var(--rc-icon-off)" });
 
   if (!curTeam || !teamData) {
     return (
@@ -2315,7 +2339,10 @@ export function TeamScreen({ user, t, lang, myTeams, curTeam, setCurTeam,
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 560 }}>
                 <thead><tr>
-                  {[t("Üye"), t("Rol"), "🛞 " + t("Sürücü"), "🎧 " + t("Mühendis"), t("Son görülme"), ""].map((h, i) => (
+                  {[t("Üye"), t("Rol"),
+                    <span key="drv" style={{ display: "inline-flex", alignItems: "center", gap: 6, justifyContent: "center" }}><span style={{ color: "var(--rc-info)", display: "inline-flex" }}><RoleIcon name="drv" size={14} /></span>{t("Sürücü")}</span>,
+                    <span key="eng" style={{ display: "inline-flex", alignItems: "center", gap: 6, justifyContent: "center" }}><span style={{ color: "var(--rc-ok)", display: "inline-flex" }}><RoleIcon name="eng" size={14} /></span>{t("Mühendis")}</span>,
+                    t("Son görülme"), ""].map((h, i) => (
                     <th key={i} style={{ textAlign: i < 2 ? "left" : "center", padding: "9px 14px", fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".07em", color: "var(--rc-text-3)", borderBottom: "1px solid var(--rc-border)", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr></thead>
@@ -2334,14 +2361,14 @@ export function TeamScreen({ user, t, lang, myTeams, curTeam, setCurTeam,
                             </span>
                           </span>
                         </td>
-                        <td style={{ padding: "10px 14px" }}><span style={roleChip(role)}>{role === "owner" ? "👑 " : ""}{t(roleLabel(role))}</span></td>
+                        <td style={{ padding: "10px 14px" }}><span style={roleChip(role)}>{role === "owner" && <RoleIcon name="owner" size={12} />}{t(roleLabel(role))}</span></td>
                         <td style={{ padding: "10px 14px", textAlign: "center" }}>
                           <button disabled={!canManageTeam} onClick={() => canManageTeam && setBadge(uid, "driver", !drvOn)}
-                            title={t("Sürücü")} style={{ ...tgl(drvOn, BADGES.driver.col, BADGES.driver.bg), cursor: canManageTeam ? "pointer" : "default" }}>🛞</button>
+                            title={t("Sürücü")} style={{ ...tgl(drvOn, BADGES.driver.col, BADGES.driver.bg), cursor: canManageTeam ? "pointer" : "default" }}><RoleIcon name="drv" size={16} /></button>
                         </td>
                         <td style={{ padding: "10px 14px", textAlign: "center" }}>
                           <button disabled={!canManageTeam} onClick={() => canManageTeam && setBadge(uid, "engineer", !engOn)}
-                            title={t("Mühendis")} style={{ ...tgl(engOn, BADGES.engineer.col, BADGES.engineer.bg), cursor: canManageTeam ? "pointer" : "default" }}>🎧</button>
+                            title={t("Mühendis")} style={{ ...tgl(engOn, BADGES.engineer.col, BADGES.engineer.bg), cursor: canManageTeam ? "pointer" : "default" }}><RoleIcon name="eng" size={16} /></button>
                         </td>
                         <td style={{ padding: "10px 14px", textAlign: "center", color: "var(--rc-text-4)", fontSize: 12 }}>—</td>
                         <td style={{ padding: "10px 14px", textAlign: "center" }}>
@@ -2353,7 +2380,7 @@ export function TeamScreen({ user, t, lang, myTeams, curTeam, setCurTeam,
                                 <span onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: "110%", right: 0, zIndex: 20, minWidth: 180, background: "var(--rc-surface-2)", border: "1px solid var(--rc-border-strong)", borderRadius: 10, boxShadow: "var(--rc-shadow-card)", padding: 5, display: "flex", flexDirection: "column", gap: 2 }}>
                                   {!isSelf && (
                                     <button style={{ ...c.sBtn, border: "none", background: "transparent", textAlign: "left", padding: "8px 10px" }}
-                                      onClick={async () => { setMenuUid(""); if (await confirmDialog({ title: t("Sahipliği devret"), message: t("Sahiplik bu üyeye devredilsin mi?"), confirmText: t("Devret") })) await transferOwnership(curTeam, uid, user.uid).catch(() => {}); }}>👑 {t("Sahipliği devret")}</button>
+                                      onClick={async () => { setMenuUid(""); if (await confirmDialog({ title: t("Sahipliği devret"), message: t("Sahiplik bu üyeye devredilsin mi?"), confirmText: t("Devret") })) await transferOwnership(curTeam, uid, user.uid).catch(() => {}); }}><span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><RoleIcon name="owner" size={13} />{t("Sahipliği devret")}</span></button>
                                   )}
                                   <button style={{ ...c.sBtn, border: "none", background: "transparent", textAlign: "left", padding: "8px 10px" }}
                                     onClick={() => { setMenuUid(""); copyCode(); }}>✉ {t("Yeniden davet et")}</button>
@@ -2661,9 +2688,9 @@ export function TeamModal({ open, onClose, user, t, lang, myTeams, curTeam, setC
                   <div className="tmcard-h">👥 {t("Üyeler & Yetkiler")}</div>
                   {canManageTeam && (
                     <div className="tmlegend">
-                      <span>🎧 {t("Yarış Mühendisi")} — {t("yarış datasını değiştirebilir, üyelere dokunamaz")}</span>
-                      <span><span style={{ verticalAlign: -2 }}><Wheel size={12} /></span> {t("Sürücü")} — {t("her şeyi görür, hiçbir şeyi değiştiremez")}</span>
-                      <span>👑 {t("Takım Sahibi")} — {t("rozetleri ve yetkileri yönetir")}</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ color: "var(--rc-ok)", display: "inline-flex" }}><RoleIcon name="eng" size={13} /></span>{t("Yarış Mühendisi")} — {t("yarış datasını değiştirebilir, üyelere dokunamaz")}</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ color: "var(--rc-info)", display: "inline-flex" }}><RoleIcon name="drv" size={13} /></span>{t("Sürücü")} — {t("her şeyi görür, hiçbir şeyi değiştiremez")}</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ color: "var(--rc-warn)", display: "inline-flex" }}><RoleIcon name="owner" size={13} /></span>{t("Takım Sahibi")} — {t("rozetleri ve yetkileri yönetir")}</span>
                     </div>
                   )}
                   <div className="tmmembers">

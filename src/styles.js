@@ -36,6 +36,8 @@ export const css = `
   /* Çizgiler */
   --rc-line-soft:#241519; --rc-border:#34232A; --rc-border-strong:#4A2F38;
   --rc-border-hi:#5C3B44; --rc-border-mute:#6B4A52;
+  /* Kapalı/kilitli rol ikonu (rozet fişi) */
+  --rc-icon-off:#6B4A54;
   /* Metin */
   --rc-text:#F3EAEC; --rc-text-2:#C9B3B9; --rc-text-3:#A88C93;
   --rc-text-4:#7A6F75; --rc-text-5:#5B5157;
