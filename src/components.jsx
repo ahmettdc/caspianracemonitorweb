@@ -305,30 +305,135 @@ export function CommandPalette({ open, onClose, actions, t }) {
     else if (e.key === "Enter") { e.preventDefault(); run(filtered[sel]); }
     else if (e.key === "Escape") { e.preventDefault(); onClose(); }
   };
+  /* Gruplama (spec: Ekranlar / Yarışlar / Komutlar) — grup sırası ilk görülüşe göre;
+     seçim index'i düz `filtered` sırası üzerinden (klavye gezinimi bozulmaz). */
+  const groups = [];
+  filtered.forEach((a, i) => {
+    const key = a.group || t("Komutlar");
+    let g = groups.find((x) => x.title === key);
+    if (!g) { g = { title: key, items: [] }; groups.push(g); }
+    g.items.push({ a, i });
+  });
   return (
-    <div className="wxmodal" onClick={onClose}>
-      <div className="wxmbox cmdk" onClick={(e) => e.stopPropagation()} onKeyDown={onKey}
-        role="dialog" aria-modal="true" aria-label={t("Komut paleti")}>
-        <div className="cmdk-in">
-          <Icon name="search" size={16} />
-          <input ref={inputRef} type="text" value={q} placeholder={`${t("Komut ara")}…`}
-            onChange={(e) => setQ(e.target.value)} aria-label={t("Komut ara")} />
+    <div onClick={onClose} role="dialog" aria-modal="true" aria-label={t("Komut paleti")}
+      style={{ position: "fixed", inset: 0, zIndex: 1100, background: "rgba(10,6,10,.7)", backdropFilter: "blur(5px)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "96px 24px 24px" }}>
+      <div onClick={(e) => e.stopPropagation()} onKeyDown={onKey}
+        style={{ width: "min(620px,96vw)", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 14, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", borderBottom: "1px solid var(--rc-border)" }}>
+          <span style={{ fontSize: 15, color: "var(--rc-text-3)" }}>🔎</span>
+          <input ref={inputRef} type="text" value={q} placeholder={t("Yarış, ekran veya komut ara…")}
+            onChange={(e) => setQ(e.target.value)} aria-label={t("Komut ara")}
+            style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: "var(--rc-text)", fontSize: 16 }} />
+          <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 10, border: "1px solid var(--rc-border)", borderRadius: 5, padding: "2px 6px", color: "var(--rc-text-3)" }}>esc</b>
         </div>
-        <div className="cmdk-list" role="listbox">
+        <div style={{ maxHeight: "52vh", overflowY: "auto", padding: 8 }} role="listbox">
           {!filtered.length && (
-            <div className="hint" style={{ padding: "12px 14px" }}>{t("Sonuç yok")}</div>)}
-          {filtered.map((a, i) => (
-            <button key={a.id} role="option" aria-selected={i === sel}
-              className={`cmdk-opt ${i === sel ? "on" : ""}`}
-              onMouseEnter={() => setSel(i)} onClick={() => run(a)}>
-              {a.icon && <span className="cmdk-i" aria-hidden="true">{a.icon}</span>}
-              <span className="cmdk-l">{a.label}</span>
-              {a.hint && <span className="cmdk-h">{a.hint}</span>}
-            </button>
+            <div style={{ padding: "12px 14px", color: "var(--rc-text-3)", fontSize: 13 }}>{t("Sonuç yok")}</div>)}
+          {groups.map((g) => (
+            <div key={g.title} style={{ marginBottom: 6 }}>
+              <div style={{ fontSize: 9.5, textTransform: "uppercase", letterSpacing: ".12em", color: "var(--rc-text-3)", padding: "8px 12px 5px" }}>{g.title}</div>
+              {g.items.map(({ a, i }) => {
+                const on = i === sel;
+                return (
+                  <button key={a.id} role="option" aria-selected={on}
+                    onMouseEnter={() => setSel(i)} onClick={() => run(a)}
+                    style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 12px", borderRadius: 9, cursor: "pointer", color: "var(--rc-text)",
+                      border: `1px solid ${on ? "var(--rc-border-strong)" : "transparent"}`, background: on ? "var(--rc-surface-3)" : "transparent" }}>
+                    <span style={{ width: 26, textAlign: "center", fontSize: 14, flex: "0 0 auto" }} aria-hidden="true">{a.icon}</span>
+                    <span style={{ flex: 1, minWidth: 0, textAlign: "left", fontSize: 13.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.label}</span>
+                    {a.hint && <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 10, border: "1px solid var(--rc-border)", borderRadius: 5, padding: "2px 6px", color: "var(--rc-text-3)", flex: "0 0 auto" }}>{a.hint}</span>}
+                  </button>
+                );
+              })}
+            </div>
           ))}
         </div>
-        <div className="cmdk-foot">
-          <span>↑↓ {t("gezin")}</span><span>↵ {t("seç")}</span><span>esc {t("kapat")}</span>
+      </div>
+    </div>
+  );
+}
+
+/* Üye yönetimi (site geneli erişim onayı) — spec katmanlar/adminOpen. Arama + filtre
+   çipleri + durum rozeti + eylem butonu. allUsers = {uid:{name,email,photo,allowed,
+   requested,admin,requestedAt,lastSeen?}}. onToggle(uid, yeniAllowed). */
+export function AdminModal({ open, onClose, users, meUid, onToggle, t, lang }) {
+  const [q, setQ] = useState("");
+  const [flt, setFlt] = useState("all");   // all | wait | ok
+  if (!open) return null;
+  const stOf = (u) => (u?.admin === true ? "admin" : u?.allowed ? "ok" : u?.requested ? "wait" : "none");
+  const list = Object.entries(users || {})
+    .map(([uid, u]) => ({ uid, u, st: stOf(u) }))
+    .sort((a, b) => (b.u?.requestedAt || 0) - (a.u?.requestedAt || 0));
+  const nAll = list.length;
+  const nWait = list.filter((x) => x.st === "wait").length;
+  const nOk = list.filter((x) => x.st === "ok" || x.st === "admin").length;
+  const ql = q.trim().toLowerCase();
+  const rows = list.filter((x) => {
+    if (flt === "wait" && x.st !== "wait") return false;
+    if (flt === "ok" && !(x.st === "ok" || x.st === "admin")) return false;
+    if (ql && !((x.u?.name || "").toLowerCase().includes(ql) || (x.u?.email || x.uid).toLowerCase().includes(ql))) return false;
+    return true;
+  });
+  const initials = (u, uid) => {
+    const s = (u?.name || u?.email || uid || "?").trim();
+    const parts = s.split(/\s+/).filter(Boolean);
+    return ((parts[0]?.[0] || "") + (parts[1]?.[0] || "")).toUpperCase() || s[0]?.toUpperCase() || "?";
+  };
+  const stColor = (st) => (st === "admin" ? "var(--rc-purple)" : st === "ok" ? "var(--rc-ok)" : st === "wait" ? "var(--rc-warn)" : "var(--rc-text-3)");
+  const stLabel = (st) => (st === "admin" ? "🛡 admin" : st === "ok" ? t("erişim var") : st === "wait" ? t("beklemede") : t("talep yok"));
+  const fchip = (on, col) => ({ padding: "7px 13px", borderRadius: 99, cursor: "pointer", fontSize: 12,
+    border: `1px solid ${on ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
+    background: on ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)", color: on ? "var(--rc-text)" : col });
+  const seenTxt = (u) => {
+    const ts = u?.lastSeen || u?.requestedAt;
+    if (!ts) return "";
+    return new Date(ts).toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR", { day: "2-digit", month: "2-digit" });
+  };
+  return (
+    <div onClick={onClose} role="dialog" aria-modal="true"
+      style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(10,6,10,.74)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
+      <div onClick={(e) => e.stopPropagation()}
+        style={{ width: "min(720px,96vw)", maxHeight: "86vh", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 20px", borderBottom: "1px solid var(--rc-border)", flexWrap: "wrap" }}>
+          <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".07em", fontSize: 19, fontWeight: 700 }}>🛡 {t("Üye yönetimi")}</span>
+          <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>{t("Site geneli erişim onayı")}</span>
+          <button onClick={onClose} style={{ marginLeft: "auto", width: 32, height: 32, borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 15, lineHeight: 1 }}>✕</button>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 20px", borderBottom: "1px solid var(--rc-border)", flexWrap: "wrap" }}>
+          <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("E-posta veya ad ara…")}
+            style={{ flex: 1, minWidth: 180, background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", borderRadius: 9, color: "var(--rc-text)", fontSize: 12.5, padding: "8px 12px" }} />
+          <span style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <button onClick={() => setFlt("all")} style={fchip(flt === "all", "var(--rc-text-2)")}>{t("Tümü")} {nAll}</button>
+            <button onClick={() => setFlt("wait")} style={fchip(flt === "wait", "var(--rc-warn)")}>{t("Beklemede")} {nWait}</button>
+            <button onClick={() => setFlt("ok")} style={fchip(flt === "ok", "var(--rc-text-2)")}>{t("Erişim var")} {nOk}</button>
+          </span>
+        </div>
+        <div style={{ overflowY: "auto" }}>
+          {!rows.length && <div style={{ padding: "18px 20px", color: "var(--rc-text-3)", fontSize: 12.5 }}>{t("Kayıt yok.")}</div>}
+          {rows.map(({ uid, u, st }, i) => (
+            <div key={uid} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", borderBottom: "1px solid var(--rc-line-soft)", background: i % 2 === 0 ? "rgba(255,255,255,.02)" : "transparent" }}>
+              <span style={{ width: 32, height: 32, borderRadius: "50%", flex: "0 0 auto", background: "var(--rc-surface-3)", border: "1px solid var(--rc-border-strong)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 11 }}>{initials(u, uid)}</span>
+              <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, flex: 1 }}>
+                <b style={{ fontSize: 13.5 }}>{u?.name || "—"}</b>
+                <span style={{ fontSize: 11, color: "var(--rc-text-3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u?.email || uid}</span>
+              </span>
+              <span style={{ fontSize: 11, color: "var(--rc-text-3)", flex: "0 0 auto" }}>{seenTxt(u)}</span>
+              <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".08em", padding: "3px 10px", borderRadius: 99, whiteSpace: "nowrap", flex: "0 0 auto", border: `1px solid ${stColor(st)}`, color: stColor(st) }}>{stLabel(st)}</span>
+              {uid !== meUid && st !== "admin" ? (
+                <button onClick={() => onToggle(uid, !u?.allowed)}
+                  style={st === "ok"
+                    ? { padding: "7px 14px", borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", fontSize: 12, cursor: "pointer", flex: "0 0 auto" }
+                    : { padding: "7px 14px", borderRadius: 9, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", fontSize: 12, fontWeight: 600, cursor: "pointer", flex: "0 0 auto" }}>
+                  {st === "ok" ? t("Erişimi al") : t("Erişim ver")}</button>
+              ) : (
+                <button disabled style={{ padding: "7px 14px", borderRadius: 9, border: "1px solid transparent", background: "transparent", color: "var(--rc-border-strong)", fontSize: 11.5, cursor: "default", flex: "0 0 auto" }}>{st === "admin" ? t("korumalı") : ""}</button>
+              )}
+            </div>
+          ))}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 20px", borderTop: "1px solid var(--rc-border)", background: "var(--rc-surface-2)" }}>
+          <span style={{ color: "var(--rc-text-3)", fontSize: 11.5 }}>{t("Adminler birbirinin iznine dokunamaz")}</span>
+          <button onClick={onClose} style={{ marginLeft: "auto", padding: "9px 20px", borderRadius: 10, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer", fontSize: 13 }}>{t("Kapat")}</button>
         </div>
       </div>
     </div>

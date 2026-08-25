@@ -56,7 +56,7 @@ import {
   BADGES, teamBadgesOf, hasBadge, ChatPanel, SetupForm, SetupTable, SetupCards,
   VersionModal, RaceEditModal,
   ChatModal, SetupModal, TeamModal, TeamScreen, CreateJoinModal, DenyToast, SetupContentModal, SetupCompareModal,
-  CommandPalette,
+  CommandPalette, AdminModal,
 } from "./components";
 import { WetIcon } from "./WetIcon";
 
@@ -1203,7 +1203,7 @@ ${bottomBar}
     { id: "lang", label: lang === "en" ? "Türkçe" : "English", keywords: "language dil", run: () => switchLang(lang === "en" ? "tr" : "en") },
     ...(user ? [{ id: "chat", label: t("Sohbet"), keywords: "chat sohbet team", icon: <Icon name="chat" size={15} />, run: () => setChatOpen(true) }] : []),
     ...(curRace ? [{ id: "home", label: t("Ana Menü"), keywords: "home ana menü lobby", icon: <Icon name="home" size={15} />, run: leaveRace }] : []),
-  ];
+  ].map((a) => ({ ...a, group: ["theme", "density", "lang", "home"].includes(a.id) ? t("Komutlar") : t("Ekranlar") }));
   const cmdPalette = (
     <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} actions={cmdActions} t={t} />
   );
@@ -3007,127 +3007,99 @@ ${bottomBar}
       <UpdateBanner t={t} />
       {teamModal}{createJoinModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{streamPlayer}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}{wxTransModal}
       {denyToast}{cmdPalette}
-      {profOpen && user && (
-        <div className="wxmodal" onClick={() => setProfOpen(false)}>
-          <div className="wxmbox" style={{ width: "min(420px,94vw)" }}
-            onClick={(e) => e.stopPropagation()}>
-            <div className="wxmhead">
-              <span>👤 {t("Profil")}</span>
-              <button className="lbclose" onClick={() => setProfOpen(false)}>✕</button>
+      {profOpen && user && (() => {
+        const av = avStage || myAvatar || user.photoURL;
+        const initials = ((profName || user.email || "?").trim().split(/\s+/).filter(Boolean)
+          .map((w) => w[0]).slice(0, 2).join("") || (user.email || "?")[0]).toUpperCase();
+        const lbl = { display: "block", color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 6 };
+        return (
+        <div className="rc" onClick={() => setProfOpen(false)} role="dialog" aria-modal="true"
+          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(10,6,10,.74)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
+          <div onClick={(e) => e.stopPropagation()}
+            style={{ width: "min(680px,96vw)", maxHeight: "86vh", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
+            {/* başlık */}
+            <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "18px 20px", borderBottom: "1px solid var(--rc-border)" }}>
+              <span style={{ width: 52, height: 52, borderRadius: "50%", background: "var(--rc-brand)", color: "var(--rc-on-brand)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 20, flex: "0 0 auto", overflow: "hidden" }}>
+                {av ? <img src={av} alt="" referrerPolicy={/^https?:/.test(av) ? "no-referrer" : undefined} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : initials}</span>
+              <span style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}>
+                <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 22, letterSpacing: ".02em" }}>{profName || user.email}</b>
+                <span style={{ fontSize: 11.5, color: "var(--rc-text-3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{[user.email, teamData?.meta?.name].filter(Boolean).join(" · ")}</span>
+              </span>
+              <button onClick={() => setProfOpen(false)} style={{ marginLeft: "auto", width: 32, height: 32, borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 15, lineHeight: 1 }}>✕</button>
             </div>
-            <div style={{ padding: "14px 16px" }}>
-              <div className="userchip" style={{ marginBottom: 14 }}>
-                {(avStage || myAvatar || user.photoURL) && (
-                  <img src={avStage || myAvatar || user.photoURL} alt=""
-                    referrerPolicy={/^https?:/.test(avStage || myAvatar || user.photoURL)
-                      ? "no-referrer" : undefined} />
-                )}
-                <span className="uname" style={{ maxWidth: 260 }}>{user.email}</span>
+            {/* gövde: ad + görsel | rozetler */}
+            <div style={{ overflowY: "auto", padding: "18px 20px 22px", display: "flex", flexWrap: "wrap", gap: 18 }}>
+              <div style={{ flex: "1 1 300px", minWidth: 0, display: "flex", flexDirection: "column", gap: 14 }}>
+                <div>
+                  <label style={lbl}>{t("Görünen ad")}</label>
+                  <input type="text" value={profName} onChange={(e) => setProfName(e.target.value)}
+                    style={{ width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)", border: "1px solid var(--rc-border-strong)", borderRadius: 10, color: "var(--rc-text)", padding: "11px 14px", fontFamily: "var(--rc-font-display)", fontSize: 18, fontWeight: 700, textTransform: "none" }} />
+                  <div style={{ color: "var(--rc-text-3)", fontSize: 11, marginTop: 5 }}>{t("Timing tablosunda ve sohbette bu ad görünür")}</div>
+                </div>
+                <div>
+                  <label style={lbl}>{t("Profil görseli")}</label>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{ width: 70, height: 70, flex: "0 0 auto", border: "1.5px dashed var(--rc-border-strong)", borderRadius: "50%", background: "var(--rc-surface-2)", display: "grid", placeItems: "center", fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 20, color: "var(--rc-text-3)", overflow: "hidden" }}>
+                      {av ? <img src={av} alt="" referrerPolicy={/^https?:/.test(av) ? "no-referrer" : undefined} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : initials}</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                      <span style={{ display: "flex", gap: 7 }}>
+                        <input id="avfile" type="file" accept={IMG_ACCEPT_TYPES.join(",")} style={{ display: "none" }}
+                          onChange={(e) => { onAvatarFile(e.target.files?.[0]); e.target.value = ""; }} />
+                        <button disabled={avBusy} onClick={() => document.getElementById("avfile")?.click()}
+                          style={{ padding: "6px 13px", borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer", fontSize: 12 }}>{avBusy ? t("Yükleniyor…") : t("Yükle")}</button>
+                        {(myAvatar || avStage) && (
+                          <button disabled={avBusy} onClick={async () => { setAvStage(""); setAvErr(""); await clearUserAvatar(user.uid).catch(() => {}); setMyAvatar(""); }}
+                            style={{ padding: "6px 13px", borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 12 }}>{t("Kaldır")}</button>
+                        )}
+                      </span>
+                      <span style={{ fontSize: 10.5, color: "var(--rc-text-3)" }}>{avStage ? t("Önizleme — Kaydet ile uygulanır") : t("Boşsa baş harflerin kullanılır")}</span>
+                    </div>
+                  </div>
+                  {avErr && <div style={{ fontSize: 12, color: "var(--rc-warn)", marginTop: 6 }}>⚠ {avErr}</div>}
+                </div>
               </div>
-              {/* v1.7.0 — avatar yükleme: seç → önizleme → Kaydet yazar; Kaldır siler */}
-              <label>{t("Avatar")}</label>
-              <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
-                <input id="avfile" type="file" accept={IMG_ACCEPT_TYPES.join(",")}
-                  style={{ display: "none" }}
-                  onChange={(e) => { onAvatarFile(e.target.files?.[0]); e.target.value = ""; }} />
-                <button className="histbtn" disabled={avBusy}
-                  onClick={() => document.getElementById("avfile")?.click()}>
-                  {avBusy ? t("Yükleniyor…") : `⬆ ${t("Görsel Seç")}`}</button>
-                {(myAvatar || avStage) && (
-                  <button className="histbtn" disabled={avBusy}
-                    onClick={async () => {
-                      setAvStage(""); setAvErr("");
-                      await clearUserAvatar(user.uid).catch(() => {});
-                      setMyAvatar("");
-                    }}>✕ {t("Kaldır")}</button>
-                )}
-                {avStage && <span className="hint" style={{ margin: 0 }}>
-                  {t("Önizleme — Kaydet ile uygulanır")}</span>}
-              </div>
-              {avErr && <div className="hint warn" style={{ marginBottom: 8 }}>{avErr}</div>}
               {myBadges.length > 0 && (
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
-                  {myBadges.map((b) => (
-                    <span key={b.lbl} className="bchip" style={{ color: b.col,
-                      background: b.bg, borderColor: b.col, marginBottom: 0 }}>
-                      {b.ico} {t(b.lbl)}
-                    </span>
-                  ))}
+                <div style={{ flex: "1 1 280px", minWidth: 260, display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div style={{ border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface-2)", padding: 16 }}>
+                    <div style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 13, fontWeight: 700, color: "var(--rc-brand-bright)", marginBottom: 12 }}>{t("Rozetler")}</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 9 }}>
+                      {myBadges.map((b) => (
+                        <span key={b.lbl} title={t(b.lbl)} style={{ display: "inline-flex", alignItems: "center", gap: 9, padding: "9px 13px", borderRadius: 10, border: `1px solid ${b.col}`, background: "var(--rc-surface-3)" }}>
+                          <span style={{ fontSize: 17, lineHeight: 1 }}>{b.ico}</span>
+                          <b style={{ fontSize: 12, whiteSpace: "nowrap", color: b.col }}>{t(b.lbl)}</b>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
-              <label>{t("Ad Soyad")}</label>
-              <input type="text" value={profName} style={{ textTransform: "none" }}
-                onChange={(e) => setProfName(e.target.value)} />
-              <div className="hint" style={{ marginTop: 6 }}>
-                {t("Odalarda ve stint programında bu isim görünür.")}</div>
             </div>
-            <div className="wxmfoot" style={{ gap: 8 }}>
-              <button className="histbtn" onClick={() => {
-                setAvStage(""); setAvErr(""); setProfOpen(false);
-              }}>{t("Vazgeç")}</button>
-              <button className="gbtn ubtn" disabled={!profName.trim()}
-                style={{ opacity: profName.trim() ? 1 : .45 }}
-                onClick={async () => {
-                  const n = profName.trim().slice(0, 60);
-                  await updateProfile(user.uid, { fullName: n }).catch(() => {});
-                  if (avStage) {
-                    try { await saveUserAvatar(user.uid, avStage); setMyAvatar(avStage); }
-                    catch { setAvErr(t("Avatar kaydedilemedi — tekrar deneyin.")); return; }
-                    setAvStage("");
-                  }
-                  setUserName(n); setProfOpen(false);
-                }}>{t("Kaydet")}</button>
+            {/* alt */}
+            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 20px", borderTop: "1px solid var(--rc-border)", background: "var(--rc-surface-2)" }}>
+              <span style={{ color: "var(--rc-text-3)", fontSize: 11.5 }}>{t("Odalarda ve stint programında bu isim görünür.")}</span>
+              <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+                <button onClick={() => { setAvStage(""); setAvErr(""); setProfOpen(false); }}
+                  style={{ padding: "9px 16px", borderRadius: 10, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 13 }}>{t("Vazgeç")}</button>
+                <button disabled={!profName.trim()} style={{ padding: "9px 20px", borderRadius: 10, border: `1px solid ${profName.trim() ? "var(--rc-brand-bright)" : "var(--rc-border)"}`, background: profName.trim() ? "var(--rc-brand)" : "var(--rc-surface-3)", color: profName.trim() ? "var(--rc-on-brand)" : "var(--rc-text-3)", cursor: profName.trim() ? "pointer" : "not-allowed", fontFamily: "var(--rc-font-display)", fontSize: 15, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase" }}
+                  onClick={async () => {
+                    const n = profName.trim().slice(0, 60);
+                    await updateProfile(user.uid, { fullName: n }).catch(() => {});
+                    if (avStage) {
+                      try { await saveUserAvatar(user.uid, avStage); setMyAvatar(avStage); }
+                      catch { setAvErr(t("Avatar kaydedilemedi — tekrar deneyin.")); return; }
+                      setAvStage("");
+                    }
+                    setUserName(n); setProfOpen(false);
+                  }}>{t("Kaydet")}</button>
+              </span>
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
       {adminOpen && isAdmin && (
-        <div className="wxmodal" onClick={() => setAdminOpen(false)}>
-          <div className="wxmbox" style={{ width: "min(620px,95vw)" }}
-            onClick={(e) => e.stopPropagation()}>
-            <div className="wxmhead">
-              <span>👥 {t("Üye Yönetimi")}</span>
-              <button className="lbclose" onClick={() => setAdminOpen(false)}>✕</button>
-            </div>
-            <div className="wxmlist">
-              {Object.entries(allUsers).length === 0 && (
-                <div className="hint" style={{ padding: 12 }}>{t("Kayıt yok.")}</div>
-              )}
-              {Object.entries(allUsers)
-                .sort(([, a], [, b]) => (b?.requestedAt || 0) - (a?.requestedAt || 0))
-                .map(([uid, u]) => (
-                  <div key={uid} className="urow">
-                    <Avatar uid={uid} name={u?.name || u?.email} photo={u?.photo} size={32} />
-                    <span className="uinfo">
-                      <b>{u?.name || "—"}</b>
-                      <span className="umail">{u?.email || uid}</span>
-                      {u?.note && <span className="unote">“{u.note}”</span>}
-                    </span>
-                    <span className={`ustat ${u?.allowed ? "ok" : u?.requested ? "wait" : ""}`}>
-                      {u?.admin === true
-                        ? <>🛡 {t("Admin")}</>
-                        : u?.allowed ? t("erişim var") : u?.requested ? t("beklemede") : t("talep yok")}
-                    </span>
-                    {/* adminler birbirinin iznine dokunamaz — kurallar da engelliyor */}
-                    {uid !== user.uid && u?.admin !== true && (
-                      <button className={u?.allowed ? "histbtn" : "gbtn ubtn"}
-                        onClick={() => setUserAllowed(uid, !u?.allowed).catch(() => {})}>
-                        {u?.allowed ? t("İzni Al") : t("Onayla")}
-                      </button>
-                    )}
-                    {uid !== user.uid && u?.admin === true && (
-                      <span className="hint" style={{ fontSize: 10.5 }}>
-                        {t("korumalı")}</span>
-                    )}
-                  </div>
-                ))}
-            </div>
-            <div className="wxmfoot">
-              <span className="hint" style={{ marginRight: "auto", fontSize: 11 }}>
-                {t("Onaylanan kişi sayfayı yenilemeden erişir.")}</span>
-            </div>
-          </div>
-        </div>
+        <AdminModal open onClose={() => setAdminOpen(false)} users={allUsers} meUid={user.uid}
+          onToggle={(uid, allow) => setUserAllowed(uid, allow).catch(() => {})} t={t} lang={lang} />
       )}
       <div style={shell}>
         {renderRail(tab, (k) => setTab(k))}
@@ -3294,196 +3266,185 @@ ${bottomBar}
         );
       })()}
 
-      {pitboard && (
-        <div className="pitboard" onClick={() => setPitboard(false)}>
-          <button className="close" onClick={() => setPitboard(false)}>✕</button>
-          <img className="plogo" src={`${ASSET}logo.png`} alt="" />
-          {liveInfo.status === "pre" && (<>
-            <div className="plbl">{t("Start'a")}</div>
-            <div className="huge" style={{ color: "var(--yellow)" }}>
-              {startCountdown(liveInfo)}</div>
-          </>)}
-          {liveInfo.status === "done" && <div className="huge">🏁</div>}
-          {liveInfo.status === "idle" && (<>
-            <div className="plbl">{t("Yarış zamanı ayarlanmadı")}</div>
-            <div className="mid">{t("Pilotlar sekmesinden başlangıç zamanını gir")}</div>
-          </>)}
+      {pitboard && (() => {
+        const cap = { color: "var(--rc-text-3)", fontSize: "clamp(11px,1.3vw,16px)", textTransform: "uppercase", letterSpacing: ".16em" };
+        const centerMsg = (title, sub, col) => (
+          <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, padding: 24, textAlign: "center" }}>
+            <div style={cap}>{title}</div>
+            {sub && <div style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: "clamp(48px,10vw,120px)", lineHeight: .9, color: col || "var(--rc-text)", fontVariantNumeric: "tabular-nums" }}>{sub}</div>}
+          </div>
+        );
+        return (
+        <div className="rc" role="dialog" aria-modal="true"
+          style={{ position: "fixed", inset: 0, zIndex: 1200, background: "var(--rc-bg)", display: "flex", flexDirection: "column", color: "var(--rc-text)" }}>
+          {/* başlık */}
+          <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 24px", borderBottom: "1px solid var(--rc-line-soft)", flexWrap: "wrap" }}>
+            <img src={`${ASSET}logo.png`} alt="" style={{ height: 34 }} />
+            <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 20, letterSpacing: ".03em" }}>{trackName(st.track) || t("Yarış")}</span>
+            {liveInfo.status === "live" && (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 11, textTransform: "uppercase", letterSpacing: ".12em", padding: "4px 12px", borderRadius: 99, border: "1px solid var(--rc-ok)", color: "var(--rc-ok)" }}>
+                <i style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--rc-ok)", boxShadow: "0 0 8px var(--rc-ok)", animation: "rcpulse 1.2s ease-in-out infinite" }} />{t("canlı")}</span>
+            )}
+            {liveInfo.driver && <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 15, color: "var(--rc-text-3)" }}>{liveInfo.driver}</span>}
+            <button onClick={() => setPitboard(false)} style={{ marginLeft: "auto", width: 42, height: 42, borderRadius: 11, border: "1px solid var(--rc-border)", background: "var(--rc-surface-2)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 19 }}>✕</button>
+          </div>
+
+          {liveInfo.status === "pre" && centerMsg(t("Start'a"), startCountdown(liveInfo), "var(--rc-warn)")}
+          {liveInfo.status === "done" && centerMsg("🏁", null)}
+          {liveInfo.status === "idle" && centerMsg(t("Yarış zamanı ayarlanmadı"), null) }
+          {liveInfo.status === "idle" && <div style={{ textAlign: "center", color: "var(--rc-text-3)", fontSize: 14, marginTop: -30, paddingBottom: 30 }}>{t("Pilotlar sekmesinden başlangıç zamanını gir")}</div>}
+
           {liveInfo.status === "live" && (() => {
             const pitTotal = liveInfo.phaseEnd - liveInfo.stintStartMs;
             const pitFrac = pitTotal > 0
               ? Math.min(1, Math.max(0, (pitTotal - liveInfo.nextPitIn) / pitTotal)) : 0;
             const raceFrac = liveInfo.raceMs > 0
               ? Math.min(1, Math.max(0, liveInfo.elapsed / liveInfo.raceMs)) : 0;
+            const nextTyres = upcomingPit ? TY.filter((_, i) => upcomingPit.tyres[i]) : [];
             return (<>
-            <div>
-              <div className="plbl">{t("Kalan Süre")}</div>
-              <div className="huge">{fmtHMS(liveInfo.remaining / 1000)}</div>
-            </div>
-            <div className="pbrow">
-              <div className="pbcard pbgauge">
-                <div className="plbl">{liveInfo.phase === "pit" ? t("Pit Çıkışı") : onLastStint ? t("Bayrağa") : t("Sıradaki Pit")}</div>
-                <Ring value={pitFrac} size={150} thickness={12} fs={30} glow
-                  color={pitSoon ? "var(--yellow)" : "var(--teal)"}
-                  big={fmtHMS(liveInfo.nextPitIn / 1000)} />
-              </div>
-              <div className="pbcard">
-                <div className="plbl">Stint</div>
-                <div className="mid">{liveInfo.stintIdx + 1} / {racePlan.fullStints}</div>
-              </div>
-              <div className="pbcard pbgauge">
-                <div className="plbl">{t("Tamamlanan")}</div>
-                <Ring value={raceFrac} size={150} thickness={12} fs={40} color="var(--car)"
-                  big={`%${Math.round(raceFrac * 100)}`} />
-              </div>
-              {upcomingIsLast && (
-                <div className="pbcard">
-                  <div className="plbl" style={{ display: "flex", alignItems: "center",
-                    justifyContent: "center", gap: 4 }}><Bolt size={14} /> {t("Son Pit VE")}</div>
-                  <div className="mid" style={{ color: "var(--green)" }}>
-                    {planLsf.refuel.toFixed(1)}%</div>
-                </div>
-              )}
-            </div>
-            {(liveInfo.driver || liveInfo.nextDriver) && (
-              <div className="pbcard">
-                <div className="plbl">{t("Pilot Değişimi")}</div>
-                <div className="mid">
-                  {liveInfo.driver || "?"} <span style={{ color: "var(--teal)" }}>→</span>{" "}
-                  {liveInfo.nextDriver || "?"}
+            <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: "clamp(20px,4vw,64px)", padding: "clamp(16px,3vh,40px) 24px" }}>
+              {/* sol: sıradaki pit halkası */}
+              <div style={{ textAlign: "center" }}>
+                <div style={cap}>{liveInfo.phase === "pit" ? t("Pit Çıkışı") : onLastStint ? t("Bayrağa") : t("Sıradaki pit")}</div>
+                <div style={{ display: "grid", placeItems: "center", marginTop: 10 }}>
+                  <Ring value={pitFrac} size={300} thickness={20} fs={90} glow color="var(--rc-warn)"
+                    big={fmtHMS(liveInfo.nextPitIn / 1000)} />
+                  <div style={{ color: "var(--rc-text-3)", fontSize: "clamp(11px,1.2vw,15px)", textTransform: "uppercase", letterSpacing: ".14em", marginTop: 6 }}>{t("stint")} {liveInfo.stintIdx + 1} / {racePlan.fullStints}</div>
                 </div>
               </div>
-            )}
-            {upcomingPit && !racePlan.rows[liveInfo.stintIdx]?.isLast && (
-              <div className="chips">
-                <span className="plbl">{t("Sıradaki pit: ")}</span>
-                {upcomingPit.fuel && <span className="chip2 fuel"
-                  style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                  <Bolt size={17} /> VE</span>}
-                {TY.filter((_, i) => upcomingPit.tyres[i]).map((c) => (
-                  <span key={c} className="chip2 tyre"
-                    style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                    <Tyre size={17} /> {c}</span>
-                ))}
-                {!upcomingPit.fuel && !upcomingPit.tyres.some(Boolean) && (
-                  <span className="chip2 none">{t("Sadece geçiş")}</span>
+
+              {/* sağ: bayrağa kalan + kartlar */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "clamp(14px,2.4vh,28px)", minWidth: "min(420px,90vw)" }}>
+                <div>
+                  <div style={cap}>{t("Bayrağa kalan")}</div>
+                  <div style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: "clamp(52px,7.5vw,104px)", lineHeight: .92, fontVariantNumeric: "tabular-nums" }}>{fmtHMS(liveInfo.remaining / 1000)}</div>
+                  <div style={{ height: 8, borderRadius: 4, background: "var(--rc-surface-3)", overflow: "hidden", marginTop: 10 }}>
+                    <i style={{ display: "block", height: "100%", width: `${Math.round(raceFrac * 100)}%`, background: "var(--rc-brand)" }} /></div>
+                  <div style={{ color: "var(--rc-text-3)", fontSize: "clamp(11px,1.2vw,15px)", marginTop: 6 }}>%{Math.round(raceFrac * 100)} {t("tamamlandı")}</div>
+                </div>
+
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                  {(liveInfo.driver || liveInfo.nextDriver) && (
+                    <div style={{ flex: "1 1 190px", border: "1px solid var(--rc-border)", borderRadius: 14, background: "var(--rc-surface)", padding: "14px 18px" }}>
+                      <div style={{ color: "var(--rc-text-3)", fontSize: 11, textTransform: "uppercase", letterSpacing: ".14em" }}>{t("Pilot değişimi")}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6, fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: "clamp(20px,2.4vw,30px)" }}>
+                        {liveInfo.driver || "?"} <span style={{ color: "var(--rc-brand-bright)" }}>→</span> {liveInfo.nextDriver || "?"}</div>
+                    </div>
+                  )}
+                  {upcomingIsLast && (
+                    <div style={{ flex: "1 1 150px", border: "1px solid rgba(55,214,122,.35)", borderRadius: 14, background: "rgba(55,214,122,.07)", padding: "14px 18px" }}>
+                      <div style={{ color: "var(--rc-text-3)", fontSize: 11, textTransform: "uppercase", letterSpacing: ".14em" }}>⚡ {t("Son pit VE")}</div>
+                      <div style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: "clamp(20px,2.4vw,30px)", color: "var(--rc-ok)", marginTop: 6 }}>{planLsf.refuel.toFixed(1)}%</div>
+                    </div>
+                  )}
+                </div>
+
+                {/* pit işaretlendi bloğu */}
+                {liveInfo.lastDev != null && (
+                  <div style={{ border: "1px solid var(--rc-ok)", borderRadius: 14, background: "rgba(55,214,122,.08)", padding: "16px 18px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                      <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: "clamp(17px,2vw,24px)", color: "var(--rc-ok)" }}>✔ P{liveInfo.lastPitIdx + 1} {t("işaretlendi")}</span>
+                      <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--rc-text-3)", textTransform: "uppercase", letterSpacing: ".1em" }}>{fmtClock(st.actualPits[liveInfo.lastPitIdx])}</span>
+                    </div>
+                    <div style={{ display: "flex", gap: 18, flexWrap: "wrap", marginTop: 10, fontFamily: "var(--rc-font-display)", fontSize: "clamp(13px,1.5vw,16px)" }}>
+                      <span style={{ color: "var(--rc-text-3)" }}>{t("Plan")} <b style={{ color: "var(--rc-text)" }}>{fmtClock(liveInfo.plannedPitStart[liveInfo.lastPitIdx])}</b></span>
+                      <span style={{ color: "var(--rc-text-3)" }}>{t("Gerçek")} <b style={{ color: "var(--rc-text)" }}>{fmtClock(st.actualPits[liveInfo.lastPitIdx])}</b></span>
+                      <span style={{ color: "var(--rc-text-3)" }}>{t("Sapma")} <b style={{ color: Math.abs(liveInfo.lastDev) > 60000 ? "var(--rc-warn)" : "var(--rc-ok)" }}>{fmtDev(liveInfo.lastDev)}</b></span>
+                    </div>
+                    {canEdit && liveInfo.pitsDone > 0 && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 14, paddingTop: 12, borderTop: "1px solid rgba(55,214,122,.25)" }} onClick={(e) => e.stopPropagation()}>
+                        {(st.actualPits || []).map((v, i) => Number.isFinite(v) ? (
+                          <span key={i} style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                            <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 15, width: 30 }}>P{i + 1}</b>
+                            <span style={{ fontSize: 12, color: "var(--rc-text-3)" }}>🔧 {t("Tamir süresi")}</span>
+                            <input type="number" min="0" step="1" value={(st.pitRepairs || [])[i] || ""} placeholder="0"
+                              onChange={(e) => setRepair(i, e.target.value)}
+                              style={{ width: 74, background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", borderRadius: 9, color: "var(--rc-text)", padding: "7px 10px", fontFamily: "var(--rc-font-display)", fontSize: 14, textAlign: "right" }} />
+                            <span style={{ fontSize: 12, color: "var(--rc-text-3)" }}>{t("sn")}</span>
+                            {(Number((st.pitRepairs || [])[i]) || 0) > 0 && <span style={{ fontSize: 11.5, color: "var(--rc-warn)" }}>+{Number(st.pitRepairs[i])}s {t("plana eklendi")}</span>}
+                          </span>
+                        ) : null)}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {pitMismatch && (
+                  <div style={{ color: "var(--rc-warn)", fontSize: 13 }}>⚠ {t("oyunda")} {pitMismatch.game} {t("pit")}, {t("planda")} {pitMismatch.marked} {t("işaretli")}</div>
+                )}
+
+                {/* sıradaki pitte */}
+                {upcomingPit && !racePlan.rows[liveInfo.stintIdx]?.isLast && (
+                  <div>
+                    <div style={{ color: "var(--rc-text-3)", fontSize: 11, textTransform: "uppercase", letterSpacing: ".14em", marginBottom: 8 }}>{t("Sıradaki pitte")}</div>
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                      {upcomingPit.fuel && (
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "9px 18px", borderRadius: 12, border: "1px solid var(--rc-ok)", color: "var(--rc-ok)", background: "rgba(55,214,122,.08)", fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: "clamp(15px,1.8vw,21px)", letterSpacing: ".08em" }}><Bolt size={17} /> VE</span>
+                      )}
+                      {nextTyres.map((c) => (
+                        <span key={c} style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "9px 18px", borderRadius: 12, border: "1px solid var(--rc-brand-bright)", color: "var(--rc-brand-bright)", background: "rgba(150,0,24,.12)", fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: "clamp(15px,1.8vw,21px)", letterSpacing: ".08em" }}><Tyre size={17} /> {c}</span>
+                      ))}
+                      {!upcomingPit.fuel && !nextTyres.length && (
+                        <span style={{ display: "inline-flex", alignItems: "center", padding: "9px 18px", borderRadius: 12, border: "1px solid var(--rc-border)", color: "var(--rc-text-3)", fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: "clamp(15px,1.8vw,21px)" }}>{t("Sadece geçiş")}</span>
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
-            )}
+            </div>
 
-            {/* --- gerçek pit işaretleme: sadece düzenleyici --- */}
+            {/* alt: canlı senkron çubuğu */}
             {canEdit && (
               <div onClick={(e) => e.stopPropagation()}
-                style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-                {/* stint ↔ canlı senkron anahtarları (cihaz tercihi) + durum çipleri */}
-                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
-                  justifyContent: "center" }}>
-                  <span className="plbl" style={{ margin: 0 }}>🔗 {t("Canlı Senkron")}</span>
-                  <button className={`act${liveSyncOpt.autoPit ? " on" : ""}`}
-                    style={{ fontSize: 11, padding: "3px 10px",
-                      ...(liveSyncOpt.autoPit && { borderColor: "var(--green)", color: "var(--green)" }) }}
-                    title={t("Araç pit yoluna girince PIT otomatik işaretlenir (yalnız canlı kaynağı yazan PC tetikler)")}
-                    onClick={() => setSyncOpt("autoPit", !liveSyncOpt.autoPit)}>
-                    🤖 {t("Oto PIT")}</button>
-                  <button className={`act${liveSyncOpt.autoClock ? " on" : ""}`}
-                    style={{ fontSize: 11, padding: "3px 10px",
-                      ...(liveSyncOpt.autoClock && { borderColor: "var(--green)", color: "var(--green)" }) }}
-                    title={t("Planın geri sayımı oyunun kalan süresinden 5 sn'den fazla kayarsa başlangıç zamanı otomatik hizalanır")}
-                    onClick={() => setSyncOpt("autoClock", !liveSyncOpt.autoClock)}>
-                    ⏱ {t("Oto Saat")}</button>
-                  {drift != null && Math.abs(drift) > 1 && (
-                    <span className="chip" style={{ fontSize: 10,
-                      color: Math.abs(drift) > 5 ? "var(--yellow)" : "var(--dim)",
-                      borderColor: Math.abs(drift) > 5 ? "var(--yellow)" : "var(--line)" }}
-                      title={t("Plan saati − oyun saati")}>
-                      ⏱ {drift > 0 ? "+" : ""}{drift}s</span>
+                style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", padding: "14px 24px", borderTop: "1px solid var(--rc-line-soft)", background: "var(--rc-surface-2)" }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 9, flexWrap: "wrap" }}>
+                  <span style={{ color: "var(--rc-text-3)", fontSize: 11, textTransform: "uppercase", letterSpacing: ".12em" }}>🔗 {t("Canlı Senkron")}</span>
+                  {[["autoPit", "🤖 " + t("Oto PIT"), t("Araç pit yoluna girince PIT otomatik işaretlenir (yalnız canlı kaynağı yazan PC tetikler)")],
+                    ["autoClock", "⏱ " + t("Oto Saat"), t("Planın geri sayımı oyunun kalan süresinden 5 sn'den fazla kayarsa başlangıç zamanı otomatik hizalanır")]].map(([k, label, tip]) => {
+                    const on = liveSyncOpt[k];
+                    return (
+                      <button key={k} title={tip} onClick={() => setSyncOpt(k, !on)}
+                        style={{ padding: "7px 14px", borderRadius: 9, cursor: "pointer", fontSize: 12,
+                          border: `1px solid ${on ? "var(--rc-ok)" : "var(--rc-border)"}`,
+                          background: on ? "rgba(55,214,122,.12)" : "var(--rc-surface-3)",
+                          color: on ? "var(--rc-ok)" : "var(--rc-text-3)" }}>{label}</button>
+                    );
+                  })}
+                </span>
+                {drift != null && Math.abs(drift) > 1 && (
+                  <span title={t("Plan saati − oyun saati")} style={{ fontSize: 11, padding: "5px 12px", borderRadius: 99, fontFamily: "var(--rc-font-display)",
+                    border: `1px solid ${Math.abs(drift) > 5 ? "var(--rc-warn)" : "var(--rc-border)"}`, color: Math.abs(drift) > 5 ? "var(--rc-warn)" : "var(--rc-text-3)" }}>⏱ {drift > 0 ? "+" : ""}{drift}s</span>
+                )}
+                {lastAuto && Date.now() - lastAuto.at < 120000 && (
+                  <span style={{ fontSize: 11, padding: "5px 12px", borderRadius: 99, border: "1px solid var(--rc-ok)", color: "var(--rc-ok)" }}>🤖 S{lastAuto.stint} {t("otomatik işaretlendi")}</span>
+                )}
+                <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                  {liveInfo.pitsDone > 0 && (<>
+                    <button onClick={unmarkPit} style={{ padding: "10px 18px", borderRadius: 11, border: "1px solid var(--rc-warn)", background: "transparent", color: "var(--rc-warn)", cursor: "pointer", fontSize: 13 }}>↩ {t("Geri al")}</button>
+                    <button onClick={resetPits} style={{ padding: "10px 18px", borderRadius: 11, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 13 }}>⟲ {t("Sıfırla")}</button>
+                  </>)}
+                  {liveInfo.pitsDone < racePlan.rows.length - 1 ? (
+                    <button onClick={markPit} disabled={liveInfo.phase === "pit"}
+                      title={liveInfo.phase === "pit"
+                        ? t("Araç pit yolunda — bu stintin pit'i işaretlendi. Düzeltmek için ↩ Geri Al.")
+                        : t("Araç PİT YOLUNA GİRDİĞİ an bas. Pit süresi plandan otomatik eklenir, sonraki stint pit çıkışıyla başlar.")}
+                      style={{ padding: "clamp(14px,2vh,20px) clamp(28px,5vw,56px)", borderRadius: 14, fontFamily: "var(--rc-font-display)", fontSize: "clamp(20px,2.6vw,30px)", fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase",
+                        cursor: liveInfo.phase === "pit" ? "default" : "pointer", opacity: liveInfo.phase === "pit" ? .45 : 1,
+                        border: `2px solid ${liveInfo.phase === "pit" ? "var(--rc-border)" : "var(--rc-brand-bright)"}`,
+                        background: liveInfo.phase === "pit" ? "var(--rc-surface-3)" : "var(--rc-brand)",
+                        color: liveInfo.phase === "pit" ? "var(--rc-text-3)" : "var(--rc-on-brand)" }}>
+                      {liveInfo.phase === "pit" ? "⛽ " + t("PIT YOLUNDA") : "✔ PIT"} — S{liveInfo.stintIdx + 1}</button>
+                  ) : (
+                    <span style={{ color: "var(--rc-ok)", fontFamily: "var(--rc-font-display)", fontSize: "clamp(15px,1.8vw,20px)", fontWeight: 700 }}>✔ {t("Tüm pitler yapıldı")}</span>
                   )}
-                  {lastAuto && Date.now() - lastAuto.at < 120000 && (
-                    <span className="chip" style={{ fontSize: 10, color: "var(--green)",
-                      borderColor: "var(--green)" }}>
-                      🤖 S{lastAuto.stint} {t("otomatik işaretlendi")}</span>
-                  )}
-                </div>
-                {pitMismatch && (
-                  <div className="plbl" style={{ textTransform: "none", color: "var(--yellow)" }}>
-                    ⚠ {t("oyunda")} {pitMismatch.game} {t("pit")}, {t("planda")}{" "}
-                    {pitMismatch.marked} {t("işaretli")}
-                  </div>
-                )}
-                {liveInfo.pitsDone < racePlan.rows.length - 1 ? (
-                  /* pit fazında PASİF: buton aynı stinti gösterdiği için ikinci basış
-                     pit yolunda geçen saniyeleri stint süresine ekliyordu */
-                  <button onClick={markPit} disabled={liveInfo.phase === "pit"}
-                    title={liveInfo.phase === "pit"
-                      ? t("Araç pit yolunda — bu stintin pit'i işaretlendi. Düzeltmek için ↩ Geri Al.")
-                      : t("Araç PİT YOLUNA GİRDİĞİ an bas. Pit süresi plandan otomatik eklenir, sonraki stint pit çıkışıyla başlar.")}
-                    style={{ padding: "16px 34px", borderRadius: 12,
-                      cursor: liveInfo.phase === "pit" ? "default" : "pointer",
-                      opacity: liveInfo.phase === "pit" ? 0.45 : 1,
-                      background: "var(--car)", color: "#FFE9ED", border: "2px solid var(--teal)",
-                      fontFamily: "var(--font-disp)", fontSize: 26, fontWeight: 700,
-                      letterSpacing: ".06em" }}>
-                    {liveInfo.phase === "pit" ? t("⛽ PIT YOLUNDA") : t("✔ PIT")} — S{liveInfo.stintIdx + 1}
-                  </button>
-                ) : (
-                  <div className="plbl" style={{ color: "var(--green)" }}>
-                    ✔ {t("Tüm pitler yapıldı")}</div>
-                )}
-                {liveInfo.lastDev != null && (
-                  <div className="plbl" style={{ textTransform: "none" }}>
-                    P{liveInfo.lastPitIdx + 1}: {t("Plan")}{" "}
-                    <span className="mono">{fmtClock(liveInfo.plannedPitStart[liveInfo.lastPitIdx])}</span>
-                    {" · "}{t("Gerçek")}{" "}
-                    <span className="mono">{fmtClock(st.actualPits[liveInfo.lastPitIdx])}</span>
-                    {" → "}
-                    <b style={{ color: Math.abs(liveInfo.lastDev) > 60000
-                      ? "var(--yellow)" : "var(--green)" }}>
-                      {fmtDev(liveInfo.lastDev)}</b>
-                  </div>
-                )}
-                {liveInfo.pitsDone > 0 && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 4,
-                    alignItems: "center" }}>
-                    {(st.actualPits || []).map((v, i) => Number.isFinite(v) ? (
-                      <div key={i} className="plbl"
-                        style={{ display: "flex", alignItems: "center", gap: 6,
-                          textTransform: "none" }}>
-                        P{i + 1} 🔧 {t("Tamir (s)")}
-                        <input type="number" min="0" step="1"
-                          value={(st.pitRepairs || [])[i] || ""}
-                          placeholder="0"
-                          onChange={(e) => setRepair(i, e.target.value)}
-                          style={{ width: 64, padding: "3px 6px", borderRadius: 6,
-                            background: "var(--panel2)", color: "var(--text)",
-                            border: "1px solid var(--line)", fontSize: 13,
-                            textAlign: "right" }} />
-                        {(Number((st.pitRepairs || [])[i]) || 0) > 0 && (
-                          <span style={{ color: "var(--yellow)", fontSize: 12 }}>
-                            +{Number(st.pitRepairs[i])}s</span>
-                        )}
-                      </div>
-                    ) : null)}
-                  </div>
-                )}
-                {liveInfo.pitsDone > 0 && (
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button onClick={unmarkPit}
-                      style={{ padding: "4px 12px", borderRadius: 6, cursor: "pointer",
-                        background: "var(--panel2)", color: "var(--dim)",
-                        border: "1px solid var(--line)", fontSize: 12 }}>
-                      {t("↩ Geri Al")}</button>
-                    <button onClick={resetPits}
-                      style={{ padding: "4px 12px", borderRadius: 6, cursor: "pointer",
-                        background: "var(--panel2)", color: "var(--dim)",
-                        border: "1px solid var(--line)", fontSize: 12 }}>
-                      {t("⟲ Sıfırla")}</button>
-                  </div>
-                )}
+                </span>
               </div>
             )}
           </>);
           })()}
         </div>
-      )}
+        );
+      })()}
 
       {/* YARIŞ·DATA yan paneli yalnız Canlı Timing ve Stint ekranlarında görünür;
           diğer sekmelerde (Dash/Yakıt/Lastik/Pilot/Tele/Setup) gizlenir. */}
