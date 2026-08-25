@@ -175,16 +175,15 @@ describe("SetupTable / SetupCards", () => {
   ];
   const st = { track: "spa" };
 
-  it("tablo: 9 sütun, ⚡ en hızlı + delta, birleşik hücreler", () => {
+  it("liste: v2.0 ızgara satırlar, en hızlı yeşil + not, sürüm çipi", () => {
     const html = render(
       <SetupTable rows={rows} t={t} st={st} lang="tr" isAdmin
-        onDownload={noop} onDelete={noop} onView={noop}
-        sort={{ key: "date", dir: "desc" }} onSort={noop} />);
-    expect(html).toContain("fastlap");          // ⚡ en hızlı (a)
-    expect(html).toContain("lapdelta");         // +0.6s (b)
-    expect(html).toContain("ELMS · 1.2");       // şampiyona·sürüm dosya altında
-    expect(html).toContain("Caspian");          // takım yükleyen altında
-    expect(html).toContain("▼");                // aktif sıralama oku
+        onDownload={noop} onDelete={noop} onView={noop} />);
+    expect(html).toContain("grid-template-columns");   // ızgara satır düzeni
+    expect(html).toContain("var(--rc-ok)");            // en hızlı tur yeşil (a)
+    expect(html).toContain("ELMS · düşük kanat");       // şampiyona · not dosya altında
+    expect(html).toContain("+0.60");                    // delta notu (b)
+    expect(html).toContain("Ahmet");                    // yükleyen
   });
 
   it("kartlar: sucards grid + aynı içerik + eylemler", () => {
@@ -202,7 +201,7 @@ describe("SetupTable / SetupCards", () => {
     expect(render(<SetupCards rows={[]} t={t} st={st} lang="tr" isAdmin={false}
       onDownload={noop} onDelete={noop} />)).toContain("grid-template-columns");
     expect(render(<SetupTable rows={[]} t={t} st={st} lang="tr" isAdmin={false}
-      onDownload={noop} onDelete={noop} />)).toContain("table");
+      onDownload={noop} onDelete={noop} />)).toContain("grid-template-columns");
   });
 });
 

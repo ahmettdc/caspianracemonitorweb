@@ -6,7 +6,7 @@ import {
   CAR_CLASSES, CARS, trackName, carImg, carName, brandLogo,
   APP_VERSION, REPO_URL, PIE_COLORS,
 } from "./constants";
-import { msToLocalInput, parseLap, fmtLap } from "./engine";
+import { msToLocalInput } from "./engine";
 import { SETUP_LIMITS, poolEmptyReason, lapDeltas } from "./setupPool";
 import { trackOptions, classOptions, carOptions } from "./pickerOptions";
 import { parseSvm, b64ToText, setupSummary, diffSetups, categorizeSetup,
@@ -736,19 +736,6 @@ export function SetupForm({
    kayıtlar (v1.4.93 şema bölme) hasBlob işaretiyle gelir, gövde talep üzerine iner. */
 const hasFile = (su) => !!(su?.data || su?.hasBlob);
 
-/* Tur zamanı hücresi/rozeti — tablo ve kart görünümü ortak. En hızlı ⚡ yeşil;
-   diğerlerinde grubun en hızlısına fark "+0.6s" soluk ek. */
-function LapCell({ su, d, t }) {
-  if (!su.lap) return "—";
-  const sec = parseLap(su.lap);
-  const txt = sec > 0 ? fmtLap(sec) : su.lap;
-  if (d?.fastest) return <span className="fastlap" title={t("En hızlı")}>⚡ {txt}</span>;
-  return (<>
-    {txt}
-    {d && d.delta > 0 && <span className="lapdelta"> +{d.delta.toFixed(1)}s</span>}
-  </>);
-}
-
 /* Koşul + seans tek hücrede (sadeleştirme: 13 → 9 sütun) — kısa çipler, tam ad title'da */
 function CondSess({ su, t }) {
   return (
@@ -764,104 +751,72 @@ function CondSess({ su, t }) {
 }
 
 export function SetupTable({ rows, t, st, lang, isAdmin, onDownload, onDelete, onView,
-  sort, onSort, cmpSel, onCmpToggle }) {
+  cmpSel, onCmpToggle }) {
   const deltas = lapDeltas(rows);   // pist+sınıf başına ⚡ en hızlı + farklar
-  /* Tarih/Tur başlıkları tıklanabilir sıralama — ok yönü aktif sıralamayı gösterir */
-  const arrow = (k) => (sort?.key === k ? (sort.dir === "asc" ? " ▲" : " ▼") : "");
-  const sortTh = (k, lbl) => onSort
-    ? <th style={{ cursor: "pointer", whiteSpace: "nowrap" }}
-        onClick={() => onSort(k)}>{lbl}{arrow(k)}</th>
-    : <th>{lbl}</th>;
+  const COLS = "minmax(120px,1.2fr) 96px 1fr 92px 88px 168px";
+  const smBtn = { padding: "4px 10px", borderRadius: 7, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer", fontSize: 11, whiteSpace: "nowrap" };
+  const hd = { color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".09em" };
   return (
-    <div style={{ overflowX: "auto" }}>
-      <table style={{ fontSize: 12 }}>
-        <thead><tr>
-          {sortTh("date", t("Tarih"))}<th>{t("Pist")}</th><th>{t("Koşul")}</th>
-          <th>{t("Sınıf")}</th><th>{t("Araç")}</th>{sortTh("lap", t("Tur"))}
-          <th>{t("Dosya")}</th><th>{t("Yükleyen")}</th><th></th>
-        </tr></thead>
-        <tbody>
-          {rows.map((su) => (
+    <div style={{ overflowX: "auto", border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)" }}>
+      <div style={{ minWidth: 660 }}>
+        {/* başlık satırı (spec 73-81) */}
+        <div style={{ display: "grid", gridTemplateColumns: COLS, gap: 10, alignItems: "center", padding: "8px 12px", borderBottom: "1px solid var(--rc-border)", background: "var(--rc-surface-2)" }}>
+          <span style={hd}>{t("Dosya")}</span>
+          <span style={{ ...hd, textAlign: "left" }}>{t("Koşul")}</span>
+          <span style={hd}>{t("Araç")}</span>
+          <span style={{ ...hd, textAlign: "right" }}>{t("Tur")}</span>
+          <span style={hd}>{t("Yükleyen")}</span>
+          <span style={{ ...hd, textAlign: "right" }}>{t("İşlem")}</span>
+        </div>
+        {rows.map((su) => {
+          const d = deltas.get(su.id);
+          const lapColor = d?.fastest ? "var(--rc-ok)" : "var(--rc-text)";
+          const lapNote = su.note || (d?.fastest ? t("sınıf en hızlısı") : d && d.delta > 0 ? `+${d.delta.toFixed(2)}` : "");
+          const here = su.track === st.track;
+          const sel = cmpSel?.includes(su.id);
+          return (
             /* satıra tıkla → içerik penceresi (eylem hücresi stopPropagation ile hariç) */
-            <tr key={su.id}
-              onClick={() => hasFile(su) && onView?.(su)}
-              style={{
-                ...(su.track === st.track ? { background: "rgba(150,0,24,.08)" } : {}),
-                ...(hasFile(su) && onView ? { cursor: "pointer" } : {}),
-              }}>
-              <td className="setupmono">{new Date(su.at || 0)
-                .toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR",
-                  { day: "2-digit", month: "2-digit", year: "2-digit" })}</td>
-              <td>
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                  {su.track && <img src={`${ASSET}flags/${TRACK_ASSET(su.track)}.png`}
-                    alt="" style={{ width: 18, borderRadius: 2 }}
-                    onError={(e) => { e.currentTarget.style.display = "none"; }} />}
-                  {trackName(su.track) || su.track || "—"}
+            <div key={su.id} onClick={() => hasFile(su) && onView?.(su)}
+              style={{ display: "grid", gridTemplateColumns: COLS, gap: 10, alignItems: "center",
+                padding: "9px 12px", borderBottom: "1px solid var(--rc-line-soft)",
+                borderLeft: `2px solid ${here ? "var(--rc-brand-bright)" : "transparent"}`,
+                background: sel ? "rgba(150,0,24,.10)" : "transparent",
+                cursor: hasFile(su) && onView ? "pointer" : "default" }}>
+              {/* Dosya: ad + sürüm çipi + not */}
+              <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+                  <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{su.name}</b>
+                  {su.ver && <span style={{ fontSize: 10, color: "var(--rc-text-3)", padding: "1px 7px", borderRadius: 99, border: "1px solid var(--rc-border)", flex: "0 0 auto" }}>{su.ver}</span>}
                 </span>
-              </td>
-              <td><CondSess su={su} t={t} /></td>
-              {/* İkon yüklenemezse SADECE gizlenir; yanındaki metin yedeği zaten durur. */}
-              <td>{su.cls
-                ? <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                    <img src={`${ASSET}class/${su.cls}.png`} alt=""
-                      style={{ height: 16, verticalAlign: "-3px" }}
-                      onError={(e) => { e.currentTarget.style.display = "none"; }} />
-                    {CAR_CLASSES.find(([id]) => id === su.cls)?.[1] || su.cls}
-                  </span>
-                : "—"}</td>
-              <td>{su.car
-                ? <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                    {/* marka logosu + araç görseli */}
-                    {brandLogo(carName(su.cls, su.car)) && (
-                      <img src={brandLogo(carName(su.cls, su.car))} alt=""
-                        style={{ height: 16, width: "auto" }}
-                        onError={(e) => { e.currentTarget.style.display = "none"; }} />
-                    )}
-                    <img src={carImg(su.cls, su.car)} alt=""
-                      style={{ height: 22, width: "auto" }}
-                      onError={(e) => { e.currentTarget.style.display = "none"; }} />
-                    {carName(su.cls, su.car)}
-                  </span>
-                : "—"}</td>
-              <td className="setupmono" style={{ whiteSpace: "nowrap" }}>
-                <LapCell su={su} d={deltas.get(su.id)} t={t} /></td>
-              {/* Dosya hücresi: ad + (şampiyona · sürüm) + not — sütun birleştirme */}
-              <td title={su.note || ""}>
-                <span className="setupmono" style={{ fontSize: 11 }}>{su.name}</span>
-                {(su.champ || su.ver) && <span className="hint" style={{ display: "block",
-                  margin: 0 }}>{[su.champ, su.ver].filter(Boolean).join(" · ")}</span>}
-                {su.note && <span className="hint" style={{ display: "block",
-                  margin: 0 }}>{su.note}</span>}</td>
-              {/* Yükleyen + takım tek hücrede */}
-              <td>
-                {su.uname || "—"}
-                {su.team && <span className="hint" style={{ display: "block",
-                  margin: 0 }}>{su.team}</span>}</td>
-              <td style={{ whiteSpace: "nowrap" }} onClick={(e) => e.stopPropagation()}>
+                {(lapNote || su.champ) && <span style={{ fontSize: 10.5, color: "var(--rc-text-3)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{[su.champ, lapNote].filter(Boolean).join(" · ")}</span>}
+              </span>
+              {/* Koşul */}
+              <span style={{ display: "flex", justifyContent: "flex-start" }}><CondSess su={su} t={t} /></span>
+              {/* Araç: marka + sınıf + ad */}
+              <span style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+                {su.car && brandLogo(carName(su.cls, su.car)) && (
+                  <img src={brandLogo(carName(su.cls, su.car))} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ height: 17, width: 17, objectFit: "contain", flex: "0 0 auto" }} />)}
+                {su.cls && <img src={`${ASSET}class/${su.cls}.png`} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ height: 14, flex: "0 0 auto" }} />}
+                <span style={{ fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{carName(su.cls, su.car) || "—"}</span>
+              </span>
+              {/* Tur */}
+              <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 17, fontWeight: 700, textAlign: "right", color: lapColor }}>{su.lap || "—"}</b>
+              {/* Yükleyen · tarih */}
+              <span style={{ fontSize: 11, color: "var(--rc-text-3)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {su.uname || "—"} · {new Date(su.at || 0).toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR", { day: "2-digit", month: "2-digit" })}</span>
+              {/* İşlem */}
+              <span style={{ display: "flex", gap: 6, justifyContent: "flex-end", alignItems: "center" }} onClick={(e) => e.stopPropagation()}>
                 {onCmpToggle && hasFile(su) && (
-                  <button className="act" style={{ fontSize: 11, marginRight: 4,
-                      ...(cmpSel?.includes(su.id)
-                        ? { borderColor: "var(--teal)", color: "var(--teal)" } : {}) }}
-                    title={t("Karşılaştırmak için seç (en çok 2)")}
-                    onClick={() => onCmpToggle(su)}>⚖</button>
-                )}
-                {onView && hasFile(su) && (
-                  <button className="act" style={{ fontSize: 11, marginRight: 4 }}
-                    onClick={() => onView(su)}>🔍 {t("İçerik")}</button>
-                )}
-                <button className="act" style={{ fontSize: 11 }}
-                  onClick={() => onDownload(su)}>⬇ {t("İndir")}</button>
-                {/* silme yalnız admin */}
-                {isAdmin && (
-                  <button className="act danger" style={{ fontSize: 11, marginLeft: 4 }}
-                    onClick={() => onDelete(su)}>✕</button>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                  <button style={{ ...smBtn, padding: "4px 8px", ...(sel ? { borderColor: "var(--rc-brand-bright)", color: "var(--rc-brand-bright)", background: "rgba(150,0,24,.18)" } : {}) }}
+                    title={t("Karşılaştırmak için seç (en çok 2)")} onClick={() => onCmpToggle(su)}>⚖</button>)}
+                {onView && hasFile(su) && <button style={smBtn} onClick={() => onView(su)}>{t("İçerik")}</button>}
+                <button style={smBtn} onClick={() => onDownload(su)}>{t("İndir")}</button>
+                {isAdmin && <button style={{ ...smBtn, borderColor: "var(--rc-danger)", color: "var(--rc-danger)" }} onClick={() => onDelete(su)}>✕</button>}
+              </span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

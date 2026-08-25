@@ -986,14 +986,15 @@ ${bottomBar}
   const cmpA = setups.find((x) => x.id === cmpSel[0]) || null;
   const cmpB = setups.find((x) => x.id === cmpSel[1]) || null;
   const cmpBar = cmpSel.length > 0 && !cmpOpen && (
-    <div className="cmpbar">
-      <span>⚖ {cmpSel.length}/2</span>
-      {[cmpA, cmpB].filter(Boolean).map((s) => (
-        <span key={s.id} className="chip mono" style={{ fontSize: 11 }}>{s.name}</span>
-      ))}
-      <button className="act" disabled={!(cmpA && cmpB)}
-        onClick={() => setCmpOpen(true)}>{t("Karşılaştır")}</button>
-      <button className="act" onClick={() => setCmpSel([])}>✕ {t("Temizle")}</button>
+    <div style={{ position: "fixed", left: "50%", bottom: 20, transform: "translateX(-50%)", zIndex: 40,
+      display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", borderRadius: 12,
+      background: "var(--rc-surface-2)", border: "1px solid var(--rc-brand-bright)", boxShadow: "0 8px 30px rgba(0,0,0,.45)", maxWidth: "94vw", flexWrap: "wrap" }}>
+      <span style={{ fontSize: 12, color: "var(--rc-text-2)" }}>
+        {cmpSel.length} {t("setup seçili")}{cmpSel.length === 1 ? ` · ${t("bir tane daha seç")}` : ""}</span>
+      <button onClick={() => setCmpOpen(true)} disabled={!(cmpA && cmpB)}
+        style={{ padding: "7px 16px", borderRadius: 9, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: cmpA && cmpB ? "pointer" : "not-allowed", fontSize: 13, fontWeight: 600, opacity: cmpA && cmpB ? 1 : .55 }}>⚖ {t("Karşılaştır")}</button>
+      <button onClick={() => setCmpSel([])}
+        style={{ padding: "7px 12px", borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 13 }}>{t("Temizle")}</button>
     </div>
   );
 
