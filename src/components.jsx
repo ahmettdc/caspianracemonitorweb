@@ -1297,7 +1297,22 @@ export function SetupContentModal({ open, su, onClose, t, onDownload, onAddCompa
   }, [open, onClose]);
   if (!open || !su) return null;
   const parsed = parseSvm(b64ToText(blob.b64));
-  const summary = setupSummary(parsed);
+  /* ÖNE ÇIKANLAR: fişteki gibi az sayıda, ön/arka BİRLEŞİK küratörlü kutular
+     (setupSummary'nin 19 ayrı kutusu yerine). */
+  const _fi = {};
+  if (parsed?.ok) for (const r of parsed.rows) if (_fi[`${r.section}/${r.key}`] == null) _fi[`${r.section}/${r.key}`] = r.label;
+  const _g = (p) => _fi[p];
+  const _pair = (fa, fb) => { const x = _g(fa), y = _g(fb); if (x == null && y == null) return null; return `${x ?? "—"} / ${y ?? "—"}`; };
+  const summary = [
+    { label: "Arka Kanat", value: _g("REARWING/RWSetting") },
+    { label: "Yükseklik ön/arka", value: _pair("FRONTLEFT/RideHeightSetting", "REARLEFT/RideHeightSetting") },
+    { label: "Basınç ön/arka", value: _pair("FRONTLEFT/PressureSetting", "REARLEFT/PressureSetting") },
+    { label: "Kamber ön/arka", value: _pair("FRONTLEFT/CamberSetting", "REARLEFT/CamberSetting") },
+    { label: "Fren Dengesi", value: _g("CONTROLS/RearBrakeSetting") },
+    { label: "TC", value: _g("CONTROLS/TractionControlMapSetting") },
+    { label: "ABS", value: _g("CONTROLS/AntilockBrakeSystemMapSetting") },
+    { label: "VE", value: _g("GENERAL/VirtualEnergySetting") },
+  ].filter((s) => s.value != null && s.value !== "");
   const fieldName = (key) => t(SVM_FIELDS[key] || key);
   const cats = categorizeSetup(parsed);
   const totalFields = cats.reduce((a, c) => a + c.rows.length, 0);
