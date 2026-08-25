@@ -1020,9 +1020,9 @@ ${bottomBar}
 
   const chatModal = (
     <ChatModal open={chatOpen && !!user && !!curChan} onClose={() => setChatOpen(false)}
-      t={t} chatSound={chatSound} toggleChatSound={toggleChatSound}
+      t={t} lang={lang} chatSound={chatSound} toggleChatSound={toggleChatSound}
       chatChans={chatChans} unreadOf={unreadOf} chatChan={chatChan} setChatChan={setChatChan}
-      teamData={teamData} curChan={curChan} chatBody={chatBody} />
+      teamData={teamData} curChan={curChan} chatBody={chatBody} chatAll={chatAll} fmtClock={fmtClock} />
   );
 
   /* Mini oynatıcı: sekmeden bağımsız, köşede sabit. iframe hep aynı ağaçta kalır,
@@ -3602,19 +3602,14 @@ ${bottomBar}
           )}
 
           {tab === "rchat" && raceChan && (
-            <div className="card">
-              <h2 style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                🏁 {races[curRace]?.name || t("Yarış Sohbeti")}
-                <button className="lbclose" style={{ marginLeft: "auto" }}
-                  title={chatSound ? t("Bildirim sesini kapat") : t("Bildirim sesini aç")}
-                  onClick={toggleChatSound}>{chatSound ? "🔔" : "🔕"}</button>
-              </h2>
-              <div className="hint" style={{ marginBottom: 6 }}>
-                {t("Bu yarışa özel kanal — takımın tamamı yazabilir, sürücüler dahil.")}</div>
-              <div style={{ border: "1px solid var(--line)", borderRadius: 10,
-                overflow: "hidden" }}>
-                {chatBody(raceChan, "min(58vh,440px)")}
+            <div style={{ border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+              <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--rc-border)", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".06em", fontSize: 17, fontWeight: 700 }}>🏁 {races[curRace]?.name || t("Yarış Sohbeti")}</span>
+                <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{t("yarışa özel kanal")}</span>
+                <button onClick={toggleChatSound} title={chatSound ? t("Bildirim sesini kapat") : t("Bildirim sesini aç")}
+                  style={{ marginLeft: "auto", background: "none", border: "none", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 15 }}>{chatSound ? "🔔" : "🔕"}</button>
               </div>
+              {chatBody(raceChan, "min(58vh,440px)")}
             </div>
           )}
 

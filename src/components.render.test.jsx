@@ -36,8 +36,8 @@ describe("modal bileşenleri: açık halde çökmeden render olur", () => {
     const html = render(
       <ChatModal open onClose={noop} t={t} chatSound toggleChatSound={noop}
         chatChans={chans} unreadOf={() => 0} chatChan="global" setChatChan={noop}
-        teamData={null} curChan={chans[0]} chatBody={() => null} />);
-    expect(html).toContain("chattabs");
+        teamData={null} curChan={chans[0]} chatBody={() => null} chatAll={{}} fmtClock={() => "12:00"} />);
+    expect(html).toContain("Kanallar");
   });
 
   it("SetupModal", () => {

@@ -1280,33 +1280,56 @@ export function RaceEditModal({ rForm, setRForm, t, seasons, onSave, onProceed, 
 /* Sohbet penceresi (kanal sekmeleri + gövde). App.jsx'ten çıkarıldı; sohbet gövdesi
    (ChatPanel'i saran, iki yerde kullanılan) App'te kalıp `chatBody` render-prop'u ile
    gelir. open=false → null döner. */
-export function ChatModal({ open, onClose, t, chatSound, toggleChatSound, chatChans,
-  unreadOf, chatChan, setChatChan, teamData, curChan, chatBody }) {
+export function ChatModal({ open, onClose, t, lang, chatSound, toggleChatSound, chatChans,
+  unreadOf, chatChan, setChatChan, teamData, curChan, chatBody, chatAll, fmtClock }) {
   if (!open) return null;
+  const nameOf = (c) => (c.id === "team" ? (teamData?.meta?.name || t(c.lbl)) : t(c.lbl));
+  const metaOf = (c) => (c.id === "team" ? t("takım kanalı") : c.id === "global" ? t("genel kanal") : t("yarışa özel kanal"));
+  const lastOf = (c) => { const m = (chatAll?.[c.path] || []); return m[m.length - 1]; };
   return (
-    <div className="wxmodal" onClick={onClose}>
-      <div className="wxmbox" style={{ width: "min(560px,94vw)" }}
-        onClick={(e) => e.stopPropagation()}>
-        <div className="wxmhead">
-          <span>💬 {t("Sohbet")}</span>
-          <button className="lbclose" style={{ marginLeft: "auto", marginRight: 4 }}
-            title={chatSound ? t("Bildirim sesini kapat") : t("Bildirim sesini aç")}
-            onClick={toggleChatSound}>{chatSound ? "🔔" : "🔕"}</button>
-          <button className="lbclose" onClick={onClose}>✕</button>
+    <div className="rc" onClick={onClose} role="dialog" aria-modal="true"
+      style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(10,6,10,.74)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
+      <div onClick={(e) => e.stopPropagation()}
+        style={{ width: "min(940px,96vw)", height: "min(660px,88vh)", display: "flex", flexWrap: "wrap", gap: 0, background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
+        {/* sol: Kanallar */}
+        <div style={{ flex: "0 0 280px", minWidth: 220, borderRight: "1px solid var(--rc-border)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--rc-border)", display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 15, fontWeight: 700 }}>{t("Kanallar")}</span>
+            <button onClick={toggleChatSound} title={chatSound ? t("Bildirim sesini kapat") : t("Bildirim sesini aç")}
+              style={{ marginLeft: "auto", background: "none", border: "none", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 15 }}>{chatSound ? "🔔" : "🔕"}</button>
+          </div>
+          <div style={{ overflowY: "auto", padding: 8 }}>
+            {chatChans.map((c) => {
+              const on = c.id === chatChan;
+              const u2 = unreadOf(c);
+              const last = lastOf(c);
+              return (
+                <button key={c.id} onClick={() => setChatChan(c.id)}
+                  style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 11px", borderRadius: 10, cursor: "pointer", marginBottom: 2,
+                    border: `1px solid ${on ? "var(--rc-border-strong)" : "transparent"}`, background: on ? "var(--rc-surface-3)" : "transparent" }}>
+                  <span style={{ width: 30, height: 30, flex: "0 0 auto", borderRadius: 9, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 15, background: "var(--rc-surface-2)", border: "1px solid var(--rc-border)" }}>{c.ico}</span>
+                  <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, flex: 1, textAlign: "left" }}>
+                    <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 15, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{nameOf(c)}</b>
+                      {u2 > 0 && !on && <b style={{ flex: "0 0 auto", fontSize: 10, minWidth: 17, height: 17, padding: "0 5px", borderRadius: 99, background: "var(--rc-brand)", color: "var(--rc-on-brand)", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{u2 > 9 ? "9+" : u2}</b>}
+                      <span style={{ marginLeft: "auto", fontSize: 10.5, color: "var(--rc-text-3)", fontFamily: "var(--rc-font-display)", flex: "0 0 auto" }}>{last ? fmtClock(last.at || 0) : ""}</span>
+                    </span>
+                    <span style={{ fontSize: 11.5, color: "var(--rc-text-3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{last ? last.text : metaOf(c)}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
-        <div className="chattabs">
-          {chatChans.map((c) => {
-            const u2 = unreadOf(c);
-            return (
-              <button key={c.id} className={`ctab ${c.id === chatChan ? "on" : ""}`}
-                onClick={() => setChatChan(c.id)}>
-                {c.ico} {c.id === "team" ? (teamData?.meta?.name || t(c.lbl)) : t(c.lbl)}
-                {u2 > 0 && c.id !== chatChan && <b className="cdot">{u2 > 9 ? "9+" : u2}</b>}
-              </button>
-            );
-          })}
+        {/* sağ: mesaj sütunu */}
+        <div style={{ flex: "1 1 420px", minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--rc-border)", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".06em", fontSize: 17, fontWeight: 700 }}>{curChan ? nameOf(curChan) : t("Sohbet")}</span>
+            {curChan && <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{metaOf(curChan)}</span>}
+            <button onClick={onClose} style={{ marginLeft: "auto", width: 30, height: 30, borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 14, lineHeight: 1 }}>✕</button>
+          </div>
+          {chatBody(curChan)}
         </div>
-        {chatBody(curChan)}
       </div>
     </div>
   );
