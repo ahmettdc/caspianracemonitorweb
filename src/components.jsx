@@ -1321,58 +1321,60 @@ export function SetupContentModal({ open, su, onClose, t }) {
     : cats;
   const title = [carName(su.cls, su.car) || su.car, trackName(su.track) || su.track]
     .filter(Boolean).join(" · ");
+  const segBtn = (on) => ({ padding: "7px 14px", borderRadius: 8, cursor: "pointer", fontSize: 12, whiteSpace: "nowrap",
+    border: `1px solid ${on ? "var(--rc-brand-bright)" : "var(--rc-border)"}`, background: on ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)", color: on ? "var(--rc-text)" : "var(--rc-text-2)" });
   return (
-    <div className="wxmodal" onClick={onClose}>
-      <div className="wxmbox" style={{ width: "min(640px,95vw)" }}
-        onClick={(e) => e.stopPropagation()}>
-        <div className="wxmhead">
-          <span>🔧 {t("Setup İçeriği")}</span>
-          <button className="lbclose" onClick={onClose}>✕</button>
+    <div onClick={onClose} role="dialog" aria-modal="true"
+      style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(10,6,10,.74)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
+      <div onClick={(e) => e.stopPropagation()}
+        style={{ width: "min(640px,95vw)", maxHeight: "86vh", display: "flex", flexDirection: "column", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
+        {/* başlık */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "15px 20px", borderBottom: "1px solid var(--rc-border)", flexWrap: "wrap" }}>
+          <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".07em", fontSize: 18, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 9 }}>🔧 {t("Setup İçeriği")}</span>
+          <span style={{ fontSize: 11.5, color: "var(--rc-text-3)", marginRight: "auto", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{su.name}{title ? ` · ${title}` : ""}{su.lap ? ` · ⏱ ${su.lap}` : ""}</span>
+          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 15, lineHeight: 1 }}>✕</button>
         </div>
-        <div className="wxmlist" style={{ maxHeight: "74vh" }}>
-          <div className="hint" style={{ margin: "0 0 8px" }}>
-            {su.name}{title ? ` · ${title}` : ""}{su.lap ? ` · ⏱ ${su.lap}` : ""}</div>
+        <div style={{ overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
           {blob.loading ? (
-            <div className="hint">⏳ {t("Dosya yükleniyor…")}</div>
+            <div style={{ color: "var(--rc-text-3)", fontSize: 12.5 }}>⏳ {t("Dosya yükleniyor…")}</div>
           ) : !parsed.ok ? (
-            <div className="hint warn">⚠ {t("İçerik okunamadı — bu bir LMU setup dosyası değil ya da bozuk.")}</div>
+            <div style={{ color: "var(--rc-warn)", fontSize: 12.5, lineHeight: 1.6 }}>⚠ {t("İçerik okunamadı — bu bir LMU setup dosyası değil ya da bozuk.")}</div>
           ) : (
             <>
               {summary.length > 0 && (
-                <div className="setupsum">
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
                   {summary.map((s) => (
-                    <span className="setupchip" key={s.label}>
-                      <b>{t(s.label)}</b> {s.value}</span>
+                    <span key={s.label} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 11px", borderRadius: 99, border: "1px solid var(--rc-border)", background: "var(--rc-surface-2)", fontSize: 11.5 }}>
+                      <b style={{ fontFamily: "var(--rc-font-display)", color: "var(--rc-brand-bright)" }}>{t(s.label)}</b>
+                      <span style={{ fontFamily: "var(--rc-font-display)" }}>{s.value}</span></span>
                   ))}
                 </div>
               )}
-              <div className="setuptools">
-                <div className="seg" role="group">
-                  <button aria-pressed={!showAll} onClick={() => setShowAll(false)}>
-                    {t("Anlamlı alanlar")}</button>
-                  <button aria-pressed={showAll} onClick={() => setShowAll(true)}>
-                    {t("Tümünü göster")}</button>
-                </div>
-                <input className="setupsearch" value={q} onChange={(e) => setQ(e.target.value)}
-                  placeholder={t("ara: kanat, basınç…")} aria-label={t("Setup alanı ara")} />
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <span role="group" style={{ display: "inline-flex", gap: 6 }}>
+                  <button aria-pressed={!showAll} onClick={() => setShowAll(false)} style={segBtn(!showAll)}>{t("Anlamlı alanlar")}</button>
+                  <button aria-pressed={showAll} onClick={() => setShowAll(true)} style={segBtn(showAll)}>{t("Tümünü göster")}</button>
+                </span>
+                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("ara: kanat, basınç…")} aria-label={t("Setup alanı ara")}
+                  style={{ flex: "1 1 160px", minWidth: 0, background: "var(--rc-surface-3)", border: "1px solid var(--rc-border-strong)", borderRadius: 9, color: "var(--rc-text)", padding: "8px 12px", fontSize: 12.5 }} />
               </div>
               {shown.length ? (
-                <div className="setupcats">
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   {shown.map((c) => (
-                    <section className="setupcat" key={c.cat}>
-                      <h4 className="setupcat-h">
-                        <span className="ic">{CAT_META[c.cat]?.icon || "•"}</span>
+                    <section key={c.cat} style={{ border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface-2)", overflow: "hidden" }}>
+                      <h4 style={{ margin: 0, display: "flex", alignItems: "center", gap: 8, padding: "9px 13px", borderBottom: "1px solid var(--rc-line-soft)", fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".06em", fontSize: 12.5, fontWeight: 700 }}>
+                        <span>{CAT_META[c.cat]?.icon || "•"}</span>
                         {t(CAT_META[c.cat]?.tr || c.cat)}
-                        <span className="n">{c.rows.length}</span></h4>
-                      {c.rows.map((r) => (
-                        <div className="setuprow" key={r.key}>
-                          <span className="setuprow-k">{fieldName(r.key)}</span>
+                        <span style={{ marginLeft: "auto", fontSize: 10.5, color: "var(--rc-text-3)", padding: "1px 8px", borderRadius: 99, border: "1px solid var(--rc-border)", fontWeight: 400 }}>{c.rows.length}</span></h4>
+                      {c.rows.map((r, i) => (
+                        <div key={r.key} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 13px", borderTop: i > 0 ? "1px solid var(--rc-line-soft)" : "none" }}>
+                          <span style={{ fontSize: 12, color: "var(--rc-text-2)", flex: 1, minWidth: 0 }}>{fieldName(r.key)}</span>
                           {r.kind === "axle" ? (
-                            <span className="setuprow-v axle">
-                              <span><b>{t("ÖN")}</b>{r.front}</span>
-                              <span><b>{t("ARKA")}</b>{r.rear}</span></span>
+                            <span style={{ display: "inline-flex", gap: 12, fontFamily: "var(--rc-font-display)", fontSize: 13, flex: "0 0 auto" }}>
+                              <span style={{ display: "inline-flex", gap: 4 }}><b style={{ color: "var(--rc-text-3)", fontSize: 9.5, alignSelf: "center" }}>{t("ÖN")}</b>{r.front}</span>
+                              <span style={{ display: "inline-flex", gap: 4 }}><b style={{ color: "var(--rc-text-3)", fontSize: 9.5, alignSelf: "center" }}>{t("ARKA")}</b>{r.rear}</span></span>
                           ) : (
-                            <span className="setuprow-v">{r.value}</span>
+                            <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 13, flex: "0 0 auto" }}>{r.value}</span>
                           )}
                         </div>
                       ))}
@@ -1380,7 +1382,7 @@ export function SetupContentModal({ open, su, onClose, t }) {
                   ))}
                 </div>
               ) : (
-                <div className="hint">{t("Eşleşen alan yok.")}</div>
+                <div style={{ color: "var(--rc-text-3)", fontSize: 12.5 }}>{t("Eşleşen alan yok.")}</div>
               )}
             </>
           )}
@@ -1512,78 +1514,71 @@ export function SetupCompareModal({ open, a, b, onClose, t }) {
     groups[gIdx[r.section]].list.push(r);
   }
   const mismatch = a.track !== b.track || a.cls !== b.cls;
-  const side = (su) => (
-    <>
-      <b className="setupmono" style={{ fontSize: 11, wordBreak: "break-all" }}>{su.name}</b>
-      <span className="hint" style={{ margin: 0 }}>
-        {[carName(su.cls, su.car) || su.car, trackName(su.track) || su.track,
-          su.uname].filter(Boolean).join(" · ")}</span>
-    </>
+  const side = (su, right) => (
+    <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, textAlign: right ? "right" : "left" }}>
+      <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 12, wordBreak: "break-all" }}>{su.name}</b>
+      <span style={{ fontSize: 10.5, color: "var(--rc-text-3)" }}>
+        {[carName(su.cls, su.car) || su.car, trackName(su.track) || su.track, su.uname].filter(Boolean).join(" · ")}</span>
+    </span>
   );
   return (
-    <div className="wxmodal" onClick={onClose}>
-      <div className="wxmbox" style={{ width: "min(760px,96vw)" }}
-        onClick={(e) => e.stopPropagation()}>
-        <div className="wxmhead">
-          <span>⚖ {t("Setup Karşılaştır")}</span>
-          <button className="lbclose" onClick={onClose}>✕</button>
+    <div onClick={onClose} role="dialog" aria-modal="true"
+      style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(10,6,10,.74)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
+      <div onClick={(e) => e.stopPropagation()}
+        style={{ width: "min(760px,96vw)", maxHeight: "88vh", display: "flex", flexDirection: "column", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "15px 20px", borderBottom: "1px solid var(--rc-border)" }}>
+          <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".07em", fontSize: 18, fontWeight: 700, marginRight: "auto" }}>⚖ {t("Setup Karşılaştır")}</span>
+          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 15, lineHeight: 1 }}>✕</button>
         </div>
-        <div className="wxmlist" style={{ maxHeight: "76vh" }}>
+        <div style={{ overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
           {/* başlık: iki taraf + tur zamanları */}
-          <div className="cmphead">
-            <div className="cmpside">{side(a)}</div>
-            <div className="cmpvs setupmono">
-              {(a.lap || b.lap) ? <>{a.lap || "—"} ↔ {b.lap || "—"}</> : "↔"}</div>
-            <div className="cmpside" style={{ textAlign: "right" }}>{side(b)}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 14px", borderRadius: 12, border: "1px solid var(--rc-border)", background: "var(--rc-surface-2)" }}>
+            {side(a)}
+            <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 12, color: "var(--rc-text-3)", flex: "0 0 auto", textAlign: "center" }}>{(a.lap || b.lap) ? <>{a.lap || "—"} ↔ {b.lap || "—"}</> : "↔"}</span>
+            {side(b, true)}
           </div>
           {mismatch && (
-            <div className="hint warn" style={{ margin: "6px 0" }}>
-              ⚠ {t("Farklı pist ya da sınıf — kıyası dikkatli oku.")}</div>
+            <div style={{ fontSize: 11.5, color: "var(--rc-warn)" }}>⚠ {t("Farklı pist ya da sınıf — kıyası dikkatli oku.")}</div>
           )}
           {loading ? (
-            <div className="hint">⏳ {t("Dosya yükleniyor…")}</div>
+            <div style={{ color: "var(--rc-text-3)", fontSize: 12.5 }}>⏳ {t("Dosya yükleniyor…")}</div>
           ) : !both ? (
-            <div className="hint warn">⚠ {t("İçerik okunamadı — bu bir LMU setup dosyası değil ya da bozuk.")}</div>
+            <div style={{ color: "var(--rc-warn)", fontSize: 12.5 }}>⚠ {t("İçerik okunamadı — bu bir LMU setup dosyası değil ya da bozuk.")}</div>
           ) : (
             <>
-              {/* iki özet çip şeridi */}
               {[pa, pb].map((p, i) => {
                 const sum = setupSummary(p);
                 if (!sum.length) return null;
                 return (
-                  <div className="setupsum" key={i} style={{ marginBottom: i ? 8 : 4 }}>
-                    <span className="setupchip" style={{ opacity: .7 }}>{i ? "B" : "A"}</span>
+                  <div key={i} style={{ display: "flex", flexWrap: "wrap", gap: 7, alignItems: "center" }}>
+                    <span style={{ width: 20, height: 20, borderRadius: 6, flex: "0 0 auto", display: "grid", placeItems: "center", fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 11, border: "1px solid var(--rc-border-strong)", color: "var(--rc-text-2)" }}>{i ? "B" : "A"}</span>
                     {sum.map((s) => (
-                      <span className="setupchip" key={s.label}>
-                        <b>{t(s.label)}</b> {s.value}</span>
+                      <span key={s.label} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 99, border: "1px solid var(--rc-border)", background: "var(--rc-surface-2)", fontSize: 11 }}>
+                        <b style={{ fontFamily: "var(--rc-font-display)", color: "var(--rc-brand-bright)" }}>{t(s.label)}</b>
+                        <span style={{ fontFamily: "var(--rc-font-display)" }}>{s.value}</span></span>
                     ))}
                   </div>
                 );
               })}
-              <label className="hint" style={{ display: "flex", alignItems: "center",
-                gap: 6, margin: "4px 0 8px", cursor: "pointer" }}>
-                <input type="checkbox" checked={onlyDiff}
-                  onChange={(e) => setOnlyDiff(e.target.checked)} />
+              <label style={{ display: "flex", alignItems: "center", gap: 7, cursor: "pointer", fontSize: 12, color: "var(--rc-text-2)" }}>
+                <input type="checkbox" checked={onlyDiff} onChange={(e) => setOnlyDiff(e.target.checked)} style={{ width: "auto", margin: 0, accentColor: "var(--rc-brand)" }} />
                 {t("Yalnız farkları göster")} ({diffCount})
               </label>
               {!shown.length && (
-                <div className="hint">
-                  {diffCount === 0
-                    ? t("İki setup'ın tüm anlamlı değerleri aynı.")
-                    : t("Gösterilecek satır yok.")}</div>
+                <div style={{ color: "var(--rc-text-3)", fontSize: 12.5 }}>
+                  {diffCount === 0 ? t("İki setup'ın tüm anlamlı değerleri aynı.") : t("Gösterilecek satır yok.")}</div>
               )}
               {groups.map(({ sec, list }) => (
-                <div className="setupsec" key={sec}>
-                  <div className="setupsec-h">{t(SVM_SECTIONS[sec] || sec)}</div>
-                  {list.map((r) => (
-                    <div className={`cmprow${r.differ ? " diffhl" : ""}`}
-                      key={`${r.section}/${r.key}`}>
-                      <span className="setuprow-k">{t(SVM_FIELDS[r.key] || r.key)}</span>
-                      <span className="cmpv setupmono">{r.a}</span>
-                      <span className="cmpv setupmono">{r.b}</span>
+                <section key={sec} style={{ border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface-2)", overflow: "hidden" }}>
+                  <div style={{ padding: "8px 13px", borderBottom: "1px solid var(--rc-line-soft)", fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".06em", fontSize: 12, fontWeight: 700, color: "var(--rc-text-2)" }}>{t(SVM_SECTIONS[sec] || sec)}</div>
+                  {list.map((r, i) => (
+                    <div key={`${r.section}/${r.key}`} style={{ display: "grid", gridTemplateColumns: "1fr auto auto", alignItems: "center", gap: 12, padding: "7px 13px", borderTop: i > 0 ? "1px solid var(--rc-line-soft)" : "none", background: r.differ ? "rgba(245,178,61,.08)" : "transparent" }}>
+                      <span style={{ fontSize: 12, color: "var(--rc-text-2)", minWidth: 0 }}>{t(SVM_FIELDS[r.key] || r.key)}</span>
+                      <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 13, textAlign: "right", minWidth: 64, color: r.differ ? "var(--rc-warn)" : "var(--rc-text)" }}>{r.a}</span>
+                      <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 13, textAlign: "right", minWidth: 64, color: r.differ ? "var(--rc-brand-bright)" : "var(--rc-text)" }}>{r.b}</span>
                     </div>
                   ))}
-                </div>
+                </section>
               ))}
             </>
           )}

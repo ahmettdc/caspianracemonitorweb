@@ -215,7 +215,7 @@ describe("SetupContentModal", () => {
 
   it("açık halde arka kanat değerini basar", () => {
     const html = render(<SetupContentModal open su={su} onClose={noop} t={t} />);
-    expect(html).toContain("wxmodal");
+    expect(html).toContain("Setup İçeriği");
     expect(html).toContain("Arka Kanat");
     expect(html).toContain("8.3 deg");
   });
@@ -242,9 +242,9 @@ describe("SetupCompareModal", () => {
   const a = mk("a.svm", svmA, { lap: "1:58.2" });
   const b = mk("b.svm", svmB, { lap: "1:59.0" });
 
-  it("farklı değer vurgulu (diffhl) + tur zamanları başlıkta", () => {
+  it("farklı değer vurgulu + tur zamanları başlıkta", () => {
     const html = render(<SetupCompareModal open a={a} b={b} onClose={noop} t={t} />);
-    expect(html).toContain("diffhl");
+    expect(html).toContain("rgba(245,178,61,.08)");   // farklı satır vurgu arka planı
     expect(html).toContain("8.3 deg");
     expect(html).toContain("6.9 deg");
     expect(html).toContain("1:58.2");
