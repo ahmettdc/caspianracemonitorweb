@@ -582,37 +582,35 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
     return (
       <div data-tour="livecard">
         {bridgeCard}
-        <div className="card">
-          <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", margin: "0 0 10px", fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 18, fontWeight: 700 }}>
-            📡 {t("Canlı Timing")}
-            {staleOff && <span className="livebadge off"><i /> {t("çevrimdışı")}</span>}
-            <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-              {guideBtn}{demoBtn}</span></h2>
-          <div className="hint" style={{ lineHeight: 1.7 }}>
+        {/* v2.0 boş durum (handoff 02-canli-timing · noFeed) — gerçek içerik korundu */}
+        <div style={{ border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)", padding: "52px 24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+          <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="var(--rc-border-strong)" strokeWidth="1.6" strokeLinecap="round">
+            <path d="M4.6 8a10 10 0 0 1 14.8 0M7.6 11a6 6 0 0 1 8.8 0" />
+            <circle cx="12" cy="15" r="1.7" fill="var(--rc-border-strong)" stroke="none" />
+            <path d="M3 3l18 18" stroke="var(--rc-warn)" strokeWidth="1.8" />
+          </svg>
+          <div style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 20, letterSpacing: ".02em" }}>
+            {staleOff ? t("Canlı veri akışı durdu") : t("Canlı veri gelmiyor")}</div>
+          <div style={{ fontSize: 12.5, color: "var(--rc-text-3)", lineHeight: 1.7, maxWidth: 460 }}>
             {staleOff
-              ? <>⚠ {t("Canlı veri akışı durdu")} — {t("son veri")} {ageTxt} {t("önce")}.{" "}
-                {t("Oyun ya da köprü kapanmış olabilir.")}</>
+              ? <>{t("Oyun ya da köprü kapanmış olabilir.")} {t("Sürüş PC'sinde köprüyü başlat; bağlanınca saha tablosu kendiliğinden dolar.")}</>
               : isTauri
               ? t("Köprü henüz veri göndermedi. Yukarıdan 'Canlı Köprü Başlat'a bas (oyun açıkken). Yarış başlayınca bu ekran canlı dolar.")
-              : <>
-                {t("Canlı timing, oyunun çalıştığı PC'deki Masaüstü Uygulaması ile gelir:")}
-                <br />1. {t("rFactor2 paylaşımlı bellek eklentisi LMU'da kurulu olmalı (zaten ekte).")}
-                <br />2. {t("Masaüstü Uygulamasını oyunun PC'sine kur, giriş yap, yarışı aç, 'Canlı' sekmesinden 'Canlı Köprü Başlat'a bas.")}
-                <br />3. {t("Yarış başlayınca bu ekran (ve tüm takım) canlı dolar.")}
-              </>}
+              : t("Köprü çalışmıyor ya da oyun seansta değil. Canlı timing, oyunun çalıştığı PC'deki Masaüstü Uygulaması ile gelir; kur, giriş yap, yarışı aç ve 'Canlı Köprü Başlat'a bas.")}</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", marginTop: 4 }}>
+            {!isTauri ? (<>
+              <a href={DESKTOP_RELEASE_URL} target="_blank" rel="noopener noreferrer"
+                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "9px 18px", borderRadius: 10, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>🖥 {t("Masaüstü Uygulamasını İndir")}</a>
+              <a href={BRIDGE_EXE_URL} target="_blank" rel="noopener noreferrer"
+                title={t("Oyunun çalıştığı PC için: tarayıcı motoru yok → oyunu yormaz.")}
+                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "9px 16px", borderRadius: 10, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 13, textDecoration: "none" }}>🪶 {t("Hafif Köprüyü İndir (.exe)")}</a>
+            </>) : demoBtn}
+            {!isTauri && demoBtn}
+            {guideBtn}
           </div>
-          {!isTauri && !staleOff && (
-            <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <a className="bigbtn" href={DESKTOP_RELEASE_URL} target="_blank" rel="noopener noreferrer"
-                style={{ display: "inline-flex", alignItems: "center", gap: 8, width: "auto",
-                  padding: "10px 18px", textDecoration: "none" }}>
-                🖥 {t("Masaüstü Uygulamasını İndir")}</a>
-              <a className="bigbtn ghost" href={BRIDGE_EXE_URL} target="_blank" rel="noopener noreferrer"
-                style={{ display: "inline-flex", alignItems: "center", gap: 8, width: "auto",
-                  padding: "10px 18px", textDecoration: "none" }}
-                title={t("Oyunun çalıştığı PC için: tarayıcı motoru yok → oyunu yormaz.")}>
-                🪶 {t("Hafif Köprüyü İndir (.exe)")}</a>
-            </div>
+          {staleOff && !!live?.ts && (
+            <div style={{ fontSize: 11, color: "var(--rc-border-strong)", fontFamily: "var(--rc-font-display)", marginTop: 2 }}>
+              {t("son veri")} {ageTxt} {t("önce")}</div>
           )}
         </div>
       </div>
