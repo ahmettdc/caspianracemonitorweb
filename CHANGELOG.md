@@ -1,5 +1,27 @@
 # Changelog
 
+## v2.1.1 — 2026-08-26
+
+Hotfix sürümü — arayüz cilası ve düzeltmeler.
+
+### İkon seti
+- **68 parçalık çizgi-SVG ikon seti** (`src/iconset.jsx`): nav rayı, üst çubuk, komut paleti, eylem düğmeleri ve durum bantlarındaki emoji/dingbat ikonları tema-uyumlu vektörlerle değiştirildi. `currentColor` ile renk kapsayıcıdan gelir; boya göre stroke-width. Nav ve komut paleti aynı ekran ikonunu paylaşır.
+- **Track temp termometre ikonu** (`TrackTempIcon`): cıva sıcaklığa göre dolar, ısıya göre renklenir.
+
+### Canlı yarış
+- Pist haritasında **pit giriş çizgisi** görünürlüğü düzeltildi (giriş/çıkış pit alanına göre saptanır; 'PIT IN' çizgisi).
+- POZİSYON kartına **sınıf-içi sıra** eklendi (ör. `P7 · GT3 1`).
+
+### Strateji
+- Elle tur override'lı son stint bayrağa çok yakın bitince oluşan **hayalet son pit** ve yanlış "plan tamamlanamadı" uyarısı düzeltildi.
+
+### Üye yönetimi
+- "Son görülme" **göreli zaman** (şimdi · N dk · N sa · dün · g.aa); arama **Türkçe karakter duyarsız**; "Beklemede" filtre çipi hep vurgulu.
+
+### Arayüz
+- Yarış açılışı doğrudan **Stint** sekmesine iner.
+- Eksik **sekme geçiş animasyonları** tamamlandı (Stint, Dashboard, Pilotlar, Telemetri, Yarış Sohbeti).
+
 ## v1.0.0 — 2026-07-23
 
 İlk kararlı sürüm. Le Mans Ultimate endurance yarışları için pit wall / strateji aracı.
