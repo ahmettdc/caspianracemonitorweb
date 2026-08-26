@@ -5,6 +5,32 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v2.1.0",
+    date: "2026-08-26",
+    tr: [
+      "🎨 Büyük v2.0 arayüz yenilemesi: yatay sekme çubuğu yerine sol dikey menü rayı, yeni yarış üst çubuğu, ve tüm ekranlar (Menü, Dashboard, Stint, Yakıt, Lastik, Pilot, Telemetri, Setup, Takım, Sohbet, Yarış Datası) fişteki tasarıma göre yeniden çizildi.",
+      "🔧 Setup: liste görünümü ızgara satırlara geçti, içerik/karşılaştırma/havuz pencereleri ve 'Setup yükle' modalı yenilendi; kıyaslama çubuğu tokenli tray oldu.",
+      "📊 Telemetri: stint yuva kartları, Seans yan paneli, özet kutucukları ve 'Telemetri yükle' penceresi eklendi; .ld desteği kaldırıldı, yalnız .duckdb (+ CSV).",
+      "💬 Sohbet: Kanallar kenar çubuğu + iki sütunlu düzen. Profil, Üye yönetimi, Komut paleti ve Pit Board pencereleri v2.0'a taşındı.",
+      "🏅 Rol/rozet emojileri çizgi SVG ikon setiyle değiştirildi (sürücü/mühendis/sahip/podyum/setup/24H).",
+      "🎓 Yeni koçmark rehber turu: yarış üst barındaki '?' düğmesiyle bulunduğun ekranın adımından açılır, spot ışığı + 11 adımlı animasyonlu panel; eski rehber sistemi kaldırıldı.",
+      "⚡ Stint plan tablosuna 'VE %/tur' sütunu: her stint için ayrı yakıt tüketimi girilebilir (boş → yarış datasındaki tüketim), stintler arası strateji planlanabilir.",
+      "🔗 Üst bar artık köprüyü kim açtıysa onun Firebase'e akan verisini gösterir — izleyici kendi köprüsü olmasa da canlı durumu, pozisyon/enerji ve bayrağa kalanı görür.",
+      "🕑 Pilot uygunluğu: uygun olmayan pilot stint açılır listesinde seçilemez, atanmışsa otomatik kaldırılır.",
+    ],
+    en: [
+      "🎨 Major v2.0 UI redesign: a left vertical nav rail replaces the horizontal tab bar, a new race top bar, and every screen (Menu, Dashboard, Stint, Fuel, Tyre, Drivers, Telemetry, Setup, Team, Chat, Race Data) redrawn to the handoff design.",
+      "🔧 Setup: list view moved to grid rows; content/compare/pool windows and the 'Upload setup' modal redesigned; compare tray is now a tokenised bar.",
+      "📊 Telemetry: stint slot cards, a Session side panel, summary tiles and an 'Upload telemetry' window; .ld support removed, .duckdb only (+ CSV).",
+      "💬 Chat: a Channels sidebar with a two-column layout. Profile, Member management, Command palette and Pit Board windows moved to v2.0.",
+      "🏅 Role/badge emojis replaced with a line-SVG icon set (driver/engineer/owner/podium/setup/24H).",
+      "🎓 New coachmark guided tour: opened from the '?' button in the race top bar at the current screen's step, with a spotlight + an 11-step animated panel; the old guide system was removed.",
+      "⚡ A 'VE %/lap' column in the stint plan table: per-stint fuel consumption can be entered (blank → race-data consumption), enabling per-stint strategy.",
+      "🔗 The top bar now shows the live feed from whoever is running the bridge (relayed via Firebase) — a viewer without their own bridge still sees the live status, position/energy and time to flag.",
+      "🕑 Driver availability: an unavailable driver can't be picked in the stint dropdown and is auto-cleared if already assigned.",
+    ],
+  },
+  {
     v: "v1.8.20",
     date: "2026-08-15",
     tr: [

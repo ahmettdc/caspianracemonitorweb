@@ -1,0 +1,73 @@
+name: PR Preview (Firebase Hosting)
+
+# Her PR için ayrı, geçici bir önizleme URL'i yayınlar (Firebase Hosting preview
+# channel). Canlı siteyi (main → GitHub Pages) HİÇ etkilemez. URL, PR'a yorum
+# olarak bırakılır; tabletten/telefondan açılıp Google ile giriş yapılabilir
+# (Firebase, preview-channel alan adlarını auth için otomatik yetkilendirir).
+#
+# Kimlik: mevcut FIREBASE_TOKEN secret'ı (rules deploy'unda da kullanılıyor) —
+# firebase-tools doğrudan --token ile çağrılır, ek servis-hesabı sırrı gerekmez.
+# ÖN KOŞUL: Firebase konsolunda proje için Hosting bir kez etkinleştirilmeli
+# (Hosting → Get started). Aksi halde channel deploy adımı hata verir.
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+      - name: Deploy preview channel
+        id: deploy
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          CHANNEL="pr-${{ github.event.pull_request.number || github.run_id }}"
+          OUT=$(npx --yes firebase-tools hosting:channel:deploy "$CHANNEL" \
+            --project caspian-race-control --expires 30d --json --token "$FIREBASE_TOKEN")
+          echo "$OUT"
+          URL=$(printf '%s' "$OUT" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const j=JSON.parse(s);const site=Object.values(j.result||{})[0]||{};process.stdout.write(site.url||'')}catch(e){process.stdout.write('')}})")
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Preview URL: $URL"
+
+      - name: Comment preview URL on PR
+        if: github.event_name == 'pull_request' && steps.deploy.outputs.url != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const url = process.env.PREVIEW_URL;
+            const body = [
+              '🔎 **Önizleme hazır** — bu PR\'ın canlı önizlemesi:',
+              '',
+              url,
+              '',
+              '_Firebase Hosting preview channel · 30 gün geçerli · canlı siteyi etkilemez. Google ile giriş yapabilirsin._',
+            ].join('\n');
+            const { data: comments } = await github.rest.issues.listComments({
+              ...context.repo, issue_number: context.issue.number,
+            });
+            const prev = comments.find((c) => c.body && c.body.includes('Önizleme hazır'));
+            if (prev) {
+              await github.rest.issues.updateComment({ ...context.repo, comment_id: prev.id, body });
+            } else {
+              await github.rest.issues.createComment({ ...context.repo, issue_number: context.issue.number, body });
+            }
+        env:
+          PREVIEW_URL: ${{ steps.deploy.outputs.url }}

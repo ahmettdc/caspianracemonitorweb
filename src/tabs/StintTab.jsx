@@ -1,287 +1,268 @@
-import { fmtHMS, parseHMS, wxLog, wxAtRel, wxId, tyState, EMPTY_PIT, MAX_STINTS } from "../engine";
+import { fmtHMS, parseHMS, wxLog, wxAtRel, wxId, tyState, EMPTY_PIT, MAX_STINTS, WEATHER } from "../engine";
 import { WetIcon } from "../WetIcon";
 import { Tyre } from "../components";
 
-/* Stint plan sekmesi (stint + code80) — KPI'lar, S1 lastik kısayolları, stint/hava
-   zaman çizelgeleri, plan tablosu (tur/VE/pit/override) ve pit formülü.
-   Mode-aware plan, timeline, liveInfo ve tüm handler'lar App'ten prop gelir. */
+/* Stint planı (v2.0 · handoff-spec/ekranlar/04-stint-plani.md). KPI'lar + S1 start
+   lastikleri + zaman çizelgesi (stint/pilot/hava şeritleri) + plan tablosu.
+   Mode-aware plan/timeline/liveInfo ve tüm handler'lar App'ten prop gelir. */
+const DRV_COLORS = ["#4C9AFF", "#F5B23D", "#37D67A", "#B58BFF", "#EF8A2B", "#F0506E", "#22C1C3"];
+const initialsOf = (nm) => String(nm || "").trim().split(/\s+/).map((w) => w[0] || "").slice(0, 2).join("").toUpperCase() || "—";
+const WX_LEGEND = [["dry", "kuru"], ["damp", "nemli"], ["slwet", "az ıslak"], ["wet", "ıslak"], ["xwet", "çok ıslak"]];
+
 export default function StintTab({
-  tab, mode, t, st, plan, totalVE, totalFuelL, timeline, liveInfo, pitSoon,
-  tyreInfo, quickTyre, bumpLaps, clearLaps, upStintLap, upTyre, upPit,
+  tab, mode, t, st, plan, totalVE, totalFuelL, timeline, liveInfo,
+  tyreInfo, quickTyre, bumpLaps, clearLaps, upStintLap, upStintCons, upTyre, upPit,
   assignDriver, upOvr, setRepair,
 }) {
   const TY = ["FL", "FR", "RL", "RR"];
+  /* stinte özel VE tüketimi (%/tur) — depo değeri / override var mı */
+  const consValOf = (i) => (st.stintCons || [])[i] ?? "";
+  const consOvrOf = (i) => Number((st.stintCons || [])[i]) > 0;
+  const roster = st.roster || [];
+  const drvCol = (nm) => { const i = roster.indexOf(nm); return DRV_COLORS[(i >= 0 ? i : 0) % DRV_COLORS.length]; };
+  const nowPct = liveInfo.status === "live" && mode === "race"
+    ? Math.min(100, (liveInfo.elapsed / liveInfo.raceMs) * 100) : null;
+
+  const card = { border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)" };
+  const kpi = (accent) => ({ border: `1px solid ${accent ? accent.b : "var(--rc-border)"}`, borderRadius: 11, background: accent ? accent.bg : "var(--rc-surface)", padding: "9px 14px", minWidth: 96 });
+  const kpiV = { fontFamily: "var(--rc-font-display)", fontSize: 20, fontWeight: 700, lineHeight: 1 };
+  const kpiL = { color: "var(--rc-text-3)", fontSize: 9.5, textTransform: "uppercase", letterSpacing: ".09em", marginTop: 3 };
+  const hdT = { fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 15, fontWeight: 700 };
+  const th = (left) => ({ textAlign: left ? "left" : "right", padding: "9px 14px", fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".06em", color: "var(--rc-text-3)", borderBottom: "1px solid var(--rc-border)", whiteSpace: "nowrap" });
+  const td = (left) => ({ padding: "10px 14px", borderBottom: "1px solid var(--rc-line-soft)", textAlign: left ? "left" : "right", fontFamily: left ? "var(--rc-font-ui)" : "var(--rc-font-display)", fontSize: left ? 12.5 : 13, fontVariantNumeric: "tabular-nums" });
+
   return (
-    <div className={`card ${tab === "code80" ? "c80" : ""}`}>
-      <div className="kpis">
-        <div className="kpi"><div className="v mono">{fmtHMS(plan.raceSec)}</div>
-          <div className="l">{tab === "code80" ? "Code 80 Kalan" : "Yarış Süresi"}</div></div>
-        <div className="kpi"><div className="v" style={{ color: "var(--teal)" }}>{st.chosen}-{plan.laps}</div>
-          <div className="l">{t("Strateji")}</div></div>
-        <div className="kpi"><div className="v">{plan.fullStints}</div>
-          <div className="l">{t("Stint Sayısı")}</div></div>
-        <div className="kpi"><div className="v">{plan.totalLaps.toFixed(1)}</div>
-          <div className="l">{t("Tahmini Toplam Tur")}</div></div>
-        <div className="kpi"><div className="v" style={{ color: "var(--green)" }}>{totalVE.toFixed(0)}%</div>
-          <div className="l">⚡ {t("Toplam VE")} · {totalFuelL.toFixed(1)} L {t("yakıt")}</div></div>
+    <div className={tab === "code80" ? "c80" : ""} style={{ padding: "4px 0 8px", display: "flex", flexDirection: "column", gap: 14, fontFamily: "var(--rc-font-ui)" }}>
+
+      {/* Başlık + KPI */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <h2 style={{ margin: 0, ...hdT, fontSize: 20, letterSpacing: ".07em" }}>{tab === "code80" ? t("Code 80 Planı") : t("Stint Planı")}</h2>
+        <span style={{ marginLeft: "auto", display: "flex", flexWrap: "wrap", gap: 10 }}>
+          <div style={kpi()}><div style={{ ...kpiV, fontWeight: 600 }}>{fmtHMS(plan.raceSec)}</div><div style={kpiL}>{tab === "code80" ? t("Code 80 Kalan") : t("Yarış süresi")}</div></div>
+          <div style={kpi()}><div style={{ ...kpiV, color: "var(--rc-brand-bright)" }}>{st.chosen}-{plan.laps}</div><div style={kpiL}>{t("Strateji")}</div></div>
+          <div style={kpi()}><div style={kpiV}>{plan.fullStints}</div><div style={kpiL}>{t("Stint")}</div></div>
+          <div style={kpi()}><div style={kpiV}>{plan.totalLaps.toFixed(1)}</div><div style={kpiL}>{t("Tahmini tur")}</div></div>
+          <div style={kpi({ b: "rgba(55,214,122,.35)", bg: "rgba(55,214,122,.07)" })}><div style={{ ...kpiV, color: "var(--rc-ok)" }}>{totalVE.toFixed(0)}%</div><div style={kpiL}>⚡ {t("Toplam VE")} · {totalFuelL.toFixed(0)} L</div></div>
+        </span>
       </div>
 
-      {/* plan bayrağa ulaşamadıysa sessiz kalmasın: yarım plan tamam sanılıyordu */}
       {(plan.truncated || !plan.rows.length) && (
-        <div className="hint warn" style={{ marginTop: 0, marginBottom: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 15px", borderRadius: 11, border: "1px solid var(--rc-warn)", background: "rgba(245,178,61,.10)", fontSize: 12.5, color: "var(--rc-warn)", lineHeight: 1.5 }}>
           {plan.invalid
             ? t("⚠ Plan hesaplanamıyor — süre, \"Avg Lap\" ve seçili stratejinin tur sayısı dolu ve geçerli olmalı (tur ≥ 0:30).")
-            : `${t("⚠ Plan tamamlanamadı")} — ${fmtHMS(plan.rows.length
-                ? plan.rows[plan.rows.length - 1].timeLeft : plan.raceSec)} ${t("planlanmadı")} (${t("stint sınırı")}: ${MAX_STINTS}).`}
+            : `${t("⚠ Plan tamamlanamadı")} — ${fmtHMS(plan.rows.length ? plan.rows[plan.rows.length - 1].timeLeft : plan.raceSec)} ${t("planlanmadı")} (${t("stint sınırı")}: ${MAX_STINTS}).`}
         </div>
       )}
 
+      {/* S1 start lastikleri */}
       {tab === "stint" && (
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
-          border: "1px solid var(--line)", borderRadius: 8, padding: "8px 12px",
-          marginBottom: 12, background: "var(--panel2)" }}>
-          <span className="disp" data-tour="s1" style={{ fontSize: 14,
-            letterSpacing: ".06em", color: "var(--teal)" }}>
-            <Tyre size={13} /> {t("S1 START LASTİKLERİ")}</span>
-          <span className="mono" style={{ fontSize: 12 }}>
-            {TY.map((corner, ci) =>
-              `${corner}:${String(st.tyreStints[0]?.[ci] || "–")}`).join("  ")}
+        <div style={{ ...card, padding: "13px 16px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+          <span data-tour="s1" style={{ display: "inline-flex", alignItems: "center", gap: 8, ...hdT, fontSize: 14, letterSpacing: ".07em", color: "var(--rc-brand-bright)" }}><Tyre size={14} /> {t("S1 start lastikleri")}</span>
+          <span className="mono" style={{ fontSize: 12, color: "var(--rc-text-2)" }}>
+            {TY.map((corner, ci) => `${corner}:${String(st.tyreStints[0]?.[ci] || "–")}`).join("  ")}
           </span>
-          <span className="pitopt">
-            <button onClick={() => quickTyre(0, "carry")}>{t("QUAL İLE BAŞLA")}</button>
-            <button disabled={tyreInfo.available < 4}
-              onClick={() => quickTyre(0, "new4")}>{t("4 YENİ")}</button>
-            <button disabled={tyreInfo.available < 2}
-              onClick={() => quickTyre(0, "fronts")}>{t("2 YENİ ÖN")}</button>
-            <button disabled={tyreInfo.available < 2}
-              onClick={() => quickTyre(0, "rears")}>{t("2 YENİ ARKA")}</button>
-            <button disabled={tyreInfo.available < 2}
-              onClick={() => quickTyre(0, "lefts")}>{t("2 YENİ SOL")}</button>
-            <button disabled={tyreInfo.available < 2}
-              onClick={() => quickTyre(0, "rights")}>{t("2 YENİ SAĞ")}</button>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 4,
-              marginLeft: 4, paddingLeft: 8, borderLeft: "1px solid var(--line)" }}>
-              <span style={{ fontSize: 10.5, color: "var(--dim)",
-                letterSpacing: ".08em" }}>{t("1 YENİ")}</span>
+          <span className="pitopt" style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginLeft: "auto" }}>
+            <button onClick={() => quickTyre(0, "carry")}>{t("Qual ile başla")}</button>
+            <button disabled={tyreInfo.available < 4} onClick={() => quickTyre(0, "new4")}>{t("4 yeni")}</button>
+            <button disabled={tyreInfo.available < 2} onClick={() => quickTyre(0, "fronts")}>{t("2 yeni ön")}</button>
+            <button disabled={tyreInfo.available < 2} onClick={() => quickTyre(0, "rears")}>{t("2 yeni arka")}</button>
+            <button disabled={tyreInfo.available < 2} onClick={() => quickTyre(0, "lefts")}>{t("2 yeni sol")}</button>
+            <button disabled={tyreInfo.available < 2} onClick={() => quickTyre(0, "rights")}>{t("2 yeni sağ")}</button>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, paddingLeft: 9, marginLeft: 2, borderLeft: "1px solid var(--rc-border)" }}>
+              <span style={{ fontSize: 10, color: "var(--rc-text-3)", letterSpacing: ".08em", textTransform: "uppercase" }}>{t("1 yeni")}</span>
               {TY.map((c, ci) => (
-                <button key={c} disabled={tyreInfo.available < 1}
-                  title={`${t("Tek yeni lastik")} — ${c}`}
+                <button key={c} disabled={tyreInfo.available < 1} title={`${t("Tek yeni lastik")} — ${c}`}
                   onClick={() => quickTyre(0, ["fl", "fr", "rl", "rr"][ci])}>{c}</button>
               ))}
             </span>
-            <button onClick={() => quickTyre(0, "clear")}>{t("TEMİZLE")}</button>
+            <button onClick={() => quickTyre(0, "clear")}>{t("Temizle")}</button>
           </span>
-          {tyreInfo.available <= 0 && (
-            <span className="hint warn" style={{ margin: 0 }}>
-              {t("⚠ Lastik limiti doldu — yeni lastik seçilemez")}
-            </span>
-          )}
           {!(st.tyreStints[0] || []).some((v) => String(v).trim()) && (
-            <span className="hint warn" style={{ margin: 0 }}>
-              {t("⚠ Başlangıç lastiği seçilmedi — önce buradan başla, pit seçimleri buna zincirlenir")}
-            </span>
+            <span style={{ flex: "1 1 100%", fontSize: 11.5, color: "var(--rc-warn)" }}>{t("⚠ Başlangıç lastiği seçilmedi — önce buradan başla, pit seçimleri buna zincirlenir")}</span>
+          )}
+          {tyreInfo.available <= 0 && (
+            <span style={{ flex: "1 1 100%", fontSize: 11.5, color: "var(--rc-danger)" }}>{t("⚠ Lastik limiti doldu — yeni lastik seçilemez")}</span>
           )}
         </div>
       )}
 
-      <div className="timeline" role="img" aria-label={t("Stint zaman çizelgesi")}>
-        {timeline.map((s, i) => (
-          <div key={i} className={`seg ${s.cls}`}
-            style={{ width: `${s.w}%`, background: s.cls ? undefined : s.bg }}>
-            {s.label && s.w > 1.8 && <span>{s.label}</span>}
-          </div>
-        ))}
-        {liveInfo.status === "live" && mode === "race" && (
-          <div className="nowline" style={{
-            left: `${Math.min(100, (liveInfo.elapsed / liveInfo.raceMs) * 100)}%` }} />
-        )}
-      </div>
-
-      {(st.driverAssign || []).some(Boolean) && (() => {
-        /* pilot şeridi: stint segmentleriyle hizalı; aynı pilotun ardışık
-           stint'leri (aradaki pit dahil) tek blokta birleşir, farklı pilot
-           arasında pit boşluk olur. Canlıda direksiyondaki pilot vurgulanır. */
-        const rows = plan.rows;
-        const cells = [];
-        let i = 0;
-        while (i < rows.length) {
-          const drv = st.driverAssign[i] || "";
-          let w = (rows[i].stintSec / plan.raceSec) * 100;
-          let j = i;
-          while (j + 1 < rows.length && (st.driverAssign[j + 1] || "") === drv) {
-            w += ((rows[j].pitSec || 0) / plan.raceSec) * 100;
-            w += (rows[j + 1].stintSec / plan.raceSec) * 100;
-            j++;
-          }
-          const isCur = liveInfo.status === "live" && mode === "race"
-            && liveInfo.stintIdx >= i && liveInfo.stintIdx <= j;
-          cells.push({ type: "drv", w, drv, cur: isCur });
-          if (j < rows.length - 1)
-            cells.push({ type: "gap", w: ((rows[j].pitSec || 0) / plan.raceSec) * 100 });
-          i = j + 1;
-        }
-        return (
-          <div className="drvlane" role="img" aria-label={t("Pilot şeridi")}>
-            {cells.map((c, k) => c.type === "gap"
-              ? <div key={k} className="dgap" style={{ width: `${c.w}%` }} />
-              : <div key={k} className={`dcell ${c.cur ? "cur" : ""}`}
-                  style={{ width: `${c.w}%` }} title={c.drv || t("Atanmadı")}>
-                  <span>{c.drv || "—"}</span></div>
-            )}
-            {liveInfo.status === "live" && mode === "race" && (
-              <div className="nowline" style={{
-                left: `${Math.min(100, (liveInfo.elapsed / liveInfo.raceMs) * 100)}%` }} />
-            )}
-          </div>
-        );
-      })()}
-
-      {(() => {
-        /* hava kronolojisi: doğrudan log'dan, yarış süresi üzerinden
-           (stint sınırlarından bağımsız → canlı + planlı her geçiş görünür) */
-        const log = wxLog(st);
-        const total = plan.raceSec || parseHMS(st.raceTime) || 1;
-        const cuts = [0, ...log.map((e) => e.t).filter((tt) => tt > 0.5 && tt < total - 0.5),
-          total].sort((a, b) => a - b);
-        const segs = [];
-        for (let i = 0; i < cuts.length - 1; i++) {
-          const a = cuts[i], b = cuts[i + 1];
-          if (b - a < 0.5) continue;
-          segs.push({ w: (b - a) / total * 100, wx: wxAtRel(log, (a + b) / 2) });
-        }
-        if (!segs.some((x) => x.wx.lap > 1)) return null; // hep dry → çubuk gizli
-        return (
-          <div className="wxbar" role="img" aria-label={t("Hava zaman çizelgesi")}>
-            {segs.map((s2, i) => (
-              <div key={i} className={`wseg ${s2.wx.lap > 1 ? "rain" : ""}`}
-                style={{ width: `${s2.w}%`, background: s2.wx.col }}
-                title={`${t(s2.wx.lbl)} ×${s2.wx.lap.toFixed(2)}`}>
-                {s2.w > 6 && <WetIcon id={wxId(s2.wx)} size={13} />}
+      {/* Zaman çizelgesi */}
+      <div style={{ ...card, padding: "16px 18px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
+          <span style={hdT}>{t("Zaman çizelgesi")}</span>
+          <span style={{ marginLeft: "auto", display: "flex", gap: 12, fontSize: 10.5, color: "var(--rc-text-3)", flexWrap: "wrap" }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><i style={{ width: 12, height: 8, borderRadius: 2, background: "var(--rc-brand)", display: "inline-block" }} />{t("stint")}</span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><i style={{ width: 6, height: 8, borderRadius: 2, background: "var(--rc-warn)", display: "inline-block" }} />{t("pit")}</span>
+            {WX_LEGEND.map(([id, lbl]) => (
+              <span key={id} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><i style={{ width: 11, height: 8, borderRadius: 2, background: WEATHER[id].col, display: "inline-block" }} />{t(lbl)}</span>
+            ))}
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><i style={{ width: 2, height: 10, background: "var(--rc-ok)", display: "inline-block" }} />{t("şu an")}</span>
+          </span>
+        </div>
+        <div style={{ position: "relative" }}>
+          <div style={{ display: "flex", height: 34, borderRadius: 8, overflow: "hidden", border: "1px solid var(--rc-border)" }}>
+            {timeline.map((s, i) => (
+              <div key={i} style={{ width: `${s.w}%`, flex: "0 0 auto", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", borderRight: "1px solid var(--rc-surface)", background: s.cls === "pit" ? "var(--rc-warn)" : s.cls === "live" ? "var(--rc-brand)" : (s.bg || "#2A171C") }}>
+                {s.label && s.w > 2 && <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: s.w > 5 ? 12 : 9.5, color: s.cls === "pit" ? "#0B0708" : "var(--rc-text)", letterSpacing: ".02em", whiteSpace: "nowrap" }}>{s.label}</span>}
               </div>
             ))}
-            {liveInfo.status === "live" && mode === "race" && (
-              <div className="nowline" style={{
-                left: `${Math.min(100, (liveInfo.elapsed / liveInfo.raceMs) * 100)}%` }} />
-            )}
           </div>
-        );
-      })()}
 
-      <div style={{ overflowX: "auto" }}>
-      <table data-tour="stinttable" aria-label={t("Stint plan tablosu")}>
-        <thead><tr>
-          <th>#</th><th>Stint</th><th>{t("Tur")}</th><th>⚡ {t("VE İht.")}</th>
-          <th>{t("Ort. Tur")}</th>
-          <th>{t("Pit Ayarı")}</th><th>{t("Pilot")}</th><th>Pit</th><th>End Stint</th><th>Time Left</th>
-          <th>Override</th>
-        </tr></thead>
-        <tbody>
-          {plan.rows.map((r, i) => (
-            <tr key={i} className={[
-              r.isLast ? "last" : "",
-              liveInfo.status === "live" && mode === "race" && i === liveInfo.stintIdx
-                ? (pitSoon ? "live pitsoon" : "live") : "",
-            ].join(" ").trim()}>
-              <td className="disp" style={{ fontSize: 15 }}>{r.idx}</td>
-              <td>{fmtHMS(r.stintSec)}</td>
-              <td>{(() => {
+          {(st.driverAssign || []).some(Boolean) && (() => {
+            const rows = plan.rows; const cells = []; let i = 0;
+            while (i < rows.length) {
+              const drv = st.driverAssign[i] || "";
+              let w = (rows[i].stintSec / plan.raceSec) * 100; let j = i;
+              while (j + 1 < rows.length && (st.driverAssign[j + 1] || "") === drv) {
+                w += ((rows[j].pitSec || 0) / plan.raceSec) * 100;
+                w += (rows[j + 1].stintSec / plan.raceSec) * 100; j++;
+              }
+              const isCur = liveInfo.status === "live" && mode === "race" && liveInfo.stintIdx >= i && liveInfo.stintIdx <= j;
+              cells.push({ type: "drv", w, drv, cur: isCur });
+              if (j < rows.length - 1) cells.push({ type: "gap", w: ((rows[j].pitSec || 0) / plan.raceSec) * 100 });
+              i = j + 1;
+            }
+            return (
+              <div style={{ display: "flex", height: 26, marginTop: 5, borderRadius: 8, overflow: "hidden", border: "1px solid var(--rc-border)" }}>
+                {cells.map((c, k) => c.type === "gap"
+                  ? <div key={k} style={{ width: `${c.w}%`, flex: "0 0 auto", background: "var(--rc-surface-2)", borderRight: "1px solid var(--rc-surface)" }} />
+                  : <div key={k} title={c.drv || t("Atanmadı")} style={{ width: `${c.w}%`, flex: "0 0 auto", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", borderRight: "1px solid var(--rc-surface)", background: c.drv ? drvCol(c.drv) : "var(--rc-surface-3)", opacity: c.cur ? 1 : .62, boxShadow: c.cur ? "inset 0 0 0 2px var(--rc-text)" : "none" }}>
+                    {c.w > 6 && <span style={{ fontSize: 11, fontWeight: 600, color: "#0B0708", whiteSpace: "nowrap" }}>{c.drv || "—"}</span>}</div>
+                )}
+              </div>
+            );
+          })()}
+
+          {(() => {
+            const log = wxLog(st);
+            const total = plan.raceSec || parseHMS(st.raceTime) || 1;
+            const cuts = [0, ...log.map((e) => e.t).filter((tt) => tt > 0.5 && tt < total - 0.5), total].sort((a, b) => a - b);
+            const segs = [];
+            for (let i = 0; i < cuts.length - 1; i++) {
+              const a = cuts[i], b = cuts[i + 1]; if (b - a < 0.5) continue;
+              segs.push({ w: (b - a) / total * 100, wx: wxAtRel(log, (a + b) / 2) });
+            }
+            if (!segs.some((x) => x.wx.lap > 1)) return null;
+            return (
+              <div style={{ display: "flex", height: 14, marginTop: 5, borderRadius: 6, overflow: "hidden", border: "1px solid var(--rc-border)" }}>
+                {segs.map((s2, i) => (
+                  <div key={i} title={`${t(s2.wx.lbl)} ×${s2.wx.lap.toFixed(2)}`} style={{ width: `${s2.w}%`, flex: "0 0 auto", background: s2.wx.col, borderRight: "1px solid var(--rc-surface)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {s2.w > 6 && <WetIcon id={wxId(s2.wx)} size={11} />}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
+          {nowPct != null && (
+            <div style={{ position: "absolute", top: -4, bottom: -4, left: `${nowPct}%`, width: 2, background: "var(--rc-ok)", boxShadow: "0 0 8px rgba(55,214,122,.7)" }} />
+          )}
+        </div>
+      </div>
+
+      {/* Plan tablosu */}
+      <div style={{ ...card, overflow: "hidden" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "13px 16px", borderBottom: "1px solid var(--rc-border)" }}>
+          <span style={hdT}>{t("Plan tablosu")}</span>
+        </div>
+        <div style={{ overflowX: "auto" }}>
+          <table data-tour="stinttable" aria-label={t("Stint plan tablosu")} style={{ width: "100%", borderCollapse: "collapse", minWidth: 1120 }}>
+            <thead><tr>
+              <th style={th(true)}>#</th><th style={th(true)}>{t("Stint · tur")}</th><th style={th()}>⚡ {t("VE iht.")}</th>
+              <th style={th(true)}>{t("Ort. tur")}</th><th style={th(true)}>⚡ {t("VE %/tur")}</th><th style={th(true)}>{t("Pit ayarı")}</th><th style={th()}>Pit</th>
+              <th style={th(true)}>{t("Pilot")}</th><th style={th()}>{t("Bitiş")}</th><th style={th()}>{t("Kalan")}</th><th style={th(true)}>Override</th>
+            </tr></thead>
+            <tbody>
+              {plan.rows.map((r, i) => {
+                const isLive = liveInfo.status === "live" && mode === "race" && i === liveInfo.stintIdx;
                 const timeLocked = parseHMS(st.overrides[i] || "") > 0;
                 const lapOvr = (Number(st.lapOverrides?.[i]) || 0) > 0;
-                if (r.isLast) return r.lapsInStint;
+                const drv = st.driverAssign[i] || "";
+                const ovrTxt = (st.stintLaps || [])[i] || "";
+                const ovrBad = !!ovrTxt && !(r.fixLap > 0);
                 return (
-                  <span className="lapcell">
-                    <button className="lapstep" disabled={timeLocked}
-                      title={timeLocked ? t("Önce süre override'ı temizle") : t("Tur −1")}
-                      onClick={() => bumpLaps(i, r.lapsInStint, -1)}>−</button>
-                    <b className={lapOvr ? "lapman" : ""}>{r.lapsInStint}</b>
-                    <button className="lapstep" disabled={timeLocked}
-                      title={timeLocked ? t("Önce süre override'ı temizle") : t("Tur +1")}
-                      onClick={() => bumpLaps(i, r.lapsInStint, 1)}>+</button>
-                    {lapOvr && <button className="lapclr" title={t("Otomatiğe dön")}
-                      onClick={() => clearLaps(i)}>✕</button>}
-                  </span>
+                  <tr key={i} style={{ background: isLive ? "rgba(150,0,24,.20)" : "transparent", borderLeft: `3px solid ${isLive ? "var(--rc-brand-bright)" : r.isLast ? "var(--rc-warn)" : "transparent"}` }}>
+                    <td style={{ ...td(true), width: 54 }}><span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 17, color: isLive ? "var(--rc-text)" : "var(--rc-text-3)" }}>{r.idx}</span>{isLive && <i style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: "var(--rc-ok)", marginLeft: 6, boxShadow: "0 0 6px var(--rc-ok)" }} />}</td>
+                    <td style={td(true)}>
+                      <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 14 }}>{fmtHMS(r.stintSec)}</b>
+                        {/* Son (FINISH) stintte tur sayısı otomatik doldurulur → normalde
+                            ayar kontrolü gizli. Ancak elle tur override'ı bu stinti son
+                            yapmışsa, kullanıcı geri alamadan kilitlenmesin: override
+                            varken FINISH satırında da ↺ "otomatiğe dön" butonu göster. */}
+                        {r.isLast ? (
+                          lapOvr && <button className="lapclr" title={t("Tur override'ını temizle — otomatiğe dön")} onClick={() => clearLaps(i)}>↺</button>
+                        ) : (
+                          <span className="lapcell">
+                            <button className="lapstep" disabled={timeLocked} title={timeLocked ? t("Önce süre override'ı temizle") : t("Tur −1")} onClick={() => bumpLaps(i, r.lapsInStint, -1)}>−</button>
+                            <b className={lapOvr ? "lapman" : ""}>{r.lapsInStint}</b>
+                            <button className="lapstep" disabled={timeLocked} title={timeLocked ? t("Önce süre override'ı temizle") : t("Tur +1")} onClick={() => bumpLaps(i, r.lapsInStint, 1)}>+</button>
+                            {lapOvr && <button className="lapclr" title={t("Otomatiğe dön")} onClick={() => clearLaps(i)}>✕</button>}
+                          </span>
+                        )}
+                      </span>
+                    </td>
+                    <td style={{ ...td(), color: r.fuelNeed > 100 ? "var(--rc-danger)" : "var(--rc-text)" }} title={`≈ ${(r.fuelNeed * st.fuelRatio).toFixed(1)} L`}>{r.fuelNeed.toFixed(1)}%</td>
+                    <td style={td(true)}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        <input className="ovr" type="text" style={{ width: 78, ...(ovrBad ? { borderColor: "var(--rc-danger)", color: "var(--rc-danger)" } : {}) }}
+                          placeholder={st.avgLap || "m:ss.00"}
+                          title={ovrBad ? t("Geçersiz tur süresi — 'm:ss.00' biçiminde yaz (örn. 2:21.0); bu stint yarış ortalamasıyla hesaplanıyor") : r.fixLap > 0 ? t("Bu stint girilen tur süresiyle hesaplanıyor — hava çarpanı uygulanmaz") : t("Boş: yarış datasındaki ortalama tur kullanılır")}
+                          value={ovrTxt} onChange={(e) => upStintLap(i, e.target.value)} />
+                        {(r.fixLap > 0 || ovrBad) && <button className="minibtn" title={t("Otomatiğe dön")} onClick={() => upStintLap(i, "")}>✕</button>}
+                      </span>
+                    </td>
+                    <td style={td(true)}>
+                      {/* stinte özel VE tüketimi (%/tur) — boş → yarış datasındaki tüketim */}
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        <input className="ovr" type="number" min="0" step="0.1" style={{ width: 72 }}
+                          placeholder={st.consumption != null ? String(st.consumption) : "%/tur"}
+                          title={consOvrOf(i) ? t("Bu stint girilen VE tüketimiyle hesaplanıyor") : t("Boş: yarış datasındaki VE tüketimi kullanılır")}
+                          value={consValOf(i)} onChange={(e) => upStintCons(i, e.target.value)} />
+                        {consOvrOf(i) && <button className="minibtn" title={t("Otomatiğe dön")} onClick={() => upStintCons(i, "")}>✕</button>}
+                      </span>
+                    </td>
+                    <td style={td(true)}>
+                      {r.isLast ? <span style={{ display: "inline-block", padding: "3px 12px", borderRadius: 99, border: "1px solid var(--rc-warn)", color: "var(--rc-warn)", fontSize: 11.5 }}>FINISH 🏁</span> : (
+                        <span style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                          <span className="tyrebox">
+                            {TY.map((corner, ti) => {
+                              const stv = tyState((st.pits[i] || EMPTY_PIT).tyres[ti]);
+                              return (
+                                <button key={corner} className={["", "on", "qual", "wet", "used"][stv]}
+                                  title={[t("Taşı — tıkla: yeni kuru"), t("Yeni kuru — tıkla: Qual'a dön"), t("Qual lastiği — tıkla: wet"), t("Wet (sınırsız) — tıkla: eski kuru"), t("Eski kuru tekrar — tıkla: taşı")][stv]}
+                                  onClick={() => upTyre(i, ti)}>{corner}</button>
+                              );
+                            })}
+                          </span>
+                          <span className="pitopt">
+                            <button className={(st.pits[i] || EMPTY_PIT).fuel ? "on" : ""} onClick={() => upPit(i, { fuel: !(st.pits[i] || EMPTY_PIT).fuel })}>FUEL</button>
+                            <label className="dmg" title={t("Hasar tamir süresi (s) — plana eklenir")}>🔧<input type="number" min="0" step="1" placeholder="0" value={(st.pitRepairs || [])[i] || ""} onChange={(e) => setRepair?.(i, e.target.value)} /></label>
+                          </span>
+                        </span>
+                      )}
+                    </td>
+                    <td style={td()}>{r.isLast ? "—" : (<>{fmtHMS(r.pitSec)}{r.repairSec > 0 && <span style={{ color: "var(--rc-warn)", fontSize: 11, marginLeft: 4 }}>🔧+{r.repairSec}s</span>}</>)}</td>
+                    <td style={td(true)}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ width: 24, height: 24, borderRadius: "50%", flex: "0 0 auto", background: drv ? drvCol(drv) : "var(--rc-border-strong)", color: "#0B0708", display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 10 }}>{drv ? initialsOf(drv) : "—"}</span>
+                        <select className="drvsel" value={drv} onChange={(e) => assignDriver(i, e.target.value)}>
+                          <option value="">—</option>
+                          {roster.map((n) => <option key={n} value={n}>{n}</option>)}
+                        </select>
+                      </span>
+                    </td>
+                    <td style={td()}>{fmtHMS(r.endSec)}</td>
+                    <td style={{ ...td(), color: r.timeLeft < 0 ? "var(--rc-danger)" : "var(--rc-ok)" }}>{fmtHMS(r.timeLeft)}</td>
+                    <td style={td(true)}><input className="ovr" type="text" placeholder="h:mm:ss" disabled={lapOvr}
+                      title={lapOvr ? t("Tur override aktif — önce onu temizle") : undefined}
+                      value={st.overrides[i] || ""} onChange={(e) => upOvr(i, e.target.value)} /></td>
+                  </tr>
                 );
-              })()}</td>
-              <td className={r.fuelNeed > 100 ? "neg" : ""}
-                title={`≈ ${(r.fuelNeed * st.fuelRatio).toFixed(1)} L`}>
-                {r.fuelNeed.toFixed(1)}%</td>
-              <td>
-                {(() => {
-                  const ovrTxt = (st.stintLaps || [])[i] || "";
-                  const ovrBad = !!ovrTxt && !(r.fixLap > 0);  // yazıldı ama geçersiz → yok sayılıyor
-                  return (<>
-                    <input className="ovr" type="text"
-                      style={{ width: 78,
-                        ...(ovrBad ? { borderColor: "var(--red)", color: "var(--red)" } : {}) }}
-                      placeholder={st.avgLap || "m:ss.00"}
-                      title={ovrBad
-                        ? t("Geçersiz tur süresi — 'm:ss.00' biçiminde yaz (örn. 2:21.0); bu stint yarış ortalamasıyla hesaplanıyor")
-                        : r.fixLap > 0
-                          ? t("Bu stint girilen tur süresiyle hesaplanıyor — hava çarpanı uygulanmaz")
-                          : t("Boş: yarış datasındaki ortalama tur kullanılır")}
-                      value={ovrTxt}
-                      onChange={(e) => upStintLap(i, e.target.value)} />
-                    {(r.fixLap > 0 || ovrBad) && (
-                      <button className="minibtn" title={t("Otomatiğe dön")}
-                        style={{ marginLeft: 4 }}
-                        onClick={() => upStintLap(i, "")}>✕</button>
-                    )}
-                  </>);
-                })()}
-              </td>
-              <td>
-                {r.isLast ? <span className="chip">FINISH 🏁</span> : (<>
-                  <span className="tyrebox">
-                    {TY.map((corner, ti) => {
-                      const stv = tyState((st.pits[i] || EMPTY_PIT).tyres[ti]);
-                      return (
-                        <button key={corner}
-                          className={["", "on", "qual", "wet", "used"][stv]}
-                          title={[t("Taşı — tıkla: yeni kuru"),
-                            t("Yeni kuru — tıkla: Qual'a dön"),
-                            t("Qual lastiği — tıkla: wet"),
-                            t("Wet (sınırsız) — tıkla: eski kuru"),
-                            t("Eski kuru tekrar — tıkla: taşı")][stv]}
-                          onClick={() => upTyre(i, ti)}>{corner}</button>
-                      );
-                    })}
-                  </span>
-                  <span className="pitopt">
-                    <button className={(st.pits[i] || EMPTY_PIT).fuel ? "on" : ""}
-                      onClick={() => upPit(i, { fuel: !(st.pits[i] || EMPTY_PIT).fuel })}>FUEL</button>
-                    {/* §3: Fuel yanında Hasar/tamir süresi — canlı pit board ile AYNI
-                       st.pitRepairs[i] + setRepair; ayrı state YOK. Plana +Ns eklenir. */}
-                    <label className="dmg" title={t("Hasar tamir süresi (s) — plana eklenir")}>
-                      🔧<input type="number" min="0" step="1" placeholder="0"
-                        value={(st.pitRepairs || [])[i] || ""}
-                        onChange={(e) => setRepair?.(i, e.target.value)} />
-                    </label>
-                  </span>
-                </>)}
-              </td>
-              <td>
-                <select className="drvsel" value={st.driverAssign[i] || ""}
-                  onChange={(e) => assignDriver(i, e.target.value)}>
-                  <option value="">—</option>
-                  {(st.roster || []).map((n) => <option key={n} value={n}>{n}</option>)}
-                </select>
-              </td>
-              <td>{r.isLast ? "—" : (<>
-                {fmtHMS(r.pitSec)}
-                {r.repairSec > 0 && <span style={{ color: "var(--yellow)",
-                  fontSize: 11, marginLeft: 4 }}>🔧+{r.repairSec}s</span>}
-              </>)}</td>
-              <td>{fmtHMS(r.endSec)}</td>
-              <td className={r.timeLeft < 0 ? "neg" : "pos"}>{fmtHMS(r.timeLeft)}</td>
-              <td><input className="ovr" type="text" placeholder="h:mm:ss"
-                disabled={(Number(st.lapOverrides?.[i]) || 0) > 0}
-                title={(Number(st.lapOverrides?.[i]) || 0) > 0
-                  ? t("Tur override aktif — önce onu temizle") : undefined}
-                value={st.overrides[i] || ""} onChange={(e) => upOvr(i, e.target.value)} /></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

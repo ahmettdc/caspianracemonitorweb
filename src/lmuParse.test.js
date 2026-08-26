@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
-  parseRacingToday, parseCardsPage, parseRaceWeekend, parseTyreSets, mapTrackId, parseLenSec,
+  parseRacingToday, parseCardsPage, parseRaceWeekend, parseTyreSets, parseWeekendMeta,
+  mapTrackId, parseLenSec,
   slugFromHref, normLabel,
 } from "./lmuParse";
 
@@ -210,5 +211,42 @@ describe("parseTyreSets — detay 'Tyre sets' kutucuğu (v1.7.7)", () => {
     const h = `<span class="t-val">38</span><span class="t-lab">Grid</span>
       <span class="t-val">8</span><span class="t-lab">Tyre sets</span>`;
     expect(parseTyreSets(h)).toBe(8);
+  });
+});
+
+describe("parseWeekendMeta — tam 'Race weekend' paneli (v2.1)", () => {
+  /* Gerçek lmugarage detay markup'ı (seanslar + .set-tiles .tile kutucukları). */
+  const DETAIL = `
+    <div class="panel"><h3>Race weekend</h3>
+      <div class="sessions">
+        <div class="ses"><span class="n">Practice</span><span class="weather"><span class="wx-sun">☀️</span><span class="wx-sun">☀️</span></span><span class="d">4m</span></div>
+        <div class="ses"><span class="n">Qualifying</span><span class="weather"><span class="wx-cloud">☁️</span></span><span class="d">12m</span></div>
+        <div class="ses"><span class="n">Race</span><span class="weather"><span class="wx-cloud">☁️</span><span class="wx-rain">🌧️</span></span><span class="d">60m</span></div>
+      </div>
+      <div class="set-tiles tnum">
+        <div class="tile"><svg></svg><div class="t-txt"><span class="t-val">38</span><span class="t-lab">Grid</span></div></div>
+        <div class="tile on"><svg></svg><div class="t-txt"><span class="t-val">Yes</span><span class="t-lab">Private quali</span></div></div>
+        <div class="tile off"><svg></svg><div class="t-txt"><span class="t-val">No</span><span class="t-lab">Fixed setup</span></div></div>
+        <div class="tile"><svg></svg><div class="t-txt"><span class="t-val">10</span><span class="t-lab">Tyre sets</span></div></div>
+        <div class="tile" title="Track-limit points allowed"><svg></svg><div class="t-txt"><span class="t-val">6</span><span class="t-lab">TL points</span></div></div>
+        <div class="tile"><svg></svg><div class="t-txt"><span class="t-val">×1.0</span><span class="t-lab">Fuel</span></div></div>
+        <div class="tile"><svg></svg><div class="t-txt"><span class="t-val">×1.0</span><span class="t-lab">Tyre wear</span></div></div>
+        <div class="tile off" title="Tyre warmers"><svg></svg><div class="t-txt"><span class="t-val">No</span><span class="t-lab">Warmers</span></div></div>
+      </div>
+    </div>`;
+  it("seans süreleri + tüm kutucukları doğru tiplerle çıkarır", () => {
+    expect(parseWeekendMeta(DETAIL)).toEqual({
+      practiceSec: 240, qualSec: 720, raceSec: 3600,
+      weather: { practice: ["sun", "sun"], qualifying: ["cloud"], race: ["cloud", "rain"] },
+      grid: 38, privateQuali: true, fixedSetup: false, tyreSets: 10,
+      tlPoints: 6, fuel: 1, tyreWear: 1, warmers: false,
+    });
+  });
+  it("panel yoksa sayılar null, seanslar null (çökmez)", () => {
+    expect(parseWeekendMeta("<div>yok</div>")).toEqual({
+      practiceSec: null, qualSec: null, raceSec: null, weather: null,
+      grid: null, privateQuali: null, fixedSetup: null, tyreSets: null,
+      tlPoints: null, fuel: null, tyreWear: null, warmers: null,
+    });
   });
 });

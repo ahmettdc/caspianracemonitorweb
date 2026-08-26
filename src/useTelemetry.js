@@ -88,37 +88,8 @@ export function useTelemetry({ st, setSt }) {
         .catch(() => setParsed({ error: "DuckDB dosyası okunamadı" }));
       return;
     }
-    /* .ld = MoTeC ikili log → CSV'ye çevirmeden doğrudan oku (parseLd, aynı motec şekli).
-       parseLd SEÇİCİ okur: tüm dosyayı belleğe almaz, yalnız gereken kanalları File.slice
-       ile çeker → 100MB+ log'lar donmadan/şişmeden açılır. Diğerleri (csv/tsv/txt) = metin. */
-    if (/\.ld$/i.test(f.name)) {
-      setRawTele("");
-      setMapping(null);
-      setParsed({ loading: true });
-      setCmpASrc("cur"); setCmpBSrc("cur");   // yeni yüklemede kaynak = güncel dosya
-      setCmpData(null); setCmpLaps(null); setCmpMeta(null); setTeleFile(null); setTeleHeader(null);
-      import("./ldParser")
-        .then(({ parseLd }) => parseLd(f))
-        .then((res) => {
-          setParsed(res);
-          if (res && res.motec) {
-            setTeleFile(f);
-            setTeleHeader(res._header || null);
-            setCmpLaps(res.laps);
-            setCmpMeta(res.meta || null);
-            /* varsayılan: en hızlı iki TAM tur (kısmi hariç) */
-            const idx = res.laps.map((_, i) => i).sort((i, j) => res.laps[i].sec - res.laps[j].sec);
-            const fulls = idx.filter((i) => !res.laps[i].partial);
-            const pick = fulls.length >= 2 ? fulls : idx;
-            setCmpA(pick[0] ?? 0);
-            setCmpB(pick[1] ?? pick[0] ?? 0);
-          } else {
-            setTeleFile(null); setTeleHeader(null); setCmpLaps(null); setCmpMeta(null);
-          }
-        })
-        .catch(() => setParsed({ error: "MoTeC .ld okunamadı" }));
-      return;
-    }
+    /* .ld (MoTeC ikili log) desteği kaldırıldı — telemetri dosyası artık yalnız .duckdb
+       (LMU yerel kaydı). Diğerleri (csv/tsv/txt) = metin: aşağıdaki ham okuma yolu. */
     setTeleFile(null); setTeleHeader(null); setCmpData(null); setCmpLaps(null); setCmpMeta(null);
     setCmpASrc("cur"); setCmpBSrc("cur");
     const rd = new FileReader();

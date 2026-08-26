@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { classId, classAccent, CAR_CLASSES } from "../constants";
 import { wetnessLevel, rainLevel, WEATHER } from "../engine";
 import { WetIcon } from "../WetIcon";
@@ -35,14 +36,33 @@ const PAD = 148;                // iç şekil yarım-uzanımı (px)
 
 export default function TrackMap({ t, field, session, trackLength, tid, trackKey,
   canSave, topSlot }) {
-  const [zoom, setZoom] = useState(false);   // ⛶ büyük pencere
+  const [zoom, setZoom] = useState(false);   // ⛶ büyük pencere (tam ekran overlay)
   const [, bump] = useState(0);              // paylaşımlı şekil gelince yeniden çiz
+  const svgRef = useRef(null);               // küçük karttaki canlı svg (yeni pencereye kopyalanır)
+  const winRef = useRef(null);               // ayrı tarayıcı penceresi
   useEffect(() => {
     if (!zoom) return undefined;
     const onKey = (e) => { if (e.key === "Escape") setZoom(false); };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [zoom]);
+  /* ⧉ Ayrı pencere: haritayı yeni bir tarayıcı penceresinde açar; küçük karttaki
+     canlı svg'yi periyodik kopyalayarak pencereyi canlı tutar (React yeniden
+     kurulmadan). Pencere kapanınca kendi interval'i durur. */
+  const openWin = () => {
+    const w = window.open("", "rc-map-" + (trackKey || "map"), "width=760,height=800");
+    if (!w) return;
+    winRef.current = w;
+    w.document.title = `${t("Pist Haritası")} · ${session?.trackName || ""}`;
+    w.document.body.style.cssText = "margin:0;background:#0B0708;height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden";
+    const holder = w.document.createElement("div");
+    holder.style.cssText = "width:96vmin;height:96vmin;display:flex;align-items:center;justify-content:center";
+    w.document.body.appendChild(holder);
+    const paint = () => { if (svgRef.current) holder.innerHTML = svgRef.current.outerHTML; };
+    paint();
+    w.setInterval(() => { if (!w.closed) paint(); }, 700);
+  };
+  useEffect(() => () => { try { winRef.current?.close?.(); } catch { /* yoksay */ } }, []);
   /* pist DEĞİŞİNCE biriktirmeyi sıfırla — anahtar artık trackKey (pist adı) → şekil
      pist başına paylaşımlı olduğundan aynı pistin yarışları arasında da korunur. */
   const acc = useRef({ key: null, bins: {}, saved: 0, sec: emptySectors(), secSaved: "",
@@ -487,20 +507,25 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
         🗺 {t("Pist Haritası")}
         <span className="hint" style={{ margin: 0, fontWeight: 400 }}>{count}</span>
         <button className="act" style={{ marginLeft: "auto", fontSize: 11, padding: "3px 10px" }}
-          title={t("Haritayı büyük pencerede aç")}
+          title={t("Haritayı tam ekranda aç")}
           onClick={() => setZoom(true)}>⛶ {t("Büyüt")}</button>
+        <button className="act" style={{ fontSize: 11, padding: "3px 10px" }}
+          title={t("Haritayı ayrı pencerede aç")}
+          onClick={openWin}>⧉ {t("Pencere")}</button>
       </h2>
       {!zoom && (
         <div style={{ display: "flex", justifyContent: "center", position: "relative" }}>
           {conditionBadge}
-          <svg viewBox="0 0 520 520" width="100%" style={{ maxWidth: 460 }}
+          <svg ref={svgRef} viewBox="0 0 520 520" width="100%" style={{ maxWidth: 460 }}
             role="img" aria-label={t("Canlı pist haritası")}>{svgKids}</svg>
         </div>
       )}
     </div>
 
-    {zoom && (
-      <div className="wxmodal" onClick={() => setZoom(false)} role="dialog" aria-modal="true">
+    {zoom && createPortal(
+      /* .rc sarmalayıcı ŞART: .wxmodal/.wxmbox stilleri `.rc ...` altında scope'lu;
+         body'e doğrudan portallandığında .rc atası olmadan stilsiz kalıp "kayboluyordu". */
+      <div className="rc" style={{ display: "contents" }}><div className="wxmodal" onClick={() => setZoom(false)} role="dialog" aria-modal="true">
         <div className="wxmbox map" onClick={(e) => e.stopPropagation()}>
           <div className="wxmhead">
             <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -521,7 +546,8 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
           </div>
           {legend}
         </div>
-      </div>
+      </div></div>,
+      document.body
     )}
   </>);
 }

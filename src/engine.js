@@ -242,24 +242,27 @@ export function computePlan(st, mode /* "race" | "code80" */) {
   /* fixLap: o stint için elle girilen ortalama tur süresi (sn).
      Girildiğinde hava çarpanı UYGULANMAZ — kullanıcı zaten o koşulun turunu yazıyor.
      Yakıt tarafında hava çarpanı korunur (ıslakta tüketim fiziksel olarak düşer). */
-  const walkFull = (cumStart, nLaps, fixLap) => {
+  /* consLap: o stintin %/tur VE tüketimi — stinte özel override varsa onun, yoksa
+     yarış datasındaki baseCons. Hava çarpanı (wx.fuel) tur-tur yine uygulanır
+     (ıslakta tüketim fiziksel olarak düşer), tıpkı fixLap'te olduğu gibi. */
+  const walkFull = (cumStart, nLaps, fixLap, consLap) => {
     let sec = 0, fuel = 0;
     for (let L = 0; L < nLaps; L++) {
       const wx = wxAt(cumStart + sec);
       sec += fixLap > 0 ? fixLap : baseLap * wx.lap;
-      fuel += baseCons * wx.fuel;
+      fuel += consLap * wx.fuel;
     }
     return { sec, laps: nLaps, fuel };
   };
-  const walkByTime = (cumStart, dur, addBayrak, fixLap) => {
+  const walkByTime = (cumStart, dur, addBayrak, fixLap, consLap) => {
     let sec = 0, fuel = 0, L = 0;
     while (L < 1000) {
       const wx = wxAt(cumStart + sec);
       const lap = fixLap > 0 ? fixLap : baseLap * wx.lap;
       if (sec + lap > dur + 1e-6) break;
-      sec += lap; fuel += baseCons * wx.fuel; L++;
+      sec += lap; fuel += consLap * wx.fuel; L++;
     }
-    if (addBayrak) { fuel += baseCons * wxAt(cumStart + sec).fuel; L += 1; }
+    if (addBayrak) { fuel += consLap * wxAt(cumStart + sec).fuel; L += 1; }
     return { laps: L, fuel };
   };
   const tyreSecOf = (cnt) => {
@@ -275,17 +278,20 @@ export function computePlan(st, mode /* "race" | "code80" */) {
       // stinte özel tur süresi — makul değilse (yazım hatası) YOK SAY → yarış ort. kullanılır
       const fixRaw = parseLap(st.stintLaps?.[i] || "") || 0;
       const fixLap = fixRaw >= MIN_LAP_SEC ? fixRaw : 0;
+      /* stinte özel VE tüketimi (%/tur): geçerli pozitif değer → onu kullan, yoksa baseCons */
+      const consRaw = Number(st.stintCons?.[i]);
+      const consLap = consRaw > 0 ? consRaw : baseCons;
       const startLeft = raceSec - cum;                     // stint başında kalan süre
       if (startLeft <= 0) break;
       let stintSec, lapsInStint, fuelUnits, isLast;
       if (ovr > 0) {                                       // manuel override (süre kilidi)
         isLast = ovr >= startLeft - 0.5;
         stintSec = isLast ? startLeft : ovr;
-        const wb = walkByTime(cum, stintSec, isLast, fixLap);
+        const wb = walkByTime(cum, stintSec, isLast, fixLap, consLap);
         lapsInStint = Math.max(1, wb.laps); fuelUnits = wb.fuel;
       } else if ((Number(st.lapOverrides?.[i]) || 0) > 0) { // manuel tur sayısı
         const nl = Math.max(1, Math.round(Number(st.lapOverrides[i])));
-        const full = walkFull(cum, nl, fixLap);
+        const full = walkFull(cum, nl, fixLap, consLap);
         isLast = (cum + full.sec) >= raceSec - 0.5;
         if (isLast) {
           /* İstenen tur yarışa sığmıyor → süre override'ıyla AYNI davranış: stint
@@ -293,17 +299,17 @@ export function computePlan(st, mode /* "race" | "code80" */) {
              çizelgesi %100'ü aşıyordu). Depodaki lapOverrides değişmez (✕ ile
              otomatiğe dönülür); tablo gerçekte sığan tur sayısını gösterir. */
           stintSec = startLeft;
-          const wb = walkByTime(cum, startLeft, true, fixLap);
+          const wb = walkByTime(cum, startLeft, true, fixLap, consLap);
           lapsInStint = Math.max(1, wb.laps); fuelUnits = wb.fuel;
         } else {
           stintSec = full.sec; lapsInStint = nl; fuelUnits = full.fuel;
         }
       } else {
-        const full = walkFull(cum, laps, fixLap);         // tam stint (tur limitli)
+        const full = walkFull(cum, laps, fixLap, consLap); // tam stint (tur limitli)
         isLast = full.sec >= startLeft - 0.5;
         if (isLast) {
           stintSec = startLeft;
-          const wb = walkByTime(cum, startLeft, true, fixLap);
+          const wb = walkByTime(cum, startLeft, true, fixLap, consLap);
           lapsInStint = Math.max(1, wb.laps); fuelUnits = wb.fuel;
         } else {
           stintSec = full.sec; lapsInStint = full.laps; fuelUnits = full.fuel;
@@ -350,9 +356,12 @@ export function computePlan(st, mode /* "race" | "code80" */) {
     const next = rws[i + 1];
     if (!next || lapSec <= 0) return 100;
     if (next.isLast) {
+      /* son stintin dolumu: kendi VE override'ı varsa onunla, yoksa yarış tüketimi */
+      const cRaw = Number(st.stintCons?.[i + 1]);
+      const consNext = (cRaw > 0 ? cRaw : baseCons) * endWx.fuel;
       const cd = rws[i].timeLeft + flagExtra;
       const lapsLeft = Math.max(1, Math.ceil(cd / lapSec - 1e-9));
-      return Math.min(100, Math.max(0, (lapsLeft + st.extraLap) * cons));
+      return Math.min(100, Math.max(0, (lapsLeft + st.extraLap) * consNext));
     }
     return Math.min(100, Math.max(0, next.fuelNeed));
   };

@@ -1,10 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
-  VersionModal, RaceEditModal, ChatModal, SetupModal, TeamModal, CreateJoinModal, TourOverlay, ImgSelect,
+  VersionModal, RaceEditModal, ChatModal, SetupModal, TeamModal, CreateJoinModal, ImgSelect,
   SetupContentModal, SetupCompareModal, SetupTable, SetupCards, SessionSetupBox,
 } from "./components.jsx";
-import { buildTourSteps } from "./tourSteps";
 
 /* Smoke-render testleri — App.jsx'ten çıkarılan modal bileşenlerini SAHTE prop'larla
    render eder ve çökmediğini (eksik prop / tanımsız referans) doğrular. Render bölmenin
@@ -20,7 +19,7 @@ describe("modal bileşenleri: açık halde çökmeden render olur", () => {
   it("VersionModal", () => {
     const html = render(
       <VersionModal open onClose={noop} t={t} lang="tr" onStartGuide={noop} />);
-    expect(html).toContain("wxmodal");
+    expect(html).toContain("Neler değişti");
   });
 
   it("RaceEditModal (ekleme)", () => {
@@ -28,7 +27,7 @@ describe("modal bileşenleri: açık halde çökmeden render olur", () => {
       carClass: "hypercar", carId: "", raceTime: "6:00:00", startsAt: Date.now() };
     const html = render(
       <RaceEditModal rForm={rForm} setRForm={noop} t={t} seasons={{}} onSave={noop} />);
-    expect(html).toContain("wxmodal");
+    expect(html).toContain("Yarış Ekle");
   });
 
   it("ChatModal", () => {
@@ -36,8 +35,8 @@ describe("modal bileşenleri: açık halde çökmeden render olur", () => {
     const html = render(
       <ChatModal open onClose={noop} t={t} chatSound toggleChatSound={noop}
         chatChans={chans} unreadOf={() => 0} chatChan="global" setChatChan={noop}
-        teamData={null} curChan={chans[0]} chatBody={() => null} />);
-    expect(html).toContain("chattabs");
+        teamData={null} curChan={chans[0]} chatBody={() => null} chatAll={{}} fmtClock={() => "12:00"} />);
+    expect(html).toContain("Kanallar");
   });
 
   it("SetupModal", () => {
@@ -77,7 +76,7 @@ describe("modal bileşenleri: açık halde çökmeden render olur", () => {
       <CreateJoinModal open onClose={noop} user={{ uid: "u1" }} t={t}
         userName="Ben" tForm={{ name: "", join: "" }} setTForm={noop}
         setTErr={noop} tErr="" setCurTeam={noop} />);
-    expect(html).toContain("Kur &amp; Katıl");   // & → &amp; (HTML escape)
+    expect(html).toContain("Takıma Bağlan");      // v2.0 başlık
     expect(html).toContain("Takım Kur");
     expect(html).toContain("Takıma Katıl");
     // yönetim bölümleri BU ekranda görünmemeli
@@ -103,33 +102,6 @@ describe("modal bileşenleri: kapalı halde null döner (render yok)", () => {
       suList={[]} setups={[]} suFTrack="" setSuFTrack={noop} suFCond="" setSuFCond={noop}
       suFSess="" setSuFSess={noop} setupForm={() => null} setupTable={() => null} />)).toBe("");
     expect(render(<TeamModal open={false} onClose={noop} user={null} t={t} />)).toBe("");
-  });
-});
-
-/* Rehber turu — gerçek adım listesiyle çökmeden render olmalı (v1.4.85 sağlamlaştırma).
-   renderToStaticMarkup effect çalıştırmaz; querySelector için minik document stub'ı yeter. */
-describe("TourOverlay", () => {
-  globalThis.document ??= { querySelector: () => null };
-  globalThis.window ??= { innerWidth: 1280, innerHeight: 800 };
-
-  const steps = buildTourSteps("main", {
-    t, setTab: noop, setSideOpen: noop, setTourDemo: noop });
-
-  it("ilk adımı, sayacı ve ilerleme çubuğunu basar", () => {
-    const html = render(<TourOverlay steps={steps} onClose={noop} lang="tr" />);
-    expect(html).toContain("tourcard");
-    expect(html).toContain("tourbar");             // yeni ilerleme çubuğu
-    expect(html).toContain('role="dialog"');       // erişilebilirlik
-    expect(html).toContain("İleri");
-    /* Hedefi DOM'da olmayan (act'siz) adımlar elenir; act'li + sel'siz adımlar kalır.
-       Stub querySelector null döndüğü için beklenen sayı budur. */
-    const kept = steps.filter((s) => !s.sel || s.act).length;
-    expect(html).toContain(`1 / ${kept}`);
-    expect(kept).toBeGreaterThan(0);
-  });
-
-  it("adım kalmayınca (boş liste) render etmez", () => {
-    expect(render(<TourOverlay steps={[]} onClose={noop} lang="tr" />)).toBe("");
   });
 });
 
@@ -175,34 +147,33 @@ describe("SetupTable / SetupCards", () => {
   ];
   const st = { track: "spa" };
 
-  it("tablo: 9 sütun, ⚡ en hızlı + delta, birleşik hücreler", () => {
+  it("liste: v2.0 ızgara satırlar, en hızlı yeşil + not, sürüm çipi", () => {
     const html = render(
       <SetupTable rows={rows} t={t} st={st} lang="tr" isAdmin
-        onDownload={noop} onDelete={noop} onView={noop}
-        sort={{ key: "date", dir: "desc" }} onSort={noop} />);
-    expect(html).toContain("fastlap");          // ⚡ en hızlı (a)
-    expect(html).toContain("lapdelta");         // +0.6s (b)
-    expect(html).toContain("ELMS · 1.2");       // şampiyona·sürüm dosya altında
-    expect(html).toContain("Caspian");          // takım yükleyen altında
-    expect(html).toContain("▼");                // aktif sıralama oku
+        onDownload={noop} onDelete={noop} onView={noop} />);
+    expect(html).toContain("grid-template-columns");   // ızgara satır düzeni
+    expect(html).toContain("var(--rc-ok)");            // en hızlı tur yeşil (a)
+    expect(html).toContain("ELMS · düşük kanat");       // şampiyona · not dosya altında
+    expect(html).toContain("+0.60");                    // delta notu (b)
+    expect(html).toContain("Ahmet");                    // yükleyen
   });
 
   it("kartlar: sucards grid + aynı içerik + eylemler", () => {
     const html = render(
       <SetupCards rows={rows} t={t} st={st} lang="tr" isAdmin
         onDownload={noop} onDelete={noop} onView={noop} />);
-    expect(html).toContain("sucards");
-    expect(html).toContain("sucard here");      // aktif pist vurgusu (spa)
-    expect(html).toContain("fastlap");
+    expect(html).toContain("grid-template-columns");   // kart ızgarası
+    expect(html).toContain("var(--rc-brand-bright)");   // aktif pist vurgusu (spa) kenarlığı
+    expect(html).toContain("var(--rc-ok)");             // en hızlı tur yeşil
     expect(html).toContain("spa_low.svm");
     expect(html).toContain("✕");                // admin silme
   });
 
   it("boş satır listesi çökmeden render olur", () => {
     expect(render(<SetupCards rows={[]} t={t} st={st} lang="tr" isAdmin={false}
-      onDownload={noop} onDelete={noop} />)).toContain("sucards");
+      onDownload={noop} onDelete={noop} />)).toContain("grid-template-columns");
     expect(render(<SetupTable rows={[]} t={t} st={st} lang="tr" isAdmin={false}
-      onDownload={noop} onDelete={noop} />)).toContain("table");
+      onDownload={noop} onDelete={noop} />)).toContain("grid-template-columns");
   });
 });
 
@@ -215,7 +186,7 @@ describe("SetupContentModal", () => {
 
   it("açık halde arka kanat değerini basar", () => {
     const html = render(<SetupContentModal open su={su} onClose={noop} t={t} />);
-    expect(html).toContain("wxmodal");
+    expect(html).toContain("Setup İçeriği");
     expect(html).toContain("Arka Kanat");
     expect(html).toContain("8.3 deg");
   });
@@ -242,13 +213,13 @@ describe("SetupCompareModal", () => {
   const a = mk("a.svm", svmA, { lap: "1:58.2" });
   const b = mk("b.svm", svmB, { lap: "1:59.0" });
 
-  it("farklı değer vurgulu (diffhl) + tur zamanları başlıkta", () => {
+  it("farklı değer vurgulu + tur zamanları başlıkta", () => {
     const html = render(<SetupCompareModal open a={a} b={b} onClose={noop} t={t} />);
-    expect(html).toContain("diffhl");
+    expect(html).toContain("#ff5470");                 // A-tarafı fark rengi
     expect(html).toContain("8.3 deg");
     expect(html).toContain("6.9 deg");
-    expect(html).toContain("1:58.2");
-    expect(html).toContain("↔");
+    expect(html).toContain("1:58.2");                  // A tur zamanı başlık kartında
+    expect(html).toContain("alan farklı");             // fark sayacı
     /* aynı değerler varsayılan "yalnız farklar" görünümünde gizli */
     expect(html).not.toContain("540 deg");
   });

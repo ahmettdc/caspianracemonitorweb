@@ -11,7 +11,7 @@ const RACE = {
   id: "weekly-1", kind: "weekly", name: "2.4h Spa", live: false,
   sr: "S2", srRank: "Silver", trackId: "spa", trackRaw: "Spa-Francorchamps",
   classes: ["LMP2", "GT3"], lenSec: 8640, lenLabel: "2h24m",
-  startMs: Date.parse("2026-08-13T08:00:00+00:00"),
+  startMs: Date.now() + 2 * 86400000,   // gelecek: gün-gruplu ajandada görünür
   url: "https://lmugarage.com/weekly/1",
 };
 
@@ -40,7 +40,7 @@ describe("ScheduleTab — yarış merkezi UI", () => {
       <ScheduleTab t={t} lang="tr" races={[RACE]} updatedAt={Date.now()} loading={false} />);
     expect(html).toContain("2.4h Spa");                 // yarış adı
     expect(html).toContain("Toplam");                   // özet
-    expect(html).toContain("Durum");                    // status filtresi (her zaman render)
+    expect(html).toContain("Tümü");                     // seri filtresi (her zaman render)
     expect(html).toContain("lmugarage.com");            // kaynak atfı
   });
   it("onPlan YOKSA 'Planla' butonu görünmez (saf görüntüleyici)", () => {

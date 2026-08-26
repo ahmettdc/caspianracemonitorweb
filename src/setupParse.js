@@ -98,19 +98,20 @@ export function diffSetups(parsedA, parsedB) {
   for (const r of rowsB) idxB.set(`${r.section}/${r.key}`, r);
   const out = [];
   const seen = new Set();
+  const catOf = (r) => FIELD_CAT[r.key] || SECTION_CAT[r.section] || "other";
   for (const r of rowsA) {                       // A'nın dosya sırası esas
     const k = `${r.section}/${r.key}`;
     if (seen.has(k)) continue;
     seen.add(k);
     const rb = idxB.get(k);
-    out.push({ section: r.section, key: r.key, a: r.label,
+    out.push({ section: r.section, key: r.key, cat: catOf(r), a: r.label,
       b: rb ? rb.label : "—", differ: !rb || rb.label !== r.label });
   }
   for (const r of rowsB) {                       // yalnız B'de olanlar sona
     const k = `${r.section}/${r.key}`;
     if (seen.has(k)) continue;
     seen.add(k);
-    out.push({ section: r.section, key: r.key, a: "—", b: r.label, differ: true });
+    out.push({ section: r.section, key: r.key, cat: catOf(r), a: "—", b: r.label, differ: true });
   }
   return out;
 }

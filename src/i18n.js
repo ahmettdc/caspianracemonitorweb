@@ -66,7 +66,7 @@ export const EN = {
     "Don't worry — you can change all of these anytime from the left column.",
   // data kartları
   "Yarış · Data": "Race · Data", "Stint Turları — A / B / C / D": "Stint Laps — A / B / C / D",
-  "Seçili Strateji": "Selected Strategy", "Yarış Başlangıcı": "Race Start",
+  "Seçili Strateji": "Selected Strategy", "tur / stint": "laps / stint", "Yarış Başlangıcı": "Race Start",
   "Start Tarih & Saat": "Start Date & Time", "Hesaplanan Bitiş": "Calculated Finish",
   "Canlı yarış modu, pilot planı ve geri sayım bu zamana göre çalışır.":
     "Live race mode, driver plan and countdown are based on this time.",
@@ -221,7 +221,7 @@ export const EN = {
   "toplam": "total", "stint": "stint", "Takımdan": "From team",
   /* §1 Ana Menü dashboard (v1.5.0) */
   "Görüntüle": "View", "takvim & takım": "calendar & team",
-  ".ld yükle · analiz": "load .ld · analyze", "paylaşımlı setuplar": "shared setups",
+  ".duckdb yükle · analiz": "load .duckdb · analyze", "paylaşımlı setuplar": "shared setups",
   "takım kanalları": "team channels", "Sıradaki Yarış": "Next Race",
   "Geçmiş Yarışlar": "Past Races", "Yaklaşan": "Upcoming",
   "ara: pist, yarış adı…": "search: track, race name…",
@@ -637,7 +637,7 @@ export const EN = {
   "Kutu = turların ortadaki %50'si (Q1–Q3), kalın çizgi medyan. Bıyıklar uç turlara, halkalar aykırı turlara işaret eder.":
     "Box = middle 50% of laps (Q1–Q3), thick line is the median. Whiskers reach the extreme laps, rings mark outliers.",
   "tur çözümlendi": "laps parsed",
-  ".ld çözümleniyor…": "Parsing .ld…",
+  "Telemetri çözümleniyor…": "Parsing telemetry…",
   "Tur Karşılaştırma": "Lap Comparison",
   "İzler hazırlanıyor…": "Preparing traces…",
   "İz verisi çıkarılamadı — bu dosyada hız/mesafe kanalı olmayabilir.":
@@ -649,7 +649,7 @@ export const EN = {
   "delta > 0 = B daha yavaş": "delta > 0 = B slower",
   "Zaman-Delta (B−A)": "Time-Delta (B−A)",
   "Direksiyon": "Steering",
-  "Sektör": "Sector",
+  "Sektör": "Sector", "Poz": "Pos", "Enerji": "Energy",
   "Sektörler tur-kesri üçlüsüdür (mesafe/3); gerçek S/F beacon'ı değil.":
     "Sectors are lap-fraction thirds (distance/3), not the real S/F beacon.",
   "A hızlı": "A faster",
@@ -688,8 +688,8 @@ export const EN = {
     "File not recognised — expecting a MoTeC lap report or a raw channel log",
   "MoTeC tur istatistiklerini yapıştır veya dosya seç (CSV/TSV)":
     "Paste MoTeC lap stats or pick a file — raw channel logs work too (CSV/TSV)",
-  "MoTeC tur istatistiklerini yapıştır veya dosya seç (CSV/TSV) — .ld ve .duckdb doğrudan çalışır":
-    "Paste MoTeC lap stats or pick a file (CSV/TSV) — .ld and .duckdb work directly",
+  "MoTeC tur istatistiklerini yapıştır veya dosya seç (CSV/TSV) — .duckdb doğrudan çalışır":
+    "Paste MoTeC lap stats or pick a file (CSV/TSV) — .duckdb works directly",
   "DuckDB çözümleniyor (ilk açılışta motor indirilir)…":
     "Parsing DuckDB (engine downloads on first open)…",
   /* §8b — Seans Setup kutusu (telemetriye gömülü kurulum) */

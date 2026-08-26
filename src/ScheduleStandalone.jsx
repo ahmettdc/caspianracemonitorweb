@@ -19,8 +19,17 @@ import { Icon, Btn } from "./components";
 const ScheduleTab = lazy(() => import("./tabs/ScheduleTab"));
 
 export default function ScheduleStandalone({
-  t, lang, switchLang, races, updatedAt, loading, onExit, onPlan,
+  t, lang, switchLang, races, updatedAt, loading, onExit, onPlan, embedded = false,
 }) {
+  const content = (
+    <Suspense fallback={<div className="hint" style={{ padding: 20 }}>⏳ {t("Yükleniyor…")}</div>}>
+      <ScheduleTab t={t} lang={lang} races={races}
+        updatedAt={updatedAt} loading={loading} onPlan={onPlan} />
+    </Suspense>
+  );
+  /* embedded: App kabuğu (shell + rail) içinde tam genişlik — kendi header'ı yok. */
+  if (embedded) return content;
+
   return (
     <div className="rc">
       <header>
@@ -39,12 +48,7 @@ export default function ScheduleStandalone({
           </Btn>
         </div>
       </header>
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "16px 20px 60px" }}>
-        <Suspense fallback={<div className="hint" style={{ padding: 20 }}>⏳ {t("Yükleniyor…")}</div>}>
-          <ScheduleTab t={t} lang={lang} races={races}
-            updatedAt={updatedAt} loading={loading} onPlan={onPlan} />
-        </Suspense>
-      </div>
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "16px 20px 60px" }}>{content}</div>
     </div>
   );
 }

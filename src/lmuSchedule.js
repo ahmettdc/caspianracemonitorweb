@@ -3,7 +3,10 @@
    ------------------------------------------------------------
    ScheduleTab bu helper'ları useMemo ile kullanır; hepsi saf ve test edilebilir.
    Yalnızca /lmuSchedule veri modelinde GERÇEKTEN bulunan alanları kullanır:
-     { id, kind, name, startMs, live, sr, srRank, trackId, trackRaw, classes[], lenSec, ... }
+     { id, kind, name, startMs, live, sr, srRank, trackId, trackRaw, classes[], lenSec,
+       qualSec?, tyreSets?, weekend?{practiceSec,qualSec,raceSec,grid,privateQuali,
+       fixedSetup,tyreSets,tlPoints,fuel,tyreWear,warmers}, ... }
+   weekend = "Race weekend" paneli (scraper detay sayfasından); yalnız var olan alanlar.
    season/round/championship-adı YOK → uydurulmaz. "Seri" = kind. Status hesaplanır.
    ============================================================ */
 

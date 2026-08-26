@@ -192,6 +192,21 @@ describe("computePlan — çekirdek strateji", () => {
     expect(plan.rows[0].pitSec).toBe(0); // son stintte pit yok
   });
 
+  it("stinte özel VE tüketimi (stintCons) o stintin fuelNeed'ini değiştirir", () => {
+    // 20 dk tek stint, tüketim 10 %/tur, 6 tur → fuelNeed ≈ 60
+    const base = computePlan(baseState({ raceTime: "0:20:00" }), "race");
+    const cons = []; cons[0] = 6;   // ilk stint düşük tüketim override
+    const low = computePlan(baseState({ raceTime: "0:20:00", stintCons: cons }), "race");
+    expect(low.rows[0].fuelNeed).toBeLessThan(base.rows[0].fuelNeed);
+    expect(low.rows[0].fuelNeed).toBeCloseTo(base.rows[0].fuelNeed * 0.6, 3);
+  });
+  it("stintCons boş/geçersizse yarış datasındaki tüketim geçerli (fuelNeed sabit)", () => {
+    const base = computePlan(baseState({ raceTime: "0:20:00" }), "race");
+    const cons = []; cons[0] = "";  // boş → global tüketim
+    const same = computePlan(baseState({ raceTime: "0:20:00", stintCons: cons }), "race");
+    expect(same.rows[0].fuelNeed).toBeCloseTo(base.rows[0].fuelNeed, 6);
+  });
+
   it("çok stintli yarış: son satır isLast, bitiş = raceSec", () => {
     const plan = computePlan(baseState(), "race"); // 1 saat
     expect(plan.rows.length).toBeGreaterThan(1);

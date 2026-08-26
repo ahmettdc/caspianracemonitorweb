@@ -110,6 +110,66 @@ export function parseTyreSets(html) {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+/* Detay sayfası "Race weekend" panelinin TAMAMI → görüntüleme için meta.
+   İki yapı: seans süreleri (parseRaceWeekend) + kutucuklar (.set-tiles .tile):
+     <div class="t-txt"><span class="t-val">38</span><span class="t-lab">Grid</span></div>
+   Kutucuk etiketleri: Grid, Private quali, Fixed setup, Tyre sets, TL points,
+   Fuel (×1.0), Tyre wear (×1.0), Warmers. Değerler: sayı | Yes/No | ×çarpan.
+   Bulunmayan alan null → UI yalnız var olanı gösterir. */
+/* Seans başına hava dizisi → { practice:["sun",...], qualifying:[...], race:[...] }.
+   Yapı: <div class="ses"><span class="n">Qualifying</span><span class="weather">
+   <span class="wx-sun">…</span>×N</span>…</div>. Kod = wx-XXX (sun|cloud|rain|…).
+   Bilinmeyen kod olduğu gibi taşınır; UI eşlemede yoksa nötr gösterir. */
+export function parseSessionWeather(html) {
+  const src = String(html || "");
+  const out = {};
+  const sesRe = /<div\s+class="ses">([\s\S]*?)<\/div>/g;
+  let mm;
+  while ((mm = sesRe.exec(src)) !== null) {
+    const b = mm[1] || "";
+    const name = normLabel(first(/class="n">\s*([^<]+?)\s*</, b));
+    const key = name.startsWith("practice") ? "practice"
+      : name.startsWith("quali") ? "qualifying" : name === "race" ? "race" : null;
+    if (!key) continue;
+    const codes = [];
+    const wxRe = /class="wx-([a-z]+)"/g;
+    let wm;
+    while ((wm = wxRe.exec(b)) !== null) codes.push(wm[1]);
+    if (codes.length) out[key] = codes;
+  }
+  return out;
+}
+
+export function parseWeekendMeta(html) {
+  const src = String(html || "");
+  const s = parseRaceWeekend(src);
+  const weather = parseSessionWeather(src);
+  const tiles = {};
+  const re = /<span\s+class="t-val">\s*([^<]*?)\s*<\/span>\s*<span\s+class="t-lab">\s*([^<]*?)\s*<\/span>/g;
+  let m;
+  while ((m = re.exec(src)) !== null) {
+    const lab = normLabel(m[2]);
+    if (lab && !(lab in tiles)) tiles[lab] = String(m[1]).trim();
+  }
+  const int = (v) => { const n = parseInt(String(v ?? "").replace(/[^\d-]/g, ""), 10); return Number.isFinite(n) ? n : null; };
+  const mult = (v) => { const n = parseFloat(String(v ?? "").replace(/[^\d.]/g, "")); return Number.isFinite(n) ? n : null; };
+  const bool = (v) => { const x = normLabel(v); return x === "yes" ? true : x === "no" ? false : null; };
+  return {
+    practiceSec: s.practiceSec,
+    qualSec: s.qualSec,
+    raceSec: s.raceSec,
+    weather: Object.keys(weather).length ? weather : null,
+    grid: int(tiles.grid),
+    privateQuali: bool(tiles["private quali"]),
+    fixedSetup: bool(tiles["fixed setup"]),
+    tyreSets: int(tiles["tyre sets"]),
+    tlPoints: int(tiles["tl points"]),
+    fuel: mult(tiles.fuel),
+    tyreWear: mult(tiles["tyre wear"]),
+    warmers: bool(tiles.warmers),
+  };
+}
+
 /* HTML fragmanı → { source, races: [...] }. updatedAt scraper tarafından eklenir. */
 export function parseRacingToday(html) {
   const src = String(html || "");

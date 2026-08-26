@@ -23,6 +23,69 @@ export const css = `
   --font-disp:'Rajdhani','Inter',system-ui,sans-serif;
   --font-mono:'IBM Plex Mono',ui-monospace,'Cascadia Code',Consolas,monospace;
 }
+
+/* ============================================================================
+   Race Monitor v2.0 — tasarım tokenları (--rc-*)
+   Kaynak: handoff-spec/tokens/tokens.css · Yeni Tasarım.dc.html prototipinden
+   birebir çıkarılmıştır. Kural: bu blokta olmayan bir renk/ölçü kullanma.
+   ============================================================================ */
+:root{
+  /* Yüzeyler */
+  --rc-bg:#0B0708; --rc-surface:#120C0E; --rc-surface-2:#150E10;
+  --rc-surface-3:#1E1418; --rc-surface-4:#151013; --rc-surface-5:#1B1013;
+  /* Çizgiler */
+  --rc-line-soft:#241519; --rc-border:#34232A; --rc-border-strong:#4A2F38;
+  --rc-border-hi:#5C3B44; --rc-border-mute:#6B4A52;
+  /* Kapalı/kilitli rol ikonu (rozet fişi) */
+  --rc-icon-off:#6B4A54;
+  /* Rehber (koçmark) — animasyon paneli + dolgu çubukları */
+  --rc-surface-inset:#0F0A0C; --rc-track-2:#2A1A1F;
+  /* Metin */
+  --rc-text:#F3EAEC; --rc-text-2:#C9B3B9; --rc-text-3:#A88C93;
+  --rc-text-4:#7A6F75; --rc-text-5:#5B5157;
+  /* Marka */
+  --rc-brand:#960018; --rc-brand-bright:#D24357; --rc-brand-deep:#C51E38;
+  --rc-on-brand:#FFE9ED;
+  /* Durum */
+  --rc-ok:#37D67A; --rc-ok-2:#40D68C; --rc-ok-3:#3AD07A; --rc-ok-soft:#7FE3A0;
+  --rc-warn:#F5B23D; --rc-warn-2:#F5C84C; --rc-warn-3:#F2C94C; --rc-flag-yellow:#F2C037;
+  --rc-danger:#FF4D5E; --rc-danger-2:#FF5470; --rc-danger-3:#F0604D;
+  --rc-info:#4C9AFF; --rc-delta:#4D9FFF; --rc-info-2:#6694FF; --rc-info-3:#5AA9E6;
+  --rc-info-4:#4FB0EC; --rc-info-soft:#7CCDFF;
+  --rc-purple:#B58BFF; --rc-purple-2:#B06FFC;
+  --rc-neutral:#6E8496; --rc-neutral-2:#5B6B7A;
+  --rc-light:#E3DDDF; --rc-light-2:#EDE8E9; --rc-white:#FFFFFF;
+  /* Sınıf renkleri (LMU) */
+  --rc-cls-hypercar:#E7443B; --rc-cls-gt3:#EF8A2B; --rc-cls-lmp2:#4C9AFF;
+  --rc-cls-lmp3:#B58BFF; --rc-cls-gte:#37D67A;
+  /* Saydam katmanlar */
+  --rc-scrim:rgba(10,6,10,.74); --rc-scrim-strong:rgba(8,5,6,.88);
+  --rc-glow-brand:rgba(150,0,24,.22);
+  --rc-tint-ok:rgba(55,214,122,.14); --rc-tint-warn:rgba(245,178,61,.08);
+  --rc-tint-info:rgba(76,154,255,.14); --rc-tint-purple:rgba(181,139,255,.10);
+  /* Gölge */
+  --rc-shadow-card:0 24px 60px rgba(0,0,0,.55); --rc-shadow-pop:0 18px 40px rgba(0,0,0,.5);
+  --rc-shadow-img:0 10px 30px rgba(0,0,0,.6);
+  /* Tipografi */
+  --rc-font-display:'Rajdhani',sans-serif; --rc-font-ui:'Inter',sans-serif;
+  --rc-font-mono:'IBM Plex Mono',monospace;
+  /* Punto ölçeği */
+  --rc-fs-9:9px; --rc-fs-95:9.5px; --rc-fs-10:10px; --rc-fs-105:10.5px;
+  --rc-fs-11:11px; --rc-fs-115:11.5px; --rc-fs-12:12px; --rc-fs-125:12.5px;
+  --rc-fs-13:13px; --rc-fs-14:14px; --rc-fs-15:15px; --rc-fs-16:16px;
+  --rc-fs-17:17px; --rc-fs-19:19px; --rc-fs-20:20px; --rc-fs-22:22px;
+  --rc-fs-26:26px; --rc-fs-34:34px; --rc-fs-44:44px;
+  /* Harf aralığı */
+  --rc-ls-label:.07em; --rc-ls-micro:.09em; --rc-ls-num:.02em;
+  /* Yarıçap */
+  --rc-r-2:2px; --rc-r-3:3px; --rc-r-5:5px; --rc-r-7:7px; --rc-r-8:8px;
+  --rc-r-9:9px; --rc-r-10:10px; --rc-r-11:11px; --rc-r-12:12px; --rc-r-13:13px;
+  --rc-r-14:14px; --rc-r-16:16px; --rc-r-pill:99px;
+  /* Boşluk */
+  --rc-sp-2:2px; --rc-sp-4:4px; --rc-sp-6:6px; --rc-sp-8:8px; --rc-sp-9:9px;
+  --rc-sp-10:10px; --rc-sp-12:12px; --rc-sp-14:14px; --rc-sp-16:16px; --rc-sp-18:18px;
+  --rc-sp-20:20px; --rc-sp-22:22px; --rc-sp-24:24px; --rc-sp-26:26px; --rc-sp-40:40px;
+}
 /* --- Light mode (opsiyonel) — koyu tema ana kimlik; bu blok tokenları rol-swap eder.
    Marka #960018 / --car korunur. Anlamsal renkler açık zemine göre koyulaştırıldı. --- */
 :root[data-theme="light"]{
@@ -53,15 +116,16 @@ export const css = `
 .rc header h1 b{color:var(--accent)}
 .rc header .ver{color:var(--dim);font-size:12px;margin-left:-4px;align-self:flex-end;
   padding-bottom:2px}
-.rc .grid{display:grid;grid-template-columns:300px 1fr;gap:16px;padding:16px 20px;
+/* v2.0: DATA paneli SAĞ tarafta (içerik solda). Panel order:2 ile 2. sütuna düşer. */
+.rc .grid{display:grid;grid-template-columns:1fr 300px;gap:16px;padding:16px 20px;
   align-items:start;transition:grid-template-columns .28s ease,gap .28s ease}
-.rc .grid.noside{grid-template-columns:0px 1fr;gap:0}
-.rc .sidecol{overflow:hidden;min-width:0}
+.rc .grid.noside{grid-template-columns:1fr 0px;gap:0}
+.rc .sidecol{overflow:hidden;min-width:0;order:2}
 .rc .sideinner{width:300px;transition:opacity .22s ease}
 .rc .grid.noside .sideinner{opacity:0;pointer-events:none}
-.rc .sidetoggle{position:fixed;left:0;top:50%;transform:translateY(-50%);z-index:40;
-  width:20px;height:72px;padding:0;border:1px solid var(--line);border-left:none;
-  border-radius:0 10px 10px 0;background:var(--panel2);color:var(--dim);
+.rc .sidetoggle{position:fixed;right:0;left:auto;top:50%;transform:translateY(-50%);z-index:40;
+  width:20px;height:72px;padding:0;border:1px solid var(--line);border-right:none;
+  border-radius:10px 0 0 10px;background:var(--panel2);color:var(--dim);
   cursor:pointer;font-size:11px;line-height:1;transition:color .15s,border-color .15s}
 .rc .sidetoggle:hover{color:var(--accent);border-color:var(--accent)}
 @media(max-width:900px){.rc .grid{grid-template-columns:1fr}.rc .sidetoggle{display:none}}
@@ -99,6 +163,10 @@ export const css = `
 .rc input[type=number]::-webkit-outer-spin-button{
   -webkit-appearance:inner-spin-button;appearance:auto;opacity:1;
   height:24px;cursor:pointer;filter:invert(.85) hue-rotate(300deg)}
+/* .stepnum: yanlarda − + butonlu sayı alanı → native yukarı/aşağı okları gizle */
+.rc .stepnum input[type=number]{-moz-appearance:textfield;appearance:textfield}
+.rc .stepnum input[type=number]::-webkit-inner-spin-button,
+.rc .stepnum input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;appearance:none;margin:0}
 .rc .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .rc .row4{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .rc .strat{display:flex;gap:6px;margin-top:4px}
@@ -118,6 +186,9 @@ export const css = `
 .rc td{padding:7px 8px;border-bottom:1px solid #2E1D21;font-family:var(--font-mono);
   font-size:12.5px}
 .rc tr.last td{background:rgba(64,214,140,.06)}
+/* Canlı timing tablosu: yeni arayüzde satırlar daha ferah (yüksek satır) */
+.rc table.lttable td{padding-top:12px;padding-bottom:12px}
+.rc table.lttable th{padding-top:9px;padding-bottom:9px}
 .rc .neg{color:var(--red)} .rc .pos{color:var(--green)}
 .rc .chip{display:inline-block;padding:1px 7px;border-radius:99px;font-size:11px;
   border:1px solid var(--line);color:var(--dim)}
@@ -909,6 +980,14 @@ export const css = `
 .rc .livestrip .lbl{color:var(--dim);font-size:10px;text-transform:uppercase;
   letter-spacing:.07em;display:block}
 @keyframes rcpulse{0%,100%{opacity:1}50%{opacity:.35}}
+/* v2.0 token hareketleri (handoff-spec/tokens/tokens.css) */
+@keyframes rcfade{from{opacity:0}to{opacity:1}}
+@keyframes rcspin{to{transform:rotate(360deg)}}
+@keyframes rcin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes rcpop{from{opacity:0;transform:translateY(14px) scale(.975)}to{opacity:1;transform:none}}
+@keyframes rcalert{0%,100%{box-shadow:0 0 0 0 rgba(245,178,61,.42)}50%{box-shadow:0 0 0 7px rgba(245,178,61,0)}}
+@keyframes rcpb{0%{background:rgba(55,214,122,.34)}70%{background:rgba(55,214,122,.20)}100%{background:transparent}}
+@keyframes rcpbc{0%{background:rgba(181,139,255,.36)}70%{background:rgba(181,139,255,.22)}100%{background:transparent}}
 .rc .pulse{animation:rcpulse 1.1s ease-in-out infinite;color:var(--yellow)}
 @media (prefers-reduced-motion: reduce){.rc .pulse{animation:none}}
 .rc .timeline{position:relative}
@@ -1185,5 +1264,33 @@ export const css = `
   .rc .sch-thumb{display:none}
   .rc .sch-side{margin-left:0;width:100%;justify-content:space-between}
   .rc .sch-sel select{min-width:0}
+}
+
+/* ═══ Rehber (koçmark turu) — geçiş + adım animasyonları (rehber fişi §7-8) ═══ */
+@keyframes tgInRa{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}
+@keyframes tgInRb{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}
+@keyframes tgInLa{from{opacity:0;transform:translateX(-24px)}to{opacity:1;transform:none}}
+@keyframes tgInLb{from{opacity:0;transform:translateX(-24px)}to{opacity:1;transform:none}}
+@keyframes tgCell{0%,72%,100%{opacity:.14}26%{opacity:1}}
+@keyframes tgUp{0%,100%{opacity:.28;transform:translateY(7px)}20%,78%{opacity:1;transform:none}}
+@keyframes tgFill{0%,100%{transform:scaleX(.08)}30%,80%{transform:scaleX(1)}}
+@keyframes tgDrain{0%{transform:scaleX(1)}88%,100%{transform:scaleX(.1)}}
+@keyframes tgSweepX{0%{left:0}100%{left:calc(100% - 3px)}}
+@keyframes tgRowUp{0%,24%{transform:none;border-color:#241519}48%,86%{transform:translateY(-26px);border-color:#37D67A}100%{transform:none;border-color:#241519}}
+@keyframes tgRowDn{0%,24%{transform:none}48%,86%{transform:translateY(26px)}100%{transform:none}}
+@keyframes tgHeat{0%,100%{background:rgba(76,154,255,.28)}50%{background:rgba(239,138,43,.62)}}
+@keyframes tgGlowA{0%,42%{border-color:#4C9AFF;opacity:1}62%,100%{border-color:#34232A;opacity:.4}}
+@keyframes tgGlowB{0%,42%{border-color:#34232A;opacity:.4}62%,100%{border-color:#37D67A;opacity:1}}
+@keyframes tgDraw{0%{stroke-dashoffset:420}44%,84%{stroke-dashoffset:0}100%{stroke-dashoffset:420}}
+@keyframes tgKnob{0%,100%{left:14%}50%{left:74%}}
+@keyframes tgOn{0%,42%{background:#1E1418;color:#6B4A54}58%,100%{background:rgba(76,154,255,.18);color:#4C9AFF}}
+@keyframes tgOn2{0%,42%{background:#1E1418;color:#6B4A54}58%,100%{background:rgba(55,214,122,.18);color:#37D67A}}
+@keyframes tgDot{0%,100%{opacity:.3}50%{opacity:1}}
+@keyframes tgWarn{0%,58%{background:#37D67A}68%,88%{background:#F5B23D}100%{background:#37D67A}}
+@keyframes tgCheck{0%{stroke-dashoffset:44}40%,88%{stroke-dashoffset:0}100%{stroke-dashoffset:44}}
+@keyframes tgRingOut{0%{transform:scale(.6);opacity:.85}70%,100%{transform:scale(1.55);opacity:0}}
+@keyframes tgVal{0%,45%{opacity:.34}55%,100%{opacity:1}}
+@media (prefers-reduced-motion:reduce){
+  .rc [class^="tg-anim"] *,.rc .tg-slide{animation:none !important}
 }
 `;
