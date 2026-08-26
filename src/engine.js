@@ -320,15 +320,26 @@ export function computePlan(st, mode /* "race" | "code80" */) {
          HAYALET satır üretirdi (64 satır, uydurma toplam tur). Geçerli bir stint her
          zaman pozitif sürelidir → burada dur, `truncated` bayrağı UI'da uyarı gösterir. */
       if (!(stintSec > 0)) break;
-      cum += stintSec;
       const p = st.pits[i] || EMPTY_PIT;
       const tyreCount = p.tyres.reduce((a, v) => a + (tyState(v) > 0 ? 1 : 0), 0);
       const repairSec = Number(repairs[i]) || 0;
       /* pit süresi: LANE her zaman dahil + fuel (doldurduğu sonraki stintin VE %'sine ölçekli) + lastik + tamir */
       const fuelSec = p.fuel ? (fuelSecFn ? fuelSecFn(i) : st.fuelTime) : 0;
-      const pitSec = isLast ? 0
+      let pitSec = isLast ? 0
         : st.pitLaneTime + fuelSec + tyreSecOf(tyreCount) + repairSec;
-      const endStint = cum + (isLast ? 0 : pitSec);
+      /* SON PİT TAŞMASI KORUMASI: stint + arkasındaki pit yarış bayrağına ulaşıyor/aşıyorsa
+         (cum + stint + pit ≥ raceSec) pit'e gerçekte zaman kalmamıştır → bu stint SON stinttir.
+         Pit'i kaldır, stinti bayrağa kadar uzat. Elle tur override'lı stintler yarışı tam
+         doldurmayınca beliren HAYALET SON PİT'i ve ondan doğan "-00:00:20 plan tamamlanamadı"
+         yanlış uyarısını (endSec > raceSec, timeLeft < 0, zaman çizelgesi %100'ü aşar) önler. */
+      if (!isLast && cum + stintSec + pitSec >= raceSec - 0.5) {
+        isLast = true; pitSec = 0;
+        stintSec = startLeft;
+        const wb = walkByTime(cum, startLeft, true, fixLap, consLap);
+        lapsInStint = Math.max(1, wb.laps); fuelUnits = wb.fuel;
+      }
+      cum += stintSec;
+      const endStint = cum + pitSec;
       rows.push({
         idx: i + 1,
         fixLap,
@@ -387,7 +398,11 @@ export function computePlan(st, mode /* "race" | "code80" */) {
      FINISH yok, son satırın Time Left'i pozitif kalır → sessizce yarım plan.
      UI bu bayraklarla uyarır. */
   const invalid = !(raceSec > 0) || !(baseLap > 0) || !(laps > 0);
-  const truncated = rows.length > 0 && !rows[rows.length - 1].isLast;
+  /* truncated: plan bayrağa ULAŞAMADI. Yalnızca gerçekten POZİTİF planlanmamış süre
+     varken uyar (64 stint tavanı / yozlaşmış girdi). Plan bayrağa değer ya da aşarsa
+     (timeLeft ≤ 0) plan tamamdır — "tamamlanamadı" uyarısı çıkmaz. */
+  const lastRow = rows[rows.length - 1];
+  const truncated = rows.length > 0 && !lastRow.isLast && lastRow.timeLeft > 0.5;
   return { rows, raceSec, lapSec, laps, fullStints, totalLaps, totalFuel,
     flagExtra, lastRefuelPct, invalid, truncated };
 }
