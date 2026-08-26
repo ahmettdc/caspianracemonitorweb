@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { fmtLap, fmtHMS, fmtGap, WEATHER, wetnessLevel, rainLevel, rubberPct } from "../engine";
 import { WetIcon } from "../WetIcon";
 import { GripIcon, gripColor } from "../GripIcon";
+import { TrackTempIcon } from "../TrackTempIcon";
 import { confirmDialog } from "../confirm";
 import { DESKTOP_RELEASE_URL, BRIDGE_EXE_URL, ASSET, classId, classAccent, brandKey, manufacturerKey } from "../constants";
 import { isTauri } from "../tauriEnv";
@@ -267,7 +268,7 @@ function LapsModal({ t, tid, rid, row, canEdit, demo, onClose }) {
                 {tag && <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".08em", padding: "2px 9px", borderRadius: 99, flex: "0 0 auto", whiteSpace: "nowrap", border: `1px solid ${tagCol}`, color: tagCol }}>{tag}</span>}
                 <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "flex-end", gap: 9, flex: "0 0 auto", width: 150, fontSize: 11, color: "var(--rc-text-3)" }}>
                   {cond && (<>
-                    {cond.temp != null && <span title={t("Asfalt sıcaklığı")}>🛣 {cond.temp}°</span>}
+                    {cond.temp != null && <span title={t("Asfalt sıcaklığı")} style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><TrackTempIcon temp={cond.temp} size={12} /> {cond.temp}°</span>}
                     {cond.grip != null && <span title={t("Yol tutuş")} style={{ color: gripColor(cond.grip) }}>%{cond.grip}</span>}
                     {cond.wet != null && (condWx
                       ? <span title={t("Zemin ıslaklığı")} style={{ display: "inline-flex", alignItems: "center", gap: 3, color: WEATHER[condWx].col }}><WetIcon id={condWx} size={12} /> {t(WEATHER[condWx].lbl)}</span>

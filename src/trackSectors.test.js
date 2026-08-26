@@ -69,6 +69,19 @@ describe("observePit / pitFractions — pit giriş/çıkış gözlemi (v1.4.96)"
     expect(fr.entry).toBeCloseTo(0.93, 5);
     expect(fr.exit).toBeCloseTo(0.05, 5);
   });
+  it("GARAGE pit ALANI sayılır: TRACK→GARAGE giriş, GARAGE→TRACK çıkış (v2.1.1)", () => {
+    // Araç girişte doğrudan GARAGE'a atlarsa da GİRİŞ yakalanmalı (eskiden kaçıyordu).
+    let st = observePit(emptyPit(), "TRACK", "GARAGE", 0.90);   // giriş
+    st = observePit(st, "GARAGE", "TRACK", 0.06);               // çıkış
+    const fr = pitFractions(st);
+    expect(fr.entry).toBeCloseTo(0.90, 5);
+    expect(fr.exit).toBeCloseTo(0.06, 5);
+  });
+  it("PIT↔GARAGE (pit alanı içi) giriş/çıkış SAYILMAZ", () => {
+    let st = observePit(emptyPit(), "PIT", "GARAGE", 0.5);      // pit içi hareket
+    st = observePit(st, "GARAGE", "PIT", 0.5);                  // pit içi hareket
+    expect(pitFractions(st)).toBeNull();
+  });
   it("aynı konum tekrarı / geçersiz frac sayılmaz", () => {
     let st = observePit(emptyPit(), "TRACK", "TRACK", 0.5);   // geçiş yok
     st = observePit(st, "TRACK", "PIT", 1.5);                 // frac aralık dışı

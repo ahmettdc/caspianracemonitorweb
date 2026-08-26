@@ -40,12 +40,19 @@ export function sectorFractions(state) {
    Gözleyip ortalarız (gürültüye dayanıklı). Dış halkada iki küçük işaret çizilir. */
 export const emptyPit = () => ({ entry: { sum: 0, n: 0 }, exit: { sum: 0, n: 0 } });
 
+/* Pit ALANI = PIT veya GARAGE. Araç pite girerken kimi zaman TRACK→PIT ara karesi
+   örneklenmeden doğrudan TRACK→GARAGE'a atlar (stall yakınsa mInGarageStall erken
+   true olur) → yalnız "PIT" aransaydı GİRİŞ kaçardı (harita "Pit giriş" boş kalırdı),
+   oysa çıkışta GARAGE→PIT→TRACK sırası PIT→TRACK'i yakaladığı için PIT OUT görünürdü.
+   Bu asimetriyi gidermek için giriş/çıkış pit ALANINA göre saptanır. */
+const inPitArea = (l) => l === "PIT" || l === "GARAGE";
 export function observePit(state, prevLoc, loc, frac) {
   const st = state || emptyPit();
   const f = Number(frac);
   if (!Number.isFinite(f) || f < 0 || f > 1) return st;
-  if (prevLoc === "TRACK" && loc === "PIT") { st.entry.sum += f; st.entry.n += 1; }
-  else if (prevLoc === "PIT" && loc === "TRACK") { st.exit.sum += f; st.exit.n += 1; }
+  const wasPit = inPitArea(prevLoc), nowPit = inPitArea(loc);
+  if (!wasPit && nowPit) { st.entry.sum += f; st.entry.n += 1; }        // TRACK → pit alanı
+  else if (wasPit && !nowPit) { st.exit.sum += f; st.exit.n += 1; }     // pit alanı → TRACK
   return st;
 }
 
