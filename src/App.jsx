@@ -261,7 +261,10 @@ export default function App() {
   const canEditRef = useRef(false);
 
   /* ---------- YARIŞ AÇ / KAPAT (oda kodu ve PIN yok) ---------- */
-  const openRace = async (rid) => {
+  /* landTab: yarış açılınca inilecek sekme. "Yarışı aç"/"Aç" butonları "stint" geçer
+     (kullanıcı yarışa girince önce STINT planını görür). Rail menü öğeleri landTab
+     GEÇMEZ; kendi setTab(k) seçimleri korunur (ör. menüden doğrudan "Canlı"ya girme). */
+  const openRace = async (rid, landTab) => {
     if (!curTeam || !rid) return;
     try {
       const remote = await raceStateGet(curTeam, rid);
@@ -279,6 +282,7 @@ export default function App() {
       setCurRace(rid);
       setRole(canEditTeam ? "editor" : "viewer");
       setEntered(true); setPickDone(true); setSetupDone(true);
+      if (landTab) setTab(landTab);
       setTeamOpen(false); setSyncMsg("");
       setTimeout(() => { sync.current.applying = false; }, 60);
     } catch (e) { setSyncMsg(t("Bağlantı hatası: ") + e.message); }
@@ -1394,7 +1398,7 @@ ${bottomBar}
       myTeams={myTeams} curTeam={curTeam} setCurTeam={setCurTeam} teamData={teamData}
       tnEdit={tnEdit} setTnEdit={setTnEdit} canManageTeam={canManageTeam} canEditTeam={canEditTeam}
       curSeason={curSeason} setCurSeason={setCurSeason} seasons={seasons} races={races} st={st}
-      myRole={myRole} openRace={openRace} setRForm={setRForm} setBadge={setBadge}
+      myRole={myRole} openRace={(rid) => openRace(rid, "stint")} setRForm={setRForm} setBadge={setBadge}
       roleLabel={roleLabel}
       onCreateJoin={() => { setTeamOpen(false); setCreateJoinOpen(true); }} />
   );
@@ -2080,7 +2084,7 @@ ${bottomBar}
               myTeams={myTeams} curTeam={curTeam} setCurTeam={setCurTeam} teamData={teamData}
               tnEdit={tnEdit} setTnEdit={setTnEdit} canManageTeam={canManageTeam} canEditTeam={canEditTeam}
               curSeason={curSeason} setCurSeason={setCurSeason} seasons={seasons} races={races} st={st}
-              myRole={myRole} openRace={(rid) => { setTeamOpen(false); openRace(rid); }}
+              myRole={myRole} openRace={(rid) => { setTeamOpen(false); openRace(rid, "stint"); }}
               setRForm={setRForm} setBadge={setBadge} roleLabel={roleLabel}
               onCreateJoin={() => { setTeamOpen(false); setCreateJoinOpen(true); }}
               onExit={() => setTeamOpen(false)} />
@@ -2350,7 +2354,7 @@ ${bottomBar}
                     </div>
                   )}
                   <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 6 }}>
-                    <button onClick={() => openRace(rid)}
+                    <button onClick={() => openRace(rid, "stint")}
                       style={{ padding: "12px 24px", borderRadius: 10, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)",
                         color: "var(--rc-on-brand)", cursor: "pointer", fontFamily: "var(--rc-font-display)", fontSize: 17, fontWeight: 700, letterSpacing: ".05em", textTransform: "uppercase" }}>{t("Yarışı aç")} →</button>
                     <button onClick={() => setSuOpen(true)}
@@ -2464,7 +2468,7 @@ ${bottomBar}
                       </span>
                       <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 13, color: "var(--rc-text-2)", flex: "0 0 auto" }}>
                         {r.startsAt ? new Date(r.startsAt).toLocaleString(lang === "en" ? "en-GB" : "tr-TR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "—"}</span>
-                      <button onClick={() => openRace(rid)} style={{ flex: "0 0 auto", padding: "7px 16px", borderRadius: 8, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontFamily: "var(--rc-font-display)", fontSize: 13, fontWeight: 700, letterSpacing: ".03em", textTransform: "uppercase" }}>{t("Aç")}</button>
+                      <button onClick={() => openRace(rid, "stint")} style={{ flex: "0 0 auto", padding: "7px 16px", borderRadius: 8, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontFamily: "var(--rc-font-display)", fontSize: 13, fontWeight: 700, letterSpacing: ".03em", textTransform: "uppercase" }}>{t("Aç")}</button>
                       {canEditTeam && (<>
                         <button onClick={() => editRace(rid, r)} title={t("Düzenle")} style={{ width: 32, height: 32, flex: "0 0 auto", borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12 }}>✎</button>
                         <button onClick={() => askDeleteRace(rid, r)} title={t("Sil")} style={{ width: 32, height: 32, flex: "0 0 auto", borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 12 }}>🗑</button>
@@ -2917,7 +2921,7 @@ ${bottomBar}
           <span style={{ fontSize: 12, color: "var(--rc-text-3)" }}>{t("Dataları sonradan sol panelden değiştirebilirsin")}</span>
           <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
             <button onClick={() => setPickDone(false)} style={{ padding: "10px 18px", borderRadius: 10, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 13 }}>{t("Geri")}</button>
-            <button onClick={() => setSetupDone(true)} style={{ padding: "11px 24px", borderRadius: 10, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontFamily: "var(--rc-font-display)", fontSize: 16, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase" }}>{t("Yarışı aç")} →</button>
+            <button onClick={() => { setTab("stint"); setSetupDone(true); }} style={{ padding: "11px 24px", borderRadius: 10, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontFamily: "var(--rc-font-display)", fontSize: 16, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase" }}>{t("Yarışı aç")} →</button>
           </span>
         </div>
       </div>
