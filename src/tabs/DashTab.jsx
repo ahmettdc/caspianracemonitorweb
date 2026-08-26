@@ -41,7 +41,7 @@ export default function DashTab({
   const th = (left) => ({ textAlign: left ? "left" : "right", padding: "10px 14px", fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".07em", color: "var(--rc-text-3)", borderBottom: "1px solid var(--rc-border)", whiteSpace: "nowrap" });
 
   return (
-    <div style={{ padding: "4px 0 8px", display: "flex", flexDirection: "column", gap: 16, fontFamily: "var(--rc-font-ui)" }}>
+    <div style={{ padding: "4px 0 8px", display: "flex", flexDirection: "column", gap: 16, fontFamily: "var(--rc-font-ui)", animation: "rcin .26s ease-out" }}>
 
       {/* ═══════ Hero: araç|pist + KPI ═══════ */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "stretch" }}>

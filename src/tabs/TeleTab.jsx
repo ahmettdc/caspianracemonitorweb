@@ -924,7 +924,7 @@ export default function TeleTab({
   );
 
   return (
-    <div style={{ padding: "2px 0 8px", fontFamily: "var(--rc-font-ui)" }}>
+    <div style={{ padding: "2px 0 8px", fontFamily: "var(--rc-font-ui)", animation: "rcin .26s ease-out" }}>
       {/* başlık + yükle */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
         <h2 style={{ margin: 0, fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".06em", fontSize: 22, fontWeight: 700 }}>{t("Telemetri")}</h2>

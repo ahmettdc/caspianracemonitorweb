@@ -32,7 +32,7 @@ export default function StintTab({
   const td = (left) => ({ padding: "10px 14px", borderBottom: "1px solid var(--rc-line-soft)", textAlign: left ? "left" : "right", fontFamily: left ? "var(--rc-font-ui)" : "var(--rc-font-display)", fontSize: left ? 12.5 : 13, fontVariantNumeric: "tabular-nums" });
 
   return (
-    <div className={tab === "code80" ? "c80" : ""} style={{ padding: "4px 0 8px", display: "flex", flexDirection: "column", gap: 14, fontFamily: "var(--rc-font-ui)" }}>
+    <div className={tab === "code80" ? "c80" : ""} style={{ padding: "4px 0 8px", display: "flex", flexDirection: "column", gap: 14, fontFamily: "var(--rc-font-ui)", animation: "rcin .26s ease-out" }}>
 
       {/* Başlık + KPI */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>

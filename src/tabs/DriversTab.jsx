@@ -70,7 +70,7 @@ export default function DriversTab({
   });
 
   return (
-    <div style={{ padding: "2px 0 8px", fontFamily: "var(--rc-font-ui)" }}>
+    <div style={{ padding: "2px 0 8px", fontFamily: "var(--rc-font-ui)", animation: "rcin .26s ease-out" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 16 }}>
         <h2 style={{ margin: 0, fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".06em", fontSize: 22, fontWeight: 700 }}>{t("Pilotlar")}</h2>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 8, ...dim }}>

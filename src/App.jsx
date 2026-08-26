@@ -3584,7 +3584,7 @@ ${bottomBar}
           )}
 
           {tab === "rchat" && raceChan && (
-            <div style={{ border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+            <div style={{ border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)", overflow: "hidden", display: "flex", flexDirection: "column", animation: "rcin .26s ease-out" }}>
               <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--rc-border)", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                 <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".06em", fontSize: 17, fontWeight: 700 }}>🏁 {races[curRace]?.name || t("Yarış Sohbeti")}</span>
                 <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{t("yarışa özel kanal")}</span>
