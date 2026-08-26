@@ -254,6 +254,13 @@ export function CommandPalette({ open, onClose, actions, t }) {
   );
 }
 
+/* Türkçe karakter DUYARSIZ normalizasyon (üye arama · fiş §5): İ/ı→i, Ş/ş→s,
+   Ö/ö→o, Ü/ü→u, Ğ/ğ→g, Ç/ç→c. toLocaleLowerCase("tr") İ/I ayrımını doğru çözer,
+   ardından diakritikler sadeleşir → "sen" araması "Şen"i bulur. Saf → test edilebilir. */
+export const normalizeTr = (s) => (s || "").toLocaleLowerCase("tr")
+  .replace(/ı/g, "i").replace(/ş/g, "s").replace(/ö/g, "o")
+  .replace(/ü/g, "u").replace(/ğ/g, "g").replace(/ç/g, "c");
+
 /* Üye yönetimi (site geneli erişim onayı) — spec katmanlar/adminOpen. Arama + filtre
    çipleri + durum rozeti + eylem butonu. allUsers = {uid:{name,email,photo,allowed,
    requested,admin,requestedAt,lastSeen?}}. onToggle(uid, yeniAllowed). */
@@ -268,11 +275,11 @@ export function AdminModal({ open, onClose, users, meUid, onToggle, t, lang }) {
   const nAll = list.length;
   const nWait = list.filter((x) => x.st === "wait").length;
   const nOk = list.filter((x) => x.st === "ok" || x.st === "admin").length;
-  const ql = q.trim().toLowerCase();
+  const ql = normalizeTr(q.trim());   // arama Türkçe karakter duyarsız (fiş §5)
   const rows = list.filter((x) => {
     if (flt === "wait" && x.st !== "wait") return false;
     if (flt === "ok" && !(x.st === "ok" || x.st === "admin")) return false;
-    if (ql && !((x.u?.name || "").toLowerCase().includes(ql) || (x.u?.email || x.uid).toLowerCase().includes(ql))) return false;
+    if (ql && !(normalizeTr(x.u?.name).includes(ql) || normalizeTr(x.u?.email || x.uid).includes(ql))) return false;
     return true;
   });
   const initials = (u, uid) => {
@@ -285,10 +292,17 @@ export function AdminModal({ open, onClose, users, meUid, onToggle, t, lang }) {
   const fchip = (on, col) => ({ padding: "7px 13px", borderRadius: 99, cursor: "pointer", fontSize: 12,
     border: `1px solid ${on ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
     background: on ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)", color: on ? "var(--rc-text)" : col });
+  /* Son görülme — zaman damgasından türet (fiş §7): <1dk şimdi · <60dk N dk ·
+     <24sa N sa · <48sa dün · sonrası "g.aa" (14 Ağu). */
   const seenTxt = (u) => {
     const ts = u?.lastSeen || u?.requestedAt;
     if (!ts) return "";
-    return new Date(ts).toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR", { day: "2-digit", month: "2-digit" });
+    const d = Date.now() - ts;
+    if (d < 60_000) return t("şimdi");
+    if (d < 3_600_000) return `${Math.floor(d / 60_000)} ${t("dk")}`;
+    if (d < 86_400_000) return `${Math.floor(d / 3_600_000)} ${t("sa")}`;
+    if (d < 172_800_000) return t("dün");
+    return new Date(ts).toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR", { day: "numeric", month: "short" });
   };
   return (
     <div onClick={onClose} role="dialog" aria-modal="true"
@@ -305,7 +319,7 @@ export function AdminModal({ open, onClose, users, meUid, onToggle, t, lang }) {
             style={{ flex: 1, minWidth: 180, background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", borderRadius: 9, color: "var(--rc-text)", fontSize: 12.5, padding: "8px 12px" }} />
           <span style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             <button onClick={() => setFlt("all")} style={fchip(flt === "all", "var(--rc-text-2)")}>{t("Tümü")} {nAll}</button>
-            <button onClick={() => setFlt("wait")} style={fchip(flt === "wait", "var(--rc-warn)")}>{t("Beklemede")} {nWait}</button>
+            <button onClick={() => setFlt("wait")} style={{ ...fchip(flt === "wait", "var(--rc-warn)"), color: "var(--rc-warn)" }}>{t("Beklemede")} {nWait}</button>
             <button onClick={() => setFlt("ok")} style={fchip(flt === "ok", "var(--rc-text-2)")}>{t("Erişim var")} {nOk}</button>
           </span>
         </div>

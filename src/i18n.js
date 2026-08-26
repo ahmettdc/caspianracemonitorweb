@@ -246,6 +246,12 @@ export const EN = {
   "Üyeler": "Members", "Üye Yönetimi": "Member Management", "Kullanıcı yönetimi": "User management",
   "Kayıt yok.": "No records.", "erişim var": "has access", "beklemede": "pending",
   "talep yok": "no request", "Onayla": "Approve", "İzni Al": "Revoke",
+  // Üye yönetimi modalı (site geneli erişim onayı — fiş)
+  "Üye yönetimi": "Member management", "Site geneli erişim onayı": "Site-wide access approval",
+  "E-posta veya ad ara…": "Search email or name…", "Erişim var": "Has access",
+  "Erişimi al": "Revoke access", "Erişim ver": "Grant access",
+  "Adminler birbirinin iznine dokunamaz": "Admins can't change each other's access",
+  "şimdi": "now", "sa": "h", "dün": "yesterday",
   "Onaylanan kişi sayfayı yenilemeden erişir.": "Approved users get access without refreshing.",
   "Tarayıcı açılır pencereyi engelledi. Bu site için açılır pencerelere izin verip tekrar deneyin.": "Your browser blocked the popup. Allow popups for this site and try again.",
   "Hesabınız kayıtlı ancak bu araç için henüz yetkilendirilmedi. Takım yöneticisiyle iletişime geçin.": "Your account is registered but not yet authorised for this tool. Contact your team manager.",

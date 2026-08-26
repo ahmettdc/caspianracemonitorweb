@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import {
   VersionModal, RaceEditModal, ChatModal, SetupModal, TeamModal, CreateJoinModal, ImgSelect,
   SetupContentModal, SetupCompareModal, SetupTable, SetupCards, SessionSetupBox,
+  AdminModal, normalizeTr,
 } from "./components.jsx";
 
 /* Smoke-render testleri — App.jsx'ten çıkarılan modal bileşenlerini SAHTE prop'larla
@@ -88,6 +89,52 @@ describe("modal bileşenleri: açık halde çökmeden render olur", () => {
     expect(render(<CreateJoinModal open={false} onClose={noop} user={{ uid: "u1" }}
       t={t} userName="Ben" tForm={{ name: "", join: "" }} setTForm={noop}
       setTErr={noop} tErr="" setCurTeam={noop} />)).toBe("");
+  });
+
+  it("AdminModal (üye yönetimi — dört durum + göreli zaman)", () => {
+    const now = Date.now();
+    const users = {
+      ad: { name: "Ahmet Demirci", email: "ahmet@caspian.gg", admin: true, allowed: true, lastSeen: now - 20_000 },
+      ky: { name: "Kerem Yılmaz", email: "kerem@caspian.gg", allowed: true, lastSeen: now - 12 * 60_000 },
+      bs: { name: "Burak Şen", email: "burak.sen@gmail.com", requested: true, requestedAt: now - 2 * 3_600_000 },
+      mo: { name: "Mert Özkan", email: "mert@caspian.gg", lastSeen: now - 25 * 3_600_000 },
+    };
+    const html = render(
+      <AdminModal open onClose={noop} users={users} meUid="ad" onToggle={noop} t={t} lang="tr" />);
+    expect(html).toContain("Üye yönetimi");
+    // dört durumun çip metinleri (fiş §4)
+    expect(html).toContain("admin");
+    expect(html).toContain("erişim var");
+    expect(html).toContain("beklemede");
+    expect(html).toContain("talep yok");
+    // eylem metinleri: admin korumalı, ok Erişimi al, wait/none Erişim ver
+    expect(html).toContain("korumalı");
+    expect(html).toContain("Erişimi al");
+    expect(html).toContain("Erişim ver");
+    // göreli zaman türetimi (fiş §7): 20 sn → şimdi, 12 dk, dün
+    expect(html).toContain("şimdi");
+    expect(html).toContain("12 dk");
+    expect(html).toContain("dün");
+    // filtre sayıları listeden (sabit 24/3/19 DEĞİL)
+    expect(html).toContain("Tümü 4");
+  });
+
+  it("AdminModal kapalı → boş render", () => {
+    expect(render(<AdminModal open={false} onClose={noop} users={{}} meUid="x" onToggle={noop} t={t} lang="tr" />)).toBe("");
+  });
+});
+
+describe("normalizeTr — Türkçe karakter duyarsız arama (fiş §5)", () => {
+  it("diakritikler sadeleşir; İ/I ayrımı doğru", () => {
+    expect(normalizeTr("Şen")).toBe("sen");
+    expect(normalizeTr("Özkan")).toBe("ozkan");
+    expect(normalizeTr("Yılmaz")).toBe("yilmaz");
+    expect(normalizeTr("İstanbul")).toBe("istanbul");
+    expect(normalizeTr("Çağrı")).toBe("cagri");
+    expect(normalizeTr("Gökhan")).toBe("gokhan");
+    expect(normalizeTr("")).toBe("");
+    // "sen" araması "Burak Şen"i bulmalı
+    expect(normalizeTr("Burak Şen").includes(normalizeTr("sen"))).toBe(true);
   });
 });
 
