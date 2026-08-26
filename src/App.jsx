@@ -38,7 +38,7 @@ import {
 import {
   SLOT_COLORS, APP_VERSION, SEEN_VER_KEY, ASSET, AV,
   TRACKS, PIT_LANE_TIMES, TRACK_ASSET, trackFlag,
-  CARS, CAR_CLASSES, trackName, carName, classId, venueToTrackId,
+  CARS, CAR_CLASSES, trackName, carName, classId, classAccent, venueToTrackId,
   PIE_COLORS, DESKTOP_RELEASE_URL, BRIDGE_EXE_URL,
 } from "./constants";
 import {
@@ -2943,6 +2943,21 @@ ${bottomBar}
   const feedFresh = liveAgeMs != null && liveAgeMs < 30000;   // veri akıyor (canlı/gecikmeli)
   const feedLiveNow = liveAgeMs != null && liveAgeMs < 6000;  // taze (yeşil)
   const feed = !!(live && live.own && live.own.position != null && feedFresh);
+  /* Sınıf-içi sıra: saha pozisyona göre sıralıdır → kendi sınıfımızdaki araçları
+     oyuncu aracına dek say (LiveTab saha tablosuyla aynı mantık). Örn. P7 genel,
+     GT3'te 1. → üst barda "P7 · GT3 1". Saha yoksa yalnız sınıf etiketi kalır. */
+  const ownClassPos = (() => {
+    if (!feed || !st.carClass || !Array.isArray(live.field)) return null;
+    const target = classId(st.carClass);
+    if (!target) return null;
+    let n = 0;
+    for (const c of live.field) {
+      if (classId(c.carClass) !== target) continue;
+      n += 1;
+      if (c.isPlayer) return n;
+    }
+    return null;
+  })();
   const bPhase = bridge?.phase || "idle";
   const bWriter = bridge?.writerBy || "";
   const bLive = bPhase === "running" || feedLiveNow;
@@ -3128,7 +3143,7 @@ ${bottomBar}
             <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, lineHeight: .95,
               fontSize: "clamp(30px,3.2vw,44px)", color: feed ? "var(--rc-text)" : "var(--rc-border-strong)" }}>
               {feed ? `P${live.own.position}` : "—"}
-              {feed && st.carClass && <span style={{ fontSize: ".45em", color: "var(--rc-cls-gt3)" }}> · {st.carClass.toUpperCase()}</span>}</span>
+              {feed && st.carClass && <span style={{ fontSize: ".45em", color: classAccent(st.carClass) || "var(--rc-cls-gt3)" }}> · {st.carClass.toUpperCase()}{ownClassPos != null ? ` ${ownClassPos}` : ""}</span>}</span>
             <span style={feed ? { display: "none" } : { fontSize: 11, color: "var(--rc-warn)" }}>{t("köprü verisi yok")}</span>
           </div>
           <div style={{ flex: .7, display: "flex", flexDirection: "column", justifyContent: "center", gap: 4,
