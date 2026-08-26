@@ -23,7 +23,7 @@ import { firebaseReady,
   createRace, updateRace, deleteRace,
   raceStateGet,
   getUserAvatar, saveUserAvatar, clearUserAvatar,
-  liveHistoryClearAll } from "./storage";
+  liveHistoryClearAll, serverNow } from "./storage";
 import { processImageFile, IMG_ACCEPT_TYPES } from "./imageUpload";
 import { carImageSrc, teamLogoSrc } from "./teamAssets";
 import { duckSetupToSvm, textToB64 } from "./setupParse";
@@ -2936,13 +2936,24 @@ ${bottomBar}
   const readOnly = !!curRace && role === "viewer";
   /* YARIŞ·DATA yan paneli yalnız Canlı Timing + Stint (ve Code80) ekranlarında. */
   const showSide = tab === "live" || tab === "stint" || tab === "code80";
-  const feed = !!(live && live.own && live.own.position != null && liveInfo.status === "live");
+  /* Üst bar canlı akışa göre — köprüyü ISTER bu cihaz ister takım arkadaşı çalıştırsın,
+     veri Firebase'e düştüğü an (live.ts tazeliği) "canlı" sayılır. Böylece köprüyü
+     başka biri açtıysa üst bar onun çektiği veriyi gösterir (connOf ile aynı eşikler). */
+  const liveAgeMs = live?.ts ? serverNow() - live.ts : null;
+  const feedFresh = liveAgeMs != null && liveAgeMs < 30000;   // veri akıyor (canlı/gecikmeli)
+  const feedLiveNow = liveAgeMs != null && liveAgeMs < 6000;  // taze (yeşil)
+  const feed = !!(live && live.own && live.own.position != null && feedFresh);
   const bPhase = bridge?.phase || "idle";
   const bWriter = bridge?.writerBy || "";
-  const bLive = bPhase === "running";
-  const bDot = bLive ? "var(--rc-ok)" : bPhase === "error" ? "var(--rc-danger)"
+  const bLive = bPhase === "running" || feedLiveNow;
+  const bDot = bLive ? "var(--rc-ok)" : feedFresh ? "var(--rc-warn)"
+    : bPhase === "error" ? "var(--rc-danger)"
     : bPhase === "starting" || bPhase === "standby" ? "var(--rc-warn)" : "var(--rc-text-4)";
+  /* Bayrağa kalan: plan saati canlıysa plandan; değilse akan feed'in seans kalan
+     süresinden (başka biri köprüyü açtıysa da dolu görünür). */
+  const feedSecLeft = feed && live.session?.timeLeftSec != null ? live.session.timeLeftSec : null;
   const flagBig = liveInfo.status === "live" ? fmtHMS(liveInfo.remaining / 1000)
+    : feedSecLeft != null ? fmtHMS(feedSecLeft)
     : liveInfo.status === "pre" ? (liveInfo.toStart < 86400000 ? fmtHMS(liveInfo.toStart / 1000) : "—")
     : "—";
   const raceFrac = liveInfo.status === "live" && liveInfo.raceMs > 0
@@ -3146,7 +3157,7 @@ ${bottomBar}
                 textTransform: "uppercase", color: bLive ? "var(--rc-ok)" : "var(--rc-text-3)", whiteSpace: "nowrap", cursor: "pointer" }}>
               <i style={{ width: 8, height: 8, borderRadius: "50%", background: bDot,
                 boxShadow: bLive ? "0 0 8px var(--rc-ok)" : "none", animation: bLive ? "rcpulse 1.2s ease-in-out infinite" : "none" }} />
-              {bLive ? t("canlı") : t("bağlı değil")}{age != null ? ` · ${age}s` : ""} <span style={{ opacity: .6 }}>▾</span>
+              {bLive ? t("canlı") : feedFresh ? t("gecikmeli") : t("bağlı değil")}{age != null ? ` · ${age}s` : ""} <span style={{ opacity: .6 }}>▾</span>
             </button>
             {bridgePopOpen && (
               <span style={{ position: "absolute", right: 0, top: "calc(100% + 9px)", zIndex: 70, width: 320,
