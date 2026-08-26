@@ -11,10 +11,13 @@ const WX_LEGEND = [["dry", "kuru"], ["damp", "nemli"], ["slwet", "az ıslak"], [
 
 export default function StintTab({
   tab, mode, t, st, plan, totalVE, totalFuelL, timeline, liveInfo,
-  tyreInfo, quickTyre, bumpLaps, clearLaps, upStintLap, upTyre, upPit,
+  tyreInfo, quickTyre, bumpLaps, clearLaps, upStintLap, upStintCons, upTyre, upPit,
   assignDriver, upOvr, setRepair,
 }) {
   const TY = ["FL", "FR", "RL", "RR"];
+  /* stinte özel VE tüketimi (%/tur) — depo değeri / override var mı */
+  const consValOf = (i) => (st.stintCons || [])[i] ?? "";
+  const consOvrOf = (i) => Number((st.stintCons || [])[i]) > 0;
   const roster = st.roster || [];
   const drvCol = (nm) => { const i = roster.indexOf(nm); return DRV_COLORS[(i >= 0 ? i : 0) % DRV_COLORS.length]; };
   const nowPct = liveInfo.status === "live" && mode === "race"
@@ -163,10 +166,10 @@ export default function StintTab({
           <span style={hdT}>{t("Plan tablosu")}</span>
         </div>
         <div style={{ overflowX: "auto" }}>
-          <table data-tour="stinttable" aria-label={t("Stint plan tablosu")} style={{ width: "100%", borderCollapse: "collapse", minWidth: 1000 }}>
+          <table data-tour="stinttable" aria-label={t("Stint plan tablosu")} style={{ width: "100%", borderCollapse: "collapse", minWidth: 1120 }}>
             <thead><tr>
               <th style={th(true)}>#</th><th style={th(true)}>{t("Stint · tur")}</th><th style={th()}>⚡ {t("VE iht.")}</th>
-              <th style={th(true)}>{t("Ort. tur")}</th><th style={th(true)}>{t("Pit ayarı")}</th><th style={th()}>Pit</th>
+              <th style={th(true)}>{t("Ort. tur")}</th><th style={th(true)}>⚡ {t("VE %/tur")}</th><th style={th(true)}>{t("Pit ayarı")}</th><th style={th()}>Pit</th>
               <th style={th(true)}>{t("Pilot")}</th><th style={th()}>{t("Bitiş")}</th><th style={th()}>{t("Kalan")}</th><th style={th(true)}>Override</th>
             </tr></thead>
             <tbody>
@@ -207,6 +210,16 @@ export default function StintTab({
                           title={ovrBad ? t("Geçersiz tur süresi — 'm:ss.00' biçiminde yaz (örn. 2:21.0); bu stint yarış ortalamasıyla hesaplanıyor") : r.fixLap > 0 ? t("Bu stint girilen tur süresiyle hesaplanıyor — hava çarpanı uygulanmaz") : t("Boş: yarış datasındaki ortalama tur kullanılır")}
                           value={ovrTxt} onChange={(e) => upStintLap(i, e.target.value)} />
                         {(r.fixLap > 0 || ovrBad) && <button className="minibtn" title={t("Otomatiğe dön")} onClick={() => upStintLap(i, "")}>✕</button>}
+                      </span>
+                    </td>
+                    <td style={td(true)}>
+                      {/* stinte özel VE tüketimi (%/tur) — boş → yarış datasındaki tüketim */}
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        <input className="ovr" type="number" min="0" step="0.1" style={{ width: 72 }}
+                          placeholder={st.consumption != null ? String(st.consumption) : "%/tur"}
+                          title={consOvrOf(i) ? t("Bu stint girilen VE tüketimiyle hesaplanıyor") : t("Boş: yarış datasındaki VE tüketimi kullanılır")}
+                          value={consValOf(i)} onChange={(e) => upStintCons(i, e.target.value)} />
+                        {consOvrOf(i) && <button className="minibtn" title={t("Otomatiğe dön")} onClick={() => upStintCons(i, "")}>✕</button>}
                       </span>
                     </td>
                     <td style={td(true)}>

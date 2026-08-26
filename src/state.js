@@ -160,6 +160,15 @@ export function applyUpStintLap(s0, i, v) {
   return { ...s, stintLaps };
 }
 
+/* stinte özel VE tüketimi (%/tur) — boş → yarış datasındaki tüketim kullanılır.
+   Böylece stintler arası yakıt tüketim stratejileri (agresif/tasarruflu) planlanabilir. */
+export function applyUpStintCons(s0, i, v) {
+  const s = grow(s0, i + 2);
+  const stintCons = [...(s.stintCons || [])];
+  stintCons[i] = v;
+  return { ...s, stintCons };
+}
+
 export function applyUpTyreCell(s0, row, col, val) {
   const s = grow(s0, row + 2);
   if (row === -1) {

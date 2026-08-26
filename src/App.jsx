@@ -44,7 +44,7 @@ import {
 import {
   safeParseState, carriedTyre,
   applyUpPit, applyUpTyre, applyUpOvr, applyBumpLaps, applyClearLaps,
-  applyQuickTyre, applyUpStintLap, applyUpTyreCell, applyAssignDriver, applyClearTyres,
+  applyQuickTyre, applyUpStintLap, applyUpStintCons, applyUpTyreCell, applyAssignDriver, applyClearTyres,
   computeTyreInfo, computeDriverPlan,
   computeLiveInfo, buildTimeline,
   applyMarkPit, applyUnmarkPit, applyResetPits,
@@ -341,6 +341,7 @@ export default function App() {
 
   /* stinte özel ortalama tur süresi (boş → yarış datasındaki ortalama kullanılır) */
   const upStintLap = (i, v) => edit((s0) => applyUpStintLap(s0, i, v));
+  const upStintCons = (i, v) => edit((s0) => applyUpStintCons(s0, i, v));
 
   const upTyreCell = (row, col, val) => edit((s0) => applyUpTyreCell(s0, row, col, val));
   /* tablo + pit lastik bayrakları birlikte sıfırlanır (bayraklar kalırsa plan
@@ -3432,7 +3433,7 @@ ${bottomBar}
             <StintTab tab={tab} mode={mode} t={t} st={st} plan={plan} totalVE={totalVE}
               totalFuelL={totalFuelL} timeline={timeline} liveInfo={liveInfo} pitSoon={pitSoon}
               tyreInfo={tyreInfo} quickTyre={quickTyre} bumpLaps={bumpLaps} clearLaps={clearLaps}
-              upStintLap={upStintLap} upTyre={upTyre} upPit={upPit} assignDriver={assignDriver}
+              upStintLap={upStintLap} upStintCons={upStintCons} upTyre={upTyre} upPit={upPit} assignDriver={assignDriver}
               upOvr={upOvr} setRepair={setRepair} />
           )}
 
