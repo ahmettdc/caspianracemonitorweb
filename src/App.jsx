@@ -2485,7 +2485,7 @@ ${bottomBar}
             )}
 
             <div style={{ flex: "1 1 280px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, alignContent: "stretch" }}>
-              <button onClick={() => setSuOpen(true)} style={qaBtn}>
+              <button onClick={() => { setTab("setup"); if (curRace) openRace(curRace); else if (defaultRid) openRace(defaultRid); else setSuOpen(true); }} style={qaBtn}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--rc-brand-bright)" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M10.4 2.6h3.2l.35 2.3a7.4 7.4 0 0 1 1.72 1l2.1-.98 1.6 2.77-1.75 1.53a7.4 7.4 0 0 1 0 1.98l1.75 1.53-1.6 2.77-2.1-.98a7.4 7.4 0 0 1-1.72 1l-.35 2.3h-3.2l-.35-2.3a7.4 7.4 0 0 1-1.72-1l-2.1.98-1.6-2.77 1.75-1.53a7.4 7.4 0 0 1 0-1.98L4.23 7.69l1.6-2.77 2.1.98a7.4 7.4 0 0 1 1.72-1l.35-2.3Z" /><circle cx="12" cy="12" r="3" /></svg>
                 <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 15 }}>{t("Setup Havuzu")}</span>
                 <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{setups.length} {t("dosya")}</span>
