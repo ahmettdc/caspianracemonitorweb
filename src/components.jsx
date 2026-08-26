@@ -1561,9 +1561,16 @@ const CAT_ACC = { aero: "#4C9AFF", tyre: "#F5B23D", susp: "#37D67A", align: "#B5
 export function SetupContentModal({ open, su, onClose, t, onDownload, onAddCompare, inCompare }) {
   const blob = useSetupBlob(su, open);
   const [cat, setCat] = useState("all");
+  /* Filtreyi YALNIZ modal açılınca ya da farklı bir setup açılınca sıfırla.
+     Eskiden bu reset, Escape dinleyicisiyle aynı effect'teydi ve bağımlılığı
+     [open, onClose] idi; onClose parent'ta inline arrow olduğundan her
+     re-render'da (canlı sync ~3 sn) kimliği değişip effect'i tekrar çalıştırıyor,
+     seçili bölümü "Tümü"ye döndürüyordu. Artık su.id'ye bağlı → seçim kalıcı. */
+  useEffect(() => {
+    if (open) setCat("all");
+  }, [open, su?.id]);
   useEffect(() => {
     if (!open) return undefined;
-    setCat("all");
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
