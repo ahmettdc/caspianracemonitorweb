@@ -1,6 +1,6 @@
 import { fmtHMS, parseHMS, wxLog, wxAtRel, wxId, tyState, EMPTY_PIT, MAX_STINTS, WEATHER } from "../engine";
 import { WetIcon } from "../WetIcon";
-import { Tyre } from "../components";
+import { Icon, Tyre } from "../components";
 
 /* Stint planı (v2.0 · handoff-spec/ekranlar/04-stint-plani.md). KPI'lar + S1 start
    lastikleri + zaman çizelgesi (stint/pilot/hava şeritleri) + plan tablosu.
@@ -32,7 +32,7 @@ export default function StintTab({
   const td = (left) => ({ padding: "10px 14px", borderBottom: "1px solid var(--rc-line-soft)", textAlign: left ? "left" : "right", fontFamily: left ? "var(--rc-font-ui)" : "var(--rc-font-display)", fontSize: left ? 12.5 : 13, fontVariantNumeric: "tabular-nums" });
 
   return (
-    <div className={tab === "code80" ? "c80" : ""} style={{ padding: "4px 0 8px", display: "flex", flexDirection: "column", gap: 14, fontFamily: "var(--rc-font-ui)" }}>
+    <div className={tab === "code80" ? "c80" : ""} style={{ padding: "4px 0 8px", display: "flex", flexDirection: "column", gap: 14, fontFamily: "var(--rc-font-ui)", animation: "rcin .26s ease-out" }}>
 
       {/* Başlık + KPI */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
@@ -42,15 +42,16 @@ export default function StintTab({
           <div style={kpi()}><div style={{ ...kpiV, color: "var(--rc-brand-bright)" }}>{st.chosen}-{plan.laps}</div><div style={kpiL}>{t("Strateji")}</div></div>
           <div style={kpi()}><div style={kpiV}>{plan.fullStints}</div><div style={kpiL}>{t("Stint")}</div></div>
           <div style={kpi()}><div style={kpiV}>{plan.totalLaps.toFixed(1)}</div><div style={kpiL}>{t("Tahmini tur")}</div></div>
-          <div style={kpi({ b: "rgba(55,214,122,.35)", bg: "rgba(55,214,122,.07)" })}><div style={{ ...kpiV, color: "var(--rc-ok)" }}>{totalVE.toFixed(0)}%</div><div style={kpiL}>⚡ {t("Toplam VE")} · {totalFuelL.toFixed(0)} L</div></div>
+          <div style={kpi({ b: "rgba(55,214,122,.35)", bg: "rgba(55,214,122,.07)" })}><div style={{ ...kpiV, color: "var(--rc-ok)" }}>{totalVE.toFixed(0)}%</div><div style={kpiL}><Icon name="simsek" size={11} /> {t("Toplam VE")} · {totalFuelL.toFixed(0)} L</div></div>
         </span>
       </div>
 
       {(plan.truncated || !plan.rows.length) && (
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 15px", borderRadius: 11, border: "1px solid var(--rc-warn)", background: "rgba(245,178,61,.10)", fontSize: 12.5, color: "var(--rc-warn)", lineHeight: 1.5 }}>
+          <Icon name="uyari" size={14} />
           {plan.invalid
-            ? t("⚠ Plan hesaplanamıyor — süre, \"Avg Lap\" ve seçili stratejinin tur sayısı dolu ve geçerli olmalı (tur ≥ 0:30).")
-            : `${t("⚠ Plan tamamlanamadı")} — ${fmtHMS(plan.rows.length ? plan.rows[plan.rows.length - 1].timeLeft : plan.raceSec)} ${t("planlanmadı")} (${t("stint sınırı")}: ${MAX_STINTS}).`}
+            ? t("Plan hesaplanamıyor — süre, \"Avg Lap\" ve seçili stratejinin tur sayısı dolu ve geçerli olmalı (tur ≥ 0:30).")
+            : `${t("Plan tamamlanamadı")} — ${fmtHMS(plan.rows.length ? plan.rows[plan.rows.length - 1].timeLeft : plan.raceSec)} ${t("planlanmadı")} (${t("stint sınırı")}: ${MAX_STINTS}).`}
         </div>
       )}
 
@@ -78,10 +79,10 @@ export default function StintTab({
             <button onClick={() => quickTyre(0, "clear")}>{t("Temizle")}</button>
           </span>
           {!(st.tyreStints[0] || []).some((v) => String(v).trim()) && (
-            <span style={{ flex: "1 1 100%", fontSize: 11.5, color: "var(--rc-warn)" }}>{t("⚠ Başlangıç lastiği seçilmedi — önce buradan başla, pit seçimleri buna zincirlenir")}</span>
+            <span style={{ flex: "1 1 100%", fontSize: 11.5, color: "var(--rc-warn)" }}><Icon name="uyari" size={12} /> {t("Başlangıç lastiği seçilmedi — önce buradan başla, pit seçimleri buna zincirlenir")}</span>
           )}
           {tyreInfo.available <= 0 && (
-            <span style={{ flex: "1 1 100%", fontSize: 11.5, color: "var(--rc-danger)" }}>{t("⚠ Lastik limiti doldu — yeni lastik seçilemez")}</span>
+            <span style={{ flex: "1 1 100%", fontSize: 11.5, color: "var(--rc-danger)" }}><Icon name="uyari" size={12} /> {t("Lastik limiti doldu — yeni lastik seçilemez")}</span>
           )}
         </div>
       )}
@@ -168,8 +169,8 @@ export default function StintTab({
         <div style={{ overflowX: "auto" }}>
           <table data-tour="stinttable" aria-label={t("Stint plan tablosu")} style={{ width: "100%", borderCollapse: "collapse", minWidth: 1120 }}>
             <thead><tr>
-              <th style={th(true)}>#</th><th style={th(true)}>{t("Stint · tur")}</th><th style={th()}>⚡ {t("VE iht.")}</th>
-              <th style={th(true)}>{t("Ort. tur")}</th><th style={th(true)}>⚡ {t("VE %/tur")}</th><th style={th(true)}>{t("Pit ayarı")}</th><th style={th()}>Pit</th>
+              <th style={th(true)}>#</th><th style={th(true)}>{t("Stint · tur")}</th><th style={th()}><Icon name="simsek" size={11} /> {t("VE iht.")}</th>
+              <th style={th(true)}>{t("Ort. tur")}</th><th style={th(true)}><Icon name="simsek" size={11} /> {t("VE %/tur")}</th><th style={th(true)}>{t("Pit ayarı")}</th><th style={th()}>Pit</th>
               <th style={th(true)}>{t("Pilot")}</th><th style={th()}>{t("Bitiş")}</th><th style={th()}>{t("Kalan")}</th><th style={th(true)}>Override</th>
             </tr></thead>
             <tbody>
@@ -223,7 +224,7 @@ export default function StintTab({
                       </span>
                     </td>
                     <td style={td(true)}>
-                      {r.isLast ? <span style={{ display: "inline-block", padding: "3px 12px", borderRadius: 99, border: "1px solid var(--rc-warn)", color: "var(--rc-warn)", fontSize: 11.5 }}>FINISH 🏁</span> : (
+                      {r.isLast ? <span style={{ display: "inline-block", padding: "3px 12px", borderRadius: 99, border: "1px solid var(--rc-warn)", color: "var(--rc-warn)", fontSize: 11.5 }}>FINISH <Icon name="bayrak" size={12} /></span> : (
                         <span style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                           <span className="tyrebox">
                             {TY.map((corner, ti) => {
@@ -237,12 +238,12 @@ export default function StintTab({
                           </span>
                           <span className="pitopt">
                             <button className={(st.pits[i] || EMPTY_PIT).fuel ? "on" : ""} onClick={() => upPit(i, { fuel: !(st.pits[i] || EMPTY_PIT).fuel })}>FUEL</button>
-                            <label className="dmg" title={t("Hasar tamir süresi (s) — plana eklenir")}>🔧<input type="number" min="0" step="1" placeholder="0" value={(st.pitRepairs || [])[i] || ""} onChange={(e) => setRepair?.(i, e.target.value)} /></label>
+                            <label className="dmg" title={t("Hasar tamir süresi (s) — plana eklenir")}><Icon name="somun" size={14} /><input type="number" min="0" step="1" placeholder="0" value={(st.pitRepairs || [])[i] || ""} onChange={(e) => setRepair?.(i, e.target.value)} /></label>
                           </span>
                         </span>
                       )}
                     </td>
-                    <td style={td()}>{r.isLast ? "—" : (<>{fmtHMS(r.pitSec)}{r.repairSec > 0 && <span style={{ color: "var(--rc-warn)", fontSize: 11, marginLeft: 4 }}>🔧+{r.repairSec}s</span>}</>)}</td>
+                    <td style={td()}>{r.isLast ? "—" : (<>{fmtHMS(r.pitSec)}{r.repairSec > 0 && <span style={{ color: "var(--rc-warn)", fontSize: 11, marginLeft: 4 }}><Icon name="somun" size={11} />+{r.repairSec}s</span>}</>)}</td>
                     <td style={td(true)}>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
                         <span style={{ width: 24, height: 24, borderRadius: "50%", flex: "0 0 auto", background: drv ? drvCol(drv) : "var(--rc-border-strong)", color: "#0B0708", display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 10 }}>{drv ? initialsOf(drv) : "—"}</span>

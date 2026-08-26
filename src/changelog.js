@@ -5,6 +5,30 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v2.1.1",
+    date: "2026-08-26",
+    tr: [
+      "🎨 68 parçalık çizgi-SVG ikon seti: nav rayı, üst çubuk, komut paleti, eylem düğmeleri ve durum bantlarındaki emoji/dingbat ikonları tema-uyumlu vektörlerle değiştirildi (renk daima kapsayıcıdan gelir, her boyutta net). Nav ve komut paleti artık aynı ekran ikonunu gösteriyor.",
+      "🌡 Track temp (asfalt sıcaklığı) için tema-uyumlu termometre vektör ikonu: cıva sıcaklığa göre dolar, ısıya göre renklenir (soğuk mavi · ılık amber · sıcak kırmızı) — canlı tur geçmişi ve pist haritası kondisyon barında.",
+      "🗺 Pist haritasında pit GİRİŞ çizgisi artık görünüyor: araç pite girerken doğrudan garaja atladığında giriş kaçıyordu; giriş/çıkış artık pit alanına göre saptanır. Giriş de 'PIT IN' çizgisiyle işaretlenir.",
+      "🏁 POZİSYON kartına sınıf-içi sıra eklendi (ör. 'P7 · GT3 1'): genel klasmanın yanında sınıf sıran ve rengi görünür.",
+      "🕑 Üye yönetimi: 'son görülme' göreli zaman gösterir (şimdi · N dk · N sa · dün · 14 Ağu); arama Türkçe karakter duyarsız (Şen ↔ sen); 'Beklemede' filtre çipi hep vurgulu.",
+      "🚦 Yarışı açınca artık doğrudan STINT planına iniliyor (önceki sekme yerine).",
+      "🔧 Stint planı: elle tur override'lı son stint bayrağa çok yakın bitince ortaya çıkan hayalet son pit ve yanlış 'plan tamamlanamadı' uyarısı düzeltildi; plan bayrakta biter.",
+      "✨ Eksik sekme geçiş animasyonları tamamlandı (Stint, Dashboard, Pilotlar, Telemetri, Yarış Sohbeti) — tüm sol menü bölüm geçişleri tutarlı.",
+    ],
+    en: [
+      "🎨 A 68-piece line-SVG icon set: emoji/dingbat icons in the nav rail, top bar, command palette, action buttons and status strips replaced with theme-aware vectors (colour always inherits, crisp at every size). Nav and command palette now show the same screen icon.",
+      "🌡 A theme-aware thermometer vector for track temp: the mercury fills with temperature and colours by heat (cold blue · warm amber · hot red) — in the live lap history and track-map condition bar.",
+      "🗺 The pit ENTRY line now shows on the track map: when a car jumped straight to the garage on pit entry the entry was missed; entry/exit is now detected by pit area and entry is marked with a 'PIT IN' line.",
+      "🏁 Class position added to the POSITION card (e.g. 'P7 · GT3 1'): your in-class rank and its colour show next to the overall standing.",
+      "🕑 Member management: 'last seen' shows relative time (now · N min · N h · yesterday · 14 Aug); search is Turkish-diacritic-insensitive (Şen ↔ sen); the 'Pending' filter chip stays highlighted.",
+      "🚦 Opening a race now lands directly on the STINT plan (instead of the previous tab).",
+      "🔧 Stint plan: fixed a phantom final pit and a false 'plan incomplete' warning when a manual lap-override last stint ended just short of the flag; the plan now ends on the flag.",
+      "✨ Completed the missing tab-transition animations (Stint, Dashboard, Drivers, Telemetry, Race Chat) — all left-menu section transitions are consistent.",
+    ],
+  },
+  {
     v: "v2.1.0",
     date: "2026-08-26",
     tr: [

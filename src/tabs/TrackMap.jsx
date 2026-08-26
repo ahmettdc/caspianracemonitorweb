@@ -3,6 +3,8 @@ import { createPortal } from "react-dom";
 import { classId, classAccent, CAR_CLASSES } from "../constants";
 import { wetnessLevel, rainLevel, WEATHER } from "../engine";
 import { WetIcon } from "../WetIcon";
+import { TrackTempIcon } from "../TrackTempIcon";
+import { Icon } from "../components";
 import { packBins, unpackBins } from "../trackShape";
 import { observeSector, sectorFractions, sectorRanges,
   packSectors, unpackSectors, emptySectors,
@@ -153,7 +155,9 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
          tutulur; ilk görüşte yalnız kaydedilir (sahte geçiş olmasın). Tüm araçlar. */
       const loc = c.location || (c.inPits ? "PIT" : "TRACK");
       const pl = prevLoc.current[key];
-      if (pl != null && pl !== loc) observePit(acc.current.pit, pl, loc, frac);
+      /* lapsDone > 0: seans başında herkes garajda/grid'de → GARAGE→TRACK (start) sahte
+         "pit çıkışı" sanılmasın (detectPitEntry ile aynı koruma). */
+      if (pl != null && pl !== loc && c.lapsDone > 0) observePit(acc.current.pit, pl, loc, frac);
       prevLoc.current[key] = loc;
 
       const onTrack = c.location ? c.location === "TRACK" : !c.inPits;
@@ -378,7 +382,7 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
   const conditionBadge = hasCond ? (
     <div className="mapcond">
       {(isFCY || flag === "Yellow") && (
-        <span className="mapcond-flag">⚑ {isFCY ? "FCY" : t("Yellow")}
+        <span className="mapcond-flag"><Icon name="flama" size={14} /> {isFCY ? "FCY" : t("Yellow")}
           {flag === "Yellow" && session?.yellowSectors?.length
             ? " " + session.yellowSectors.map((s) => "S" + s).join("·") : ""}</span>
       )}
@@ -390,8 +394,9 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
         <span className="mapcond-wx">{rainId.ico} {rainId.lbl}</span>
       )}
       {session?.trackTemp != null && (
-        <span className="mapcond-temp">🛣 {Math.round(session.trackTemp)}°
-          {session?.ambientTemp != null ? ` · ${Math.round(session.ambientTemp)}°` : ""}</span>
+        <span className="mapcond-temp" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+          <TrackTempIcon temp={session.trackTemp} size={14} title={t("Asfalt sıcaklığı")} />
+          {Math.round(session.trackTemp)}°{session?.ambientTemp != null ? ` · ${Math.round(session.ambientTemp)}°` : ""}</span>
       )}
     </div>
   ) : null;
@@ -401,35 +406,25 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
     const a = f * 2 * Math.PI;
     return [cx + R * Math.sin(a), cy - R * Math.cos(a)];
   };
-  // pit GİRİŞİ: halka üzerinde yeşil "P" dairesi
-  const pitMark = (frac, col, key) => {
-    if (frac == null) return null;
-    const [x, y] = ringXYFrac(frac);
-    return (
-      <g key={key}>
-        <circle cx={x} cy={y} r={7.5} fill={col} stroke="#0b0708" strokeWidth={1} />
-        <text x={x} y={y} fill="#0b0708" fontSize="9.5" fontWeight="800"
-          textAnchor="middle" dominantBaseline="central">P</text>
-      </g>
-    );
-  };
-  // pit ÇIKIŞI: yolu kesen BEYAZ dik çizgi + "PIT OUT" etiketi (sectorMark dış-halka deseni)
-  const pitExitLine = (frac) => {
+  /* pit GİRİŞ/ÇIKIŞI: yolu kesen dik ÇİZGİ + etiket (sectorMark dış-halka deseni).
+     Giriş yeşil "PIT IN", çıkış beyaz "PIT OUT" — ikisi de aynı çizgi biçiminde. */
+  const pitLine = (frac, col, label, key) => {
     if (frac == null) return null;
     const a = frac * 2 * Math.PI;
     const ux = Math.sin(a), uy = -Math.cos(a);   // dışa doğru radyal normal
     return (
-      <g key="pit-out">
+      <g key={key}>
         <line x1={cx + (R - 13) * ux} y1={cy + (R - 13) * uy}
           x2={cx + (R + 13) * ux} y2={cy + (R + 13) * uy}
-          stroke="#fff" strokeWidth={2.5} strokeLinecap="round" />
-        <text x={cx + (R + 26) * ux} y={cy + (R + 26) * uy} fill="#fff"
-          fontSize="9" fontWeight="700" textAnchor="middle" dominantBaseline="central">PIT OUT</text>
+          stroke={col} strokeWidth={2.5} strokeLinecap="round" />
+        <text x={cx + (R + 26) * ux} y={cy + (R + 26) * uy} fill={col}
+          fontSize="9" fontWeight="700" textAnchor="middle" dominantBaseline="central">{label}</text>
       </g>
     );
   };
   const pitMarks = pitFr
-    ? [pitMark(pitFr.entry, "#37D67A", "pit-in"), pitExitLine(pitFr.exit)]
+    ? [pitLine(pitFr.entry, "#37D67A", "PIT IN", "pit-in"),
+       pitLine(pitFr.exit, "#fff", "PIT OUT", "pit-out")]
     : null;
   // hareket yönü oku — S/F'nin hemen ötesinde, pist teğeti (saat yönü, jitter'sız)
   const dirArrow = (() => {
@@ -504,11 +499,11 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
           birlikte güncelleniyordu (çift maliyet). */}
       {!zoom && topSlot}
       <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        🗺 {t("Pist Haritası")}
+        <Icon name="harita" size={16} /> {t("Pist Haritası")}
         <span className="hint" style={{ margin: 0, fontWeight: 400 }}>{count}</span>
         <button className="act" style={{ marginLeft: "auto", fontSize: 11, padding: "3px 10px" }}
           title={t("Haritayı tam ekranda aç")}
-          onClick={() => setZoom(true)}>⛶ {t("Büyüt")}</button>
+          onClick={() => setZoom(true)}><Icon name="buyut" size={12} /> {t("Büyüt")}</button>
         <button className="act" style={{ fontSize: 11, padding: "3px 10px" }}
           title={t("Haritayı ayrı pencerede aç")}
           onClick={openWin}>⧉ {t("Pencere")}</button>
@@ -529,7 +524,7 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
         <div className="wxmbox map" onClick={(e) => e.stopPropagation()}>
           <div className="wxmhead">
             <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              🗺 {t("Pist Haritası")}
+              <Icon name="harita" size={16} /> {t("Pist Haritası")}
               <span style={{ fontSize: 12, color: "var(--dim)", textTransform: "none",
                 letterSpacing: 0 }}>· {count}</span>
             </span>

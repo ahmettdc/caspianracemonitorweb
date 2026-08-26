@@ -373,6 +373,24 @@ describe("computePlan — tur override'ı yarışa sığmazsa bayrağa kırpıl�
     const total = plan.rows.reduce((a, r) => a + r.stintSec + r.pitSec, 0);
     expect(total).toBeLessThanOrEqual(plan.raceSec + 0.001);
   });
+
+  /* Regresyon (v2.1.1): elle tur override'lı son stint yarışı TAM doldurmayıp bayrağa
+     bir pit süresinden az kala biterse, motor arkasına HAYALET SON PİT ekliyordu →
+     plan bayrağı aşıyor (endSec > raceSec, timeLeft < 0), döngü kırılıyor ve son satır
+     isLast=false kalıp "plan tamamlanamadı — -00:00:20" yanlış uyarısı çıkıyordu.
+     Artık: pit bayrağa ulaşıyorsa o stint SON stinttir (pit yok, bayrağa kadar uzar). */
+  it("bayrağa bir pit'ten az kala biten son override'da HAYALET PİT eklenmez", () => {
+    const lapOverrides = Array(14).fill("");
+    lapOverrides[0] = "4";  // 4×240 = 960 sn → bayrağa (1000) 40 sn kala biter (< pit)
+    const plan = computePlan(baseState({ raceTime: "16:40", lapOverrides }), "race"); // 1000 sn
+    const last = plan.rows[plan.rows.length - 1];
+    expect(plan.rows.length).toBe(1);           // arkasına hayalet stint/pit satırı yok
+    expect(last.isLast).toBe(true);
+    expect(last.pitSec).toBe(0);                // son stintte pit yok
+    expect(last.endSec).toBeCloseTo(1000, 3);   // bayrağı AŞMAZ (eskiden 1020)
+    expect(last.timeLeft).toBeCloseTo(0, 3);    // eskiden -20
+    expect(plan.truncated).toBe(false);         // "plan tamamlanamadı" uyarısı YOK
+  });
 });
 
 describe("computePlan — totalFuel (Toplam VE) satırlarla tutarlı", () => {

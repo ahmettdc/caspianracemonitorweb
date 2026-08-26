@@ -2,6 +2,7 @@
    App.jsx içe aktarır. */
 import { useState, useEffect, useRef, useCallback, Fragment } from "react";
 import { createPortal } from "react-dom";
+import { Icon } from "./iconset";
 import {
   ASSET, AV, quantile, TRACKS, TRACK_ASSET,
   CAR_CLASSES, CARS, trackName, carImg, carName, brandLogo,
@@ -139,38 +140,10 @@ export function Wheel({ size = 13 }) {
   );
 }
 
-/* Tek çizgi-ikon seti (Lucide tabanlı) — currentColor kullanır → tema/renk uyumlu.
-   Emoji yerine tutarlı SVG. Header + tab bar burayı kullanır. */
-const ICON_PATHS = {
-  home:     <><path d="M3 10.6 12 3l9 7.6" /><path d="M5.2 9.4V21h13.6V9.4" /></>,
-  building: <><rect x="4" y="3" width="16" height="18" rx="1.4" /><path d="M9 8h1M14 8h1M9 12h1M14 12h1M9 16h2v5" /></>,
-  users:    <><circle cx="9" cy="8" r="3.1" /><path d="M3.4 20a5.6 5.6 0 0 1 11.2 0" /><path d="M16.3 5.2a3.1 3.1 0 0 1 0 5.9M18.6 20a5.6 5.6 0 0 0-3.1-5" /></>,
-  power:    <><path d="M12 3v9" /><path d="M6.4 6.4a8 8 0 1 0 11.2 0" /></>,
-  cap:      <><path d="M12 4 2.5 8.5 12 13l9.5-4.5L12 4Z" /><path d="M6 10.6V15c0 1.5 2.7 2.7 6 2.7s6-1.2 6-2.7v-4.4" /><path d="M21.5 8.6V14" /></>,
-  chat:     <path d="M20 4H4a1.5 1.5 0 0 0-1.5 1.5V16A1.5 1.5 0 0 0 4 17.5h3V21l4-3.5h9A1.5 1.5 0 0 0 21.5 16V5.5A1.5 1.5 0 0 0 20 4Z" />,
-  chart:    <><path d="M4 4v16h16" /><path d="m7 14 3-3 3 2 4-5" /></>,
-  live:     <><path d="M4.6 8a10 10 0 0 1 14.8 0M7.6 11a6 6 0 0 1 8.8 0" /><circle cx="12" cy="15" r="1.7" fill="currentColor" stroke="none" /></>,
-  wrench:   <path d="M15.5 4a4.5 4.5 0 0 0-4 6.6L4 18.1 5.9 20l7.5-7.5A4.5 4.5 0 1 0 15.5 4Z" />,
-  zap:      <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" />,
-  rows:     <><path d="M4 6h16M4 12h16M4 18h16" /></>,
-  sun:      <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>,
-  moon:     <path d="M20 14.5A8 8 0 0 1 9.5 4a7 7 0 1 0 10.5 10.5Z" />,
-  search:   <><circle cx="11" cy="11" r="7" /><path d="m20 20-3.2-3.2" /></>,
-  /* lastik — çizgi-ikon (tread halkası + jant + 4 diş); sekme çubuğundaki diğer
-     ikonlarla aynı stil (Wheel/Icon: strokeWidth 2, currentColor). */
-  tyre:     <><circle cx="12" cy="12" r="9.2" /><circle cx="12" cy="12" r="4" /><path d="M12 2.8v2.6M12 18.6v2.6M2.8 12h2.6M18.6 12h2.6" /></>,
-};
-export function Icon({ name, size = 16, style }) {
-  const p = ICON_PATHS[name];
-  if (!p) return null;
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-      style={{ verticalAlign: -2, flex: "0 0 auto", ...style }} aria-hidden="true">
-      {p}
-    </svg>
-  );
-}
+/* İkon seti artık ./iconset (68 parçalık çizgi-SVG · handoff ikon-paketi).
+   Icon burada RE-EXPORT edilir — mevcut `import { Icon } from "./components"`
+   çağrıları kırılmaz. Path'ler ve boya-göre stroke-width iconset'te. */
+export { Icon, ICONSET } from "./iconset";
 
 /* Birleşik buton — variant: primary|ghost|danger|subtle, size: sm|md|lg.
    Eski bespoke sınıfların (adminbtn/histbtn/bigbtn…) yerine kademeli geçiş için;
@@ -221,7 +194,7 @@ export function CommandPalette({ open, onClose, actions, t }) {
       <div onClick={(e) => e.stopPropagation()} onKeyDown={onKey}
         style={{ width: "min(620px,96vw)", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 14, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", borderBottom: "1px solid var(--rc-border)" }}>
-          <span style={{ fontSize: 15, color: "var(--rc-text-3)" }}>🔎</span>
+          <span style={{ fontSize: 15, color: "var(--rc-text-3)" }}><Icon name="ara" size={15} /></span>
           <input ref={inputRef} type="text" value={q} placeholder={t("Yarış, ekran veya komut ara…")}
             onChange={(e) => setQ(e.target.value)} aria-label={t("Komut ara")}
             style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: "var(--rc-text)", fontSize: 16 }} />
@@ -254,6 +227,13 @@ export function CommandPalette({ open, onClose, actions, t }) {
   );
 }
 
+/* Türkçe karakter DUYARSIZ normalizasyon (üye arama · fiş §5): İ/ı→i, Ş/ş→s,
+   Ö/ö→o, Ü/ü→u, Ğ/ğ→g, Ç/ç→c. toLocaleLowerCase("tr") İ/I ayrımını doğru çözer,
+   ardından diakritikler sadeleşir → "sen" araması "Şen"i bulur. Saf → test edilebilir. */
+export const normalizeTr = (s) => (s || "").toLocaleLowerCase("tr")
+  .replace(/ı/g, "i").replace(/ş/g, "s").replace(/ö/g, "o")
+  .replace(/ü/g, "u").replace(/ğ/g, "g").replace(/ç/g, "c");
+
 /* Üye yönetimi (site geneli erişim onayı) — spec katmanlar/adminOpen. Arama + filtre
    çipleri + durum rozeti + eylem butonu. allUsers = {uid:{name,email,photo,allowed,
    requested,admin,requestedAt,lastSeen?}}. onToggle(uid, yeniAllowed). */
@@ -268,11 +248,11 @@ export function AdminModal({ open, onClose, users, meUid, onToggle, t, lang }) {
   const nAll = list.length;
   const nWait = list.filter((x) => x.st === "wait").length;
   const nOk = list.filter((x) => x.st === "ok" || x.st === "admin").length;
-  const ql = q.trim().toLowerCase();
+  const ql = normalizeTr(q.trim());   // arama Türkçe karakter duyarsız (fiş §5)
   const rows = list.filter((x) => {
     if (flt === "wait" && x.st !== "wait") return false;
     if (flt === "ok" && !(x.st === "ok" || x.st === "admin")) return false;
-    if (ql && !((x.u?.name || "").toLowerCase().includes(ql) || (x.u?.email || x.uid).toLowerCase().includes(ql))) return false;
+    if (ql && !(normalizeTr(x.u?.name).includes(ql) || normalizeTr(x.u?.email || x.uid).includes(ql))) return false;
     return true;
   });
   const initials = (u, uid) => {
@@ -281,14 +261,21 @@ export function AdminModal({ open, onClose, users, meUid, onToggle, t, lang }) {
     return ((parts[0]?.[0] || "") + (parts[1]?.[0] || "")).toUpperCase() || s[0]?.toUpperCase() || "?";
   };
   const stColor = (st) => (st === "admin" ? "var(--rc-purple)" : st === "ok" ? "var(--rc-ok)" : st === "wait" ? "var(--rc-warn)" : "var(--rc-text-3)");
-  const stLabel = (st) => (st === "admin" ? "🛡 admin" : st === "ok" ? t("erişim var") : st === "wait" ? t("beklemede") : t("talep yok"));
+  const stLabel = (st) => (st === "admin" ? <><Icon name="kalkan" size={11} /> admin</> : st === "ok" ? t("erişim var") : st === "wait" ? t("beklemede") : t("talep yok"));
   const fchip = (on, col) => ({ padding: "7px 13px", borderRadius: 99, cursor: "pointer", fontSize: 12,
     border: `1px solid ${on ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
     background: on ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)", color: on ? "var(--rc-text)" : col });
+  /* Son görülme — zaman damgasından türet (fiş §7): <1dk şimdi · <60dk N dk ·
+     <24sa N sa · <48sa dün · sonrası "g.aa" (14 Ağu). */
   const seenTxt = (u) => {
     const ts = u?.lastSeen || u?.requestedAt;
     if (!ts) return "";
-    return new Date(ts).toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR", { day: "2-digit", month: "2-digit" });
+    const d = Date.now() - ts;
+    if (d < 60_000) return t("şimdi");
+    if (d < 3_600_000) return `${Math.floor(d / 60_000)} ${t("dk")}`;
+    if (d < 86_400_000) return `${Math.floor(d / 3_600_000)} ${t("sa")}`;
+    if (d < 172_800_000) return t("dün");
+    return new Date(ts).toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR", { day: "numeric", month: "short" });
   };
   return (
     <div onClick={onClose} role="dialog" aria-modal="true"
@@ -296,7 +283,7 @@ export function AdminModal({ open, onClose, users, meUid, onToggle, t, lang }) {
       <div onClick={(e) => e.stopPropagation()}
         style={{ width: "min(720px,96vw)", maxHeight: "86vh", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 20px", borderBottom: "1px solid var(--rc-border)", flexWrap: "wrap" }}>
-          <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".07em", fontSize: 19, fontWeight: 700 }}>🛡 {t("Üye yönetimi")}</span>
+          <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".07em", fontSize: 19, fontWeight: 700 }}><Icon name="kalkan" size={18} /> {t("Üye yönetimi")}</span>
           <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>{t("Site geneli erişim onayı")}</span>
           <button onClick={onClose} style={{ marginLeft: "auto", width: 32, height: 32, borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 15, lineHeight: 1 }}>✕</button>
         </div>
@@ -305,7 +292,7 @@ export function AdminModal({ open, onClose, users, meUid, onToggle, t, lang }) {
             style={{ flex: 1, minWidth: 180, background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", borderRadius: 9, color: "var(--rc-text)", fontSize: 12.5, padding: "8px 12px" }} />
           <span style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             <button onClick={() => setFlt("all")} style={fchip(flt === "all", "var(--rc-text-2)")}>{t("Tümü")} {nAll}</button>
-            <button onClick={() => setFlt("wait")} style={fchip(flt === "wait", "var(--rc-warn)")}>{t("Beklemede")} {nWait}</button>
+            <button onClick={() => setFlt("wait")} style={{ ...fchip(flt === "wait", "var(--rc-warn)"), color: "var(--rc-warn)" }}>{t("Beklemede")} {nWait}</button>
             <button onClick={() => setFlt("ok")} style={fchip(flt === "ok", "var(--rc-text-2)")}>{t("Erişim var")} {nOk}</button>
           </span>
         </div>
@@ -363,7 +350,7 @@ export function RoleIcon({ name, size = 14 }) {
 
 /* Rozetler — rol ikonları RoleIcon (çizgi SVG) ile; renkler rozet fişinden. */
 export const BADGES = {
-  admin:    { lbl: "Admin",            ico: "🛡",                            col: "#E11D2E", bg: "rgba(225,29,46,.14)" },
+  admin:    { lbl: "Admin",            ico: <Icon name="kalkan" size={14} />, col: "#E11D2E", bg: "rgba(225,29,46,.14)" },
   owner:    { lbl: "Takım Sahibi",     ico: <RoleIcon name="owner" />,       col: "#F5B23D", bg: "rgba(245,178,61,.14)" },
   driver:   { lbl: "Sürücü",           ico: <RoleIcon name="drv" />,         col: "#4C9AFF", bg: "rgba(76,154,255,.14)" },
   engineer: { lbl: "Yarış Mühendisi",  ico: <RoleIcon name="eng" />,         col: "#37D67A", bg: "rgba(55,214,122,.14)" },
@@ -903,12 +890,12 @@ export function SetupForm({
         <div onDragOver={(e) => e.preventDefault()} onDragEnter={() => setDragOn(true)} onDragLeave={() => setDragOn(false)}
           onDrop={(e) => { setDragOn(false); onSetupDrop?.(e); }}
           style={{ flex: "1 1 300px", minWidth: 0, border: `1.5px dashed ${dragOn ? "var(--rc-brand-bright)" : "var(--rc-border-strong)"}`, borderRadius: 12, background: dragOn ? "rgba(150,0,24,.10)" : "var(--rc-surface-2)", padding: 16, display: "flex", flexDirection: "column", justifyContent: "center", textAlign: "center" }}>
-          <div style={{ fontSize: 22, marginBottom: 5 }}>⬇</div>
+          <div style={{ fontSize: 22, marginBottom: 5 }}><Icon name="indir" size={20} /></div>
           <div style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 15 }}>{t(".svm dosyasını sürükle")}</div>
           <div style={{ color: "var(--rc-text-3)", fontSize: 11, marginTop: 4, lineHeight: 1.6 }}>{t("Sınıf ve araç dosyanın içinden otomatik algılanır — elle seçtiklerin ezilmez")}</div>
           <label style={{ marginTop: 10, alignSelf: "center", padding: "7px 15px", borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer", fontSize: 12.5 }}>
-            📁 {t("Dosya seç")}<input type="file" style={{ display: "none" }} onChange={onSetupFile} /></label>
-          {suFile && <div style={{ marginTop: 10, fontSize: 11.5, color: "var(--rc-text-2)" }}>📄 {suFile.name} · {(suFile.size / 1024).toFixed(1)} KB</div>}
+            <Icon name="klasor" size={13} /> {t("Dosya seç")}<input type="file" style={{ display: "none" }} onChange={onSetupFile} /></label>
+          {suFile && <div style={{ marginTop: 10, fontSize: 11.5, color: "var(--rc-text-2)" }}><Icon name="dosya" size={12} /> {suFile.name} · {(suFile.size / 1024).toFixed(1)} KB</div>}
         </div>
         <div style={{ flex: "0 1 250px", minWidth: 210, border: "1px solid var(--rc-border-strong)", borderRadius: 12, background: "radial-gradient(120% 160% at 100% 0,rgba(150,0,24,.22),var(--rc-surface-2) 62%)", padding: 14, textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center" }}>
           {suMeta.track && <img key={suMeta.track} src={`${ASSET}tracks/${TRACK_ASSET(suMeta.track)}.png`} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ display: "block", width: "100%", maxWidth: 180, height: 78, objectFit: "contain", margin: "0 auto 8px" }} />}
@@ -938,8 +925,8 @@ export function SetupForm({
         <div style={{ flex: "1 1 150px", minWidth: 0 }}>
           <label style={lbl}>{t("Koşul")}</label>
           <div style={{ display: "flex", gap: 6 }}>
-            <button onClick={() => set({ cond: "dry" })} style={tog(suMeta.cond === "dry")}>☀️ {t("Kuru")}</button>
-            <button onClick={() => set({ cond: "wet" })} style={tog(suMeta.cond === "wet")}>🌧 Wet</button>
+            <button onClick={() => set({ cond: "dry" })} style={tog(suMeta.cond === "dry")}><Icon name="kuru" size={14} /> {t("Kuru")}</button>
+            <button onClick={() => set({ cond: "wet" })} style={tog(suMeta.cond === "wet")}><Icon name="islak" size={14} /> Wet</button>
           </div>
         </div>
         <div style={{ flex: "1 1 150px", minWidth: 0 }}>
@@ -1002,7 +989,7 @@ export function SetupForm({
           <span>{t("Dosyadan algılandı")}: <b>{[(classOptions().find((o) => o.value === suMeta.cls) || {}).label || suMeta.cls, carName(suMeta.cls, suMeta.car)].filter(Boolean).join(" · ")}</b> — {t("elle seçtiğin alanlara dokunulmadı.")}</span>
         </div>
       )}
-      {suErr && <div style={{ fontSize: 12, color: "var(--rc-warn)" }}>⚠ {suErr}</div>}
+      {suErr && <div style={{ fontSize: 12, color: "var(--rc-warn)" }}><Icon name="uyari" size={12} /> {suErr}</div>}
       {suMsg && <div style={{ fontSize: 12, color: "var(--rc-ok)" }}>{suMsg}</div>}
 
       {/* alt: hint + Vazgeç + Havuza yükle */}
@@ -1029,7 +1016,7 @@ const hasFile = (su) => !!(su?.data || su?.hasBlob);
 function CondSess({ su, t }) {
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
-      <span title={su.cond === "wet" ? "Wet" : t("Kuru")}>{su.cond === "wet" ? "🌧" : "☀️"}</span>
+      <span title={su.cond === "wet" ? "Wet" : t("Kuru")}>{su.cond === "wet" ? <Icon name="islak" size={13} /> : <Icon name="kuru" size={13} />}</span>
       {su.sess === "Q"
         ? <span className="chip" title={t("Sıralama")} style={{ borderColor: "var(--green)",
             color: "var(--green)" }}>Q</span>
@@ -1097,7 +1084,7 @@ export function SetupTable({ rows, t, st, lang, isAdmin, onDownload, onDelete, o
               <span style={{ display: "flex", gap: 6, justifyContent: "flex-end", alignItems: "center" }} onClick={(e) => e.stopPropagation()}>
                 {onCmpToggle && hasFile(su) && (
                   <button style={{ ...smBtn, padding: "4px 8px", ...(sel ? { borderColor: "var(--rc-brand-bright)", color: "var(--rc-brand-bright)", background: "rgba(150,0,24,.18)" } : {}) }}
-                    title={t("Karşılaştırmak için seç (en çok 2)")} onClick={() => onCmpToggle(su)}>⚖</button>)}
+                    title={t("Karşılaştırmak için seç (en çok 2)")} onClick={() => onCmpToggle(su)}><Icon name="karsilastir" size={13} /></button>)}
                 {onView && hasFile(su) && <button style={smBtn} onClick={() => onView(su)}>{t("İçerik")}</button>}
                 <button style={smBtn} onClick={() => onDownload(su)}>{t("İndir")}</button>
                 {isAdmin && <button style={{ ...smBtn, borderColor: "var(--rc-danger)", color: "var(--rc-danger)" }} onClick={() => onDelete(su)}>✕</button>}
@@ -1155,7 +1142,7 @@ export function SetupCards({ rows, t, st, lang, isAdmin, onDownload, onDelete, o
                 {su.ver && <span style={{ fontSize: 10, color: "var(--rc-text-3)", padding: "2px 8px", borderRadius: 99, border: "1px solid var(--rc-border)" }}>{su.ver}</span>}
                 {onCmpToggle && hasFile(su) && (
                   <button style={{ ...smBtn, padding: "4px 8px", ...(cmpSel?.includes(su.id) ? { borderColor: "var(--rc-brand-bright)", color: "var(--rc-brand-bright)", background: "rgba(150,0,24,.18)" } : {}) }}
-                    title={t("Karşılaştırmak için seç (en çok 2)")} onClick={() => onCmpToggle(su)}>⚖</button>)}
+                    title={t("Karşılaştırmak için seç (en çok 2)")} onClick={() => onCmpToggle(su)}><Icon name="karsilastir" size={13} /></button>)}
                 {onView && hasFile(su) && <button style={smBtn} onClick={() => onView(su)}>{t("İçerik")}</button>}
                 <button style={smBtn} onClick={() => onDownload(su)}>{t("İndir")}</button>
                 {isAdmin && <button style={{ ...smBtn, borderColor: "var(--rc-danger)", color: "var(--rc-danger)" }} onClick={() => onDelete(su)}>✕</button>}
@@ -1263,7 +1250,7 @@ export function VersionModal({ open, onClose, t, lang, onStartGuide }) {
 
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 20px", borderTop: "1px solid var(--rc-border)", background: "var(--rc-surface-2)", flexWrap: "wrap" }}>
           <a {...extHref(`${REPO_URL}/commits/main`)} style={{ fontSize: 12, color: "var(--rc-text-3)" }}>{t("GitHub'da tüm değişiklikler ↗")}</a>
-          <button onClick={onStartGuide} style={{ background: "none", border: "none", color: "var(--rc-brand-bright)", cursor: "pointer", fontSize: 12, padding: 0, textDecoration: "underline", textUnderlineOffset: 3 }}>🎓 {t("Rehberi başlat")}</button>
+          <button onClick={onStartGuide} style={{ background: "none", border: "none", color: "var(--rc-brand-bright)", cursor: "pointer", fontSize: 12, padding: 0, textDecoration: "underline", textUnderlineOffset: 3 }}><Icon name="rehber" size={13} /> {t("Rehberi başlat")}</button>
           <button onClick={onClose} style={{ marginLeft: "auto", padding: "9px 20px", borderRadius: 10, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer", fontSize: 13 }}>{t("Kapat")}</button>
         </div>
       </div>
@@ -1402,7 +1389,7 @@ export function RaceEditModal({ rForm, setRForm, t, seasons, onSave, onProceed, 
                 </div>
                 {rForm.tyreSets != null && (
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--rc-border)" }}>
-                    <span style={{ fontSize: 12, color: "var(--rc-text-2)" }}>🛞 {t("Lastik seti")}</span>
+                    <span style={{ fontSize: 12, color: "var(--rc-text-2)" }}><Icon name="lastik" size={12} /> {t("Lastik seti")}</span>
                     <input type="number" min={0} max={99} value={rForm.tyreSets ?? 0} onChange={(e) => setRForm({ ...rForm, tyreSets: Math.max(0, Math.min(99, Number(e.target.value) || 0)) })}
                       style={{ width: 70, background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", borderRadius: 9, color: "var(--rc-text)", padding: "7px 10px", fontFamily: "var(--rc-font-display)", fontSize: 14, textAlign: "right" }} />
                   </div>
@@ -1480,7 +1467,7 @@ export function ChatModal({ open, onClose, t, lang, chatSound, toggleChatSound, 
           <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--rc-border)", display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 15, fontWeight: 700 }}>{t("Kanallar")}</span>
             <button onClick={toggleChatSound} title={chatSound ? t("Bildirim sesini kapat") : t("Bildirim sesini aç")}
-              style={{ marginLeft: "auto", background: "none", border: "none", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 15 }}>{chatSound ? "🔔" : "🔕"}</button>
+              style={{ marginLeft: "auto", background: "none", border: "none", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 15 }}>{chatSound ? <Icon name="zil" size={15} /> : <Icon name="zil-kapali" size={15} />}</button>
           </div>
           <div style={{ overflowY: "auto", padding: 8 }}>
             {chatChans.map((c) => {
@@ -1539,9 +1526,9 @@ const SVM_FIELDS = {
 
 /* Kategori kimliği → görünen ad + ikon (setupParse SETUP_CATS sırasında çizilir). */
 const CAT_META = {
-  aero: { tr: "Aero", icon: "✈" }, tyre: { tr: "Lastik", icon: "🛞" },
-  susp: { tr: "Süspansiyon", icon: "⚙" }, align: { tr: "Hizalama", icon: "📐" },
-  brake: { tr: "Fren", icon: "🛑" }, diff: { tr: "Diferansiyel", icon: "🔩" },
+  aero: { tr: "Aero", icon: <Icon name="aero" size={14} /> }, tyre: { tr: "Lastik", icon: <Icon name="lastik" size={14} /> },
+  susp: { tr: "Süspansiyon", icon: <Icon name="ayar" size={14} /> }, align: { tr: "Hizalama", icon: <Icon name="geometri" size={14} /> },
+  brake: { tr: "Fren", icon: <Icon name="fren" size={14} /> }, diff: { tr: "Diferansiyel", icon: <Icon name="mekanik" size={14} /> },
   elec: { tr: "Elektronik", icon: "💡" }, engine: { tr: "Motor & Yakıt", icon: "🛢" },
   other: { tr: "Diğer", icon: "•" },
 };
@@ -1642,7 +1629,7 @@ export function SetupContentModal({ open, su, onClose, t, onDownload, onAddCompa
         {/* not */}
         {su.note && (
           <div style={{ display: "flex", alignItems: "flex-start", gap: 9, padding: "11px 20px", borderBottom: "1px solid var(--rc-line-soft)", fontSize: 13, color: "var(--rc-text-2)", lineHeight: 1.6 }}>
-            <span style={{ flex: "0 0 auto" }}>📝</span><span>{su.note}</span>
+            <span style={{ flex: "0 0 auto" }}><Icon name="duzenle" size={13} /></span><span>{su.note}</span>
           </div>
         )}
 
@@ -1650,7 +1637,7 @@ export function SetupContentModal({ open, su, onClose, t, onDownload, onAddCompa
           {blob.loading ? (
             <div style={{ padding: "18px 20px", color: "var(--rc-text-3)", fontSize: 12.5 }}>⏳ {t("Dosya yükleniyor…")}</div>
           ) : !parsed.ok ? (
-            <div style={{ padding: "18px 20px", color: "var(--rc-warn)", fontSize: 12.5, lineHeight: 1.6 }}>⚠ {t("İçerik okunamadı — bu bir LMU setup dosyası değil ya da bozuk.")}</div>
+            <div style={{ padding: "18px 20px", color: "var(--rc-warn)", fontSize: 12.5, lineHeight: 1.6 }}><Icon name="uyari" size={13} /> {t("İçerik okunamadı — bu bir LMU setup dosyası değil ya da bozuk.")}</div>
           ) : (
             <>
               {/* öne çıkanlar */}
@@ -1712,10 +1699,10 @@ export function SetupContentModal({ open, su, onClose, t, onDownload, onAddCompa
           <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
             {onAddCompare && (
               <button onClick={() => onAddCompare(su)} style={{ padding: "8px 15px", borderRadius: 9, cursor: "pointer", fontSize: 12.5,
-                border: `1px solid ${inCompare ? "var(--rc-brand-bright)" : "var(--rc-border)"}`, background: inCompare ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)", color: inCompare ? "var(--rc-text)" : "var(--rc-text-2)" }}>⚖ {t("Karşılaştırmaya ekle")}</button>
+                border: `1px solid ${inCompare ? "var(--rc-brand-bright)" : "var(--rc-border)"}`, background: inCompare ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)", color: inCompare ? "var(--rc-text)" : "var(--rc-text-2)" }}><Icon name="karsilastir" size={13} /> {t("Karşılaştırmaya ekle")}</button>
             )}
             {onDownload && (
-              <button onClick={() => onDownload(su)} style={{ padding: "8px 18px", borderRadius: 9, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontSize: 12.5, fontWeight: 600 }}>⬇ {t("İndir")}</button>
+              <button onClick={() => onDownload(su)} style={{ padding: "8px 18px", borderRadius: 9, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontSize: 12.5, fontWeight: 600 }}><Icon name="indir" size={13} /> {t("İndir")}</button>
             )}
           </span>
         </div>
@@ -1761,7 +1748,7 @@ export function SessionSetupBox({ setup, meta, t, onSave }) {
   return (
     <div style={{ border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)", padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".07em", fontSize: 15, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 8 }}>🔧 {t("Bu Seansın Setup'ı")}</span>
+        <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".07em", fontSize: 15, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 8 }}><Icon name="somun" size={14} /> {t("Bu Seansın Setup'ı")}</span>
         <span style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: ".09em", padding: "2px 8px", borderRadius: 99, border: "1px solid var(--rc-ok)", color: "var(--rc-ok)" }}>{t("YENİ")}</span>
         <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{[meta?.driver, meta?.session].filter(Boolean).join(" · ")}{count ? ` · ${count} ${t("ayar")}` : ""}</span>
       </div>
@@ -1791,7 +1778,7 @@ export function SessionSetupBox({ setup, meta, t, onSave }) {
           </button>
         )}
       </div>
-      {err && <div style={{ fontSize: 11.5, color: "var(--rc-warn)" }}>⚠ {err}</div>}
+      {err && <div style={{ fontSize: 11.5, color: "var(--rc-warn)" }}><Icon name="uyari" size={12} /> {err}</div>}
       {open && (shown.length ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {shown.map((c) => (
@@ -1894,7 +1881,7 @@ export function SetupCompareModal({ open, a, b, onClose, t }) {
         style={{ width: "min(940px,96vw)", maxHeight: "92vh", display: "flex", flexDirection: "column", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .22s cubic-bezier(.2,.9,.3,1.05)" }}>
         {/* başlık */}
         <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "15px 20px", borderBottom: "1px solid var(--rc-border)" }}>
-          <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".07em", fontSize: 18, fontWeight: 700 }}>⚖ {t("Setup Karşılaştır")}</span>
+          <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".07em", fontSize: 18, fontWeight: 700 }}><Icon name="karsilastir" size={17} /> {t("Setup Karşılaştır")}</span>
           {both && <span style={{ fontSize: 12, color: "var(--rc-warn)" }}><b>{diffCount}</b> {t("alan farklı")} · {sameCount} {t("alan aynı")}</span>}
           <button onClick={onClose} style={{ marginLeft: "auto", width: 31, height: 31, borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 14, lineHeight: 1 }}>✕</button>
         </div>
@@ -1904,7 +1891,7 @@ export function SetupCompareModal({ open, a, b, onClose, t }) {
           {sideCard(a, "A", A_COL, (lapD == null || lapD >= 0) ? "var(--rc-ok)" : "var(--rc-text)", null)}
           {sideCard(b, "B", B_COL, (lapD != null && lapD < 0) ? "var(--rc-ok)" : "var(--rc-text)", lapD)}
         </div>
-        {mismatch && <div style={{ fontSize: 11.5, color: "var(--rc-warn)", padding: "8px 20px", borderBottom: "1px solid var(--rc-line-soft)" }}>⚠ {t("Farklı pist ya da sınıf — kıyası dikkatli oku.")}</div>}
+        {mismatch && <div style={{ fontSize: 11.5, color: "var(--rc-warn)", padding: "8px 20px", borderBottom: "1px solid var(--rc-line-soft)" }}><Icon name="uyari" size={12} /> {t("Farklı pist ya da sınıf — kıyası dikkatli oku.")}</div>}
 
         {/* araç çubuğu: yalnız farklar + lejant */}
         {both && (
@@ -1923,7 +1910,7 @@ export function SetupCompareModal({ open, a, b, onClose, t }) {
           {loading ? (
             <div style={{ padding: "18px 20px", color: "var(--rc-text-3)", fontSize: 12.5 }}>⏳ {t("Dosya yükleniyor…")}</div>
           ) : !both ? (
-            <div style={{ padding: "18px 20px", color: "var(--rc-warn)", fontSize: 12.5 }}>⚠ {t("İçerik okunamadı — bu bir LMU setup dosyası değil ya da bozuk.")}</div>
+            <div style={{ padding: "18px 20px", color: "var(--rc-warn)", fontSize: 12.5 }}><Icon name="uyari" size={13} /> {t("İçerik okunamadı — bu bir LMU setup dosyası değil ya da bozuk.")}</div>
           ) : !shown.length ? (
             <div style={{ padding: "18px 20px", color: "var(--rc-text-3)", fontSize: 12.5 }}>{diffCount === 0 ? t("İki setup'ın tüm anlamlı değerleri aynı.") : t("Gösterilecek satır yok.")}</div>
           ) : (
@@ -1958,7 +1945,7 @@ export function SetupCompareModal({ open, a, b, onClose, t }) {
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 20px", borderTop: "1px solid var(--rc-border)", background: "var(--rc-surface-2)" }}>
           <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{t("Fark yönü")} A → B</span>
           <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-            <button onClick={copyDiffs} style={{ padding: "8px 15px", borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12.5 }}>📋 {t("Farkları kopyala")}</button>
+            <button onClick={copyDiffs} style={{ padding: "8px 15px", borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12.5 }}><Icon name="plan" size={13} /> {t("Farkları kopyala")}</button>
             <button onClick={onClose} style={{ padding: "8px 18px", borderRadius: 9, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontSize: 12.5, fontWeight: 600 }}>{t("Kapat")}</button>
           </span>
         </div>
@@ -1980,7 +1967,7 @@ export function SetupModal({ open, onClose, t, suUpOpen, setSuUpOpen, suList, se
       <div className="wxmbox" style={{ width: "min(1080px,97vw)" }}
         onClick={(e) => e.stopPropagation()}>
         <div className="wxmhead">
-          <span>🔧 {t("Setup Havuzu")} · {t("Ortak")} ({suList.length}/{setups.length})</span>
+          <span><Icon name="somun" size={15} /> {t("Setup Havuzu")} · {t("Ortak")} ({suList.length}/{setups.length})</span>
           <button className="lbclose" style={{ marginLeft: "auto", marginRight: 4 }}
             title={t("Setup Ekle")}
             onClick={() => setSuUpOpen((v) => !v)}>{suUpOpen ? "▾" : "＋"}</button>
@@ -1989,7 +1976,7 @@ export function SetupModal({ open, onClose, t, suUpOpen, setSuUpOpen, suList, se
         <div style={{ padding: "12px 16px", maxHeight: "70vh", overflowY: "auto" }}>
           {suUpOpen && (
             <div className="card" style={{ marginBottom: 12 }}>
-              <h2>🔧 {t("Setup Yükle")}</h2>
+              <h2><Icon name="somun" size={16} /> {t("Setup Yükle")}</h2>
               {setupForm()}
             </div>
           )}
@@ -2019,13 +2006,13 @@ export function SetupModal({ open, onClose, t, suUpOpen, setSuUpOpen, suList, se
                   ...(suMine ? { borderColor: "var(--green)", color: "var(--green)" } : {}) }}
                 title={t("Yalnız senin yüklediklerin")}
                 onClick={() => setSuMine((v) => !v)}>
-                👤 {t("Benim setuplarım")}</button>
+                <Icon name="kask" size={14} /> {t("Benim setuplarım")}</button>
             )}
             {toggleSuView && (
               <button className="act" style={{ fontSize: 11, marginLeft: "auto" }}
                 title={suView === "cards" ? t("Tablo") : t("Kartlar")}
                 onClick={toggleSuView}>
-                {suView === "cards" ? <>☰ {t("Tablo")}</> : <>⊞ {t("Kartlar")}</>}</button>
+                {suView === "cards" ? <><Icon name="menu" size={14} /> {t("Tablo")}</> : <>⊞ {t("Kartlar")}</>}</button>
             )}
           </div>
           {!suList.length
@@ -2042,7 +2029,7 @@ export function SetupModal({ open, onClose, t, suUpOpen, setSuUpOpen, suList, se
           {suHasMore && loadMoreSetups && (
             <div style={{ textAlign: "center", marginTop: 10 }}>
               <button className="act" onClick={loadMoreSetups}>
-                ⬇ {t("Daha fazla yükle")}</button>
+                <Icon name="indir" size={14} /> {t("Daha fazla yükle")}</button>
             </div>
           )}
         </div>
@@ -2139,7 +2126,7 @@ export function CreateJoinModal({ open, onClose, user, t, userName,
         <div style={{ padding: "18px 22px" }}>
           <div style={{ display: "flex", gap: 10, marginBottom: 18 }}>
             <button onClick={() => { setTab("kur"); setTErr(""); }} style={tabBtn(tab === "kur")}>＋ {t("Takım Kur")}</button>
-            <button onClick={() => { setTab("katil"); setTErr(""); }} style={tabBtn(tab === "katil")}>🔑 {t("Takıma Katıl")}</button>
+            <button onClick={() => { setTab("katil"); setTErr(""); }} style={tabBtn(tab === "katil")}><Icon name="anahtar" size={14} /> {t("Takıma Katıl")}</button>
           </div>
 
           {tab === "kur" ? (
@@ -2180,9 +2167,9 @@ export function CreateJoinModal({ open, onClose, user, t, userName,
               <div style={panel}>
                 <div style={panelH}>{t("Kurduğunda ne olur")}</div>
                 {bullet(<span style={{ color: "var(--rc-warn)", display: "inline-flex" }}><RoleIcon name="owner" size={14} /></span>, "Takım sahibi sen olursun")}
-                {bullet("🔑", "6 haneli katılım kodu üretilir")}
-                {bullet("🏁", "Sezon takvimi ve yarış odaları açılır")}
-                {bullet("📋", "Setup havuzu takımla paylaşılır")}
+                {bullet(<Icon name="anahtar" size={14} />, "6 haneli katılım kodu üretilir")}
+                {bullet(<Icon name="bayrak" size={14} />, "Sezon takvimi ve yarış odaları açılır")}
+                {bullet(<Icon name="plan" size={14} />, "Setup havuzu takımla paylaşılır")}
               </div>
             </div>
           ) : (
@@ -2198,10 +2185,10 @@ export function CreateJoinModal({ open, onClose, user, t, userName,
               </div>
               <div style={panel}>
                 <div style={panelH}>{t("Katıldığında ne olur")}</div>
-                {bullet("🏢", "Takımın tüm yarış takvimini görürsün")}
+                {bullet(<Icon name="takim" size={14} />, "Takımın tüm yarış takvimini görürsün")}
                 {bullet(<span style={{ color: "var(--rc-ok)", display: "inline-flex" }}><RoleIcon name="eng" size={14} /></span>, "Yarış odalarına ortak ekranla katılırsın")}
-                {bullet("📋", "Takımın setup havuzuna erişirsin")}
-                {bullet("🛡", "Yetkiler takım sahibince atanır")}
+                {bullet(<Icon name="plan" size={14} />, "Takımın setup havuzuna erişirsin")}
+                {bullet(<Icon name="kalkan" size={14} />, "Yetkiler takım sahibince atanır")}
               </div>
             </div>
           )}
@@ -2355,7 +2342,7 @@ export function TeamScreen({ user, t, lang, myTeams, curTeam, setCurTeam,
     .sort(([, a], [, b]) => (b.createdAt || 0) - (a.createdAt || 0))
     .slice(0, 6)
     .map(([rid, r]) => ({
-      id: rid, icon: "🏁", col: "var(--rc-brand-bright)",
+      id: rid, icon: <Icon name="bayrak" size={14} />, col: "var(--rc-brand-bright)",
       who: teamData?.names?.[r.createdBy] || t("Bir üye"),
       text: `${r.name || trackName(r.trackId) || t("yarış")} ${t("yarışını ekledi")}`,
       at: new Date(r.createdAt).toLocaleString(lang === "en" ? "en-GB" : "tr-TR",
@@ -2380,7 +2367,7 @@ export function TeamScreen({ user, t, lang, myTeams, curTeam, setCurTeam,
         <div style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 20, color: "var(--rc-text)", marginBottom: 8 }}>{t("Henüz bir takımın yok")}</div>
         <div style={{ fontSize: 13, marginBottom: 16 }}>{t("Yeni takım kur ya da katılım kodu ile katıl.")}</div>
         {onCreateJoin && (
-          <button onClick={onCreateJoin} style={{ padding: "10px 20px", borderRadius: 10, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 14, textTransform: "uppercase" }}>🏢 {t("Kur & Katıl")}</button>
+          <button onClick={onCreateJoin} style={{ padding: "10px 20px", borderRadius: 10, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 14, textTransform: "uppercase" }}><Icon name="takim" size={14} /> {t("Kur & Katıl")}</button>
         )}
       </div>
     );
@@ -2433,7 +2420,7 @@ export function TeamScreen({ user, t, lang, myTeams, curTeam, setCurTeam,
             {tnEdit === null || !canManageTeam ? (
               <div style={{ display: "inline-flex", alignItems: "center", gap: 8, justifyContent: "center" }}>
                 <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 22, letterSpacing: ".02em" }}>{teamData?.meta?.name || "—"}</span>
-                {canManageTeam && <button onClick={() => setTnEdit(teamData?.meta?.name || "")} title={t("Düzenle")} style={{ ...c.mini, width: 24, height: 24 }}>✎</button>}
+                {canManageTeam && <button onClick={() => setTnEdit(teamData?.meta?.name || "")} title={t("Düzenle")} style={{ ...c.mini, width: 24, height: 24 }}><Icon name="duzenle" size={13} /></button>}
               </div>
             ) : (
               <div style={{ display: "flex", gap: 6, maxWidth: 300, margin: "0 auto" }}>
@@ -2544,7 +2531,7 @@ export function TeamScreen({ user, t, lang, myTeams, curTeam, setCurTeam,
                                       onClick={async () => { setMenuUid(""); if (await confirmDialog({ title: t("Sahipliği devret"), message: t("Sahiplik bu üyeye devredilsin mi?"), confirmText: t("Devret") })) await transferOwnership(curTeam, uid, user.uid).catch(() => {}); }}><span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><RoleIcon name="owner" size={13} />{t("Sahipliği devret")}</span></button>
                                   )}
                                   <button style={{ ...c.sBtn, border: "none", background: "transparent", textAlign: "left", padding: "8px 10px" }}
-                                    onClick={() => { setMenuUid(""); copyCode(); }}>✉ {t("Yeniden davet et")}</button>
+                                    onClick={() => { setMenuUid(""); copyCode(); }}><Icon name="davet" size={13} /> {t("Yeniden davet et")}</button>
                                   {!isSelf && (
                                     <button style={{ border: "none", background: "transparent", textAlign: "left", padding: "8px 10px", color: "var(--rc-danger)", cursor: "pointer", fontSize: 12, borderRadius: 7 }}
                                       onClick={async () => { setMenuUid(""); if (await confirmDialog({ title: t("Üyeyi çıkar"), message: t("Üye takımdan çıkarılsın mı?"), confirmText: t("Çıkar"), danger: true })) await removeMember(curTeam, uid).catch(() => {}); }}>✕ {t("Takımdan çıkar")}</button>
@@ -2602,7 +2589,7 @@ export function TeamScreen({ user, t, lang, myTeams, curTeam, setCurTeam,
                   <span style={{ display: "flex", gap: 5, flex: "0 0 auto" }}>
                     <button title={t("Yukarı taşı")} disabled={i === 0} onClick={() => swapRace(i, i - 1)} style={{ ...c.mini, opacity: i === 0 ? .4 : 1 }}>▲</button>
                     <button title={t("Aşağı taşı")} disabled={i === sortedRaces.length - 1} onClick={() => swapRace(i, i + 1)} style={{ ...c.mini, opacity: i === sortedRaces.length - 1 ? .4 : 1 }}>▼</button>
-                    <button title={t("Düzenle")} onClick={() => setRForm({ rid, ...r, flow: "data" })} style={c.mini}>✎</button>
+                    <button title={t("Düzenle")} onClick={() => setRForm({ rid, ...r, flow: "data" })} style={c.mini}><Icon name="duzenle" size={13} /></button>
                     <button title={t("Sil")} onClick={async () => { if (await confirmDialog({ title: t("Yarışı sil"), message: t("Yarış silinsin mi?"), confirmText: t("Sil"), danger: true })) deleteRace(curTeam, rid).catch(() => {}); }} style={c.mini}>✕</button>
                   </span>
                 )}
@@ -2670,7 +2657,7 @@ export function TeamModal({ open, onClose, user, t, lang, myTeams, curTeam, setC
           <div className="wxmbox" style={{ width: "min(680px,95vw)" }}
             onClick={(e) => e.stopPropagation()}>
             <div className="wxmhead">
-              <span>⚙ {t("Yönet")} · {t("Takımlar")}</span>
+              <span><Icon name="ayar" size={15} /> {t("Yönet")} · {t("Takımlar")}</span>
               <button className="lbclose" onClick={onClose}>✕</button>
             </div>
 
@@ -2690,7 +2677,7 @@ export function TeamModal({ open, onClose, user, t, lang, myTeams, curTeam, setC
                   {t("Henüz bir takımın yok. Yeni takım kur ya da katılım kodu ile katıl.")}
                   {onCreateJoin && (
                     <><br /><button className="gbtn ubtn" style={{ marginTop: 8 }}
-                      onClick={onCreateJoin}>🏢 {t("Kur & Katıl")}</button></>
+                      onClick={onCreateJoin}><Icon name="takim" size={14} /> {t("Kur & Katıl")}</button></>
                   )}
                 </div>
               )}
@@ -2784,7 +2771,7 @@ export function TeamModal({ open, onClose, user, t, lang, myTeams, curTeam, setC
 
                 {/* ── Sezonlar & Takvim ── */}
                 <section className="tmcard">
-                  <div className="tmcard-h">🏁 {t("Sezonlar & Takvim")}</div>
+                  <div className="tmcard-h"><Icon name="bayrak" size={14} /> {t("Sezonlar & Takvim")}</div>
                   <div className="tmtabs" style={{ padding: "0 0 10px" }}>
                     <button className={curSeason === "" ? "on" : ""}
                       onClick={() => setCurSeason("")}>{t("Tümü")}</button>
@@ -2821,7 +2808,7 @@ export function TeamModal({ open, onClose, user, t, lang, myTeams, curTeam, setC
                           {t("Aç")}</button>
                         {canEditTeam && (<>
                           <button className="minibtn" title={t("Düzenle")}
-                            onClick={() => setRForm({ rid, ...r, flow: "data" })}>✎</button>
+                            onClick={() => setRForm({ rid, ...r, flow: "data" })}><Icon name="duzenle" size={13} /></button>
                           <button className="minibtn" title={t("Sil")}
                             onClick={async () => { if (await confirmDialog({ title: t("Yarışı sil"), message: t("Yarış silinsin mi?"), confirmText: t("Sil"), danger: true }))
                               deleteRace(curTeam, rid).catch(() => {}); }}>✕</button>
@@ -2839,7 +2826,7 @@ export function TeamModal({ open, onClose, user, t, lang, myTeams, curTeam, setC
                         carId: st.car || "", raceTime: st.raceTime || "6:00:00",
                         startsAt: Date.now(),
                       })}>
-                      ➕ {t("Yarış Ekle")}
+                      <Icon name="ekle" size={14} /> {t("Yarış Ekle")}
                     </button>
                   )}
                 </section>
@@ -2900,7 +2887,7 @@ export function TeamModal({ open, onClose, user, t, lang, myTeams, curTeam, setC
 
                 {/* ── Takım Erişimi ── */}
                 <section className="tmcard">
-                  <div className="tmcard-h">🔑 {t("Takım Erişimi")}</div>
+                  <div className="tmcard-h"><Icon name="anahtar" size={14} /> {t("Takım Erişimi")}</div>
                   <div className="tmcode">
                     <span className="tmcode-k">{t("Katılım kodu")}</span>
                     <b className="tmcode-v">{teamData?.meta?.joinCode || "—"}</b>
@@ -3021,7 +3008,7 @@ export function DenyToast({ text, onDone }) {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className="denytoast" role="alert" aria-live="assertive">
-      <span className="dticon" aria-hidden="true">🔒</span>
+      <span className="dticon" aria-hidden="true"><Icon name="kilit" size={14} /></span>
       <span>{text}</span>
     </div>
   );

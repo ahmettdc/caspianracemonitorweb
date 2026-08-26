@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { fmtHMS, lastStintFuel, WX } from "../engine";
-import { Bolt } from "../components";
+import { Bolt, Icon } from "../components";
 
 /* Son stint yakıtı (v2.0 · handoff-spec/ekranlar/05-yakit.md). Kalan süreye göre
    VE/yakıt ihtiyacı + canlıdan öğren + senaryo karşılaştırması. Türetilmiş değerler
@@ -44,7 +44,7 @@ export default function FuelTab({ t, st, up, lsf, autoCd, setAutoCd, planLastCd,
         <h2 style={{ margin: 0, display: "inline-flex", alignItems: "center", gap: 9, fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".06em", fontSize: 22, fontWeight: 700 }}>
           <Bolt size={20} /> {t("Son stint yakıtı")}</h2>
         <span style={{ fontSize: 12, color: "var(--rc-text-3)" }}>{t("Kalan süreye göre gereken enerji")}</span>
-        {readOnly && <span style={{ marginLeft: "auto", fontSize: 11, padding: "4px 12px", borderRadius: 99, border: "1px solid var(--rc-warn)", color: "var(--rc-warn)", whiteSpace: "nowrap" }}>👁 {t("İzleyici modu · düzenleme kapalı")}</span>}
+        {readOnly && <span style={{ marginLeft: "auto", fontSize: 11, padding: "4px 12px", borderRadius: 99, border: "1px solid var(--rc-warn)", color: "var(--rc-warn)", whiteSpace: "nowrap" }}><Icon name="goz" size={13} /> {t("İzleyici modu · düzenleme kapalı")}</span>}
       </div>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "stretch" }}>
@@ -53,7 +53,7 @@ export default function FuelTab({ t, st, up, lsf, autoCd, setAutoCd, planLastCd,
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
             <span style={{ ...hdT, fontSize: 15 }}>{t("Yarış sonu")}</span>
             <button onClick={() => { if (readOnly) return; if (autoCd && !String(st.lastStintCountdown || "").trim()) up({ lastStintCountdown: eff }); setAutoCd(!autoCd); }} title={t("Stint planından otomatik — sondan önceki stintin Time Left değeri")}
-              style={{ padding: "4px 11px", borderRadius: 7, fontSize: 11, cursor: readOnly ? "not-allowed" : "pointer", border: `1px solid ${autoCd ? "var(--rc-brand-bright)" : "var(--rc-border)"}`, background: autoCd ? "var(--rc-brand)" : "var(--rc-surface-3)", color: autoCd ? "#FFE9ED" : "var(--rc-text-3)", opacity: readOnly ? .5 : 1 }}>📋 {t("Plan")}</button>
+              style={{ padding: "4px 11px", borderRadius: 7, fontSize: 11, cursor: readOnly ? "not-allowed" : "pointer", border: `1px solid ${autoCd ? "var(--rc-brand-bright)" : "var(--rc-border)"}`, background: autoCd ? "var(--rc-brand)" : "var(--rc-surface-3)", color: autoCd ? "#FFE9ED" : "var(--rc-text-3)", opacity: readOnly ? .5 : 1 }}><Icon name="plan" size={13} /> {t("Plan")}</button>
             <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--rc-text-3)" }}>{autoCd ? t("Stint planından otomatik") : t("elle girildi")}</span>
           </div>
           <label style={{ display: "block", color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 6 }}>{t("Seans geri sayımı (h:mm:ss)")}</label>
@@ -73,7 +73,7 @@ export default function FuelTab({ t, st, up, lsf, autoCd, setAutoCd, planLastCd,
           </div>
           <div style={{ fontSize: 12, color: "var(--rc-text-2)", marginTop: 9, lineHeight: 1.7 }}>
             ≈ <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 15, color: "var(--rc-ok)" }}>{r.refuelL.toFixed(1)} L</b> {t("gerçek yakıt")} · ({t("kalan tur")} {r.lapsLeft} + extra {st.extraLap}) × {cons.toFixed(2)} {t("%/tur")}
-            {r.refuel > 100 && <> · <b style={{ color: "var(--rc-danger)" }}>{t("⚠ %100'ü aşıyor — depo yetmez!")}</b></>}
+            {r.refuel > 100 && <> · <b style={{ color: "var(--rc-danger)" }}><Icon name="uyari" size={12} /> {t("%100'ü aşıyor — depo yetmez!")}</b></>}
           </div>
         </div>
 
@@ -82,7 +82,7 @@ export default function FuelTab({ t, st, up, lsf, autoCd, setAutoCd, planLastCd,
           {liveFuelObs && (
             <div style={card}>
               <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 12 }}>
-                <span style={hdT}>⚡ {t("Canlıdan öğren")}</span>
+                <span style={hdT}><Icon name="simsek" size={14} /> {t("Canlıdan öğren")}</span>
                 <span style={{ marginLeft: "auto", fontSize: 10.5, color: "var(--rc-text-3)" }}>{t("örnek")} {liveFuelObs.samples} {t("tur")}</span>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 9 }}>
@@ -92,7 +92,7 @@ export default function FuelTab({ t, st, up, lsf, autoCd, setAutoCd, planLastCd,
               </div>
               <button onClick={applyLiveFuel} disabled={applyDisabled}
                 style={{ width: "100%", marginTop: 12, padding: "10px 16px", borderRadius: 10, cursor: applyDisabled ? "not-allowed" : "pointer", border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "#FFE9ED", fontFamily: "var(--rc-font-display)", fontSize: 15, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase", opacity: applyDisabled ? .45 : 1 }}>{t("Yakıt modeline uygula")}</button>
-              {readOnly && <div style={{ marginTop: 8, fontSize: 11, color: "var(--rc-warn)" }}>👁 {t("İzleyici modunda pasif")}</div>}
+              {readOnly && <div style={{ marginTop: 8, fontSize: 11, color: "var(--rc-warn)" }}><Icon name="goz" size={13} /> {t("İzleyici modunda pasif")}</div>}
             </div>
           )}
 

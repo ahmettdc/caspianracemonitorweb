@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { fmtLap, fmtHMS, fmtGap, WEATHER, wetnessLevel, rainLevel, rubberPct } from "../engine";
 import { WetIcon } from "../WetIcon";
 import { GripIcon, gripColor } from "../GripIcon";
+import { TrackTempIcon } from "../TrackTempIcon";
+import { Icon } from "../components";
 import { confirmDialog } from "../confirm";
 import { DESKTOP_RELEASE_URL, BRIDGE_EXE_URL, ASSET, classId, classAccent, brandKey, manufacturerKey } from "../constants";
 import { isTauri } from "../tauriEnv";
@@ -267,7 +269,7 @@ function LapsModal({ t, tid, rid, row, canEdit, demo, onClose }) {
                 {tag && <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".08em", padding: "2px 9px", borderRadius: 99, flex: "0 0 auto", whiteSpace: "nowrap", border: `1px solid ${tagCol}`, color: tagCol }}>{tag}</span>}
                 <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "flex-end", gap: 9, flex: "0 0 auto", width: 150, fontSize: 11, color: "var(--rc-text-3)" }}>
                   {cond && (<>
-                    {cond.temp != null && <span title={t("Asfalt sıcaklığı")}>🛣 {cond.temp}°</span>}
+                    {cond.temp != null && <span title={t("Asfalt sıcaklığı")} style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><TrackTempIcon temp={cond.temp} size={12} /> {cond.temp}°</span>}
                     {cond.grip != null && <span title={t("Yol tutuş")} style={{ color: gripColor(cond.grip) }}>%{cond.grip}</span>}
                     {cond.wet != null && (condWx
                       ? <span title={t("Zemin ıslaklığı")} style={{ display: "inline-flex", alignItems: "center", gap: 3, color: WEATHER[condWx].col }}><WetIcon id={condWx} size={12} /> {t(WEATHER[condWx].lbl)}</span>
@@ -284,7 +286,7 @@ function LapsModal({ t, tid, rid, row, canEdit, demo, onClose }) {
           {cleared && <span style={{ color: "var(--rc-ok)", fontSize: 11.5 }}>✓ {t("temizlendi")}</span>}
           {canEdit && tid && rid && (
             <button onClick={clearHistory} title={t("Bu yarışın '+' tur geçmişini (eski koşulardan kalan turlar/pilotlar) sıfırla")}
-              style={{ marginLeft: "auto", padding: "8px 14px", borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12 }}>🗑 {t("Tur geçmişini temizle")}</button>
+              style={{ marginLeft: "auto", padding: "8px 14px", borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12 }}><Icon name="sil" size={14} /> {t("Tur geçmişini temizle")}</button>
           )}
         </div>
       </div>
@@ -396,19 +398,19 @@ function BridgeControl({ t, bridge, canBridge, canEdit, tid, rid }) {
   return (
     <div className="card" style={{ marginBottom: 12 }}>
       <h2 style={{ display: "flex", alignItems: "center", gap: 10, margin: "0 0 10px", fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 16, fontWeight: 700 }}>
-        🛰 {t("Canlı Köprü")}
+        <Icon name="kopru" size={16} /> {t("Canlı Köprü")}
         <span title={diagTitle} style={{ width: 9, height: 9, borderRadius: "50%", background: dot,
           boxShadow: `0 0 8px ${dot}`, cursor: diagTitle ? "help" : "default" }} />
         <span style={{ fontSize: 11, color: "var(--dim)", fontWeight: 400 }}>{t("otomatik")}</span>
       </h2>
       {canBridge && phase === "standby" && (
         <div className="hint" style={{ marginTop: 6, color: "var(--yellow)" }}>
-          ⏸ {t("Beklemede")}{writerBy ? ` — ${writerBy} ${t("yayınlıyor")}` : ""} · {t("aktif sürücü canlıyı yazıyor")}
+          <Icon name="duraklat" size={14} /> {t("Beklemede")}{writerBy ? ` — ${writerBy} ${t("yayınlıyor")}` : ""} · {t("aktif sürücü canlıyı yazıyor")}
         </div>
       )}
       {canBridge && phase === "running" && writerBy && (
         <div className="hint" style={{ marginTop: 6, color: "var(--dim)" }}>
-          🛰 {t("Canlı kaynak")}: {writerBy}
+          <Icon name="kopru" size={14} /> {t("Canlı kaynak")}: {writerBy}
         </div>
       )}
       {canBridge && bridge?.msg && phase !== "standby" && (
@@ -422,7 +424,7 @@ function BridgeControl({ t, bridge, canBridge, canEdit, tid, rid }) {
           başka araçların (CrewChief/SimHub/TinyPedal) ihtiyacını bilemeyiz; öneririz. */}
       {canBridge && d?.plugin?.wastedFps > 0 && d.plugin.suggest != null && (
         <div className="hint warn" style={{ marginTop: 6 }}>
-          ⚡ {t("Oyun eklentisi saniyede")} ~{d.plugin.wastedFps} {t("kez bu uygulamanın okumadığı veriyi yazıyor")}
+          <Icon name="simsek" size={14} /> {t("Oyun eklentisi saniyede")} ~{d.plugin.wastedFps} {t("kez bu uygulamanın okumadığı veriyi yazıyor")}
           {" "}({d.plugin.wasted.join(", ")}) — {t("bu, oyunda takılmaya yol açar.")}
           {" "}<b>CustomPluginVariables.JSON</b> → <code>UnsubscribedBuffersMask: {d.plugin.suggest}</code>
           {" "}<CopyBtn text={String(d.plugin.suggest)} t={t} />
@@ -443,7 +445,7 @@ function BridgeControl({ t, bridge, canBridge, canEdit, tid, rid }) {
               if (!(await confirmDialog({ title: t("Tur geçmişini temizle"), message: t("Bu yarışın tüm '+' tur geçmişi silinsin mi? (Yeni turlar yine kaydedilir.)"), confirmText: t("Temizle"), danger: true }))) return;
               try { await liveHistoryClearAll(tid, rid); setCleared(true); setTimeout(() => setCleared(false), 2500); }
               catch { /* yoksay */ }
-            }}>🗑 {t("Tur geçmişini temizle")}</button>
+            }}><Icon name="sil" size={12} /> {t("Tur geçmişini temizle")}</button>
           {cleared && <span style={{ color: "var(--green)" }}>✓ {t("temizlendi")}</span>}
         </div>
       )}
@@ -497,7 +499,7 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
       onClick={() => setDemo((v) => !v)}
       style={{ fontSize: 11, padding: "3px 10px",
         ...(demo && { borderColor: "var(--yellow)", color: "var(--yellow)" }) }}>
-      🎬 {demo ? t("Demo kapat") : t("Demo")}</button>
+      <Icon name="kayit" size={13} /> {demo ? t("Demo kapat") : t("Demo")}</button>
   ) : null;
   const rootRef = useRef(null);
   const posRef = useRef({});   // sürücü → son pozisyon
@@ -591,10 +593,10 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", marginTop: 4 }}>
             {!isTauri ? (<>
               <a href={DESKTOP_RELEASE_URL} target="_blank" rel="noopener noreferrer"
-                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "9px 18px", borderRadius: 10, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>🖥 {t("Masaüstü Uygulamasını İndir")}</a>
+                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "9px 18px", borderRadius: 10, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontSize: 13, fontWeight: 600, textDecoration: "none" }}><Icon name="masaustu" size={14} /> {t("Masaüstü Uygulamasını İndir")}</a>
               <a href={BRIDGE_EXE_URL} target="_blank" rel="noopener noreferrer"
                 title={t("Oyunun çalıştığı PC için: tarayıcı motoru yok → oyunu yormaz.")}
-                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "9px 16px", borderRadius: 10, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 13, textDecoration: "none" }}>🪶 {t("Hafif Köprüyü İndir (.exe)")}</a>
+                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "9px 16px", borderRadius: 10, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 13, textDecoration: "none" }}><Icon name="tuy" size={14} /> {t("Hafif Köprüyü İndir (.exe)")}</a>
             </>) : demoBtn}
             {!isTauri && demoBtn}
           </div>
@@ -717,16 +719,16 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
             <span style={{ marginLeft: "auto", display: "flex", gap: 6, flexWrap: "wrap" }}>
               {demoBtn}
               {document.fullscreenEnabled && (
-                <button className="act" data-tour="livebig" style={{ fontSize: 11, padding: "3px 10px" }} onClick={toggleBig}>{big ? t("✕ Küçült") : t("⛶ Büyük Pano")}</button>
+                <button className="act" data-tour="livebig" style={{ fontSize: 11, padding: "3px 10px" }} onClick={toggleBig}>{big ? t("✕ Küçült") : <><Icon name="buyut" size={12} /> {t("Büyük Pano")}</>}</button>
               )}
             </span>
           </div>
           {/* kayıt göstergesi (okuyucu-tarafı hasat) */}
           {!demoOn && lapCapture?.writing && (
-            <div className="hint" style={{ margin: 0, padding: "6px 16px", color: "var(--green)" }}>🔴 {t("Tur geçmişi kaydediliyor")} · {lapCapture.cars} {t("araç")} · {lapCapture.laps} {t("tur")}</div>
+            <div className="hint" style={{ margin: 0, padding: "6px 16px", color: "var(--green)" }}><Icon name="kayit" size={14} /> {t("Tur geçmişi kaydediliyor")} · {lapCapture.cars} {t("araç")} · {lapCapture.laps} {t("tur")}</div>
           )}
           {!demoOn && !live.bridgeVer && (
-            <div className="hint warn" style={{ margin: 0, padding: "6px 16px" }}>⚠ {t("Köprü eski sürüm — sürüş PC'sinde köprüyü güncelle (kayıt yine web'den yapılıyor)")}</div>
+            <div className="hint warn" style={{ margin: 0, padding: "6px 16px" }}><Icon name="uyari" size={14} /> {t("Köprü eski sürüm — sürüş PC'sinde köprüyü güncelle (kayıt yine web'den yapılıyor)")}</div>
           )}
 
           {/* Saha tablosu — canlı köprü verisi (kolonlar/veri değişmedi) */}

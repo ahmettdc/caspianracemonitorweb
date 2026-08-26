@@ -8,6 +8,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { TRACKS, TRACK_ASSET, ASSET, AV } from "../constants";
 import { extHref } from "../tauriEnv";
+import { Icon } from "../components";
 import {
   groupByStatus, nextOfficialRace, deriveOptions, raceStatus, EMPTY_FILTERS,
 } from "../lmuSchedule";
@@ -193,7 +194,7 @@ export default function ScheduleTab({ t, lang = "tr", races = [], updatedAt, loa
         <div style={{ padding: "12px 0", color: "var(--rc-text-3)", fontSize: 13 }}>{t("Takvim henüz yüklenmedi — birkaç dakika içinde güncellenir.")}</div>
       )}
       {!loading && races.length > 0 && days.length === 0 && (
-        <div style={{ padding: "28px 0", textAlign: "center", color: "var(--rc-text-3)" }}>🔍 {t("Filtrelere uyan yarış yok.")}</div>
+        <div style={{ padding: "28px 0", textAlign: "center", color: "var(--rc-text-3)" }}><Icon name="yakinlastir" size={14} /> {t("Filtrelere uyan yarış yok.")}</div>
       )}
 
       {days.map((d) => (
@@ -251,7 +252,7 @@ export default function ScheduleTab({ t, lang = "tr", races = [], updatedAt, loa
                     {r.url && <a {...extHref(r.url)} title={t("lmugarage'da aç")} style={{ display: "inline-grid", placeItems: "center", width: 32, height: 32, borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", textDecoration: "none", fontSize: 12 }}>↗</a>}
                     {onPlan && <button onClick={() => onPlan(r)} title={t("Bu yarışa planla")}
                       style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 9, cursor: "pointer", fontSize: 12, whiteSpace: "nowrap",
-                        border: `1px solid ${live ? "var(--rc-brand-bright)" : "var(--rc-border)"}`, background: live ? "var(--rc-brand)" : "var(--rc-surface-3)", color: live ? "var(--rc-on-brand)" : "var(--rc-text-2)" }}>📋 {t("Planla")}</button>}
+                        border: `1px solid ${live ? "var(--rc-brand-bright)" : "var(--rc-border)"}`, background: live ? "var(--rc-brand)" : "var(--rc-surface-3)", color: live ? "var(--rc-on-brand)" : "var(--rc-text-2)" }}><Icon name="plan" size={14} /> {t("Planla")}</button>}
                   </span>
                 </div>
               );

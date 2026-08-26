@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { fmtHMS, msToLocalInput } from "../engine";
 import { PIE_COLORS } from "../constants";
-import { Avatar } from "../components";
+import { Avatar, Icon } from "../components";
 
 /* Ad → baş harf(ler) rozeti (en çok 2). */
 function initials(name) {
@@ -70,7 +70,7 @@ export default function DriversTab({
   });
 
   return (
-    <div style={{ padding: "2px 0 8px", fontFamily: "var(--rc-font-ui)" }}>
+    <div style={{ padding: "2px 0 8px", fontFamily: "var(--rc-font-ui)", animation: "rcin .26s ease-out" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 16 }}>
         <h2 style={{ margin: 0, fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".06em", fontSize: 22, fontWeight: 700 }}>{t("Pilotlar")}</h2>
         <span style={{ display: "inline-flex", alignItems: "center", gap: 8, ...dim }}>
@@ -139,7 +139,7 @@ export default function DriversTab({
                   {av(n, 44)}
                   <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, flex: 1 }}>
                     <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 18, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{n}</b>
-                    <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{teamDrivers.includes(n) ? `🏢 ${t("Takımdan")}` : t("Kadro")}</span>
+                    <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{teamDrivers.includes(n) ? <><Icon name="takim" size={11} /> {t("Takımdan")}</> : t("Kadro")}</span>
                   </span>
                   <span style={{ textAlign: "right", flex: "0 0 auto" }}>
                     <span style={{ display: "block", fontFamily: "var(--rc-font-display)", fontSize: 19, fontWeight: 600 }}>{fmtHMS(d.ms / 1000)}</span>
@@ -148,7 +148,7 @@ export default function DriversTab({
                 </div>
                 <div style={{ height: 6, borderRadius: 3, background: "var(--rc-line-soft)", overflow: "hidden", marginTop: 12 }}><i style={{ display: "block", height: "100%", width: `${pct}%`, background: col }} /></div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-                  <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>🏁 {d.stints} stint</span>
+                  <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}><Icon name="bayrak" size={12} /> {d.stints} stint</span>
                   <b style={{ marginLeft: "auto", fontFamily: "var(--rc-font-display)", fontSize: 13, color: col }}>%{pct.toFixed(0)}</b>
                 </div>
                 {(stintsOf[n] || []).length > 0 && (
@@ -189,8 +189,8 @@ export default function DriversTab({
             <span style={hdT}>{t("Stint programı")}</span>
             <span style={dim}>{t("saatler yarış saatine göre")}</span>
             <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-              {unassigned > 0 && <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 99, border: "1px solid var(--rc-warn)", color: "var(--rc-warn)", whiteSpace: "nowrap" }}>⚠ {unassigned} {t("stint atanmadı")}</span>}
-              <button onClick={() => setAvOpen(true)} style={{ padding: "6px 12px", borderRadius: 8, border: `1px solid ${noAvailStints.length ? "var(--rc-warn)" : "var(--rc-border)"}`, background: "var(--rc-surface-3)", color: noAvailStints.length ? "var(--rc-warn)" : "var(--rc-text-2)", cursor: "pointer", fontSize: 11.5, whiteSpace: "nowrap" }}>🕑 {t("Uygunluk")}{noAvailStints.length ? ` · ${noAvailStints.length}⚠` : ""}</button>
+              {unassigned > 0 && <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 99, border: "1px solid var(--rc-warn)", color: "var(--rc-warn)", whiteSpace: "nowrap" }}><Icon name="uyari" size={12} /> {unassigned} {t("stint atanmadı")}</span>}
+              <button onClick={() => setAvOpen(true)} style={{ padding: "6px 12px", borderRadius: 8, border: `1px solid ${noAvailStints.length ? "var(--rc-warn)" : "var(--rc-border)"}`, background: "var(--rc-surface-3)", color: noAvailStints.length ? "var(--rc-warn)" : "var(--rc-text-2)", cursor: "pointer", fontSize: 11.5, whiteSpace: "nowrap" }}><Icon name="kronometre" size={12} /> {t("Uygunluk")}{noAvailStints.length ? <>{" · "}{noAvailStints.length}<Icon name="uyari" size={12} /></> : ""}</button>
             </span>
           </div>
           {driverPlan.rows.map((r, i) => {
@@ -206,7 +206,7 @@ export default function DriversTab({
                 </span>
                 <span style={{ display: "block", width: 120, height: 6, borderRadius: 3, background: "var(--rc-line-soft)", overflow: "hidden", flex: "0 0 auto" }}><i style={{ display: "block", height: "100%", width: `${barPct}%`, background: cur ? col : "var(--rc-border-strong)" }} /></span>
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 8, flex: "0 0 auto" }}>
-                  {cur && isUnavail(cur, r.idx) && <span title={t("Bu pilot bu stintte uygun değil")} style={{ color: "var(--rc-danger)", fontSize: 13 }}>⚠</span>}
+                  {cur && isUnavail(cur, r.idx) && <span title={t("Bu pilot bu stintte uygun değil")} style={{ color: "var(--rc-danger)", fontSize: 13 }}><Icon name="uyari" size={13} /></span>}
                   {cur && driverPlan.totals[cur] && av(cur, 20)}
                   <select value={cur} onChange={(e) => assignDriver(i, e.target.value)}
                     style={{ width: 168, padding: "7px 10px", borderRadius: 9, cursor: "pointer", fontSize: 12.5, background: "var(--rc-surface-3)", border: `1px solid ${cur ? col + "66" : "var(--rc-border)"}`, color: cur ? "var(--rc-text)" : "var(--rc-text-3)" }}>
@@ -277,7 +277,7 @@ export default function DriversTab({
               </div>
               {noAvailStints.length > 0 && (
                 <div style={{ marginTop: 14, display: "flex", alignItems: "flex-start", gap: 9, padding: "11px 14px", borderRadius: 11, border: "1px solid var(--rc-warn)", background: "rgba(245,178,61,.08)", fontSize: 12, color: "var(--rc-warn)", lineHeight: 1.6 }}>
-                  <span style={{ flex: "0 0 auto", fontSize: 14 }}>⚠</span>
+                  <span style={{ flex: "0 0 auto", fontSize: 14 }}><Icon name="uyari" size={14} /></span>
                   <span><b>{noAvailStints.map((r) => `S${r.idx}`).join(", ")}</b> {t("için hiç uygun pilot kalmadı — bu stint atanamaz.")}</span>
                 </div>
               )}

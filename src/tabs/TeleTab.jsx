@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ReferenceLine, ReferenceDot, ResponsiveContainer } from "recharts";
 import { fmtLap } from "../engine";
 import { SLOT_COLORS } from "../constants";
-import { BoxPlot, SessionSetupBox } from "../components";
+import { BoxPlot, SessionSetupBox, Icon } from "../components";
 import { zoomViewAt, panView, zoomDomain, advanceCursor } from "../zoomView";
 import { sectorOf, sectorMarks } from "../ldTrace";
 import { detectApexes, cornerStats } from "../corners";
@@ -456,7 +456,7 @@ ${svgs}
   return (
     <div style={{ border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)", padding: "16px 18px", marginTop: 16 }} ref={cardRef}>
       <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", margin: "0 0 10px", fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 16, fontWeight: 700 }}>
-        🔬 {t("Tur karşılaştırma")}
+        <Icon name="karsilastir" size={16} /> {t("Tur karşılaştırma")}
         {cmpData && Number.isFinite(cmpData.totalDelta) && (
           <span className="chip" style={{ fontSize: 12,
             borderColor: cmpData.totalDelta > 0 ? CA : CB,
@@ -464,7 +464,7 @@ ${svgs}
             Δ {dlt(cmpData.totalDelta)}</span>
         )}
         {curSec != null && (
-          <span className="chip" style={{ fontSize: 12 }}>📍 {t("Sektör")} S{curSec}</span>
+          <span className="chip" style={{ fontSize: 12 }}><Icon name="sektor" size={13} /> {t("Sektör")} S{curSec}</span>
         )}
       </h2>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", fontSize: 12 }}>
@@ -492,17 +492,17 @@ ${svgs}
         </label>
         {venDiff && (
           <span className="chip" style={{ fontSize: 11, borderColor: "var(--yellow)",
-            color: "var(--yellow)" }}>⚠ {t("farklı pist — kıyas dikkatli")}</span>
+            color: "var(--yellow)" }}><Icon name="uyari" size={12} /> {t("farklı pist — kıyas dikkatli")}</span>
         )}
       </div>
       {meta && (meta.venue || meta.trk != null || meta.amb != null) && (
         <div className="hint" style={{ marginTop: 4, opacity: .85, display: "flex",
           gap: 8, flexWrap: "wrap" }}>
-          {meta.venue && <span>🏁 {meta.venue}</span>}
-          {meta.vehicle && <span>· 🚗 {meta.vehicle}</span>}
-          {meta.driver && <span>· 👤 {meta.driver}</span>}
-          {meta.trk != null && <span>· 🛣 {t("Pist")} {meta.trk.toFixed(0)}°</span>}
-          {meta.amb != null && <span>· 🌡 {t("Hava")} {meta.amb.toFixed(0)}°</span>}
+          {meta.venue && <span><Icon name="bayrak" size={13} /> {meta.venue}</span>}
+          {meta.vehicle && <span>· <Icon name="arac" size={13} /> {meta.vehicle}</span>}
+          {meta.driver && <span>· <Icon name="kask" size={13} /> {meta.driver}</span>}
+          {meta.trk != null && <span>· <Icon name="asfalt" size={13} /> {t("Pist")} {meta.trk.toFixed(0)}°</span>}
+          {meta.amb != null && <span>· <Icon name="sicaklik" size={13} /> {t("Hava")} {meta.amb.toFixed(0)}°</span>}
         </div>
       )}
 
@@ -513,7 +513,7 @@ ${svgs}
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
           <button className="act" style={{ fontSize: 13, padding: "3px 12px" }}
             title={t("Telemetriyi oynat")} onClick={() => setPlaying((p) => !p)}>
-            {playing ? "⏸" : "▶"}</button>
+            {playing ? <Icon name="duraklat" size={13} /> : <Icon name="oynat" size={13} />}</button>
           <select value={playSpeed} onChange={(e) => setPlaySpeed(+e.target.value)}
             style={{ fontSize: 12 }} title={t("Oynatma hızı")}>
             <option value={0.5}>0.5×</option>
@@ -527,11 +527,11 @@ ${svgs}
           {cmpData.hasMap && (
             <button className="act" style={{ fontSize: 11, padding: "3px 10px" }}
               title={t("Haritayı büyük pencerede aç")} onClick={() => setBig(true)}>
-              ⛶ {t("Büyüt")}</button>
+              <Icon name="buyut" size={12} /> {t("Büyüt")}</button>
           )}
           <button className="act" style={{ fontSize: 11, padding: "3px 10px" }}
             title={t("Grafikleri PDF rapor olarak çıkart (tam tur için önce ⟳ sıfırla)")}
-            onClick={exportTelePdf}>📄 PDF</button>
+            onClick={exportTelePdf}><Icon name="dosya" size={12} /> PDF</button>
         </div>
       )}
 
@@ -549,7 +549,7 @@ ${svgs}
         const iv = (v) => (v == null ? "—" : String(Math.round(v)));
         return (
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginTop: 8 }}>
-            <span className="chip" style={{ fontSize: 11 }}>📍 {Math.round(p.d)} {unit} · Δ {dlt(p.dt)}</span>
+            <span className="chip" style={{ fontSize: 11 }}><Icon name="sektor" size={12} /> {Math.round(p.d)} {unit} · Δ {dlt(p.dt)}</span>
             {ch.speed && cell(t("Hız"), p.spA, p.spB, iv, true)}
             {ch.throttle && cell(t("Gaz"), p.thA, p.thB, pct)}
             {ch.brake && cell(t("Fren"), p.brA, p.brB, pct)}
@@ -570,7 +570,7 @@ ${svgs}
       )}
       {cmpData && !cmpData.hasMap && (
         <div className="hint" style={{ marginTop: 6, opacity: .7 }}>
-          🗺 {t("Pist haritası çizilemedi — bu dosyada konum ya da yanal-G kanalı yok.")}
+          <Icon name="harita" size={13} /> {t("Pist haritası çizilemedi — bu dosyada konum ya da yanal-G kanalı yok.")}
         </div>
       )}
 
@@ -585,37 +585,37 @@ ${svgs}
           )}
         </div>
         <div ref={tracesRef}>
-        <TraceRow data={cmpData.data} title={`⏱ ${t("Zaman-Delta (B−A)")}`} unit={unit}
+        <TraceRow data={cmpData.data} title={<><Icon name="kronometre" size={13} /> {t("Zaman-Delta (B−A)")}</>} unit={unit}
           keys={K_DT} colors={C_DT} fmt={dlt} height={140} zero
           onCursor={hoverCursor} onAnchor={anchorD} xDomain={xWin} bounds={marks} cursorD={cursorD} />
         {ch.speed && (
-          <TraceRow data={cmpData.data} title={`🏁 ${t("Hız")} (km/h)`} unit={unit}
+          <TraceRow data={cmpData.data} title={<><Icon name="bayrak" size={13} /> {t("Hız")} (km/h)</>} unit={unit}
             keys={K_SP} colors={C_AB} fmt={sp1}
             onCursor={hoverCursor} onAnchor={anchorD} xDomain={xWin} bounds={marks} cursorD={cursorD}
             dots={speedDots} />
         )}
         {ch.throttle && (
-          <TraceRow data={cmpData.data} title={`🟢 ${t("Gaz")} %`} unit={unit}
+          <TraceRow data={cmpData.data} title={<><Icon name="pedal" size={13} /> {t("Gaz")} %</>} unit={unit}
             keys={K_TH} colors={C_AB} fmt={pct} height={110} dashB
             onCursor={hoverCursor} onAnchor={anchorD} xDomain={xWin} bounds={marks} cursorD={cursorD} />
         )}
         {ch.brake && (
-          <TraceRow data={cmpData.data} title={`🔴 ${t("Fren")} %`} unit={unit}
+          <TraceRow data={cmpData.data} title={<><Icon name="pedal" size={13} /> {t("Fren")} %</>} unit={unit}
             keys={K_BR} colors={C_AB} fmt={pct} height={110} dashB
             onCursor={hoverCursor} onAnchor={anchorD} xDomain={xWin} bounds={marks} cursorD={cursorD} />
         )}
         {ch.gear && (
-          <TraceRow data={cmpData.data} title={`⚙ ${t("Vites")}`} unit={unit}
+          <TraceRow data={cmpData.data} title={<><Icon name="ayar" size={13} /> {t("Vites")}</>} unit={unit}
             keys={K_G} colors={C_AB} fmt={int0} height={100} dashB
             onCursor={hoverCursor} onAnchor={anchorD} xDomain={xWin} bounds={marks} cursorD={cursorD} />
         )}
         {ch.rpm && (
-          <TraceRow data={cmpData.data} title={`🔧 ${t("RPM")}`} unit={unit}
+          <TraceRow data={cmpData.data} title={<><Icon name="somun" size={13} /> {t("RPM")}</>} unit={unit}
             keys={K_RPM} colors={C_AB} fmt={int0} height={100}
             onCursor={hoverCursor} onAnchor={anchorD} xDomain={xWin} bounds={marks} cursorD={cursorD} />
         )}
         {ch.steer && (
-          <TraceRow data={cmpData.data} title={`🕹 ${t("Direksiyon")}`} unit={unit}
+          <TraceRow data={cmpData.data} title={<><Icon name="pedal" size={13} /> {t("Direksiyon")}</>} unit={unit}
             keys={K_ST} colors={C_AB} fmt={sp1} height={100}
             onCursor={hoverCursor} onAnchor={anchorD} xDomain={xWin} bounds={marks} cursorD={cursorD} />
         )}
@@ -643,7 +643,7 @@ ${svgs}
 
         {/* Viraj analizi: apex (viraj ortası) hızları + fren mesafeleri (A/B) */}
         {corners.length > 0 ? (<>
-          <h3 style={{ fontSize: 13, margin: "14px 0 4px" }}>🏁 {t("Viraj Analizi")}</h3>
+          <h3 style={{ fontSize: 13, margin: "14px 0 4px" }}><Icon name="bayrak" size={13} /> {t("Viraj Analizi")}</h3>
           <div style={{ overflowX: "auto" }}>
           <table style={{ fontSize: 12 }}>
             <thead><tr>
@@ -685,7 +685,7 @@ ${svgs}
         <div className="wxmodal" onClick={() => setBig(false)} role="dialog" aria-modal="true">
           <div className="wxmbox map" onClick={(e) => e.stopPropagation()}>
             <div className="wxmhead">
-              <span>🗺 {t("Pist Haritası")}</span>
+              <span><Icon name="harita" size={14} /> {t("Pist Haritası")}</span>
               <button className="act" style={{ fontSize: 12, padding: "2px 10px" }}
                 title={t("Kapat")} onClick={() => setBig(false)}>✕</button>
             </div>
@@ -821,7 +821,7 @@ export default function TeleTab({
       </div>
       {parsed?.loading && <div className="hint">⏳ {parsed.duck
         ? t("DuckDB çözümleniyor (ilk açılışta motor indirilir)…") : t("Telemetri çözümleniyor…")}</div>}
-      {parsed?.error && <div className="hint warn">⚠ {t(parsed.error)}</div>}
+      {parsed?.error && <div className="hint warn"><Icon name="uyari" size={13} /> {t(parsed.error)}</div>}
       {parsed?.motec && (<>
         <div className="hint" style={{ marginTop: 4 }}>
           <b>{parsed.laps.length}</b> {t("tur çözümlendi")}
@@ -840,7 +840,7 @@ export default function TeleTab({
             <tbody>
               {parsed.laps.map((l) => (
                 <tr key={l.lap}>
-                  <td>{l.lap}{l.pit ? " 🅿" : ""}
+                  <td>{l.lap}{l.pit ? <>{" "}<Icon name="pit" size={12} /></> : ""}
                     {l.partial && <span className="hint" style={{ marginLeft: 4 }}>
                       {t("kısmi")}</span>}</td>
                   <td className="mono">{fmtLap(l.sec)}</td>
@@ -924,14 +924,14 @@ export default function TeleTab({
   );
 
   return (
-    <div style={{ padding: "2px 0 8px", fontFamily: "var(--rc-font-ui)" }}>
+    <div style={{ padding: "2px 0 8px", fontFamily: "var(--rc-font-ui)", animation: "rcin .26s ease-out" }}>
       {/* başlık + yükle */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
         <h2 style={{ margin: 0, fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".06em", fontSize: 22, fontWeight: 700 }}>{t("Telemetri")}</h2>
         <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>MoTeC · .duckdb · CSV</span>
         <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
           <button onClick={() => setImpOpen(true)}
-            style={{ padding: "8px 16px", borderRadius: 9, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>⬆ {t("Telemetri yükle")}</button>
+            style={{ padding: "8px 16px", borderRadius: 9, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontSize: 13, fontWeight: 600 }}><Icon name="yukle" size={13} /> {t("Telemetri yükle")}</button>
         </span>
       </div>
 
@@ -941,7 +941,7 @@ export default function TeleTab({
           <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="var(--rc-border-strong)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4v16h16" /><path d="m7 14 3-3 3 2 4-5" /></svg>
           <div style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 20 }}>{t("Henüz telemetri yok")}</div>
           <div style={{ fontSize: 12.5, color: "var(--rc-text-3)", lineHeight: 1.7, maxWidth: 430 }}>{t("Stint yuvalarına .duckdb dosyası yükle; iki turu karşılaştırmak için en az bir dosya gerekir.")}</div>
-          <button onClick={() => setImpOpen(true)} style={{ marginTop: 4, padding: "9px 18px", borderRadius: 10, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>⬆ {t("Telemetri yükle")}</button>
+          <button onClick={() => setImpOpen(true)} style={{ marginTop: 4, padding: "9px 18px", borderRadius: 10, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontSize: 13, fontWeight: 600 }}><Icon name="yukle" size={13} /> {t("Telemetri yükle")}</button>
         </div>
       )}
 
