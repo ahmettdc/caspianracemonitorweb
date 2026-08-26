@@ -109,16 +109,16 @@ export const EN = {
   "Code 80 Kalan": "Code 80 Remaining", "Yarış Süresi": "Race Time",
   "Strateji": "Strategy", "Stint Sayısı": "Stint Count",
   "Tahmini Toplam Tur": "Est. Total Laps",
-  "⚠ Plan hesaplanamıyor — süre, \"Avg Lap\" ve seçili stratejinin tur sayısı dolu ve geçerli olmalı (tur ≥ 0:30).":
-    "⚠ Plan cannot be computed — duration, \"Avg Lap\" and the selected strategy's lap count must all be filled in and valid (lap ≥ 0:30).",
-  "⚠ Plan tamamlanamadı": "⚠ Plan incomplete", "planlanmadı": "unplanned",
+  "Plan hesaplanamıyor — süre, \"Avg Lap\" ve seçili stratejinin tur sayısı dolu ve geçerli olmalı (tur ≥ 0:30).":
+    "Plan cannot be computed — duration, \"Avg Lap\" and the selected strategy's lap count must all be filled in and valid (lap ≥ 0:30).",
+  "Plan tamamlanamadı": "Plan incomplete", "planlanmadı": "unplanned",
   "stint sınırı": "stint limit",
   "S1 START LASTİKLERİ": "S1 STARTING TYRES",
   "QUAL İLE BAŞLA": "START ON QUAL", "4 YENİ": "4 NEW",
   "2 YENİ ÖN": "2 NEW FRONT", "2 YENİ ARKA": "2 NEW REAR",
   "2 YENİ SOL": "2 NEW LEFT", "2 YENİ SAĞ": "2 NEW RIGHT", "TEMİZLE": "CLEAR",
-  "⚠ Başlangıç lastiği seçilmedi — önce buradan başla, pit seçimleri buna zincirlenir":
-    "⚠ No starting tyres selected — start here first, pit choices chain from this",
+  "Başlangıç lastiği seçilmedi — önce buradan başla, pit seçimleri buna zincirlenir":
+    "No starting tyres selected — start here first, pit choices chain from this",
   "Tur": "Laps", "VE İht.": "VE Req.", "Pit Ayarı": "Pit Setup",
   /* --- rehber turu --- */
   "Rehberi başlat": "Start the guide", "Rehber": "Guide",
@@ -318,7 +318,7 @@ export const EN = {
   "YouTube'da aç": "Open on YouTube",
   "Kalan Tur": "Laps Left", "Kullanılan kuru lastik no": "Used dry tyre no",
   "wet (limitsiz)": "wet (unlimited)",
-  "⚠ %100'ü aşıyor — depo yetmez!": "⚠ Exceeds 100% — tank won't fit!",
+  "%100'ü aşıyor — depo yetmez!": "Exceeds 100% — tank won't fit!",
   "gerçek yakıt": "real fuel",
   // ipuçları
   "Depo daima": "The tank is always treated as",
@@ -361,7 +361,7 @@ export const EN = {
   "birden fazla": "used on more than one corner.",
   "köşede kullanılmış. Bir lastik ilk takıldığı köşeye kilitlenir; hatalı hücreyi düzelt.":
     "A tyre locks to its first corner; fix the offending cell.",
-  "⚠ Köşe ihlali: lastik": "⚠ Corner violation: tyre",
+  "Köşe ihlali: lastik": "Corner violation: tyre",
   "Start/Finish zamanları stint planından otomatik zincirlenir (pit süreleri dahil). Yarış bitişini aşan kısım süreye sayılmaz; tamamen yarış dışı kalan stintler soluk görünür.":
     "Start/Finish times chain automatically from the stint plan (pit times included). Time past the race finish doesn't count; fully out-of-race stints appear dimmed.",
   "Out lap ve dolum turları (yakıt Δ pozitif) otomatik hariç tutulur — Dahil kutusuyla elle değiştirebilirsin. Ortalamalar sadece dahil turlardan hesaplanır.":
@@ -387,7 +387,7 @@ export const EN = {
   "📋 PLAN": "📋 PLAN",
   "Stint planından otomatik — sondan önceki stintin Time Left değeri":
     "Auto from the stint plan — Time Left of the second-to-last stint",
-  "⚠ Lastik limiti doldu — yeni lastik seçilemez": "⚠ Tyre limit reached — no new tyres available",
+  "Lastik limiti doldu — yeni lastik seçilemez": "Tyre limit reached — no new tyres available",
   "🔴 CANLI": "🔴 LIVE", "Canlıdan otomatik — yarış saatinden hesaplanıyor":
     "Auto from live — calculated from the race clock",
   "odası bulunamadı — kodu kontrol et": "room not found — check the code",
@@ -839,7 +839,7 @@ export const EN = {
   "pist": "track",
   "Demo": "Demo",
   "Demo kapat": "Demo off",
-  "⛶ Büyük Pano": "⛶ Big Board",
+  "Büyük Pano": "Big Board",
   "✕ Küçült": "✕ Shrink",
   "Henüz araç verisi yok.": "No car data yet.",
   "Henüz tamamlanmış tur yok.": "No completed laps yet.",

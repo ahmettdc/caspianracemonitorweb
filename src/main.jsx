@@ -1,7 +1,7 @@
 import { StrictMode, Component } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
-import { ConfirmHost } from "./components.jsx";
+import { ConfirmHost, Icon } from "./components.jsx";
 import { isTauri } from "./tauriEnv";
 import { css } from "./styles";
 
@@ -51,7 +51,7 @@ class ErrorBoundary extends Component {
     return (
       <div style={S.wrap}>
         <div style={S.box}>
-          <div style={{ fontSize: 40, marginBottom: 8 }}>🏁</div>
+          <div style={{ fontSize: 40, marginBottom: 8 }}><Icon name="bayrak" size={40} /></div>
           <h1 style={S.h}>{en ? "Something went wrong" : "Bir şeyler ters gitti"}</h1>
           <p style={S.p}>
             {en

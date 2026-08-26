@@ -3,6 +3,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "rec
 import { classId, TEAM_COLORS } from "../constants";
 import { livePosSubscribe } from "../storage";
 import { buildPosData, teamColors } from "../posData";
+import { Icon } from "../components";
 
 /* Pozisyon–tur grafiği — kalıcı livepos düğümünden (teams/{tid}/livepos/{rid})
    tüm sahanın tur-tur pozisyonunu okur. Her araç bir çizgi (TAKIM renginde,
@@ -150,7 +151,7 @@ export default function PosChart({ t, tid, rid, field, myClassOnly, playerClass,
     return (
       <div className="card" data-tour="livepos" style={{ marginBottom: 12 }}>
         <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          📈 {t("Pozisyon Grafiği")}
+          <Icon name="telemetri" size={18} /> {t("Pozisyon Grafiği")}
           <span className="hint" style={{ margin: 0, fontWeight: 400 }}>
             {t("tur")} {data[0].lap}–{data[data.length - 1].lap} · {keys.length} {t("araç")}
             {only ? ` · ${t("Kendi sınıfım")}` : ""}</span>

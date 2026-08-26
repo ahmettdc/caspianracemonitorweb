@@ -992,7 +992,7 @@ ${bottomBar}
       <span style={{ fontSize: 12, color: "var(--rc-text-2)" }}>
         {cmpSel.length} {t("setup seçili")}{cmpSel.length === 1 ? ` · ${t("bir tane daha seç")}` : ""}</span>
       <button onClick={() => setCmpOpen(true)} disabled={!(cmpA && cmpB)}
-        style={{ padding: "7px 16px", borderRadius: 9, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: cmpA && cmpB ? "pointer" : "not-allowed", fontSize: 13, fontWeight: 600, opacity: cmpA && cmpB ? 1 : .55 }}>⚖ {t("Karşılaştır")}</button>
+        style={{ padding: "7px 16px", borderRadius: 9, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: cmpA && cmpB ? "pointer" : "not-allowed", fontSize: 13, fontWeight: 600, opacity: cmpA && cmpB ? 1 : .55 }}><Icon name="karsilastir" size={14} /> {t("Karşılaştır")}</button>
       <button onClick={() => setCmpSel([])}
         style={{ padding: "7px 12px", borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 13 }}>{t("Temizle")}</button>
     </div>
@@ -1033,7 +1033,7 @@ ${bottomBar}
       <div className="fshead">
         <span className="fsgrip" title={t("Boyutlandırmak için sürükle")}
           onPointerDown={startResize}>⤡</span>
-        <span className="fstitle">📺 {t("Canlı Yayın")}</span>
+        <span className="fstitle"><Icon name="goz" size={14} /> {t("Canlı Yayın")}</span>
         <span className="fsbtns">
           {[["tl", "◤"], ["tr", "◥"], ["bl", "◣"], ["br", "◢"]].map(([c, ch]) => (
             <button key={c} className={streamCorner === c ? "on" : ""}
@@ -1168,20 +1168,20 @@ ${bottomBar}
   );
   /* Komut paleti aksiyonları — sekmeler + hızlı ayarlar. */
   const cmdActions = [
-    { id: "dash", label: t("Dashboard"), keywords: "dash panel", icon: <Icon name="chart" size={15} />, run: () => setTab("dash") },
-    { id: "schedule", label: t("Resmi Yarışlar"), keywords: "schedule takvim race yarış lmugarage resmi official", icon: "🏁", run: () => setScheduleOnly(true) },
-    { id: "stint", label: t("Stint"), keywords: "stint", icon: <Icon name="cap" size={15} />, run: () => setTab("stint") },
-    { id: "fuel", label: t("Son Stint Yakıtı"), keywords: "fuel yakıt", icon: <Icon name="zap" size={15} />, run: () => setTab("fuel") },
-    { id: "live", label: t("Canlı"), keywords: "live canlı timing", icon: <Icon name="live" size={15} />, run: () => setTab("live") },
-    { id: "tyre", label: t("Lastik"), keywords: "tyre lastik", icon: <Icon name="tyre" size={15} />, run: () => setTab("tyre") },
-    { id: "drivers", label: t("Pilotlar"), keywords: "drivers pilot", icon: <Wheel size={13} />, run: () => setTab("drivers") },
-    { id: "tele", label: t("Telemetri"), keywords: "telemetry telemetri", icon: <Icon name="chart" size={15} />, run: () => setTab("tele") },
-    { id: "setup", label: t("Setup"), keywords: "setup", icon: <Icon name="wrench" size={15} />, run: () => setTab("setup") },
-    ...(raceChan ? [{ id: "rchat", label: t("Yarış Sohbeti"), keywords: "chat sohbet", icon: <Icon name="chat" size={15} />, run: () => setTab("rchat") }] : []),
+    { id: "dash", label: t("Dashboard"), keywords: "dash panel", icon: <Icon name="gosterge" size={15} />, run: () => setTab("dash") },
+    { id: "schedule", label: t("Resmi Yarışlar"), keywords: "schedule takvim race yarış lmugarage resmi official", icon: <Icon name="takvim" size={15} />, run: () => setScheduleOnly(true) },
+    { id: "stint", label: t("Stint"), keywords: "stint", icon: <Icon name="stint" size={15} />, run: () => setTab("stint") },
+    { id: "fuel", label: t("Son Stint Yakıtı"), keywords: "fuel yakıt", icon: <Icon name="yakit" size={15} />, run: () => setTab("fuel") },
+    { id: "live", label: t("Canlı"), keywords: "live canlı timing", icon: <Icon name="canli" size={15} />, run: () => setTab("live") },
+    { id: "tyre", label: t("Lastik"), keywords: "tyre lastik", icon: <Icon name="lastik" size={15} />, run: () => setTab("tyre") },
+    { id: "drivers", label: t("Pilotlar"), keywords: "drivers pilot", icon: <Icon name="kask" size={15} />, run: () => setTab("drivers") },
+    { id: "tele", label: t("Telemetri"), keywords: "telemetry telemetri", icon: <Icon name="telemetri" size={15} />, run: () => setTab("tele") },
+    { id: "setup", label: t("Setup"), keywords: "setup", icon: <Icon name="setup" size={15} />, run: () => setTab("setup") },
+    ...(raceChan ? [{ id: "rchat", label: t("Yarış Sohbeti"), keywords: "chat sohbet", icon: <Icon name="sohbet" size={15} />, run: () => setTab("rchat") }] : []),
     { id: "theme", label: theme === "light" ? t("Koyu temaya geç") : t("Açık temaya geç"), keywords: "theme tema dark light", icon: <Icon name={theme === "light" ? "moon" : "sun"} size={15} />, run: toggleTheme },
     { id: "density", label: t("Yoğunluğu değiştir"), keywords: "density yoğunluk", icon: <Icon name="rows" size={15} />, run: toggleDensity },
     { id: "lang", label: lang === "en" ? "Türkçe" : "English", keywords: "language dil", run: () => switchLang(lang === "en" ? "tr" : "en") },
-    ...(user ? [{ id: "chat", label: t("Sohbet"), keywords: "chat sohbet team", icon: <Icon name="chat" size={15} />, run: () => setChatOpen(true) }] : []),
+    ...(user ? [{ id: "chat", label: t("Sohbet"), keywords: "chat sohbet team", icon: <Icon name="sohbet" size={15} />, run: () => setChatOpen(true) }] : []),
     ...(curRace ? [{ id: "home", label: t("Ana Menü"), keywords: "home ana menü lobby", icon: <Icon name="home" size={15} />, run: leaveRace }] : []),
   ].map((a) => ({ ...a, group: ["theme", "density", "lang", "home"].includes(a.id) ? t("Komutlar") : t("Ekranlar") }));
   const cmdPalette = (
@@ -1373,7 +1373,7 @@ ${bottomBar}
                   <div key={`${e.t}-${i}`} style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 14px", borderTop: i > 0 ? "1px solid var(--rc-line-soft)" : "none" }}>
                     <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 14, width: 64, color: "var(--rc-brand-bright)" }}>{fmtHMS(e.t)}</b>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12.5, color: (WEATHER[e.w] || WEATHER.dry).col }}>{t((WEATHER[e.w] || WEATHER.dry).lbl)}</span>
-                    <button onClick={() => up({ weatherLog: (st.weatherLog || []).filter((x) => x !== e) })} style={{ marginLeft: "auto", width: 30, height: 28, borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 12 }}>🗑</button>
+                    <button onClick={() => up({ weatherLog: (st.weatherLog || []).filter((x) => x !== e) })} style={{ marginLeft: "auto", width: 30, height: 28, borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 12 }}><Icon name="sil" size={14} /></button>
                   </div>
                 ))}
               </div>
@@ -1495,7 +1495,7 @@ ${bottomBar}
                   <input type="text" value={st.avgLap} onChange={(e) => up({ avgLap: e.target.value })} style={bigInp} />
                   {avgSug && canEdit && (
                     <button onClick={() => up({ avgLap: avgSug.txt })} title={t("Canlı son 5 turun ortalaması — tıkla, plana uygula")}
-                      style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 7, padding: "7px 12px", borderRadius: 9, border: "1px solid rgba(55,214,122,.45)", background: "rgba(55,214,122,.10)", color: "var(--rc-ok)", cursor: "pointer", fontSize: 11.5, width: "100%" }}>⚡ {t("Canlı AVG5")} <b style={{ fontFamily: "var(--rc-font-display)" }}>{avgSug.txt}</b> — {t("uygula")}</button>
+                      style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 7, padding: "7px 12px", borderRadius: 9, border: "1px solid rgba(55,214,122,.45)", background: "rgba(55,214,122,.10)", color: "var(--rc-ok)", cursor: "pointer", fontSize: 11.5, width: "100%" }}><Icon name="simsek" size={14} /> {t("Canlı AVG5")} <b style={{ fontFamily: "var(--rc-font-display)" }}>{avgSug.txt}</b> — {t("uygula")}</button>
                   )}
                 </div>
               </div>
@@ -1531,7 +1531,7 @@ ${bottomBar}
                     <label style={lbl}>{t("Lider tur")} · m:ss.00</label>
                     <input type="text" value={st.leaderLap} placeholder={st.avgLap} onChange={(e) => up({ leaderLap: e.target.value })} style={{ width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", borderRadius: 10, color: "var(--rc-text)", padding: "11px 12px", fontFamily: "var(--rc-font-display)", fontSize: 17 }} />
                   </div>
-                  {racePlan.flagExtra > 0.5 && <div style={{ flex: "1 1 100%", fontSize: 11.5, color: "var(--rc-warn)" }}>🏁 {t("Lider bayrağı")}: +{racePlan.flagExtra.toFixed(0)}s → {t("son tur otomatik eklenir")}</div>}
+                  {racePlan.flagExtra > 0.5 && <div style={{ flex: "1 1 100%", fontSize: 11.5, color: "var(--rc-warn)" }}><Icon name="bayrak" size={12} /> {t("Lider bayrağı")}: +{racePlan.flagExtra.toFixed(0)}s → {t("son tur otomatik eklenir")}</div>}
                 </div>
               )}
             </div>
@@ -1580,7 +1580,7 @@ ${bottomBar}
                   {st.track && PIT_LANE_TIMES[st.track] != null && <div style={{ fontSize: 10.5, color: "var(--rc-text-3)", marginTop: 5 }}>{t("Pist verisi")}: {PIT_LANE_TIMES[st.track]}s · {trackName(st.track)}</div>}
                 </div>
                 <div style={{ flex: "1 1 150px", minWidth: 0 }}>
-                  <label style={{ ...lbl, display: "flex", alignItems: "center", gap: 4 }}>⛽ {t("Yakıt")} & <Bolt size={11} /> VE</label>
+                  <label style={{ ...lbl, display: "flex", alignItems: "center", gap: 4 }}><Icon name="yakit" size={13} /> {t("Yakıt")} & <Bolt size={11} /> VE</label>
                   {stepField(st.fuelTime, (v) => up({ fuelTime: v }), 1)}
                   <div style={{ fontSize: 10.5, color: "var(--rc-text-3)", marginTop: 5 }}>{t("Duraklamada geçen dolum süresi")}</div>
                 </div>
@@ -1605,7 +1605,7 @@ ${bottomBar}
             {/* Virtual Energy */}
             <div style={card}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-                <span style={hd}>⚡ Virtual Energy</span><span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{t("Tüketim ve yakıt karşılığı")}</span>
+                <span style={hd}><Icon name="simsek" size={14} /> Virtual Energy</span><span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{t("Tüketim ve yakıt karşılığı")}</span>
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
                 <div style={{ flex: "1 1 150px", minWidth: 0 }}>
@@ -1707,7 +1707,7 @@ ${bottomBar}
             {/* Canlı yayın */}
             <div style={card}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                <span style={hd}>📺 {t("Canlı yayın")}</span>
+                <span style={hd}><Icon name="goz" size={14} /> {t("Canlı yayın")}</span>
                 {ytId(st.streamUrl) && <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".09em", padding: "3px 10px", borderRadius: 99, border: "1px solid var(--rc-ok)", color: "var(--rc-ok)" }}>{t("bağlı")}</span>}
               </div>
               <label style={lbl}>{t("YouTube linki")}</label>
@@ -1717,7 +1717,7 @@ ${bottomBar}
               </div>
               {ytId(st.streamUrl) ? (
                 <div style={{ position: "relative", marginTop: 12, height: 112, borderRadius: 10, border: "1px solid var(--rc-border)", background: "var(--rc-surface-2)", overflow: "hidden" }}>
-                  <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", color: "var(--rc-border-strong)", fontSize: 26 }}>▶</span>
+                  <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", color: "var(--rc-border-strong)", fontSize: 26 }}><Icon name="oynat" size={26} /></span>
                   <span style={{ position: "absolute", left: 9, bottom: 8, fontSize: 10.5, color: "var(--rc-text-2)", background: "rgba(11,7,8,.75)", padding: "3px 8px", borderRadius: 6 }}>{t("Köşedeki mini oynatıcıda gösteriliyor")}</span>
                 </div>
               ) : (
@@ -1778,7 +1778,7 @@ ${bottomBar}
   /* activeKey: "menu" (ana menü) ya da aktif sekme; onTab: sekmeye tıklayınca. */
   const renderRail = (activeKey, onTab) => (
     <>
-      <button onClick={toggleRail} title={t("Menüyü aç")} style={railOpenBtn}>☰</button>
+      <button onClick={toggleRail} title={t("Menüyü aç")} style={railOpenBtn}><Icon name="menu" size={18} /></button>
       <nav style={navShell} data-tour="tabs">
         <button onClick={toggleRail} title={t("Menüyü gizle")} style={railToggle}>‹</button>
         <button onClick={leaveRace} style={navBtn(activeKey === "menu")}>
@@ -1787,18 +1787,18 @@ ${bottomBar}
         </button>
         <span style={{ ...railSep, margin: "6px 0 8px" }} />
         <button onClick={() => setTeamOpen(true)} data-tour="nav-team" style={navBtn(teamOpen)}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="3" width="16" height="18" rx="1.4" /><path d="M9 8h1M14 8h1M9 12h1M14 12h1M9 16h2v5" /></svg>
+          <Icon name="takim" size={20} />
           <span style={railLabel}>{t("Takım")}</span>
         </button>
         {[
-          ["dash", t("Dash"), <svg key="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 13a8 8 0 0 1 16 0" /><path d="M4 13v3.2M20 13v3.2" /><path d="m12 13 4.2-3.4" /><circle cx="12" cy="13" r="1.6" fill="currentColor" stroke="none" /></svg>],
-          ["stint", t("Stint"), <svg key="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="13.6" r="7.6" /><path d="M12 13.6V9.4" /><path d="M9.6 2.6h4.8" /><path d="M12 2.6V6" /><path d="m18.6 7.4 1.4-1.4" /></svg>],
-          ["fuel", t("Yakıt"), <svg key="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" /></svg>],
-          ["live", t("Canlı"), <svg key="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4.6 8a10 10 0 0 1 14.8 0M7.6 11a6 6 0 0 1 8.8 0" /><circle cx="12" cy="15" r="1.7" fill="currentColor" stroke="none" /></svg>],
-          ["tyre", t("Lastik"), <svg key="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9.2" /><circle cx="12" cy="12" r="4" /><path d="M12 2.8v2.6M12 18.6v2.6M2.8 12h2.6M18.6 12h2.6" /></svg>],
-          ["drivers", t("Pilot"), <svg key="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="9.3" /><circle cx="12" cy="12" r="2.8" fill="currentColor" stroke="none" /><path d="M2.9 12h6.3M14.8 12h6.3M12 14.8v6.3" /></svg>],
-          ["tele", t("Tele"), <svg key="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4v16h16" /><path d="m7 14 3-3 3 2 4-5" /></svg>],
-          ["setup", t("Setup"), <svg key="i" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M10.4 2.6h3.2l.35 2.3a7.4 7.4 0 0 1 1.72 1l2.1-.98 1.6 2.77-1.75 1.53a7.4 7.4 0 0 1 0 1.98l1.75 1.53-1.6 2.77-2.1-.98a7.4 7.4 0 0 1-1.72 1l-.35 2.3h-3.2l-.35-2.3a7.4 7.4 0 0 1-1.72-1l-2.1.98-1.6-2.77 1.75-1.53a7.4 7.4 0 0 1 0-1.98L4.23 7.69l1.6-2.77 2.1.98a7.4 7.4 0 0 1 1.72-1l.35-2.3Z" /><circle cx="12" cy="12" r="3" /></svg>],
+          ["dash", t("Dash"), <Icon key="i" name="gosterge" size={20} />],
+          ["stint", t("Stint"), <Icon key="i" name="stint" size={20} />],
+          ["fuel", t("Yakıt"), <Icon key="i" name="yakit" size={20} />],
+          ["live", t("Canlı"), <Icon key="i" name="canli" size={20} />],
+          ["tyre", t("Lastik"), <Icon key="i" name="lastik" size={20} />],
+          ["drivers", t("Pilot"), <Icon key="i" name="kask" size={20} />],
+          ["tele", t("Tele"), <Icon key="i" name="telemetri" size={20} />],
+          ["setup", t("Setup"), <Icon key="i" name="setup" size={20} />],
         ].map(([k, lbl, ico]) => (
           <button key={k} id={`tab-${k}`} data-tour={`nav-${k}`} onClick={() => onTab(k)} style={navBtn(activeKey === k)}>
             {ico}<span style={railLabel}>{lbl}</span>
@@ -1808,7 +1808,7 @@ ${bottomBar}
           <span style={railSep} />
           <button onClick={() => setChatOpen(true)} style={navBtn(false)} title={t("Yarış sohbeti")} data-tour="hchat">
             <span style={{ position: "relative", display: "inline-flex" }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 4H4a1.5 1.5 0 0 0-1.5 1.5V16A1.5 1.5 0 0 0 4 17.5h3V21l4-3.5h9A1.5 1.5 0 0 0 21.5 16V5.5A1.5 1.5 0 0 0 20 4Z" /></svg>
+              <Icon name="sohbet" size={20} />
               {chatUnread > 0 && (
                 <b style={{ position: "absolute", top: -5, right: -8, background: "var(--rc-brand-deep)", color: "#fff", borderRadius: 9, fontSize: 9, padding: "0 5px", fontFamily: "var(--rc-font-ui)", lineHeight: 1.5 }}>
                   {chatUnread > 99 ? "99+" : chatUnread}</b>
@@ -2007,7 +2007,7 @@ ${bottomBar}
               <div className="hint" style={{ marginTop: 22 }}>{t("Yükleniyor…")}</div>
             ) : !udoc.requested ? (<>
               {/* henüz kayıt talebi göndermemiş */}
-              <div style={{ fontSize: 34, margin: "14px 0 6px" }}>📝</div>
+              <div style={{ fontSize: 34, margin: "14px 0 6px" }}><Icon name="duzenle" size={30} /></div>
               <div className="disp" style={{ fontSize: 18, marginBottom: 8 }}>
                 {t("Kayıt talebi gönder")}</div>
               <div className="hint" style={{ marginBottom: 12 }}>
@@ -2032,7 +2032,7 @@ ${bottomBar}
                 <button className="histbtn" onClick={signOut}>{t("Çıkış yap")}</button>
               </div>
             </>) : (<>
-              <div style={{ fontSize: 34, margin: "14px 0 6px" }}>🔒</div>
+              <div style={{ fontSize: 34, margin: "14px 0 6px" }}><Icon name="kilit" size={30} /></div>
               <div className="disp" style={{ fontSize: 18, marginBottom: 8 }}>
                 {t("Erişim izni bekleniyor")}</div>
               <div className="hint" style={{ marginBottom: 16 }}>
@@ -2163,7 +2163,7 @@ ${bottomBar}
             <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
               {myRole === "owner" ? <><RoleIcon name="owner" size={11} /> {t("Sahip")}</>
                 : myRole === "editor" ? <><RoleIcon name="eng" size={11} /> {t("Mühendis")}</>
-                : myRole === "viewer" ? <>👁 {t("İzleyici")}</> : <>🙋 {t("Üye")}</>}
+                : myRole === "viewer" ? <><Icon name="goz" size={11} /> {t("İzleyici")}</> : <>🙋 {t("Üye")}</>}
             </span>);
           const acctInitials = (userName || user?.email || "?").trim().slice(0, 2).toUpperCase();
           const activeCount = activeF.length;
@@ -2233,15 +2233,15 @@ ${bottomBar}
               </span>
               <button onClick={() => { setCoachStart(0); setCoachOpen(true); }}
                 style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8,
-                  border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12 }}>🎓 {t("Rehber")}</button>
+                  border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12 }}><Icon name="rehber" size={14} /> {t("Rehber")}</button>
               <button onClick={() => setCmdOpen(true)} title={t("Komut paleti · ⌘K")}
                 style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "7px 12px", borderRadius: 8,
-                  border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 12 }}>🔎 {t("Ara")}
+                  border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 12 }}><Icon name="ara" size={14} /> {t("Ara")}
                 <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 10, border: "1px solid var(--rc-border)", borderRadius: 5, padding: "1px 5px" }}>⌘K</b></button>
               {isAdmin && (
                 <button onClick={() => setAdminOpen(true)} title={t("Kullanıcı yönetimi")}
                   style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8,
-                    border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12 }}>🛡 {t("Üyeler")}
+                    border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12 }}><Icon name="kalkan" size={14} /> {t("Üyeler")}
                   {Object.values(allUsers).filter((u) => u?.requested && u?.allowed !== true).length > 0 &&
                     <b style={{ background: "var(--rc-brand-deep)", color: "#fff", borderRadius: 99, fontSize: 9.5, padding: "0 5px" }}>
                       {Object.values(allUsers).filter((u) => u?.requested && u?.allowed !== true).length}</b>}
@@ -2251,7 +2251,7 @@ ${bottomBar}
                 <button onClick={() => { setMenuInfo((v) => !v); setMenuAcct(false); }} title={t("Sürüm ve bilgi")}
                   style={{ width: 32, height: 32, borderRadius: 8, cursor: "pointer", fontSize: 13,
                     border: `1px solid ${menuInfo ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
-                    background: menuInfo ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)", color: menuInfo ? "var(--rc-text)" : "var(--rc-text-3)" }}>ℹ</button>
+                    background: menuInfo ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)", color: menuInfo ? "var(--rc-text)" : "var(--rc-text-3)" }}><Icon name="bilgi" size={14} /></button>
                 {menuInfo && (
                   <span style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", zIndex: 60, width: 292,
                     background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 12,
@@ -2311,7 +2311,7 @@ ${bottomBar}
           {verNew && (
             <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "11px 16px",
               marginBottom: 16, border: "1px solid var(--rc-border-strong)", borderRadius: 11, background: "rgba(245,178,61,.08)" }}>
-              <span style={{ fontSize: 15 }}>⬆</span>
+              <span style={{ fontSize: 15 }}><Icon name="yukle" size={15} /></span>
               <span style={{ fontSize: 12.5, color: "var(--rc-text)" }}>{t("Sürüm")} <b>{APP_VERSION}</b> {t("hazır — yenilikleri gör.")}</span>
               <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
                 <button onClick={openVersions} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--rc-border)", background: "transparent", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12 }}>{t("Neler değişti")}</button>
@@ -2404,7 +2404,7 @@ ${bottomBar}
               <button onClick={() => setScheduleOnly(true)}
                 style={{ gridColumn: "1/-1", display: "flex", alignItems: "center", gap: 12, background: "var(--rc-surface-2)",
                   border: "1px solid var(--rc-border-strong)", borderRadius: 12, padding: 14, cursor: "pointer", color: "var(--rc-text)", textAlign: "left" }}>
-                <span style={{ width: 34, height: 34, borderRadius: 9, background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", display: "grid", placeItems: "center", fontSize: 16, flex: "0 0 auto" }}>🏁</span>
+                <span style={{ width: 34, height: 34, borderRadius: 9, background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", display: "grid", placeItems: "center", fontSize: 16, flex: "0 0 auto" }}><Icon name="bayrak" size={18} /></span>
                 <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, flex: 1 }}>
                   <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 15 }}>{t("Resmi Yarışlar")}</span>
                   <span style={{ fontSize: 11, color: "var(--rc-text-3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t("resmi yarış takvimi")}</span>
@@ -2470,8 +2470,8 @@ ${bottomBar}
                         {r.startsAt ? new Date(r.startsAt).toLocaleString(lang === "en" ? "en-GB" : "tr-TR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "—"}</span>
                       <button onClick={() => openRace(rid, "stint")} style={{ flex: "0 0 auto", padding: "7px 16px", borderRadius: 8, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontFamily: "var(--rc-font-display)", fontSize: 13, fontWeight: 700, letterSpacing: ".03em", textTransform: "uppercase" }}>{t("Aç")}</button>
                       {canEditTeam && (<>
-                        <button onClick={() => editRace(rid, r)} title={t("Düzenle")} style={{ width: 32, height: 32, flex: "0 0 auto", borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12 }}>✎</button>
-                        <button onClick={() => askDeleteRace(rid, r)} title={t("Sil")} style={{ width: 32, height: 32, flex: "0 0 auto", borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 12 }}>🗑</button>
+                        <button onClick={() => editRace(rid, r)} title={t("Düzenle")} style={{ width: 32, height: 32, flex: "0 0 auto", borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12 }}><Icon name="duzenle" size={14} /></button>
+                        <button onClick={() => askDeleteRace(rid, r)} title={t("Sil")} style={{ width: 32, height: 32, flex: "0 0 auto", borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 12 }}><Icon name="sil" size={14} /></button>
                       </>)}
                     </div>
                   </Fragment>
@@ -2489,7 +2489,7 @@ ${bottomBar}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 16 }}>
               <a href={DESKTOP_RELEASE_URL} target="_blank" rel="noopener noreferrer"
                 style={{ flex: "1 1 340px", display: "flex", alignItems: "center", gap: 14, border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)", padding: "16px 18px", textDecoration: "none", color: "var(--rc-text)" }}>
-                <span style={{ width: 44, height: 44, flex: "0 0 auto", borderRadius: 11, background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", display: "grid", placeItems: "center", fontSize: 19 }}>🖥</span>
+                <span style={{ width: 44, height: 44, flex: "0 0 auto", borderRadius: 11, background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", display: "grid", placeItems: "center", fontSize: 19 }}><Icon name="masaustu" size={19} /></span>
                 <span style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0, flex: 1 }}>
                   <b style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 16 }}>{t("Masaüstü uygulaması")}</b>
                   <span style={{ fontSize: 11.5, color: "var(--rc-text-3)", lineHeight: 1.5 }}>{t("Tarayıcısız, kendi penceresinde açılır — canlı timing köprüsü dahil. Sonraki sürümler uygulama içinden gelir.")}</span>
@@ -2498,7 +2498,7 @@ ${bottomBar}
               </a>
               <a href={BRIDGE_EXE_URL} target="_blank" rel="noopener noreferrer"
                 style={{ flex: "1 1 340px", display: "flex", alignItems: "center", gap: 14, border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)", padding: "16px 18px", textDecoration: "none", color: "var(--rc-text)" }}>
-                <span style={{ width: 44, height: 44, flex: "0 0 auto", borderRadius: 11, background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", display: "grid", placeItems: "center", fontSize: 19 }}>🪶</span>
+                <span style={{ width: 44, height: 44, flex: "0 0 auto", borderRadius: 11, background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", display: "grid", placeItems: "center", fontSize: 19 }}><Icon name="tuy" size={19} /></span>
                 <span style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0, flex: 1 }}>
                   <b style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 16 }}>{t("Hafif köprü · .exe")}</b>
                   <span style={{ fontSize: 11.5, color: "var(--rc-text-3)", lineHeight: 1.5 }}>{t("Oyunun çalıştığı PC için: tarayıcı motoru yok, oyunu yormaz. Paylaşımlı belleği okuyup canlı timing'i yayınlar.")}</span>
@@ -2718,7 +2718,7 @@ ${bottomBar}
                     <label style={lbl}>{t("Ortalama tur · m:ss.00")}</label>
                     <input type="text" value={st.avgLap} onChange={(e) => up({ avgLap: e.target.value })} style={bigInp} />
                     {avgSug && canEdit && (
-                      <button onClick={() => up({ avgLap: avgSug.txt })} style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 7, padding: "7px 12px", borderRadius: 9, border: "1px solid rgba(55,214,122,.45)", background: "rgba(55,214,122,.10)", color: "var(--rc-ok)", cursor: "pointer", fontSize: 11.5, width: "100%" }}>⚡ {t("Canlı AVG5")} <b style={{ fontFamily: "var(--rc-font-display)" }}>{avgSug.txt}</b> — {t("uygula")}</button>
+                      <button onClick={() => up({ avgLap: avgSug.txt })} style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 7, padding: "7px 12px", borderRadius: 9, border: "1px solid rgba(55,214,122,.45)", background: "rgba(55,214,122,.10)", color: "var(--rc-ok)", cursor: "pointer", fontSize: 11.5, width: "100%" }}><Icon name="simsek" size={14} /> {t("Canlı AVG5")} <b style={{ fontFamily: "var(--rc-font-display)" }}>{avgSug.txt}</b> — {t("uygula")}</button>
                     )}
                   </div>
                 </div>
@@ -2753,7 +2753,7 @@ ${bottomBar}
                       <label style={lbl}>{t("Lider tur · m:ss.00")}</label>
                       <input type="text" value={st.leaderLap} placeholder={st.avgLap} onChange={(e) => up({ leaderLap: e.target.value })} style={{ ...midInp, fontSize: 17 }} />
                     </div>
-                    {racePlan.flagExtra > 0.5 && <div style={{ flex: "1 1 100%", fontSize: 11.5, color: "var(--rc-warn)" }}>🏁 {t("Lider bayrağı")}: +{racePlan.flagExtra.toFixed(0)}s → {t("son tur otomatik eklenir")}</div>}
+                    {racePlan.flagExtra > 0.5 && <div style={{ flex: "1 1 100%", fontSize: 11.5, color: "var(--rc-warn)" }}><Icon name="bayrak" size={12} /> {t("Lider bayrağı")}: +{racePlan.flagExtra.toFixed(0)}s → {t("son tur otomatik eklenir")}</div>}
                   </div>
                 )}
               </div>
@@ -2796,12 +2796,12 @@ ${bottomBar}
                     {st.track && PIT_LANE_TIMES[st.track] != null && <div style={{ fontSize: 10.5, color: "var(--rc-text-3)", marginTop: 5 }}>{t("Pist verisi")}: {PIT_LANE_TIMES[st.track]}s · {trackName(st.track)}</div>}
                   </div>
                   <div style={{ flex: "1 1 150px", minWidth: 0 }}>
-                    <label style={lbl}>⛽ {t("Yakıt & VE")}</label>
+                    <label style={lbl}><Icon name="yakit" size={13} /> {t("Yakıt & VE")}</label>
                     <NumField value={st.fuelTime} onC={(v) => up({ fuelTime: v })} step="1" style={midInp} />
                     <div style={{ fontSize: 10.5, color: "var(--rc-text-3)", marginTop: 5 }}>{t("Duraklamada geçen dolum süresi")}</div>
                   </div>
                   <div style={{ flex: "1 1 150px", minWidth: 0 }}>
-                    <label style={lbl}>🛞 {t("Lastik limiti · adet")}</label>
+                    <label style={lbl}><Icon name="lastik" size={13} /> {t("Lastik limiti · adet")}</label>
                     <span style={stepBox}>
                       <button onClick={() => up({ tyreLimit: Math.max(0, (st.tyreLimit || 0) - 1) })} style={stepBtn}>−</button>
                       <b style={stepVal}>{st.tyreLimit || 0}</b>
@@ -2813,7 +2813,7 @@ ${bottomBar}
 
               <div style={card}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-                  <span style={cardHd}>⚡ Virtual Energy</span><span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{t("Tüketim ve yakıt karşılığı")}</span>
+                  <span style={cardHd}><Icon name="simsek" size={14} /> Virtual Energy</span><span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{t("Tüketim ve yakıt karşılığı")}</span>
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
                   <div style={{ flex: "1 1 150px", minWidth: 0 }}>
@@ -2902,7 +2902,7 @@ ${bottomBar}
               </div>
 
               <div style={card}>
-                <div style={{ ...cardHd, marginBottom: 12, fontSize: 16 }}>📺 {t("Canlı Yayın")}</div>
+                <div style={{ ...cardHd, marginBottom: 12, fontSize: 16 }}><Icon name="goz" size={16} /> {t("Canlı Yayın")}</div>
                 <label style={lbl}>{t("YouTube linki")}</label>
                 <div style={{ display: "flex", gap: 8 }}>
                   <input type="text" value={st.streamUrl} placeholder="https://youtube.com/watch?v=…" onChange={(e) => up({ streamUrl: e.target.value })} style={{ flex: 1, minWidth: 0, background: "var(--rc-surface-3)", border: "1px solid var(--rc-border-strong)", borderRadius: 10, color: "var(--rc-text)", padding: "11px 13px", fontSize: 12.5, fontFamily: "var(--rc-font-display)" }} />
@@ -3039,7 +3039,7 @@ ${bottomBar}
                       <span style={{ fontSize: 10.5, color: "var(--rc-text-3)" }}>{avStage ? t("Önizleme — Kaydet ile uygulanır") : t("Boşsa baş harflerin kullanılır")}</span>
                     </div>
                   </div>
-                  {avErr && <div style={{ fontSize: 12, color: "var(--rc-warn)", marginTop: 6 }}>⚠ {avErr}</div>}
+                  {avErr && <div style={{ fontSize: 12, color: "var(--rc-warn)", marginTop: 6 }}><Icon name="uyari" size={14} /> {avErr}</div>}
                 </div>
               </div>
               {myBadges.length > 0 && (
@@ -3184,7 +3184,7 @@ ${bottomBar}
                 boxShadow: "0 16px 44px rgba(0,0,0,.55)", display: "block", overflow: "hidden", textAlign: "left",
                 textTransform: "none", letterSpacing: 0, color: "var(--rc-text)", fontFamily: "var(--rc-font-ui)" }}>
                 <span style={{ display: "flex", alignItems: "center", gap: 9, padding: "13px 16px", borderBottom: "1px solid var(--rc-border)" }}>
-                  <span style={{ fontSize: 15 }}>🛰</span>
+                  <span style={{ fontSize: 15 }}><Icon name="kopru" size={15} /></span>
                   <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
                     <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 15, letterSpacing: ".03em" }}>{t("Canlı köprü")}</b>
                     <span style={{ fontSize: 10.5, color: "var(--rc-text-3)" }}>{t("otomatik")} · v{bVer}</span>
@@ -3211,7 +3211,7 @@ ${bottomBar}
                 {wasted?.wastedFps > 0 && wasted.suggest != null && (
                   <span style={{ display: "block", padding: "11px 16px", borderBottom: "1px solid var(--rc-border)" }}>
                     <span style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 11, color: "var(--rc-warn)", lineHeight: 1.55 }}>
-                      <span style={{ flex: "0 0 auto" }}>⚡</span>
+                      <span style={{ flex: "0 0 auto" }}><Icon name="simsek" size={13} /></span>
                       <span>{t("Oyun eklentisi saniyede")} ~{wasted.wastedFps} {t("kez bu uygulamanın okumadığı veriyi yazıyor")} — {t("oyunda takılma yapar.")}
                         <b style={{ display: "block", marginTop: 4, fontFamily: "var(--rc-font-display)", fontSize: 10.5, color: "var(--rc-text)" }}>UnsubscribedBuffersMask: {wasted.suggest}</b>
                       </span>
@@ -3228,7 +3228,7 @@ ${bottomBar}
                         try { await liveHistoryClearAll(curTeam, curRace); } catch { /* yoksay */ }
                       }}
                       style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--rc-border)",
-                        background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer", fontSize: 11.5 }}>🗑 {t("Tur geçmişini temizle")}</button>
+                        background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer", fontSize: 11.5 }}><Icon name="sil" size={13} /> {t("Tur geçmişini temizle")}</button>
                   </span>
                 )}
               </span>
@@ -3241,11 +3241,11 @@ ${bottomBar}
               style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "6px 12px",
                 borderRadius: 8, border: `1px solid ${sideOpen ? "var(--rc-brand-bright)" : "var(--rc-border)"}`,
                 background: sideOpen ? "rgba(150,0,24,.24)" : "var(--rc-surface-3)", color: "var(--rc-text)",
-                cursor: "pointer", fontSize: 12, whiteSpace: "nowrap" }}>⚙ {t("Yarış datası")}</button>
+                cursor: "pointer", fontSize: 12, whiteSpace: "nowrap" }}><Icon name="ayar" size={14} /> {t("Yarış datası")}</button>
             <button onClick={() => setPitboard(true)}
               style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "6px 12px",
                 borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text)",
-                cursor: "pointer", fontSize: 12, whiteSpace: "nowrap" }}>📟 {t("Pit Board")}</button>
+                cursor: "pointer", fontSize: 12, whiteSpace: "nowrap" }}><Icon name="pit-tabela" size={14} /> {t("Pit Board")}</button>
           </div>
         </div>
       </header>
@@ -3319,7 +3319,7 @@ ${bottomBar}
                   )}
                   {upcomingIsLast && (
                     <div style={{ flex: "1 1 150px", border: "1px solid rgba(55,214,122,.35)", borderRadius: 14, background: "rgba(55,214,122,.07)", padding: "14px 18px" }}>
-                      <div style={{ color: "var(--rc-text-3)", fontSize: 11, textTransform: "uppercase", letterSpacing: ".14em" }}>⚡ {t("Son pit VE")}</div>
+                      <div style={{ color: "var(--rc-text-3)", fontSize: 11, textTransform: "uppercase", letterSpacing: ".14em" }}><Icon name="simsek" size={13} /> {t("Son pit VE")}</div>
                       <div style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: "clamp(20px,2.4vw,30px)", color: "var(--rc-ok)", marginTop: 6 }}>{planLsf.refuel.toFixed(1)}%</div>
                     </div>
                   )}
@@ -3329,7 +3329,7 @@ ${bottomBar}
                 {liveInfo.lastDev != null && (
                   <div style={{ border: "1px solid var(--rc-ok)", borderRadius: 14, background: "rgba(55,214,122,.08)", padding: "16px 18px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                      <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: "clamp(17px,2vw,24px)", color: "var(--rc-ok)" }}>✔ P{liveInfo.lastPitIdx + 1} {t("işaretlendi")}</span>
+                      <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: "clamp(17px,2vw,24px)", color: "var(--rc-ok)" }}><Icon name="onay" size={18} /> P{liveInfo.lastPitIdx + 1} {t("işaretlendi")}</span>
                       <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--rc-text-3)", textTransform: "uppercase", letterSpacing: ".1em" }}>{fmtClock(st.actualPits[liveInfo.lastPitIdx])}</span>
                     </div>
                     <div style={{ display: "flex", gap: 18, flexWrap: "wrap", marginTop: 10, fontFamily: "var(--rc-font-display)", fontSize: "clamp(13px,1.5vw,16px)" }}>
@@ -3342,7 +3342,7 @@ ${bottomBar}
                         {(st.actualPits || []).map((v, i) => Number.isFinite(v) ? (
                           <span key={i} style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                             <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 15, width: 30 }}>P{i + 1}</b>
-                            <span style={{ fontSize: 12, color: "var(--rc-text-3)" }}>🔧 {t("Tamir süresi")}</span>
+                            <span style={{ fontSize: 12, color: "var(--rc-text-3)" }}><Icon name="somun" size={14} /> {t("Tamir süresi")}</span>
                             <input type="number" min="0" step="1" value={(st.pitRepairs || [])[i] || ""} placeholder="0"
                               onChange={(e) => setRepair(i, e.target.value)}
                               style={{ width: 74, background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", borderRadius: 9, color: "var(--rc-text)", padding: "7px 10px", fontFamily: "var(--rc-font-display)", fontSize: 14, textAlign: "right" }} />
@@ -3356,7 +3356,7 @@ ${bottomBar}
                 )}
 
                 {pitMismatch && (
-                  <div style={{ color: "var(--rc-warn)", fontSize: 13 }}>⚠ {t("oyunda")} {pitMismatch.game} {t("pit")}, {t("planda")} {pitMismatch.marked} {t("işaretli")}</div>
+                  <div style={{ color: "var(--rc-warn)", fontSize: 13 }}><Icon name="uyari" size={14} /> {t("oyunda")} {pitMismatch.game} {t("pit")}, {t("planda")} {pitMismatch.marked} {t("işaretli")}</div>
                 )}
 
                 {/* sıradaki pitte */}
@@ -3384,9 +3384,9 @@ ${bottomBar}
               <div onClick={(e) => e.stopPropagation()}
                 style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", padding: "14px 24px", borderTop: "1px solid var(--rc-line-soft)", background: "var(--rc-surface-2)" }}>
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 9, flexWrap: "wrap" }}>
-                  <span style={{ color: "var(--rc-text-3)", fontSize: 11, textTransform: "uppercase", letterSpacing: ".12em" }}>🔗 {t("Canlı Senkron")}</span>
-                  {[["autoPit", "🤖 " + t("Oto PIT"), t("Araç pit yoluna girince PIT otomatik işaretlenir (yalnız canlı kaynağı yazan PC tetikler)")],
-                    ["autoClock", "⏱ " + t("Oto Saat"), t("Planın geri sayımı oyunun kalan süresinden 5 sn'den fazla kayarsa başlangıç zamanı otomatik hizalanır")]].map(([k, label, tip]) => {
+                  <span style={{ color: "var(--rc-text-3)", fontSize: 11, textTransform: "uppercase", letterSpacing: ".12em" }}><Icon name="baglanti" size={13} /> {t("Canlı Senkron")}</span>
+                  {[["autoPit", <><Icon name="oto" size={13} /> {t("Oto PIT")}</>, t("Araç pit yoluna girince PIT otomatik işaretlenir (yalnız canlı kaynağı yazan PC tetikler)")],
+                    ["autoClock", <><Icon name="kronometre" size={13} /> {t("Oto Saat")}</>, t("Planın geri sayımı oyunun kalan süresinden 5 sn'den fazla kayarsa başlangıç zamanı otomatik hizalanır")]].map(([k, label, tip]) => {
                     const on = liveSyncOpt[k];
                     return (
                       <button key={k} title={tip} onClick={() => setSyncOpt(k, !on)}
@@ -3399,14 +3399,14 @@ ${bottomBar}
                 </span>
                 {drift != null && Math.abs(drift) > 1 && (
                   <span title={t("Plan saati − oyun saati")} style={{ fontSize: 11, padding: "5px 12px", borderRadius: 99, fontFamily: "var(--rc-font-display)",
-                    border: `1px solid ${Math.abs(drift) > 5 ? "var(--rc-warn)" : "var(--rc-border)"}`, color: Math.abs(drift) > 5 ? "var(--rc-warn)" : "var(--rc-text-3)" }}>⏱ {drift > 0 ? "+" : ""}{drift}s</span>
+                    border: `1px solid ${Math.abs(drift) > 5 ? "var(--rc-warn)" : "var(--rc-border)"}`, color: Math.abs(drift) > 5 ? "var(--rc-warn)" : "var(--rc-text-3)" }}><Icon name="kronometre" size={13} /> {drift > 0 ? "+" : ""}{drift}s</span>
                 )}
                 {lastAuto && Date.now() - lastAuto.at < 120000 && (
-                  <span style={{ fontSize: 11, padding: "5px 12px", borderRadius: 99, border: "1px solid var(--rc-ok)", color: "var(--rc-ok)" }}>🤖 S{lastAuto.stint} {t("otomatik işaretlendi")}</span>
+                  <span style={{ fontSize: 11, padding: "5px 12px", borderRadius: 99, border: "1px solid var(--rc-ok)", color: "var(--rc-ok)" }}><Icon name="oto" size={13} /> S{lastAuto.stint} {t("otomatik işaretlendi")}</span>
                 )}
                 <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                   {liveInfo.pitsDone > 0 && (<>
-                    <button onClick={unmarkPit} style={{ padding: "10px 18px", borderRadius: 11, border: "1px solid var(--rc-warn)", background: "transparent", color: "var(--rc-warn)", cursor: "pointer", fontSize: 13 }}>↩ {t("Geri al")}</button>
+                    <button onClick={unmarkPit} style={{ padding: "10px 18px", borderRadius: 11, border: "1px solid var(--rc-warn)", background: "transparent", color: "var(--rc-warn)", cursor: "pointer", fontSize: 13 }}><Icon name="geri-al" size={14} /> {t("Geri al")}</button>
                     <button onClick={resetPits} style={{ padding: "10px 18px", borderRadius: 11, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 13 }}>⟲ {t("Sıfırla")}</button>
                   </>)}
                   {liveInfo.pitsDone < racePlan.rows.length - 1 ? (
@@ -3419,9 +3419,9 @@ ${bottomBar}
                         border: `2px solid ${liveInfo.phase === "pit" ? "var(--rc-border)" : "var(--rc-brand-bright)"}`,
                         background: liveInfo.phase === "pit" ? "var(--rc-surface-3)" : "var(--rc-brand)",
                         color: liveInfo.phase === "pit" ? "var(--rc-text-3)" : "var(--rc-on-brand)" }}>
-                      {liveInfo.phase === "pit" ? "⛽ " + t("PIT YOLUNDA") : "✔ PIT"} — S{liveInfo.stintIdx + 1}</button>
+                      {liveInfo.phase === "pit" ? <><Icon name="yakit" size={20} /> {t("PIT YOLUNDA")}</> : <><Icon name="onay" size={20} /> PIT</>} — S{liveInfo.stintIdx + 1}</button>
                   ) : (
-                    <span style={{ color: "var(--rc-ok)", fontFamily: "var(--rc-font-display)", fontSize: "clamp(15px,1.8vw,20px)", fontWeight: 700 }}>✔ {t("Tüm pitler yapıldı")}</span>
+                    <span style={{ color: "var(--rc-ok)", fontFamily: "var(--rc-font-display)", fontSize: "clamp(15px,1.8vw,20px)", fontWeight: 700 }}><Icon name="onay" size={16} /> {t("Tüm pitler yapıldı")}</span>
                   )}
                 </span>
               </div>
@@ -3493,7 +3493,7 @@ ${bottomBar}
                   <input type="text" value={suQuery} placeholder={t("Dosya, araç, not ara…")} onChange={(e) => setSuQuery(e.target.value)}
                     style={{ background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", borderRadius: 9, color: "var(--rc-text)", fontSize: 13, padding: "8px 12px", width: 220, textTransform: "none" }} />
                   <button onClick={() => setSuUpOpen(true)}
-                    style={{ padding: "8px 14px", borderRadius: 9, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>⬆ {t("Setup yükle")}</button>
+                    style={{ padding: "8px 14px", borderRadius: 9, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}><Icon name="yukle" size={14} /> {t("Setup yükle")}</button>
                 </span>
               </div>
 
@@ -3502,8 +3502,8 @@ ${bottomBar}
                 <button onClick={() => setSuFTrack("")} style={chip(!suFTrack)}>{t("Tümü")}</button>
                 {poolTracks.map((tr) => <button key={tr.id} onClick={() => setSuFTrack(tr.id)} style={chip(suFTrack === tr.id)}>{trackFlag(tr.id)} {tr.name}</button>)}
                 <span style={{ width: 1, height: 22, background: "var(--rc-border)" }} />
-                {[["", t("Kuru + Wet")], ["dry", "☀️ " + t("Kuru")], ["wet", "🌧 Wet"]].map(([v, l]) => <button key={v || "all"} onClick={() => setSuFCond(v)} style={chip(suFCond === v)}>{l}</button>)}
-                <button onClick={() => setSuMine((v) => !v)} style={chip(suMine)}>👤 {t("Benim")}</button>
+                {[["", t("Kuru + Wet")], ["dry", <><Icon name="kuru" size={13} /> {t("Kuru")}</>], ["wet", <><Icon name="islak" size={13} /> Wet</>]].map(([v, l]) => <button key={v || "all"} onClick={() => setSuFCond(v)} style={chip(suFCond === v)}>{l}</button>)}
+                <button onClick={() => setSuMine((v) => !v)} style={chip(suMine)}><Icon name="kask" size={13} /> {t("Benim")}</button>
                 <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
                   <span style={{ display: "flex", border: "1px solid var(--rc-border)", borderRadius: 9, overflow: "hidden" }}>
                     <button onClick={() => suView !== "cards" && toggleSuView()} title={t("Kartlar")} style={{ width: 34, height: 30, border: "none", cursor: "pointer", fontSize: 13, background: suView === "cards" ? "rgba(150,0,24,.28)" : "var(--rc-surface-3)", color: suView === "cards" ? "var(--rc-text)" : "var(--rc-text-3)" }}>⊞</button>
@@ -3516,7 +3516,7 @@ ${bottomBar}
                 </span>
               </div>
 
-              {suDelErr && <div style={{ marginBottom: 12, padding: "10px 14px", borderRadius: 11, border: "1px solid var(--rc-warn)", background: "rgba(245,178,61,.10)", fontSize: 12.5, color: "var(--rc-warn)" }}>⚠ {suDelErr}</div>}
+              {suDelErr && <div style={{ marginBottom: 12, padding: "10px 14px", borderRadius: 11, border: "1px solid var(--rc-warn)", background: "rgba(245,178,61,.10)", fontSize: 12.5, color: "var(--rc-warn)" }}><Icon name="uyari" size={14} /> {suDelErr}</div>}
 
               {!suList.length && (
                 <div style={{ border: "1.5px dashed var(--rc-border-strong)", borderRadius: 14, background: "var(--rc-surface-2)", padding: "46px 24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 11 }}>
@@ -3543,7 +3543,7 @@ ${bottomBar}
               ))}
               {suHasMore && (
                 <div style={{ textAlign: "center", marginTop: 10 }}>
-                  <button onClick={loadMoreSetups} style={{ padding: "9px 20px", borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12.5 }}>⬇ {t("Daha fazla yükle")}</button>
+                  <button onClick={loadMoreSetups} style={{ padding: "9px 20px", borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12.5 }}><Icon name="indir" size={14} /> {t("Daha fazla yükle")}</button>
                 </div>
               )}
 
@@ -3590,10 +3590,10 @@ ${bottomBar}
           {tab === "rchat" && raceChan && (
             <div style={{ border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)", overflow: "hidden", display: "flex", flexDirection: "column", animation: "rcin .26s ease-out" }}>
               <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--rc-border)", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".06em", fontSize: 17, fontWeight: 700 }}>🏁 {races[curRace]?.name || t("Yarış Sohbeti")}</span>
+                <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".06em", fontSize: 17, fontWeight: 700 }}><Icon name="bayrak" size={17} /> {races[curRace]?.name || t("Yarış Sohbeti")}</span>
                 <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{t("yarışa özel kanal")}</span>
                 <button onClick={toggleChatSound} title={chatSound ? t("Bildirim sesini kapat") : t("Bildirim sesini aç")}
-                  style={{ marginLeft: "auto", background: "none", border: "none", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 15 }}>{chatSound ? "🔔" : "🔕"}</button>
+                  style={{ marginLeft: "auto", background: "none", border: "none", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 15 }}>{chatSound ? <Icon name="zil" size={15} /> : <Icon name="zil-kapali" size={15} />}</button>
               </div>
               {chatBody(raceChan, "min(58vh,440px)")}
             </div>

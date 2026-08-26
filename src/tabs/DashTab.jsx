@@ -2,7 +2,7 @@ import { fmtHMS, WX, wxId } from "../engine";
 import { WetIcon } from "../WetIcon";
 import { ASSET, AV, TRACK_ASSET, PIT_LANE_TIMES, CAR_CLASSES, trackName, carName } from "../constants";
 import { carImageSrc } from "../teamAssets";
-import { Tyre, Bolt } from "../components";
+import { Tyre, Bolt, Icon } from "../components";
 
 /* Dashboard (v2.0 · handoff-spec/ekranlar/03-dashboard.md).
    Hero: araç | pist kartı + 4 KPI + canlı stint bandı. Alt: stint programı tablosu +
@@ -74,7 +74,7 @@ export default function DashTab({
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <h2 style={{ margin: 0, fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".07em", fontSize: 20, fontWeight: 700 }}>{t("Dashboard")}</h2>
             <button onClick={() => exportPdf("stint")} data-tour="pdf"
-              style={{ marginLeft: "auto", padding: "8px 14px", borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer", fontSize: 12.5 }}>🖨 PDF</button>
+              style={{ marginLeft: "auto", padding: "8px 14px", borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer", fontSize: 12.5 }}><Icon name="yazdir" size={13} /> PDF</button>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <div style={kpi}><div style={{ ...kpiV, fontWeight: 600, color: "var(--rc-ok)" }}>{live ? fmtHMS(liveInfo.remaining / 1000) : fmtHMS(racePlan.raceSec)}</div><div style={kpiL}>{live ? t("Kalan") : t("Yarış Süresi")}</div></div>
@@ -166,7 +166,7 @@ export default function DashTab({
               </div>
             )}
             {tyreInfo.conflicts.length > 0 && (
-              <div style={{ marginTop: 8, fontSize: 11.5, color: "var(--rc-danger)" }}>{t("⚠ Köşe ihlali: lastik")} {tyreInfo.conflicts.join(", ")}</div>
+              <div style={{ marginTop: 8, fontSize: 11.5, color: "var(--rc-danger)" }}><Icon name="uyari" size={12} /> {t("Köşe ihlali: lastik")} {tyreInfo.conflicts.join(", ")}</div>
             )}
           </div>
 

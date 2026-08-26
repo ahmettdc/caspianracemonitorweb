@@ -4,6 +4,7 @@ import { classId, classAccent, CAR_CLASSES } from "../constants";
 import { wetnessLevel, rainLevel, WEATHER } from "../engine";
 import { WetIcon } from "../WetIcon";
 import { TrackTempIcon } from "../TrackTempIcon";
+import { Icon } from "../components";
 import { packBins, unpackBins } from "../trackShape";
 import { observeSector, sectorFractions, sectorRanges,
   packSectors, unpackSectors, emptySectors,
@@ -381,7 +382,7 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
   const conditionBadge = hasCond ? (
     <div className="mapcond">
       {(isFCY || flag === "Yellow") && (
-        <span className="mapcond-flag">⚑ {isFCY ? "FCY" : t("Yellow")}
+        <span className="mapcond-flag"><Icon name="flama" size={14} /> {isFCY ? "FCY" : t("Yellow")}
           {flag === "Yellow" && session?.yellowSectors?.length
             ? " " + session.yellowSectors.map((s) => "S" + s).join("·") : ""}</span>
       )}
@@ -498,11 +499,11 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
           birlikte güncelleniyordu (çift maliyet). */}
       {!zoom && topSlot}
       <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        🗺 {t("Pist Haritası")}
+        <Icon name="harita" size={16} /> {t("Pist Haritası")}
         <span className="hint" style={{ margin: 0, fontWeight: 400 }}>{count}</span>
         <button className="act" style={{ marginLeft: "auto", fontSize: 11, padding: "3px 10px" }}
           title={t("Haritayı tam ekranda aç")}
-          onClick={() => setZoom(true)}>⛶ {t("Büyüt")}</button>
+          onClick={() => setZoom(true)}><Icon name="buyut" size={12} /> {t("Büyüt")}</button>
         <button className="act" style={{ fontSize: 11, padding: "3px 10px" }}
           title={t("Haritayı ayrı pencerede aç")}
           onClick={openWin}>⧉ {t("Pencere")}</button>
@@ -523,7 +524,7 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
         <div className="wxmbox map" onClick={(e) => e.stopPropagation()}>
           <div className="wxmhead">
             <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              🗺 {t("Pist Haritası")}
+              <Icon name="harita" size={16} /> {t("Pist Haritası")}
               <span style={{ fontSize: 12, color: "var(--dim)", textTransform: "none",
                 letterSpacing: 0 }}>· {count}</span>
             </span>

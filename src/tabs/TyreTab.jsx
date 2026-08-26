@@ -1,6 +1,8 @@
 /* Lastik stratejisi (v2.0 · handoff-spec/ekranlar/06-lastik.md). Limit sayacı +
    set envanteri + köşe bazlı atama tablosu + hızlı atama + çakışma uyarısı.
    Türetilmiş tyreInfo/racePlan ve handler'lar App'ten prop gelir. */
+import { Icon } from "../components";
+
 const TY = ["FL", "FR", "RL", "RR"];
 const TY_COL = { "": "#37D67A", t2: "#F2C94C", tq: "#4D9FFF", t3: "#F0604D", t4: "#B91C1C", tw: "#7FE3A0", terr: "var(--rc-danger)" };
 const colOf = (cls) => TY_COL[cls] ?? "#37D67A";
@@ -149,7 +151,7 @@ export default function TyreTab({
 
       {tyreInfo.conflicts.length > 0 && (
         <div style={{ marginTop: 12, display: "flex", alignItems: "flex-start", gap: 9, padding: "11px 14px", borderRadius: 11, border: "1px solid var(--rc-danger)", background: "rgba(255,77,94,.08)", fontSize: 12, color: "#FFC9C0", lineHeight: 1.6 }}>
-          <span style={{ flex: "0 0 auto", fontSize: 14 }}>⚠</span>
+          <span style={{ flex: "0 0 auto", fontSize: 14 }}><Icon name="uyari" size={14} /></span>
           <span>{t("Köşe kuralı ihlali")} — <b>{tyreInfo.conflicts.join(", ")}</b> {t("birden fazla köşede kullanılmış. Bir lastik ilk takıldığı köşeye kilitlenir; hatalı hücreyi düzelt.")}</span>
         </div>
       )}

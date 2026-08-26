@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { isTauri } from "./tauriEnv";
+import { Icon } from "./components";
 
 /* Masaüstü (Tauri) kabuğu içinde çalışırken başlangıçta güncelleme kontrol
    eder; varsa küçük bir şerit gösterir. Web derlemesinde (isTauri=false)
@@ -53,7 +54,7 @@ export default function UpdateBanner({ t }) {
   return (
     <div className="updatebar" role="status">
       {status === "available" && (<>
-        <span>⬆ {t("Yeni sürüm hazır")}{update?.version ? ` — v${update.version}` : ""}</span>
+        <span><Icon name="yukle" size={14} /> {t("Yeni sürüm hazır")}{update?.version ? ` — v${update.version}` : ""}</span>
         <button className="act" onClick={install}>{t("Güncelle")}</button>
       </>)}
       {status === "downloading" && <span>{t("İndiriliyor")}… {pct}%</span>}
