@@ -1159,6 +1159,13 @@ ${bottomBar}
     <VersionModal open={verOpen} onClose={() => setVerOpen(false)} t={t} lang={lang}
       onStartGuide={() => { setVerOpen(false); setCoachStart(TOUR_FOR[tab] ?? 0); setCoachOpen(true); }} />
   );
+  /* Üye yönetimi modalı — ana menü, takvim VE yarış görünümlerinde açılabilsin diye
+     değişken olarak tutulur (buton ana menüdeydi ama modal yalnız yarış görünümünde
+     render ediliyordu → ana menüde "Üyeler" açılmıyordu). */
+  const adminModal = adminOpen && isAdmin && user && (
+    <AdminModal open onClose={() => setAdminOpen(false)} users={allUsers} meUid={user.uid}
+      onToggle={(uid, allow) => setUserAllowed(uid, allow).catch(() => {})} t={t} lang={lang} />
+  );
   /* Yetki reddi kutucuğu — viewer bir yarışta düzenleme deneyince belirir (edit() muhafızı).
      key={deny} her tıkta remount → animasyon yeniden oynar; ~2.6 sn sonra kendini kapatır. */
   const denyToast = deny > 0 && (
@@ -2152,7 +2159,7 @@ ${bottomBar}
     return (
       <div className="rc">
         <UpdateBanner t={t} />
-        {teamModal}{createJoinModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}{cmdPalette}
+        {teamModal}{createJoinModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}{cmdPalette}{adminModal}
         {(() => {
           /* ================= v2.0 ANA MENÜ (handoff-spec/ekranlar/01-menu.md) =================
              Tam sayfa menü; eski ortalanmış .lobby kutusunun yerine. Tüm handler'lar mevcut
@@ -3087,10 +3094,7 @@ ${bottomBar}
         </div>
         );
       })()}
-      {adminOpen && isAdmin && (
-        <AdminModal open onClose={() => setAdminOpen(false)} users={allUsers} meUid={user.uid}
-          onToggle={(uid, allow) => setUserAllowed(uid, allow).catch(() => {})} t={t} lang={lang} />
-      )}
+      {adminModal}
       <div style={shell}>
         {renderRail(tab, (k) => setTab(k))}
 
