@@ -1166,6 +1166,104 @@ ${bottomBar}
     <AdminModal open onClose={() => setAdminOpen(false)} users={allUsers} meUid={user.uid}
       onToggle={(uid, allow) => setUserAllowed(uid, allow).catch(() => {})} t={t} lang={lang} />
   );
+  /* Profil & rozetler modalı — ana menü VE yarış görünümlerinde açılabilsin diye
+     değişken (buton ana menüdeydi ama modal yalnız yarış görünümünde çiziliyordu). */
+  const profileModal = profOpen && user && (() => {
+        const av = avStage || myAvatar || user.photoURL;
+        const initials = ((profName || user.email || "?").trim().split(/\s+/).filter(Boolean)
+          .map((w) => w[0]).slice(0, 2).join("") || (user.email || "?")[0]).toUpperCase();
+        const lbl = { display: "block", color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 6 };
+        return (
+        <div className="rc" onClick={() => setProfOpen(false)} role="dialog" aria-modal="true"
+          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(10,6,10,.74)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
+          <div onClick={(e) => e.stopPropagation()}
+            style={{ width: "min(680px,96vw)", maxHeight: "86vh", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
+            {/* başlık */}
+            <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "18px 20px", borderBottom: "1px solid var(--rc-border)" }}>
+              <span style={{ width: 52, height: 52, borderRadius: "50%", background: "var(--rc-brand)", color: "var(--rc-on-brand)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 20, flex: "0 0 auto", overflow: "hidden" }}>
+                {av ? <img src={av} alt="" referrerPolicy={/^https?:/.test(av) ? "no-referrer" : undefined} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : initials}</span>
+              <span style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}>
+                <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 22, letterSpacing: ".02em" }}>{profName || user.email}</b>
+                <span style={{ fontSize: 11.5, color: "var(--rc-text-3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{[user.email, teamData?.meta?.name].filter(Boolean).join(" · ")}</span>
+              </span>
+              <button onClick={() => setProfOpen(false)} style={{ marginLeft: "auto", width: 32, height: 32, borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 15, lineHeight: 1 }}>✕</button>
+            </div>
+            {/* gövde: ad + görsel | rozetler */}
+            <div style={{ overflowY: "auto", padding: "18px 20px 22px", display: "flex", flexWrap: "wrap", gap: 18 }}>
+              <div style={{ flex: "1 1 300px", minWidth: 0, display: "flex", flexDirection: "column", gap: 14 }}>
+                <div>
+                  <label style={lbl}>{t("Görünen ad")}</label>
+                  <input type="text" value={profName} onChange={(e) => setProfName(e.target.value)}
+                    style={{ width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)", border: "1px solid var(--rc-border-strong)", borderRadius: 10, color: "var(--rc-text)", padding: "11px 14px", fontFamily: "var(--rc-font-display)", fontSize: 18, fontWeight: 700, textTransform: "none" }} />
+                  <div style={{ color: "var(--rc-text-3)", fontSize: 11, marginTop: 5 }}>{t("Timing tablosunda ve sohbette bu ad görünür")}</div>
+                </div>
+                <div>
+                  <label style={lbl}>{t("Profil görseli")}</label>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{ width: 70, height: 70, flex: "0 0 auto", border: "1.5px dashed var(--rc-border-strong)", borderRadius: "50%", background: "var(--rc-surface-2)", display: "grid", placeItems: "center", fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 20, color: "var(--rc-text-3)", overflow: "hidden" }}>
+                      {av ? <img src={av} alt="" referrerPolicy={/^https?:/.test(av) ? "no-referrer" : undefined} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : initials}</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                      <span style={{ display: "flex", gap: 7 }}>
+                        <input id="avfile" type="file" accept={IMG_ACCEPT_TYPES.join(",")} style={{ display: "none" }}
+                          onChange={(e) => { onAvatarFile(e.target.files?.[0]); e.target.value = ""; }} />
+                        <button disabled={avBusy} onClick={() => document.getElementById("avfile")?.click()}
+                          style={{ padding: "6px 13px", borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer", fontSize: 12 }}>{avBusy ? t("Yükleniyor…") : t("Yükle")}</button>
+                        {(myAvatar || avStage) && (
+                          <button disabled={avBusy} onClick={async () => { setAvStage(""); setAvErr(""); await clearUserAvatar(user.uid).catch(() => {}); setMyAvatar(""); }}
+                            style={{ padding: "6px 13px", borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 12 }}>{t("Kaldır")}</button>
+                        )}
+                      </span>
+                      <span style={{ fontSize: 10.5, color: "var(--rc-text-3)" }}>{avStage ? t("Önizleme — Kaydet ile uygulanır") : t("Boşsa baş harflerin kullanılır")}</span>
+                    </div>
+                  </div>
+                  {avErr && <div style={{ fontSize: 12, color: "var(--rc-warn)", marginTop: 6 }}><Icon name="uyari" size={14} /> {avErr}</div>}
+                </div>
+              </div>
+              {myBadges.length > 0 && (
+                <div style={{ flex: "1 1 280px", minWidth: 260, display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div style={{ border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface-2)", padding: 16 }}>
+                    <div style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 13, fontWeight: 700, color: "var(--rc-brand-bright)", marginBottom: 12 }}>{t("Rozetler")}</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 9 }}>
+                      {myBadges.map((b) => {
+                        const on = !b.locked;
+                        return (
+                          <span key={b.lbl} title={t(b.lbl)} style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "8px 13px 8px 9px", borderRadius: 10, border: `1px solid ${on ? b.col + "66" : "var(--rc-border)"}`, background: on ? "var(--rc-surface-3)" : "transparent", opacity: on ? 1 : .5 }}>
+                            <span style={{ width: 27, height: 27, flex: "0 0 auto", borderRadius: 8, display: "inline-flex", alignItems: "center", justifyContent: "center", background: on ? b.col + "1F" : "var(--rc-surface-3)", color: on ? b.col : "var(--rc-icon-off)" }}>{b.ico}</span>
+                            <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+                              <b style={{ fontSize: 12, whiteSpace: "nowrap" }}>{t(b.lbl)}</b>
+                              {b.note && <span style={{ fontSize: 10, color: "var(--rc-text-3)", whiteSpace: "nowrap" }}>{t(b.note)}</span>}
+                            </span>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            {/* alt */}
+            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 20px", borderTop: "1px solid var(--rc-border)", background: "var(--rc-surface-2)" }}>
+              <span style={{ color: "var(--rc-text-3)", fontSize: 11.5 }}>{t("Odalarda ve stint programında bu isim görünür.")}</span>
+              <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+                <button onClick={() => { setAvStage(""); setAvErr(""); setProfOpen(false); }}
+                  style={{ padding: "9px 16px", borderRadius: 10, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 13 }}>{t("Vazgeç")}</button>
+                <button disabled={!profName.trim()} style={{ padding: "9px 20px", borderRadius: 10, border: `1px solid ${profName.trim() ? "var(--rc-brand-bright)" : "var(--rc-border)"}`, background: profName.trim() ? "var(--rc-brand)" : "var(--rc-surface-3)", color: profName.trim() ? "var(--rc-on-brand)" : "var(--rc-text-3)", cursor: profName.trim() ? "pointer" : "not-allowed", fontFamily: "var(--rc-font-display)", fontSize: 15, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase" }}
+                  onClick={async () => {
+                    const n = profName.trim().slice(0, 60);
+                    await updateProfile(user.uid, { fullName: n }).catch(() => {});
+                    if (avStage) {
+                      try { await saveUserAvatar(user.uid, avStage); setMyAvatar(avStage); }
+                      catch { setAvErr(t("Avatar kaydedilemedi — tekrar deneyin.")); return; }
+                      setAvStage("");
+                    }
+                    setUserName(n); setProfOpen(false);
+                  }}>{t("Kaydet")}</button>
+              </span>
+            </div>
+          </div>
+        </div>
+        );
+  })();
   /* Yetki reddi kutucuğu — viewer bir yarışta düzenleme deneyince belirir (edit() muhafızı).
      key={deny} her tıkta remount → animasyon yeniden oynar; ~2.6 sn sonra kendini kapatır. */
   const denyToast = deny > 0 && (
@@ -2159,7 +2257,7 @@ ${bottomBar}
     return (
       <div className="rc">
         <UpdateBanner t={t} />
-        {teamModal}{createJoinModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}{cmdPalette}{adminModal}
+        {teamModal}{createJoinModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}{cmdPalette}{adminModal}{profileModal}
         {(() => {
           /* ================= v2.0 ANA MENÜ (handoff-spec/ekranlar/01-menu.md) =================
              Tam sayfa menü; eski ortalanmış .lobby kutusunun yerine. Tüm handler'lar mevcut
@@ -2998,102 +3096,7 @@ ${bottomBar}
       <UpdateBanner t={t} />
       {teamModal}{createJoinModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{streamPlayer}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}{wxTransModal}
       {denyToast}{cmdPalette}
-      {profOpen && user && (() => {
-        const av = avStage || myAvatar || user.photoURL;
-        const initials = ((profName || user.email || "?").trim().split(/\s+/).filter(Boolean)
-          .map((w) => w[0]).slice(0, 2).join("") || (user.email || "?")[0]).toUpperCase();
-        const lbl = { display: "block", color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 6 };
-        return (
-        <div className="rc" onClick={() => setProfOpen(false)} role="dialog" aria-modal="true"
-          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(10,6,10,.74)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
-          <div onClick={(e) => e.stopPropagation()}
-            style={{ width: "min(680px,96vw)", maxHeight: "86vh", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
-            {/* başlık */}
-            <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "18px 20px", borderBottom: "1px solid var(--rc-border)" }}>
-              <span style={{ width: 52, height: 52, borderRadius: "50%", background: "var(--rc-brand)", color: "var(--rc-on-brand)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 20, flex: "0 0 auto", overflow: "hidden" }}>
-                {av ? <img src={av} alt="" referrerPolicy={/^https?:/.test(av) ? "no-referrer" : undefined} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : initials}</span>
-              <span style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0 }}>
-                <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 22, letterSpacing: ".02em" }}>{profName || user.email}</b>
-                <span style={{ fontSize: 11.5, color: "var(--rc-text-3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{[user.email, teamData?.meta?.name].filter(Boolean).join(" · ")}</span>
-              </span>
-              <button onClick={() => setProfOpen(false)} style={{ marginLeft: "auto", width: 32, height: 32, borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 15, lineHeight: 1 }}>✕</button>
-            </div>
-            {/* gövde: ad + görsel | rozetler */}
-            <div style={{ overflowY: "auto", padding: "18px 20px 22px", display: "flex", flexWrap: "wrap", gap: 18 }}>
-              <div style={{ flex: "1 1 300px", minWidth: 0, display: "flex", flexDirection: "column", gap: 14 }}>
-                <div>
-                  <label style={lbl}>{t("Görünen ad")}</label>
-                  <input type="text" value={profName} onChange={(e) => setProfName(e.target.value)}
-                    style={{ width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)", border: "1px solid var(--rc-border-strong)", borderRadius: 10, color: "var(--rc-text)", padding: "11px 14px", fontFamily: "var(--rc-font-display)", fontSize: 18, fontWeight: 700, textTransform: "none" }} />
-                  <div style={{ color: "var(--rc-text-3)", fontSize: 11, marginTop: 5 }}>{t("Timing tablosunda ve sohbette bu ad görünür")}</div>
-                </div>
-                <div>
-                  <label style={lbl}>{t("Profil görseli")}</label>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <div style={{ width: 70, height: 70, flex: "0 0 auto", border: "1.5px dashed var(--rc-border-strong)", borderRadius: "50%", background: "var(--rc-surface-2)", display: "grid", placeItems: "center", fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 20, color: "var(--rc-text-3)", overflow: "hidden" }}>
-                      {av ? <img src={av} alt="" referrerPolicy={/^https?:/.test(av) ? "no-referrer" : undefined} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : initials}</div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-                      <span style={{ display: "flex", gap: 7 }}>
-                        <input id="avfile" type="file" accept={IMG_ACCEPT_TYPES.join(",")} style={{ display: "none" }}
-                          onChange={(e) => { onAvatarFile(e.target.files?.[0]); e.target.value = ""; }} />
-                        <button disabled={avBusy} onClick={() => document.getElementById("avfile")?.click()}
-                          style={{ padding: "6px 13px", borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer", fontSize: 12 }}>{avBusy ? t("Yükleniyor…") : t("Yükle")}</button>
-                        {(myAvatar || avStage) && (
-                          <button disabled={avBusy} onClick={async () => { setAvStage(""); setAvErr(""); await clearUserAvatar(user.uid).catch(() => {}); setMyAvatar(""); }}
-                            style={{ padding: "6px 13px", borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 12 }}>{t("Kaldır")}</button>
-                        )}
-                      </span>
-                      <span style={{ fontSize: 10.5, color: "var(--rc-text-3)" }}>{avStage ? t("Önizleme — Kaydet ile uygulanır") : t("Boşsa baş harflerin kullanılır")}</span>
-                    </div>
-                  </div>
-                  {avErr && <div style={{ fontSize: 12, color: "var(--rc-warn)", marginTop: 6 }}><Icon name="uyari" size={14} /> {avErr}</div>}
-                </div>
-              </div>
-              {myBadges.length > 0 && (
-                <div style={{ flex: "1 1 280px", minWidth: 260, display: "flex", flexDirection: "column", gap: 12 }}>
-                  <div style={{ border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface-2)", padding: 16 }}>
-                    <div style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 13, fontWeight: 700, color: "var(--rc-brand-bright)", marginBottom: 12 }}>{t("Rozetler")}</div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 9 }}>
-                      {myBadges.map((b) => {
-                        const on = !b.locked;
-                        return (
-                          <span key={b.lbl} title={t(b.lbl)} style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "8px 13px 8px 9px", borderRadius: 10, border: `1px solid ${on ? b.col + "66" : "var(--rc-border)"}`, background: on ? "var(--rc-surface-3)" : "transparent", opacity: on ? 1 : .5 }}>
-                            <span style={{ width: 27, height: 27, flex: "0 0 auto", borderRadius: 8, display: "inline-flex", alignItems: "center", justifyContent: "center", background: on ? b.col + "1F" : "var(--rc-surface-3)", color: on ? b.col : "var(--rc-icon-off)" }}>{b.ico}</span>
-                            <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
-                              <b style={{ fontSize: 12, whiteSpace: "nowrap" }}>{t(b.lbl)}</b>
-                              {b.note && <span style={{ fontSize: 10, color: "var(--rc-text-3)", whiteSpace: "nowrap" }}>{t(b.note)}</span>}
-                            </span>
-                          </span>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-            {/* alt */}
-            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 20px", borderTop: "1px solid var(--rc-border)", background: "var(--rc-surface-2)" }}>
-              <span style={{ color: "var(--rc-text-3)", fontSize: 11.5 }}>{t("Odalarda ve stint programında bu isim görünür.")}</span>
-              <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-                <button onClick={() => { setAvStage(""); setAvErr(""); setProfOpen(false); }}
-                  style={{ padding: "9px 16px", borderRadius: 10, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 13 }}>{t("Vazgeç")}</button>
-                <button disabled={!profName.trim()} style={{ padding: "9px 20px", borderRadius: 10, border: `1px solid ${profName.trim() ? "var(--rc-brand-bright)" : "var(--rc-border)"}`, background: profName.trim() ? "var(--rc-brand)" : "var(--rc-surface-3)", color: profName.trim() ? "var(--rc-on-brand)" : "var(--rc-text-3)", cursor: profName.trim() ? "pointer" : "not-allowed", fontFamily: "var(--rc-font-display)", fontSize: 15, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase" }}
-                  onClick={async () => {
-                    const n = profName.trim().slice(0, 60);
-                    await updateProfile(user.uid, { fullName: n }).catch(() => {});
-                    if (avStage) {
-                      try { await saveUserAvatar(user.uid, avStage); setMyAvatar(avStage); }
-                      catch { setAvErr(t("Avatar kaydedilemedi — tekrar deneyin.")); return; }
-                      setAvStage("");
-                    }
-                    setUserName(n); setProfOpen(false);
-                  }}>{t("Kaydet")}</button>
-              </span>
-            </div>
-          </div>
-        </div>
-        );
-      })()}
+      {profileModal}
       {adminModal}
       <div style={shell}>
         {renderRail(tab, (k) => setTab(k))}
