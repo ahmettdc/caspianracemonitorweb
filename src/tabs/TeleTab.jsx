@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ReferenceLine, ReferenceDot, ResponsiveContainer } from "recharts";
 import { fmtLap } from "../engine";
-import { SLOT_COLORS } from "../constants";
+import { SLOT_COLORS, ASSET, TRACK_ASSET, trackName, carName, carImg, venueToTrackId } from "../constants";
 import { BoxPlot, SessionSetupBox, Icon } from "../components";
 import { zoomViewAt, panView, zoomDomain, advanceCursor } from "../zoomView";
 import { sectorOf, sectorMarks } from "../ldTrace";
@@ -779,17 +779,27 @@ export default function TeleTab({
     </div>
   );
 
-  /* Seans yan paneli — seçili slotun meta'sı + eylemler (spec 163-186). */
+  /* Seans yan paneli — seçili slotun meta'sı + eylemler (spec 163-186).
+     v2.2: dosya meta'sı eksikse (ör. yalnız tur zamanı içeren .duckdb) pist/araç
+     yarış bağlamından (st) türetilir; pist görseli/bayrağı için trackId önce
+     dosyanın venue adından (venueToTrackId), yoksa aktif yarıştan çözülür. */
   const curMeta = st.telemetry[slot]?.meta || {};
   const curS = slotStats[slot];
+  const sessTrk = venueToTrackId(curMeta.venue) || st?.track || "";
+  const sessCls = st?.carClass || "";
+  const sessCar = st?.car || "";
+  const sessVenue = curMeta.venue || (sessTrk ? trackName(sessTrk) : "");
+  const sessVehicle = curMeta.vehicle || (sessCls && sessCar ? carName(sessCls, sessCar) : "");
   const sessRows = [
-    ["Pist", curMeta.venue],
-    ["Araç", curMeta.vehicle],
+    ["Pist", sessVenue],
+    ["Araç", sessVehicle],
     ["Pilot", curMeta.driver],
     ["Sıcaklık", (curMeta.trk != null || curMeta.amb != null)
       ? `🛣 ${curMeta.trk != null ? curMeta.trk.toFixed(0) + "°" : "—"} / 🌡 ${curMeta.amb != null ? curMeta.amb.toFixed(0) + "°" : "—"}` : null],
     ["Turlar", (curS && !curS.empty) ? `${curS.laps} ${t("tur")}` : null],
   ].filter(([, v]) => v);
+  const sessLoaded = !!(curS && !curS.empty);
+  const hideImg = (e) => { e.currentTarget.style.display = "none"; };
 
   /* Yükleme penceresi içeriği (eski import kartı — mantık birebir korundu). */
   const importInner = (
@@ -1047,6 +1057,16 @@ export default function TeleTab({
               border: "1px solid var(--rc-border-strong)", borderRadius: 12,
               background: "radial-gradient(120% 160% at 100% 0,rgba(150,0,24,.24),var(--rc-surface-2) 62%)", padding: "14px 16px" }}>
               <div style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 14, fontWeight: 700, marginBottom: 12, color: "var(--rc-brand-bright)" }}>{t("Seans")} · {slot}</div>
+              {sessLoaded && (sessTrk || (sessCls && sessCar)) && (
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+                  {sessTrk && <img src={`${ASSET}flags/${TRACK_ASSET(sessTrk)}.png`} alt="" onError={hideImg}
+                    style={{ width: 26, borderRadius: 3, flex: "0 0 auto" }} />}
+                  {sessCls && sessCar && <img src={carImg(sessCls, sessCar)} alt="" onError={hideImg}
+                    style={{ flex: 1, minWidth: 0, maxHeight: 46, objectFit: "contain" }} />}
+                  {sessTrk && <img src={`${ASSET}tracks/${TRACK_ASSET(sessTrk)}.png`} alt="" onError={hideImg}
+                    style={{ height: 46, maxWidth: 96, objectFit: "contain", opacity: .85, flex: "0 0 auto" }} />}
+                </div>
+              )}
               {sessRows.length > 0 ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {sessRows.map(([k, v]) => (
