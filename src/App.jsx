@@ -2323,6 +2323,9 @@ ${bottomBar}
              lobiden yeniden kullanıldı. Genel kontroller (dil/hesap/çıkış/üyeler/info) buraya
              taşındı — yarış üst çubuğundan kaldırılanların v2.0'daki kalıcı evi. */
           const teamName = teamData?.meta?.name || (curTeam && myTeams[curTeam]) || "Caspian Motorsport";
+          /* mevcut takımın ÖZEL logosu (yüklenmişse) — yoksa Caspian varsayılanı.
+             Üst çubuktaki takım çipi bunu gösterir (v2.2 düzeltmesi). */
+          const teamLogo = teamLogoSrc(teamData?.assets) || `${ASSET}logo.png`;
           const roleLabel = (
             <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
               {myRole === "owner" ? <><RoleIcon name="owner" size={11} /> {t("Sahip")}</>
@@ -2378,7 +2381,8 @@ ${bottomBar}
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
             <span style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--rc-surface-2)",
               border: "1px solid var(--rc-border-strong)", borderRadius: 99, padding: "5px 16px 5px 6px" }}>
-              <img src={`${ASSET}logo.png`} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />
+              <img src={teamLogo} alt="" style={{ width: 28, height: 28, objectFit: "contain", borderRadius: 6 }}
+                onError={(e) => { if (!e.currentTarget.dataset.fb) { e.currentTarget.dataset.fb = "1"; e.currentTarget.src = `${ASSET}logo.png`; } }} />
               <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 15 }}>{teamName}</span>
             </span>
             {Object.entries(myTeams).filter(([tid]) => tid !== curTeam).slice(0, 3).map(([tid, nm]) => (
