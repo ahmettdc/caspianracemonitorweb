@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { Icon } from "./iconset";
 import {
   ASSET, AV, quantile, TRACKS, TRACK_ASSET,
-  CAR_CLASSES, CARS, trackName, carImg, carName, brandLogo,
+  CAR_CLASSES, CARS, trackName, carImg, carTopImg, carName, brandLogo,
   APP_VERSION, REPO_URL, PIE_COLORS,
 } from "./constants";
 import { msToLocalInput } from "./engine";
@@ -1407,7 +1407,7 @@ export function RaceEditModal({ rForm, setRForm, t, seasons, onSave, onProceed, 
             </div>
             {rForm.carId && (
               <div style={{ border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface-2)", padding: 16, textAlign: "center" }}>
-                <img src={`${ASSET}cars/${rForm.carClass}/${rForm.carId}.png`} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ display: "block", width: "100%", maxWidth: 210, height: "auto", margin: "0 auto 8px" }} />
+                <img src={carImg(rForm.carClass, rForm.carId)} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ display: "block", width: "100%", maxWidth: 210, height: "auto", margin: "0 auto 8px" }} />
                 <div style={{ display: "inline-flex", alignItems: "center", gap: 7, fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 16 }}>
                   <img src={`${ASSET}class/${rForm.carClass}.png`} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ height: 15 }} />{carName(rForm.carClass, rForm.carId)}
                 </div>
@@ -2473,7 +2473,7 @@ export function TeamScreen({ user, t, lang, myTeams, curTeam, setCurTeam,
                     onSave={(uri) => saveTeamAsset(curTeam, `cars/${astKey}/side`, uri)}
                     onClear={() => clearTeamAsset(curTeam, `cars/${astKey}/side`).catch(() => {})} />
                   <AssetUpload label={`${t("Üstten")} (TOP)`} specKey="carTop" aspect="400 / 1000" w={80}
-                    current={astCustom("top")} fallback={`${ASSET}cartop/default.png`} canEdit={canEditTeam} t={t}
+                    current={astCustom("top")} fallback={carTopImg(astCls, astCar)} canEdit={canEditTeam} t={t}
                     onSave={(uri) => saveTeamAsset(curTeam, `cars/${astKey}/top`, uri)}
                     onClear={() => clearTeamAsset(curTeam, `cars/${astKey}/top`).catch(() => {})} />
                 </div>
@@ -2763,7 +2763,7 @@ export function TeamModal({ open, onClose, user, t, lang, myTeams, curTeam, setC
                         <AssetUpload label={`${t("Üstten")} (TOP · 400×1000)`}
                           specKey="carTop" aspect="400 / 1000" w={110}
                           current={astCustom("top")}
-                          fallback={`${ASSET}cartop/default.png`}
+                          fallback={carTopImg(astCls, astCar)}
                           canEdit={canEditTeam} t={t}
                           onSave={(uri) => saveTeamAsset(curTeam, `cars/${astKey}/top`, uri)}
                           onClear={() => clearTeamAsset(curTeam, `cars/${astKey}/top`)
