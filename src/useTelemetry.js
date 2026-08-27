@@ -164,8 +164,11 @@ export function useTelemetry({ st, setSt }) {
       partial: !!l.partial, pit: !!l.pit,
       use: !l.pit && !l.partial,   // kısmi/pit turları varsayılan tiksiz (elle açılabilir)
     }));
+    /* meta (venue/vehicle/driver/trk/amb…) slotun `meta` anahtarına yazılır —
+       SEANS paneli + slot kartı buradan okur. (Eskiden `src`'e yazılıyordu ama
+       hiçbir tüketici onu okumuyordu → duckdb'deki pilot/sıcaklık görünmüyordu.) */
     setSt((s) => ({ ...s, telemetry: { ...s.telemetry,
-      [slot]: { laps: apply105Rule(laps), name: `Stint ${slot}`, src: parsed.meta } } }));
+      [slot]: { laps: apply105Rule(laps), name: `Stint ${slot}`, meta: parsed.meta } } }));
     /* İçe-aktar özeti (Dosya Seç + tur tablosu + Kaydet) KAPANIR → parsed/rawTele/mapping
        temizlenir. AMA teleFile/teleHeader/cmpLaps/cmpA/cmpB/cmpData/readersRef KORUNUR →
        Tur Karşılaştırma kartı + pist haritası yaşamaya devam eder (kullanıcı isteği). */
@@ -202,7 +205,8 @@ export function useTelemetry({ st, setSt }) {
     }).filter((l) => l.ms != null);
     if (!laps.length) return;
     setSt((s) => ({ ...s, telemetry: { ...s.telemetry,
-      [slot]: { laps: apply105Rule(laps), name: `Stint ${slot}` } } }));
+      [slot]: { laps: apply105Rule(laps), name: `Stint ${slot}`,
+        ...(parsed.meta ? { meta: parsed.meta } : {}) } } }));
     setRawTele(""); setParsed(null); setMapping(null);
   };
 
