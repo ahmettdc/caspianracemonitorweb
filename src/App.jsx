@@ -39,7 +39,7 @@ import {
   SLOT_COLORS, APP_VERSION, SEEN_VER_KEY, ASSET, AV,
   TRACKS, PIT_LANE_TIMES, TRACK_ASSET, trackFlag,
   CARS, CAR_CLASSES, trackName, carName, classId, classAccent, venueToTrackId,
-  PIE_COLORS, DESKTOP_RELEASE_URL, BRIDGE_EXE_URL,
+  PIE_COLORS, DESKTOP_RELEASE_URL, BRIDGE_EXE_URL, fuelView,
 } from "./constants";
 import {
   safeParseState, carriedTyre,
@@ -336,6 +336,17 @@ export default function App() {
   const totalVE = plan.totalFuel + st.extraLap * effCons(st); // % VE (DATA I2)
   const totalFuelL = totalVE * st.fuelRatio;            // gerçek litre karşılığı
   const fuelCarried = 100 * st.fuelRatio;               // %100 = taşınan yakıt (L)
+  /* Yakıt sunumu: VE sınıfları (Hypercar/GT3) yüzde, diğerleri (LMP2/LMP3/GTE) litre.
+     Dahili temsil aynı kalır; race data formunda VE olmayan sınıflar için L/tur + depo
+     girişi bu türetilmiş değerler ve setter'larla dahili consumption/fuelRatio'ya yazılır. */
+  const fv = fuelView(st);
+  const fuelPerLapL = +fv.perLapL.toFixed(2);           // yarış datası: litre / tur
+  const fuelTankL = +fv.tankL.toFixed(1);               // depo (L)
+  /* L/tur değiştir → depo (fuelRatio) sabit, consumption'ı (=%/tur) yeniden türet. */
+  const setFuelPerLapL = (v) => { const L = Number(v); if (!(st.fuelRatio > 0) || !isFinite(L)) return; up({ consumption: +(L / st.fuelRatio).toFixed(4) }); };
+  /* Depo (L) değiştir → fuelRatio=depo/100; mutlak L/tur korunacak şekilde consumption
+     yeniden ölçeklenir (aksi halde tank büyüyünce L/tur de büyürdü). */
+  const setFuelTankL = (v) => { const T = Number(v); const fr = T / 100; if (!(fr > 0) || !isFinite(fr)) return; const perLapL = (Number(st.consumption) || 0) * (Number(st.fuelRatio) || 0); up({ fuelRatio: +fr.toFixed(4), consumption: perLapL > 0 ? +(perLapL / fr).toFixed(4) : st.consumption }); };
   const TY = ["FL", "FR", "RL", "RR"];
 
   /* ---------- Faz 3: lastik stratejisi ---------- */
@@ -535,7 +546,7 @@ export default function App() {
           else if (sv === 3) parts.push(`<span class="svc w">${c}</span>`);
           else if (sv === 4) parts.push(`<span class="svc u">${c}</span>`);
         });
-        if (pit.fuel) parts.push(`<span class="svc f">⚡VE</span>`);
+        if (pit.fuel) parts.push(`<span class="svc f">${fv.hasVE ? "⚡VE" : "⛽" + esc(t("Yakıt"))}</span>`);
         return { html: parts.length ? parts.join("") : `<span class="svc n">${esc(t("geçiş"))}</span>` };
       };
       html = mkTable(
@@ -608,9 +619,9 @@ export default function App() {
  <div class="bcard"><div class="bt">Stint · ${esc(t("Tahmini Tur"))}</div>
   <div class="bv">${racePlan.fullStints} <span>stint</span></div>
   <div class="bv">${racePlan.totalLaps.toFixed(0)} <span>${esc(t("tur"))}</span></div></div>
- <div class="bcard"><div class="bt">⚡ ${esc(t("Son Stint VE"))}</div>
-  <div class="bv" style="color:#0d7a43">${planLsf.refuel.toFixed(1)}%</div>
-  <div class="bv"><span>+${st.extraLap} lap · ≈ ${planLsf.refuelL.toFixed(1)} L</span></div></div>
+ <div class="bcard"><div class="bt">⚡ ${esc(fv.hasVE ? t("Son Stint VE") : t("Son Stint Yakıt"))}</div>
+  <div class="bv" style="color:#0d7a43">${fv.hasVE ? `${planLsf.refuel.toFixed(1)}%` : `${planLsf.refuelL.toFixed(1)} L`}</div>
+  <div class="bv"><span>+${st.extraLap} lap${fv.hasVE ? ` · ≈ ${planLsf.refuelL.toFixed(1)} L` : ""}</span></div></div>
  ${donutCard}
  ${trackUrl ? `<div class="trackcard"><img src="${trackUrl}" alt="">
   <div class="tcap">${esc(trackName(st.track))}</div></div>` : ""}
@@ -1685,7 +1696,7 @@ ${bottomBar}
                   {st.track && PIT_LANE_TIMES[st.track] != null && <div style={{ fontSize: 10.5, color: "var(--rc-text-3)", marginTop: 5 }}>{t("Pist verisi")}: {PIT_LANE_TIMES[st.track]}s · {trackName(st.track)}</div>}
                 </div>
                 <div style={{ flex: "1 1 150px", minWidth: 0 }}>
-                  <label style={{ ...lbl, display: "flex", alignItems: "center", gap: 4 }}><Icon name="yakit" size={13} /> {t("Yakıt")} & <Bolt size={11} /> VE</label>
+                  <label style={{ ...lbl, display: "flex", alignItems: "center", gap: 4 }}><Icon name="yakit" size={13} /> {t("Yakıt")}{fv.hasVE && <> & <Bolt size={11} /> VE</>}</label>
                   {stepField(st.fuelTime, (v) => up({ fuelTime: v }), 1)}
                   <div style={{ fontSize: 10.5, color: "var(--rc-text-3)", marginTop: 5 }}>{t("Duraklamada geçen dolum süresi")}</div>
                 </div>
@@ -1707,25 +1718,36 @@ ${bottomBar}
               </div>
             </div>
 
-            {/* Virtual Energy */}
+            {/* Yakıt · VE sınıflarında (Hypercar/GT3) Virtual Energy, diğerlerinde düz yakıt */}
             <div style={card}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-                <span style={hd}><Icon name="simsek" size={14} /> Virtual Energy</span><span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{t("Tüketim ve yakıt karşılığı")}</span>
+                <span style={hd}><Icon name={fv.hasVE ? "simsek" : "yakit"} size={14} /> {fv.hasVE ? "Virtual Energy" : t("Yakıt")}</span><span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{fv.hasVE ? t("Tüketim ve yakıt karşılığı") : t("Tüketim ve depo")}</span>
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
-                <div style={{ flex: "1 1 150px", minWidth: 0 }}>
-                  <label style={lbl}>{t("VE tüketim · %/tur")}</label>
-                  {stepField(st.consumption, (v) => up({ consumption: v }), 0.1, 2)}
-                </div>
-                <div style={{ flex: "1 1 150px", minWidth: 0 }}>
-                  <label style={lbl}>Fuel ratio · L / %1</label>
-                  {stepField(st.fuelRatio, (v) => up({ fuelRatio: v }), 0.01, 2)}
-                </div>
+                {fv.hasVE ? (<>
+                  <div style={{ flex: "1 1 150px", minWidth: 0 }}>
+                    <label style={lbl}>{t("VE tüketim · %/tur")}</label>
+                    {stepField(st.consumption, (v) => up({ consumption: v }), 0.1, 2)}
+                  </div>
+                  <div style={{ flex: "1 1 150px", minWidth: 0 }}>
+                    <label style={lbl}>Fuel ratio · L / %1</label>
+                    {stepField(st.fuelRatio, (v) => up({ fuelRatio: v }), 0.01, 2)}
+                  </div>
+                </>) : (<>
+                  <div style={{ flex: "1 1 150px", minWidth: 0 }}>
+                    <label style={lbl}>{t("Yakıt tüketim · L/tur")}</label>
+                    {stepField(fuelPerLapL, setFuelPerLapL, 0.1, 2)}
+                  </div>
+                  <div style={{ flex: "1 1 150px", minWidth: 0 }}>
+                    <label style={lbl}>{t("Depo · L")}</label>
+                    {stepField(fuelTankL, setFuelTankL, 1, 1)}
+                  </div>
+                </>)}
               </div>
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
                 <div style={statBox(true)}>
                   <div style={statV(true)}>{fuelCarried.toFixed(1)} L</div>
-                  <div style={statL}>{t("%100 = taşınan yakıt")}</div>
+                  <div style={statL}>{fv.hasVE ? t("%100 = taşınan yakıt") : t("Depo (toplam)")}</div>
                 </div>
                 <div style={statBox(false)}>
                   <div style={statV(false)}>{range != null ? `${range} ${t("tur")}` : "—"}</div>
@@ -2485,7 +2507,7 @@ ${bottomBar}
             )}
 
             <div style={{ flex: "1 1 280px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, alignContent: "stretch" }}>
-              <button onClick={() => setSuOpen(true)} style={qaBtn}>
+              <button onClick={() => { setTab("setup"); if (curRace) openRace(curRace); else if (defaultRid) openRace(defaultRid); else setSuOpen(true); }} style={qaBtn}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--rc-brand-bright)" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M10.4 2.6h3.2l.35 2.3a7.4 7.4 0 0 1 1.72 1l2.1-.98 1.6 2.77-1.75 1.53a7.4 7.4 0 0 1 0 1.98l1.75 1.53-1.6 2.77-2.1-.98a7.4 7.4 0 0 1-1.72 1l-.35 2.3h-3.2l-.35-2.3a7.4 7.4 0 0 1-1.72-1l-2.1.98-1.6-2.77 1.75-1.53a7.4 7.4 0 0 1 0-1.98L4.23 7.69l1.6-2.77 2.1.98a7.4 7.4 0 0 1 1.72-1l.35-2.3Z" /><circle cx="12" cy="12" r="3" /></svg>
                 <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 15 }}>{t("Setup Havuzu")}</span>
                 <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{setups.length} {t("dosya")}</span>
@@ -2901,7 +2923,7 @@ ${bottomBar}
                     {st.track && PIT_LANE_TIMES[st.track] != null && <div style={{ fontSize: 10.5, color: "var(--rc-text-3)", marginTop: 5 }}>{t("Pist verisi")}: {PIT_LANE_TIMES[st.track]}s · {trackName(st.track)}</div>}
                   </div>
                   <div style={{ flex: "1 1 150px", minWidth: 0 }}>
-                    <label style={lbl}><Icon name="yakit" size={13} /> {t("Yakıt & VE")}</label>
+                    <label style={lbl}><Icon name="yakit" size={13} /> {fv.hasVE ? t("Yakıt & VE") : t("Yakıt")}</label>
                     <NumField value={st.fuelTime} onC={(v) => up({ fuelTime: v })} step="1" style={midInp} />
                     <div style={{ fontSize: 10.5, color: "var(--rc-text-3)", marginTop: 5 }}>{t("Duraklamada geçen dolum süresi")}</div>
                   </div>
@@ -2918,22 +2940,33 @@ ${bottomBar}
 
               <div style={card}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-                  <span style={cardHd}><Icon name="simsek" size={14} /> Virtual Energy</span><span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{t("Tüketim ve yakıt karşılığı")}</span>
+                  <span style={cardHd}><Icon name={fv.hasVE ? "simsek" : "yakit"} size={14} /> {fv.hasVE ? "Virtual Energy" : t("Yakıt")}</span><span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{fv.hasVE ? t("Tüketim ve yakıt karşılığı") : t("Tüketim ve depo")}</span>
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
-                  <div style={{ flex: "1 1 150px", minWidth: 0 }}>
-                    <label style={lbl}>{t("VE tüketim · %/tur")}</label>
-                    <NumField value={st.consumption} onC={(v) => up({ consumption: v })} step="0.01" style={midInp} />
-                  </div>
-                  <div style={{ flex: "1 1 150px", minWidth: 0 }}>
-                    <label style={lbl}>{t("Fuel ratio · L / %1")}</label>
-                    <NumField value={st.fuelRatio} onC={(v) => up({ fuelRatio: v })} step="0.01" style={midInp} />
-                  </div>
+                  {fv.hasVE ? (<>
+                    <div style={{ flex: "1 1 150px", minWidth: 0 }}>
+                      <label style={lbl}>{t("VE tüketim · %/tur")}</label>
+                      <NumField value={st.consumption} onC={(v) => up({ consumption: v })} step="0.01" style={midInp} />
+                    </div>
+                    <div style={{ flex: "1 1 150px", minWidth: 0 }}>
+                      <label style={lbl}>{t("Fuel ratio · L / %1")}</label>
+                      <NumField value={st.fuelRatio} onC={(v) => up({ fuelRatio: v })} step="0.01" style={midInp} />
+                    </div>
+                  </>) : (<>
+                    <div style={{ flex: "1 1 150px", minWidth: 0 }}>
+                      <label style={lbl}>{t("Yakıt tüketim · L/tur")}</label>
+                      <NumField value={fuelPerLapL} onC={setFuelPerLapL} step="0.01" style={midInp} />
+                    </div>
+                    <div style={{ flex: "1 1 150px", minWidth: 0 }}>
+                      <label style={lbl}>{t("Depo · L")}</label>
+                      <NumField value={fuelTankL} onC={setFuelTankL} step="1" style={midInp} />
+                    </div>
+                  </>)}
                 </div>
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
                   <div style={{ flex: "1 1 150px", padding: "11px 14px", borderRadius: 10, border: "1px solid rgba(55,214,122,.35)", background: "rgba(55,214,122,.07)" }}>
                     <div style={{ fontFamily: "var(--rc-font-display)", fontSize: 19, fontWeight: 600, color: "var(--rc-ok)" }}>{fuelCarried.toFixed(1)} L</div>
-                    <div style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".08em", marginTop: 3 }}>{t("%100 = taşınan yakıt")}</div>
+                    <div style={{ color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".08em", marginTop: 3 }}>{fv.hasVE ? t("%100 = taşınan yakıt") : t("Depo (toplam)")}</div>
                   </div>
                   <div style={{ flex: "1 1 150px", padding: "11px 14px", borderRadius: 10, border: "1px solid var(--rc-border)", background: "var(--rc-surface-2)" }}>
                     <div style={{ fontFamily: "var(--rc-font-display)", fontSize: 19, fontWeight: 600 }}>{st.consumption > 0 ? Math.round(100 / st.consumption) : "—"} tur</div>
@@ -3326,8 +3359,8 @@ ${bottomBar}
                   )}
                   {upcomingIsLast && (
                     <div style={{ flex: "1 1 150px", border: "1px solid rgba(55,214,122,.35)", borderRadius: 14, background: "rgba(55,214,122,.07)", padding: "14px 18px" }}>
-                      <div style={{ color: "var(--rc-text-3)", fontSize: 11, textTransform: "uppercase", letterSpacing: ".14em" }}><Icon name="simsek" size={13} /> {t("Son pit VE")}</div>
-                      <div style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: "clamp(20px,2.4vw,30px)", color: "var(--rc-ok)", marginTop: 6 }}>{planLsf.refuel.toFixed(1)}%</div>
+                      <div style={{ color: "var(--rc-text-3)", fontSize: 11, textTransform: "uppercase", letterSpacing: ".14em" }}><Icon name={fv.hasVE ? "simsek" : "yakit"} size={13} /> {fv.hasVE ? t("Son pit VE") : t("Son pit yakıt")}</div>
+                      <div style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: "clamp(20px,2.4vw,30px)", color: "var(--rc-ok)", marginTop: 6 }}>{fv.hasVE ? `${planLsf.refuel.toFixed(1)}%` : `${planLsf.refuelL.toFixed(1)} L`}</div>
                     </div>
                   )}
                 </div>
@@ -3372,7 +3405,7 @@ ${bottomBar}
                     <div style={{ color: "var(--rc-text-3)", fontSize: 11, textTransform: "uppercase", letterSpacing: ".14em", marginBottom: 8 }}>{t("Sıradaki pitte")}</div>
                     <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                       {upcomingPit.fuel && (
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "9px 18px", borderRadius: 12, border: "1px solid var(--rc-ok)", color: "var(--rc-ok)", background: "rgba(55,214,122,.08)", fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: "clamp(15px,1.8vw,21px)", letterSpacing: ".08em" }}><Bolt size={17} /> VE</span>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "9px 18px", borderRadius: 12, border: "1px solid var(--rc-ok)", color: "var(--rc-ok)", background: "rgba(55,214,122,.08)", fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: "clamp(15px,1.8vw,21px)", letterSpacing: ".08em" }}>{fv.hasVE ? <><Bolt size={17} /> VE</> : <><Icon name="yakit" size={17} /> {t("Yakıt")}</>}</span>
                       )}
                       {nextTyres.map((c) => (
                         <span key={c} style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "9px 18px", borderRadius: 12, border: "1px solid var(--rc-brand-bright)", color: "var(--rc-brand-bright)", background: "rgba(150,0,24,.12)", fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: "clamp(15px,1.8vw,21px)", letterSpacing: ".08em" }}><Tyre size={17} /> {c}</span>

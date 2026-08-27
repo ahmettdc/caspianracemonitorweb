@@ -5,6 +5,24 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v2.1.2",
+    date: "2026-08-27",
+    tr: [
+      "⛽ Virtual Energy artık yalnız Hypercar ve GT3 sınıflarında. LMP2/LMP3/GTE için race data formunda VE tüketimi + fuel ratio yerine 'Yakıt tüketim (L/tur)' ve 'Depo (L)' girişi geldi (oran yok — bu sınıflarda VE yok). Stint planı, Yakıt sekmesi, Dashboard ve canlı/PDF özetleri bu sınıflarda VE % yerine litre gösterir. Hypercar/GT3 düzeni aynen korundu.",
+      "🔧 Ana menüdeki 'Setup Havuzu' hızlı erişim butonu artık küçük pencere yerine doğrudan sol menüdeki Setup bölümünü açıyor.",
+      "🔧 Setup İçeriği penceresinde bir bölüme (Aero, Lastik…) tıklayınca ~3 sn sonra 'Tümü'ye geri dönme sorunu düzeltildi; seçilen bölüm artık kalıcı.",
+      "🔧 Ana menüde 'Profil & Rozetler' penceresi açılmıyordu — düzeltildi.",
+      "🔧 Ana menüde 'Üyeler' modalı açılmıyordu — düzeltildi.",
+    ],
+    en: [
+      "⛽ Virtual Energy now applies only to the Hypercar and GT3 classes. For LMP2/LMP3/GTE the race-data form takes plain 'Fuel use (L/lap)' and 'Tank (L)' instead of VE consumption + fuel ratio (no ratio — these classes have no VE). The stint plan, Fuel tab, Dashboard and live/PDF summaries show litres instead of VE % for these classes. The Hypercar/GT3 flow is unchanged.",
+      "🔧 The main-menu 'Setup Library' quick button now opens the Setup section in the left menu directly, instead of a small pop-up window.",
+      "🔧 Fixed the Setup Content window reverting to 'All' ~3 s after picking a section (Aero, Tyres…); the selected section now stays.",
+      "🔧 Fixed the 'Profile & Badges' window not opening from the main menu.",
+      "🔧 Fixed the 'Members' modal not opening from the main menu.",
+    ],
+  },
+  {
     v: "v2.1.1",
     date: "2026-08-26",
     tr: [

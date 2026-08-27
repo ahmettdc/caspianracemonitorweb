@@ -196,6 +196,12 @@ export const EN = {
     "Invalid lap time — use 'm:ss.00' format (e.g. 2:21.0); this stint falls back to the race average",
   "Otomatiğe dön": "Back to automatic",
   "Toplam VE": "Total VE", "yakıt": "fuel",
+  // yakıt (VE olmayan sınıflar: LMP2/LMP3/GTE)
+  "Yakıt": "Fuel", "Toplam yakıt": "Total fuel", "Tüketim ve depo": "Consumption & tank",
+  "Yakıt tüketim · L/tur": "Fuel use · L/lap", "Depo · L": "Tank · L", "Depo (toplam)": "Tank (total)",
+  "Yakıt iht.": "Fuel need", "Yakıt L/tur": "Fuel L/lap", "Son Stint Yakıt": "Final Stint Fuel",
+  "Bu stint girilen tüketimle hesaplanıyor": "This stint uses the entered consumption",
+  "Boş: yarış datasındaki tüketim kullanılır": "Empty: uses the race-data consumption",
   // dashboard
   "⏱ Yarış": "⏱ Race", "Kalan": "Remaining", "Tahmini Tur": "Est. Laps",
   "📋 Stint Programı": "📋 Stint Schedule", 

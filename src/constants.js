@@ -3,7 +3,7 @@
 export const SLOT_COLORS = { A: "#40D68C", B: "#F0604D", C: "#F2A33C", D: "#6694FF" };
 
 /* ---------- pist & araç seçimi ---------- */
-export const APP_VERSION = "v2.1.1";   // tek kaynak — sürüm yazısı buradan
+export const APP_VERSION = "v2.1.2";   // tek kaynak — sürüm yazısı buradan
 export const REPO_URL = "https://github.com/ahmettdc/caspianracemonitorweb";
 export const SEEN_VER_KEY = "rm_seen_version";
 export const ASSET = import.meta.env.BASE_URL + "assets/";
@@ -125,6 +125,36 @@ export const CLASS_ACCENT = {
   gte: "#37D67A",       // GTE yeşil
 };
 export const classAccent = (raw) => CLASS_ACCENT[classId(raw)] || "";
+
+/* Virtual Energy (VE) yalnız Hypercar ve GT3 sınıflarında var (LMU). LMP2/LMP3/GTE
+   düz yakıt (litre) kullanır → bu sınıflarda race data formu ve tüm ekranlar VE %
+   yerine litre gösterir. Sınıf seçilmemişse (kurulum) VE varsayılır. */
+export const classHasVE = (raw) => {
+  const c = classId(raw);
+  return c === "" || c === "hypercar" || c === "gt3";
+};
+
+/* Yakıt SUNUM katmanı. Dahili birim her sınıfta AYNIdır (consumption = %/tur,
+   fuelRatio = L/%1, depo = %100). Bu yardımcı yalnız gösterimi/etiketi sınıfa göre
+   çevirir: VE sınıflarında yüzde (+ litre karşılığı), diğerlerinde doğrudan litre.
+   Not: %100 = tam depo her iki modda da geçerli → ">100 depo yetmez" eşiği ortak.
+   perLapL ve tankL temsilden bağımsızdır (mutlak litre), sınıf değişse de korunur. */
+export const fuelView = (st) => {
+  const ratio = Number(st?.fuelRatio) || 0;
+  const cons = Number(st?.consumption) || 0;
+  const hasVE = classHasVE(st?.carClass);
+  return {
+    hasVE,
+    ratio,
+    perLapL: cons * ratio,      // yarış datası: litre / tur
+    tankL: 100 * ratio,         // %100 depo = taşınan litre
+    toL: (pct) => (Number(pct) || 0) * ratio,   // dahili % → litre
+    /* Bir dahili %-değerini sınıfa göre metne çevirir: VE'de "12.3%", yakıtta "10.6 L". */
+    fmt: (pct, dp = 1) => (hasVE
+      ? `${(Number(pct) || 0).toFixed(dp)}%`
+      : `${((Number(pct) || 0) * ratio).toFixed(dp)} L`),
+  };
+};
 /* Araç modeli adından (LMU mVehicleName, ör. "BMW M4 GT3") marka anahtarı →
    assets/brands/<key>.png. Sıra önemli (aston/mercedes özel adlar genelden önce).
    Tanınmazsa "" döner. Logolar public/assets/brands/ altında. */
