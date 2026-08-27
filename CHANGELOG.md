@@ -1,5 +1,30 @@
 # Changelog
 
+## v2.2.0 — 2026-08-27
+
+Yeni özellikler ve düzeltmeler.
+
+### Araç görselleri
+- 32 araç için yeni **yandan (webp)** görseller ve artık her araca **özel üstten** görsel (eskiden tek jenerik üstten görsel vardı) — `carImg` `.webp`'e taşındı, `carTopImg` + `CAR_TOP_DEFAULT` eklendi; `teamAssets` üstten fallback'i araca özel çözer, eksikse `<img onError>` ile default'a düşer.
+- Yeni araçlar: **GT3 Lamborghini Huracán GT3 EVO2**, **LMP3 Ginetta G61-LT-P3**.
+
+### İngilizce mod (i18n)
+- EN'de Türkçe kalan **~328 metin** çevrildi (kart başlıkları, tab etiketleri, tooltip'ler, mesajlar).
+- İlk açılışta "EN seçili ama Türkçe görünüyor" parlaması giderildi: EN sözlüğü (lazy) inene dek **dile nötr yükleme ekranı**; catch + 8 sn güvenlik ağı.
+
+### Telemetri
+- **SEANS paneli** artık bayrak + araç + pist şekli ve pist/araç/pilot/sıcaklık satırları gösterir.
+- Stint kaydında meta yanlış anahtara (`src`) yazılıyordu; `meta`'ya yazılacak şekilde düzeltildi → `.duckdb`'deki **pilot ve sıcaklık** artık görünür. Dosya meta'sı eksikse pist/araç yarış bağlamından türetilir.
+
+### Resmi Yarışlar
+- Yarış satırının "hafta sonu" detayları **SEANSLAR / FORMAT / KURALLAR** sütunları hâlinde kategorize edildi.
+
+### Takım
+- Ana sayfadaki takım çipi artık takımın **yüklediği özel logoyu** gösterir (varsayılan Caspian logosu yerine).
+
+### Caspian Live Bridge (masaüstü hafif köprü)
+- Arayüz yeniden tasarlandı: kartlı kurulum akışı (Hesap → Yayın Hedefi → Gönderim), canlı yayın görünümü (durum şeridi + araç/yakıt-VE/tur/gecikme metrikleri), varsayılan İngilizce + **EN/TR** geçişi (`config.ini [ui] lang`). Tüm işlevler korundu.
+
 ## v2.1.1 — 2026-08-26
 
 Hotfix sürümü — arayüz cilası ve düzeltmeler.

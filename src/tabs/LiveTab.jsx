@@ -351,7 +351,9 @@ function OwnCar({ t, own, liveFuelObs, topSrc = "" }) {
             </div>
           );
         })}
-        <img src={topSrc || `${ASSET}cartop/default.png`} alt="" style={{ gridColumn: 2, gridRow: "1 / span 2", width: 62, height: 128, objectFit: "contain", display: "block", filter: "drop-shadow(0 6px 16px rgba(0,0,0,.5))" }} />
+        <img src={topSrc || `${ASSET}cartop/default.png`} alt=""
+          onError={(e) => { if (!e.currentTarget.dataset.fb) { e.currentTarget.dataset.fb = "1"; e.currentTarget.src = `${ASSET}cartop/default.png`; } }}
+          style={{ gridColumn: 2, gridRow: "1 / span 2", width: 62, height: 128, objectFit: "contain", display: "block", filter: "drop-shadow(0 6px 16px rgba(0,0,0,.5))" }} />
       </div>
       {/* İstatistik kutuları */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>

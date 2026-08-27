@@ -7,19 +7,20 @@
    }
    Tüm tüketiciler (pick ekranı, Dash, header, LiveTab OwnCar, PDF) araç
    görselini BURADAN çözer: özel yükleme varsa o, yoksa statik asset fallback
-   (side → assets/cars/{cls}/{id}.png, top → assets/cartop/default.png).
+   (side → assets/cars/{cls}/{id}.webp, top → assets/cartop/{cls}/{id}.webp;
+   araca özel üstten yoksa <img onError> ile cartop/default.png'ye düşer).
    Saf modül — vitest'te test edilir.
    ============================================================ */
-import { ASSET, carImg } from "./constants";
+import { carImg, carTopImg } from "./constants";
 
 /* Araç anahtarı sınıf+id birleşimi — aynı id birden çok sınıfta var (ferrari). */
 export const carAssetKey = (cls, id) => `${cls}_${id}`;
 
-/* angle: "side" | "top". Özel görsel → o; yoksa statik fallback. */
+/* angle: "side" | "top". Özel görsel → o; yoksa statik fallback (araca özel). */
 export function carImageSrc(assets, cls, id, angle) {
   const custom = assets?.cars?.[carAssetKey(cls, id)]?.[angle];
   if (typeof custom === "string" && custom.startsWith("data:image/")) return custom;
-  return angle === "top" ? `${ASSET}cartop/default.png` : carImg(cls, id);
+  return angle === "top" ? carTopImg(cls, id) : carImg(cls, id);
 }
 
 /* Takım logosu — yoksa "" (çağıran fallback ikonu gösterir). */

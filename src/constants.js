@@ -3,7 +3,7 @@
 export const SLOT_COLORS = { A: "#40D68C", B: "#F0604D", C: "#F2A33C", D: "#6694FF" };
 
 /* ---------- pist & araç seçimi ---------- */
-export const APP_VERSION = "v2.1.2";   // tek kaynak — sürüm yazısı buradan
+export const APP_VERSION = "v2.2.0";   // tek kaynak — sürüm yazısı buradan
 export const REPO_URL = "https://github.com/ahmettdc/caspianracemonitorweb";
 export const SEEN_VER_KEY = "rm_seen_version";
 export const ASSET = import.meta.env.BASE_URL + "assets/";
@@ -76,6 +76,7 @@ export const CARS = {
   lmp3: [
     { id: "ligier", name: "Ligier JS P320" },
     { id: "duqueine", name: "Duqueine D08" },
+    { id: "ginetta", name: "Ginetta G61-LT-P3" },
     { id: "adess", name: "ADESS AD25" },
   ],
   gte: [
@@ -94,6 +95,7 @@ export const CARS = {
     { id: "lexus", name: "Lexus RC F GT3" },
     { id: "ford", name: "Ford Mustang GT3" },
     { id: "aston", name: "Aston Martin Vantage GT3" },
+    { id: "lamborghini", name: "Lamborghini Huracán GT3 EVO2" },
   ],
 };
 /* ---------- i18n: Türkçe metin anahtar, EN sözlükten çevrilir ---------- */
@@ -206,11 +208,21 @@ export const venueToTrackId = (name) => {
 };
 export const trackName = (id) => TRACKS.find((t) => t.id === id)?.name || "";
 export const carName = (cls, id) => CARS[cls]?.find((c) => c.id === id)?.name || "";
-/* araç görseli: dosya adı id'den farklıysa CARS girişindeki img alanı kullanılır */
+/* araç görseli: dosya adı id'den farklıysa CARS girişindeki img alanı kullanılır.
+   v2.2: statik set .webp'e taşındı (yandan 1000×400) ve araca özel ÜSTTEN görsel
+   eklendi (carTopImg — üstten 400×1000). */
 export const carImg = (cls, id) => {
   const c = CARS[cls]?.find((x) => x.id === id);
-  return `${ASSET}cars/${cls}/${c?.img || id}.png`;
+  return `${ASSET}cars/${cls}/${c?.img || id}.webp`;
 };
+/* araca özel üstten görsel (v2.2). Yoksa çağıran CAR_TOP_DEFAULT'a düşer
+   (teamAssets.carImageSrc + <img onError>). */
+export const carTopImg = (cls, id) => {
+  const c = CARS[cls]?.find((x) => x.id === id);
+  return `${ASSET}cartop/${cls}/${c?.img || id}.webp`;
+};
+/* araca özel üstten görsel yoksa jenerik fallback */
+export const CAR_TOP_DEFAULT = `${ASSET}cartop/default.png`;
 /* ---- grafik yardımcıları (App + components ortak) ----
    BADGES/teamBadgesOf/hasBadge JSX (<Wheel/>) içerdiği için ./components.jsx'te. */
 export const PIE_COLORS = ["#2DD4BF", "#F2C94C", "#960018", "#9B6DFF", "#4C9AFF",

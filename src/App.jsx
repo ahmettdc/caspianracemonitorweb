@@ -178,8 +178,13 @@ export default function App() {
     if (lang !== "en" || dict) return undefined;
     if (EN_CACHE) { setDict(EN_CACHE); return undefined; }
     let on = true;
-    import("./i18n").then((m) => { EN_CACHE = m.EN; if (on) setDict(m.EN); });
-    return () => { on = false; };
+    import("./i18n").then((m) => { EN_CACHE = m.EN; if (on) setDict(m.EN); })
+      .catch(() => {});
+    /* güvenlik ağı: aynı origin chunk'ı ~her zaman anında gelir; yine de bir
+       yükleme hatası/çok yavaş ağda dil kapısı sonsuz takılmasın — 8 sn sonra
+       kaynakla (TR) devam et (kullanıcı TR/EN düğmesiyle de geçebilir). */
+    const timer = setTimeout(() => { if (on && !EN_CACHE) setDict({}); }, 8000);
+    return () => { on = false; clearTimeout(timer); };
   }, [lang, dict]);
   /* t useCallback: kimliği yalnız dil/sözlük değişince değişir — alt ağaçlardaki
      memo'ların (PosChart, TraceRow…) boşuna kırılmaması için ön şart. */
@@ -1949,11 +1954,43 @@ ${bottomBar}
     </>
   );
 
+  /* ---------- dil kapısı: EN sözlüğü (lazy) inene dek dile NÖTR splash ----------
+     lang="en" iken sözlük hazır olmadan lobiyi t() ile basmak "EN seçili ama
+     Türkçe görünüyor" parlamasına yol açıyordu. Sözlük gelene dek çevrilebilir
+     metin İÇERMEYEN bir yükleme ekranı göster (yalnız logo + spinner). TR/EN
+     düğmesi kaçış yolu: TR sözlük gerektirmez → anında geçer. */
+  if (lang === "en" && !langReady) {
+    return (
+      <div className="rc">
+        <div style={{ position: "fixed", inset: 0, zIndex: 2000,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          backgroundColor: "var(--rc-bg)",
+          backgroundImage: "radial-gradient(120% 95% at 50% -12%,rgba(150,0,24,.24),rgba(11,7,8,0) 62%)",
+          fontFamily: "var(--rc-font-ui)", color: "var(--rc-text)", animation: "rcfade .22s ease" }}>
+          <span style={{ position: "absolute", top: 22, right: 26 }}>
+            <div className="langsw">
+              {["tr", "en"].map((l) => (
+                <button key={l} className={lang === l ? "on" : ""}
+                  onClick={() => switchLang(l)}>{l.toUpperCase()}</button>
+              ))}
+            </div>
+          </span>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20 }}>
+            <img src={`${ASSET}logo.png`} alt="Caspian Motorsport"
+              style={{ height: 40, opacity: .92 }}
+              onError={(e) => { e.currentTarget.style.display = "none"; }} />
+            <i style={{ width: 22, height: 22, borderRadius: "50%",
+              border: "2px solid var(--rc-border-strong)", borderTopColor: "var(--rc-brand-bright)",
+              animation: "rcspin .7s linear infinite" }} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   /* ---------- giriş kapısı: oturum yoksa uygulama açılmaz ----------
-     langReady: EN sözlüğü lazy geldiğinden, EN kullanıcı sözlük inene dek
-     (auth beklemesiyle aynı görsel) yükleme durumunda tutulur — Türkçe metin
-     parlaması olmaz. Chunk aynı origin'den geldiği için bu bekleme pratikte
-     auth'tan önce biter. */
+     langReady artık yukarıdaki dil kapısında garanti — buraya gelindiğinde EN
+     sözlüğü hazır (ya da dil TR). */
   if (authReady && (authLoading || !langReady || !user)) {
     /* v2.0 giriş ekranı (handoff-spec/ekranlar/15-giris.md + yama-v2.0.2).
        busy: ilk auth/dict yüklemesi VEYA düğmeye basılınca — tek yükleniyor
@@ -2286,6 +2323,9 @@ ${bottomBar}
              lobiden yeniden kullanıldı. Genel kontroller (dil/hesap/çıkış/üyeler/info) buraya
              taşındı — yarış üst çubuğundan kaldırılanların v2.0'daki kalıcı evi. */
           const teamName = teamData?.meta?.name || (curTeam && myTeams[curTeam]) || "Caspian Motorsport";
+          /* mevcut takımın ÖZEL logosu (yüklenmişse) — yoksa Caspian varsayılanı.
+             Üst çubuktaki takım çipi bunu gösterir (v2.2 düzeltmesi). */
+          const teamLogo = teamLogoSrc(teamData?.assets) || `${ASSET}logo.png`;
           const roleLabel = (
             <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
               {myRole === "owner" ? <><RoleIcon name="owner" size={11} /> {t("Sahip")}</>
@@ -2341,7 +2381,8 @@ ${bottomBar}
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
             <span style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--rc-surface-2)",
               border: "1px solid var(--rc-border-strong)", borderRadius: 99, padding: "5px 16px 5px 6px" }}>
-              <img src={`${ASSET}logo.png`} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />
+              <img src={teamLogo} alt="" style={{ width: 28, height: 28, objectFit: "contain", borderRadius: 6 }}
+                onError={(e) => { if (!e.currentTarget.dataset.fb) { e.currentTarget.dataset.fb = "1"; e.currentTarget.src = `${ASSET}logo.png`; } }} />
               <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 15 }}>{teamName}</span>
             </span>
             {Object.entries(myTeams).filter(([tid]) => tid !== curTeam).slice(0, 3).map(([tid, nm]) => (
