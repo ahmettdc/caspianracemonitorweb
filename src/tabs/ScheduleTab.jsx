@@ -68,16 +68,22 @@ function weekendData(r, t) {
   addS(W.qualSec, t("Sıralama"), "qualifying");
   addS(W.raceSec, t("Yarış"), "race");
   const yn = (b) => (b ? t("Evet") : t("Hayır"));
-  const stats = [];
-  if (W.grid != null) stats.push([t("Grid"), String(W.grid)]);
-  if (W.privateQuali != null) stats.push([t("Özel sıralama"), yn(W.privateQuali)]);
-  if (W.fixedSetup != null) stats.push([t("Sabit setup"), yn(W.fixedSetup)]);
-  if (W.tyreSets != null) stats.push([t("Lastik seti"), String(W.tyreSets)]);
-  if (W.tlPoints != null) stats.push([t("TL puanı"), String(W.tlPoints)]);
-  if (W.fuel != null) stats.push([t("Yakıt"), `×${W.fuel}`]);
-  if (W.tyreWear != null) stats.push([t("Aşınma"), `×${W.tyreWear}`]);
-  if (W.warmers != null) stats.push([t("Isıtıcı"), W.warmers ? t("Var") : t("Yok")]);
-  return { sessions, stats };
+  /* Kategorize (handoff · Resmi Yarışlar): FORMAT (grid/özel sıralama/sabit setup) ve
+     KURALLAR (lastik seti/TL puanı/yakıt/aşınma/ısıtıcı) ayrı sütunlar. */
+  const format = [];
+  if (W.grid != null) format.push([t("Grid"), String(W.grid)]);
+  if (W.privateQuali != null) format.push([t("Özel sıralama"), yn(W.privateQuali)]);
+  if (W.fixedSetup != null) format.push([t("Sabit setup"), yn(W.fixedSetup)]);
+  const rules = [];
+  if (W.tyreSets != null) rules.push([t("Lastik seti"), String(W.tyreSets)]);
+  if (W.tlPoints != null) rules.push([t("TL puanı"), String(W.tlPoints)]);
+  if (W.fuel != null) rules.push([t("Yakıt"), `×${W.fuel}`]);
+  if (W.tyreWear != null) rules.push([t("Aşınma"), `×${W.tyreWear}`]);
+  if (W.warmers != null) rules.push([t("Isıtıcı"), W.warmers ? t("Var") : t("Yok")]);
+  const statGroups = [];
+  if (format.length) statGroups.push({ title: t("Format"), items: format });
+  if (rules.length) statGroups.push({ title: t("Kurallar"), items: rules });
+  return { sessions, statGroups };
 }
 
 export default function ScheduleTab({ t, lang = "tr", races = [], updatedAt, loading, onPlan }) {
@@ -208,7 +214,8 @@ export default function ScheduleTab({ t, lang = "tr", races = [], updatedAt, loa
             {d.races.map((r, i) => {
               const st = raceStatus(r, now), live = st === "live";
               return (
-                <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderTop: i > 0 ? "1px solid var(--rc-line-soft)" : "none", background: live ? "rgba(55,214,122,.05)" : "transparent" }}>
+                <div key={r.id} style={{ display: "flex", flexDirection: "column", gap: 9, padding: "12px 14px", borderTop: i > 0 ? "1px solid var(--rc-line-soft)" : "none", background: live ? "rgba(55,214,122,.05)" : "transparent" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 15, color: live ? "var(--rc-ok)" : "var(--rc-text-2)", width: 46, flex: "0 0 auto" }}>{fmtClock(r.startMs, lang)}</span>
                   {r.trackId && <img src={`${ASSET}flags/${TRACK_ASSET(r.trackId)}.png${AV}`} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ width: 26, borderRadius: 3, border: "1px solid var(--rc-border)", flex: "0 0 auto" }} />}
                   {r.trackId && <img src={`${ASSET}tracks/${TRACK_ASSET(r.trackId)}.png${AV}`} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ width: 52, height: 32, objectFit: "contain", opacity: .75, flex: "0 0 auto" }} />}
@@ -225,27 +232,6 @@ export default function ScheduleTab({ t, lang = "tr", races = [], updatedAt, loa
                       <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{[trackName(r.trackId) || r.trackRaw, r.lenLabel].filter(Boolean).join(" · ")}</span>
                     </span>
                   </span>
-                  {(() => {
-                    const { sessions, stats } = weekendData(r, t);
-                    if (!sessions.length && !stats.length) return null;
-                    return (
-                      <span style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "4px 7px", flex: "1.6 1 320px", minWidth: 0, justifyContent: "center" }}>
-                        {sessions.map((s) => (
-                          <span key={s.label} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px", borderRadius: 8, background: "var(--rc-surface-2)", border: "1px solid var(--rc-border)", whiteSpace: "nowrap" }}>
-                            <i style={{ fontStyle: "normal", fontSize: 9.5, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--rc-text-3)" }}>{s.label}</i>
-                            <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 12, fontWeight: 700, color: "var(--rc-text)" }}>{s.dur}</b>
-                            {s.wx.length > 0 && <span style={{ fontSize: 9, letterSpacing: "-1px", opacity: .9 }}>{s.wx.map(wxIcon).join("")}</span>}
-                          </span>
-                        ))}
-                        {stats.map(([k, v]) => (
-                          <span key={k} style={{ display: "inline-flex", alignItems: "baseline", gap: 4, padding: "3px 9px", borderRadius: 8, background: "var(--rc-surface-2)", border: "1px solid var(--rc-border)", whiteSpace: "nowrap" }}>
-                            <i style={{ fontStyle: "normal", fontSize: 9.5, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--rc-text-3)" }}>{k}</i>
-                            <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 12, fontWeight: 700, color: "var(--rc-text)" }}>{v}</b>
-                          </span>
-                        ))}
-                      </span>
-                    );
-                  })()}
                   {r.sr && <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 11, textTransform: "uppercase", letterSpacing: ".05em", padding: "3px 9px", borderRadius: 8, border: "1px solid var(--rc-border-strong)", color: "var(--rc-text-2)", flex: "0 0 auto", whiteSpace: "nowrap" }}>SR {r.sr}</span>}
                   <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 12.5, color: live ? "var(--rc-ok)" : "var(--rc-text-3)", flex: "0 0 auto", whiteSpace: "nowrap", minWidth: 54, textAlign: "right" }}>{live ? t("başlıyor") : countdown(r.startMs, now, t)}</span>
                   <span style={{ display: "flex", gap: 6, flex: "0 0 auto" }}>
@@ -254,6 +240,36 @@ export default function ScheduleTab({ t, lang = "tr", races = [], updatedAt, loa
                       style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 9, cursor: "pointer", fontSize: 12, whiteSpace: "nowrap",
                         border: `1px solid ${live ? "var(--rc-brand-bright)" : "var(--rc-border)"}`, background: live ? "var(--rc-brand)" : "var(--rc-surface-3)", color: live ? "var(--rc-on-brand)" : "var(--rc-text-2)" }}><Icon name="plan" size={14} /> {t("Planla")}</button>}
                   </span>
+                  </div>
+                  {(() => {
+                    /* 2. satır — "Race weekend" detayları, KATEGORİZE (handoff · Resmi Yarışlar):
+                       SEANSLAR / FORMAT / KURALLAR sütunları; ada hizalı (padding-left:160). */
+                    const { sessions, statGroups } = weekendData(r, t);
+                    if (!sessions.length && !statGroups.length) return null;
+                    const cat = (title, body) => (
+                      <div key={title} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                        <span style={{ fontSize: 9, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".12em", color: "var(--rc-text-3)" }}>{title}</span>
+                        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "5px 6px" }}>{body}</div>
+                      </div>
+                    );
+                    return (
+                      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", gap: "10px 22px", paddingLeft: 160 }}>
+                        {sessions.length > 0 && cat(t("Seanslar"), sessions.map((s) => (
+                          <span key={s.label} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px", borderRadius: 8, background: "var(--rc-surface-2)", border: "1px solid var(--rc-border)", whiteSpace: "nowrap" }}>
+                            <i style={{ fontStyle: "normal", fontSize: 9.5, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--rc-text-3)" }}>{s.label}</i>
+                            <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 12, fontWeight: 700, color: "var(--rc-text)" }}>{s.dur}</b>
+                            {s.wx.length > 0 && <span style={{ fontSize: 9, letterSpacing: "-1px", opacity: .9 }}>{s.wx.map(wxIcon).join("")}</span>}
+                          </span>
+                        )))}
+                        {statGroups.map((g) => cat(g.title, g.items.map(([k, v]) => (
+                          <span key={k} style={{ display: "inline-flex", alignItems: "baseline", gap: 4, padding: "3px 9px", borderRadius: 8, background: "var(--rc-surface-2)", border: "1px solid var(--rc-border)", whiteSpace: "nowrap" }}>
+                            <i style={{ fontStyle: "normal", fontSize: 9.5, textTransform: "uppercase", letterSpacing: ".05em", color: "var(--rc-text-3)" }}>{k}</i>
+                            <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 12, fontWeight: 700, color: "var(--rc-text)" }}>{v}</b>
+                          </span>
+                        ))))}
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}
