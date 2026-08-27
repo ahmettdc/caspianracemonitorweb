@@ -1,4 +1,5 @@
 import { fmtHMS, parseHMS, wxLog, wxAtRel, wxId, tyState, EMPTY_PIT, MAX_STINTS, WEATHER } from "../engine";
+import { fuelView } from "../constants";
 import { WetIcon } from "../WetIcon";
 import { Icon, Tyre } from "../components";
 
@@ -15,9 +16,22 @@ export default function StintTab({
   assignDriver, upOvr, setRepair,
 }) {
   const TY = ["FL", "FR", "RL", "RR"];
-  /* stinte özel VE tüketimi (%/tur) — depo değeri / override var mı */
+  /* Yakıt sunumu: VE sınıflarında (Hypercar/GT3) yüzde, diğerlerinde litre. Dahili
+     birim (stintCons, fuelNeed = %) hep aynıdır; burada yalnız etiket/değer çevrilir. */
+  const fv = fuelView(st);
+  /* stinte özel tüketim override'ı — depoda %/tur saklanır; VE olmayan sınıfta L/tur
+     olarak gösterilip yazılır (giriş L → dahili % = L/ratio; gösterim % → L = %×ratio). */
   const consValOf = (i) => (st.stintCons || [])[i] ?? "";
   const consOvrOf = (i) => Number((st.stintCons || [])[i]) > 0;
+  const consInputVal = (i) => { const raw = consValOf(i); if (raw === "" || raw == null) return ""; return fv.hasVE ? raw : String(+(Number(raw) * fv.ratio).toFixed(2)); };
+  const consPlaceholder = fv.hasVE
+    ? (st.consumption != null ? String(st.consumption) : "%/tur")
+    : (st.consumption != null ? String(+((Number(st.consumption) || 0) * fv.ratio).toFixed(2)) : "L/tur");
+  const onConsInput = (i, v) => {
+    if (v === "") { upStintCons(i, ""); return; }
+    if (fv.hasVE) { upStintCons(i, v); return; }
+    if (fv.ratio > 0) upStintCons(i, String(+(Number(v) / fv.ratio).toFixed(4)));
+  };
   const roster = st.roster || [];
   const drvCol = (nm) => { const i = roster.indexOf(nm); return DRV_COLORS[(i >= 0 ? i : 0) % DRV_COLORS.length]; };
   const nowPct = liveInfo.status === "live" && mode === "race"
@@ -42,7 +56,7 @@ export default function StintTab({
           <div style={kpi()}><div style={{ ...kpiV, color: "var(--rc-brand-bright)" }}>{st.chosen}-{plan.laps}</div><div style={kpiL}>{t("Strateji")}</div></div>
           <div style={kpi()}><div style={kpiV}>{plan.fullStints}</div><div style={kpiL}>{t("Stint")}</div></div>
           <div style={kpi()}><div style={kpiV}>{plan.totalLaps.toFixed(1)}</div><div style={kpiL}>{t("Tahmini tur")}</div></div>
-          <div style={kpi({ b: "rgba(55,214,122,.35)", bg: "rgba(55,214,122,.07)" })}><div style={{ ...kpiV, color: "var(--rc-ok)" }}>{totalVE.toFixed(0)}%</div><div style={kpiL}><Icon name="simsek" size={11} /> {t("Toplam VE")} · {totalFuelL.toFixed(0)} L</div></div>
+          <div style={kpi({ b: "rgba(55,214,122,.35)", bg: "rgba(55,214,122,.07)" })}><div style={{ ...kpiV, color: "var(--rc-ok)" }}>{fv.hasVE ? `${totalVE.toFixed(0)}%` : `${totalFuelL.toFixed(0)} L`}</div><div style={kpiL}><Icon name={fv.hasVE ? "simsek" : "yakit"} size={11} /> {fv.hasVE ? <>{t("Toplam VE")} · {totalFuelL.toFixed(0)} L</> : t("Toplam yakıt")}</div></div>
         </span>
       </div>
 
@@ -169,8 +183,8 @@ export default function StintTab({
         <div style={{ overflowX: "auto" }}>
           <table data-tour="stinttable" aria-label={t("Stint plan tablosu")} style={{ width: "100%", borderCollapse: "collapse", minWidth: 1120 }}>
             <thead><tr>
-              <th style={th(true)}>#</th><th style={th(true)}>{t("Stint · tur")}</th><th style={th()}><Icon name="simsek" size={11} /> {t("VE iht.")}</th>
-              <th style={th(true)}>{t("Ort. tur")}</th><th style={th(true)}><Icon name="simsek" size={11} /> {t("VE %/tur")}</th><th style={th(true)}>{t("Pit ayarı")}</th><th style={th()}>Pit</th>
+              <th style={th(true)}>#</th><th style={th(true)}>{t("Stint · tur")}</th><th style={th()}><Icon name={fv.hasVE ? "simsek" : "yakit"} size={11} /> {fv.hasVE ? t("VE iht.") : t("Yakıt iht.")}</th>
+              <th style={th(true)}>{t("Ort. tur")}</th><th style={th(true)}><Icon name={fv.hasVE ? "simsek" : "yakit"} size={11} /> {fv.hasVE ? t("VE %/tur") : t("Yakıt L/tur")}</th><th style={th(true)}>{t("Pit ayarı")}</th><th style={th()}>Pit</th>
               <th style={th(true)}>{t("Pilot")}</th><th style={th()}>{t("Bitiş")}</th><th style={th()}>{t("Kalan")}</th><th style={th(true)}>Override</th>
             </tr></thead>
             <tbody>
@@ -203,7 +217,7 @@ export default function StintTab({
                         )}
                       </span>
                     </td>
-                    <td style={{ ...td(), color: r.fuelNeed > 100 ? "var(--rc-danger)" : "var(--rc-text)" }} title={`≈ ${(r.fuelNeed * st.fuelRatio).toFixed(1)} L`}>{r.fuelNeed.toFixed(1)}%</td>
+                    <td style={{ ...td(), color: r.fuelNeed > 100 ? "var(--rc-danger)" : "var(--rc-text)" }} title={fv.hasVE ? `≈ ${(r.fuelNeed * st.fuelRatio).toFixed(1)} L` : `${r.fuelNeed.toFixed(1)}% depo`}>{fv.hasVE ? `${r.fuelNeed.toFixed(1)}%` : `${(r.fuelNeed * fv.ratio).toFixed(1)} L`}</td>
                     <td style={td(true)}>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
                         <input className="ovr" type="text" style={{ width: 78, ...(ovrBad ? { borderColor: "var(--rc-danger)", color: "var(--rc-danger)" } : {}) }}
@@ -214,12 +228,12 @@ export default function StintTab({
                       </span>
                     </td>
                     <td style={td(true)}>
-                      {/* stinte özel VE tüketimi (%/tur) — boş → yarış datasındaki tüketim */}
+                      {/* stinte özel tüketim override'ı — VE'de %/tur, diğer sınıflarda L/tur; boş → yarış datası */}
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                        <input className="ovr" type="number" min="0" step="0.1" style={{ width: 72 }}
-                          placeholder={st.consumption != null ? String(st.consumption) : "%/tur"}
-                          title={consOvrOf(i) ? t("Bu stint girilen VE tüketimiyle hesaplanıyor") : t("Boş: yarış datasındaki VE tüketimi kullanılır")}
-                          value={consValOf(i)} onChange={(e) => upStintCons(i, e.target.value)} />
+                        <input className="ovr" type="number" min="0" step={fv.hasVE ? "0.1" : "0.01"} style={{ width: 72 }}
+                          placeholder={consPlaceholder}
+                          title={consOvrOf(i) ? t("Bu stint girilen tüketimle hesaplanıyor") : t("Boş: yarış datasındaki tüketim kullanılır")}
+                          value={consInputVal(i)} onChange={(e) => onConsInput(i, e.target.value)} />
                         {consOvrOf(i) && <button className="minibtn" title={t("Otomatiğe dön")} onClick={() => upStintCons(i, "")}>✕</button>}
                       </span>
                     </td>

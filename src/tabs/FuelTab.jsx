@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { fmtHMS, lastStintFuel, WX } from "../engine";
+import { fuelView } from "../constants";
 import { Bolt, Icon } from "../components";
 
 /* Son stint yakıtı (v2.0 · handoff-spec/ekranlar/05-yakit.md). Kalan süreye göre
@@ -16,6 +17,16 @@ export default function FuelTab({ t, st, up, lsf, autoCd, setAutoCd, planLastCd,
      Ekrandaki 'Tüketim' ve formül headline ile tutarlı olsun diye ham değil bunu göster. */
   const cons = +((Number(st.consumption) || 0) * (WX(st).fuel || 1)).toFixed(3);
   const ratio = Number(st.fuelRatio) || 1;
+  /* Yakıt sunumu: VE sınıflarında (Hypercar/GT3) yüzde, diğerlerinde litre. Dahili
+     birim (cons, refuel, senaryolar = %) hep aynı; burada yalnız etiket/değer çevrilir. */
+  const fv = fuelView(st);
+  const unit = fv.hasVE ? t("%/tur") : t("L/tur");
+  const toL = (pct) => (Number(pct) || 0) * ratio;         // dahili % → litre
+  /* Bir dahili %-değerini sınıfa göre metne çevirir: VE'de "12.3%", yakıtta "10.6 L". */
+  const shownVal = (pct, dp = 1) => fv.hasVE ? `${(Number(pct) || 0).toFixed(dp)}%` : `${toL(pct).toFixed(dp)} L`;
+  /* Senaryo/tüketim giriş kutusu: dahili % ↔ ekran (VE: %, yakıt: L). */
+  const consShown = (pct) => fv.hasVE ? pct : +toL(pct).toFixed(2);
+  const consStore = (shown) => fv.hasVE ? shown : (ratio > 0 ? +(Number(shown) / ratio).toFixed(4) : shown);
 
   const [scen, setScen] = useState(() => ({
     plan: cons, save: +(cons * 0.95).toFixed(2), push: +(cons * 1.08).toFixed(2),
@@ -62,17 +73,17 @@ export default function FuelTab({ t, st, up, lsf, autoCd, setAutoCd, planLastCd,
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
             <div style={mini}><div style={miniV}>{r.lapsLeft}</div><div style={miniL}>{t("Kalan tur")} <span style={{ color: "var(--rc-border-strong)" }}>({r.lapsRaw.toFixed(2)})</span></div></div>
-            <div style={mini}><div style={miniV}>{cons.toFixed(2)}<span style={{ fontSize: 13, color: "var(--rc-text-3)" }}> {t("%/tur")}</span></div><div style={miniL}>{t("Tüketim")}</div></div>
+            <div style={mini}><div style={miniV}>{(fv.hasVE ? cons : toL(cons)).toFixed(2)}<span style={{ fontSize: 13, color: "var(--rc-text-3)" }}> {unit}</span></div><div style={miniL}>{t("Tüketim")}</div></div>
             <div style={mini}><div style={miniV}>+{st.extraLap}</div><div style={miniL}>Extra lap</div></div>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--rc-border-strong)", flexWrap: "wrap" }}>
             <Bolt size={30} />
-            <span style={{ fontFamily: "var(--rc-font-display)", fontSize: "clamp(34px,5vw,52px)", fontWeight: 700, lineHeight: 1, color: r.refuel > 100 ? "var(--rc-danger)" : "var(--rc-ok)" }}>{r.refuel.toFixed(1)}<span style={{ fontSize: ".5em" }}>%</span></span>
+            <span style={{ fontFamily: "var(--rc-font-display)", fontSize: "clamp(34px,5vw,52px)", fontWeight: 700, lineHeight: 1, color: r.refuel > 100 ? "var(--rc-danger)" : "var(--rc-ok)" }}>{fv.hasVE ? r.refuel.toFixed(1) : toL(r.refuel).toFixed(1)}<span style={{ fontSize: ".5em" }}>{fv.hasVE ? "%" : " L"}</span></span>
             <span style={{ fontSize: 16, color: "var(--rc-text-3)" }}>(+{st.extraLap} lap)</span>
           </div>
           <div style={{ fontSize: 12, color: "var(--rc-text-2)", marginTop: 9, lineHeight: 1.7 }}>
-            ≈ <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 15, color: "var(--rc-ok)" }}>{r.refuelL.toFixed(1)} L</b> {t("gerçek yakıt")} · ({t("kalan tur")} {r.lapsLeft} + extra {st.extraLap}) × {cons.toFixed(2)} {t("%/tur")}
+            ≈ <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 15, color: "var(--rc-ok)" }}>{r.refuelL.toFixed(1)} L</b> {t("gerçek yakıt")} · ({t("kalan tur")} {r.lapsLeft} + extra {st.extraLap}) × {(fv.hasVE ? cons : toL(cons)).toFixed(2)} {unit}
             {r.refuel > 100 && <> · <b style={{ color: "var(--rc-danger)" }}><Icon name="uyari" size={12} /> {t("%100'ü aşıyor — depo yetmez!")}</b></>}
           </div>
         </div>
@@ -105,17 +116,19 @@ export default function FuelTab({ t, st, up, lsf, autoCd, setAutoCd, planLastCd,
                 const need = (r.lapsLeft + st.extraLap) * c;
                 const base = (r.lapsLeft + st.extraLap) * (Number(scen.plan) || 0);
                 const diff = need - base;
-                const note = f.id === "plan" ? `${(need * ratio).toFixed(1)} L` : `${diff > 0 ? "+" : ""}${diff.toFixed(1)}%`;
+                const note = f.id === "plan"
+                  ? `${(need * ratio).toFixed(1)} L`
+                  : (fv.hasVE ? `${diff > 0 ? "+" : ""}${diff.toFixed(1)}%` : `${diff > 0 ? "+" : ""}${toL(diff).toFixed(1)} L`);
                 return (
                   <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 10, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)" }}>
                     <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--rc-text-2)" }}>{f.label}</span>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 5, flex: "0 0 auto" }}>
-                      <input type="number" step="0.01" value={scen[f.id]} readOnly={readOnly}
-                        onChange={(e) => { const v = parseFloat(e.target.value); if (isFinite(v)) setScen((s) => ({ ...s, [f.id]: v })); }}
+                      <input type="number" step="0.01" value={consShown(scen[f.id])} readOnly={readOnly}
+                        onChange={(e) => { const v = parseFloat(e.target.value); if (isFinite(v)) setScen((s) => ({ ...s, [f.id]: consStore(v) })); }}
                         style={{ width: 62, textAlign: "right", background: "var(--rc-surface-2)", border: `1px solid ${readOnly ? "var(--rc-border)" : "var(--rc-border-strong)"}`, borderRadius: 7, color: "var(--rc-text)", padding: "4px 7px", fontFamily: "var(--rc-font-display)", fontSize: 13, fontWeight: 700, opacity: readOnly ? .6 : 1 }} />
-                      <span style={{ fontSize: 10, color: "var(--rc-text-3)" }}>{t("%/tur")}</span>
+                      <span style={{ fontSize: 10, color: "var(--rc-text-3)" }}>{unit}</span>
                     </span>
-                    <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 17, fontWeight: 700, color: f.col, flex: "0 0 auto", width: 62, textAlign: "right" }}>{need.toFixed(1)}%</b>
+                    <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 17, fontWeight: 700, color: f.col, flex: "0 0 auto", width: 62, textAlign: "right" }}>{shownVal(need)}</b>
                     <span style={{ flex: "0 0 auto", fontSize: 10.5, padding: "3px 9px", borderRadius: 99, width: 62, textAlign: "center", boxSizing: "border-box", border: "1px solid var(--rc-border)", color: "var(--rc-text-3)", whiteSpace: "nowrap" }}>{note}</span>
                   </div>
                 );

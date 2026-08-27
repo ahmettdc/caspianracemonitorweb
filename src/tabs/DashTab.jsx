@@ -1,6 +1,6 @@
 import { fmtHMS, WX, wxId } from "../engine";
 import { WetIcon } from "../WetIcon";
-import { ASSET, AV, TRACK_ASSET, PIT_LANE_TIMES, CAR_CLASSES, trackName, carName } from "../constants";
+import { ASSET, AV, TRACK_ASSET, PIT_LANE_TIMES, CAR_CLASSES, trackName, carName, fuelView } from "../constants";
 import { carImageSrc } from "../teamAssets";
 import { Tyre, Bolt, Icon } from "../components";
 
@@ -22,6 +22,8 @@ export default function DashTab({
   const onLast = live && !!racePlan.rows[liveInfo.stintIdx]?.isLast;
   const pitLabel = !live ? t("Sıradaki pit") : liveInfo.phase === "pit" ? t("Pit çıkışı") : onLast ? t("Bayrağa") : t("Sıradaki pit");
   const wx = WX(st);
+  /* Yakıt sunumu: VE sınıflarında (Hypercar/GT3) yüzde, diğerlerinde litre. */
+  const fv = fuelView(st);
 
   const stintTyre = (i) => {
     const codes = (st.tyreStints[i] || []).map((x) => String(x).trim()).filter(Boolean);
@@ -170,13 +172,13 @@ export default function DashTab({
             )}
           </div>
 
-          {/* Son stint VE */}
+          {/* Son stint yakıt/VE */}
           <div style={{ ...card, padding: "16px 18px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-              <span style={{ ...cardHdT, display: "flex", alignItems: "center", gap: 6 }} data-tour="dash-lsf"><Bolt /> {t("Son Stint VE")}</span>
+              <span style={{ ...cardHdT, display: "flex", alignItems: "center", gap: 6 }} data-tour="dash-lsf"><Bolt /> {fv.hasVE ? t("Son Stint VE") : t("Son Stint Yakıt")}</span>
             </div>
             <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-              <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 44, fontWeight: 700, lineHeight: 1, color: "var(--rc-warn)" }}>{planLsf.refuel.toFixed(1)}%</span>
+              <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 44, fontWeight: 700, lineHeight: 1, color: "var(--rc-warn)" }}>{fv.hasVE ? `${planLsf.refuel.toFixed(1)}%` : `${planLsf.refuelL.toFixed(1)} L`}</span>
               <span style={{ fontSize: 14, color: "var(--rc-text-3)" }}>+{st.extraLap} {t("tur")}</span>
             </div>
             <div style={{ fontSize: 11.5, color: "var(--rc-text-2)", marginTop: 6 }}>
