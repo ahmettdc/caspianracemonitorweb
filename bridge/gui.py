@@ -25,7 +25,7 @@ API_KEY = "AIzaSyB9hEH26etwvn9adAGNOpPAlpUym1qzpns"
 DB_URL = "https://caspian-race-control-default-rtdb.europe-west1.firebasedatabase.app"
 
 # Sürüm rozeti (tasarımdaki değer — web uygulamasının ürün sürümü).
-BADGE_VERSION = "v2.1.2"
+BADGE_VERSION = "v2.2.0"
 
 # --- Tasarım tokenları (handoff · web uygulaması + gui ile ortak) ---
 WIN = "#120C0E"      # pencere arkaplanı

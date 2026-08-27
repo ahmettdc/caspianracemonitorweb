@@ -5,6 +5,26 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v2.2.0",
+    date: "2026-08-27",
+    tr: [
+      "🏎 Araç görselleri yenilendi: 32 araç için yeni yandan (webp) görsellerin yanı sıra artık her araca ÖZEL üstten görsel var (eskiden tek jenerik üstten görsel vardı) — pick ekranı, Dashboard, Canlı 'Kendi Araç' ve telemetride görünür. Yeni araçlar: GT3 Lamborghini Huracán GT3 EVO2 ve LMP3 Ginetta G61-LT-P3.",
+      "🌐 İngilizce mod elden geçti: EN'de Türkçe kalan ~328 metin çevrildi (kart başlıkları, tab etiketleri, tooltip'ler, mesajlar). İlk açılışta 'EN seçili ama Türkçe görünüyor' parlaması giderildi — sözlük inene dek dile nötr yükleme ekranı gösteriliyor.",
+      "📊 Telemetri SEANS paneli: yüklenen dosyaya göre bayrak + araç + pist şekli ve pist/araç/pilot/sıcaklık satırları. .duckdb'de pilot ve sıcaklık verisi varsa artık gösteriliyor; eksikse pist/araç yarış bağlamından türetiliyor.",
+      "🏁 Resmi Yarışlar: her yarışın 'hafta sonu' detayları artık SEANSLAR / FORMAT / KURALLAR sütunları hâlinde kategorize gösteriliyor.",
+      "🖼 Ana sayfadaki takım çipi artık takımın yüklediği özel logoyu gösteriyor (varsayılan Caspian logosu yerine).",
+      "🪶 Caspian Live Bridge (hafif köprü) arayüzü yeniden tasarlandı: kartlı kurulum akışı (Hesap → Yayın Hedefi → Gönderim), canlı yayın görünümü (durum şeridi + araç/yakıt-VE/tur/gecikme metrikleri), varsayılan İngilizce + EN/TR geçişi. Tüm işlevler korundu.",
+    ],
+    en: [
+      "🏎 Car artwork refreshed: new side images (webp) for 32 cars plus a PER-CAR top-down image for each (previously a single generic top image) — shown on the pick screen, Dashboard, Live 'Own Car' and telemetry. New cars: GT3 Lamborghini Huracán GT3 EVO2 and LMP3 Ginetta G61-LT-P3.",
+      "🌐 English mode overhaul: translated ~328 strings that stayed Turkish in EN (card titles, tab labels, tooltips, messages). Fixed the first-load 'EN selected but showing Turkish' flash — a language-neutral loading screen shows until the dictionary arrives.",
+      "📊 Telemetry SESSION panel: flag + car + track silhouette plus track/car/driver/temperature rows based on the loaded file. Driver and temperature now show when the .duckdb contains them; when missing, track/car are derived from the race context.",
+      "🏁 Official Races: each race's 'weekend' details are now grouped into SESSIONS / FORMAT / RULES columns.",
+      "🖼 The team chip on the home page now shows the team's uploaded logo (instead of the default Caspian logo).",
+      "🪶 Caspian Live Bridge redesigned: a carded setup flow (Account → Broadcast target → Transmission), a live view (status strip + cars/fuel-VE/laps/latency metrics), English by default with an EN/TR toggle. All functionality preserved.",
+    ],
+  },
+  {
     v: "v2.1.2",
     date: "2026-08-27",
     tr: [
