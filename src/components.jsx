@@ -1460,10 +1460,16 @@ export function ChatModal({ open, onClose, t, lang, chatSound, toggleChatSound, 
   return (
     <div className="rc" onClick={onClose} role="dialog" aria-modal="true"
       style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(10,6,10,.86)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
+      {/* v2.2.2 — Sol KANALLAR paneli bazı GPU'larda boş kalıyordu. Neden: kırpılmış
+          (overflow:hidden + borderRadius) kutu + TRANSFORM tabanlı giriş animasyonu
+          (rcpop) geçici bir katman oluşturup içindeki iki yan-yana kaydırma panelinin
+          ilkini boyamadan bırakıyor. v2.2.1'deki `isolation` tek başına yetmedi; giriş
+          animasyonunu transform'suz (rcfade = yalnız opaklık) yapıyoruz ve sol panele
+          açık opak arka plan + kendi katmanı (position/zIndex) veriyoruz. */}
       <div onClick={(e) => e.stopPropagation()}
-        style={{ width: "min(940px,96vw)", height: "min(660px,88vh)", display: "flex", flexWrap: "wrap", gap: 0, isolation: "isolate", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
+        style={{ width: "min(940px,96vw)", height: "min(660px,88vh)", display: "flex", flexWrap: "wrap", gap: 0, isolation: "isolate", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcfade .2s ease" }}>
         {/* sol: Kanallar */}
-        <div style={{ flex: "0 0 280px", minWidth: 220, borderRight: "1px solid var(--rc-border)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <div style={{ flex: "0 0 280px", minWidth: 220, position: "relative", zIndex: 1, background: "var(--rc-surface)", borderRight: "1px solid var(--rc-border)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
           <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--rc-border)", display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 15, fontWeight: 700 }}>{t("Kanallar")}</span>
             <button onClick={toggleChatSound} title={chatSound ? t("Bildirim sesini kapat") : t("Bildirim sesini aç")}
