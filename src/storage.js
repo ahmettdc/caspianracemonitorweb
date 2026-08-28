@@ -518,12 +518,18 @@ export function raceStateSubscribe(tid, rid, cb) {
    Firebase yazımı 800 ms debounce'ludur ve masaüstü (Tauri) penceresi kapanınca
    bekleyen/uçuşan async yazım tamamlanmadan süreç ölebilir → düzenlemeler
    kaybolurdu. Her düzenlemede `st` buraya SENKRON (localStorage) yazılır; süreç
-   aniden ölse bile veri kalır. Yarış açılışında Firebase ile updatedAt'e göre
-   uzlaştırılır (yerel daha yeniyse geri yazılır). Yalnız düzenleyici yazar. */
+   aniden ölse bile veri kalır.
+
+   Şema: { stateJson, rev, dirty }. `rev` = düzenlemenin üzerine yapıldığı SUNUCU
+   rev'i (dirty=true, henüz gönderilmemiş) ya da başarılı push sonrası yeni rev
+   (dirty=false, senkron). Yarış açılışında UZLAŞTIRMA rev'e göre yapılır (zaman
+   damgasına DEĞİL): yerel yalnız dirty VE uzak rev ile aynıysa geri yüklenir →
+   başka cihaz sunucuyu ilerlettiyse eski yerel veriyle ezme olmaz. Yalnız
+   düzenleyici yazar. */
 const RSTATE_MIRROR = "rm_rstate_";   // + `${tid}_${rid}`
-export function raceStateMirrorSave(tid, rid, stateJson, at) {
+export function raceStateMirrorSave(tid, rid, stateJson, rev, dirty) {
   if (!tid || !rid || typeof stateJson !== "string") return;
-  try { localStorage.setItem(RSTATE_MIRROR + tid + "_" + rid, JSON.stringify({ stateJson, at: at || Date.now() })); }
+  try { localStorage.setItem(RSTATE_MIRROR + tid + "_" + rid, JSON.stringify({ stateJson, rev: rev || 0, dirty: !!dirty })); }
   catch { /* kota dolu / gizli mod — sessizce geç */ }
 }
 export function raceStateMirrorLoad(tid, rid) {
@@ -532,7 +538,8 @@ export function raceStateMirrorLoad(tid, rid) {
     const raw = localStorage.getItem(RSTATE_MIRROR + tid + "_" + rid);
     if (!raw) return null;
     const o = JSON.parse(raw);
-    return (o && typeof o.stateJson === "string" && typeof o.at === "number") ? o : null;
+    return (o && typeof o.stateJson === "string" && typeof o.rev === "number")
+      ? { stateJson: o.stateJson, rev: o.rev, dirty: !!o.dirty } : null;
   } catch { return null; }
 }
 

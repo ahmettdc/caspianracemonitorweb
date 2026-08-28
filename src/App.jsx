@@ -284,20 +284,28 @@ export default function App() {
     try {
       const remote = await raceStateGet(curTeam, rid);
       sync.current.rev = remote?.rev || 0;
-      /* Yerel ayna (cihaz-yerel) uzak sürümden DAHA YENİYSE → önceki oturumda
-         Firebase'e ulaşamamış düzenlemeler var demektir (ör. masaüstü penceresi
-         yazım bitmeden kapandı). Bu durumda yerel veriyi geri yükle ve düzenleyicide
-         Firebase'e geri yaz (reconcile). Aksi halde uzak sürümü kullan. */
+      /* Yerel ayna (cihaz-yerel) yalnız GÖNDERİLMEMİŞ (dirty) düzenleme içeriyor VE
+         uzak sürümle AYNI rev üzerine yapılmışsa geri yüklenir: önceki oturumda push
+         tamamlanamamış demektir (ör. masaüstü penceresi yazım bitmeden kapandı) →
+         yereli geri yükle ve Firebase'e geri yaz (reconcile). rev EŞLEŞMESİ güvenlik:
+         başka cihaz sunucuyu ilerlettiyse (remote.rev ≠ mirror.rev) yerel ATLANIR —
+         eski veriyle çakışma/ezme olmaz. Uzak okuma başarısızsa (remote yok) ayna
+         KULLANILMAZ; abonelik gerçek durumu getirir. (Zaman damgası değil rev; cihazlar
+         arası saat farkı ve soğuk-açılışta boş okuma yanlış tercihe yol açıyordu.) */
       const mirror = raceStateMirrorLoad(curTeam, rid);
-      const useMirror = canEditTeam && mirror && mirror.at > (remote?.updatedAt || 0);
+      const useMirror = canEditTeam && remote && mirror && mirror.dirty
+        && mirror.rev === (remote.rev || 0);
+      let seeded = false;
       if (useMirror) {
         const localParsed = safeParseState(mirror.stateJson);
         if (localParsed) {
           setSt(migrate(localParsed));
-          setLastSync({ by: t("sen"), at: mirror.at });
+          setLastSync({ by: t("sen"), at: Date.now() });
           sync.current.reconcile = rid;   // applying kalkınca Firebase'e geri yaz
+          seeded = true;
         }
-      } else if (remote?.stateJson) {
+      }
+      if (!seeded && remote?.stateJson) {
         const parsed = safeParseState(remote.stateJson);
         if (parsed) {
           setSt(migrate(parsed));

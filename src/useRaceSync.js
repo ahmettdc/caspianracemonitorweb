@@ -37,9 +37,9 @@ export function useRaceSync({ st, setSt, curRace, curTeamRef, role, userName, st
         stateJson, rev, updatedBy: userName || "isimsiz", updatedAt,
       });
       sync.current.rev = rev; setLastSync({ by: t("sen"), at: updatedAt }); setSyncMsg("");
-      /* Firebase'e ULAŞTI → yerel aynayı aynı updatedAt ile eşitle: sonraki açılışta
-         uzak sürüm 'daha yeni' sayılıp gereksiz uzlaştırma-yazımı yapılmaz. */
-      raceStateMirrorSave(tid, rid, stateJson, updatedAt);
+      /* Firebase'e ULAŞTI → yerel aynayı TEMİZ (dirty:false) ve yeni rev ile işaretle:
+         sonraki açılışta gönderilmemiş düzenleme yok sayılır, gereksiz reconcile olmaz. */
+      raceStateMirrorSave(tid, rid, stateJson, rev, false);
     } catch (e) {
       /* Eskiden "tekrar denenecek" yazıp aslında denemiyordu → geçici bir yazma hatasında
          (ör. telemetri yüklemesi) veri sessizce kayboluyordu. Artık gerçek exponential
@@ -57,9 +57,11 @@ export function useRaceSync({ st, setSt, curRace, curTeamRef, role, userName, st
 
   const schedulePush = () => {
     if (!curRace || role !== "editor" || sync.current.applying) return;
-    /* Firebase yazımı 800 ms debounce'lu; ama yerel aynayı HEMEN (senkron) yaz →
-       uygulama debounce dolmadan/uçuşan yazım bitmeden kapansa bile veri kalır. */
-    raceStateMirrorSave(curTeamRef.current, curRace, JSON.stringify(stRef.current), Date.now());
+    /* Firebase yazımı 800 ms debounce'lu; ama yerel aynayı HEMEN (senkron) ve
+       GÖNDERİLMEMİŞ (dirty:true) olarak yaz — mevcut sunucu rev'i üzerine yapılan
+       düzenleme olarak damgala. Uygulama debounce dolmadan/uçuşan yazım bitmeden
+       kapansa bile veri kalır; açılışta rev eşleşirse güvenle geri yüklenir. */
+    raceStateMirrorSave(curTeamRef.current, curRace, JSON.stringify(stRef.current), sync.current.rev, true);
     clearTimeout(sync.current.timer);
     clearTimeout(sync.current.retry);   // bekleyen retry'ı iptal et — yeni push güncel state'i yazar
     sync.current.timer = setTimeout(() => pushState(curRace), 800);
