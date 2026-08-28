@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.2.2 — 2026-08-28
+
+Hotfix.
+
+### Sohbet penceresi — sol panel (devam)
+- v2.2.1'de `backdrop-filter` kaldırılıp `isolation: isolate` eklenmişti ama sol 'KANALLAR' paneli bazı GPU'larda hâlâ boş kalabiliyordu. Geriye kalan tetikleyici, kutunun TRANSFORM tabanlı giriş animasyonuydu (`rcpop`: `translateY`+`scale`) — kırpılmış (`overflow:hidden` + `borderRadius`) kutuda geçici bir compositing katmanı oluşturup iki yan-yana kaydırma panelinin ilkini boyamadan bırakıyordu. Bu modalin animasyonu yalnız-opaklık (`rcfade`) yapıldı; ayrıca sol panele açık opak arka plan (`--rc-surface`) ve kendi stacking katmanı (`position:relative; zIndex:1`) verildi. Diğer modaller tek sütun oldukları için `rcpop` kullanmaya devam ediyor. (`ChatModal`, `components.jsx`)
+
+### Canlı Timing — eski köprü kutusu kaldırıldı
+- Canlı Timing üstündeki eski durum/uyarı kartı (`BridgeControl`) ve yardımcı `CopyBtn` silindi; köprü artık otomatik yönetildiği için kutu gereksizdi. Kullanılmayan `bridge`/`canBridge` prop'ları `LiveTab` imzasından ve `App.jsx`'teki çağrıdan temizlendi.
+
 ## v2.2.1 — 2026-08-28
 
 Hotfix.

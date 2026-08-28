@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v2.2.2",
+    date: "2026-08-28",
+    tr: [
+      "🔧 Sohbet penceresi sol 'KANALLAR' paneli bazı ekran kartlarında hâlâ boş kalabiliyordu. Geriye kalan tetikleyici, pencerenin transform tabanlı açılış animasyonuymuş — artık yalnızca yumuşak bir görünürlük geçişi kullanılıyor ve sol panele ayrı bir katman verildi. Panel her açılışta dolu geliyor.",
+      "🧹 Canlı Timing üstündeki eski kırmızı 'Canlı Köprü' durum kutusu kaldırıldı — köprü zaten otomatik çalıştığı için bu kutu gereksizdi.",
+    ],
+    en: [
+      "🔧 The chat window's left 'CHANNELS' panel could still come up blank on some graphics cards. The remaining trigger was the window's transform-based open animation — it now uses a plain fade and the left panel gets its own layer, so it renders filled every time.",
+      "🧹 Removed the old red 'Live Bridge' status box above Live Timing — the bridge runs automatically now, so the box was redundant.",
+    ],
+  },
+  {
     v: "v2.2.1",
     date: "2026-08-28",
     tr: [
