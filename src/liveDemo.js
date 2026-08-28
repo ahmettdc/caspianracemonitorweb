@@ -79,6 +79,12 @@ export function demoLive(el) {
       virtualEnergy: +Math.max(3, 100 - ((el + i * 40) % 1500 / 1500) * 92).toFixed(1),
       lapDist: +(frac * TRACK_LEN).toFixed(1), posX: +px.toFixed(1), posZ: +pz.toFixed(1),
       sector: frac < 0.40 ? 1 : frac < 0.73 ? 2 : 0,   // 0=S3,1=S1,2=S2 (eşit değil)
+      // ANLIK sektörler: bu turda geçilen S1/S2 (S1 çizgisi ~%40, S2 ~%73 sonrası)
+      curSectors: (() => {
+        const s1 = +(lapT * 0.25 + Math.sin(el + i) * 0.3).toFixed(1);
+        const s2 = +(lapT * 0.44 + Math.cos(el + i) * 0.3).toFixed(1);
+        return frac < 0.40 ? [null, null] : frac < 0.73 ? [s1, null] : [s1, s2];
+      })(),
       isPlayer: i === PLAYER,
       _prog: laps * 1e6 + (el % lapT),
     });

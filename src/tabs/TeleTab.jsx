@@ -699,28 +699,17 @@ ${svgs}
   );
 }
 
-/* Telemetri sekmesi — MoTeC içe aktarma, sütun eşleme, stint analizi + grafikler.
+/* Telemetri sekmesi — .duckdb içe aktarma, stint analizi + grafikler.
    Tüm state/derived (parsed/slotStats/chartData/loadedSlots/baseSlot) ve handler'lar
    App'ten prop gelir. fmtMs lokal (fmtLap sarmalayıcı). */
 export default function TeleTab({
-  t, lang, st, slot, setSlot, rawTele, setRawTele, doParse, onTeleFile,
-  parsed, mapping, setMapping, saveMotec, saveSlot, loadedSlots, slotStats,
+  t, lang, st, slot, setSlot, onTeleFile,
+  parsed, saveMotec, loadedSlots, slotStats,
   up, apply105Slot, removeSlot, chartMode, setChartMode, chartData, baseSlot, toggleLap,
   cmpMeta, cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy, savedMsg,
   cmpSources, cmpASrc, setCmpASrc, cmpBSrc, setCmpBSrc, onSaveDuckSetup, standalone,
 }) {
   const fmtMs = (ms) => fmtLap(ms / 1000);
-  /* Yapıştırma alanı debounce'u: parseMotecLog tüm metni satır satır + karakter
-     karakter tarar (100 Hz × 200+ kanal log'unda büyük iş) — her tuş vuruşunda
-     değil, yazma durunca (300 ms) bir kez koşar. */
-  const parseTimerRef = useRef(null);
-  useEffect(() => () => clearTimeout(parseTimerRef.current), []);
-  const onRawChange = (e) => {
-    const v = e.target.value;
-    setRawTele(v);
-    clearTimeout(parseTimerRef.current);
-    parseTimerRef.current = setTimeout(() => doParse(v), 300);
-  };
   const teleHd = { fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 16, fontWeight: 700 };
   const teleCard = { border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)", padding: "16px 18px" };
   const [impOpen, setImpOpen] = useState(false);
@@ -815,15 +804,9 @@ export default function TeleTab({
           </button>
         ))}
       </div>
-      <label>{t("MoTeC tur istatistiklerini yapıştır veya dosya seç (CSV/TSV) — .duckdb doğrudan çalışır")}</label>
-      <textarea value={rawTele}
-        onChange={onRawChange}
-        placeholder={"Out Lap\t310127\t-6.403 ...\nLap 1\t237350\t-6.36 ..."}
-        style={{ width: "100%", height: 90, boxSizing: "border-box", background: "var(--rc-surface-3)",
-          border: "1px solid var(--rc-border)", borderRadius: 8, color: "var(--rc-text)",
-          fontFamily: "var(--font-mono)", fontSize: 11, padding: 8 }} />
+      <label>{t("LMU yerel telemetri kaydını (.duckdb) seç")}</label>
       <div style={{ margin: "8px 0" }}>
-        <input type="file" accept=".csv,.tsv,.txt,.duckdb" onChange={onTeleFile} />
+        <input type="file" accept=".duckdb" onChange={onTeleFile} />
         {savedMsg && (
           <span className="hint" style={{ color: "var(--rc-ok)", marginLeft: 10, fontWeight: 600 }}>
             ✓ Stint {savedMsg} {t("kaydedildi")}</span>
@@ -874,62 +857,6 @@ export default function TeleTab({
           {lang === "en" ? <>Save as Stint {slot}</> : <>Stint {slot} olarak kaydet</>}
         </button>
       </>)}
-      {parsed && !parsed.error && !parsed.motec && mapping && (<>
-        <div className="hint">
-          {parsed.lapRows.length} {t("tur satırı bulundu. Sütun eşleşmesini kontrol et:")}
-        </div>
-        {mapping.fuelCol >= 0 && (
-          <div className="hint" style={{ marginTop: 2 }}>
-            <label style={{ display: "inline-flex", alignItems: "center", gap: 5,
-              margin: 0, textTransform: "none", letterSpacing: 0 }}>
-              <input type="checkbox" checked={!!mapping.fuelIsLitre}
-                onChange={(e) => setMapping({ ...mapping, fuelIsLitre: e.target.checked })} />
-              {t("Yakıt sütunu litre (VE % için orana bölünür)")}
-            </label>
-            {mapping.fuelIsLitre && !(st.fuelRatio > 0) &&
-              <span className="warn" style={{ marginLeft: 8 }}>
-                {t("Yarış·Data'da yakıt oranı girilmeli")}</span>}
-          </div>
-        )}
-        <details style={{ margin: "6px 0" }}>
-        <summary style={{ cursor: "pointer", color: "var(--muted)", fontSize: 12 }}>
-          {t("Sütun eşleşmesini düzenle")}</summary>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", margin: "6px 0" }}>
-          {[["Tur Süresi", "timeCol"], ["VE Δ (%)", "fuelCol"]].map(([lbl, key]) => (
-            <div key={key}>
-              <label style={{ margin: 0 }}>{t(lbl)}</label>
-              <select value={mapping[key]}
-                onChange={(e) => setMapping({ ...mapping, [key]: +e.target.value })}>
-                <option value={-1}>—</option>
-                {parsed.headers.map((h, i) =>
-                  <option key={i} value={i}>{i}: {h || t("(başlıksız)")}</option>)}
-              </select>
-            </div>
-          ))}
-          {["FL", "FR", "RL", "RR"].map((c, ci) => (
-            <div key={c}>
-              <label style={{ margin: 0 }}>{t("Aşınma")} {c}</label>
-              <select value={mapping.wear[ci]}
-                onChange={(e) => {
-                  const wear = [...mapping.wear]; wear[ci] = +e.target.value;
-                  setMapping({ ...mapping, wear });
-                }}>
-                <option value={-1}>—</option>
-                {parsed.headers.map((h, i) =>
-                  <option key={i} value={i}>{i}: {h || t("(başlıksız)")}</option>)}
-              </select>
-            </div>
-          ))}
-        </div>
-        </details>
-        <button className="act" style={{ borderColor: SLOT_COLORS[slot],
-          color: SLOT_COLORS[slot] }} onClick={saveSlot}
-          disabled={mapping.timeCol < 0}>
-          {lang === "en" ? <>Save as Stint {slot}</> : <>Stint {slot} olarak kaydet</>}
-        </button>
-        {mapping.timeCol < 0 &&
-          <span className="hint warn" style={{ marginLeft: 8 }}>{t("Tur süresi sütunu seçilmeli")}</span>}
-      </>)}
     </div>
   );
 
@@ -938,7 +865,7 @@ export default function TeleTab({
       {/* başlık + yükle */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
         <h2 style={{ margin: 0, fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".06em", fontSize: 22, fontWeight: 700 }}>{t("Telemetri")}</h2>
-        <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>MoTeC · .duckdb · CSV</span>
+        <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>.duckdb</span>
         <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
           <button onClick={() => setImpOpen(true)}
             style={{ padding: "8px 16px", borderRadius: 9, border: "1px solid var(--rc-brand-bright)", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontSize: 13, fontWeight: 600 }}><Icon name="yukle" size={13} /> {t("Telemetri yükle")}</button>
@@ -1148,7 +1075,7 @@ export default function TeleTab({
             style={{ width: "min(760px,96vw)", maxHeight: "90vh", display: "flex", flexDirection: "column", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .22s cubic-bezier(.2,.9,.3,1.05)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "15px 20px", borderBottom: "1px solid var(--rc-border)" }}>
               <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".07em", fontSize: 18, fontWeight: 700 }}>{t("Telemetri yükle")}</span>
-              <span style={{ fontSize: 12, color: "var(--rc-text-3)", marginRight: "auto" }}>MoTeC · .duckdb · CSV</span>
+              <span style={{ fontSize: 12, color: "var(--rc-text-3)", marginRight: "auto" }}>.duckdb</span>
               <button onClick={() => setImpOpen(false)} style={{ width: 31, height: 31, borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 14, lineHeight: 1 }}>✕</button>
             </div>
             <div style={{ padding: "18px 20px", overflowY: "auto" }}>

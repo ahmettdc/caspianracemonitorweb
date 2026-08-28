@@ -35,6 +35,15 @@ const gap = fmtGap;
 /* son turun S1·S2·S3 sektör süreleri (kompakt). Geçersiz/eksik → "—". */
 const secStr = (sc) => (Array.isArray(sc) && sc[0] > 0 && sc[1] > 0 && sc[2] > 0
   ? `${sc[0].toFixed(1)}·${sc[1].toFixed(1)}·${sc[2].toFixed(1)}` : "—");
+/* ANLIK sektör: bu turda araç sektör çizgisini geçtiği AN oluşan süre.
+   köprü curSectors=[s1,s2] verir (henüz geçilmeyen = null; S3 ancak tur bitince
+   lastSectors'a düşer). En az S1 geçilmişse canlı string, yoksa null (→ son tur). */
+const liveSecStr = (c) => {
+  const cur = c && c.curSectors;
+  if (!Array.isArray(cur) || !(cur[0] > 0)) return null;
+  const f = (x) => (x > 0 ? x.toFixed(1) : "—");
+  return `${f(cur[0])}·${f(cur[1])}·—`;
+};
 
 /* son güncelleme yaşından bağlantı durumu.
    ts SERVER-hizalı yazılır (liveBridge) → burada da serverNow() ile karşılaştırılır;
@@ -480,6 +489,7 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
   const [lapMode, setLapMode] = useState(false);   // Son ↔ En İyi tek sütun geçişi
   const [avgMode, setAvgMode] = useState(false);   // AVG5 ↔ AVG tek sütun geçişi
   const [gapMode, setGapMode] = useState(false);   // Gap ↔ Aralık tek sütun geçişi
+  const [secOpen, setSecOpen] = useState(true);    // Sektör sütunu aç/kapa (başlıktan)
   const [side, setSide] = useState(true);          // sağ yan panel (harita/kendi araç/strateji) aç/kapa
   const [cmpCar, setCmpCar] = useState(null);      // satıra tıklayınca kendi pilotla karşılaştırma
   // DEMO: yerel sahte veri (oyun/köprü/Firebase gerekmez) — UI düzenlemek için
@@ -755,7 +765,9 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
                 <th><button onClick={() => setLapMode((v) => !v)}
                   title={t("Son / En İyi değiştir")} style={thBtn}>
                   {lapMode ? t("En İyi") : t("Son")} ⇄</button></th>
-                <th>{t("Sektör")}</th>
+                <th><button onClick={() => setSecOpen((v) => !v)}
+                  title={secOpen ? t("Sektör sütununu gizle") : t("Sektör sütununu göster")} style={thBtn}>
+                  {secOpen ? <>{t("Sektör")} ‹</> : "S ›"}</button></th>
                 <th><button onClick={() => setAvgMode((v) => !v)}
                   title={t("AVG5 / AVG değiştir")} style={thBtn}>
                   {avgMode ? "AVG" : "AVG5"} ⇄</button></th>
@@ -825,8 +837,10 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
                       <td style={{ color: lapMode ? (isFastest ? "var(--purple)" : "var(--dim)") : undefined,
                         fontWeight: lapMode && isFastest ? 700 : 400 }}>
                         {lap(lapMode ? c.bestSec : c.lastSec)}</td>
-                      <td className="mono" style={{ color: "var(--dim)", fontSize: 11 }}
-                        title={t("Son turun S1·S2·S3 sektör süreleri")}>{secStr(c.lastSectors)}</td>
+                      {(() => { const ls = liveSecStr(c); return (
+                      <td className="mono" style={{ color: ls ? "var(--rc-text-2)" : "var(--dim)", fontSize: 11, textAlign: secOpen ? undefined : "center" }}
+                        title={ls ? t("Bu turda geçilen sektörler (anlık)") : t("Son turun S1·S2·S3 sektör süreleri")}>{secOpen ? (ls || secStr(c.lastSectors)) : "·"}</td>
+                      ); })()}
                       {/* AVG5/AVG tek sütun (başlıktan geçiş). */}
                       <td style={{ color: "var(--dim)" }}>{lap(avgMode ? c.avgSec : c.avg5Sec)}</td>
                       {/* Enerji (VE): çubuksuz, renkli % (fişteki yeni tasarım) */}

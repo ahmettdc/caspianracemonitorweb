@@ -1104,7 +1104,7 @@ export function SetupCards({ rows, t, st, lang, isAdmin, onDownload, onDelete, o
   const deltas = lapDeltas(rows);
   const smBtn = { padding: "4px 10px", borderRadius: 7, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer", fontSize: 11, whiteSpace: "nowrap" };
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 12 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(340px,1fr))", gap: 12 }}>
       {rows.map((su) => {
         const d = deltas.get(su.id);
         const lapColor = d?.fastest ? "var(--rc-ok)" : "var(--rc-text)";
@@ -1136,9 +1136,9 @@ export function SetupCards({ rows, t, st, lang, isAdmin, onDownload, onDelete, o
             </div>
             <div style={{ position: "relative", fontFamily: "var(--rc-font-display)", fontSize: 11, color: "var(--rc-text-2)", marginTop: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{su.name}</div>
             {/* alt */}
-            <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 8, marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--rc-border)" }} onClick={(e) => e.stopPropagation()}>
-              <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{su.uname || "—"} · {new Date(su.at || 0).toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR", { day: "2-digit", month: "2-digit" })}</span>
-              <span style={{ marginLeft: "auto", display: "flex", gap: 6, alignItems: "center" }}>
+            <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 8, rowGap: 8, flexWrap: "wrap", marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--rc-border)" }} onClick={(e) => e.stopPropagation()}>
+              <span style={{ fontSize: 11, color: "var(--rc-text-3)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{su.uname || "—"} · {new Date(su.at || 0).toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR", { day: "2-digit", month: "2-digit" })}</span>
+              <span style={{ marginLeft: "auto", display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
                 {su.ver && <span style={{ fontSize: 10, color: "var(--rc-text-3)", padding: "2px 8px", borderRadius: 99, border: "1px solid var(--rc-border)" }}>{su.ver}</span>}
                 {onCmpToggle && hasFile(su) && (
                   <button style={{ ...smBtn, padding: "4px 8px", ...(cmpSel?.includes(su.id) ? { borderColor: "var(--rc-brand-bright)", color: "var(--rc-brand-bright)", background: "rgba(150,0,24,.18)" } : {}) }}
@@ -1459,9 +1459,9 @@ export function ChatModal({ open, onClose, t, lang, chatSound, toggleChatSound, 
   const lastOf = (c) => { const m = (chatAll?.[c.path] || []); return m[m.length - 1]; };
   return (
     <div className="rc" onClick={onClose} role="dialog" aria-modal="true"
-      style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(10,6,10,.74)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
+      style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(10,6,10,.86)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
       <div onClick={(e) => e.stopPropagation()}
-        style={{ width: "min(940px,96vw)", height: "min(660px,88vh)", display: "flex", flexWrap: "wrap", gap: 0, background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
+        style={{ width: "min(940px,96vw)", height: "min(660px,88vh)", display: "flex", flexWrap: "wrap", gap: 0, isolation: "isolate", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
         {/* sol: Kanallar */}
         <div style={{ flex: "0 0 280px", minWidth: 220, borderRight: "1px solid var(--rc-border)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
           <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--rc-border)", display: "flex", alignItems: "center", gap: 8 }}>

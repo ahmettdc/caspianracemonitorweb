@@ -988,6 +988,13 @@ export const css = `
 @keyframes rcalert{0%,100%{box-shadow:0 0 0 0 rgba(245,178,61,.42)}50%{box-shadow:0 0 0 7px rgba(245,178,61,0)}}
 @keyframes rcpb{0%{background:rgba(55,214,122,.34)}70%{background:rgba(55,214,122,.20)}100%{background:transparent}}
 @keyframes rcpbc{0%{background:rgba(181,139,255,.36)}70%{background:rgba(181,139,255,.22)}100%{background:transparent}}
+/* Güncelleme penceresi (handoff-spec/guncelleme-penceresi-paketi) */
+@keyframes gpFade{from{opacity:0}to{opacity:1}}
+@keyframes gpPop{from{opacity:0;transform:translateY(16px) scale(.965)}to{opacity:1;transform:none}}
+@keyframes gpSpin{to{transform:rotate(360deg)}}
+@keyframes gpShimmer{0%{transform:translateX(-100%)}100%{transform:translateX(280%)}}
+@keyframes gpBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+@keyframes gpCheck{to{stroke-dashoffset:0}}
 .rc .pulse{animation:rcpulse 1.1s ease-in-out infinite;color:var(--yellow)}
 @media (prefers-reduced-motion: reduce){.rc .pulse{animation:none}}
 .rc .timeline{position:relative}

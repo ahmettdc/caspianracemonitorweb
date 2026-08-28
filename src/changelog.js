@@ -5,6 +5,32 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v2.2.1",
+    date: "2026-08-28",
+    tr: [
+      "🔧 Üst bardaki 'bağlı değil' çipinde bağlantı kopmuşken yanında görünen süre bilgisi kaldırıldı — artık sadece 'bağlı değil' yazıyor.",
+      "🔧 Sohbet penceresinin arka planındaki bulanıklaştırma (backdrop-blur) kaldırıldı — bazı ekran kartlarında sol 'KANALLAR' panelini boş/görünmez bırakan tarayıcı katman hatasını gideriyor. Pencereye ayrı bir katman izolasyonu da eklendi.",
+      "✨ Yeni güncelleme penceresi: eski üst şerit yerine ortada beliren bir modal. Sürüm geçişi (eski → yeni), öne çıkanlar ve 'Tüm değişiklikler' bağlantısı; masaüstünde canlı indirme yüzdesi + 'Yeniden başlat', web'de 'Şimdi güncelle'. Dil uygulamadan gelir; kritik sürümlerde 'Sonra' gizlenir.",
+      "🔧 Bağımsız Telemetri ekranı (Ana Menü → Telemetri) artık yüklenen stint'leri hatırlıyor: box plot, SEANS paneli ve çözülen turlar sayfa yenilense de kayıtlı kalır (cihaz-yerel). Ayrıca yarış içi telemetri yazımı geçici bir bağlantı hatasında sessizce kaybolmuyordu — artık otomatik tekrar deneniyor.",
+      "🧹 Telemetride CSV/MoTeC metin desteği kaldırıldı — telemetri artık yalnızca .duckdb (LMU yerel kaydı) kabul ediyor. Yapıştırma alanı ve sütun eşleme arayüzü kaldırıldı.",
+      "🔧 Setup Havuzu kartlarında dar ekranda alt satırdaki butonların (İçerik/İndir/✕) taşıp kırpılması giderildi — footer artık gerektiğinde alt satıra kayıyor ve kartlar biraz genişledi.",
+      "✨ Canlı timing: SECTOR sütun başlığına tıklayarak sütunu daraltıp (·) tekrar tıklayarak açabilirsiniz — dar ekranda tabloya yer açar.",
+      "✨ Canlı timing SECTOR sütunu artık ANLIK: araç bu turda sektör çizgisini geçtiği an S1, sonra S2 canlı görünüyor (henüz geçilmeyen sektör '—', S3 tur bitince). Tur tamamlanınca son turun tam S1·S2·S3'üne düşüyor. (Gerçek yarışta köprünün güncel sürümü gerekir; eski köprüde eskisi gibi son tur gösterilir.)",
+      "🔧 Ana menüden bir sekmeye (Dash/Stint/Canlı…) tıklayınca yarış bazen açılmıyordu: yarış açılışı, uzak durumu çeken ağ çağrısı geçici hata verince (özellikle canlı timing sonrası) yarışa hiç girmiyordu. Artık çağrı düşse de yarışa giriliyor, durum abonelikten geliyor.",
+    ],
+    en: [
+      "🔧 The top-bar 'not connected' chip no longer shows the elapsed duration next to it while disconnected — it now reads just 'not connected'.",
+      "🔧 Removed the backdrop-blur behind the chat window — it fixes a browser GPU-compositing bug that left the left 'CHANNELS' panel blank on some graphics cards. The window now also gets its own isolated layer.",
+      "✨ New update window: a centered modal replaces the old top strip. Shows the version transition (old → new), highlights and an 'All changes' link; on desktop a live download percentage + 'Restart', on web 'Update now'. Language follows the app; on critical releases 'Later' is hidden.",
+      "🔧 The standalone Telemetry screen (Main Menu → Telemetry) now remembers loaded stints: the box plot, SESSION panel and resolved laps survive a page reload (device-local). Also, in-race telemetry writes no longer vanish silently on a transient connection error — they now retry automatically.",
+      "🧹 Removed CSV/MoTeC text support from telemetry — it now accepts only .duckdb (LMU local recording). The paste box and column-mapping UI are gone.",
+      "🔧 Setup Library cards no longer clip their footer buttons (Contents/Download/✕) on narrow widths — the footer now wraps to a second line when needed and the cards are a touch wider.",
+      "✨ Live timing: click the SECTOR column header to collapse it (·) and click again to expand — frees up space on narrow screens.",
+      "✨ Live timing SECTOR column is now LIVE: it shows S1 the instant a car crosses the sector line this lap, then S2 ('—' for a sector not yet crossed; S3 once the lap completes). When the lap finishes it falls back to the last lap's full S1·S2·S3. (Needs the updated bridge in a real race; an old bridge still shows the last lap as before.)",
+      "🔧 Clicking a tab (Dash/Stint/Live…) from the main menu sometimes failed to open the race: race entry aborted whenever the network fetch of the remote state hit a transient error (notably right after live timing). It now enters the race regardless — state arrives via the live subscription.",
+    ],
+  },
+  {
     v: "v2.2.0",
     date: "2026-08-27",
     tr: [

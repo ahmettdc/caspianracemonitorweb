@@ -88,13 +88,13 @@ export function useTelemetry({ st, setSt }) {
         .catch(() => setParsed({ error: "DuckDB dosyası okunamadı" }));
       return;
     }
-    /* .ld (MoTeC ikili log) desteği kaldırıldı — telemetri dosyası artık yalnız .duckdb
-       (LMU yerel kaydı). Diğerleri (csv/tsv/txt) = metin: aşağıdaki ham okuma yolu. */
+    /* Telemetri dosyası artık YALNIZ .duckdb (LMU yerel kaydı). MoTeC .ld ve
+       CSV/TSV/TXT (metin) desteği kaldırıldı — .duckdb dışı dosyalar reddedilir. */
+    setRawTele(""); setMapping(null);
     setTeleFile(null); setTeleHeader(null); setCmpData(null); setCmpLaps(null); setCmpMeta(null);
     setCmpASrc("cur"); setCmpBSrc("cur");
-    const rd = new FileReader();
-    rd.onload = () => { setRawTele(String(rd.result)); doParse(String(rd.result)); };
-    rd.readAsText(f);
+    setParsed({ error: "Yalnızca .duckdb dosyaları desteklenir" });
+    e.target.value = "";   // aynı dosya tekrar seçilebilsin
   };
 
   /* Bir kaynak anahtarı → {file, header, laps, meta}. "cur" = yüklü dosya; slot = kayıtlı stint. */

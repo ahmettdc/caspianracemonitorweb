@@ -1,5 +1,36 @@
 # Changelog
 
+## v2.2.1 — 2026-08-28
+
+Hotfix.
+
+### Üst bar
+- 'Bağlı değil' çipinde bağlantı kopmuşken yanında görünen süre bilgisi (`· {age}s`) kaldırıldı; süre yalnızca canlı/gecikmeli durumda gösteriliyor. Bağlı değilken çip sadece "bağlı değil" yazar.
+
+### Sohbet penceresi
+- Overlay'deki `backdrop-filter: blur(5px)` kaldırıldı (arka plan opaklığı `.74`→`.86` ile telafi edildi) ve pencere kutusuna `isolation: isolate` eklendi. Bazı GPU/tarayıcı kombinasyonlarında iki yan-yana kaydırma panelli + bulanık overlay bileşiminin sol 'KANALLAR' panelini boş bırakan katman (compositing) hatasını gideriyor. Masaüstü/mobil düzen aynı kaldı.
+
+### Telemetri kalıcılığı
+- **Bağımsız Telemetri** (Ana Menü → Telemetri) yarışa/Firebase'e bağlı olmadığından yüklenen stint'ler artık cihaz-yerel `localStorage`'da (`rm_tele_solo_v1`) tutuluyor; yalnız `telemetry` alanı saklanır (ham .duckdb izi değil). Box plot + SEANS + çözülen turlar sayfa yenilense de kalır. `App.jsx` `teleSt` init'i localStorage'dan okur, değişince yazar.
+- `useRaceSync.pushState` eskiden "tekrar denenecek" yazıp aslında denemiyordu → yarış içi telemetri gibi büyük yazımlarda geçici hata veriyi sessizce düşürebiliyordu. Artık gerçek exponential backoff (1/2/4/8 sn, 4 deneme) ile tekrar deniyor; yeni bir düzenleme bekleyen retry'ı iptal ediyor.
+
+### Navigasyon
+- **Ana menüden sekme açılmama (aralıklı)**: `openRace` yarışa girişi `raceStateGet` (uzak durum çekme) çağrısının başarısına bağlıyordu; bu ağ çağrısı geçici düşünce (özellikle canlı timing'in yoğun Firebase trafiği sonrası) `catch` çalışıp `setCurRace`/`setEntered` hiç ateşlenmiyor, kullanıcı lobide kalıyordu — Takım (ayrı ekran) çalışırken Dash/Stint/Canlı vb. "açılmıyordu". Artık giriş fetch'ten bağımsız: çağrı denenip düşse bile yarışa giriliyor, asıl durum `raceStateSubscribe`'dan geliyor.
+
+### Arayüz düzeltmeleri
+- **Setup Havuzu kartları**: dar ekranda footer butonları (İçerik/İndir/✕) `overflow:hidden` ile kırpılıyordu. Footer artık `flex-wrap` ile gerektiğinde alt satıra kayıyor; kart min genişliği 300→340px. (`SetupCards`, `components.jsx`)
+- **Canlı timing SECTOR sütunu**: başlığı artık toggle — tıklayınca sütun daralıp `·` gösteriyor (`Sektör ‹` → `S ›`), tekrar tıklayınca S1·S2·S3 süreleri geri geliyor. `secOpen` state, `LiveTab.jsx`.
+- **Canlı timing SECTOR — ANLIK sektör**: sütun artık son tamamlanan tur yerine, aracın bu turda sektör çizgisini geçtiği AN oluşan süreyi gösteriyor. Köprü (`rf2_source.py`) shared-memory `mCurSector1`/`mCurSector2`'den `curSectors=[s1,s2]` üretir (geçilmeyen sektör `null`); web (`liveSecStr`, `LiveTab.jsx`) en az S1 geçilmişse canlı `s1·s2·—`, yoksa son turun `lastSectors`'ına düşer. Demo (`liveDemo.js`) tur-içi ilerlemeye göre curSectors üretir. Geriye dönük uyumlu: `curSectors` göndermeyen eski köprüde davranış eskisi gibi (son tur).
+
+### Telemetri — yalnız .duckdb
+- CSV/MoTeC metin (yapıştırma + `.csv/.tsv/.txt`) desteği kaldırıldı; telemetri artık **yalnızca `.duckdb`** kabul ediyor. `useTelemetry.onTeleFile` `.duckdb` dışı dosyaları reddediyor; `TeleTab`'ten yapıştırma alanı, sütun-eşleme arayüzü ve `.csv/.tsv/.txt` accept filtresi çıkarıldı, etiketler ".duckdb" olarak güncellendi.
+
+### Güncelleme penceresi (yeni)
+- Eski üst güncelleme şeritleri (web amber şeridi + Tauri `UpdateBanner`) kaldırıldı; yerine ortada beliren `UpdateModal` geldi (`handoff-spec/guncelleme-penceresi-paketi` fişine göre). 452px kart, üst gradyan şerit, ikon karosu, sürüm geçişi (eski → yeni + boyut), changelog'dan öne çıkanlar, "Tüm değişiklikler" (VersionModal'ı açar).
+- Üç faz: `idle → downloading → ready`. Masaüstünde (Tauri) gerçek indirme yüzdesi + "Yeniden başlat"; web'de "Şimdi güncelle" = sayfayı yenile.
+- Dil `lang` prop'undan gelir (modalde seçici yok). "Sonra" sürümü `dismissed` işaretler; kritik sürümde (`critical`) "Sonra"/✕/Esc gizli/kilitli. Odak tuzağı + arka plan kaydırma kilidi.
+- Yeni: `src/UpdateModal.jsx`, `src/useUpdater.js`; `gp*` keyframe'leri `styles.js`'e eklendi. Silinen: `src/UpdateBanner.jsx`.
+
 ## v2.2.0 — 2026-08-27
 
 Yeni özellikler ve düzeltmeler.

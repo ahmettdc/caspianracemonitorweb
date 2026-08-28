@@ -216,6 +216,10 @@ class MockSource:
                 "lapsDone": laps, "lastSec": round(lap_t, 3),
                 "lastSectors": [round(lap_t * 0.25, 3), round(lap_t * 0.44, 3),
                                 round(lap_t * 0.31, 3)],
+                # ANLIK sektörler: bu turda geçilen S1/S2 (S1 ~%40, S2 ~%73 sonrası)
+                "curSectors": ([None, None] if frac < 0.40 else
+                               [round(lap_t * 0.25, 3), None] if frac < 0.73 else
+                               [round(lap_t * 0.25, 3), round(lap_t * 0.44, 3)]),
                 "bestSec": round(self.base[i], 3),
                 "_prog": laps * 1e6 + (el % lap_t),  # sıralama için ilerleme
                 "inPits": (int(el / 90) % 11) == i, "isPlayer": i == 4,
@@ -506,6 +510,22 @@ class RF2Source:
         return [None, None, None]
 
     @staticmethod
+    def _cur_sectors(v):
+        """ANLIK sektörler: MEVCUT turda araç sektör çizgisini geçtiği AN oluşan süre.
+        rF2: mCurSector1 = bu turun S1'i (S1 çizgisini geçince geçerli),
+        mCurSector2 = bu turun S1+S2 kümülatifi (S2 çizgisini geçince geçerli).
+        Dönüş [s1, s2]: henüz geçilmeyen sektör None. (S3 ancak S/F geçilince =
+        tamamlanır → _sectors/lastSectors.)"""
+        try:
+            s1 = float(getattr(v, "mCurSector1", -1.0))
+            s12 = float(getattr(v, "mCurSector2", -1.0))
+            o1 = round(s1, 3) if s1 > 0 else None
+            o2 = round(s12 - s1, 3) if (s1 > 0 and s12 > s1) else None
+            return [o1, o2]
+        except Exception:
+            return [None, None]
+
+    @staticmethod
     def _pos(v):
         """Aracın dünya (x, z) konumu (m) — trackmap iç pist şekli için. y yükseklik."""
         try:
@@ -642,6 +662,7 @@ class RF2Source:
                 "sector": int(getattr(v, "mSector", -1)),
                 "lastSec": round(float(getattr(v, "mLastLapTime", -1.0)), 3),
                 "lastSectors": self._sectors(v),   # [S1,S2,S3] (popup tur listesi)
+                "curSectors": self._cur_sectors(v),   # [s1,s2] bu turda ANLIK geçilen sektörler
                 "bestSec": round(float(getattr(v, "mBestLapTime", -1.0)), 3),
                 "gapSec": round(float(getattr(v, "mTimeBehindLeader", 0.0)), 1),
                 "intervalSec": round(float(getattr(v, "mTimeBehindNext", 0.0)), 1),
