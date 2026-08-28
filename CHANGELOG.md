@@ -1,5 +1,23 @@
 # Changelog
 
+## v2.2.2 — 2026-08-28
+
+Hotfix.
+
+### Race data: kayıtlı avgLap/consumption LMU temposuna dönüyordu (ASIL KÖK NEDEN)
+- **Belirti:** Yarış sırasında sağ panelden değiştirilen race data (`avgLap`, `consumption`) yarış yeniden açılınca eski/LMU değerine "geri dönüyordu".
+- **Kök neden:** `App.jsx`'teki "pist/araç seçimi değişince LMU referans temposunu varsayılan yaz" efekti (`lmuPrevSel` + `up({avgLap, consumption})`). `openRace` bir yarışı yüklerken `st.track`/`carClass`/`car`'ı boş→gerçek değiştirdiği için efekt bunu KULLANICI SEÇİMİ sanıp `lmuSuggest.avgLap`/`consumption`'ı KAYITLI değerin üzerine yazıyor, ardından push edip sunucuyu da bozuyordu. "İlk yüklemede ezmez" koruması yalnız ilk mount'u atlıyordu, `openRace` yüklemesini değil. (Kalıcılık/yazım sağlamdı; teşhis yaz/oku round-trip'i ile doğrulandı.)
+- **Çözüm:** `openRace` yüklenen yarışın pist/araç imzasını `lmuPrevSel.current`'a SENKRON yazar (efekt çalışmadan önce) → efekt bunu "değişiklik değil" görüp atlar; kayıtlı `avgLap`/`consumption` korunur. Kurulumda (pick) pist/araç seçince LMU varsayılanını yazma davranışı aynen korunur. (`App.jsx openRace` + `lmuPrevSel` efekti)
+
+### Kalıcılık sağlamlaştırma (yardımcı)
+- Asıl kök neden önce yanlışlıkla kalıcılık sanılmıştı; o araştırmadan gelen ve zararsız kalan tek iyileştirme korundu: **Kapanışta flush** — `useRaceSync` artık `visibilitychange`(hidden)/`pagehide` olaylarında bekleyen 800 ms debounce'lu yazımı HEMEN gönderir; böylece normal kapatma/sekme değişiminde son düzenleme beklemeden Firebase'e ulaşır. (`useRaceSync.js`)
+
+### Sohbet penceresi — sol panel (devam)
+- v2.2.1'de `backdrop-filter` kaldırılıp `isolation: isolate` eklenmişti ama sol 'KANALLAR' paneli bazı GPU'larda hâlâ boş kalabiliyordu. Geriye kalan tetikleyici, kutunun TRANSFORM tabanlı giriş animasyonuydu (`rcpop`: `translateY`+`scale`) — kırpılmış (`overflow:hidden` + `borderRadius`) kutuda geçici bir compositing katmanı oluşturup iki yan-yana kaydırma panelinin ilkini boyamadan bırakıyordu. Bu modalin animasyonu yalnız-opaklık (`rcfade`) yapıldı; ayrıca sol panele açık opak arka plan (`--rc-surface`) ve kendi stacking katmanı (`position:relative; zIndex:1`) verildi. Diğer modaller tek sütun oldukları için `rcpop` kullanmaya devam ediyor. (`ChatModal`, `components.jsx`)
+
+### Canlı Timing — eski köprü kutusu kaldırıldı
+- Canlı Timing üstündeki eski durum/uyarı kartı (`BridgeControl`) ve yardımcı `CopyBtn` silindi; köprü artık otomatik yönetildiği için kutu gereksizdi. Kullanılmayan `bridge`/`canBridge` prop'ları `LiveTab` imzasından ve `App.jsx`'teki çağrıdan temizlendi.
+
 ## v2.2.1 — 2026-08-28
 
 Hotfix.

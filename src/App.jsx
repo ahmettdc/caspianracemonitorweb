@@ -283,15 +283,23 @@ export default function App() {
     try {
       const remote = await raceStateGet(curTeam, rid);
       sync.current.rev = remote?.rev || 0;
+      let loaded = null;
       if (remote?.stateJson) {
         const parsed = safeParseState(remote.stateJson);
         if (parsed) {
-          setSt(migrate(parsed));
+          loaded = migrate(parsed);
+          setSt(loaded);
           setLastSync({ by: remote.updatedBy, at: remote.updatedAt });
         } else {
           console.warn("Yarış açılışında bozuk uzak state atlandı");
         }
       }
+      /* KRİTİK: yüklenen yarışın pist/araç seçimini LMU oto-varsayılan efektine
+         (aşağıda ~1425) "önceki seçim" olarak tanıt. Aksi halde openRace track/car'ı
+         boş→gerçek değiştirdiği için o efekt bunu KULLANICI SEÇİMİ sanıp LMU referans
+         temposunu (avgLap/consumption) KAYITLI değerin ÜZERİNE yazıyor ve push'layıp
+         sunucuyu da bozuyordu. Senkron ref yazımı efekt çalışmadan önce set edilir. */
+      if (loaded) lmuPrevSel.current = `${loaded.track}|${loaded.carClass}|${loaded.car}`;
       setSyncMsg("");
     } catch (e) {
       /* fetch düştü → yine de gir; abonelik state'i getirecek. */
@@ -3681,7 +3689,7 @@ ${bottomBar}
 
           {tab === "live" && <LiveTab t={t} live={live} liveFuelObs={liveFuelObs}
             lapCapture={lapCapture}
-            bridge={bridge} canEdit={canEditTeam} canBridge={isMember} tid={curTeam} rid={curRace}
+            canEdit={canEditTeam} tid={curTeam} rid={curRace}
             isAdmin={isAdmin}
             ownTopSrc={carImageSrc(teamData?.assets, st.carClass, st.car, "top")} />}
 

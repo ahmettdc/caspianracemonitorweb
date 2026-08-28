@@ -390,96 +390,7 @@ function OwnCar({ t, own, liveFuelObs, topSrc = "" }) {
   );
 }
 
-/* Canlı köprü durum kartı (yalnız gösterim). Köprü masaüstünde OTOMATİK çalışır
-   (App.jsx yönetir): oyunun PC'sinde uygulama açık + owner/editor + yarış seçiliyse
-   kendiliğinden bağlanır, koparsa ~4 sn'de bir yeniden dener. Elle başlatma yok. */
-function BridgeControl({ t, bridge, canBridge, canEdit, tid, rid }) {
-  const phase = bridge?.phase || "idle";
-  const [cleared, setCleared] = useState(false);
-  const dot = phase === "running" ? "var(--green)"
-    : phase === "error" ? "var(--red)"
-      : phase === "starting" || phase === "standby" ? "var(--yellow)" : "var(--muted)";
-  const writerBy = bridge?.writerBy || "";
-  // gizli teşhis: yalnız durum noktasının hover tooltip'inde (arayüzde satır olarak
-  // gösterilmez). "VE gelmiyor / veri yok" gibi durumları sessizce açıklar.
-  const d = bridge?.diag;
-  const diagTitle = d
-    ? `eklenti ${d.shm ? `✓${d.shmVersion ? ` v${d.shmVersion}` : ""}` : "✗"} · araç ${d.cars ?? 0} · LMU-REST ${d.lmu ? "✓" : "✗"} · VE ${d.ve ?? 0}`
-    : undefined;
-  return (
-    <div className="card" style={{ marginBottom: 12 }}>
-      <h2 style={{ display: "flex", alignItems: "center", gap: 10, margin: "0 0 10px", fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 16, fontWeight: 700 }}>
-        <Icon name="kopru" size={16} /> {t("Canlı Köprü")}
-        <span title={diagTitle} style={{ width: 9, height: 9, borderRadius: "50%", background: dot,
-          boxShadow: `0 0 8px ${dot}`, cursor: diagTitle ? "help" : "default" }} />
-        <span style={{ fontSize: 11, color: "var(--dim)", fontWeight: 400 }}>{t("otomatik")}</span>
-      </h2>
-      {canBridge && phase === "standby" && (
-        <div className="hint" style={{ marginTop: 6, color: "var(--yellow)" }}>
-          <Icon name="duraklat" size={14} /> {t("Beklemede")}{writerBy ? ` — ${writerBy} ${t("yayınlıyor")}` : ""} · {t("aktif sürücü canlıyı yazıyor")}
-        </div>
-      )}
-      {canBridge && phase === "running" && writerBy && (
-        <div className="hint" style={{ marginTop: 6, color: "var(--dim)" }}>
-          <Icon name="kopru" size={14} /> {t("Canlı kaynak")}: {writerBy}
-        </div>
-      )}
-      {canBridge && bridge?.msg && phase !== "standby" && (
-        <div className="hint" style={{ marginTop: 6,
-          color: phase === "error" ? "var(--red)" : "var(--dim)" }}>
-          • {t(bridge.msg)}
-        </div>
-      )}
-      {/* PERFORMANS (v1.4.97): oyun eklentisi bizim OKUMADIĞIMIZ buffer'ları da yazıyorsa
-          (FFB+Graphics saniyede 400'er kez) oyunda takılma yapar. Ayarı biz YAZMAYIZ —
-          başka araçların (CrewChief/SimHub/TinyPedal) ihtiyacını bilemeyiz; öneririz. */}
-      {canBridge && d?.plugin?.wastedFps > 0 && d.plugin.suggest != null && (
-        <div className="hint warn" style={{ marginTop: 6 }}>
-          <Icon name="simsek" size={14} /> {t("Oyun eklentisi saniyede")} ~{d.plugin.wastedFps} {t("kez bu uygulamanın okumadığı veriyi yazıyor")}
-          {" "}({d.plugin.wasted.join(", ")}) — {t("bu, oyunda takılmaya yol açar.")}
-          {" "}<b>CustomPluginVariables.JSON</b> → <code>UnsubscribedBuffersMask: {d.plugin.suggest}</code>
-          {" "}<CopyBtn text={String(d.plugin.suggest)} t={t} />
-          <div style={{ marginTop: 2 }}>
-            {t("Oyunu kapatıp değiştir, sonra aç. Diğer araçların bu veriye ihtiyaç duyabilir — en güvenli değerle başla.")}
-          </div>
-        </div>
-      )}
-      {/* v1.6 — "+" tur geçmişini elle temizle: aynı takvim yarışını TEKRAR koşarken
-          köprü yarış ORTASINDA açıldıysa oto-temizleme ateşlenmez (lapsDone>0). Bu düğme
-          o rid'in tüm canlı geçmişini (livelaps/pos/sec/drv/tyre/cond) sıfırlar. Yalnız
-          owner/editor; yeni turlar normal birikmeye devam eder. */}
-      {canEdit && tid && rid && (
-        <div className="hint" style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
-          <button className="act" style={{ fontSize: 11, padding: "3px 8px" }}
-            title={t("Bu yarışın '+' tur geçmişini (eski koşulardan kalan turlar/pilotlar) sıfırla")}
-            onClick={async () => {
-              if (!(await confirmDialog({ title: t("Tur geçmişini temizle"), message: t("Bu yarışın tüm '+' tur geçmişi silinsin mi? (Yeni turlar yine kaydedilir.)"), confirmText: t("Temizle"), danger: true }))) return;
-              try { await liveHistoryClearAll(tid, rid); setCleared(true); setTimeout(() => setCleared(false), 2500); }
-              catch { /* yoksay */ }
-            }}><Icon name="sil" size={12} /> {t("Tur geçmişini temizle")}</button>
-          {cleared && <span style={{ color: "var(--green)" }}>✓ {t("temizlendi")}</span>}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* Küçük kopyala düğmesi — panoya yaz + kısa geri bildirim (köprü ayar değeri için). */
-function CopyBtn({ text, t }) {
-  const [ok, setOk] = useState(false);
-  return (
-    <button className="act" style={{ fontSize: 10, padding: "1px 6px" }}
-      onClick={() => {
-        try {
-          navigator.clipboard?.writeText(text);
-          setOk(true);
-          setTimeout(() => setOk(false), 1500);
-        } catch { /* pano yok (izin/eski tarayıcı) — değer zaten ekranda yazılı */ }
-      }}>{ok ? `✓ ${t("kopyalandı")}` : `⧉ ${t("kopyala")}`}</button>
-  );
-}
-
-export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge = false,
+export default function LiveTab({ t, live: liveProp, canEdit,
   liveFuelObs, lapCapture, tid, rid,
   isAdmin = false, ownTopSrc = "" }) {
   const [myClassOnly, setMyClassOnly] = useState(false);
@@ -570,11 +481,6 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
     return () => document.removeEventListener("fullscreenchange", onFs);
   }, []);
 
-  const bridgeCard = isTauri ? (
-    <BridgeControl t={t} bridge={bridge} canBridge={canBridge}
-      canEdit={canEdit} tid={tid} rid={rid} />
-  ) : null;
-
   /* Bağlantı durumunu erken-return'den ÖNCE hesapla: veri GELDİKTEN sonra köprü/oyun
      durursa kare tazelenmez → "off" (bağlantı koptu). Bu durumda tam UI'ı eski (bayat)
      veriyle göstermek "açık/canlı" izlenimi veriyordu → boş-durum kartına düşülür.
@@ -586,7 +492,6 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
     const ageTxt = ageSec < 90 ? `${ageSec} ${t("sn")}` : `${Math.round(ageSec / 60)} ${t("dk")}`;
     return (
       <div data-tour="livecard">
-        {bridgeCard}
         {/* v2.0 boş durum (handoff 02-canli-timing · noFeed) — gerçek içerik korundu */}
         <div style={{ border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)", padding: "52px 24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
           <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="var(--rc-border-strong)" strokeWidth="1.6" strokeLinecap="round">
@@ -671,7 +576,6 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
   const hchipV = { fontFamily: "var(--rc-font-display)", fontSize: 17, fontWeight: 700, lineHeight: 1 };
   return (
     <div data-tour="livecard" ref={rootRef} className={big ? "bigboard" : ""}>
-      {!big && bridgeCard}
       {/* v2.1 — handoff-spec/ekranlar/02-canli-timing.md: 2 kolon (sol: Saha başlık +
           tablo + pozisyon grafiği · sağ: harita/kendi araç/strateji yan paneli).
           Görsel düzen fişle birebir; TÜM veriler canlı köprüden gelir (mock değil). */}

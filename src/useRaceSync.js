@@ -28,13 +28,15 @@ export function useRaceSync({ st, setSt, curRace, curTeamRef, role, userName, st
   const sync = useRef({ rev: 0, applying: false, timer: null });
 
   const pushState = async (rid, attempt = 0) => {
+    const tid = curTeamRef.current;
+    const stateJson = JSON.stringify(stRef.current);
     try {
       const rev = sync.current.rev + 1;
-      await raceStateSet(curTeamRef.current, rid, {
-        stateJson: JSON.stringify(stRef.current), rev,
-        updatedBy: userName || "isimsiz", updatedAt: Date.now(),
+      const updatedAt = Date.now();
+      await raceStateSet(tid, rid, {
+        stateJson, rev, updatedBy: userName || "isimsiz", updatedAt,
       });
-      sync.current.rev = rev; setLastSync({ by: t("sen"), at: Date.now() }); setSyncMsg("");
+      sync.current.rev = rev; setLastSync({ by: t("sen"), at: updatedAt }); setSyncMsg("");
     } catch (e) {
       /* Eskiden "tekrar denenecek" yazıp aslında denemiyordu → geçici bir yazma hatasında
          (ör. telemetri yüklemesi) veri sessizce kayboluyordu. Artık gerçek exponential
@@ -57,8 +59,32 @@ export function useRaceSync({ st, setSt, curRace, curTeamRef, role, userName, st
     sync.current.timer = setTimeout(() => pushState(curRace), 800);
   };
 
+  /* Bekleyen (debounce'lu) yazımı HEMEN gönder — sekme/pencere kapanmadan ya da arka
+     plana alınmadan önce. Böylece son düzenleme 800 ms'yi beklemeden Firebase'e ulaşır
+     ve normal kapanış/sekme değişiminde veri kaybı olmaz. Yazım async'tir; pagehide'da
+     await edemeyiz ama açık bağlantıda istek yola çıkar. */
+  const flush = () => {
+    if (!curRace || role !== "editor" || sync.current.applying) return;
+    if (!sync.current.timer && !sync.current.retry) return;   // bekleyen yok
+    clearTimeout(sync.current.timer); sync.current.timer = null;
+    clearTimeout(sync.current.retry); sync.current.retry = null;
+    pushState(curRace);
+  };
+
   // her state değişiminde (kullanıcı kaynaklı) paylaş
   useEffect(() => { schedulePush(); /* eslint-disable-next-line */ }, [st]);
+
+  // sekme gizlenince / sayfa kapanınca bekleyen yazımı hemen gönder (veri kaybını önle)
+  useEffect(() => {
+    const onHide = () => { if (document.visibilityState === "hidden") flush(); };
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", flush);
+    };
+    /* eslint-disable-next-line */
+  }, [curRace, role]);
 
   // odayı anlık dinle (Firebase onValue — polling'e gerek yok)
   useEffect(() => {
@@ -81,5 +107,5 @@ export function useRaceSync({ st, setSt, curRace, curTeamRef, role, userName, st
     return () => off();
   }, [curRace]);
 
-  return { syncMsg, setSyncMsg, lastSync, setLastSync, sync };
+  return { syncMsg, setSyncMsg, lastSync, setLastSync, sync, pushState };
 }

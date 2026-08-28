@@ -1460,10 +1460,19 @@ export function ChatModal({ open, onClose, t, lang, chatSound, toggleChatSound, 
   return (
     <div className="rc" onClick={onClose} role="dialog" aria-modal="true"
       style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(10,6,10,.86)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
+      {/* v2.2.2 — Sol KANALLAR paneli bazı GPU/tarayıcılarda (Opera GX, Chrome) boş
+          kalıyordu (arka plan bile boyanmıyor). Neden: animasyonlu overlay (opacity)
+          kutuyu composite bir katmana yükseltince, yuvarlatılmış overflow:hidden kutunun
+          İLK flex çocuğu (sol panel) Blink tarafından boyanmadan düşürülüyor. `isolation`
+          ve `position/zIndex` yalnız stacking context yaratır — compositing katmanı DEĞİL;
+          bu yüzden yetmedi. Çözüm: kutuyu VE sol paneli `translateZ(0)` ile kendi GPU
+          katmanlarına zorluyoruz → yuvarlak kırpma doğru rasterize ediliyor, ilk çocuk
+          her zaman boyanıyor. Giriş animasyonu yalnız-opaklık (rcfade); rcpop transform'u
+          animasyon bitince `transform:none` yapıp bu katmanı bozacağı için kullanılmıyor. */}
       <div onClick={(e) => e.stopPropagation()}
-        style={{ width: "min(940px,96vw)", height: "min(660px,88vh)", display: "flex", flexWrap: "wrap", gap: 0, isolation: "isolate", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
+        style={{ width: "min(940px,96vw)", height: "min(660px,88vh)", display: "flex", flexWrap: "wrap", gap: 0, isolation: "isolate", transform: "translateZ(0)", willChange: "transform", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcfade .2s ease" }}>
         {/* sol: Kanallar */}
-        <div style={{ flex: "0 0 280px", minWidth: 220, borderRight: "1px solid var(--rc-border)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <div style={{ flex: "0 0 280px", minWidth: 220, position: "relative", zIndex: 1, transform: "translateZ(0)", background: "var(--rc-surface)", borderRight: "1px solid var(--rc-border)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
           <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--rc-border)", display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 15, fontWeight: 700 }}>{t("Kanallar")}</span>
             <button onClick={toggleChatSound} title={chatSound ? t("Bildirim sesini kapat") : t("Bildirim sesini aç")}
