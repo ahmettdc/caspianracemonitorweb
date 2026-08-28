@@ -8,14 +8,12 @@ export const CHANGELOG = [
     v: "v2.2.2",
     date: "2026-08-28",
     tr: [
-      "🛠 ÖNEMLİ: Yarış sırasında sağ panelden yaptığınız race data düzenlemeleri (tur süresi, tüketim, pit süresi vb.) programı kapatıp açınca eski değerine dönebiliyordu. Artık her değişiklik anında cihaza da kaydediliyor (yalnız buluta değil) ve kapanırken/sekme değişince bekleyen kayıt hemen gönderiliyor; yeniden açılışta düzenlemeleriniz korunuyor.",
-      "✨ Sağ 'Yarış dataları' panelinin en üstüne UYGULA butonu eklendi: değişikliklerinizi tek tıkla hemen buluta yazar ve sonucu gösterir (✓ Kaydedildi / ✕ Hata). Otomatik kaydetme yine çalışır; bu buton kesin/manuel kayıt isteyenler için.",
+      "🛠 ÖNEMLİ: Yarış sırasında sağ panelden yaptığınız race data düzenlemeleri (tur süresi, tüketim) yarışı yeniden açınca LMU referans temposuna geri dönüyordu. Neden: pist/araç seçimine bağlı 'LMU temposunu varsayılan yaz' özelliği, kayıtlı bir yarışı açmayı da 'yeni seçim' sanıp değerlerinizi eziyordu. Artık kayıtlı değerleriniz korunuyor; LMU varsayılanı yalnız kurulumda pist/araç seçerken yazılır.",
       "🔧 Sohbet penceresi sol 'KANALLAR' paneli bazı ekran kartlarında hâlâ boş kalabiliyordu. Geriye kalan tetikleyici, pencerenin transform tabanlı açılış animasyonuymuş — artık yalnızca yumuşak bir görünürlük geçişi kullanılıyor ve sol panele ayrı bir katman verildi. Panel her açılışta dolu geliyor.",
       "🧹 Canlı Timing üstündeki eski kırmızı 'Canlı Köprü' durum kutusu kaldırıldı — köprü zaten otomatik çalıştığı için bu kutu gereksizdi.",
     ],
     en: [
-      "🛠 IMPORTANT: Race-data edits made from the right panel during a race (lap time, consumption, pit time, etc.) could revert to their old values after closing and reopening the app. Every change is now also saved to the device instantly (not only to the cloud) and any pending write is flushed immediately on close/tab-switch; your edits survive on reopen.",
-      "✨ Added an APPLY button at the top of the right 'Race data' panel: writes your changes to the cloud immediately in one click and shows the result (✓ Saved / ✕ Error). Auto-save still works; this button is for an explicit/manual save.",
+      "🛠 IMPORTANT: Race-data edits made from the right panel during a race (lap time, consumption) reverted to the LMU reference pace when reopening the race. Cause: the 'apply LMU pace as default' behavior (on track/car selection) treated opening a saved race as a new selection and overwrote your values. Your saved values are now preserved; the LMU default is only written when picking track/car during setup.",
       "🔧 The chat window's left 'CHANNELS' panel could still come up blank on some graphics cards. The remaining trigger was the window's transform-based open animation — it now uses a plain fade and the left panel gets its own layer, so it renders filled every time.",
       "🧹 Removed the old red 'Live Bridge' status box above Live Timing — the bridge runs automatically now, so the box was redundant.",
     ],

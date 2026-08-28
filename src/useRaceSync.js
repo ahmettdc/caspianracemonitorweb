@@ -80,31 +80,6 @@ export function useRaceSync({ st, setSt, curRace, curTeamRef, role, userName, st
     pushState(curRace);
   };
 
-  /* AÇIK "Uygula" — kullanıcı butonu. Bekleyen debounce'u iptal edip HEMEN yazar ve
-     sonucu (true/false) döner → buton net "✓ kaydedildi / ✗ hata" gösterebilir.
-     Otomatik push'a güvenmek yerine deterministik, await edilen tek yazım. */
-  const saveNow = async () => {
-    if (!curRace || role !== "editor") return false;
-    clearTimeout(sync.current.timer); sync.current.timer = null;
-    clearTimeout(sync.current.retry); sync.current.retry = null;
-    const tid = curTeamRef.current;
-    const stateJson = JSON.stringify(stRef.current);
-    try {
-      const rev = sync.current.rev + 1;
-      const updatedAt = Date.now();
-      await raceStateSet(tid, curRace, { stateJson, rev, updatedBy: userName || "isimsiz", updatedAt });
-      sync.current.rev = rev;
-      setLastSync({ by: t("sen"), at: updatedAt });
-      setSyncMsg("");
-      raceStateMirrorSave(tid, curRace, stateJson, rev, false);
-      return true;
-    } catch (e) {
-      console.warn("Uygula (saveNow) başarısız:", e?.message || e);
-      setSyncMsg(t("Yazma başarısız — bağlantını kontrol et"));
-      return false;
-    }
-  };
-
   // her state değişiminde (kullanıcı kaynaklı) paylaş
   useEffect(() => { schedulePush(); /* eslint-disable-next-line */ }, [st]);
 
@@ -141,5 +116,5 @@ export function useRaceSync({ st, setSt, curRace, curTeamRef, role, userName, st
     return () => off();
   }, [curRace]);
 
-  return { syncMsg, setSyncMsg, lastSync, setLastSync, sync, pushState, saveNow };
+  return { syncMsg, setSyncMsg, lastSync, setLastSync, sync, pushState };
 }

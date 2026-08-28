@@ -1,9 +1,6 @@
 /* İngilizce çeviri sözlüğü — anahtar = Türkçe kaynak metin.
    App.jsx: t = (str) => lang === "en" ? (EN[str] ?? str) : str */
 export const EN = {
-  // Sağ panel "Uygula" (açık kayıt) butonu
-  "Uygula": "Apply", "Kaydediliyor": "Saving", "Kaydedildi": "Saved", "Hata": "Error",
-  "Değişiklikleri hemen kaydet (buluta yaz)": "Save changes now (write to cloud)",
   // LMU Garage takvim entegrasyonu (Ana Menü → Resmi Yarışlar) — "Canlı"/"Yaklaşan"/"Şampiyona"/"Tümü"/"Sınıf" zaten var
   "Resmi Yarışlar": "Official Races",
   "Toplam": "Total", "Durum": "Status", "Pist": "Track",
