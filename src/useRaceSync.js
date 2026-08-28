@@ -27,7 +27,7 @@ export function useRaceSync({ st, setSt, curRace, curTeamRef, role, userName, st
   const [lastSync, setLastSync] = useState(null); // {by, at}
   const sync = useRef({ rev: 0, applying: false, timer: null });
 
-  const pushState = async (rid) => {
+  const pushState = async (rid, attempt = 0) => {
     try {
       const rev = sync.current.rev + 1;
       await raceStateSet(curTeamRef.current, rid, {
@@ -35,12 +35,25 @@ export function useRaceSync({ st, setSt, curRace, curTeamRef, role, userName, st
         updatedBy: userName || "isimsiz", updatedAt: Date.now(),
       });
       sync.current.rev = rev; setLastSync({ by: t("sen"), at: Date.now() }); setSyncMsg("");
-    } catch { setSyncMsg(t("Yazma hatası — tekrar denenecek")); }
+    } catch (e) {
+      /* Eskiden "tekrar denenecek" yazıp aslında denemiyordu → geçici bir yazma hatasında
+         (ör. telemetri yüklemesi) veri sessizce kayboluyordu. Artık gerçek exponential
+         backoff ile 4 kez yeniden dener (stRef güncel state'i okur, güncel veri yazılır). */
+      if (attempt < 4) {
+        setSyncMsg(t("Yazma hatası — tekrar denenecek"));
+        clearTimeout(sync.current.retry);
+        sync.current.retry = setTimeout(() => pushState(rid, attempt + 1), 1000 * 2 ** attempt);
+      } else {
+        console.warn("Yarış state yazımı başarısız:", e?.message || e);
+        setSyncMsg(t("Yazma başarısız — bağlantını kontrol et"));
+      }
+    }
   };
 
   const schedulePush = () => {
     if (!curRace || role !== "editor" || sync.current.applying) return;
     clearTimeout(sync.current.timer);
+    clearTimeout(sync.current.retry);   // bekleyen retry'ı iptal et — yeni push güncel state'i yazar
     sync.current.timer = setTimeout(() => pushState(curRace), 800);
   };
 

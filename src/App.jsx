@@ -449,7 +449,23 @@ export default function App() {
   /* Bağımsız Telemetri ekranı (Ana Menü → Telemetri): Race Solo'dan TAMAMEN ayrı, KENDİ
      telemetri örneği + kendi scratch `st`'si. Race Solo'nun `st`/ilk useTelemetry'sine
      dokunmaz → iki taraf birbirine sızmaz, uygulama açık kaldıkça durumu korunur. */
-  const [teleSt, setTeleSt] = useState(() => ({ ...DEFAULT_STATE }));
+  /* Bağımsız telemetri (Ana Menü → Telemetri) yarışa/Firebase'e bağlı değil; bu yüzden
+     yüklenen stint'ler cihaz-yerel localStorage'da tutulur → sayfa yenilense/uygulama
+     kapatılıp açılsa da kayıtlı kalır. Yalnız `telemetry` alanı saklanır (ham .duckdb izi
+     değil — o yeniden dosyadan gelir; box plot + SEANS + çözülen turlar meta/laps'tan döner). */
+  const [teleSt, setTeleSt] = useState(() => {
+    try {
+      const raw = localStorage.getItem("rm_tele_solo_v1");
+      if (raw) {
+        const tel = JSON.parse(raw);
+        if (tel && typeof tel === "object") return { ...DEFAULT_STATE, telemetry: { ...DEFAULT_STATE.telemetry, ...tel } };
+      }
+    } catch { /* yoksay */ }
+    return { ...DEFAULT_STATE };
+  });
+  useEffect(() => {
+    try { localStorage.setItem("rm_tele_solo_v1", JSON.stringify(teleSt.telemetry || {})); } catch { /* yoksay */ }
+  }, [teleSt.telemetry]);
   const teleHook = useTelemetry({ st: teleSt, setSt: setTeleSt });
 
   /* ---------- canlı yarış modu ---------- */
