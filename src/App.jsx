@@ -3681,7 +3681,7 @@ ${bottomBar}
 
           {tab === "live" && <LiveTab t={t} live={live} liveFuelObs={liveFuelObs}
             lapCapture={lapCapture}
-            bridge={bridge} canEdit={canEditTeam} canBridge={isMember} tid={curTeam} rid={curRace}
+            canEdit={canEditTeam} tid={curTeam} rid={curRace}
             isAdmin={isAdmin}
             ownTopSrc={carImageSrc(teamData?.assets, st.carClass, st.car, "top")} />}
 
