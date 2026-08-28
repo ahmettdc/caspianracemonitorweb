@@ -295,25 +295,34 @@ export default function App() {
       const mirror = raceStateMirrorLoad(curTeam, rid);
       const useMirror = canEditTeam && remote && mirror && mirror.dirty
         && mirror.rev === (remote.rev || 0);
-      let seeded = false;
+      let loaded = null;
       if (useMirror) {
         const localParsed = safeParseState(mirror.stateJson);
         if (localParsed) {
-          setSt(migrate(localParsed));
+          loaded = migrate(localParsed);
+          setSt(loaded);
           setLastSync({ by: t("sen"), at: Date.now() });
           sync.current.reconcile = rid;   // applying kalkınca Firebase'e geri yaz
-          seeded = true;
         }
       }
-      if (!seeded && remote?.stateJson) {
+      if (!loaded && remote?.stateJson) {
         const parsed = safeParseState(remote.stateJson);
         if (parsed) {
-          setSt(migrate(parsed));
+          loaded = migrate(parsed);
+          setSt(loaded);
           setLastSync({ by: remote.updatedBy, at: remote.updatedAt });
         } else {
           console.warn("Yarış açılışında bozuk uzak state atlandı");
         }
       }
+      /* KRİTİK: yüklenen yarışın pist/araç seçimini LMU oto-varsayılan efektine
+         (aşağıda ~1425) "önceki seçim" olarak tanıt. Aksi halde openRace track/car'ı
+         boş→gerçek değiştirdiği için o efekt bunu KULLANICI SEÇİMİ sanıp LMU referans
+         temposunu (avgLap/consumption) senin KAYITLI değerinin ÜZERİNE yazıyor ve
+         push'layıp sunucuyu da bozuyordu. Buradaki senkron ref yazımı, efekt
+         çalışmadan önce set edilir (openRace çalışma anında ref tanımlı). */
+      const seeded = !!loaded;
+      if (loaded) lmuPrevSel.current = `${loaded.track}|${loaded.carClass}|${loaded.car}`;
       /* GEÇİCİ TEŞHİS: açılışta sunucudan ne geldiğini görünür kıl (rev + avgLap + kaynak). */
       const src = seeded ? "ayna" : (remote?.stateJson ? "sunucu" : "yok");
       let av = "?"; try { av = JSON.parse((seeded ? mirror.stateJson : remote?.stateJson) || "{}").avgLap ?? "?"; } catch { /* yoksay */ }
