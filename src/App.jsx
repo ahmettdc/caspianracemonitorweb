@@ -23,7 +23,7 @@ import { firebaseReady,
   deleteChat, syncMyTeamName,
   deleteSetup, addSetup,
   createRace, updateRace, deleteRace,
-  raceStateGet, raceStateMirrorLoad,
+  raceStateGet,
   getUserAvatar, saveUserAvatar, clearUserAvatar,
   liveHistoryClearAll, serverNow } from "./storage";
 import { processImageFile, IMG_ACCEPT_TYPES } from "./imageUpload";
@@ -280,32 +280,11 @@ export default function App() {
        Artık her hâlükârda yarışa gireriz; asıl state'i raceStateSubscribe
        (curRace değişince) getirir. */
     sync.current.applying = true;
-    sync.current.reconcile = null;   // bu açılışta yerel ayna geri yazılacak mı
     try {
       const remote = await raceStateGet(curTeam, rid);
       sync.current.rev = remote?.rev || 0;
-      /* Yerel ayna (cihaz-yerel) yalnız GÖNDERİLMEMİŞ (dirty) düzenleme içeriyor VE
-         uzak sürümle AYNI rev üzerine yapılmışsa geri yüklenir: önceki oturumda push
-         tamamlanamamış demektir (ör. masaüstü penceresi yazım bitmeden kapandı) →
-         yereli geri yükle ve Firebase'e geri yaz (reconcile). rev EŞLEŞMESİ güvenlik:
-         başka cihaz sunucuyu ilerlettiyse (remote.rev ≠ mirror.rev) yerel ATLANIR —
-         eski veriyle çakışma/ezme olmaz. Uzak okuma başarısızsa (remote yok) ayna
-         KULLANILMAZ; abonelik gerçek durumu getirir. (Zaman damgası değil rev; cihazlar
-         arası saat farkı ve soğuk-açılışta boş okuma yanlış tercihe yol açıyordu.) */
-      const mirror = raceStateMirrorLoad(curTeam, rid);
-      const useMirror = canEditTeam && remote && mirror && mirror.dirty
-        && mirror.rev === (remote.rev || 0);
       let loaded = null;
-      if (useMirror) {
-        const localParsed = safeParseState(mirror.stateJson);
-        if (localParsed) {
-          loaded = migrate(localParsed);
-          setSt(loaded);
-          setLastSync({ by: t("sen"), at: Date.now() });
-          sync.current.reconcile = rid;   // applying kalkınca Firebase'e geri yaz
-        }
-      }
-      if (!loaded && remote?.stateJson) {
+      if (remote?.stateJson) {
         const parsed = safeParseState(remote.stateJson);
         if (parsed) {
           loaded = migrate(parsed);
@@ -318,9 +297,8 @@ export default function App() {
       /* KRİTİK: yüklenen yarışın pist/araç seçimini LMU oto-varsayılan efektine
          (aşağıda ~1425) "önceki seçim" olarak tanıt. Aksi halde openRace track/car'ı
          boş→gerçek değiştirdiği için o efekt bunu KULLANICI SEÇİMİ sanıp LMU referans
-         temposunu (avgLap/consumption) senin KAYITLI değerinin ÜZERİNE yazıyor ve
-         push'layıp sunucuyu da bozuyordu. Buradaki senkron ref yazımı, efekt
-         çalışmadan önce set edilir (openRace çalışma anında ref tanımlı). */
+         temposunu (avgLap/consumption) KAYITLI değerin ÜZERİNE yazıyor ve push'layıp
+         sunucuyu da bozuyordu. Senkron ref yazımı efekt çalışmadan önce set edilir. */
       if (loaded) lmuPrevSel.current = `${loaded.track}|${loaded.carClass}|${loaded.car}`;
       setSyncMsg("");
     } catch (e) {
@@ -333,11 +311,7 @@ export default function App() {
     setEntered(true); setPickDone(true); setSetupDone(true);
     if (landTab) setTab(landTab);
     setTeamOpen(false);
-    setTimeout(() => {
-      sync.current.applying = false;
-      /* Yerel ayna geri yüklendiyse Firebase'e HEMEN yaz (stRef artık güncel). */
-      if (sync.current.reconcile === rid) { sync.current.reconcile = null; pushState(rid); }
-    }, 60);
+    setTimeout(() => { sync.current.applying = false; }, 60);
   };
 
   const leaveRace = () => {

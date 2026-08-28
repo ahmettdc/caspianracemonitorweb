@@ -18,7 +18,7 @@
    Girdi: { st, setSt, curRace, curTeamRef, role, userName, stRef, t }.
    Çıktı: { syncMsg, setSyncMsg, lastSync, setLastSync, sync }. */
 import { useState, useEffect, useRef } from "react";
-import { raceStateSet, raceStateSubscribe, raceStateMirrorSave } from "./storage";
+import { raceStateSet, raceStateSubscribe } from "./storage";
 import { migrate } from "./engine";
 import { safeParseState } from "./state";
 
@@ -37,9 +37,6 @@ export function useRaceSync({ st, setSt, curRace, curTeamRef, role, userName, st
         stateJson, rev, updatedBy: userName || "isimsiz", updatedAt,
       });
       sync.current.rev = rev; setLastSync({ by: t("sen"), at: updatedAt }); setSyncMsg("");
-      /* Firebase'e ULAŞTI → yerel aynayı TEMİZ (dirty:false) ve yeni rev ile işaretle:
-         sonraki açılışta gönderilmemiş düzenleme yok sayılır, gereksiz reconcile olmaz. */
-      raceStateMirrorSave(tid, rid, stateJson, rev, false);
     } catch (e) {
       /* Eskiden "tekrar denenecek" yazıp aslında denemiyordu → geçici bir yazma hatasında
          (ör. telemetri yüklemesi) veri sessizce kayboluyordu. Artık gerçek exponential
@@ -57,11 +54,6 @@ export function useRaceSync({ st, setSt, curRace, curTeamRef, role, userName, st
 
   const schedulePush = () => {
     if (!curRace || role !== "editor" || sync.current.applying) return;
-    /* Firebase yazımı 800 ms debounce'lu; ama yerel aynayı HEMEN (senkron) ve
-       GÖNDERİLMEMİŞ (dirty:true) olarak yaz — mevcut sunucu rev'i üzerine yapılan
-       düzenleme olarak damgala. Uygulama debounce dolmadan/uçuşan yazım bitmeden
-       kapansa bile veri kalır; açılışta rev eşleşirse güvenle geri yüklenir. */
-    raceStateMirrorSave(curTeamRef.current, curRace, JSON.stringify(stRef.current), sync.current.rev, true);
     clearTimeout(sync.current.timer);
     clearTimeout(sync.current.retry);   // bekleyen retry'ı iptal et — yeni push güncel state'i yazar
     sync.current.timer = setTimeout(() => pushState(curRace), 800);
@@ -69,8 +61,7 @@ export function useRaceSync({ st, setSt, curRace, curTeamRef, role, userName, st
 
   /* Bekleyen (debounce'lu) yazımı HEMEN gönder — sekme/pencere kapanmadan ya da arka
      plana alınmadan önce. Böylece son düzenleme 800 ms'yi beklemeden Firebase'e ulaşır
-     ve "kapatıp açınca eski değere döndü" sorunu normal kapanışta yaşanmaz (mirror
-     yalnız ani/zorla kapanma için güvenlik ağı kalır). Yazım async'tir; pagehide'da
+     ve normal kapanış/sekme değişiminde veri kaybı olmaz. Yazım async'tir; pagehide'da
      await edemeyiz ama açık bağlantıda istek yola çıkar. */
   const flush = () => {
     if (!curRace || role !== "editor" || sync.current.applying) return;

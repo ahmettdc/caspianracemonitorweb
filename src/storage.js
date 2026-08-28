@@ -514,35 +514,6 @@ export function raceStateSubscribe(tid, rid, cb) {
   });
 }
 
-/* --- yarış-durumu YEREL aynası (cihaz-yerel dayanıklılık) ---
-   Firebase yazımı 800 ms debounce'ludur ve masaüstü (Tauri) penceresi kapanınca
-   bekleyen/uçuşan async yazım tamamlanmadan süreç ölebilir → düzenlemeler
-   kaybolurdu. Her düzenlemede `st` buraya SENKRON (localStorage) yazılır; süreç
-   aniden ölse bile veri kalır.
-
-   Şema: { stateJson, rev, dirty }. `rev` = düzenlemenin üzerine yapıldığı SUNUCU
-   rev'i (dirty=true, henüz gönderilmemiş) ya da başarılı push sonrası yeni rev
-   (dirty=false, senkron). Yarış açılışında UZLAŞTIRMA rev'e göre yapılır (zaman
-   damgasına DEĞİL): yerel yalnız dirty VE uzak rev ile aynıysa geri yüklenir →
-   başka cihaz sunucuyu ilerlettiyse eski yerel veriyle ezme olmaz. Yalnız
-   düzenleyici yazar. */
-const RSTATE_MIRROR = "rm_rstate_";   // + `${tid}_${rid}`
-export function raceStateMirrorSave(tid, rid, stateJson, rev, dirty) {
-  if (!tid || !rid || typeof stateJson !== "string") return;
-  try { localStorage.setItem(RSTATE_MIRROR + tid + "_" + rid, JSON.stringify({ stateJson, rev: rev || 0, dirty: !!dirty })); }
-  catch { /* kota dolu / gizli mod — sessizce geç */ }
-}
-export function raceStateMirrorLoad(tid, rid) {
-  if (!tid || !rid) return null;
-  try {
-    const raw = localStorage.getItem(RSTATE_MIRROR + tid + "_" + rid);
-    if (!raw) return null;
-    const o = JSON.parse(raw);
-    return (o && typeof o.stateJson === "string" && typeof o.rev === "number")
-      ? { stateJson: o.stateJson, rev: o.rev, dirty: !!o.dirty } : null;
-  } catch { return null; }
-}
-
 /* ---- canlı timing (LMU köprüsü → teams/{tid}/live/{rid}) ----
    Köprü (.exe) bu düğüme yazar; web salt-okunur dinler. Strateji
    state'inden (raceState) bağımsız kanal. */
