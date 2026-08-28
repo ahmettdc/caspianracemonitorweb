@@ -1,5 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback, lazy, Suspense, Fragment } from "react";
-import UpdateBanner from "./UpdateBanner";
+import UpdateModal from "./UpdateModal";
+import { useUpdater } from "./useUpdater";
+import { CHANGELOG } from "./changelog";
 import { isTauri } from "./tauriEnv";
 import { useLiveBridge } from "./useLiveBridge";
 import { useLive } from "./useLive";
@@ -1170,10 +1172,23 @@ ${bottomBar}
     try { localStorage.setItem(SEEN_VER_KEY, APP_VERSION); } catch { /* yoksay */ }
     setSeenVer(APP_VERSION);
   };
-  const verNew = seenVer !== APP_VERSION;
   const versionModal = (
     <VersionModal open={verOpen} onClose={() => setVerOpen(false)} t={t} lang={lang}
       onStartGuide={() => { setVerOpen(false); setCoachStart(TOUR_FOR[tab] ?? 0); setCoachOpen(true); }} />
+  );
+
+  /* ---- güncelleme penceresi (ortada modal — eski üst şeritlerin yerine) ---- */
+  const updater = useUpdater();
+  const updateHighlights = (CHANGELOG?.[0]?.[lang === "en" ? "en" : "tr"] || []).slice(0, 3);
+  const updateModal = (
+    <UpdateModal
+      open={updater.open} lang={lang} phase={updater.phase} pct={updater.pct}
+      autoRestart={updater.autoRestart} forced={updater.forced}
+      oldVersion={updater.meta.oldVersion} newVersion={updater.meta.newVersion} size={updater.meta.size}
+      highlights={updateHighlights}
+      onToggleAuto={updater.toggleAuto} onUpdate={updater.update} onRestart={updater.restart}
+      onLater={updater.later} onClose={updater.close}
+      onAllChanges={() => { updater.close(); openVersions(); }} />
   );
   /* Üye yönetimi modalı — ana menü, takvim VE yarış görünümlerinde açılabilsin diye
      değişken olarak tutulur (buton ana menüdeydi ama modal yalnız yarış görünümünde
@@ -2022,7 +2037,7 @@ ${bottomBar}
     );
     return (
       <div className="rc">
-        <UpdateBanner t={t} />
+        {updateModal}
         {teamModal}{createJoinModal}{raceForm}
         <div style={{ position: "fixed", inset: 0, zIndex: 2000, overflow: "auto",
           display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 28px",
@@ -2161,7 +2176,7 @@ ${bottomBar}
   if (authReady && user && !access) {
     return (
       <div className="rc">
-        <UpdateBanner t={t} />
+        {updateModal}
         {teamModal}{createJoinModal}{raceForm}
         <div className="lobby">
           <div className="box" style={{ textAlign: "center" }}>
@@ -2315,7 +2330,7 @@ ${bottomBar}
 
     return (
       <div className="rc">
-        <UpdateBanner t={t} />
+        {updateModal}
         {teamModal}{createJoinModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}{cmdPalette}{adminModal}{profileModal}
         {(() => {
           /* ================= v2.0 ANA MENÜ (handoff-spec/ekranlar/01-menu.md) =================
@@ -2475,19 +2490,7 @@ ${bottomBar}
             </span>
           </div>
 
-          {/* ---- sürüm şeridi ---- */}
-          {verNew && (
-            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "11px 16px",
-              marginBottom: 16, border: "1px solid var(--rc-border-strong)", borderRadius: 11, background: "rgba(245,178,61,.08)" }}>
-              <span style={{ fontSize: 15 }}><Icon name="yukle" size={15} /></span>
-              <span style={{ fontSize: 12.5, color: "var(--rc-text)" }}>{t("Sürüm")} <b>{APP_VERSION}</b> {t("hazır — yenilikleri gör.")}</span>
-              <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-                <button onClick={openVersions} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--rc-border)", background: "transparent", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12 }}>{t("Neler değişti")}</button>
-                <button onClick={() => window.location.reload()} style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid var(--rc-warn)", background: "rgba(245,178,61,.14)", color: "var(--rc-warn)", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>{t("Güncelle")}</button>
-                <button onClick={() => { try { localStorage.setItem(SEEN_VER_KEY, APP_VERSION); } catch { /* yoksay */ } setSeenVer(APP_VERSION); }} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--rc-border)", background: "transparent", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 12 }}>{t("Sonra")}</button>
-              </span>
-            </div>
-          )}
+          {/* Eski sürüm şeridi kaldırıldı — yerine ortada UpdateModal (updateModal). */}
 
           {/* ---- hero: sıradaki yarış + hızlı eylemler ---- */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "stretch", marginBottom: 26 }} data-tour="races">
@@ -2701,7 +2704,7 @@ ${bottomBar}
     const canGo = !!(st.track && st.car);
     return (
       <div className="rc">
-        <UpdateBanner t={t} />
+        {updateModal}
         <div style={shell}>
           {renderRail("menu", (k) => { setTab(k); if (curRace) openRace(curRace); })}
           <div style={{ minWidth: 0 }}>
@@ -2856,7 +2859,7 @@ ${bottomBar}
     const stepVal = { minWidth: 52, textAlign: "center", fontFamily: "var(--rc-font-display)", fontSize: 19 };
     return (
       <div className="rc">
-        <UpdateBanner t={t} />
+        {updateModal}
         {wxTransModal}
         <div style={shell}>
           {renderRail("menu", (k) => { setTab(k); if (curRace) openRace(curRace); })}
@@ -3167,7 +3170,7 @@ ${bottomBar}
 
   return (
     <div className="rc">
-      <UpdateBanner t={t} />
+      {updateModal}
       {teamModal}{createJoinModal}{raceForm}{versionModal}{chatModal}{tourOverlay}{streamPlayer}{setupModal}{setupContentModal}{setupCompareModal}{cmpBar}{wxTransModal}
       {denyToast}{cmdPalette}
       {profileModal}

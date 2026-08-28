@@ -10,10 +10,12 @@ export const CHANGELOG = [
     tr: [
       "🔧 Üst bardaki 'bağlı değil' çipinde bağlantı kopmuşken yanında görünen süre bilgisi kaldırıldı — artık sadece 'bağlı değil' yazıyor.",
       "🔧 Sohbet penceresinin arka planındaki bulanıklaştırma (backdrop-blur) kaldırıldı — bazı ekran kartlarında sol 'KANALLAR' panelini boş/görünmez bırakan tarayıcı katman hatasını gideriyor. Pencereye ayrı bir katman izolasyonu da eklendi.",
+      "✨ Yeni güncelleme penceresi: eski üst şerit yerine ortada beliren bir modal. Sürüm geçişi (eski → yeni), öne çıkanlar ve 'Tüm değişiklikler' bağlantısı; masaüstünde canlı indirme yüzdesi + 'Yeniden başlat', web'de 'Şimdi güncelle'. Dil uygulamadan gelir; kritik sürümlerde 'Sonra' gizlenir.",
     ],
     en: [
       "🔧 The top-bar 'not connected' chip no longer shows the elapsed duration next to it while disconnected — it now reads just 'not connected'.",
       "🔧 Removed the backdrop-blur behind the chat window — it fixes a browser GPU-compositing bug that left the left 'CHANNELS' panel blank on some graphics cards. The window now also gets its own isolated layer.",
+      "✨ New update window: a centered modal replaces the old top strip. Shows the version transition (old → new), highlights and an 'All changes' link; on desktop a live download percentage + 'Restart', on web 'Update now'. Language follows the app; on critical releases 'Later' is hidden.",
     ],
   },
   {
