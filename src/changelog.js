@@ -15,6 +15,7 @@ export const CHANGELOG = [
       "🧹 Telemetride CSV/MoTeC metin desteği kaldırıldı — telemetri artık yalnızca .duckdb (LMU yerel kaydı) kabul ediyor. Yapıştırma alanı ve sütun eşleme arayüzü kaldırıldı.",
       "🔧 Setup Havuzu kartlarında dar ekranda alt satırdaki butonların (İçerik/İndir/✕) taşıp kırpılması giderildi — footer artık gerektiğinde alt satıra kayıyor ve kartlar biraz genişledi.",
       "✨ Canlı timing: SECTOR sütun başlığına tıklayarak sütunu daraltıp (·) tekrar tıklayarak açabilirsiniz — dar ekranda tabloya yer açar.",
+      "✨ Canlı timing SECTOR sütunu artık ANLIK: araç bu turda sektör çizgisini geçtiği an S1, sonra S2 canlı görünüyor (henüz geçilmeyen sektör '—', S3 tur bitince). Tur tamamlanınca son turun tam S1·S2·S3'üne düşüyor. (Gerçek yarışta köprünün güncel sürümü gerekir; eski köprüde eskisi gibi son tur gösterilir.)",
     ],
     en: [
       "🔧 The top-bar 'not connected' chip no longer shows the elapsed duration next to it while disconnected — it now reads just 'not connected'.",
@@ -24,6 +25,7 @@ export const CHANGELOG = [
       "🧹 Removed CSV/MoTeC text support from telemetry — it now accepts only .duckdb (LMU local recording). The paste box and column-mapping UI are gone.",
       "🔧 Setup Library cards no longer clip their footer buttons (Contents/Download/✕) on narrow widths — the footer now wraps to a second line when needed and the cards are a touch wider.",
       "✨ Live timing: click the SECTOR column header to collapse it (·) and click again to expand — frees up space on narrow screens.",
+      "✨ Live timing SECTOR column is now LIVE: it shows S1 the instant a car crosses the sector line this lap, then S2 ('—' for a sector not yet crossed; S3 once the lap completes). When the lap finishes it falls back to the last lap's full S1·S2·S3. (Needs the updated bridge in a real race; an old bridge still shows the last lap as before.)",
     ],
   },
   {

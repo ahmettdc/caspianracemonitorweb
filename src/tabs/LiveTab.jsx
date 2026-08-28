@@ -35,6 +35,15 @@ const gap = fmtGap;
 /* son turun S1·S2·S3 sektör süreleri (kompakt). Geçersiz/eksik → "—". */
 const secStr = (sc) => (Array.isArray(sc) && sc[0] > 0 && sc[1] > 0 && sc[2] > 0
   ? `${sc[0].toFixed(1)}·${sc[1].toFixed(1)}·${sc[2].toFixed(1)}` : "—");
+/* ANLIK sektör: bu turda araç sektör çizgisini geçtiği AN oluşan süre.
+   köprü curSectors=[s1,s2] verir (henüz geçilmeyen = null; S3 ancak tur bitince
+   lastSectors'a düşer). En az S1 geçilmişse canlı string, yoksa null (→ son tur). */
+const liveSecStr = (c) => {
+  const cur = c && c.curSectors;
+  if (!Array.isArray(cur) || !(cur[0] > 0)) return null;
+  const f = (x) => (x > 0 ? x.toFixed(1) : "—");
+  return `${f(cur[0])}·${f(cur[1])}·—`;
+};
 
 /* son güncelleme yaşından bağlantı durumu.
    ts SERVER-hizalı yazılır (liveBridge) → burada da serverNow() ile karşılaştırılır;
@@ -828,8 +837,10 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
                       <td style={{ color: lapMode ? (isFastest ? "var(--purple)" : "var(--dim)") : undefined,
                         fontWeight: lapMode && isFastest ? 700 : 400 }}>
                         {lap(lapMode ? c.bestSec : c.lastSec)}</td>
-                      <td className="mono" style={{ color: "var(--dim)", fontSize: 11, textAlign: secOpen ? undefined : "center" }}
-                        title={t("Son turun S1·S2·S3 sektör süreleri")}>{secOpen ? secStr(c.lastSectors) : "·"}</td>
+                      {(() => { const ls = liveSecStr(c); return (
+                      <td className="mono" style={{ color: ls ? "var(--rc-text-2)" : "var(--dim)", fontSize: 11, textAlign: secOpen ? undefined : "center" }}
+                        title={ls ? t("Bu turda geçilen sektörler (anlık)") : t("Son turun S1·S2·S3 sektör süreleri")}>{secOpen ? (ls || secStr(c.lastSectors)) : "·"}</td>
+                      ); })()}
                       {/* AVG5/AVG tek sütun (başlıktan geçiş). */}
                       <td style={{ color: "var(--dim)" }}>{lap(avgMode ? c.avgSec : c.avg5Sec)}</td>
                       {/* Enerji (VE): çubuksuz, renkli % (fişteki yeni tasarım) */}
