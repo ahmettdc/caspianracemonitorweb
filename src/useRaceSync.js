@@ -67,8 +67,33 @@ export function useRaceSync({ st, setSt, curRace, curTeamRef, role, userName, st
     sync.current.timer = setTimeout(() => pushState(curRace), 800);
   };
 
+  /* Bekleyen (debounce'lu) yazımı HEMEN gönder — sekme/pencere kapanmadan ya da arka
+     plana alınmadan önce. Böylece son düzenleme 800 ms'yi beklemeden Firebase'e ulaşır
+     ve "kapatıp açınca eski değere döndü" sorunu normal kapanışta yaşanmaz (mirror
+     yalnız ani/zorla kapanma için güvenlik ağı kalır). Yazım async'tir; pagehide'da
+     await edemeyiz ama açık bağlantıda istek yola çıkar. */
+  const flush = () => {
+    if (!curRace || role !== "editor" || sync.current.applying) return;
+    if (!sync.current.timer && !sync.current.retry) return;   // bekleyen yok
+    clearTimeout(sync.current.timer); sync.current.timer = null;
+    clearTimeout(sync.current.retry); sync.current.retry = null;
+    pushState(curRace);
+  };
+
   // her state değişiminde (kullanıcı kaynaklı) paylaş
   useEffect(() => { schedulePush(); /* eslint-disable-next-line */ }, [st]);
+
+  // sekme gizlenince / sayfa kapanınca bekleyen yazımı hemen gönder (veri kaybını önle)
+  useEffect(() => {
+    const onHide = () => { if (document.visibilityState === "hidden") flush(); };
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", flush);
+    };
+    /* eslint-disable-next-line */
+  }, [curRace, role]);
 
   // odayı anlık dinle (Firebase onValue — polling'e gerek yok)
   useEffect(() => {
