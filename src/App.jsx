@@ -273,9 +273,15 @@ export default function App() {
      GEÇMEZ; kendi setTab(k) seçimleri korunur (ör. menüden doğrudan "Canlı"ya girme). */
   const openRace = async (rid, landTab) => {
     if (!curTeam || !rid) return;
+    /* İlk boyama için uzak state'i çekmeyi DENE — ama giriş buna BAĞLI DEĞİL.
+       Eskiden raceStateGet geçici bir ağ hatasıyla düşünce catch çalışıyor,
+       setCurRace/setEntered HİÇ ateşlenmiyordu → kullanıcı lobide kalıyor,
+       sekmeler "açılmıyordu" (canlı timing'in yoğun trafiği sonrası aralıklı).
+       Artık her hâlükârda yarışa gireriz; asıl state'i raceStateSubscribe
+       (curRace değişince) getirir. */
+    sync.current.applying = true;
     try {
       const remote = await raceStateGet(curTeam, rid);
-      sync.current.applying = true;
       sync.current.rev = remote?.rev || 0;
       if (remote?.stateJson) {
         const parsed = safeParseState(remote.stateJson);
@@ -286,13 +292,18 @@ export default function App() {
           console.warn("Yarış açılışında bozuk uzak state atlandı");
         }
       }
-      setCurRace(rid);
-      setRole(canEditTeam ? "editor" : "viewer");
-      setEntered(true); setPickDone(true); setSetupDone(true);
-      if (landTab) setTab(landTab);
-      setTeamOpen(false); setSyncMsg("");
-      setTimeout(() => { sync.current.applying = false; }, 60);
-    } catch (e) { setSyncMsg(t("Bağlantı hatası: ") + e.message); }
+      setSyncMsg("");
+    } catch (e) {
+      /* fetch düştü → yine de gir; abonelik state'i getirecek. */
+      sync.current.rev = 0;
+      setSyncMsg(t("Bağlantı hatası: ") + (e?.message || ""));
+    }
+    setCurRace(rid);
+    setRole(canEditTeam ? "editor" : "viewer");
+    setEntered(true); setPickDone(true); setSetupDone(true);
+    if (landTab) setTab(landTab);
+    setTeamOpen(false);
+    setTimeout(() => { sync.current.applying = false; }, 60);
   };
 
   const leaveRace = () => {

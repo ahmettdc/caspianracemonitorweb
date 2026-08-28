@@ -16,6 +16,7 @@ export const CHANGELOG = [
       "🔧 Setup Havuzu kartlarında dar ekranda alt satırdaki butonların (İçerik/İndir/✕) taşıp kırpılması giderildi — footer artık gerektiğinde alt satıra kayıyor ve kartlar biraz genişledi.",
       "✨ Canlı timing: SECTOR sütun başlığına tıklayarak sütunu daraltıp (·) tekrar tıklayarak açabilirsiniz — dar ekranda tabloya yer açar.",
       "✨ Canlı timing SECTOR sütunu artık ANLIK: araç bu turda sektör çizgisini geçtiği an S1, sonra S2 canlı görünüyor (henüz geçilmeyen sektör '—', S3 tur bitince). Tur tamamlanınca son turun tam S1·S2·S3'üne düşüyor. (Gerçek yarışta köprünün güncel sürümü gerekir; eski köprüde eskisi gibi son tur gösterilir.)",
+      "🔧 Ana menüden bir sekmeye (Dash/Stint/Canlı…) tıklayınca yarış bazen açılmıyordu: yarış açılışı, uzak durumu çeken ağ çağrısı geçici hata verince (özellikle canlı timing sonrası) yarışa hiç girmiyordu. Artık çağrı düşse de yarışa giriliyor, durum abonelikten geliyor.",
     ],
     en: [
       "🔧 The top-bar 'not connected' chip no longer shows the elapsed duration next to it while disconnected — it now reads just 'not connected'.",
@@ -26,6 +27,7 @@ export const CHANGELOG = [
       "🔧 Setup Library cards no longer clip their footer buttons (Contents/Download/✕) on narrow widths — the footer now wraps to a second line when needed and the cards are a touch wider.",
       "✨ Live timing: click the SECTOR column header to collapse it (·) and click again to expand — frees up space on narrow screens.",
       "✨ Live timing SECTOR column is now LIVE: it shows S1 the instant a car crosses the sector line this lap, then S2 ('—' for a sector not yet crossed; S3 once the lap completes). When the lap finishes it falls back to the last lap's full S1·S2·S3. (Needs the updated bridge in a real race; an old bridge still shows the last lap as before.)",
+      "🔧 Clicking a tab (Dash/Stint/Live…) from the main menu sometimes failed to open the race: race entry aborted whenever the network fetch of the remote state hit a transient error (notably right after live timing). It now enters the race regardless — state arrives via the live subscription.",
     ],
   },
   {
