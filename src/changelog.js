@@ -12,12 +12,14 @@ export const CHANGELOG = [
       "🔧 Sohbet penceresinin arka planındaki bulanıklaştırma (backdrop-blur) kaldırıldı — bazı ekran kartlarında sol 'KANALLAR' panelini boş/görünmez bırakan tarayıcı katman hatasını gideriyor. Pencereye ayrı bir katman izolasyonu da eklendi.",
       "✨ Yeni güncelleme penceresi: eski üst şerit yerine ortada beliren bir modal. Sürüm geçişi (eski → yeni), öne çıkanlar ve 'Tüm değişiklikler' bağlantısı; masaüstünde canlı indirme yüzdesi + 'Yeniden başlat', web'de 'Şimdi güncelle'. Dil uygulamadan gelir; kritik sürümlerde 'Sonra' gizlenir.",
       "🔧 Bağımsız Telemetri ekranı (Ana Menü → Telemetri) artık yüklenen stint'leri hatırlıyor: box plot, SEANS paneli ve çözülen turlar sayfa yenilense de kayıtlı kalır (cihaz-yerel). Ayrıca yarış içi telemetri yazımı geçici bir bağlantı hatasında sessizce kaybolmuyordu — artık otomatik tekrar deneniyor.",
+      "🧹 Telemetride CSV/MoTeC metin desteği kaldırıldı — telemetri artık yalnızca .duckdb (LMU yerel kaydı) kabul ediyor. Yapıştırma alanı ve sütun eşleme arayüzü kaldırıldı.",
     ],
     en: [
       "🔧 The top-bar 'not connected' chip no longer shows the elapsed duration next to it while disconnected — it now reads just 'not connected'.",
       "🔧 Removed the backdrop-blur behind the chat window — it fixes a browser GPU-compositing bug that left the left 'CHANNELS' panel blank on some graphics cards. The window now also gets its own isolated layer.",
       "✨ New update window: a centered modal replaces the old top strip. Shows the version transition (old → new), highlights and an 'All changes' link; on desktop a live download percentage + 'Restart', on web 'Update now'. Language follows the app; on critical releases 'Later' is hidden.",
       "🔧 The standalone Telemetry screen (Main Menu → Telemetry) now remembers loaded stints: the box plot, SESSION panel and resolved laps survive a page reload (device-local). Also, in-race telemetry writes no longer vanish silently on a transient connection error — they now retry automatically.",
+      "🧹 Removed CSV/MoTeC text support from telemetry — it now accepts only .duckdb (LMU local recording). The paste box and column-mapping UI are gone.",
     ],
   },
   {
