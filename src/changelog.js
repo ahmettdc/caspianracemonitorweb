@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v2.2.1",
+    date: "2026-08-28",
+    tr: [
+      "🔧 Üst bardaki 'bağlı değil' çipinde bağlantı kopmuşken yanında görünen süre bilgisi kaldırıldı — artık sadece 'bağlı değil' yazıyor.",
+    ],
+    en: [
+      "🔧 The top-bar 'not connected' chip no longer shows the elapsed duration next to it while disconnected — it now reads just 'not connected'.",
+    ],
+  },
+  {
     v: "v2.2.0",
     date: "2026-08-27",
     tr: [

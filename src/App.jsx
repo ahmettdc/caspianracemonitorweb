@@ -3257,7 +3257,7 @@ ${bottomBar}
                 textTransform: "uppercase", color: bLive ? "var(--rc-ok)" : "var(--rc-text-3)", whiteSpace: "nowrap", cursor: "pointer" }}>
               <i style={{ width: 8, height: 8, borderRadius: "50%", background: bDot,
                 boxShadow: bLive ? "0 0 8px var(--rc-ok)" : "none", animation: bLive ? "rcpulse 1.2s ease-in-out infinite" : "none" }} />
-              {bLive ? t("canlı") : feedFresh ? t("gecikmeli") : t("bağlı değil")}{age != null ? ` · ${age}s` : ""} <span style={{ opacity: .6 }}>▾</span>
+              {bLive ? t("canlı") : feedFresh ? t("gecikmeli") : t("bağlı değil")}{age != null && (bLive || feedFresh) ? ` · ${age}s` : ""} <span style={{ opacity: .6 }}>▾</span>
             </button>
             {bridgePopOpen && (
               <span style={{ position: "absolute", right: 0, top: "calc(100% + 9px)", zIndex: 70, width: 320,

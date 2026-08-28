@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.2.1 — 2026-08-28
+
+Hotfix.
+
+### Üst bar
+- 'Bağlı değil' çipinde bağlantı kopmuşken yanında görünen süre bilgisi (`· {age}s`) kaldırıldı; süre yalnızca canlı/gecikmeli durumda gösteriliyor. Bağlı değilken çip sadece "bağlı değil" yazar.
+
 ## v2.2.0 — 2026-08-27
 
 Yeni özellikler ve düzeltmeler.
