@@ -480,6 +480,7 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
   const [lapMode, setLapMode] = useState(false);   // Son ↔ En İyi tek sütun geçişi
   const [avgMode, setAvgMode] = useState(false);   // AVG5 ↔ AVG tek sütun geçişi
   const [gapMode, setGapMode] = useState(false);   // Gap ↔ Aralık tek sütun geçişi
+  const [secOpen, setSecOpen] = useState(true);    // Sektör sütunu aç/kapa (başlıktan)
   const [side, setSide] = useState(true);          // sağ yan panel (harita/kendi araç/strateji) aç/kapa
   const [cmpCar, setCmpCar] = useState(null);      // satıra tıklayınca kendi pilotla karşılaştırma
   // DEMO: yerel sahte veri (oyun/köprü/Firebase gerekmez) — UI düzenlemek için
@@ -755,7 +756,9 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
                 <th><button onClick={() => setLapMode((v) => !v)}
                   title={t("Son / En İyi değiştir")} style={thBtn}>
                   {lapMode ? t("En İyi") : t("Son")} ⇄</button></th>
-                <th>{t("Sektör")}</th>
+                <th><button onClick={() => setSecOpen((v) => !v)}
+                  title={secOpen ? t("Sektör sütununu gizle") : t("Sektör sütununu göster")} style={thBtn}>
+                  {secOpen ? <>{t("Sektör")} ‹</> : "S ›"}</button></th>
                 <th><button onClick={() => setAvgMode((v) => !v)}
                   title={t("AVG5 / AVG değiştir")} style={thBtn}>
                   {avgMode ? "AVG" : "AVG5"} ⇄</button></th>
@@ -825,8 +828,8 @@ export default function LiveTab({ t, live: liveProp, bridge, canEdit, canBridge 
                       <td style={{ color: lapMode ? (isFastest ? "var(--purple)" : "var(--dim)") : undefined,
                         fontWeight: lapMode && isFastest ? 700 : 400 }}>
                         {lap(lapMode ? c.bestSec : c.lastSec)}</td>
-                      <td className="mono" style={{ color: "var(--dim)", fontSize: 11 }}
-                        title={t("Son turun S1·S2·S3 sektör süreleri")}>{secStr(c.lastSectors)}</td>
+                      <td className="mono" style={{ color: "var(--dim)", fontSize: 11, textAlign: secOpen ? undefined : "center" }}
+                        title={t("Son turun S1·S2·S3 sektör süreleri")}>{secOpen ? secStr(c.lastSectors) : "·"}</td>
                       {/* AVG5/AVG tek sütun (başlıktan geçiş). */}
                       <td style={{ color: "var(--dim)" }}>{lap(avgMode ? c.avgSec : c.avg5Sec)}</td>
                       {/* Enerji (VE): çubuksuz, renkli % (fişteki yeni tasarım) */}

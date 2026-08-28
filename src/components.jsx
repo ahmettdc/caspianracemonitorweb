@@ -1104,7 +1104,7 @@ export function SetupCards({ rows, t, st, lang, isAdmin, onDownload, onDelete, o
   const deltas = lapDeltas(rows);
   const smBtn = { padding: "4px 10px", borderRadius: 7, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer", fontSize: 11, whiteSpace: "nowrap" };
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 12 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(340px,1fr))", gap: 12 }}>
       {rows.map((su) => {
         const d = deltas.get(su.id);
         const lapColor = d?.fastest ? "var(--rc-ok)" : "var(--rc-text)";
@@ -1136,9 +1136,9 @@ export function SetupCards({ rows, t, st, lang, isAdmin, onDownload, onDelete, o
             </div>
             <div style={{ position: "relative", fontFamily: "var(--rc-font-display)", fontSize: 11, color: "var(--rc-text-2)", marginTop: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{su.name}</div>
             {/* alt */}
-            <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 8, marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--rc-border)" }} onClick={(e) => e.stopPropagation()}>
-              <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{su.uname || "—"} · {new Date(su.at || 0).toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR", { day: "2-digit", month: "2-digit" })}</span>
-              <span style={{ marginLeft: "auto", display: "flex", gap: 6, alignItems: "center" }}>
+            <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 8, rowGap: 8, flexWrap: "wrap", marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--rc-border)" }} onClick={(e) => e.stopPropagation()}>
+              <span style={{ fontSize: 11, color: "var(--rc-text-3)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{su.uname || "—"} · {new Date(su.at || 0).toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR", { day: "2-digit", month: "2-digit" })}</span>
+              <span style={{ marginLeft: "auto", display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
                 {su.ver && <span style={{ fontSize: 10, color: "var(--rc-text-3)", padding: "2px 8px", borderRadius: 99, border: "1px solid var(--rc-border)" }}>{su.ver}</span>}
                 {onCmpToggle && hasFile(su) && (
                   <button style={{ ...smBtn, padding: "4px 8px", ...(cmpSel?.includes(su.id) ? { borderColor: "var(--rc-brand-bright)", color: "var(--rc-brand-bright)", background: "rgba(150,0,24,.18)" } : {}) }}

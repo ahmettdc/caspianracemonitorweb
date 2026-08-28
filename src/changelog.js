@@ -13,6 +13,8 @@ export const CHANGELOG = [
       "✨ Yeni güncelleme penceresi: eski üst şerit yerine ortada beliren bir modal. Sürüm geçişi (eski → yeni), öne çıkanlar ve 'Tüm değişiklikler' bağlantısı; masaüstünde canlı indirme yüzdesi + 'Yeniden başlat', web'de 'Şimdi güncelle'. Dil uygulamadan gelir; kritik sürümlerde 'Sonra' gizlenir.",
       "🔧 Bağımsız Telemetri ekranı (Ana Menü → Telemetri) artık yüklenen stint'leri hatırlıyor: box plot, SEANS paneli ve çözülen turlar sayfa yenilense de kayıtlı kalır (cihaz-yerel). Ayrıca yarış içi telemetri yazımı geçici bir bağlantı hatasında sessizce kaybolmuyordu — artık otomatik tekrar deneniyor.",
       "🧹 Telemetride CSV/MoTeC metin desteği kaldırıldı — telemetri artık yalnızca .duckdb (LMU yerel kaydı) kabul ediyor. Yapıştırma alanı ve sütun eşleme arayüzü kaldırıldı.",
+      "🔧 Setup Havuzu kartlarında dar ekranda alt satırdaki butonların (İçerik/İndir/✕) taşıp kırpılması giderildi — footer artık gerektiğinde alt satıra kayıyor ve kartlar biraz genişledi.",
+      "✨ Canlı timing: SECTOR sütun başlığına tıklayarak sütunu daraltıp (·) tekrar tıklayarak açabilirsiniz — dar ekranda tabloya yer açar.",
     ],
     en: [
       "🔧 The top-bar 'not connected' chip no longer shows the elapsed duration next to it while disconnected — it now reads just 'not connected'.",
@@ -20,6 +22,8 @@ export const CHANGELOG = [
       "✨ New update window: a centered modal replaces the old top strip. Shows the version transition (old → new), highlights and an 'All changes' link; on desktop a live download percentage + 'Restart', on web 'Update now'. Language follows the app; on critical releases 'Later' is hidden.",
       "🔧 The standalone Telemetry screen (Main Menu → Telemetry) now remembers loaded stints: the box plot, SESSION panel and resolved laps survive a page reload (device-local). Also, in-race telemetry writes no longer vanish silently on a transient connection error — they now retry automatically.",
       "🧹 Removed CSV/MoTeC text support from telemetry — it now accepts only .duckdb (LMU local recording). The paste box and column-mapping UI are gone.",
+      "🔧 Setup Library cards no longer clip their footer buttons (Contents/Download/✕) on narrow widths — the footer now wraps to a second line when needed and the cards are a touch wider.",
+      "✨ Live timing: click the SECTOR column header to collapse it (·) and click again to expand — frees up space on narrow screens.",
     ],
   },
   {
