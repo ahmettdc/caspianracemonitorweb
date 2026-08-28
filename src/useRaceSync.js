@@ -18,7 +18,7 @@
    Girdi: { st, setSt, curRace, curTeamRef, role, userName, stRef, t }.
    Çıktı: { syncMsg, setSyncMsg, lastSync, setLastSync, sync }. */
 import { useState, useEffect, useRef } from "react";
-import { raceStateSet, raceStateSubscribe } from "./storage";
+import { raceStateSet, raceStateSubscribe, raceStateMirrorSave } from "./storage";
 import { migrate } from "./engine";
 import { safeParseState } from "./state";
 
@@ -28,13 +28,18 @@ export function useRaceSync({ st, setSt, curRace, curTeamRef, role, userName, st
   const sync = useRef({ rev: 0, applying: false, timer: null });
 
   const pushState = async (rid, attempt = 0) => {
+    const tid = curTeamRef.current;
+    const stateJson = JSON.stringify(stRef.current);
     try {
       const rev = sync.current.rev + 1;
-      await raceStateSet(curTeamRef.current, rid, {
-        stateJson: JSON.stringify(stRef.current), rev,
-        updatedBy: userName || "isimsiz", updatedAt: Date.now(),
+      const updatedAt = Date.now();
+      await raceStateSet(tid, rid, {
+        stateJson, rev, updatedBy: userName || "isimsiz", updatedAt,
       });
-      sync.current.rev = rev; setLastSync({ by: t("sen"), at: Date.now() }); setSyncMsg("");
+      sync.current.rev = rev; setLastSync({ by: t("sen"), at: updatedAt }); setSyncMsg("");
+      /* Firebase'e ULAŞTI → yerel aynayı aynı updatedAt ile eşitle: sonraki açılışta
+         uzak sürüm 'daha yeni' sayılıp gereksiz uzlaştırma-yazımı yapılmaz. */
+      raceStateMirrorSave(tid, rid, stateJson, updatedAt);
     } catch (e) {
       /* Eskiden "tekrar denenecek" yazıp aslında denemiyordu → geçici bir yazma hatasında
          (ör. telemetri yüklemesi) veri sessizce kayboluyordu. Artık gerçek exponential
@@ -52,6 +57,9 @@ export function useRaceSync({ st, setSt, curRace, curTeamRef, role, userName, st
 
   const schedulePush = () => {
     if (!curRace || role !== "editor" || sync.current.applying) return;
+    /* Firebase yazımı 800 ms debounce'lu; ama yerel aynayı HEMEN (senkron) yaz →
+       uygulama debounce dolmadan/uçuşan yazım bitmeden kapansa bile veri kalır. */
+    raceStateMirrorSave(curTeamRef.current, curRace, JSON.stringify(stRef.current), Date.now());
     clearTimeout(sync.current.timer);
     clearTimeout(sync.current.retry);   // bekleyen retry'ı iptal et — yeni push güncel state'i yazar
     sync.current.timer = setTimeout(() => pushState(curRace), 800);
@@ -81,5 +89,5 @@ export function useRaceSync({ st, setSt, curRace, curTeamRef, role, userName, st
     return () => off();
   }, [curRace]);
 
-  return { syncMsg, setSyncMsg, lastSync, setLastSync, sync };
+  return { syncMsg, setSyncMsg, lastSync, setLastSync, sync, pushState };
 }

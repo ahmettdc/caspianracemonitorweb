@@ -8,10 +8,12 @@ export const CHANGELOG = [
     v: "v2.2.2",
     date: "2026-08-28",
     tr: [
+      "🛠 ÖNEMLİ: Yarış sırasında sağ panelden yaptığınız race data düzenlemeleri (tur süresi, tüketim, pit süresi vb.) programı kapatıp açınca eski değerine dönebiliyordu. Artık her değişiklik anında cihaza da kaydediliyor (yalnız buluta değil); uygulama kapanırken kayıt tamamlanamasa bile yeniden açılışta düzenlemeleriniz korunuyor ve buluta geri yazılıyor.",
       "🔧 Sohbet penceresi sol 'KANALLAR' paneli bazı ekran kartlarında hâlâ boş kalabiliyordu. Geriye kalan tetikleyici, pencerenin transform tabanlı açılış animasyonuymuş — artık yalnızca yumuşak bir görünürlük geçişi kullanılıyor ve sol panele ayrı bir katman verildi. Panel her açılışta dolu geliyor.",
       "🧹 Canlı Timing üstündeki eski kırmızı 'Canlı Köprü' durum kutusu kaldırıldı — köprü zaten otomatik çalıştığı için bu kutu gereksizdi.",
     ],
     en: [
+      "🛠 IMPORTANT: Race-data edits made from the right panel during a race (lap time, consumption, pit time, etc.) could revert to their old values after closing and reopening the app. Every change is now also saved to the device instantly (not only to the cloud); even if the write can't finish while the app closes, your edits survive on reopen and are written back to the cloud.",
       "🔧 The chat window's left 'CHANNELS' panel could still come up blank on some graphics cards. The remaining trigger was the window's transform-based open animation — it now uses a plain fade and the left panel gets its own layer, so it renders filled every time.",
       "🧹 Removed the old red 'Live Bridge' status box above Live Timing — the bridge runs automatically now, so the box was redundant.",
     ],

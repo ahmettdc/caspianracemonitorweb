@@ -23,7 +23,7 @@ import { firebaseReady,
   deleteChat, syncMyTeamName,
   deleteSetup, addSetup,
   createRace, updateRace, deleteRace,
-  raceStateGet,
+  raceStateGet, raceStateMirrorLoad,
   getUserAvatar, saveUserAvatar, clearUserAvatar,
   liveHistoryClearAll, serverNow } from "./storage";
 import { processImageFile, IMG_ACCEPT_TYPES } from "./imageUpload";
@@ -280,10 +280,24 @@ export default function App() {
        Artık her hâlükârda yarışa gireriz; asıl state'i raceStateSubscribe
        (curRace değişince) getirir. */
     sync.current.applying = true;
+    sync.current.reconcile = null;   // bu açılışta yerel ayna geri yazılacak mı
     try {
       const remote = await raceStateGet(curTeam, rid);
       sync.current.rev = remote?.rev || 0;
-      if (remote?.stateJson) {
+      /* Yerel ayna (cihaz-yerel) uzak sürümden DAHA YENİYSE → önceki oturumda
+         Firebase'e ulaşamamış düzenlemeler var demektir (ör. masaüstü penceresi
+         yazım bitmeden kapandı). Bu durumda yerel veriyi geri yükle ve düzenleyicide
+         Firebase'e geri yaz (reconcile). Aksi halde uzak sürümü kullan. */
+      const mirror = raceStateMirrorLoad(curTeam, rid);
+      const useMirror = canEditTeam && mirror && mirror.at > (remote?.updatedAt || 0);
+      if (useMirror) {
+        const localParsed = safeParseState(mirror.stateJson);
+        if (localParsed) {
+          setSt(migrate(localParsed));
+          setLastSync({ by: t("sen"), at: mirror.at });
+          sync.current.reconcile = rid;   // applying kalkınca Firebase'e geri yaz
+        }
+      } else if (remote?.stateJson) {
         const parsed = safeParseState(remote.stateJson);
         if (parsed) {
           setSt(migrate(parsed));
@@ -303,7 +317,11 @@ export default function App() {
     setEntered(true); setPickDone(true); setSetupDone(true);
     if (landTab) setTab(landTab);
     setTeamOpen(false);
-    setTimeout(() => { sync.current.applying = false; }, 60);
+    setTimeout(() => {
+      sync.current.applying = false;
+      /* Yerel ayna geri yüklendiyse Firebase'e HEMEN yaz (stRef artık güncel). */
+      if (sync.current.reconcile === rid) { sync.current.reconcile = null; pushState(rid); }
+    }, 60);
   };
 
   const leaveRace = () => {
@@ -852,7 +870,7 @@ ${bottomBar}
   curTeamRef.current = curTeam;
   /* işbirlikçi yarış-durumu senkronizasyonu (debounce push + canlı dinle) → hook.
      openRace/leaveRace App'te kalır ve dönen `sync` ref'ini + setter'ları kullanır. */
-  const { syncMsg, setSyncMsg, lastSync, setLastSync, sync } = useRaceSync({
+  const { syncMsg, setSyncMsg, lastSync, setLastSync, sync, pushState } = useRaceSync({
     st, setSt, curRace, curTeamRef, role, userName, stRef, t });
   /* canlı timing aboneliği + yakıt öğrenici (App.jsx'ten çıkarıldı) */
   const { live, liveFuelObs, lapCapture } = useLive({ curRace, curTeamRef, stRef, canEditRef });

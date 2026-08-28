@@ -4,6 +4,11 @@
 
 Hotfix.
 
+### Race data kalıcılığı (veri kaybı düzeltmesi)
+- **Belirti:** Yarış sırasında sağ panelden yapılan race data düzenlemeleri (`avgLap`, `consumption`, `fuelRatio`, `pitLaneTime` … tüm `st` alanları) runtime'da çalışıyor ama program kapatılıp açılınca eski (kayıtlı) değere dönüyordu.
+- **Kök neden:** Kalıcılık tamamen `useRaceSync`'in 800 ms debounce'lu Firebase yazımına bağlıydı; **yerel yedek yok, kapanışta flush yok.** Masaüstü (Tauri) penceresi kapanınca bekleyen `setTimeout(pushState)` ya da uçuşan async `raceStateSet` tamamlanamadan süreç ölüyor → düzenleme Firebase'e hiç ulaşmıyor → `openRace` yeniden açılışta önceki `rev`'i yükleyip her alanı "eski değere döndürüyor".
+- **Çözüm:** `st` artık her düzenlemede **senkron** olarak cihaz-yerel `localStorage`'a aynalanıyor (`raceStateMirrorSave`, anahtar `rm_rstate_{tid}_{rid}`). Süreç aniden ölse bile veri kalır. `openRace` açılışta aynayı Firebase ile `updatedAt`'e göre uzlaştırır: yerel ayna daha yeniyse (`mirror.at > remote.updatedAt`) yerel state geri yüklenir ve düzenleyicide Firebase'e geri yazılır (reconcile). Başarılı push'ta ayna aynı `updatedAt` ile eşitlenir (gereksiz reconcile olmaz). Web + masaüstü, tek/çok cihaz güvenli (son-yazan-kazanır korunur). (`storage.js`, `useRaceSync.js`, `App.jsx openRace`; test: `raceStateMirror.test.js`)
+
 ### Sohbet penceresi — sol panel (devam)
 - v2.2.1'de `backdrop-filter` kaldırılıp `isolation: isolate` eklenmişti ama sol 'KANALLAR' paneli bazı GPU'larda hâlâ boş kalabiliyordu. Geriye kalan tetikleyici, kutunun TRANSFORM tabanlı giriş animasyonuydu (`rcpop`: `translateY`+`scale`) — kırpılmış (`overflow:hidden` + `borderRadius`) kutuda geçici bir compositing katmanı oluşturup iki yan-yana kaydırma panelinin ilkini boyamadan bırakıyordu. Bu modalin animasyonu yalnız-opaklık (`rcfade`) yapıldı; ayrıca sol panele açık opak arka plan (`--rc-surface`) ve kendi stacking katmanı (`position:relative; zIndex:1`) verildi. Diğer modaller tek sütun oldukları için `rcpop` kullanmaya devam ediyor. (`ChatModal`, `components.jsx`)
 

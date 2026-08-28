@@ -514,6 +514,28 @@ export function raceStateSubscribe(tid, rid, cb) {
   });
 }
 
+/* --- yarış-durumu YEREL aynası (cihaz-yerel dayanıklılık) ---
+   Firebase yazımı 800 ms debounce'ludur ve masaüstü (Tauri) penceresi kapanınca
+   bekleyen/uçuşan async yazım tamamlanmadan süreç ölebilir → düzenlemeler
+   kaybolurdu. Her düzenlemede `st` buraya SENKRON (localStorage) yazılır; süreç
+   aniden ölse bile veri kalır. Yarış açılışında Firebase ile updatedAt'e göre
+   uzlaştırılır (yerel daha yeniyse geri yazılır). Yalnız düzenleyici yazar. */
+const RSTATE_MIRROR = "rm_rstate_";   // + `${tid}_${rid}`
+export function raceStateMirrorSave(tid, rid, stateJson, at) {
+  if (!tid || !rid || typeof stateJson !== "string") return;
+  try { localStorage.setItem(RSTATE_MIRROR + tid + "_" + rid, JSON.stringify({ stateJson, at: at || Date.now() })); }
+  catch { /* kota dolu / gizli mod — sessizce geç */ }
+}
+export function raceStateMirrorLoad(tid, rid) {
+  if (!tid || !rid) return null;
+  try {
+    const raw = localStorage.getItem(RSTATE_MIRROR + tid + "_" + rid);
+    if (!raw) return null;
+    const o = JSON.parse(raw);
+    return (o && typeof o.stateJson === "string" && typeof o.at === "number") ? o : null;
+  } catch { return null; }
+}
+
 /* ---- canlı timing (LMU köprüsü → teams/{tid}/live/{rid}) ----
    Köprü (.exe) bu düğüme yazar; web salt-okunur dinler. Strateji
    state'inden (raceState) bağımsız kanal. */
