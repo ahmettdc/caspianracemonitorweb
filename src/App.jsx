@@ -314,6 +314,10 @@ export default function App() {
           console.warn("Yarış açılışında bozuk uzak state atlandı");
         }
       }
+      /* GEÇİCİ TEŞHİS: açılışta sunucudan ne geldiğini görünür kıl (rev + avgLap + kaynak). */
+      const src = seeded ? "ayna" : (remote?.stateJson ? "sunucu" : "yok");
+      let av = "?"; try { av = JSON.parse((seeded ? mirror.stateJson : remote?.stateJson) || "{}").avgLap ?? "?"; } catch { /* yoksay */ }
+      setDiag(`açılış: rev ${remote?.rev ?? "−"} · avg ${av} · ${src}`);
       setSyncMsg("");
     } catch (e) {
       /* fetch düştü → yine de gir; abonelik state'i getirecek. */
@@ -882,10 +886,21 @@ ${bottomBar}
     st, setSt, curRace, curTeamRef, role, userName, stRef, t });
   /* Sağ panel "Uygula" butonu durumu: "" | "saving" | "ok" | "err" */
   const [applyState, setApplyState] = useState("");
+  /* GEÇİCİ TEŞHİS satırı (yaz/oku round-trip'i görünür kılar) */
+  const [diag, setDiag] = useState("");
   const doApply = async () => {
     setApplyState("saving");
     const ok = await saveNow();
     setApplyState(ok ? "ok" : "err");
+    /* Yazdıktan HEMEN sonra sunucudan geri oku → yazımın gerçekten kalıcı olup
+       olmadığını ve ne döndüğünü göster (rev + avgLap). */
+    if (ok) {
+      try {
+        const rb = await raceStateGet(curTeam, curRace);
+        let av = "?"; try { av = JSON.parse(rb?.stateJson || "{}").avgLap ?? "?"; } catch { /* yoksay */ }
+        setDiag(`yaz+oku: rev ${rb?.rev ?? "−"} · avg ${av} · gönderilen ${stRef.current?.avgLap ?? "?"}`);
+      } catch { setDiag("yaz+oku: geri okuma hatası"); }
+    }
     setTimeout(() => setApplyState(""), 2500);
   };
   /* canlı timing aboneliği + yakıt öğrenici (App.jsx'ten çıkarıldı) */
@@ -1689,6 +1704,12 @@ ${bottomBar}
             </button>
           )}
         </div>
+        {/* GEÇİCİ TEŞHİS: açılışta yüklenen ve UYGULA'da yazılıp geri okunan değer. */}
+        {canEdit && diag && (
+          <div style={{ marginTop: -8, marginBottom: 14, fontSize: 11, fontFamily: "monospace", color: "var(--rc-warn)", wordBreak: "break-word" }}>
+            🔎 {diag} · st.avg {st.avgLap} · rev {sync.current.rev}
+          </div>
+        )}
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "flex-start" }}>
 
