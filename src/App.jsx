@@ -878,8 +878,16 @@ ${bottomBar}
   curTeamRef.current = curTeam;
   /* işbirlikçi yarış-durumu senkronizasyonu (debounce push + canlı dinle) → hook.
      openRace/leaveRace App'te kalır ve dönen `sync` ref'ini + setter'ları kullanır. */
-  const { syncMsg, setSyncMsg, lastSync, setLastSync, sync, pushState } = useRaceSync({
+  const { syncMsg, setSyncMsg, lastSync, setLastSync, sync, pushState, saveNow } = useRaceSync({
     st, setSt, curRace, curTeamRef, role, userName, stRef, t });
+  /* Sağ panel "Uygula" butonu durumu: "" | "saving" | "ok" | "err" */
+  const [applyState, setApplyState] = useState("");
+  const doApply = async () => {
+    setApplyState("saving");
+    const ok = await saveNow();
+    setApplyState(ok ? "ok" : "err");
+    setTimeout(() => setApplyState(""), 2500);
+  };
   /* canlı timing aboneliği + yakıt öğrenici (App.jsx'ten çıkarıldı) */
   const { live, liveFuelObs, lapCapture } = useLive({ curRace, curTeamRef, stRef, canEditRef });
   /* stint ↔ canlı senkron: oto-PIT + saat hizalama (yalnız canlı yazıcı PC yazar),
@@ -1664,6 +1672,22 @@ ${bottomBar}
             {st.track && <img src={`${ASSET}flags/${TRACK_ASSET(st.track)}.png${AV}`} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ width: 20, borderRadius: 2 }} />}{trackName(st.track) || "—"}
             {st.car && <><span style={{ color: "var(--rc-border-strong)" }}>·</span><img src={`${ASSET}class/${clsD}.png${AV}`} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ height: 16 }} />{carName(clsD, st.car)}</>}
           </span>
+          {/* "Uygula" — açık kayıt: değişiklikleri HEMEN buluta yazar (await + geri bildirim).
+             Otomatik kaydetme yine çalışır; bu buton kesin/manuel kayıt + durum içindir. */}
+          {canEdit && (
+            <button onClick={doApply} disabled={applyState === "saving"}
+              title={t("Değişiklikleri hemen kaydet (buluta yaz)")}
+              style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 18px", borderRadius: 10, whiteSpace: "nowrap",
+                border: `1px solid ${applyState === "err" ? "var(--rc-danger)" : applyState === "ok" ? "rgba(55,214,122,.5)" : "var(--rc-brand-bright)"}`,
+                background: applyState === "err" ? "rgba(229,72,77,.12)" : applyState === "ok" ? "rgba(55,214,122,.12)" : "var(--rc-brand)",
+                color: applyState === "err" ? "var(--rc-danger)" : applyState === "ok" ? "var(--rc-ok)" : "var(--rc-on-brand)",
+                cursor: applyState === "saving" ? "default" : "pointer", fontFamily: "var(--rc-font-display)", fontSize: 13, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase", opacity: applyState === "saving" ? .7 : 1 }}>
+              {applyState === "saving" ? `… ${t("Kaydediliyor")}`
+                : applyState === "ok" ? `✓ ${t("Kaydedildi")}`
+                : applyState === "err" ? `✕ ${t("Hata")}`
+                : t("Uygula")}
+            </button>
+          )}
         </div>
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "flex-start" }}>
