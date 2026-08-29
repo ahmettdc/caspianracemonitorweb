@@ -184,12 +184,15 @@ export function inspectChat(root = document) {
   };
 }
 
-const flagOn = () => {
+/* Teşhis yalnız hata ayıklama bayrağı açıkken çalışır: ?debug=chat (adres) veya
+   localStorage.rc_debug_chat="1". ChatModal otomatik ölçüm kancasını da buna bağlar. */
+export const chatDiagEnabled = () => {
   try {
     return localStorage.getItem("rc_debug_chat") === "1"
       || /[?&#]debug=chat\b/.test(location.search + location.hash);
   } catch { return /[?&#]debug=chat\b/.test(location.search + location.hash); }
 };
+const flagOn = chatDiagEnabled;
 
 /* ---- ekran üstü panel -------------------------------------------------
    Konsolu olmayan cihazlar (tablet/telefon) için. Sabit renk + inline stil:

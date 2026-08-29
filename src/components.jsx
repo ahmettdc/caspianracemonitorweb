@@ -18,7 +18,7 @@ import { renameTeam, syncMyTeamName, createSeason, deleteRace,
   getUserAvatar, saveTeamAsset, clearTeamAsset,
   removeMember, transferOwnership, regenerateJoinCode, deleteTeam, updateRace } from "./storage";
 import { processImageFile, IMG_ACCEPT_TYPES } from "./imageUpload";
-import { reportChat } from "./chatDiag";
+import { reportChat, chatDiagEnabled } from "./chatDiag";
 import { carAssetKey, teamLogoSrc } from "./teamAssets";
 import { _bindConfirm, confirmDialog, promptDialog } from "./confirm";
 import { extHref } from "./tauriEnv";
@@ -1454,14 +1454,15 @@ export function RaceEditModal({ rForm, setRForm, t, seasons, onSave, onProceed, 
    gelir. open=false → null döner. */
 export function ChatModal({ open, onClose, t, lang, chatSound, toggleChatSound, chatChans,
   unreadOf, chatChan, setChatChan, teamData, curChan, chatBody, chatAll, fmtClock }) {
-  /* Pencere açıldığında gerçek DOM'u ölç (bkz. chatDiag.js). Panelin görünmemesi
-     iki sürüm boyunca uzaktan tahminle çözülemedi; bu kanca ölçümü kullanıcının
-     kendi cihazında alır (tablette konsol açılamadığı için ekrana da basabilir).
-     Gecikme rcfade (.2s) giriş animasyonundan UZUN olmalı: animasyon sürerken
-     ölçersek opacity:0 yakalayıp yanlış alarm veririz.
+  /* Teşhis ölçümü v2.2.3 hatası çözüldüğü için artık normal kullanımda ÇALIŞMAZ.
+     Yalnız hata ayıklama bayrağı açıkken (adres sonuna ?debug=chat, ya da
+     localStorage.rc_debug_chat="1") pencere açılışında otomatik ölçüm alınır;
+     reportChat kendi içinde de bu bayrağı kontrol eder (çift emniyet).
+     Bayraksız kullanıcıda hook erken çıkar → sıfır maliyet, sıfır log/panel.
+     Konsoldan __rcChatDiag() her zaman elle çağrılabilir (bkz. chatDiag.js).
      Hook koşulsuz — erken return'den ÖNCE (React hook kuralları). */
   useEffect(() => {
-    if (!open) return undefined;
+    if (!open || !chatDiagEnabled()) return undefined;
     const timer = setTimeout(() => reportChat(), 450);
     return () => clearTimeout(timer);
   }, [open, chatChans, chatChan]);

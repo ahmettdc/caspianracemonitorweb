@@ -45,6 +45,7 @@ Hotfix.
 - Sorun tablette görüldüğü ve orada geliştirici konsolu açılamadığı için ölçüm **ekrana da basılabilir**: `?debug=chat` (en kolayı), `localStorage.rc_debug_chat="1"` veya konsolda `__rcChatDiag()`. Panel sabit renk + inline stille doğrudan `body`'ye çizilir — ölçtüğü hatadan kendisi etkilenmesin diye. "Kopyala" ile JSON panoya alınır.
 - Ölçüm alınamazsa da panel çıkar ve `APP_VERSION` ile `data-rc-chat` işaretlerinin varlığını gösterir — eski/önbellekli paket böylece elenir.
 - Ölçüm `rcfade` (.2s) giriş animasyonundan sonra (450 ms) alınır; erken ölçüm `opacity:0` yakalayıp yanlış alarm veriyordu. Örtme testi kendi panelini yok sayar.
+- **Normal kullanımda kapalı:** pencere açılışındaki otomatik ölçüm yalnız hata ayıklama bayrağı açıkken çalışır (`?debug=chat` veya `localStorage.rc_debug_chat="1"`); bayraksız kullanıcıda sıfır log/panel/maliyet. Konsoldan `__rcChatDiag()` her zaman elle çağrılabilir.
 
 ### Regresyon kilidi
 
