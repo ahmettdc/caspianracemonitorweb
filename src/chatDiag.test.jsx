@@ -61,6 +61,34 @@ describe("sohbet kanal listesi görünürlüğü", () => {
   });
 });
 
+/* v2.2.3 asıl hata — sahadan alınan ölçümle bulundu:
+   kutu y=157 h=660 iken çocukları y=-13 h=911 ve kutu scrollTop=2182.
+   flexWrap:"wrap", flex satırının kutunun kesin yüksekliği yerine içeriğin doğal
+   boyuna uzamasına izin veriyordu; kutu taşınca scrollIntoView({block:"end"})
+   (overflow:hidden PROGRAMATİK kaydırmayı engellemez) modalin kendisini kaydırıp
+   iki başlığı ve kanal listesini kırpma çizgisinin üstünde bırakıyordu. */
+describe("pencere kendi kendine kaymamalı (başlıkların kırpılma hatası)", () => {
+  const boxTag = (html) => html.match(/<div[^>]*data-rc-chat="box"[^>]*>/)[0];
+  const tagOf = (html, key) => html.match(new RegExp(`<div[^>]*data-rc-chat="${key}"[^>]*>`))[0];
+
+  it("flex satırı sarmalanmaz — içerik kutuyu uzatamaz", () => {
+    const b = boxTag(renderChat());
+    expect(b).toMatch(/flex-wrap:\s*nowrap/);
+    expect(b).not.toMatch(/flex-wrap:\s*wrap/);
+  });
+
+  it("iki sütun da min-height:0 bildirir (iç kaydırma flex'te ancak böyle çalışır)", () => {
+    const html = renderChat();
+    for (const k of ["panel", "msgs"]) {
+      expect(tagOf(html, k)).toMatch(/min-height:\s*0/);
+    }
+  });
+
+  it("sol panel dar ekranda küçülebilir (alt satıra düşemeyeceği için)", () => {
+    expect(tagOf(renderChat(), "panel")).toMatch(/flex:\s*0 1 280px/);
+  });
+});
+
 describe("global güvenlik ağı (styles.js)", () => {
   it("koyu temada color-scheme:dark bildirilir", () => {
     expect(css).toMatch(/color-scheme:\s*dark/);

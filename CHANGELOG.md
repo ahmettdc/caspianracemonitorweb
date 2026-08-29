@@ -4,36 +4,51 @@
 
 Hotfix.
 
-### Sohbet: sol KANALLAR paneli "boş" görünüyordu — GERÇEK KÖK NEDEN
+### Sohbet: sol KANALLAR paneli + başlık çubukları görünmüyordu — GERÇEK KÖK NEDEN
 
-- **Belirti:** Sohbet penceresinin sol tarafındaki kanal bölümleri (Genel, Takım…) görünmüyordu. v2.2.1 ve v2.2.2'de iki kez "GPU/compositing hatası" teşhisiyle düzeltilmeye çalışıldı (`backdrop-filter` kaldırma, `isolation:isolate`, `rcpop`→`rcfade`, `translateZ(0)` katmanları); hiçbiri işe yaramadı çünkü **teşhis yanlıştı**.
-- **Kök neden:** Panel her zaman boyanıyordu. Görünmeyen şey kanal **adlarıydı**. `ChatModal` içindeki kanal `<button>`'ları inline style'ında `color` vermiyordu. `<button>` metin rengini **miras almaz** — UA stil sayfası `color: buttontext` (siyah) atar. Panel zemini `--rc-surface: #120C0E` olduğu için kontrast **1.08:1** çıkıyordu, yani okunamaz. Aynı panelin "KANALLAR" başlığı ve alt satırları açık renk verdiğinden görünüyor, bu da hatayı "panel boş kalıyor" gibi gösteriyordu.
-- **Ölçüm (headless Chromium, gerçek `ChatModal`):**
+- **Belirti:** Sohbet penceresinin sol kanal listesi (Genel, Takım…) ve sağ sütunun başlık çubuğu (kanal adı + ✕ kapat) görünmüyordu; yalnız mesajlar çiziliyordu. v2.2.1 ve v2.2.2'de iki kez "GPU/compositing hatası" teşhisiyle düzeltilmeye çalışıldı (`backdrop-filter` kaldırma, `isolation:isolate`, `rcpop`→`rcfade`, `translateZ(0)`); hiçbiri işe yaramadı çünkü teşhis yanlıştı.
+- **Nasıl bulundu:** Ekran görüntüsünün piksel analizi, sol panelde 126.900 pikselin tek renk olduğunu (sd=0.00) gösterdi — metin karanlık değil, hiç çizilmemişti. Ardından kullanıcının cihazından `chatDiag` ölçümü alındı:
 
-  | Öğe | Renk | Kontrast | |
-  |---|---|---|---|
-  | "KANALLAR" başlığı | `rgb(243,234,236)` | 16.40:1 | ✔ |
-  | kanal adı (önce) | `rgb(0,0,0)` | **1.08:1** | ✘ |
-  | kanal adı (sonra) | `rgb(243,234,236)` | **16.40:1** | ✔ |
+  | | x | y | w | h |
+  |---|---|---|---|---|
+  | pencere (kutu) | 376 | **157** | 940 | **660** |
+  | sol panel | 376 | **−13** | 280 | **911** |
+  | sağ sütun | 656 | **−13** | 659 | **911** |
 
-- **Çözüm — üç katman:**
-  1. Kanal butonuna açık `color: var(--rc-text)` (`components.jsx`).
-  2. Global güvenlik ağı: `.rc button,.rc input,.rc select,.rc textarea{color:inherit}` (`styles.js`). Denetim, 316 butonun 98'inin `color` bildirmediğini gösterdi; hiçbirinin açık renkli zemini olmadığı için miras güvenli.
-  3. Kök neden düzeltmesi: `:root{color-scheme:dark}` / `[data-theme="light"]{color-scheme:light}` — UA varsayılanları (form kontrolleri, kaydırma çubukları) artık tema ile hizalı.
+  Çocuklar kutudan 251px uzun ve 170px yukarıdan başlıyordu; kutunun `scrollTop`'u sıfır değildi.
+
+- **Kök neden (zincir):**
+  1. Kutudaki `flexWrap:"wrap"`, flex **satırının** kutunun kesin yüksekliğine sığdırılmak yerine içeriğin doğal boyuna uzamasına izin veriyordu (mesaj listesi ne kadar uzunsa o kadar). `align-items:stretch` ile iki sütun da o boya çekiliyordu.
+  2. Kutu böylece taşan içeriğe sahip oldu. `overflow:hidden` **kullanıcı** kaydırmasını engeller, **programatik** kaydırmayı engellemez.
+  3. `useChat`'teki `chatEndRef.scrollIntoView({block:"end"})` (sohbeti en alta getirme) kaydırılabilir **tüm ataları** kaydırır — modal kutusu dahil.
+  4. Sol başlık, kanal listesi ve sağ başlık kırpma çizgisinin üstüne itilip yok oluyordu. Aşağı uzanan mesajlar görünmeye devam ettiği için hata "sadece sol panel boş" gibi görünüyordu.
+
+- **Çözüm:** `flexWrap:"nowrap"` — satır artık kutunun yüksekliğiyle sınırlı, kaydırma tasarlandığı yerde (ChatPanel'in kendi listesinde) kalıyor. Sütunlara `minHeight:0` (iç kaydırmanın flex'te doğru çalışması için şart), sol panele `flex:"0 1 280px"` (dar ekranda taşmak yerine küçülür).
+- **Doğrulama (gerçek Chromium, 40 mesajlık sohbet):**
+
+  | | önce | sonra |
+  |---|---|---|
+  | kutu `scrollTop` | **2182** | **0** |
+  | kutu `scrollHeight`/`clientHeight` | 2921 / 658 | 658 / 658 |
+  | sol başlık · kanal listesi · sağ başlık | **tamamen kırpıldı** | **görünür** |
+
+  1691px, 1024px ve 700px genişliklerde temiz; mesaj listesi hâlâ en alta kayıyor.
+
+### Sohbet: kanal adları koyu zeminde siyah çiziliyordu (ayrı ve gerçek hata)
+
+- Kanal `<button>`'ları inline style'ında `color` vermiyordu. `<button>` metin rengini **miras almaz** — UA `color: buttontext` (siyah) atar; panel zemini `#120C0E` olduğu için kontrast **1.08:1** çıkıyordu.
+- **Çözüm üç katman:** butona `color: var(--rc-text)`; global güvenlik ağı `.rc button,.rc input,.rc select,.rc textarea{color:inherit}` (denetim: 316 butonun 98'i `color` bildirmiyordu, hiçbirinin açık zemini yok); `:root{color-scheme:dark}` / `[data-theme="light"]{color-scheme:light}` ile UA varsayılanlarının tema ile hizalanması.
 
 ### Sohbet teşhis modülü (`chatDiag.js`)
 
-- Pencere açıldığında gerçek DOM ölçülür: sol panel geometrisi, `flex-wrap` satır kayması ve her kanalın efektif metin/zemin **WCAG kontrastı**. Sorun bulunursa konsola uyarı basılır.
-- Elle rapor: konsolda `__rcChatDiag()`. Ayrıntılı döküm: `localStorage.rc_debug_chat = "1"` veya `?debug=chat`.
-- Layout motoru olmayan ortamlarda (jsdom/test) sessizce çıkar.
+- Pencere açılışında gerçek DOM ölçülür: her parça için kutu, çocuk sayısı, `innerHTML` uzunluğu + başı, renk/zemin **WCAG kontrastı**, `display/visibility/opacity`, `transform/clip/contain` ve `elementFromPoint` ile üstünü örten eleman testi. Sorun bulunursa konsola uyarı basar.
+- Sorun tablette görüldüğü ve orada geliştirici konsolu açılamadığı için ölçüm **ekrana da basılabilir**: `?debug=chat` (en kolayı), `localStorage.rc_debug_chat="1"` veya konsolda `__rcChatDiag()`. Panel sabit renk + inline stille doğrudan `body`'ye çizilir — ölçtüğü hatadan kendisi etkilenmesin diye. "Kopyala" ile JSON panoya alınır.
+- Ölçüm alınamazsa da panel çıkar ve `APP_VERSION` ile `data-rc-chat` işaretlerinin varlığını gösterir — eski/önbellekli paket böylece elenir.
+- Ölçüm `rcfade` (.2s) giriş animasyonundan sonra (450 ms) alınır; erken ölçüm `opacity:0` yakalayıp yanlış alarm veriyordu. Örtme testi kendi panelini yok sayar.
 
 ### Regresyon kilidi
 
-- `chatDiag.test.jsx`: kontrast matematiği, her kanal butonunun açık renk bildirmesi, `data-rc-chat` teşhis hedefleri ve `styles.js`'teki iki global kural test altında. Ayrıca `styles.js` bir template literal olduğu için CSS metninde ters tırnak kalmadığı doğrulanır (bu sürümde bir kez bu yüzden derleme kırıldı).
-
-### Bilinen (bu sürümde değiştirilmedi)
-
-- Pencere genişliği ~731px altına inince `ChatModal`'daki `flexWrap:"wrap"` sağ mesaj sütununu alt satıra düşürüyor (sol panel 280px kalıyor). Teşhis bunu artık raporluyor; düzen değişikliği ayrı bir sürüme bırakıldı.
+`chatDiag.test.jsx` — 11 test: `flex-wrap:nowrap`, sütunlarda `min-height:0`, sol panelin küçülebilirliği, kanal butonlarının açık renk bildirmesi, altı `data-rc-chat` ölçüm hedefi, kontrast matematiği ve `styles.js`'teki iki global kural. Ayrıca `styles.js` bir template literal olduğu için CSS metninde ters tırnak kalmadığı doğrulanır (bu sürümde bir kez bu yüzden derleme kırıldı).
 
 ## v2.2.2 — 2026-08-28
 

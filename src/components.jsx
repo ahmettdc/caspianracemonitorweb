@@ -1473,24 +1473,37 @@ export function ChatModal({ open, onClose, t, lang, chatSound, toggleChatSound, 
   return (
     <div className="rc" onClick={onClose} role="dialog" aria-modal="true"
       style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(10,6,10,.86)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
-      {/* v2.2.3 — GERÇEK KÖK NEDEN (v2.2.1/v2.2.2'deki "GPU compositing" teşhisi YANLIŞTI).
-          Sol KANALLAR paneli her zaman boyanıyordu; görünmeyen şey kanal ADLARIYDI:
-          aşağıdaki kanal <button>'ları inline style'ında `color` vermiyordu. <button>
-          metin rengini miras ALMAZ — UA `color:buttontext` (siyah) atar. Panel zemini
-          #120C0E olduğu için kontrast 1.08:1 çıkıyor, yani okunamaz. Aynı panelin
-          "KANALLAR" başlığı ve alt satırları açık renk verdiği için görünüyor, bu da
-          hatayı "panel boş" gibi gösteriyordu. Ölçüm (headless Chromium):
-            KANALLAR başlığı rgb(243,234,236) → 16.40:1  ✔
-            kanal adı        rgb(0,0,0)       →  1.08:1  ✘
-          Düzeltme üç katmanlı: (1) butona açık `color`, (2) styles.js'te
-          `.rc button{color:inherit}`, (3) `:root{color-scheme:dark}` ile UA
-          varsayılanlarının tema ile hizalanması.
-          Alttaki isolation/translateZ katmanları önceki sürümlerden kaldı; zararsız
-          oldukları ve ihtiyaten tutulduğu için sökülmedi. */}
+      {/* v2.2.3 — "Sol KANALLAR paneli görünmüyor" hatasının GERÇEK sebebi.
+          v2.2.1/v2.2.2'deki "GPU compositing" teşhisi YANLIŞTI; panel her zaman
+          boyanıyordu. Kullanıcının cihazından alınan ölçüm (bkz. chatDiag.js) şunu
+          gösterdi: kutu y=157 h=660 iken ÇOCUKLARI y=-13 h=911 — yani içerik
+          kutudan 251px uzun ve 170px yukarıdan başlıyor. Zincir:
+            1) Buradaki flexWrap:"wrap" yüzünden flex SATIRI, kutunun kesin
+               yüksekliğine sığdırılmak yerine içeriğin doğal boyuna uzuyordu
+               (mesaj listesi ne kadar uzunsa o kadar). align-items:stretch ile
+               iki sütun da o boya çekiliyordu.
+            2) Kutu böylece taşan içeriğe sahip oldu. overflow:hidden KULLANICI
+               kaydırmasını engeller, PROGRAMATİK kaydırmayı engellemez.
+            3) useChat'teki chatEndRef.scrollIntoView({block:"end"}) (sohbeti en
+               alta getirme) kaydırılabilir TÜM ataları kaydırır — kutu dahil.
+               Ölçümde kutu scrollTop=2182 (scrollHeight 2921 / client 658).
+            4) Sonuç: sol başlık, kanal listesi ve sağ başlık kırpma çizgisinin
+               ÜSTÜNE itilip yok oluyordu. Aşağı uzanan mesajlar görünmeye devam
+               ettiği için hata "sadece sol panel boş" gibi görünüyordu.
+          ÇÖZÜM: flexWrap:"nowrap" — satır artık kutunun yüksekliğiyle sınırlı,
+          kaydırma tasarlandığı yerde (ChatPanel'in kendi listesinde) kalıyor.
+          Sütunlardaki minHeight:0 bu iç kaydırmanın flex'te doğru çalışması için
+          şart. Sol panel flex:"0 1 280px" ile dar ekranda taşmak yerine küçülür
+          (wrap kaldırıldığı için alt satıra düşemez).
+          AYRICA (ayrı ve gerçek bir hata, v2.2.3'te düzeltildi): kanal
+          <button>'ları inline color vermiyordu; <button> metin rengini miras
+          ALMAZ, UA color:buttontext (siyah) atar → koyu panelde kontrast 1.08:1.
+          Butona açık color verildi, styles.js'e .rc button{color:inherit} ve
+          :root{color-scheme:dark} eklendi. */}
       <div onClick={(e) => e.stopPropagation()} data-rc-chat="box"
-        style={{ width: "min(940px,96vw)", height: "min(660px,88vh)", display: "flex", flexWrap: "wrap", gap: 0, isolation: "isolate", transform: "translateZ(0)", willChange: "transform", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcfade .2s ease" }}>
+        style={{ width: "min(940px,96vw)", height: "min(660px,88vh)", display: "flex", flexWrap: "nowrap", gap: 0, isolation: "isolate", transform: "translateZ(0)", willChange: "transform", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcfade .2s ease" }}>
         {/* sol: Kanallar */}
-        <div data-rc-chat="panel" style={{ flex: "0 0 280px", minWidth: 220, position: "relative", zIndex: 1, transform: "translateZ(0)", background: "var(--rc-surface)", borderRight: "1px solid var(--rc-border)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <div data-rc-chat="panel" style={{ flex: "0 1 280px", minWidth: 220, minHeight: 0, position: "relative", zIndex: 1, transform: "translateZ(0)", background: "var(--rc-surface)", borderRight: "1px solid var(--rc-border)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
           <div data-rc-chat="panel-hdr" style={{ padding: "14px 16px", borderBottom: "1px solid var(--rc-border)", display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 15, fontWeight: 700 }}>{t("Kanallar")}</span>
             <button onClick={toggleChatSound} title={chatSound ? t("Bildirim sesini kapat") : t("Bildirim sesini aç")}
@@ -1520,7 +1533,7 @@ export function ChatModal({ open, onClose, t, lang, chatSound, toggleChatSound, 
           </div>
         </div>
         {/* sağ: mesaj sütunu */}
-        <div data-rc-chat="msgs" style={{ flex: "1 1 420px", minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <div data-rc-chat="msgs" style={{ flex: "1 1 420px", minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
           <div data-rc-chat="msgs-hdr" style={{ padding: "12px 18px", borderBottom: "1px solid var(--rc-border)", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".06em", fontSize: 17, fontWeight: 700 }}>{curChan ? nameOf(curChan) : t("Sohbet")}</span>
             {curChan && <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{metaOf(curChan)}</span>}

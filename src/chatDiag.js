@@ -24,6 +24,8 @@
    Layout motoru olmayan ortamlarda (jsdom/test) sessizce çıkar. */
 import { APP_VERSION } from "./constants";
 
+const ID = "rc-chat-diag";
+
 const TRANSPARENT = /^(transparent|rgba\(0,\s*0,\s*0,\s*0\))$/;
 
 /* "rgb(r, g, b)" / "rgba(r, g, b, a)" → bağıl parlaklık (WCAG 2.1).
@@ -81,6 +83,9 @@ function coverTest(el) {
   const hit = document.elementFromPoint(cx, cy);
   if (!hit) return { ok: false, not: "elementFromPoint boş" };
   if (hit === el || el.contains(hit)) return { ok: true, not: "" };
+  /* Kendi ölçüm panelimiz de ekranda duruyor ve modalin üstüne gelebiliyor.
+     Onu "örten eleman" diye raporlamak yanlış alarm olur — yok say. */
+  if (hit.closest && hit.closest(`#${ID}`)) return { ok: true, not: "" };
   return { ok: false, not: `ÜSTÜNÜ ÖRTEN: ${desc(hit)}` };
 }
 
@@ -189,8 +194,6 @@ const flagOn = () => {
 /* ---- ekran üstü panel -------------------------------------------------
    Konsolu olmayan cihazlar (tablet/telefon) için. Sabit renk + inline stil:
    ölçtüğü görünürlük hatasından kendisi etkilenmesin. */
-const ID = "rc-chat-diag";
-
 function line(k, v, renk) {
   return `<div style="display:flex;gap:8px;padding:1px 0">
     <span style="color:#9aa;flex:0 0 108px">${k}</span>
