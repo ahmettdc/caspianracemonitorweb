@@ -274,7 +274,7 @@ export default function StintTab({
                         Çıplak sayı SANİYE okunur: "31" → 31 sn, tur sayısı değil. */}
                     <td style={td(true)}><input className="ovr" type="text" placeholder="h:mm:ss" disabled={lapOvr}
                       title={lapOvr ? t("Tur override aktif — önce onu temizle")
-                        : r.ovrIgnored ? t("Bir turdan kısa — yok sayıldı. Süre h:mm:ss yazılır (örn. 0:53:15); çıplak sayı SANİYE sayılır.")
+                        : r.ovrIgnored ? t("Geçersiz süre — yok sayıldı. Saat:dakika:saniye yazın (örn. 0:53:15 ya da 53:15). Düz sayı saniye demektir ve stint süresi olamaz.")
                           : undefined}
                       style={r.ovrIgnored ? { borderColor: "var(--rc-danger)", color: "var(--rc-danger)" } : undefined}
                       value={st.overrides[i] || ""} onChange={(e) => upOvr(i, e.target.value)} /></td>

@@ -164,27 +164,44 @@ describe("tur/override reducer'ları", () => {
      1 TURA düşürmüş; taşan turlar plana fazladan satır eklemiş ve TÜM stint numaraları
      kaymıştı (7. stintteyken uygulama 8 diyordu). Bir turdan kısa override artık yok
      sayılır ve satır ovrIgnored ile işaretlenir. */
-  it("bir turdan kısa süre override'ı yok sayılır — stint 1 tura düşmez, plan kaymaz", () => {
-    const st = base({ raceTime: "08:00:00", avgLap: "1:46.50", consumption: 3.33,
-      strategies: { C: 30 }, chosen: "C", pitLaneTime: 40, fuelTime: 30 });
+  const planSt = () => base({ raceTime: "08:00:00", avgLap: "1:46.50", consumption: 3.33,
+    strategies: { C: 30 }, chosen: "C", pitLaneTime: 40, fuelTime: 30 });
+
+  /* İKİ NOKTASIZ her değer yok sayılır. Yalnız "bir turdan kısa" elemesi YETMİYORDU:
+     120 sn bir turdan (106.5 sn) uzun olduğu için geçiyor ve yine 1 turluk stint +
+     plan kayması yapıyordu. Birim belirsiz olduğu için tamamı reddedilir. */
+  it("çıplak sayı override'ı (birimsiz) yok sayılır — hiçbir değerde plan kaymaz", () => {
+    const st = planSt();
     const temiz = computePlan(st, "race");
-    const ovr = [...st.overrides]; ovr[3] = "31";           // 31 → 31 SANİYE
-    const bozuk = computePlan({ ...st, overrides: ovr }, "race");
-    expect(bozuk.rows.length).toBe(temiz.rows.length);      // fazladan satır YOK
-    expect(bozuk.rows[3].lapsInStint).toBe(temiz.rows[3].lapsInStint);
-    expect(bozuk.rows[3].lapsInStint).toBeGreaterThan(1);
-    expect(bozuk.rows[3].ovrIgnored).toBe(true);            // UI uyarsın diye işaretli
     expect(temiz.rows[3].ovrIgnored).toBe(false);
+    for (const v of ["1", "31", "100", "120", "200", "600", "1800", "3195", "99999"]) {
+      const ovr = [...st.overrides]; ovr[3] = v;
+      const p = computePlan({ ...st, overrides: ovr }, "race");
+      expect(p.rows.length, `"${v}" plan satırı`).toBe(temiz.rows.length);
+      expect(p.rows[3].lapsInStint, `"${v}" tur`).toBe(temiz.rows[3].lapsInStint);
+      expect(p.rows[3].ovrIgnored, `"${v}" işaret`).toBe(true);
+    }
   });
 
-  it("geçerli (bir turdan uzun) süre override'ı çalışmaya devam eder", () => {
-    const st = base({ raceTime: "08:00:00", avgLap: "1:46.50", consumption: 3.33,
-      strategies: { C: 30 }, chosen: "C", pitLaneTime: 40, fuelTime: 30 });
-    const ovr = [...st.overrides]; ovr[3] = "0:43:20";
+  it("iki noktalı ama bir turdan kısa override da yok sayılır", () => {
+    const st = planSt();
+    const ovr = [...st.overrides]; ovr[3] = "0:00:31";
     const p = computePlan({ ...st, overrides: ovr }, "race");
-    expect(p.rows[3].ovrIgnored).toBe(false);
-    expect(Math.round(p.rows[3].stintSec)).toBe(43 * 60 + 20);
+    expect(p.rows[3].ovrIgnored).toBe(true);
     expect(p.rows[3].lapsInStint).toBeGreaterThan(1);
+  });
+
+  /* Gerçek girdiler bozulmamalı — applyMarkPit'in yazdığı otomatik değerler de
+     fmtHMS ile HEP iki noktalıdır, bu yüzden etkilenmez. */
+  it("geçerli süre override'ları (h:mm:ss ve mm:ss) çalışmaya devam eder", () => {
+    const st = planSt();
+    for (const [v, sn] of [["0:43:20", 2600], ["53:15", 3195], ["0:53:15", 3195], ["1:10:00", 4200]]) {
+      const ovr = [...st.overrides]; ovr[3] = v;
+      const p = computePlan({ ...st, overrides: ovr }, "race");
+      expect(p.rows[3].ovrIgnored, `"${v}"`).toBe(false);
+      expect(Math.round(p.rows[3].stintSec), `"${v}" süre`).toBe(sn);
+      expect(p.rows[3].lapsInStint).toBeGreaterThan(1);
+    }
   });
 
   /* v2.2.3 — autoOvr bayat kalıyordu: bumpLaps/upOvr overrides[i]'yi değiştirirken

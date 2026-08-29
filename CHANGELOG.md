@@ -55,7 +55,8 @@ Hotfix.
 
 - **Belirti:** 3. stint uzun gidince elle 31 tura çekildi; ardından 4. stint 1 tur kabul edildi ve numaralar kaydı — kullanıcı 7. stintteyken uygulama 8. stinti gösteriyordu.
 - **Kök neden:** OVERRIDE sütunu `h:mm:ss` bekler ama `parseHMS` çıplak sayıyı **saniye** okur (`"31"` → 31 sn). 31 sn'lik stintte `walkByTime` 0 tur döndürüp `Math.max(1, ·)` stinti **1 tura** düşürüyor; o stintin turları sonraki stintlere taşınca plan bir satır uzuyor ve tüm stint numaraları kayıyor. Yeniden üretildi: 9 satırlık plan 10 satıra çıkıyor, 4. satır 1 tur oluyor.
-- **Çözüm:** Bir turdan kısa süre override'ı mantıksızdır → **yok sayılır** (`stintLaps`'teki "makul değilse yok say" deseniyle aynı). Satır `ovrIgnored` ile işaretlenir; plan tablosunda hücre kırmızı çerçevelenir ve title doğru biçimi (`0:53:15`) ile çıplak sayının saniye sayıldığını açıklar — girdi sessizce yutulmaz.
+- **Çözüm:** İki mantıksız girdi sınıfı **yok sayılır** (`stintLaps`'teki "makul değilse yok say" deseniyle aynı): (1) **iki noktasız** her değer — birim belirsiz; (2) iki noktalı ama **bir turdan kısa** değer. İlk denemede yalnız "bir turdan kısa" eleniyordu ama bu YETMİYORDU: `120` sn bir turdan (106,5 sn) uzun olduğu için geçiyor ve yine 1 turluk stint + kayma üretiyordu — ölçülerek yakalandı ve kural genişletildi. `applyMarkPit`'in yazdığı otomatik değerler `fmtHMS` ile hep iki noktalıdır → etkilenmez. Satır `ovrIgnored` ile işaretlenir; hücre kırmızı çerçevelenir ve title doğru biçimi açıklar — girdi sessizce yutulmaz.
+- **Doğrulama:** çıplak sayıların tamamı (`1`…`99999`) yok sayılıyor ve plan satır sayısı değişmiyor; `0:53:15` / `53:15` / `0:43:20` / `1:10:00` çalışmaya devam ediyor.
 
 ### Plan tablosu: elle girilen süre override'ı "otomatik" sayılıp siliniyordu
 
