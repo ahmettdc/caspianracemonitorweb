@@ -1,5 +1,40 @@
 # Changelog
 
+## v2.2.3 — 2026-08-29
+
+Hotfix.
+
+### Sohbet: sol KANALLAR paneli "boş" görünüyordu — GERÇEK KÖK NEDEN
+
+- **Belirti:** Sohbet penceresinin sol tarafındaki kanal bölümleri (Genel, Takım…) görünmüyordu. v2.2.1 ve v2.2.2'de iki kez "GPU/compositing hatası" teşhisiyle düzeltilmeye çalışıldı (`backdrop-filter` kaldırma, `isolation:isolate`, `rcpop`→`rcfade`, `translateZ(0)` katmanları); hiçbiri işe yaramadı çünkü **teşhis yanlıştı**.
+- **Kök neden:** Panel her zaman boyanıyordu. Görünmeyen şey kanal **adlarıydı**. `ChatModal` içindeki kanal `<button>`'ları inline style'ında `color` vermiyordu. `<button>` metin rengini **miras almaz** — UA stil sayfası `color: buttontext` (siyah) atar. Panel zemini `--rc-surface: #120C0E` olduğu için kontrast **1.08:1** çıkıyordu, yani okunamaz. Aynı panelin "KANALLAR" başlığı ve alt satırları açık renk verdiğinden görünüyor, bu da hatayı "panel boş kalıyor" gibi gösteriyordu.
+- **Ölçüm (headless Chromium, gerçek `ChatModal`):**
+
+  | Öğe | Renk | Kontrast | |
+  |---|---|---|---|
+  | "KANALLAR" başlığı | `rgb(243,234,236)` | 16.40:1 | ✔ |
+  | kanal adı (önce) | `rgb(0,0,0)` | **1.08:1** | ✘ |
+  | kanal adı (sonra) | `rgb(243,234,236)` | **16.40:1** | ✔ |
+
+- **Çözüm — üç katman:**
+  1. Kanal butonuna açık `color: var(--rc-text)` (`components.jsx`).
+  2. Global güvenlik ağı: `.rc button,.rc input,.rc select,.rc textarea{color:inherit}` (`styles.js`). Denetim, 316 butonun 98'inin `color` bildirmediğini gösterdi; hiçbirinin açık renkli zemini olmadığı için miras güvenli.
+  3. Kök neden düzeltmesi: `:root{color-scheme:dark}` / `[data-theme="light"]{color-scheme:light}` — UA varsayılanları (form kontrolleri, kaydırma çubukları) artık tema ile hizalı.
+
+### Sohbet teşhis modülü (`chatDiag.js`)
+
+- Pencere açıldığında gerçek DOM ölçülür: sol panel geometrisi, `flex-wrap` satır kayması ve her kanalın efektif metin/zemin **WCAG kontrastı**. Sorun bulunursa konsola uyarı basılır.
+- Elle rapor: konsolda `__rcChatDiag()`. Ayrıntılı döküm: `localStorage.rc_debug_chat = "1"` veya `?debug=chat`.
+- Layout motoru olmayan ortamlarda (jsdom/test) sessizce çıkar.
+
+### Regresyon kilidi
+
+- `chatDiag.test.jsx`: kontrast matematiği, her kanal butonunun açık renk bildirmesi, `data-rc-chat` teşhis hedefleri ve `styles.js`'teki iki global kural test altında. Ayrıca `styles.js` bir template literal olduğu için CSS metninde ters tırnak kalmadığı doğrulanır (bu sürümde bir kez bu yüzden derleme kırıldı).
+
+### Bilinen (bu sürümde değiştirilmedi)
+
+- Pencere genişliği ~731px altına inince `ChatModal`'daki `flexWrap:"wrap"` sağ mesaj sütununu alt satıra düşürüyor (sol panel 280px kalıyor). Teşhis bunu artık raporluyor; düzen değişikliği ayrı bir sürüme bırakıldı.
+
 ## v2.2.2 — 2026-08-28
 
 Hotfix.

@@ -5,6 +5,20 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v2.2.3",
+    date: "2026-08-29",
+    tr: [
+      "✅ ÇÖZÜLDÜ: Sohbet penceresinin sol tarafındaki kanal listesi (Genel, Takım…) sonunda düzeldi. Panel aslında hep oradaydı — görünmeyen şey kanal İSİMLERİYDİ: metin siyah renkte çiziliyor, koyu panelin üzerinde okunamaz hale geliyordu. Önceki iki sürümde ekran kartı sorunu sanılmıştı, gerçek sebep buymuş. Kanal isimleri artık açık renkte ve net okunuyor.",
+      "🛡 Aynı hatanın başka ekranlarda çıkmaması için tema geneli bir koruma eklendi: buton ve form alanları artık her yerde temanın metin rengini kullanıyor.",
+      "🔍 Sohbet penceresi artık açılırken kendini denetliyor; okunamayan bir yazı ya da bozuk yerleşim bulursa tarayıcı konsoluna uyarı basıyor. İstenirse konsoldan __rcChatDiag() yazarak anlık rapor alınabilir.",
+    ],
+    en: [
+      "✅ FIXED: The chat window's left channel list (General, Team…) is finally readable. The panel was always being drawn — what was invisible were the channel NAMES: they rendered in black on the dark panel. The previous two releases blamed the graphics card; this was the real cause. Channel names now use the theme's text color.",
+      "🛡 Added a theme-wide guard so the same class of bug cannot appear elsewhere: buttons and form fields now inherit the theme's text color everywhere.",
+      "🔍 The chat window now self-checks when it opens and warns in the browser console if any text is unreadable or the layout breaks. Type __rcChatDiag() in the console for an on-demand report.",
+    ],
+  },
+  {
     v: "v2.2.2",
     date: "2026-08-28",
     tr: [
