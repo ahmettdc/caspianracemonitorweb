@@ -51,6 +51,18 @@ Hotfix.
 
 `chatDiag.test.jsx` — 11 test: `flex-wrap:nowrap`, sütunlarda `min-height:0`, sol panelin küçülebilirliği, kanal butonlarının açık renk bildirmesi, altı `data-rc-chat` ölçüm hedefi, kontrast matematiği ve `styles.js`'teki iki global kural. Ayrıca `styles.js` bir template literal olduğu için CSS metninde ters tırnak kalmadığı doğrulanır (bu sürümde bir kez bu yüzden derleme kırıldı).
 
+### Plan tablosu: süre override'ı stinti 1 tura düşürüp stint numaralarını kaydırıyordu
+
+- **Belirti:** 3. stint uzun gidince elle 31 tura çekildi; ardından 4. stint 1 tur kabul edildi ve numaralar kaydı — kullanıcı 7. stintteyken uygulama 8. stinti gösteriyordu.
+- **Kök neden:** OVERRIDE sütunu `h:mm:ss` bekler ama `parseHMS` çıplak sayıyı **saniye** okur (`"31"` → 31 sn). 31 sn'lik stintte `walkByTime` 0 tur döndürüp `Math.max(1, ·)` stinti **1 tura** düşürüyor; o stintin turları sonraki stintlere taşınca plan bir satır uzuyor ve tüm stint numaraları kayıyor. Yeniden üretildi: 9 satırlık plan 10 satıra çıkıyor, 4. satır 1 tur oluyor.
+- **Çözüm:** Bir turdan kısa süre override'ı mantıksızdır → **yok sayılır** (`stintLaps`'teki "makul değilse yok say" deseniyle aynı). Satır `ovrIgnored` ile işaretlenir; plan tablosunda hücre kırmızı çerçevelenir ve title doğru biçimi (`0:53:15`) ile çıplak sayının saniye sayıldığını açıklar — girdi sessizce yutulmaz.
+
+### Plan tablosu: elle girilen süre override'ı "otomatik" sayılıp siliniyordu
+
+- **Kök neden:** `applyBumpLaps` `overrides[i]`'yi temizlerken `autoOvr[i]` bayrağını düşürmüyordu; `applyUpOvr` de elle giriş yaparken bayrağı sıfırlamıyordu. Gerçek pit işaretlenmiş bir stintte bayrak bayat kalınca, kullanıcının elle yazdığı değer hâlâ otomatik sayılıyor ve sözleşmesi *"elle girilen override'ları KORUR"* olan `applyResetPits` (ve `applyUnmarkPit`) onu siliyordu.
+- **Çözüm:** İkisi de `autoOvr[i]`'yi düşürür (ortak `clearAuto` yardımcısı). Elle girilen değer artık sıfırlamalarda korunur.
+- **Regresyon kilidi:** `state.test.js` +4 test — kısa override yok sayılır ve plan kaymaz, geçerli override çalışmaya devam eder, `bumpLaps` bayrağı düşürür, elle girilen `resetPits`'te korunur.
+
 ### Telemetri: pist haritası + gaz/fren grafikleri artık KALICI (bulut)
 
 - **Belirti:** Telemetri sekmesindeki pist haritası ve gaz/fren grafikleri program kapatılıp açılınca kayboluyordu.
