@@ -1454,15 +1454,16 @@ export function RaceEditModal({ rForm, setRForm, t, seasons, onSave, onProceed, 
    gelir. open=false → null döner. */
 export function ChatModal({ open, onClose, t, lang, chatSound, toggleChatSound, chatChans,
   unreadOf, chatChan, setChatChan, teamData, curChan, chatBody, chatAll, fmtClock }) {
-  /* Pencere açıldığında gerçek DOM'u ölç (bkz. chatDiag.js). Kanal adlarının
-     görünmezliği iki sürüm boyunca uzaktan tahminle çözülemedi; bu kanca sorunu
-     kullanıcının makinesinde konsola yazar. Boyama bitsin diye iki kare bekler.
+  /* Pencere açıldığında gerçek DOM'u ölç (bkz. chatDiag.js). Panelin görünmemesi
+     iki sürüm boyunca uzaktan tahminle çözülemedi; bu kanca ölçümü kullanıcının
+     kendi cihazında alır (tablette konsol açılamadığı için ekrana da basabilir).
+     Gecikme rcfade (.2s) giriş animasyonundan UZUN olmalı: animasyon sürerken
+     ölçersek opacity:0 yakalayıp yanlış alarm veririz.
      Hook koşulsuz — erken return'den ÖNCE (React hook kuralları). */
   useEffect(() => {
     if (!open) return undefined;
-    let raf2 = 0;
-    const raf1 = requestAnimationFrame(() => { raf2 = requestAnimationFrame(() => reportChat()); });
-    return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); };
+    const timer = setTimeout(() => reportChat(), 450);
+    return () => clearTimeout(timer);
   }, [open, chatChans, chatChan]);
 
   if (!open) return null;
@@ -1490,12 +1491,12 @@ export function ChatModal({ open, onClose, t, lang, chatSound, toggleChatSound, 
         style={{ width: "min(940px,96vw)", height: "min(660px,88vh)", display: "flex", flexWrap: "wrap", gap: 0, isolation: "isolate", transform: "translateZ(0)", willChange: "transform", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcfade .2s ease" }}>
         {/* sol: Kanallar */}
         <div data-rc-chat="panel" style={{ flex: "0 0 280px", minWidth: 220, position: "relative", zIndex: 1, transform: "translateZ(0)", background: "var(--rc-surface)", borderRight: "1px solid var(--rc-border)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--rc-border)", display: "flex", alignItems: "center", gap: 8 }}>
+          <div data-rc-chat="panel-hdr" style={{ padding: "14px 16px", borderBottom: "1px solid var(--rc-border)", display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 15, fontWeight: 700 }}>{t("Kanallar")}</span>
             <button onClick={toggleChatSound} title={chatSound ? t("Bildirim sesini kapat") : t("Bildirim sesini aç")}
               style={{ marginLeft: "auto", background: "none", border: "none", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 15 }}>{chatSound ? <Icon name="zil" size={15} /> : <Icon name="zil-kapali" size={15} />}</button>
           </div>
-          <div style={{ overflowY: "auto", padding: 8 }}>
+          <div data-rc-chat="panel-list" style={{ overflowY: "auto", padding: 8 }}>
             {chatChans.map((c) => {
               const on = c.id === chatChan;
               const u2 = unreadOf(c);
@@ -1520,7 +1521,7 @@ export function ChatModal({ open, onClose, t, lang, chatSound, toggleChatSound, 
         </div>
         {/* sağ: mesaj sütunu */}
         <div data-rc-chat="msgs" style={{ flex: "1 1 420px", minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--rc-border)", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div data-rc-chat="msgs-hdr" style={{ padding: "12px 18px", borderBottom: "1px solid var(--rc-border)", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".06em", fontSize: 17, fontWeight: 700 }}>{curChan ? nameOf(curChan) : t("Sohbet")}</span>
             {curChan && <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{metaOf(curChan)}</span>}
             <button onClick={onClose} style={{ marginLeft: "auto", width: 30, height: 30, borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 14, lineHeight: 1 }}>✕</button>

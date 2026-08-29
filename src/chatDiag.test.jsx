@@ -52,9 +52,10 @@ describe("sohbet kanal listesi görünürlüğü", () => {
     for (const b of btns) expect(b).toMatch(/(?<!-)\bcolor:\s*var\(--rc-text\)/);
   });
 
+  /* Teşhis bu işaretlerle ölçüm alır; biri düşerse rapor sessizce körleşir. */
   it("teşhis kancasının hedefleri (data-rc-chat) yerinde", () => {
     const html = renderChat();
-    for (const k of ["box", "panel", "msgs"]) {
+    for (const k of ["box", "panel", "panel-hdr", "panel-list", "msgs", "msgs-hdr"]) {
       expect(html).toContain(`data-rc-chat="${k}"`);
     }
   });
