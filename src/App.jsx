@@ -25,7 +25,7 @@ import { firebaseReady,
   createRace, updateRace, deleteRace,
   raceStateGet,
   getUserAvatar, saveUserAvatar, clearUserAvatar,
-  liveHistoryClearAll, serverNow } from "./storage";
+  liveHistoryClearAll, serverNow, liveWriterSubscribe } from "./storage";
 import { processImageFile, IMG_ACCEPT_TYPES } from "./imageUpload";
 import { carImageSrc, teamLogoSrc } from "./teamAssets";
 import { duckSetupToSvm, textToB64 } from "./setupParse";
@@ -963,6 +963,15 @@ ${bottomBar}
   /* Canlı köprü (masaüstü) OTOMATİK yaşam döngüsü → useLiveBridge hook'una çıkarıldı
      (App.jsx Tanrı-bileşen borcunu azaltan ilk güvenli dilim). Davranış birebir aynı. */
   const bridge = useLiveBridge({ isMember, curTeam, curRace, user });
+  /* "Veriyi kim yayınlıyor" — yazıcı kirası (teams/{tid}/livewriter/{rid} = {uid,by,driving,ts}).
+     bridge.writerBy YALNIZ yerel köprü çalışırken dolar (masaüstü); web'de ya da köprü
+     kapalıyken boş kalır — o yüzden üst bardaki kutuda "Canlı kaynak —" görünüyordu.
+     Kira Firebase'de herkes için tek doğru kaynak: takım arkadaşın yayınlıyorsa da dolu. */
+  const [liveWriter, setLiveWriter] = useState(null);
+  useEffect(() => {
+    if (!isMember || !curTeam || !curRace) { setLiveWriter(null); return undefined; }
+    return liveWriterSubscribe(curTeam, curRace, setLiveWriter);
+  }, [isMember, curTeam, curRace]);
   /* not: yetki rozetten türer — 🎧 mühendis editor, 🛞 sürücü/rozetsiz viewer */
   const myBadges = teamBadgesOf(teamData, user?.uid, udoc);
 
@@ -3185,7 +3194,13 @@ ${bottomBar}
     return null;
   })();
   const bPhase = bridge?.phase || "idle";
-  const bWriter = bridge?.writerBy || "";
+  /* Yayıncı: önce Firebase kirası (herkes için geçerli — takım arkadaşın yayınlıyorsa
+     da dolu), yoksa yerel köprünün kendi bildirdiği ad. */
+  const bWriter = liveWriter?.by || bridge?.writerBy || "";
+  const bWriterMine = !!(liveWriter?.uid && user?.uid && liveWriter.uid === user.uid);
+  /* Kira bayatsa (>30 sn) yayıncı fiilen susmuş demektir — adı "durdu" diye işaretle,
+     yoksa 14 gün önce yayın yapmış birinin adı hâlâ canlı yayıncı gibi görünür. */
+  const bWriterStale = !!(liveWriter?.ts && Date.now() - liveWriter.ts > 30000);
   const bLive = bPhase === "running" || feedLiveNow;
   const bDot = bLive ? "var(--rc-ok)" : feedFresh ? "var(--rc-warn)"
     : bPhase === "error" ? "var(--rc-danger)"
@@ -3321,7 +3336,12 @@ ${bottomBar}
                 </span>
                 <span style={{ display: "block", padding: "12px 16px", borderBottom: "1px solid var(--rc-border)" }}>
                   {[
-                    [t("Canlı kaynak"), bWriter || "—", "var(--rc-text)"],
+                    /* Veriyi kim yayınlıyor: kiradan gelen ad + bu cihaz mı + bayatsa uyarı.
+                       Kira yoksa hiç kimse köprü açmamış demektir. */
+                    [t("Yayınlayan"),
+                      bWriter ? `${bWriter}${bWriterMine ? ` (${t("bu cihaz")})` : ""}${bWriterStale ? ` · ${t("durdu")}` : ""}`
+                        : t("kimse yayınlamıyor"),
+                      bWriter && !bWriterStale ? "var(--rc-ok)" : "var(--rc-text-3)"],
                     [t("Kare hızı"), bridge?.hz ? `${bridge.hz} Hz` : "—", "var(--rc-text)"],
                     [t("Son kare"), age != null ? `${age} sn önce` : "—", age != null && age < 5 ? "var(--rc-ok)" : "var(--rc-text)"],
                     [t("Sahadaki araç"), String(bridge?.diag?.cars ?? (live?.field?.length || "—")), "var(--rc-text)"],

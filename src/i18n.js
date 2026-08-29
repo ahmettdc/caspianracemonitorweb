@@ -893,6 +893,8 @@ export const EN = {
   "Beklemede": "Standby", "yayınlıyor": "is broadcasting",
   "aktif sürücü canlıyı yazıyor": "the active driver is writing live data",
   "Canlı kaynak": "Live source",
+  "Yayınlayan": "Publishing", "bu cihaz": "this device", "durdu": "stopped",
+  "kimse yayınlamıyor": "nobody is publishing",
 
   /* eklenti buffer performans uyarısı (v1.4.97) */
   "Oyun eklentisi saniyede": "The game plugin writes",
