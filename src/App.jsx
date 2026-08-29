@@ -457,14 +457,6 @@ export default function App() {
     return parts.slice(0, 3).join(" ");
   };
 
-  /* ---------- Faz 4: telemetri → useTelemetry hook'u (MoTeC içe aktar + analiz) ---------- */
-  const { slot, setSlot, chartMode, setChartMode, rawTele, setRawTele, parsed, mapping,
-    setMapping, onTeleFile, doParse, apply105Slot, saveMotec, saveSlot, toggleLap,
-    removeSlot, slotStats, chartData, loadedSlots, baseSlot,
-    cmpMeta: telCmpMeta, cmpA: telCmpA, setCmpA: setTelCmpA, cmpB: telCmpB, setCmpB: setTelCmpB,
-    cmpData: telCmpData, cmpBusy: telCmpBusy, savedMsg: telSavedMsg,
-    cmpSources: telCmpSources, cmpASrc: telCmpASrc, setCmpASrc: setTelCmpASrc,
-    cmpBSrc: telCmpBSrc, setCmpBSrc: setTelCmpBSrc } = useTelemetry({ st, setSt });
   /* Bağımsız Telemetri ekranı (Ana Menü → Telemetri): Race Solo'dan TAMAMEN ayrı, KENDİ
      telemetri örneği + kendi scratch `st`'si. Race Solo'nun `st`/ilk useTelemetry'sine
      dokunmaz → iki taraf birbirine sızmaz, uygulama açık kaldıkça durumu korunur. */
@@ -814,6 +806,19 @@ ${bottomBar}
   const [createJoinOpen, setCreateJoinOpen] = useState(false); // v1.6 — sade Kur & Katıl ekranı (yönetimden ayrı)
   /* ---- takım/sezon/yarış abonelikleri → useTeams hook'u ---- */
   const { myTeams, curTeam, setCurTeam, teamData, seasons, races } = useTeams({ user, access });
+  /* ---------- Faz 4: telemetri → useTelemetry hook'u (MoTeC içe aktar + analiz) ----------
+     curTeam/curRace/role useTeams'ten SONRA geldiği için hook burada çağrılır (TDZ). Bu
+     üçlü, stint kaydında pist haritası + gaz/fren izlerini Firebase'e KALICI yazmayı açar;
+     yarış yeniden açılınca izler geri yüklenir. Solo telemetri örneği (teleHook) bunları
+     GEÇMEZ → persistence sessizce kapalı (cihaz-yerel davranışı korunur). */
+  const { slot, setSlot, chartMode, setChartMode, rawTele, setRawTele, parsed, mapping,
+    setMapping, onTeleFile, doParse, apply105Slot, saveMotec, saveSlot, toggleLap,
+    removeSlot, slotStats, chartData, loadedSlots, baseSlot,
+    cmpMeta: telCmpMeta, cmpA: telCmpA, setCmpA: setTelCmpA, cmpB: telCmpB, setCmpB: setTelCmpB,
+    cmpData: telCmpData, cmpBusy: telCmpBusy, savedMsg: telSavedMsg,
+    cmpSources: telCmpSources, cmpASrc: telCmpASrc, setCmpASrc: setTelCmpASrc,
+    cmpBSrc: telCmpBSrc, setCmpBSrc: setTelCmpBSrc,
+    traceSaving: telTraceSaving } = useTelemetry({ st, setSt, curTeam, curRace, role });
   /* .duckdb telemetrisine gömülü setup'ı Setup Havuzuna kaydet (v1.5.2): VM_/WM_ JSON'u
      .svm metnine çevir → mevcut addSetup borusuna ver (havuz bu formatı okur). Pist/sınıf
      telemetri meta'sından en iyi çaba etiketlenir. */
@@ -3729,7 +3734,7 @@ ${bottomBar}
               toggleLap={toggleLap} cmpMeta={telCmpMeta} cmpA={telCmpA} setCmpA={setTelCmpA}
               cmpB={telCmpB} setCmpB={setTelCmpB} cmpData={telCmpData} cmpBusy={telCmpBusy}
               savedMsg={telSavedMsg} cmpSources={telCmpSources} cmpASrc={telCmpASrc} setCmpASrc={setTelCmpASrc}
-              cmpBSrc={telCmpBSrc} setCmpBSrc={setTelCmpBSrc}
+              cmpBSrc={telCmpBSrc} setCmpBSrc={setTelCmpBSrc} traceSaving={telTraceSaving}
               onSaveDuckSetup={user ? saveTeleSetup : null} />
           )}
 

@@ -706,7 +706,7 @@ export default function TeleTab({
   t, lang, st, slot, setSlot, onTeleFile,
   parsed, saveMotec, loadedSlots, slotStats,
   up, apply105Slot, removeSlot, chartMode, setChartMode, chartData, baseSlot, toggleLap,
-  cmpMeta, cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy, savedMsg,
+  cmpMeta, cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy, savedMsg, traceSaving,
   cmpSources, cmpASrc, setCmpASrc, cmpBSrc, setCmpBSrc, onSaveDuckSetup, standalone,
 }) {
   const fmtMs = (ms) => fmtLap(ms / 1000);
@@ -810,6 +810,19 @@ export default function TeleTab({
         {savedMsg && (
           <span className="hint" style={{ color: "var(--rc-ok)", marginLeft: 10, fontWeight: 600 }}>
             ✓ Stint {savedMsg} {t("kaydedildi")}</span>
+        )}
+        {/* v2.2.3 — kalıcı iz (harita + gaz/fren) Firebase'e yazma durumu */}
+        {traceSaving && !traceSaving.error && traceSaving.ok == null && (
+          <span className="hint" style={{ marginLeft: 10, color: "var(--rc-text-3)" }}>
+            ⏳ {t("Stint izi kaydediliyor")} {traceSaving.done}/{traceSaving.total}…</span>
+        )}
+        {traceSaving?.ok && (
+          <span className="hint" style={{ marginLeft: 10, color: "var(--rc-ok)" }}>
+            ✓ {t("İz kaydedildi")} ({traceSaving.n} {t("tur")}{traceSaving.capped ? ", " + t("sınırlandı") : ""})</span>
+        )}
+        {traceSaving?.error && (
+          <span className="hint warn" style={{ marginLeft: 10 }}>
+            <Icon name="uyari" size={12} /> {t("İz kaydedilemedi")}</span>
         )}
       </div>
       {parsed?.loading && <div className="hint">⏳ {parsed.duck

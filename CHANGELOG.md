@@ -51,6 +51,16 @@ Hotfix.
 
 `chatDiag.test.jsx` — 11 test: `flex-wrap:nowrap`, sütunlarda `min-height:0`, sol panelin küçülebilirliği, kanal butonlarının açık renk bildirmesi, altı `data-rc-chat` ölçüm hedefi, kontrast matematiği ve `styles.js`'teki iki global kural. Ayrıca `styles.js` bir template literal olduğu için CSS metninde ters tırnak kalmadığı doğrulanır (bu sürümde bir kez bu yüzden derleme kırıldı).
 
+### Telemetri: pist haritası + gaz/fren grafikleri artık KALICI (bulut)
+
+- **Belirti:** Telemetri sekmesindeki pist haritası ve gaz/fren grafikleri program kapatılıp açılınca kayboluyordu.
+- **Sebep (bug değil, eksik kalıcılık):** Harita/grafik verisi (`cmpData`) yüklenen `.duckdb` dosyasının bellekteki kopyasından oturum-içi hesaplanıyor, hiçbir yere yazılmıyordu. Kalıcı olan tek şey `st.telemetry[slot]` (tur süreleri/yakıt/aşınma). Ham iz ~100 KB/tur — race state'e (800 ms'de yazılıyor) gömülemez.
+- **Çözüm:** Bir stint kaydedilince o stintin turlarının izi kompaktlanıp **ayrı** bir Firebase yoluna (`teams/{tid}/teleTrace/{rid}/{slot}`) yazılır; yarış açılınca bir kez okunup geri yüklenir. Takım üyeleri de görür.
+- **Kompakt kodlama (`traceCodec.js`):** `buildTrace` çıktısı ↔ string. `dist`/`frac` saklanmaz (len/N'den türetilir); kanallar yuvarlanmış tamsayı, null korunur, olmayan kanal yazılmaz. Nokta sayısı 300 (harita+delta için yeterli), tüm izler aynı N → `buildCompare` index-hizalı. Sonuç: ~9 KB/tur, 30 tur × 4 stint ≈ 1 MB. Yaprak başına 40 KB sınırı; stint başına en fazla 80 (en hızlı) tur.
+- **Yeni/değişen:** `traceCodec.js` (+test, 11), `storage.js` (`teleTraceSet/GetAll/Remove`, `deleteRace`/`deleteTeam` temizliği), `firebase-rules.json` (`teleTrace` yolu + boyut validasyonu + rules testi), `useTelemetry.js` (imzaya `curTeam/curRace/role`; async kayıt + ilerleme; yükleme; `cmpSources`/`resolveSrc`/`cmpData` kalıcı-iz dallandırması; `removeSlot` temizliği), `App.jsx` (hook `useTeams`'ten sonra çağrılır — TDZ; solo telemetri örneği persistence'sız), `TeleTab.jsx` (kaydetme durum göstergesi).
+- **Kapsam:** Yalnız `.duckdb`; yalnız editör/sahip yazar (üye okur); eski yarışlarda `teleTrace` yok → sorunsuz (migration gerekmez).
+- **Test sınırı:** Kompakt kodlama, format sözleşmesi ve `buildCompare` uyumu birim testlerle doğrulandı. Gerçek `.duckdb` dosyasıyla uçtan uca akış (yükle → kaydet → yarışı kapat/aç → harita+gaz/fren) önizlemede kullanıcı testinde doğrulanmalı. Firebase kural testi bu ortamda emülatör indirilemediği için CI'da koşar.
+
 ## v2.2.2 — 2026-08-28
 
 Hotfix.

@@ -415,7 +415,7 @@ export async function regenerateJoinCode(tid, oldCode) {
 export async function deleteTeam(tid, ownerUid, joinCode) {
   if (!db || !tid) return;
   const subs = ["meta", "members", "names", "photos", "badges", "seasons", "races",
-    "raceState", "assets", "chat", "raceChat", "live", "livelaps", "livepos", "livesec",
+    "raceState", "teleTrace", "assets", "chat", "raceChat", "live", "livelaps", "livepos", "livesec",
     "livecond", "livedrv", "livetyre", "livewriter", "livetrack", "livetracksec", "livetrackpit"];
   const updates = {};
   for (const s of subs) updates[`teams/${tid}/${s}`] = null;
@@ -490,6 +490,28 @@ export async function deleteRace(tid, rid) {
   if (!db) return;
   await remove(ref(db, `teams/${tid}/races/${rid}`));
   await remove(ref(db, `teams/${tid}/raceState/${rid}`)).catch(() => {});
+  await remove(ref(db, `teams/${tid}/teleTrace/${rid}`)).catch(() => {});   // kalıcı telemetri izleri
+}
+
+/* ============================================================
+   KALICI TELEMETRİ İZLERİ — pist haritası + gaz/fren grafikleri
+     teams/{tid}/teleTrace/{rid}/{slot} = { meta:{at,laps,mapSrc,n}, lap:{i: packTrace} }
+   Race state'ten AYRI: iz yalnız stint kaydında yazılır (state 800ms'de yazıldığı
+   için oraya gömülemez). Üye okur; owner/editor yazar (firebase-rules teleTrace).
+   ============================================================ */
+export async function teleTraceSet(tid, rid, slot, payload) {
+  if (!db || !tid || !rid || !slot) return;
+  // update: {meta, lap} atomik yazılır; eski turlar (varsa) tamamen değişir.
+  await set(ref(db, `teams/${tid}/teleTrace/${rid}/${slot}`), payload);
+}
+export async function teleTraceGetAll(tid, rid) {
+  if (!db || !tid || !rid) return null;
+  const s = await get(ref(db, `teams/${tid}/teleTrace/${rid}`));
+  return s.exists() ? s.val() : null;
+}
+export async function teleTraceRemove(tid, rid, slot) {
+  if (!db || !tid || !rid || !slot) return;
+  await remove(ref(db, `teams/${tid}/teleTrace/${rid}/${slot}`)).catch(() => {});
 }
 export function watchRaces(tid, cb) {
   if (!db || !tid) { cb({}); return () => {}; }

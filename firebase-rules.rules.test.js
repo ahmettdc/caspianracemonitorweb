@@ -333,6 +333,21 @@ describe("teams/chat + raceState + badges", () => {
     await assertSucceeds(set(ref(db("bob"), "teams/team1/raceState"), { rev: 1, stateJson: "{}" }));
     await assertFails(set(ref(db("carol"), "teams/team1/raceState"), { rev: 1, stateJson: "{}" }));
   });
+  it("teleTrace: editor iz yazar, viewer yazamaz, üye okur", async () => {
+    const lap = { meta: { at: 1, laps: [] }, lap: { 0: "1;2;m;100;\nti:0,1" } };
+    await assertSucceeds(set(ref(db("bob"), "teams/team1/teleTrace/race1/A"), lap));
+    await assertFails(set(ref(db("carol"), "teams/team1/teleTrace/race1/A"), lap));
+    await assertSucceeds(get(ref(db("carol"), "teams/team1/teleTrace/race1")));   // viewer okur
+    await assertFails(get(ref(db("dave"), "teams/team1/teleTrace/race1")));        // yabancı okuyamaz
+  });
+  it("teleTrace: 40000 karakterden uzun iz yaprağı reddedilir", async () => {
+    await assertFails(set(ref(db("bob"), "teams/team1/teleTrace/race1/B"),
+      { meta: { at: 1 }, lap: { 0: "x".repeat(40001) } }));
+  });
+  it("teleTrace: meta at (sayı) yoksa reddedilir", async () => {
+    await assertFails(set(ref(db("bob"), "teams/team1/teleTrace/race1/C"),
+      { meta: { laps: [] }, lap: { 0: "1;2;m;100;\nti:0,1" } }));
+  });
   it("badges: yalnız owner yazar (editor bile yazamaz)", async () => {
     await assertSucceeds(set(ref(db("alice"), "teams/team1/badges/bob"), { engineer: true }));
     await assertFails(set(ref(db("bob"), "teams/team1/badges/bob"), { engineer: true }));

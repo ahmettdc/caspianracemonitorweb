@@ -12,12 +12,14 @@ export const CHANGELOG = [
       "🔤 Kanal isimleri koyu zeminde siyah çiziliyordu (okunamıyordu); artık tema rengiyle net görünüyor. Aynı hatanın başka ekranlarda çıkmaması için buton ve form alanları uygulama genelinde temanın metin rengini kullanıyor.",
       "📱 Dar ekranlarda sohbet penceresi bozulmuyor: mesaj sütunu alt satıra düşmüyor, kanal paneli yer daraldıkça küçülüyor.",
       "🔍 Sohbet penceresi açılırken kendini denetliyor; bir şey görünmezse tarayıcı konsoluna uyarı basıyor. Adresin sonuna ?debug=chat eklenirse ölçümü ekranda gösteren bir teşhis paneli açılıyor (tablet/telefonda konsol gerekmeden).",
+      "📈 Telemetri: pist haritası ve gaz/fren grafikleri artık KALICI. Bir stint kaydettiğinizde o stintteki turların izi buluta (takımınıza) yazılıyor; yarışı kapatıp açınca harita ve grafikler geri geliyor, takım arkadaşlarınız da görebiliyor. Önceden bu veri yalnız yüklediğiniz dosya bellekteyken duruyordu, program kapanınca gidiyordu.",
     ],
     en: [
       "✅ FIXED: The chat window's left channel list (General, Team…) and the top header bar were invisible. The cause was not the graphics card, as the previous two releases assumed: the window's content stayed taller than its frame, so when the chat auto-scrolled to the newest message, the WHOLE window scrolled with it and clipped the headers and channel list out of view. Scrolling now happens only inside the message list; channels, header and close button always stay put.",
       "🔤 Channel names were painted black on the dark panel (unreadable); they now use the theme's text color. To stop the same class of bug elsewhere, buttons and form fields inherit the theme's text color app-wide.",
       "📱 The chat window no longer breaks on narrow screens: the message column stays beside the channel list instead of dropping below it, and the channel panel shrinks as space gets tight.",
       "🔍 The chat window self-checks when it opens and warns in the browser console if anything is invisible. Add ?debug=chat to the address for an on-screen diagnostic panel (no console needed on tablets/phones).",
+      "📈 Telemetry: the track map and throttle/brake charts are now PERSISTENT. When you save a stint, the traces of that stint's laps are written to the cloud (your team); reopen the race and the map and charts come back, and teammates can see them too. Previously this data existed only while the file you loaded was in memory and vanished when the app closed.",
     ],
   },
   {
