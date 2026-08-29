@@ -344,9 +344,19 @@ describe("teams/chat + raceState + badges", () => {
     await assertFails(set(ref(db("bob"), "teams/team1/teleTrace/race1/B"),
       { meta: { at: 1 }, lap: { 0: "x".repeat(40001) } }));
   });
-  it("teleTrace: meta at (sayı) yoksa reddedilir", async () => {
+  /* meta VAR ama `at` yok → reddedilmeli.
+     DİKKAT: meta'nın içi boş bırakılamaz ({} ya da {laps:[]}) — RTDB boş düğümü
+     siler, `meta` hiç oluşmaz ve null düğümde .validate ÇALIŞMAZ, yazma geçer.
+     (İlk yazımda tam bu yüzden test yanlış kurulmuş ve CI'da kırılmıştı.)
+     Bu yüzden meta dolu ama `at`'siz gönderilir. */
+  it("teleTrace: meta var ama at (sayı) yoksa reddedilir", async () => {
     await assertFails(set(ref(db("bob"), "teams/team1/teleTrace/race1/C"),
-      { meta: { laps: [] }, lap: { 0: "1;2;m;100;\nti:0,1" } }));
+      { meta: { n: 2 }, lap: { 0: "1;2;m;100;\nti:0,1" } }));
+    await assertFails(set(ref(db("bob"), "teams/team1/teleTrace/race1/C"),
+      { meta: { at: "dun" }, lap: { 0: "1;2;m;100;\nti:0,1" } }));   // at sayı değil
+    // pozitif kontrol: at sayı olunca aynı yazım geçer (kural her şeyi reddetmiyor)
+    await assertSucceeds(set(ref(db("bob"), "teams/team1/teleTrace/race1/C"),
+      { meta: { at: 1, n: 2 }, lap: { 0: "1;2;m;100;\nti:0,1" } }));
   });
   it("badges: yalnız owner yazar (editor bile yazamaz)", async () => {
     await assertSucceeds(set(ref(db("alice"), "teams/team1/badges/bob"), { engineer: true }));
