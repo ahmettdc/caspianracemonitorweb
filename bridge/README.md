@@ -28,8 +28,9 @@ tüm takım için salt-okunur gösterir.
 
 > 🧊 **Oyun DONUYORSA (v1.4.130+):** köprüdeki **"⚡ REST aç"** kutusunu **KAPALI bırak**
 > (varsayılan kapalı). LMU REST, oyunun kendi localhost sunucusuna saniyede birkaç istek
-> attığı için donmanın en güçlü sebebidir. Kapalıyken pozisyon/tur/gap/lastik yine çalışır;
-> yalnız **VE%** ve **gerçek takım adı** gelmez. Köprü ayrıca artık **düşük öncelikte**
+> attığı için donmanın en güçlü sebebidir. Kapalıyken pozisyon/tur/gap/lastik **ve
+> bayraklar (sarı/FCY dahil, v2.2.4)** yine çalışır; yalnız **VE%** ve **gerçek takım
+> adı** gelmez. Köprü ayrıca artık **düşük öncelikte**
 > çalışır (oyun çekişmede kazanır). Donma bittiyse ve VE/takım istiyorsan kutuyu aç; donma
 > geri gelirse REST sebep demektir, kapalı bırak.
 

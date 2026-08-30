@@ -7,7 +7,8 @@ tur kaymasına (tur 4'ün süresi tur 3 diye) ve kalıcı veri bozulmasına yol 
 """
 import sys
 
-from rf2_source import Aggregator, RF2Source, _flag_of, _wait_reason
+from rf2_source import (Aggregator, RF2Source, _flag_of, _merge_flags,
+                        _wait_reason)
 
 
 class _Wheel:
@@ -179,24 +180,57 @@ def test_carid_sifir_gecerli_kimliktir():
     assert r["lapKey"] == "c0", r["lapKey"]
 
 
-def test_bayrak_shmem_sektor_sarisi_uretmez():
-    """v1.4.74 sözleşme değişikliği: shmem yedeği artık `mSectorFlag`'ten LOKAL sarı
-    ÜRETMEZ (LMU'da green iken bile üç sektörü sarı gösterip yanlış full-yellow
-    veriyordu — kullanıcı bug'ı). Lokal sarılar yalnız YETKİLİ REST'ten gelir.
-    `_flag_of` yalnız TAM PİST sarısını (FCY) güvenle bilir → green→green garanti."""
-    assert _flag_of(5, 0) == ("Green", [])                 # yeşil faz → Green
-    # (eski sözleşmede _flag_of(5,0,[0,0,1]) == ("Yellow",[2]) idi — artık sektör yok)
+def test_bayrak_sektor_sarisi_uretilir():
+    """v2.2.4 — SAHA HATASI: "oyunda sarı sallanıyor, Live Timing'de göremiyoruz".
+
+    Zincir: REST VARSAYILAN KAPALI (donma önlemi, bridge/README) → lmu=None →
+    shmem yedeği devrede; ama v1.4.74'te o yedekten lokal sarı ÜRETİMİ kaldırılmıştı
+    → "Yellow" döndüren TEK BİR kod yolu kalmamıştı (yapısal olarak imkânsız).
+    Artık lokal sarı shmem'den TinyPedal predikatıyla (== 1) üretilir."""
+    assert _flag_of(5, 0, [0, 0, 1]) == ("Yellow", [3])
+    assert _flag_of(5, 0, [1, 0, 0]) == ("Yellow", [1])
+    assert _flag_of(5, 0, [1, 0, 1]) == ("Yellow", [1, 3])
+    assert _flag_of(5, 0, [0, 0, 0]) == ("Green", [])
+
+
+def test_bayrak_sektor_invalid_bayt_sari_sayilmaz():
+    """v1.4.74'ü doğuran YANLIŞ POZİTİF burada kilitlenir: eski kod `> 0` kullandığı
+    için Invalid/başlatılmamış bayt (255) sarı sayılıyor, GREEN'de üç sektör birden
+    sarı görünüyordu. TinyPedal'ın predikatı KESİN EŞİTLİK (== 1) → 255 yeşil kalır."""
+    assert _flag_of(5, 0, [255, 255, 255]) == ("Green", [])
+    assert _flag_of(5, 0, [0, 255, 0]) == ("Green", [])
+    # bozuk/eksik dizi de çökmemeli
+    assert _flag_of(5, 0, None) == ("Green", [])
+    assert _flag_of(5, 0, ["x", None]) == ("Green", [])
 
 
 def test_bayrak_fcy_ve_yellowstate():
     assert _flag_of(6, 0) == ("FCY", [])                   # FCY fazı
     assert _flag_of(5, 2) == ("FCY", [])                   # PitClosed → FCY süreci
+    # FCY, lokal sektör bilgisini de taşır (FCY > Yellow önceliği korunur)
+    assert _flag_of(6, 0, [0, 1, 0]) == ("FCY", [2])
 
 
 def test_bayrak_invalid_255_yesil_kalir():
     """c_ubyte alanlarda Invalid(-1) = 255. Eskiden `yellow > 0` bunu sarı sayardı."""
     assert _flag_of(5, 255) == ("Green", [])
     assert _flag_of(5, 0) == ("Green", [])
+
+
+def test_bayrak_birlesme_rest_sariyi_bastiramaz():
+    """v2.2.4 — eskiden `if rest_flag:` shmem'i TAMAMEN yok sayıyordu; REST kendi
+    içinde muhafazakâr olduğu için (3/3 sektörü Green'e düşürür, alan adları tutmazsa
+    sahte "Green" üretir) gerçek sarıyı maskeliyordu. Artık sarı yalnız EKLENİR."""
+    # REST "Green" diyor ama shmem sektör sarısı görüyor → sarı korunur
+    assert _merge_flags("Yellow", [2], {"flag": "Green", "yellowSectors": []}) == ("Yellow", [2])
+    # REST FCY görüyor, shmem yeşil → en güçlü kazanır
+    assert _merge_flags("Green", [], {"flag": "FCY", "yellowSectors": []}) == ("FCY", [])
+    # sektörler birleşir (tekrarsız, sıralı)
+    assert _merge_flags("Yellow", [1], {"flag": "Yellow", "yellowSectors": [3, 1]}) == ("Yellow", [1, 3])
+    # REST yoksa shmem aynen geçer
+    assert _merge_flags("Yellow", [2], None) == ("Yellow", [2])
+    # REST yalnız sektör verdiyse Green kalamaz
+    assert _merge_flags("Green", [], {"flag": "Green", "yellowSectors": [2]}) == ("Yellow", [2])
 
 
 def test_bekleme_nedeni_eklenti_yok():

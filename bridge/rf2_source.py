@@ -52,20 +52,70 @@ _PHASE = {
 }
 
 
-def _flag_of(phase, yellow):
-    """Bayrak durumu (SHMEM YEDEĞİ) → (flag, yellowSectors).
+def _sector_yellows(sectors):
+    """mSectorFlag[3] → lokal sarı sektör numaraları ([1..3]).
 
-    v1.4.74: LOKAL sektör sarıları artık `mSectorFlag`'ten ÜRETİLMEZ. LMU'da bu dizi
-    GREEN iken bile üç sektörü birden sarı gösterip yanlış 'full yellow' üretiyordu
-    (kullanıcı bug'ı: "green olduğu halde full yellow"). Yetkili lokal-sarı kaynağı
-    LMU REST `/rest/watch/sessionInfo` (bkz. lmu_api.session_flags) → read() önce onu
-    kullanır; REST kapalıysa BU muhafazakâr yedek devreye girer: yalnız TAM PİST sarısını
-    (FCY) güvenle bilir → green→green garanti, uydurma lokal sarı yok.
-      * mYellowFlagState c_ubyte: Invalid(-1) → 255 gelir ⇒ makullük şartı 0 < v < 200
-        (eskiden `yellow > 0` Invalid'i de sarı sayardı). GamePhase 6 da FCY."""
+    v2.2.4 — TinyPedal ile HİZALANDI. `mSectorFlag` "o sektörde şu an lokal sarı var mı"
+    dizisidir ve TinyPedal (LMU'da sahada kanıtlı) sarıyı KESİN EŞİTLİKLE okur:
+        any(data == 1 for data in sec_flag)      # tinypedal/adapter/lmu_reader.py
+    Bizim v1.4.74 öncesi kodumuz `> 0` kullanıyordu — Invalid/başlatılmamış bayt (255)
+    de "sarı" sayıldığı için GREEN'de üç sektör birden sarı görünüyor ve yanlış
+    'full yellow' üretiyordu. O bug yüzünden sektör sarıları TAMAMEN kapatılmıştı;
+    sonuç: lokal sarı ARTIK HİÇ görünmüyordu (asıl kullanıcı şikâyeti). Doğru çözüm
+    diziyi atmak değil, TinyPedal'ın predikatını kullanmak: yalnız `== 1`.
+    Not: rF2 başlığı sektör sırasının belirsiz olduğunu söyler ("not sure if sector 0
+    is first or last") → numaralar konumsaldır (i+1); bayrağın KENDİSİ kesindir."""
+    out = []
+    for i, v in enumerate(list(sectors or [])[:3]):
+        try:
+            if int(v) == 1:
+                out.append(i + 1)
+        except (TypeError, ValueError):
+            pass
+    return out
+
+
+def _flag_of(phase, yellow, sectors=None):
+    """Paylaşımlı bellek → (flag, yellowSectors). Bayrakların YETKİLİ kaynağı budur.
+
+    v2.2.4: LMU REST'te bayrak verisi YOK (TinyPedal'ın kullandığı LMU endpoint listesi
+    yalnız hava/seans/garaj/pit verir) → bayrak yalnız paylaşımlı bellekten gelebilir.
+    Bu yüzden lokal sarı burada üretilir; REST artık yalnız EK kaynaktır (_merge_flags).
+      * GamePhase 6 = tam pist sarısı (FCY / güvenlik aracı).
+      * mYellowFlagState yalnız TAM PİST sürecini anlatır (0=None … 7=RaceHalt);
+        c_ubyte olduğundan Invalid(-1) 255 gelir ⇒ makullük şartı 0 < v < 200.
+      * mSectorFlag = LOKAL sarı (bkz. _sector_yellows)."""
+    ysec = _sector_yellows(sectors)
     if phase == 6 or 0 < int(yellow) < 200:
-        return "FCY", []
+        return "FCY", ysec
+    if ysec:
+        return "Yellow", ysec
     return "Green", []
+
+
+#: bayrak şiddet sırası — birleştirmede en güçlüsü kazanır
+_FLAG_RANK = {"Green": 0, "Yellow": 1, "FCY": 2}
+
+
+def _merge_flags(shm_flag, shm_ysec, rest):
+    """shmem + REST bayraklarını birleştir: EN GÜÇLÜ bayrak kazanır, sektörler BİRLEŞİR.
+
+    Neden birleştirme: eskiden REST varsa shmem TAMAMEN yok sayılıyordu (`if rest_flag:`).
+    REST bayrağı kendi içinde muhafazakâr (ör. üç sektör birden sarıysa Green'e düşürür,
+    alan adları tutmazsa yetkili görünen sahte bir "Green" üretir) → gerçek sarıyı
+    MASKELİYORDU. Artık hiçbir kaynak diğerinin sarısını bastıramaz: sarı yalnız EKLENİR."""
+    flag, ysec = shm_flag, list(shm_ysec)
+    if isinstance(rest, dict):
+        rf = rest.get("flag") or "Green"
+        if _FLAG_RANK.get(rf, 0) > _FLAG_RANK.get(flag, 0):
+            flag = rf
+        for s in rest.get("yellowSectors") or []:
+            if s not in ysec:
+                ysec.append(s)
+    ysec.sort()
+    if flag == "Green" and ysec:      # sektör sarısı geldiyse Green kalamaz
+        flag = "Yellow"
+    return flag, ysec
 
 # Satırdaki "+" → tur zaman listesi için sürücü başına saklanan son tur sayısı
 # (Firebase yükünü sınırlar; endurance'ta bir-iki stint'i rahat kapsar).
@@ -595,18 +645,19 @@ class RF2Source:
         cur, end = float(info.mCurrentET), float(info.mEndET)
         phase = int(getattr(info, "mGamePhase", 0))
         yellow = int(getattr(info, "mYellowFlagState", 0))
-        # Bayrak: önce YETKİLİ LMU REST (green iken yanlış full-yellow üretmez); REST
-        # kapalı/parse edilemezse muhafazakâr shmem yedeği (yalnız FCY, green→green).
+        # Bayrak (v2.2.4): YETKİLİ kaynak paylaşımlı bellektir — lokal sarı dahil
+        # (bkz. _flag_of/_sector_yellows). REST varsa yalnız EK kaynaktır ve hiçbir
+        # sarıyı bastıramaz (_merge_flags). Eskiden REST açıkken shmem tamamen yok
+        # sayılıyor, REST kapalıyken (VARSAYILAN!) ise yedek yalnız FCY ürettiği için
+        # lokal sarı HİÇBİR koşulda görünmüyordu — sahadaki "sarı bayrak yok" hatası.
         rest_flag = None
         if getattr(self, "lmu", None) is not None:
             try:
                 rest_flag = self.lmu.session_flags()
             except Exception:
                 rest_flag = None
-        if rest_flag:
-            flag, ysec = rest_flag["flag"], rest_flag["yellowSectors"]
-        else:
-            flag, ysec = _flag_of(phase, yellow)
+        shm_flag, shm_ysec = _flag_of(phase, yellow, getattr(info, "mSectorFlag", None))
+        flag, ysec = _merge_flags(shm_flag, shm_ysec, rest_flag)
         maxlaps = int(getattr(info, "mMaxLaps", 0))
         session = {
             "phase": _PHASE.get(phase, str(phase)), "flag": flag,
@@ -801,7 +852,10 @@ class RF2Source:
             # bayrak ham değerleri — sahada bayrak yine ters düşerse --dump ile
             # alan semantiği buradan doğrulanır (LMU sürümü alanları kaydırabilir).
             # rest: REST YETKİLİ sonucu (varsa kullanıldı), sectors: shmem ham (güvenilmez).
+            # shm: paylaşımlı bellekten türetilen YETKİLİ bayrak, rest: EK kaynak,
+            # sectors: ham mSectorFlag baytları (sarı = 1; 255 = Invalid/dolu değil).
             "flagRaw": {"phase": phase, "yellow": yellow, "rest": rest_flag,
+                        "shm": [shm_flag, shm_ysec], "out": [flag, ysec],
                         "sectors": [int(x) for x in list(getattr(info, "mSectorFlag", []) or [])[:3]]},
         }
         # Saha boşken bekleme NEDENİ — UI mesaj seçimi (noplugin/menu/novehicles).

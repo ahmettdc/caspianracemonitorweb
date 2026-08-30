@@ -11,6 +11,25 @@ Eksik giderme.
 - **Çözüm (`src/traceCodec.js`, format v2):** `x`/`y` artık sabit `scale=1` yerine, turun kendi yayılımından türeyen **ortak** bir `mapK` ile ~1e5 tamsayı çözünürlüğüne ölçekleniyor (`x` ve `y` aynı ölçek → en-boy korunur), origin çıkarılıyor; `mapK/x0/y0` başlıkta saklanıyor. UI zaten fit-to-box normalize ettiği için mutlak konum değil yalnız şekil önemli, o da kayıpsıza yakın korunuyor (Le Mans için round-trip hatası ~0.03 m). Eski v1 stringleri (metre koordinatlı) hâlâ okunuyor; GPS'li stint yeniden kaydedilince v2 ile düzeliyor.
 - **Doğrulama:** Yeni GPS regresyon testleri + 559 testin tümü geçiyor; gerçekçi Le Mans GPS turu paketlenmiş boyut 10.8 KB (< 40 KB Firebase yaprak sınırı), 300 noktanın 300'ü ayrışık.
 
+### Live Timing: sarı bayrak hiç görünmüyordu
+
+- **Belirti:** Oyunda sarı bayrak sallanırken Live Timing yeşil gösteriyordu. FCY bazen geliyordu, **lokal sarı hiç gelmiyordu**.
+- **Kök neden (zincir):**
+  1. `bridge/main.py:398` — `rest_on` varsayılan **false** (v1.4.130'da oyun donması yüzünden kapatıldı, README bunu açıkça öneriyor) → `no_rest=True` → `rf2_source.py:322` `self.lmu = None`.
+  2. `read()` içinde `rest_flag = None` → shmem yedeği `_flag_of()` devrede.
+  3. `_flag_of()` (v1.4.74'ten beri) yalnız `"FCY"` ya da `"Green"` döndürüyordu — **`"Yellow"` döndüren tek bir kod yolu yoktu**. Lokal sarı varsayılan kurulumda *yapısal olarak imkânsızdı*.
+  4. v1.4.74'te sektör sarıları kaldırılmıştı çünkü eski kod `mSectorFlag > 0` kullanıyordu; Invalid/başlatılmamış bayt (255) de "sarı" sayılınca GREEN'de üç sektör birden sarı görünüyor, yanlış full-yellow üretiyordu. Yani bir yanlış-pozitif düzeltilirken yerine daha büyük bir yanlış-negatif konmuş.
+  5. Ek olarak REST açık olsaydı bile: `parse_session_flags` `/rest/watch/sessionInfo`'dan düz `GamePhase`/`YellowFlagState`/`SectorFlag` anahtarları **varsayıyor** (şekli hiç doğrulanmamış) ve REST sonucu shmem'i tamamen eziyordu (`if rest_flag:`) → sahte bir `"Green"` gerçek sarıyı maskeleyebiliyordu.
+- **TinyPedal karşılaştırması (kaynak tarandı):** TinyPedal sarıyı **yalnız `mSectorFlag`'ten** okur ve **kesin eşitlik** kullanır — `any(data == 1 for data in sec_flag)` (`tinypedal/adapter/lmu_reader.py`). `mYellowFlagState` ve `mUnderYellow`'a hiç bakmaz. Ayrıca TinyPedal'ın LMU REST endpoint listesinde **bayrak verisi yoktur** (yalnız hava/seans/garaj/pit) → bayrağın tek gerçek kaynağı paylaşımlı bellektir.
+- **Çözüm:**
+  - `_sector_yellows()` (yeni) — `mSectorFlag[3]` → sarı sektör numaraları, TinyPedal'ın `== 1` predikatıyla. 255 (Invalid) artık sarı sayılmaz → v1.4.74'ü doğuran yanlış pozitif geri gelmez.
+  - `_flag_of(phase, yellow, sectors)` — lokal sarıyı geri üretir; FCY (`GamePhase 6` / geçerli `mYellowFlagState`) önceliğini korur. **REST kapalıyken de çalışır** (asıl kazanım).
+  - `_merge_flags()` (yeni) — shmem + REST birleştirilir: en güçlü bayrak kazanır, sektörler birleşir. Hiçbir kaynak diğerinin sarısını **bastıramaz** (eski `if rest_flag:` maskelemesi kalktı).
+  - `_diag.flagRaw` genişletildi (`shm`/`out` eklendi) → sahada `--dump` ile ham bayt ↔ türetilen bayrak karşılaştırılabilir.
+- **Transport doğrulaması:** Köprü rF2 Shared Memory Map Plugin yolunu kullanıyor (`$rFactor2SMMP_Scoring$`, 128 araç) — TinyPedal'ın "LMU legacy" modu. Struct hizalaması doğru, `mSectorFlag` eklenti tarafından doldurulur. (LMU'nun *native* `LMU_Data` arayüzü 104 araçlıdır ve alan düzeni farklıdır; oraya geçilirse offsetler kayar — bu yola girilmedi.)
+- **Not:** REST varsayılan kapalı KALIYOR (donma önlemi) — bayrak artık ona ihtiyaç duymuyor. `config.example.ini` ve `bridge/README.md` buna göre düzeltildi.
+- **Doğrulama:** Bayrak için 5 yeni regresyon testi (sektör sarısı üretimi, 255 yanlış-pozitif kilidi, FCY önceliği, REST maskeleme karşıtı birleştirme); tüm köprü test paketleri geçiyor.
+
 ### Telemetri: stint analizine üç stratejik metrik
 
 - **Neden:** Stint analizi "tipik tur"u (medyan/ortalama) veriyordu ama endurance kararları için kritik olan tutarlılık, lastik düşüşü ve bırakılan süre görünmüyordu. Kutu grafiği yayılımı gösteriyordu ama sayı yoktu.
