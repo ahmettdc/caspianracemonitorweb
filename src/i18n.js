@@ -1066,7 +1066,6 @@ export const EN = {
   "Mühendis": "Engineer",
   "Mükerrer setup": "Duplicate setup",
   "Ok tuşlarıyla gez · Esc ile çık": "Navigate with arrow keys · Esc to exit",
-  "Olay puanı (cut/puan cezaları dahil)": "Incident points (incl. cut/point penalties)",
   "Ort. tur": "Avg lap",
   "Ortalama tur · m:ss.00": "Average lap · m:ss.00",
   "Ortalama tur": "Average lap",

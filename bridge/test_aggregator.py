@@ -180,6 +180,66 @@ def test_carid_sifir_gecerli_kimliktir():
     assert r["lapKey"] == "c0", r["lapKey"]
 
 
+class _Pen:
+    """Tek aracı kare kare besler: BEKLEYEN ceza (mNumPenalties) dizisi."""
+
+    def __init__(self, pens):
+        self.pens = list(pens)
+        self.i = 0
+
+    def read(self):
+        pen = self.pens[min(self.i, len(self.pens) - 1)]
+        self.i += 1
+        return {"session": {}, "own": None, "field": [{
+            "pos": 1, "carId": 1, "driver": "A. Demircan", "lapsDone": 1 + self.i // 4,
+            "lastSec": 100.0, "bestSec": 100.0, "inPits": False, "penalties": pen}]}
+
+
+def _pen_run(pens):
+    agg = Aggregator(_Pen(pens))
+    out = None
+    for _ in range(len(pens)):
+        out = agg.read()
+    return out["field"][0]
+
+
+def test_ceza_kumulatif_servis_edilince_sifirlanmaz():
+    """v2.2.4 — SAHA HATASI: ceza sütunu sürücü cezasını çekince temizleniyordu.
+
+    `mNumPenalties` başlığı "number of OUTSTANDING penalties" der — BEKLEYEN ceza,
+    servis edilince 0'a düşer. Kümülatif sanılırsa yarış boyunca yanlış okunur.
+    TinyPedal (module_stats.py) toplamı YÜKSELEN KENARLARDAN biriktirir; aynısı."""
+    # ceza alındı (0→1), çekildi (1→0), tekrar alındı (0→1) → toplam 2, bekleyen 1
+    r = _pen_run([0, 0, 1, 1, 0, 0, 1, 1])
+    assert r["penaltiesTotal"] == 2, r["penaltiesTotal"]
+    assert r["penalties"] == 1                 # anlık bekleyen ayrı alanda korunur
+    # servis edildikten sonra toplam DÜŞMEZ (eski davranışta 0 görünüyordu)
+    r2 = _pen_run([0, 1, 1, 0, 0])
+    assert r2["penaltiesTotal"] == 1 and r2["penalties"] == 0
+
+
+def test_ceza_ilk_karede_taban_alinir():
+    """Yarışa GEÇ katılma / köprü yeniden başlatma: ilk karede zaten 2 ceza varsa
+    bunlar bizim sayacımıza EKLENMEZ (şişirme olmaz), yalnız taban alınır."""
+    r = _pen_run([2, 2, 2])
+    assert r["penaltiesTotal"] == 0, r["penaltiesTotal"]
+    # tabandan SONRAKİ artış sayılır
+    r2 = _pen_run([2, 2, 3])
+    assert r2["penaltiesTotal"] == 1
+
+
+def test_ceza_ayni_karede_birden_fazla_artis():
+    """İki ceza tek kare arasında gelirse fark kadar (+2) eklenir — kayıp yok."""
+    r = _pen_run([0, 0, 2])
+    assert r["penaltiesTotal"] == 2
+
+
+def test_ceza_alani_yoksa_cokmez():
+    """Eski köprü / ceza alanı üretmeyen kaynak → 0, hata yok."""
+    r = _run([(0, -1), (1, 101.0)])
+    assert r["penaltiesTotal"] == 0
+
+
 def test_bayrak_sektor_sarisi_uretilir():
     """v2.2.4 — SAHA HATASI: "oyunda sarı sallanıyor, Live Timing'de göremiyoruz".
 

@@ -11,6 +11,25 @@ Eksik giderme.
 - **Çözüm (`src/traceCodec.js`, format v2):** `x`/`y` artık sabit `scale=1` yerine, turun kendi yayılımından türeyen **ortak** bir `mapK` ile ~1e5 tamsayı çözünürlüğüne ölçekleniyor (`x` ve `y` aynı ölçek → en-boy korunur), origin çıkarılıyor; `mapK/x0/y0` başlıkta saklanıyor. UI zaten fit-to-box normalize ettiği için mutlak konum değil yalnız şekil önemli, o da kayıpsıza yakın korunuyor (Le Mans için round-trip hatası ~0.03 m). Eski v1 stringleri (metre koordinatlı) hâlâ okunuyor; GPS'li stint yeniden kaydedilince v2 ile düzeliyor.
 - **Doğrulama:** Yeni GPS regresyon testleri + 559 testin tümü geçiyor; gerçekçi Le Mans GPS turu paketlenmiş boyut 10.8 KB (< 40 KB Firebase yaprak sınırı), 300 noktanın 300'ü ayrışık.
 
+### Live Timing: "Incident" sütunu yanlış veriyi yanlış biçimde gösteriyordu
+
+- **Belirti:** Ceza/incident sütunu güvenilmezdi — sürücü cezasını çekince sıfırlanıyor, biçimi de anlamsızdı (`0.0x`).
+- **Üç ayrı hata:**
+  1. **Yanlış etiket.** Sütun `Incident` diyordu (üstelik `t()`'den geçmeyen sabit İngilizce), ama beslediği veri `c.penalties` → `mNumPenalties`. Struct başlığı açık: *"number of **outstanding** penalties"*. Bu incident değil, **bekleyen ceza borcu**.
+  2. **Yanlış semantik.** "Outstanding" olduğu için drive-through çekilince **0'a geri düşüyor** → yarış boyunca alınan ceza sayısı hiçbir yerde görünmüyordu.
+  3. **Yanlış biçim.** Tamsayı sayaç `${penalties.toFixed(1)}x` ile `1.0x` diye yazılıyordu — kümülatif bir "olay puanı çarpanı" izlenimi veriyordu.
+  - İz: i18n'deki `"Bekleyen ceza"` ve `"Ceza sayısı…"` anahtarları öksüz kalmıştı — sütun bir noktada "Ceza"dan "Incident"a çevrilmiş ama veri kaynağı değişmemiş.
+- **TinyPedal karşılaştırması (kaynak tarandı):**
+  - Kümülatif cezayı **yükselen kenarlardan** biriktiriyor (`module_stats.py`): değer düşerse taban indirilir (servis edildi), yükselirse fark toplama eklenir. İlk örnekte yalnız taban alınır.
+  - **Gerçek incident'ları paylaşımlı bellekteki results-stream METNİNDEN** ayrıştırıyor (`lmu_connector.py`): `<Incident …>` ve `<TrackLimits …>` satırlarını sayıyor. Bu 64 KB'lık `scoringStream` tamponu **yalnız LMU'nun NATIVE arayüzünde** (`LMU_Data`) var.
+  - **rF2 eklenti yolunda TinyPedal'ın kendisi `incidents()` için sabit `0` döndürüyor** (`rf2_reader.py:888`) — çünkü rF2'de results-stream haritalanmıyor (`mResultsStreamPointer` yalnız 8 baytlık yer tutucu).
+  - REST'te ceza/incident **hiç yok**: TinyPedal'ın LMU endpoint listesi yalnız hava/seans/garaj/pit veriyor; `/rest/watch/standings`'e hiç dokunmuyor.
+- **Çözüm:**
+  - `Aggregator`: `penaltiesTotal` — TinyPedal'ın yükselen-kenar algoritmasıyla **kümülatif** ceza. `penalties` (anlık bekleyen) ayrı alan olarak korunuyor. Seans değişiminde sıfırlanıyor, ilk karede yalnız taban alınıyor (yarışa geç katılınca şişmez). **REST'e ihtiyaç duymaz.**
+  - `LiveTab`: sütun dürüstçe `t("Ceza")`; kümülatif toplam tamsayı olarak, 0 ise `—`; bekleyen ceza varsa kırmızı + `•`. Öksüz i18n anahtarları yeniden kullanımda; yanıltıcı `"Olay puanı…"` anahtarı silindi.
+- **Bilinçli olarak YAPILMAYAN:** gerçek incident (temas + track-cut) sayımı. Kullandığımız transport rF2 eklentisi olduğu için bu veri oyun tarafından hiç sunulmuyor; uydurmak yerine sütun doğru adlandırıldı. İstenirse LMU native `LMU_Data` arayüzüne geçmek gerekir (104 araç + farklı ScoringInfo düzeni → tüm offsetler değişir, ayrı bir iş).
+- **Doğrulama:** 4 yeni ceza regresyon testi (servis sonrası sıfırlanmama, ilk-kare tabanı, tek karede çoklu artış, alan yokluğu); tüm köprü paketleri + 568 JS testi geçiyor.
+
 ### Live Timing: sarı bayrak hiç görünmüyordu
 
 - **Belirti:** Oyunda sarı bayrak sallanırken Live Timing yeşil gösteriyordu. FCY bazen geliyordu, **lokal sarı hiç gelmiyordu**.

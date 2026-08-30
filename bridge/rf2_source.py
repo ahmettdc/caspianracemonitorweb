@@ -18,8 +18,13 @@
   field[]: {pos, carId, driver, vehicleName, team, manufacturer, number, carClass, lapsDone,
             lapDist, posX, posZ, lastSec, lastSectors:[s1,s2,s3], bestSec, gapSec,
             intervalSec, lapsBehind, lapsBehindNext, inPits, location, pitStops, penalties,
-            tyreWear, tyres4:[fl,fr,rl,rr], tyreComp, damage, virtualEnergy, vePerLap,
-            avg5Sec, avgSec, stintSec, laps, lapsFrom, lapNums, lapKey, isPlayer}
+            penaltiesTotal, tyreWear, tyres4:[fl,fr,rl,rr], tyreComp, damage, virtualEnergy,
+            vePerLap, avg5Sec, avgSec, stintSec, laps, lapsFrom, lapNums, lapKey, isPlayer}
+  (penalties = ANLIK bekleyen ceza (mNumPenalties; servis edilince 0'a düşer),
+   penaltiesTotal = seans boyunca KÜMÜLATİF ceza (Aggregator yükselen kenar sayımı).
+   NOT: gerçek "incident" (temas + track-cut) sayısı bu transport'ta YOKTUR — LMU'nun
+   results-stream metni yalnız NATIVE LMU_Data arayüzünde bulunur; rF2 eklenti yolunda
+   TinyPedal da incidents()=0 döndürür. Bu yüzden ceza ile incident karıştırılmamalı.)
   (lapsBehind/lapsBehindNext = oyunun mLapsBehindLeader/mLapsBehindNext alanları — web
    tur-altı ("+N Tur") göstergesi bunları kullanır; lider-tur eksi araç-tur çıkarması
    lider S/F'yi geçtiği pencerede YANLIŞ "+1 Tur" verirdi.)
@@ -892,6 +897,8 @@ class Aggregator:
         self.last_change = {}   # araç → son pit'te değişen lastikler (bir sonraki pite kadar)
         self.prev_ve = {}       # araç → önceki tur sonundaki VE% (tur-başı tüketim için)
         self.ve_per_lap = {}    # araç → son turda tüketilen VE% (prev−cur)
+        self.prev_pen = {}      # araç → son görülen BEKLEYEN ceza (mNumPenalties)
+        self.pen_total = {}     # araç → KÜMÜLATİF ceza (yükselen kenar toplamı)
 
     def close(self):
         if hasattr(self.inner, "close"):
@@ -968,6 +975,9 @@ class Aggregator:
                 self.regress[key] = 0
                 self.pit_tyres.pop(key, None)
                 self.last_change.pop(key, None)
+                # ceza sayaçları da seansa özeldir (yeni seans → sıfırdan başla)
+                self.pen_total.pop(key, None)
+                self.prev_pen.pop(key, None)
                 # VE tur-başı tüketimi için başlangıç değerini (varsa) taban al
                 self.ve_per_lap.pop(key, None)
                 _cve = r.get("virtualEnergy")
@@ -1030,6 +1040,26 @@ class Aggregator:
             # rakibin stint boyunca hangi lastiklerle gittiğini görmeli).
             r["tyreChange"] = self.last_change.get(key)
 
+            # CEZA (v2.2.4): `mNumPenalties` başlıkta "number of OUTSTANDING penalties"
+            # — yani BEKLEYEN ceza; sürücü drive-through'unu çekince 0'a GERİ DÜŞER.
+            # Kümülatif toplam sanılırsa yarış boyunca yanlış okunur (ceza servis edilir
+            # edilmez ekran temizlenir). Doğru toplam YÜKSELEN KENARLARDAN biriktirilir —
+            # TinyPedal'ın module_stats.py'deki deseninin birebir aynısı:
+            #   düşüş → tabanı indir (servis edildi), yükseliş → farkı toplama ekle.
+            # İlk görüşte yalnız taban alınır (yarışa geç katılınca eski cezalar
+            # şişirilmesin). penalties = anlık bekleyen, penaltiesTotal = kümülatif.
+            cur_pen = r.get("penalties")
+            cur_pen = int(cur_pen) if isinstance(cur_pen, (int, float)) else 0
+            prev_pen = self.prev_pen.get(key)
+            if prev_pen is None:
+                self.prev_pen[key] = cur_pen          # ilk kare → yalnız taban
+            elif cur_pen < prev_pen:
+                self.prev_pen[key] = cur_pen          # ceza çekildi → tabanı düşür
+            elif cur_pen > prev_pen:
+                self.pen_total[key] = self.pen_total.get(key, 0) + (cur_pen - prev_pen)
+                self.prev_pen[key] = cur_pen
+            r["penaltiesTotal"] = self.pen_total.get(key, 0)
+
             h = list(self.hist.get(key, ()))
             last5 = h[-5:]
             r["avg5Sec"] = round(sum(last5) / len(last5), 3) if last5 else None
@@ -1050,7 +1080,7 @@ class Aggregator:
         if own is not None:
             me = next((r for r in field if r.get("isPlayer")), None)
             if me is not None:
-                for k in ("avg5Sec", "avgSec", "stintSec", "vePerLap", "laps", "lapsFrom",
-                          "lapNums", "lapKey"):
+                for k in ("avg5Sec", "avgSec", "stintSec", "vePerLap", "penaltiesTotal",
+                          "laps", "lapsFrom", "lapNums", "lapKey"):
                     own[k] = me.get(k)
         return data

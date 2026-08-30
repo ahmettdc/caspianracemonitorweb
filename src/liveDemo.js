@@ -73,7 +73,10 @@ export function demoLive(el) {
         +(last * 0.31).toFixed(3)],
       inPits: (Math.floor(el / 90) % 13) === i,
       pitStops: Math.floor(laps / 45),
+      // penalties = ANLIK bekleyen ceza (servis edilince 0'a düşer),
+      // penaltiesTotal = seans kümülatifi (köprüde yükselen kenar sayımı)
       penalties: (i === 2 || i === 6) && (Math.floor(el / 120) % 3) === 0 ? 1 : 0,
+      penaltiesTotal: (i === 2 || i === 6) ? Math.floor(el / 360) + 1 : 0,
       ...demoTyres(el, i),
       damage: +Math.min(0.4, i * 0.01 + (el % 600) / 6000).toFixed(3),
       virtualEnergy: +Math.max(3, 100 - ((el + i * 40) % 1500 / 1500) * 92).toFixed(1),
