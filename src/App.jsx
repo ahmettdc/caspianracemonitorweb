@@ -25,7 +25,7 @@ import { firebaseReady,
   createRace, updateRace, deleteRace,
   raceStateGet,
   getUserAvatar, saveUserAvatar, clearUserAvatar,
-  liveHistoryClearAll, serverNow } from "./storage";
+  liveHistoryClearAll, serverNow, liveWriterSubscribe } from "./storage";
 import { processImageFile, IMG_ACCEPT_TYPES } from "./imageUpload";
 import { carImageSrc, teamLogoSrc } from "./teamAssets";
 import { duckSetupToSvm, textToB64 } from "./setupParse";
@@ -457,14 +457,6 @@ export default function App() {
     return parts.slice(0, 3).join(" ");
   };
 
-  /* ---------- Faz 4: telemetri → useTelemetry hook'u (MoTeC içe aktar + analiz) ---------- */
-  const { slot, setSlot, chartMode, setChartMode, rawTele, setRawTele, parsed, mapping,
-    setMapping, onTeleFile, doParse, apply105Slot, saveMotec, saveSlot, toggleLap,
-    removeSlot, slotStats, chartData, loadedSlots, baseSlot,
-    cmpMeta: telCmpMeta, cmpA: telCmpA, setCmpA: setTelCmpA, cmpB: telCmpB, setCmpB: setTelCmpB,
-    cmpData: telCmpData, cmpBusy: telCmpBusy, savedMsg: telSavedMsg,
-    cmpSources: telCmpSources, cmpASrc: telCmpASrc, setCmpASrc: setTelCmpASrc,
-    cmpBSrc: telCmpBSrc, setCmpBSrc: setTelCmpBSrc } = useTelemetry({ st, setSt });
   /* Bağımsız Telemetri ekranı (Ana Menü → Telemetri): Race Solo'dan TAMAMEN ayrı, KENDİ
      telemetri örneği + kendi scratch `st`'si. Race Solo'nun `st`/ilk useTelemetry'sine
      dokunmaz → iki taraf birbirine sızmaz, uygulama açık kaldıkça durumu korunur. */
@@ -814,6 +806,19 @@ ${bottomBar}
   const [createJoinOpen, setCreateJoinOpen] = useState(false); // v1.6 — sade Kur & Katıl ekranı (yönetimden ayrı)
   /* ---- takım/sezon/yarış abonelikleri → useTeams hook'u ---- */
   const { myTeams, curTeam, setCurTeam, teamData, seasons, races } = useTeams({ user, access });
+  /* ---------- Faz 4: telemetri → useTelemetry hook'u (MoTeC içe aktar + analiz) ----------
+     curTeam/curRace/role useTeams'ten SONRA geldiği için hook burada çağrılır (TDZ). Bu
+     üçlü, stint kaydında pist haritası + gaz/fren izlerini Firebase'e KALICI yazmayı açar;
+     yarış yeniden açılınca izler geri yüklenir. Solo telemetri örneği (teleHook) bunları
+     GEÇMEZ → persistence sessizce kapalı (cihaz-yerel davranışı korunur). */
+  const { slot, setSlot, chartMode, setChartMode, rawTele, setRawTele, parsed, mapping,
+    setMapping, onTeleFile, doParse, apply105Slot, saveMotec, saveSlot, toggleLap,
+    removeSlot, slotStats, chartData, loadedSlots, baseSlot,
+    cmpMeta: telCmpMeta, cmpA: telCmpA, setCmpA: setTelCmpA, cmpB: telCmpB, setCmpB: setTelCmpB,
+    cmpData: telCmpData, cmpBusy: telCmpBusy, savedMsg: telSavedMsg,
+    cmpSources: telCmpSources, cmpASrc: telCmpASrc, setCmpASrc: setTelCmpASrc,
+    cmpBSrc: telCmpBSrc, setCmpBSrc: setTelCmpBSrc,
+    traceSaving: telTraceSaving } = useTelemetry({ st, setSt, curTeam, curRace, role });
   /* .duckdb telemetrisine gömülü setup'ı Setup Havuzuna kaydet (v1.5.2): VM_/WM_ JSON'u
      .svm metnine çevir → mevcut addSetup borusuna ver (havuz bu formatı okur). Pist/sınıf
      telemetri meta'sından en iyi çaba etiketlenir. */
@@ -958,6 +963,15 @@ ${bottomBar}
   /* Canlı köprü (masaüstü) OTOMATİK yaşam döngüsü → useLiveBridge hook'una çıkarıldı
      (App.jsx Tanrı-bileşen borcunu azaltan ilk güvenli dilim). Davranış birebir aynı. */
   const bridge = useLiveBridge({ isMember, curTeam, curRace, user });
+  /* "Veriyi kim yayınlıyor" — yazıcı kirası (teams/{tid}/livewriter/{rid} = {uid,by,driving,ts}).
+     bridge.writerBy YALNIZ yerel köprü çalışırken dolar (masaüstü); web'de ya da köprü
+     kapalıyken boş kalır — o yüzden üst bardaki kutuda "Canlı kaynak —" görünüyordu.
+     Kira Firebase'de herkes için tek doğru kaynak: takım arkadaşın yayınlıyorsa da dolu. */
+  const [liveWriter, setLiveWriter] = useState(null);
+  useEffect(() => {
+    if (!isMember || !curTeam || !curRace) { setLiveWriter(null); return undefined; }
+    return liveWriterSubscribe(curTeam, curRace, setLiveWriter);
+  }, [isMember, curTeam, curRace]);
   /* not: yetki rozetten türer — 🎧 mühendis editor, 🛞 sürücü/rozetsiz viewer */
   const myBadges = teamBadgesOf(teamData, user?.uid, udoc);
 
@@ -3180,7 +3194,13 @@ ${bottomBar}
     return null;
   })();
   const bPhase = bridge?.phase || "idle";
-  const bWriter = bridge?.writerBy || "";
+  /* Yayıncı: önce Firebase kirası (herkes için geçerli — takım arkadaşın yayınlıyorsa
+     da dolu), yoksa yerel köprünün kendi bildirdiği ad. */
+  const bWriter = liveWriter?.by || bridge?.writerBy || "";
+  const bWriterMine = !!(liveWriter?.uid && user?.uid && liveWriter.uid === user.uid);
+  /* Kira bayatsa (>30 sn) yayıncı fiilen susmuş demektir — adı "durdu" diye işaretle,
+     yoksa 14 gün önce yayın yapmış birinin adı hâlâ canlı yayıncı gibi görünür. */
+  const bWriterStale = !!(liveWriter?.ts && Date.now() - liveWriter.ts > 30000);
   const bLive = bPhase === "running" || feedLiveNow;
   const bDot = bLive ? "var(--rc-ok)" : feedFresh ? "var(--rc-warn)"
     : bPhase === "error" ? "var(--rc-danger)"
@@ -3316,7 +3336,12 @@ ${bottomBar}
                 </span>
                 <span style={{ display: "block", padding: "12px 16px", borderBottom: "1px solid var(--rc-border)" }}>
                   {[
-                    [t("Canlı kaynak"), bWriter || "—", "var(--rc-text)"],
+                    /* Veriyi kim yayınlıyor: kiradan gelen ad + bu cihaz mı + bayatsa uyarı.
+                       Kira yoksa hiç kimse köprü açmamış demektir. */
+                    [t("Yayınlayan"),
+                      bWriter ? `${bWriter}${bWriterMine ? ` (${t("bu cihaz")})` : ""}${bWriterStale ? ` · ${t("durdu")}` : ""}`
+                        : t("kimse yayınlamıyor"),
+                      bWriter && !bWriterStale ? "var(--rc-ok)" : "var(--rc-text-3)"],
                     [t("Kare hızı"), bridge?.hz ? `${bridge.hz} Hz` : "—", "var(--rc-text)"],
                     [t("Son kare"), age != null ? `${age} sn önce` : "—", age != null && age < 5 ? "var(--rc-ok)" : "var(--rc-text)"],
                     [t("Sahadaki araç"), String(bridge?.diag?.cars ?? (live?.field?.length || "—")), "var(--rc-text)"],
@@ -3729,7 +3754,7 @@ ${bottomBar}
               toggleLap={toggleLap} cmpMeta={telCmpMeta} cmpA={telCmpA} setCmpA={setTelCmpA}
               cmpB={telCmpB} setCmpB={setTelCmpB} cmpData={telCmpData} cmpBusy={telCmpBusy}
               savedMsg={telSavedMsg} cmpSources={telCmpSources} cmpASrc={telCmpASrc} setCmpASrc={setTelCmpASrc}
-              cmpBSrc={telCmpBSrc} setCmpBSrc={setTelCmpBSrc}
+              cmpBSrc={telCmpBSrc} setCmpBSrc={setTelCmpBSrc} traceSaving={telTraceSaving}
               onSaveDuckSetup={user ? saveTeleSetup : null} />
           )}
 

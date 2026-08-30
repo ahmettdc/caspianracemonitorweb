@@ -3,6 +3,12 @@
    keşfedilen font isteği ilk boyamayı geciktiriyordu). */
 export const css = `
 :root{
+  /* v2.2.3 — Tarayıcıya temanın KOYU olduğunu bildiriyoruz. Bu satır olmadan UA
+     varsayılanları açık temaya göre hesaplanır: button/input/select metni
+     "buttontext" = SİYAH olur ve koyu panellerde görünmez kalır (sohbet kanal
+     listesi hatası tam olarak buydu). Ayrıca kaydırma çubukları da temaya uyar.
+     NOT: bu dosya bir template literal — yorumlarda ters tırnak KULLANMA. */
+  color-scheme: dark;
   /* Pit Wall OS — #960018 merkezli, koyu + sıcak "pit-wall" kimliği (konseptten).
      Zemin sıcak yakın-siyah, paneller bürgündi; marka #960018, etkileşim lift'i
      #C51E38→#D24357; anlamsal renkler (good/warn/crit/best) markadan ayrı. */
@@ -89,6 +95,7 @@ export const css = `
 /* --- Light mode (opsiyonel) — koyu tema ana kimlik; bu blok tokenları rol-swap eder.
    Marka #960018 / --car korunur. Anlamsal renkler açık zemine göre koyulaştırıldı. --- */
 :root[data-theme="light"]{
+  color-scheme: light;
   --bg:#F4EEF0; --panel:#FFFFFF; --panel2:#F6EEF0; --line:#E2D3D8; --line2:#CBB4BC;
   --txt:#1B1215; --dim:#6C5A61; --muted:#87737B;
   --accent:#BC2A44; --teal:var(--accent); --brand2:#A5182F; --car:#960018;
@@ -107,6 +114,12 @@ export const css = `
 .rc *{box-sizing:border-box}
 .rc{min-height:100vh;background:var(--bg);color:var(--txt);
   font-family:var(--font-ui);font-size:13px;padding:0 0 40px}
+/* v2.2.3 — button/input/select/textarea metin rengini MİRAS ALMAZ; UA stil sayfası
+   "color:buttontext" atar. Inline style'ında color vermeyen butonlar bu yüzden
+   siyah boyanıp koyu zeminde kayboluyordu (kontrast 1.08:1). Yukarıdaki
+   color-scheme çoğu tarayıcıda bunu zaten çözer; bu kural UA'ya güvenmeyen kesin
+   güvenlik ağıdır. Düşük özgüllük: inline color veren yerler etkilenmez. */
+.rc button,.rc input,.rc select,.rc textarea{color:inherit}
 .rc .mono{font-family:var(--font-mono)}
 .rc .disp{font-family:var(--font-disp);letter-spacing:.04em}
 .rc header{display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding:14px 20px;

@@ -13,13 +13,23 @@
        removeSlot, slotStats, chartData, loadedSlots, baseSlot }. */
 import { useState, useMemo, useEffect, useRef } from "react";
 import { computeSlotStats, computeChartData, apply105Rule } from "./state";
+import { teleTraceSet, teleTraceGetAll, teleTraceRemove } from "./storage";
+import { packTrace, unpackTrace, MAX_TRACE_STR } from "./traceCodec";
+
+/* Tüm izler AYNI nokta sayısında üretilir — buildCompare index-hizalı çalışır
+   (k. nokta = tur kesri k/(N-1)); kalıcı iz ve oturum-içi iz farklı N olursa
+   harita/grafik hizası bozulur. 300 harita+delta için yeterli, boyutu makul tutar. */
+const TRACE_N = 300;
+/* Stint başına kalıcı iz güvenlik sınırı: tur başına ~9 KB × 80 ≈ 720 KB.
+   Aşılırsa en hızlı 80 tam tur saklanır (Firebase bant genişliği/maliyet koruması). */
+const MAX_TRACE_LAPS = 80;
 
 /* Parser modülleri (parsers/ldParser/ldTrace/duckParse/duckTrace, ~48 KB kaynak)
    başlangıç paketinden çıkarıldı — yalnız dosya/metin içe aktarılınca dynamic
    import ile gelir, modül cache'i sonraki kullanımları anında yapar. TeleTab
    zaten lazy'ydi; statik importlar bu kazanımı sızdırıyordu. */
 
-export function useTelemetry({ st, setSt }) {
+export function useTelemetry({ st, setSt, curTeam, curRace, role }) {
   const [slot, setSlot] = useState("A");
   const [chartMode, setChartMode] = useState("box"); // "box" | "line"
   const [rawTele, setRawTele] = useState("");
@@ -45,6 +55,11 @@ export function useTelemetry({ st, setSt }) {
   const [cmpASrc, setCmpASrc] = useState("cur");    // "cur" = yüklü dosya · "A"/"B"/… = kayıtlı stint
   const [cmpBSrc, setCmpBSrc] = useState("cur");
   const readersRef = useRef(new Map());   // File → readers (kimlikle önbellek; bayatlamaz)
+  /* Kalıcı izler (Firebase teleTrace'ten yüklenmiş, unpack'lenmiş). stintTele'nin
+     KALICI muadili: file/header yok, iz nesneleri hazır. { A:{laps:[{sec,partial,lap}], meta, traces:[traceObj|null], mapSrc } } */
+  const [savedTrace, setSavedTrace] = useState({});
+  /* Kaydetme ilerlemesi/hatası: { slot, done, total } | { slot, ok } | { slot, error } | null */
+  const [traceSaving, setTraceSaving] = useState(null);
 
   const doParse = (text) => {
     import("./parsers").then(({ parseMotecLog, parseTelemetryText, guessMapping }) => {
@@ -97,10 +112,17 @@ export function useTelemetry({ st, setSt }) {
     e.target.value = "";   // aynı dosya tekrar seçilebilsin
   };
 
-  /* Bir kaynak anahtarı → {file, header, laps, meta}. "cur" = yüklü dosya; slot = kayıtlı stint. */
-  const resolveSrc = (key) => (key === "cur"
-    ? { file: teleFile, header: teleHeader, laps: cmpLaps, meta: cmpMeta }
-    : stintTele[key]);
+  /* Bir kaynak anahtarı → kaynak nesnesi. Üç tip:
+     "cur" = yüklü dosya {file, header, laps, meta};
+     oturum-içi stint {file, header, laps, meta} (stintTele);
+     KALICI stint {traces:[...], laps, meta} (savedTrace — file/header YOK, izler hazır). */
+  const resolveSrc = (key) => {
+    if (key === "cur") return { file: teleFile, header: teleHeader, laps: cmpLaps, meta: cmpMeta };
+    if (stintTele[key]) return stintTele[key];   // oturum-içi tam çözünürlük önceliği
+    const sv = savedTrace[key];
+    if (sv) return { traces: sv.traces, laps: sv.laps, meta: sv.meta };
+    return undefined;
+  };
   /* Okuyucuları File kimliğiyle önbellekle (kaynak değişse de bayatlamaz; eşzamanlı çağrı promise paylaşır). */
   const getReaders = (file, header) => {
     const m = readersRef.current;
@@ -119,27 +141,69 @@ export function useTelemetry({ st, setSt }) {
   useEffect(() => {
     let alive = true;
     const sA = resolveSrc(cmpASrc), sB = resolveSrc(cmpBSrc);
-    if (!sA?.file || !sA?.header || !sB?.file || !sB?.header || cmpA == null || cmpB == null
-      || !sA.laps?.[cmpA] || !sB.laps?.[cmpB]) { setCmpData(null); return undefined; }
+    /* Her taraf ya KALICI (traces[idx] hazır) ya OTURUM-İÇİ (file+header'dan üretilecek).
+       İki taraf karışık olabilir (A kalıcı, B oturum-içi) — buildCompare kaynak-bağımsız. */
+    const okSide = (s, idx) => !!(s && idx != null && s.laps?.[idx]
+      && (s.traces?.[idx] || (s.file && s.header)));
+    if (!okSide(sA, cmpA) || !okSide(sB, cmpB)) { setCmpData(null); return undefined; }
     setCmpBusy(true);
     (async () => {
       try {
         const needDuck = sA.header?.duck || sB.header?.duck;
         const [ld, dk] = await Promise.all([
-          import("./ldTrace"),                                  // buildTrace + buildCompare
+          import("./ldTrace"),                                  // buildCompare (+ buildTrace)
           needDuck ? import("./duckTrace") : null,
         ]);
-        const rA = await getReaders(sA.file, sA.header);
-        const rB = (sA.file === sB.file) ? rA : await getReaders(sB.file, sB.header);
-        const tA = sA.header?.duck ? dk.buildDuckTrace : ld.buildTrace;   // kaynağa göre iz fonksiyonu
-        const tB = sB.header?.duck ? dk.buildDuckTrace : ld.buildTrace;
-        const cmp = ld.buildCompare(tA(rA, sA.laps[cmpA]), tB(rB, sB.laps[cmpB]));
+        /* Bir tarafın izini getir: kalıcıysa doğrudan al; değilse okuyuculardan üret.
+           Tüm izler TRACE_N noktada → buildCompare index-hizalı. */
+        const traceOf = async (s, idx) => {
+          if (s.traces?.[idx]) return s.traces[idx];
+          const r = await getReaders(s.file, s.header);
+          return s.header?.duck ? dk.buildDuckTrace(r, s.laps[idx], TRACE_N)
+            : ld.buildTrace(r, s.laps[idx], TRACE_N);
+        };
+        const [tA, tB] = await Promise.all([traceOf(sA, cmpA), traceOf(sB, cmpB)]);
+        const cmp = ld.buildCompare(tA, tB);
         if (alive) setCmpData(cmp);
       } catch { if (alive) setCmpData(null); }
       finally { if (alive) setCmpBusy(false); }
     })();
     return () => { alive = false; };
-  }, [cmpASrc, cmpBSrc, cmpA, cmpB, teleFile, teleHeader, cmpLaps, stintTele]);
+  }, [cmpASrc, cmpBSrc, cmpA, cmpB, teleFile, teleHeader, cmpLaps, stintTele, savedTrace]);
+
+  /* Kalıcı izleri yükle: yarış açılınca teleTrace'i BİR KEZ oku (iz yalnız stint
+     kaydında değişir → canlı dinlemeye gerek yok, bant genişliği tasarrufu).
+     Migration: düğüm yoksa savedTrace={} → davranış değişmez. */
+  useEffect(() => {
+    if (!curTeam || !curRace) { setSavedTrace({}); return undefined; }
+    let alive = true;
+    teleTraceGetAll(curTeam, curRace).then((all) => {
+      if (!alive) return;
+      if (!all || typeof all !== "object") { setSavedTrace({}); return; }
+      const out = {};
+      for (const sl of ["A", "B", "C", "D"]) {
+        const node = all[sl];
+        if (!node?.lap) continue;
+        const keys = Object.keys(node.lap).map(Number).filter(Number.isInteger).sort((a, b) => a - b);
+        const traces = keys.map((k) => unpackTrace(node.lap[k]));
+        const laps = Array.isArray(node.meta?.laps) ? node.meta.laps : keys.map(() => ({}));
+        out[sl] = { laps, meta: node.meta || null, traces, mapSrc: node.meta?.mapSrc || null };
+      }
+      setSavedTrace(out);
+      /* Dosya yüklenmemişken (yarış yeni açıldı) karşılaştırmayı otomatik ilk kayıtlı
+         stintin en hızlı turuna kur → harita + gaz/fren manuel seçim beklemeden gelir. */
+      if (!teleFile) {
+        const first = ["A", "B", "C", "D"].find((sl) => out[sl]?.traces?.some(Boolean));
+        if (first) {
+          const laps = out[first].laps;
+          const order = laps.map((_, i) => i).sort((a, b) => (laps[a]?.sec || 1e9) - (laps[b]?.sec || 1e9));
+          const best = order.find((i) => !laps[i]?.partial && out[first].traces[i]) ?? order[0] ?? 0;
+          setCmpASrc(first); setCmpBSrc(first); setCmpA(best); setCmpB(best);
+        }
+      }
+    }).catch(() => { if (alive) setSavedTrace({}); });
+    return () => { alive = false; };
+  }, [curTeam, curRace]);
 
   /* %105 kuralı saf `apply105Rule` (state.js) — kısmi/freak turları "en iyi" adayı
      saymaz (yarım tur tüm gerçek turların tikini kaldırmasın). */
@@ -148,6 +212,59 @@ export function useTelemetry({ st, setSt }) {
     if (!t0) return s;
     return { ...s, telemetry: { ...s.telemetry, [sl]: { ...t0, laps: apply105Rule(t0.laps) } } };
   });
+
+  /* Bir stintin TÜM (tam) turlarının izini üret → kompaktla → Firebase'e yaz.
+     Ağır iş (tur başına buildDuckTrace ~10-30 ms); UI'yı bloklamamak için 5'erli
+     chunk'lanır, ilerleme traceSaving ile bildirilir. Yalnız takım + editör/sahip
+     + yüklü dosya varken çalışır; yoksa sessizce atlanır (oturum-içi davranış korunur).
+     Hata graceful: stintTele oturum-içi zaten dolu, sadece kalıcılık atlanır. */
+  const persistTraces = async (sl, file, header, laps, meta) => {
+    if (!curTeam || !curRace || !role || role === "viewer" || !file || !header || !laps?.length) return;
+    // tam (kısmi olmayan) turlar; sınır aşılırsa en hızlı MAX_TRACE_LAPS tur
+    let idxs = laps.map((_, i) => i).filter((i) => laps[i] && !laps[i].partial);
+    if (!idxs.length) idxs = laps.map((_, i) => i);   // hepsi kısmi ise yine de sakla
+    let capped = false;
+    if (idxs.length > MAX_TRACE_LAPS) {
+      capped = true;
+      idxs = [...idxs].sort((a, b) => (laps[a].sec || 1e9) - (laps[b].sec || 1e9))
+        .slice(0, MAX_TRACE_LAPS).sort((a, b) => a - b);
+    }
+    setTraceSaving({ slot: sl, done: 0, total: idxs.length });
+    try {
+      const readers = await getReaders(file, header);
+      const dk = header?.duck ? await import("./duckTrace") : null;
+      const ld = header?.duck ? null : await import("./ldTrace");
+      const lapMap = {}; const metaLaps = []; let mapSrc = null; let done = 0;
+      for (const i of idxs) {
+        const tr = header?.duck ? dk.buildDuckTrace(readers, laps[i], TRACE_N)
+          : ld.buildTrace(readers, laps[i], TRACE_N);
+        const packed = tr ? packTrace(tr) : "";
+        if (packed && packed.length < MAX_TRACE_STR) {
+          if (!mapSrc && tr.mapSrc) mapSrc = tr.mapSrc;
+          lapMap[metaLaps.length] = packed;
+          metaLaps.push({ sec: laps[i].sec ?? null, lap: laps[i].lap ?? null, partial: !!laps[i].partial });
+        }
+        done++;
+        setTraceSaving({ slot: sl, done, total: idxs.length });
+        if (done % 5 === 0) await new Promise((r) => setTimeout(r));   // UI nefes alsın
+      }
+      if (!metaLaps.length) { setTraceSaving(null); return; }
+      await teleTraceSet(curTeam, curRace, sl, {
+        meta: { at: Date.now(), laps: metaLaps, n: metaLaps.length, mapSrc, capped },
+        lap: lapMap,
+      });
+      // optimistik: yeniden yükleme beklemeden kalıcı kaynak hazır olsun
+      setSavedTrace((prev) => ({ ...prev, [sl]: {
+        laps: metaLaps, meta, mapSrc,
+        traces: metaLaps.map((_, k) => unpackTrace(lapMap[k])),
+      } }));
+      setTraceSaving({ slot: sl, ok: true, n: metaLaps.length, capped });
+      setTimeout(() => setTraceSaving((s) => (s?.slot === sl && s.ok ? null : s)), 3000);
+    } catch (e) {
+      setTraceSaving({ slot: sl, error: e?.message || "iz kaydedilemedi" });
+      setTimeout(() => setTraceSaving((s) => (s?.slot === sl && s.error ? null : s)), 4500);
+    }
+  };
 
   /* ham log → mevcut tur modeline çevir (yakıt litre → VE %) */
   const saveMotec = () => {
@@ -177,6 +294,9 @@ export function useTelemetry({ st, setSt }) {
     if (teleFile && teleHeader && cmpLaps) {
       setStintTele((prev) => ({ ...prev,
         [slot]: { file: teleFile, header: teleHeader, laps: cmpLaps, meta: cmpMeta } }));
+      /* v2.2.3 — o stintin tüm turlarının izini Firebase'e KALICI yaz (harita +
+         gaz/fren program kapanınca da dursun). Async, kendi guard'ı var. */
+      persistTraces(slot, teleFile, teleHeader, cmpLaps, cmpMeta);
     }
     setParsed(null); setRawTele(""); setMapping(null);
     setSavedMsg(slot);
@@ -218,6 +338,8 @@ export function useTelemetry({ st, setSt }) {
   const removeSlot = (sl) => {
     setSt((s) => ({ ...s, telemetry: { ...s.telemetry, [sl]: null } }));
     setStintTele((prev) => { if (!prev[sl]) return prev; const n = { ...prev }; delete n[sl]; return n; });
+    setSavedTrace((prev) => { if (!prev[sl]) return prev; const n = { ...prev }; delete n[sl]; return n; });
+    teleTraceRemove(curTeam, curRace, sl);   // kalıcı izi de sil
     setCmpASrc((k) => (k === sl ? "cur" : k));
     setCmpBSrc((k) => (k === sl ? "cur" : k));
   };
@@ -227,19 +349,23 @@ export function useTelemetry({ st, setSt }) {
   const loadedSlots = ["A", "B", "C", "D"].filter((sl) => st.telemetry[sl]);
   const baseSlot = loadedSlots[0];
 
-  /* Karşılaştırma kaynakları: yüklü dosya ("cur") + iz verisi tutulan kayıtlı stint'ler. */
+  /* Karşılaştırma kaynakları: yüklü dosya ("cur") + iz verisi tutulan stint'ler.
+     Her slot için oturum-içi (stintTele, tam çözünürlük) önce; yoksa KALICI
+     (savedTrace, Firebase'ten). Böylece yeni yüklenen dosya oturum boyunca yüksek
+     çözünürlük, yarış yeniden açılışında kalıcı iz gösterir. */
   const cmpSources = useMemo(() => {
     const out = [];
     if (teleFile && cmpLaps?.length) out.push({ key: "cur", laps: cmpLaps, meta: cmpMeta });
     for (const sl of ["A", "B", "C", "D"]) {
       if (stintTele[sl]?.laps?.length) out.push({ key: sl, laps: stintTele[sl].laps, meta: stintTele[sl].meta });
+      else if (savedTrace[sl]?.laps?.length) out.push({ key: sl, laps: savedTrace[sl].laps, meta: savedTrace[sl].meta });
     }
     return out;
-  }, [teleFile, cmpLaps, cmpMeta, stintTele]);
+  }, [teleFile, cmpLaps, cmpMeta, stintTele, savedTrace]);
 
   return { slot, setSlot, chartMode, setChartMode, rawTele, setRawTele, parsed, mapping,
     setMapping, onTeleFile, doParse, apply105Slot, saveMotec, saveSlot, toggleLap,
     removeSlot, slotStats, chartData, loadedSlots, baseSlot,
     cmpLaps, cmpMeta, cmpA, setCmpA, cmpB, setCmpB, cmpData, cmpBusy, savedMsg,
-    cmpSources, cmpASrc, setCmpASrc, cmpBSrc, setCmpBSrc };
+    cmpSources, cmpASrc, setCmpASrc, cmpBSrc, setCmpBSrc, traceSaving };
 }

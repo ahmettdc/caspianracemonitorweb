@@ -158,6 +158,71 @@ describe("tur/override reducer'ları", () => {
     expect(r.overrides[0]).toBe("0:30:00");
     expect(r.lapOverrides[0]).toBe("");
   });
+  /* v2.2.3 — SAHA HATASI: OVERRIDE alanı h:mm:ss bekler ama parseHMS çıplak sayıyı
+     SANİYE okur. Kullanıcı 3. stinti 31 tura çekerken 4. stintin OVERRIDE alanına "31"
+     yazınca 31 sn'lik stint çıkmış, walkByTime 0 tur döndürüp Math.max(1,·) stinti
+     1 TURA düşürmüş; taşan turlar plana fazladan satır eklemiş ve TÜM stint numaraları
+     kaymıştı (7. stintteyken uygulama 8 diyordu). Bir turdan kısa override artık yok
+     sayılır ve satır ovrIgnored ile işaretlenir. */
+  const planSt = () => base({ raceTime: "08:00:00", avgLap: "1:46.50", consumption: 3.33,
+    strategies: { C: 30 }, chosen: "C", pitLaneTime: 40, fuelTime: 30 });
+
+  /* İKİ NOKTASIZ her değer yok sayılır. Yalnız "bir turdan kısa" elemesi YETMİYORDU:
+     120 sn bir turdan (106.5 sn) uzun olduğu için geçiyor ve yine 1 turluk stint +
+     plan kayması yapıyordu. Birim belirsiz olduğu için tamamı reddedilir. */
+  it("çıplak sayı override'ı (birimsiz) yok sayılır — hiçbir değerde plan kaymaz", () => {
+    const st = planSt();
+    const temiz = computePlan(st, "race");
+    expect(temiz.rows[3].ovrIgnored).toBe(false);
+    for (const v of ["1", "31", "100", "120", "200", "600", "1800", "3195", "99999"]) {
+      const ovr = [...st.overrides]; ovr[3] = v;
+      const p = computePlan({ ...st, overrides: ovr }, "race");
+      expect(p.rows.length, `"${v}" plan satırı`).toBe(temiz.rows.length);
+      expect(p.rows[3].lapsInStint, `"${v}" tur`).toBe(temiz.rows[3].lapsInStint);
+      expect(p.rows[3].ovrIgnored, `"${v}" işaret`).toBe(true);
+    }
+  });
+
+  it("iki noktalı ama bir turdan kısa override da yok sayılır", () => {
+    const st = planSt();
+    const ovr = [...st.overrides]; ovr[3] = "0:00:31";
+    const p = computePlan({ ...st, overrides: ovr }, "race");
+    expect(p.rows[3].ovrIgnored).toBe(true);
+    expect(p.rows[3].lapsInStint).toBeGreaterThan(1);
+  });
+
+  /* Gerçek girdiler bozulmamalı — applyMarkPit'in yazdığı otomatik değerler de
+     fmtHMS ile HEP iki noktalıdır, bu yüzden etkilenmez. */
+  it("geçerli süre override'ları (h:mm:ss ve mm:ss) çalışmaya devam eder", () => {
+    const st = planSt();
+    for (const [v, sn] of [["0:43:20", 2600], ["53:15", 3195], ["0:53:15", 3195], ["1:10:00", 4200]]) {
+      const ovr = [...st.overrides]; ovr[3] = v;
+      const p = computePlan({ ...st, overrides: ovr }, "race");
+      expect(p.rows[3].ovrIgnored, `"${v}"`).toBe(false);
+      expect(Math.round(p.rows[3].stintSec), `"${v}" süre`).toBe(sn);
+      expect(p.rows[3].lapsInStint).toBeGreaterThan(1);
+    }
+  });
+
+  /* v2.2.3 — autoOvr bayat kalıyordu: bumpLaps/upOvr overrides[i]'yi değiştirirken
+     "otomatik yazıldı" bayrağını düşürmüyordu. Sonuç: gerçek pit işaretlenmiş bir
+     stintte ELLE yapılan düzeltme hâlâ otomatik sayılıyor ve applyResetPits onu
+     siliyordu — oysa sözleşmesi elle girileni KORUMAK. */
+  it("bumpLaps süre override'ını silerken autoOvr bayrağını da düşürür", () => {
+    const s = base({ overrides: ["0:55:02"], autoOvr: [true] });
+    const r = applyBumpLaps(s, 0, 30, 1);
+    expect(r.overrides[0]).toBe("");
+    expect(r.autoOvr[0]).toBe(false);
+  });
+
+  it("elle yazılan override otomatik sayılmaz → resetPits onu KORUR", () => {
+    let s = base({ overrides: ["0:55:02"], autoOvr: [true] });
+    s = applyBumpLaps(s, 0, 30, 1);          // otomatiği temizle
+    s = applyUpOvr(s, 0, "0:55:02");         // kullanıcı elle yazdı
+    expect(s.autoOvr[0]).toBe(false);
+    expect(applyResetPits(s).overrides[0]).toBe("0:55:02");
+  });
+
   it("upStintLap: stinte özel tur süresi yazar", () => {
     expect(applyUpStintLap(base(), 2, "3:58.00").stintLaps[2]).toBe("3:58.00");
   });

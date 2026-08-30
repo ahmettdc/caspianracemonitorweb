@@ -274,7 +274,24 @@ export function computePlan(st, mode /* "race" | "code80" */) {
     const rows = [];
     let cum = 0;
     for (let i = 0; i < MAX_STINTS; i++) {
-      const ovr = parseHMS(st.overrides[i] || "");
+      /* Süre override'ı — İKİ mantıksız girdi yok sayılır (stintLaps'teki "makul
+         değilse yok say" deseniyle aynı). Sebep: alan h:mm:ss bekler ama parseHMS
+         çıplak sayıyı SANİYE okur; kullanıcı tur sayısı sanıp "31" yazınca 31 sn'lik
+         stint çıkıyor, walkByTime 0 tur döndürüyor ve Math.max(1,·) stinti 1 TURA
+         düşürüyor. O turlar sonraki stintlere taşınca plan bir satır uzuyor ve TÜM
+         stint numaraları kayıyor (kullanıcı 7. stintteyken uygulama 8 diyordu).
+           1) İKİ NOKTASIZ değer ("31", "120", "600"): birim belirsiz — saniye demek
+              istemez kimse. Sadece "bir turdan kısa" elemesi yetmiyordu: 120 sn bir
+              turdan uzun olduğu için geçiyor ve yine 1 turluk stint + kayma yapıyordu.
+           2) Bir TURDAN KISA değer ("0:00:31"): iki noktalı ama stint olamaz.
+         applyMarkPit'in yazdığı otomatik değerler fmtHMS ile HEP iki noktalıdır ve
+         gerçek stint süresidir → etkilenmez. Yok sayılan satır `ovrIgnored` ile
+         işaretlenir → tablo uyarır, kullanıcı sessizce yanlış plana bakmaz. */
+      const ovrStr = String(st.overrides[i] || "").trim();
+      const ovrRaw = parseHMS(ovrStr);
+      const ovrIgnored = ovrRaw > 0
+        && (!ovrStr.includes(":") || (baseLap > 0 && ovrRaw < baseLap));
+      const ovr = ovrIgnored ? 0 : ovrRaw;
       // stinte özel tur süresi — makul değilse (yazım hatası) YOK SAY → yarış ort. kullanılır
       const fixRaw = parseLap(st.stintLaps?.[i] || "") || 0;
       const fixLap = fixRaw >= MIN_LAP_SEC ? fixRaw : 0;
@@ -343,6 +360,7 @@ export function computePlan(st, mode /* "race" | "code80" */) {
       rows.push({
         idx: i + 1,
         fixLap,
+        ovrIgnored,
         stintSec, pitSec, tyreCount, repairSec,
         endSec: endStint,
         timeLeft: raceSec - endStint,

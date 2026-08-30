@@ -101,7 +101,18 @@ export function applyUpOvr(s0, i, val) {
     const lapOverrides = [...(s.lapOverrides || [])]; lapOverrides[i] = "";
     patch.lapOverrides = lapOverrides;
   }
+  /* Değeri artık KULLANICI yazdı → "otomatik" bayrağı düşer. Düşmezse, gerçek pit
+     işaretlenmiş bir stintte elle yapılan düzeltme hâlâ otomatik sayılır ve
+     applyResetPits/applyUnmarkPit onu siler — oysa sözleşme elle girileni KORUMAK. */
+  patch.autoOvr = clearAuto(s, i);
   return { ...s, ...patch };
+}
+
+/* autoOvr[i] bayrağını düşür (dizi kopyası döner; dizi yoksa boş kopya). */
+function clearAuto(s, i) {
+  const autoOvr = [...(s.autoOvr || [])];
+  if (autoOvr[i]) autoOvr[i] = false;
+  return autoOvr;
 }
 
 /* Tur manuel override: computed'dan başlayıp ±adım; time override'ı temizler */
@@ -111,7 +122,9 @@ export function applyBumpLaps(s0, i, curLaps, delta) {
   const base = Number(lapOverrides[i]) || curLaps;
   lapOverrides[i] = String(Math.max(1, base + delta));
   const overrides = [...s.overrides]; overrides[i] = ""; // karşılıklı dışlama
-  return { ...s, lapOverrides, overrides };
+  /* süre override'ı silindiğine göre "otomatik yazıldı" bayrağı da düşmeli — bayat
+     kalırsa sonraki elle girişler otomatik sanılıp sıfırlamalarda siliniyordu */
+  return { ...s, lapOverrides, overrides, autoOvr: clearAuto(s, i) };
 }
 
 export function applyClearLaps(s0, i) {

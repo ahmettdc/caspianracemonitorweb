@@ -4,6 +4,7 @@ import App from "./App.jsx";
 import { ConfirmHost, Icon } from "./components.jsx";
 import { isTauri } from "./tauriEnv";
 import { css } from "./styles";
+import { installChatDiag } from "./chatDiag";
 
 /* Tema CSS'i boot'ta BİR KEZ <head>'e basılır. Eskiden her gate dalı kendi
    <style>{css}</style>'ını taşıyordu → her ekran geçişinde ~80 KB CSS'in
@@ -11,6 +12,10 @@ import { css } from "./styles";
 const themeStyle = document.createElement("style");
 themeStyle.textContent = css;
 document.head.appendChild(themeStyle);
+
+/* Sohbet penceresi teşhisi: konsoldan __rcChatDiag() ile ölçüm alınabilsin.
+   (Sorun tespit edilirse pencere açılışında zaten kendiliğinden uyarı basar.) */
+installChatDiag();
 
 /* Hata sınırı: bir render hatası tüm uygulamayı karartmasın.
    Fallback yine kendi inline stilini taşır — tema CSS'ine bağımlı kalmasın. */

@@ -269,8 +269,14 @@ export default function StintTab({
                     </td>
                     <td style={td()}>{fmtHMS(r.endSec)}</td>
                     <td style={{ ...td(), color: r.timeLeft < 0 ? "var(--rc-danger)" : "var(--rc-ok)" }}>{fmtHMS(r.timeLeft)}</td>
+                    {/* Bir turdan kısa süre override'ı YOK SAYILIR (engine.js) — sessiz
+                        kalmasın diye alan kırmızı çerçevelenir ve sebebi title'da yazar.
+                        Çıplak sayı SANİYE okunur: "31" → 31 sn, tur sayısı değil. */}
                     <td style={td(true)}><input className="ovr" type="text" placeholder="h:mm:ss" disabled={lapOvr}
-                      title={lapOvr ? t("Tur override aktif — önce onu temizle") : undefined}
+                      title={lapOvr ? t("Tur override aktif — önce onu temizle")
+                        : r.ovrIgnored ? t("Geçersiz süre — yok sayıldı. Saat:dakika:saniye yazın (örn. 0:53:15 ya da 53:15). Düz sayı saniye demektir ve stint süresi olamaz.")
+                          : undefined}
+                      style={r.ovrIgnored ? { borderColor: "var(--rc-danger)", color: "var(--rc-danger)" } : undefined}
                       value={st.overrides[i] || ""} onChange={(e) => upOvr(i, e.target.value)} /></td>
                   </tr>
                 );

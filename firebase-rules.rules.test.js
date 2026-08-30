@@ -333,6 +333,31 @@ describe("teams/chat + raceState + badges", () => {
     await assertSucceeds(set(ref(db("bob"), "teams/team1/raceState"), { rev: 1, stateJson: "{}" }));
     await assertFails(set(ref(db("carol"), "teams/team1/raceState"), { rev: 1, stateJson: "{}" }));
   });
+  it("teleTrace: editor iz yazar, viewer yazamaz, üye okur", async () => {
+    const lap = { meta: { at: 1, laps: [] }, lap: { 0: "1;2;m;100;\nti:0,1" } };
+    await assertSucceeds(set(ref(db("bob"), "teams/team1/teleTrace/race1/A"), lap));
+    await assertFails(set(ref(db("carol"), "teams/team1/teleTrace/race1/A"), lap));
+    await assertSucceeds(get(ref(db("carol"), "teams/team1/teleTrace/race1")));   // viewer okur
+    await assertFails(get(ref(db("dave"), "teams/team1/teleTrace/race1")));        // yabancı okuyamaz
+  });
+  it("teleTrace: 40000 karakterden uzun iz yaprağı reddedilir", async () => {
+    await assertFails(set(ref(db("bob"), "teams/team1/teleTrace/race1/B"),
+      { meta: { at: 1 }, lap: { 0: "x".repeat(40001) } }));
+  });
+  /* meta VAR ama `at` yok → reddedilmeli.
+     DİKKAT: meta'nın içi boş bırakılamaz ({} ya da {laps:[]}) — RTDB boş düğümü
+     siler, `meta` hiç oluşmaz ve null düğümde .validate ÇALIŞMAZ, yazma geçer.
+     (İlk yazımda tam bu yüzden test yanlış kurulmuş ve CI'da kırılmıştı.)
+     Bu yüzden meta dolu ama `at`'siz gönderilir. */
+  it("teleTrace: meta var ama at (sayı) yoksa reddedilir", async () => {
+    await assertFails(set(ref(db("bob"), "teams/team1/teleTrace/race1/C"),
+      { meta: { n: 2 }, lap: { 0: "1;2;m;100;\nti:0,1" } }));
+    await assertFails(set(ref(db("bob"), "teams/team1/teleTrace/race1/C"),
+      { meta: { at: "dun" }, lap: { 0: "1;2;m;100;\nti:0,1" } }));   // at sayı değil
+    // pozitif kontrol: at sayı olunca aynı yazım geçer (kural her şeyi reddetmiyor)
+    await assertSucceeds(set(ref(db("bob"), "teams/team1/teleTrace/race1/C"),
+      { meta: { at: 1, n: 2 }, lap: { 0: "1;2;m;100;\nti:0,1" } }));
+  });
   it("badges: yalnız owner yazar (editor bile yazamaz)", async () => {
     await assertSucceeds(set(ref(db("alice"), "teams/team1/badges/bob"), { engineer: true }));
     await assertFails(set(ref(db("bob"), "teams/team1/badges/bob"), { engineer: true }));

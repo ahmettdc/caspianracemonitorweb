@@ -18,6 +18,7 @@ import { renameTeam, syncMyTeamName, createSeason, deleteRace,
   getUserAvatar, saveTeamAsset, clearTeamAsset,
   removeMember, transferOwnership, regenerateJoinCode, deleteTeam, updateRace } from "./storage";
 import { processImageFile, IMG_ACCEPT_TYPES } from "./imageUpload";
+import { reportChat, chatDiagEnabled } from "./chatDiag";
 import { carAssetKey, teamLogoSrc } from "./teamAssets";
 import { _bindConfirm, confirmDialog, promptDialog } from "./confirm";
 import { extHref } from "./tauriEnv";
@@ -1453,6 +1454,19 @@ export function RaceEditModal({ rForm, setRForm, t, seasons, onSave, onProceed, 
    gelir. open=false → null döner. */
 export function ChatModal({ open, onClose, t, lang, chatSound, toggleChatSound, chatChans,
   unreadOf, chatChan, setChatChan, teamData, curChan, chatBody, chatAll, fmtClock }) {
+  /* Teşhis ölçümü v2.2.3 hatası çözüldüğü için artık normal kullanımda ÇALIŞMAZ.
+     Yalnız hata ayıklama bayrağı açıkken (adres sonuna ?debug=chat, ya da
+     localStorage.rc_debug_chat="1") pencere açılışında otomatik ölçüm alınır;
+     reportChat kendi içinde de bu bayrağı kontrol eder (çift emniyet).
+     Bayraksız kullanıcıda hook erken çıkar → sıfır maliyet, sıfır log/panel.
+     Konsoldan __rcChatDiag() her zaman elle çağrılabilir (bkz. chatDiag.js).
+     Hook koşulsuz — erken return'den ÖNCE (React hook kuralları). */
+  useEffect(() => {
+    if (!open || !chatDiagEnabled()) return undefined;
+    const timer = setTimeout(() => reportChat(), 450);
+    return () => clearTimeout(timer);
+  }, [open, chatChans, chatChan]);
+
   if (!open) return null;
   const nameOf = (c) => (c.id === "team" ? (teamData?.meta?.name || t(c.lbl)) : t(c.lbl));
   const metaOf = (c) => (c.id === "team" ? t("takım kanalı") : c.id === "global" ? t("genel kanal") : t("yarışa özel kanal"));
@@ -1460,32 +1474,50 @@ export function ChatModal({ open, onClose, t, lang, chatSound, toggleChatSound, 
   return (
     <div className="rc" onClick={onClose} role="dialog" aria-modal="true"
       style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(10,6,10,.86)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
-      {/* v2.2.2 — Sol KANALLAR paneli bazı GPU/tarayıcılarda (Opera GX, Chrome) boş
-          kalıyordu (arka plan bile boyanmıyor). Neden: animasyonlu overlay (opacity)
-          kutuyu composite bir katmana yükseltince, yuvarlatılmış overflow:hidden kutunun
-          İLK flex çocuğu (sol panel) Blink tarafından boyanmadan düşürülüyor. `isolation`
-          ve `position/zIndex` yalnız stacking context yaratır — compositing katmanı DEĞİL;
-          bu yüzden yetmedi. Çözüm: kutuyu VE sol paneli `translateZ(0)` ile kendi GPU
-          katmanlarına zorluyoruz → yuvarlak kırpma doğru rasterize ediliyor, ilk çocuk
-          her zaman boyanıyor. Giriş animasyonu yalnız-opaklık (rcfade); rcpop transform'u
-          animasyon bitince `transform:none` yapıp bu katmanı bozacağı için kullanılmıyor. */}
-      <div onClick={(e) => e.stopPropagation()}
-        style={{ width: "min(940px,96vw)", height: "min(660px,88vh)", display: "flex", flexWrap: "wrap", gap: 0, isolation: "isolate", transform: "translateZ(0)", willChange: "transform", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcfade .2s ease" }}>
+      {/* v2.2.3 — "Sol KANALLAR paneli görünmüyor" hatasının GERÇEK sebebi.
+          v2.2.1/v2.2.2'deki "GPU compositing" teşhisi YANLIŞTI; panel her zaman
+          boyanıyordu. Kullanıcının cihazından alınan ölçüm (bkz. chatDiag.js) şunu
+          gösterdi: kutu y=157 h=660 iken ÇOCUKLARI y=-13 h=911 — yani içerik
+          kutudan 251px uzun ve 170px yukarıdan başlıyor. Zincir:
+            1) Buradaki flexWrap:"wrap" yüzünden flex SATIRI, kutunun kesin
+               yüksekliğine sığdırılmak yerine içeriğin doğal boyuna uzuyordu
+               (mesaj listesi ne kadar uzunsa o kadar). align-items:stretch ile
+               iki sütun da o boya çekiliyordu.
+            2) Kutu böylece taşan içeriğe sahip oldu. overflow:hidden KULLANICI
+               kaydırmasını engeller, PROGRAMATİK kaydırmayı engellemez.
+            3) useChat'teki chatEndRef.scrollIntoView({block:"end"}) (sohbeti en
+               alta getirme) kaydırılabilir TÜM ataları kaydırır — kutu dahil.
+               Ölçümde kutu scrollTop=2182 (scrollHeight 2921 / client 658).
+            4) Sonuç: sol başlık, kanal listesi ve sağ başlık kırpma çizgisinin
+               ÜSTÜNE itilip yok oluyordu. Aşağı uzanan mesajlar görünmeye devam
+               ettiği için hata "sadece sol panel boş" gibi görünüyordu.
+          ÇÖZÜM: flexWrap:"nowrap" — satır artık kutunun yüksekliğiyle sınırlı,
+          kaydırma tasarlandığı yerde (ChatPanel'in kendi listesinde) kalıyor.
+          Sütunlardaki minHeight:0 bu iç kaydırmanın flex'te doğru çalışması için
+          şart. Sol panel flex:"0 1 280px" ile dar ekranda taşmak yerine küçülür
+          (wrap kaldırıldığı için alt satıra düşemez).
+          AYRICA (ayrı ve gerçek bir hata, v2.2.3'te düzeltildi): kanal
+          <button>'ları inline color vermiyordu; <button> metin rengini miras
+          ALMAZ, UA color:buttontext (siyah) atar → koyu panelde kontrast 1.08:1.
+          Butona açık color verildi, styles.js'e .rc button{color:inherit} ve
+          :root{color-scheme:dark} eklendi. */}
+      <div onClick={(e) => e.stopPropagation()} data-rc-chat="box"
+        style={{ width: "min(940px,96vw)", height: "min(660px,88vh)", display: "flex", flexWrap: "nowrap", gap: 0, isolation: "isolate", transform: "translateZ(0)", willChange: "transform", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcfade .2s ease" }}>
         {/* sol: Kanallar */}
-        <div style={{ flex: "0 0 280px", minWidth: 220, position: "relative", zIndex: 1, transform: "translateZ(0)", background: "var(--rc-surface)", borderRight: "1px solid var(--rc-border)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--rc-border)", display: "flex", alignItems: "center", gap: 8 }}>
+        <div data-rc-chat="panel" style={{ flex: "0 1 280px", minWidth: 220, minHeight: 0, position: "relative", zIndex: 1, transform: "translateZ(0)", background: "var(--rc-surface)", borderRight: "1px solid var(--rc-border)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div data-rc-chat="panel-hdr" style={{ padding: "14px 16px", borderBottom: "1px solid var(--rc-border)", display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 15, fontWeight: 700 }}>{t("Kanallar")}</span>
             <button onClick={toggleChatSound} title={chatSound ? t("Bildirim sesini kapat") : t("Bildirim sesini aç")}
               style={{ marginLeft: "auto", background: "none", border: "none", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 15 }}>{chatSound ? <Icon name="zil" size={15} /> : <Icon name="zil-kapali" size={15} />}</button>
           </div>
-          <div style={{ overflowY: "auto", padding: 8 }}>
+          <div data-rc-chat="panel-list" style={{ overflowY: "auto", padding: 8 }}>
             {chatChans.map((c) => {
               const on = c.id === chatChan;
               const u2 = unreadOf(c);
               const last = lastOf(c);
               return (
-                <button key={c.id} onClick={() => setChatChan(c.id)}
-                  style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 11px", borderRadius: 10, cursor: "pointer", marginBottom: 2,
+                <button key={c.id} onClick={() => setChatChan(c.id)} data-chat-chan={c.id}
+                  style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 11px", borderRadius: 10, cursor: "pointer", marginBottom: 2, color: "var(--rc-text)",
                     border: `1px solid ${on ? "var(--rc-border-strong)" : "transparent"}`, background: on ? "var(--rc-surface-3)" : "transparent" }}>
                   <span style={{ width: 30, height: 30, flex: "0 0 auto", borderRadius: 9, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 15, background: "var(--rc-surface-2)", border: "1px solid var(--rc-border)" }}>{c.ico}</span>
                   <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0, flex: 1, textAlign: "left" }}>
@@ -1502,8 +1534,8 @@ export function ChatModal({ open, onClose, t, lang, chatSound, toggleChatSound, 
           </div>
         </div>
         {/* sağ: mesaj sütunu */}
-        <div style={{ flex: "1 1 420px", minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--rc-border)", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div data-rc-chat="msgs" style={{ flex: "1 1 420px", minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div data-rc-chat="msgs-hdr" style={{ padding: "12px 18px", borderBottom: "1px solid var(--rc-border)", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".06em", fontSize: 17, fontWeight: 700 }}>{curChan ? nameOf(curChan) : t("Sohbet")}</span>
             {curChan && <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{metaOf(curChan)}</span>}
             <button onClick={onClose} style={{ marginLeft: "auto", width: 30, height: 30, borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 14, lineHeight: 1 }}>✕</button>

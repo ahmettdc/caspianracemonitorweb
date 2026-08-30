@@ -5,6 +5,28 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v2.2.3",
+    date: "2026-08-29",
+    tr: [
+      "✅ ÇÖZÜLDÜ: Sohbet penceresinde sol taraftaki kanal listesi (Genel, Takım…) ve üstteki başlık çubuğu görünmüyordu. Sebep, iki sürümdür sanıldığı gibi ekran kartı değilmiş: pencerenin içeriği kutudan uzun kalıyor, sohbet açılırken otomatik olarak en alta kaydırılınca da pencerenin TAMAMI birlikte kayıyor ve başlıklar ile kanal listesi yukarıda kırpılıyordu. Artık kaydırma yalnızca mesaj listesinde oluyor; kanallar, başlık ve kapatma düğmesi her zaman yerinde.",
+      "🔤 Kanal isimleri koyu zeminde siyah çiziliyordu (okunamıyordu); artık tema rengiyle net görünüyor. Aynı hatanın başka ekranlarda çıkmaması için buton ve form alanları uygulama genelinde temanın metin rengini kullanıyor.",
+      "📱 Dar ekranlarda sohbet penceresi bozulmuyor: mesaj sütunu alt satıra düşmüyor, kanal paneli yer daraldıkça küçülüyor.",
+      "🔍 Sohbet penceresi açılırken kendini denetliyor; bir şey görünmezse tarayıcı konsoluna uyarı basıyor. Adresin sonuna ?debug=chat eklenirse ölçümü ekranda gösteren bir teşhis paneli açılıyor (tablet/telefonda konsol gerekmeden).",
+      "🧮 ÖNEMLİ (plan tablosu): Bir stintin OVERRIDE hücresine süre yerine düz sayı yazılınca (örn. tur sayısı sanıp \"31\") uygulama bunu 31 SANİYE okuyup o stinti 1 tura düşürüyordu; taşan turlar plana fazladan bir satır ekliyor ve tüm stint numaraları kayıyordu (7. stintteyken uygulama 8 diyordu). Artık saat:dakika:saniye biçiminde OLMAYAN her giriş yok sayılıyor, hücre kırmızı çerçeveleniyor ve doğru biçim (0:53:15 ya da 53:15) açıklanıyor. Gerçek pit işaretlemesinden gelen otomatik süreler bu biçimde yazıldığı için etkilenmiyor.",
+      "🔒 Gerçek pit işaretlenmiş bir stintte tur sayısını elle değiştirip sonra süre yazdığınızda, o değer hâlâ \"otomatik\" sayıldığı için pit sıfırlamalarında siliniyordu. Artık elle girdiğiniz değer korunuyor.",
+      "📈 Telemetri: pist haritası ve gaz/fren grafikleri artık KALICI. Bir stint kaydettiğinizde o stintteki turların izi buluta (takımınıza) yazılıyor; yarışı kapatıp açınca harita ve grafikler geri geliyor, takım arkadaşlarınız da görebiliyor. Önceden bu veri yalnız yüklediğiniz dosya bellekteyken duruyordu, program kapanınca gidiyordu.",
+    ],
+    en: [
+      "✅ FIXED: The chat window's left channel list (General, Team…) and the top header bar were invisible. The cause was not the graphics card, as the previous two releases assumed: the window's content stayed taller than its frame, so when the chat auto-scrolled to the newest message, the WHOLE window scrolled with it and clipped the headers and channel list out of view. Scrolling now happens only inside the message list; channels, header and close button always stay put.",
+      "🔤 Channel names were painted black on the dark panel (unreadable); they now use the theme's text color. To stop the same class of bug elsewhere, buttons and form fields inherit the theme's text color app-wide.",
+      "📱 The chat window no longer breaks on narrow screens: the message column stays beside the channel list instead of dropping below it, and the channel panel shrinks as space gets tight.",
+      "🔍 The chat window self-checks when it opens and warns in the browser console if anything is invisible. Add ?debug=chat to the address for an on-screen diagnostic panel (no console needed on tablets/phones).",
+      "🧮 IMPORTANT (plan table): Typing a plain number into a stint's OVERRIDE cell (e.g. \"31\", meaning laps) was read as 31 SECONDS, collapsing that stint to 1 lap; the spilled laps added an extra row and shifted every stint number (the app said stint 8 while you were on 7). Anything not written as hours:minutes:seconds is now ignored, the cell is outlined in red, and the correct format (0:53:15 or 53:15) is explained. Automatic durations from marking a real pit use that format, so they are unaffected.",
+      "🔒 On a stint with a real pit marked, changing the lap count by hand and then typing a duration left that value flagged as \"automatic\", so pit resets wiped it. Values you type by hand are now preserved.",
+      "📈 Telemetry: the track map and throttle/brake charts are now PERSISTENT. When you save a stint, the traces of that stint's laps are written to the cloud (your team); reopen the race and the map and charts come back, and teammates can see them too. Previously this data existed only while the file you loaded was in memory and vanished when the app closed.",
+    ],
+  },
+  {
     v: "v2.2.2",
     date: "2026-08-28",
     tr: [

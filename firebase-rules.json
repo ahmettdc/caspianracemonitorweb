@@ -100,6 +100,22 @@
           ".read": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && root.child('teams').child($tid).child('members').child(auth.uid).exists()",
           ".write": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && (root.child('teams').child($tid).child('members').child(auth.uid).val() == 'owner' || root.child('teams').child($tid).child('members').child(auth.uid).val() == 'editor')"
         },
+        "teleTrace": {
+          ".read": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && root.child('teams').child($tid).child('members').child(auth.uid).exists()",
+          "$rid": {
+            ".write": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && (root.child('teams').child($tid).child('members').child(auth.uid).val() == 'owner' || root.child('teams').child($tid).child('members').child(auth.uid).val() == 'editor')",
+            "$slot": {
+              "meta": {
+                ".validate": "newData.hasChild('at') && newData.child('at').isNumber()"
+              },
+              "lap": {
+                "$i": {
+                  ".validate": "newData.isString() && newData.val().length < 40000"
+                }
+              }
+            }
+          }
+        },
         "live": {
           ".read": "auth != null && (root.child('bridgeBots').child(auth.uid).val() == true || (root.child('users').child(auth.uid).child('allowed').val() == true && root.child('teams').child($tid).child('members').child(auth.uid).exists()))",
           "$rid": {
