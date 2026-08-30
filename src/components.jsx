@@ -1565,12 +1565,19 @@ const SVM_FIELDS = {
   FastReboundSetting: "Hızlı Yaylanma", CompoundSetting: "Lastik Hamuru",
 };
 
-/* Kategori kimliği → görünen ad + ikon (setupParse SETUP_CATS sırasında çizilir). */
+/* Kategori kimliği → görünen ad + ikon (setupParse SETUP_CATS sırasında çizilir).
+   §İK (TELE-FİŞİ EK, 28 Ağu 2026): çipler ve grup başlıkları EMOJİ KULLANMAZ —
+   İkon Seti çizgi ikonları. Fişteki eşleme tablosu birebir:
+     aero→aero · tyre→lastik · susp→mekanik (yay/amortisör) · align→geometri
+     brake→fren · diff→ayar (dişli) · elec→kontrol (sürgüler) · engine→anahtar
+   (susp/diff eskiden TERS eşlenmişti; elec/engine emoji kalmıştı.) `other` fişte
+   yok → nötr madde imi korunur. */
 const CAT_META = {
   aero: { tr: "Aero", icon: <Icon name="aero" size={14} /> }, tyre: { tr: "Lastik", icon: <Icon name="lastik" size={14} /> },
-  susp: { tr: "Süspansiyon", icon: <Icon name="ayar" size={14} /> }, align: { tr: "Hizalama", icon: <Icon name="geometri" size={14} /> },
-  brake: { tr: "Fren", icon: <Icon name="fren" size={14} /> }, diff: { tr: "Diferansiyel", icon: <Icon name="mekanik" size={14} /> },
-  elec: { tr: "Elektronik", icon: "💡" }, engine: { tr: "Motor & Yakıt", icon: "🛢" },
+  susp: { tr: "Süspansiyon", icon: <Icon name="mekanik" size={14} /> }, align: { tr: "Hizalama", icon: <Icon name="geometri" size={14} /> },
+  brake: { tr: "Fren", icon: <Icon name="fren" size={14} /> }, diff: { tr: "Diferansiyel", icon: <Icon name="ayar" size={14} /> },
+  elec: { tr: "Elektronik", icon: <Icon name="kontrol" size={14} /> },
+  engine: { tr: "Motor & Yakıt", icon: <Icon name="anahtar" size={14} /> },
   other: { tr: "Diğer", icon: "•" },
 };
 
@@ -1763,12 +1770,22 @@ export function SetupContentModal({ open, su, onClose, t, onDownload, onAddCompa
    sekmesinde gösterir. `setup` = ham VM_/WM_ JSON (cmpMeta.setup). Özet çipleri +
    "Detay" ile kategorili tam görünüm (Setup İçerik penceresiyle aynı düzen, aynı
    categorizeSetup/CAT_META) + "⬆ Havuza Kaydet" (onSave). onSave yoksa buton yok. */
-export function SessionSetupBox({ setup, meta, t, onSave }) {
+/* openSignal (§BS): Seans kutusundaki "Bu seansın setup'ı" butonu her tıklandığında
+   ARTAN sayaç. Değişince bu kart Detay'a açılır + görünüme kaydırılır. Fişteki §İM-3
+   ayrı bir modal öngörüyordu; bu uygulamada setup içeriği zaten sayfa-içi bir KART
+   olduğundan modal uydurmak yerine mevcut kart hedeflenir (aynı niyet, tek kaynak). */
+export function SessionSetupBox({ setup, meta, t, onSave, openSignal = 0 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [err, setErr] = useState("");
+  const boxRef = useRef(null);
+  useEffect(() => {
+    if (!openSignal) return;                    // 0 = hiç tıklanmadı
+    setOpen(true);
+    boxRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [openSignal]);
   if (!setup) return null;
   const parsed = duckSetupToParsed(setup);
   if (!parsed.ok) return null;
@@ -1794,7 +1811,7 @@ export function SessionSetupBox({ setup, meta, t, onSave }) {
   const segBtn = (on) => ({ padding: "7px 14px", borderRadius: 8, cursor: "pointer", fontSize: 12, whiteSpace: "nowrap",
     border: `1px solid ${on ? "var(--rc-brand-bright)" : "var(--rc-border)"}`, background: on ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)", color: on ? "var(--rc-text)" : "var(--rc-text-2)" });
   return (
-    <div style={{ border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)", padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+    <div ref={boxRef} style={{ border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)", padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
         <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".07em", fontSize: 15, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 8 }}><Icon name="somun" size={14} /> {t("Bu Seansın Setup'ı")}</span>
         <span style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: ".09em", padding: "2px 8px", borderRadius: 99, border: "1px solid var(--rc-ok)", color: "var(--rc-ok)" }}>{t("YENİ")}</span>

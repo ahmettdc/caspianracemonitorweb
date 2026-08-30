@@ -706,6 +706,10 @@ export const EN = {
     "Parsing DuckDB (engine downloads on first open)…",
   /* §8b — Seans Setup kutusu (telemetriye gömülü kurulum) */
   "Bu Seansın Setup'ı": "This Session's Setup", "YENİ": "NEW", "ayar": "settings",
+  // §BS — Seans kutusundaki "Bu seansın setup'ı" butonu (TELE-FİŞİ EK)
+  "Bu seansın setup'ı": "This session's setup",
+  "Bu seansın setup dosyasını incele": "Inspect this session's setup file",
+  "Seans setup'ı": "Session setup", "içeriği incele": "inspect contents",
   "Özet": "Summary", "Detay": "Detail", "Havuza Kaydet": "Save to Pool",
   "Havuza kaydedildi": "Saved to pool", "Kaydediliyor…": "Saving…",
   "Telemetriden": "From telemetry", "Kaydedilemedi": "Could not save",

@@ -11,6 +11,27 @@ Eksik giderme.
 - **Çözüm (`src/traceCodec.js`, format v2):** `x`/`y` artık sabit `scale=1` yerine, turun kendi yayılımından türeyen **ortak** bir `mapK` ile ~1e5 tamsayı çözünürlüğüne ölçekleniyor (`x` ve `y` aynı ölçek → en-boy korunur), origin çıkarılıyor; `mapK/x0/y0` başlıkta saklanıyor. UI zaten fit-to-box normalize ettiği için mutlak konum değil yalnız şekil önemli, o da kayıpsıza yakın korunuyor (Le Mans için round-trip hatası ~0.03 m). Eski v1 stringleri (metre koordinatlı) hâlâ okunuyor; GPS'li stint yeniden kaydedilince v2 ile düzeliyor.
 - **Doğrulama:** Yeni GPS regresyon testleri + 559 testin tümü geçiyor; gerçekçi Le Mans GPS turu paketlenmiş boyut 10.8 KB (< 40 KB Firebase yaprak sınırı), 300 noktanın 300'ü ayrışık.
 
+### Telemetri: tasarım fişi (tele-paketi, 28 Ağu 2026) uyumu
+
+Handoff paketi `handoff-spec/tele-paketi` (TELE-FİŞİ + tokens.css + referans görseller) uygulandı. Tüm tokenlar projede zaten tanımlıydı; ekran da bu tasarım sisteminden türemişti — bu yüzden iş, fişin **EK** bölümündeki farklara ve gözden kaçmış uyumsuzluklara odaklandı.
+
+- **§İK — kategori ikonları.** Setup kategorilerinde kalan emojiler kaldırıldı: `elec` 💡 → `kontrol`, `engine` 🛢 → `anahtar`. Ayrıca fişteki eşlemeye göre **ters düşmüş** iki ikon düzeltildi: `susp` `ayar`→`mekanik`, `diff` `mekanik`→`ayar`. (`other` fişte yok → nötr madde imi korundu.)
+- **§BS — "Bu seansın setup'ı" butonu (YENİ).** Seans kutusunda, seans satırlarının altına / alt aksiyon barının üstüne tam genişlikte buton. Fiş bunun için ayrı bir modal (`svOpen`) öngörüyordu; bu uygulamada setup içeriği zaten **sayfa-içi bir kart** (`SessionSetupBox`) olduğundan modal uydurmak yerine mevcut kart hedeflendi: `openSignal` sayacı kartı Detay'a açıp görünüme kaydırır. Dibe yaslama rolü (`margin-top:auto`) butona geçti, alt bar `12px` oldu — fişteki düzenin karşılığı.
+- **Stint kartı görselleri.** Dolu yuvalarda marka logosu (26px, `brandLogo(meta.vehicle)`) + araç görseli (124×56). Görsel yoksa `onError` ile gizlenir.
+- **Grafik kroması → tokenlar.** Recharts grafikleri Recharts varsayılanına yakın **mavi-gri** bir palet kullanıyordu (`#2B3542` ızgara · `#8C97A5` eksen · `#1F2731` tooltip) ve sıcak koyu temada yabancı duruyordu. Fişin "Renk → token" tablosuna hizalandı: ızgara `--rc-line-soft`, eksen `--rc-text-3`, tooltip `--rc-surface-3`/`--rc-border`, sektör ayırıcı `--rc-border-strong`, playhead `--rc-ok-3`, delta/viraj `--rc-warn-2`.
+  - **Yakalanan regresyon:** PDF dışa aktarımı karttaki SVG'leri ayrı bir iframe belgesine kopyalıyor; orada uygulamanın `:root`'u olmadığı için `var(--rc-…)` çözülmez ve ızgara/eksen kaybolurdu. PDF stil bloğuna aynı tokenlar birebir değerlerle eklendi. `CA`/`CB` (A/B tur renkleri) aynı sebeple bilinçli olarak HEX bırakıldı.
+
+**Fişten bilinçli sapmalar** (kullanıcı onayıyla — fiş "değer değiştirmen gerekiyorsa sor" diyor):
+
+| Fiş | Karar | Gerekçe |
+|---|---|---|
+| Elle çizilmiş SVG kutu/çizgi + 7 iz grafiği | Recharts kalır, yalnız renkler hizalanır | Zoom/pan, tooltip, senkron imleç ve mevcut performans optimizasyonları korunur |
+| `MoTeC · .ld · .duckdb · CSV` başlığı, ".ld veya .duckdb yükle" | `.duckdb` metni kalır | `.ld`/CSV desteği uygulamadan bilinçli kaldırılmıştı; fişin bu kısmı eski sürümden |
+| "⚙ Sütun eşleme" paneli (`mapCols`) | Eklenmedi | CSV/metin ayrıştırıcısına aitti, artık ulaşılamaz |
+| "Çözümlenen turlar" düz tablo | Stint başına açılır liste + dahil/hariç checkbox'ları korunur | `%105 filtre` bu seçimle çalışıyor; kaldırmak özellik kaybı olurdu |
+
+**Doğrulama:** yeni `teleTab.render.test.jsx` (4 test) fişin görsel sözleşmesini kilitliyor — slot kartı görselleri, §BS butonunun koşullu görünürlüğü ve konumu, kroma tokenları (eski mavi-gri palet artık yok), boş durumda `.ld`/CSV metni geçmemesi. 572 testin tümü geçiyor.
+
 ### Live Timing: "Incident" sütunu yanlış veriyi yanlış biçimde gösteriyordu
 
 - **Belirti:** Ceza/incident sütunu güvenilmezdi — sürücü cezasını çekince sıfırlanıyor, biçimi de anlamsızdı (`0.0x`).
