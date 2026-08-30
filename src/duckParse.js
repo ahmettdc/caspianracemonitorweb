@@ -93,9 +93,22 @@ function pitIn(evt, ta, tb) {
   return active > 0;
 }
 
+/* Sıralı olay dizisinde (t0, tEnd] penceresine düşen son geçerli değeri döndür.
+   `Last Sector1/2` gibi sektör olayları tur içinde bir kez yayınlanır → o turun sektörü. */
+function evtInWindow(arr, t0, tEnd) {
+  if (!Array.isArray(arr) || !arr.length) return null;
+  let val = null;
+  for (const e of arr) {
+    if (e.ts > tEnd + 1e-6) break;            // sıralı → penceresi geçilmiş
+    if (e.ts > t0) val = e.value;             // (t0, tEnd] içindeki son değer
+  }
+  return Number.isFinite(val) && val > 0 ? val : null;
+}
+
 /* dataset → laps[] (ldParser tur şekliyle birebir).
    Tur segmentleri `Lap` olayının ardışık ts'lerinden; resmi süre `Lap Time` olayından
-   (segment sonunda yayınlanır); yoksa segment süresi (partial). */
+   (segment sonunda yayınlanır); yoksa segment süresi (partial). Sektör süreleri (gerçek
+   beacon) `Last Sector1/2` olaylarından → sectors=[s1,s2,s3] (s3 = resmi süre − s1 − s2). */
 export function duckLaps(ds) {
   if (!ds || !ds.evt || !Array.isArray(ds.evt.lap) || !ds.evt.lap.length) return [];
   const lapE = ds.evt.lap.slice().sort((a, b) => a.ts - b.ts);
@@ -103,6 +116,8 @@ export function duckLaps(ds) {
   const spdHz = ds.cont?.speed?.hz || 10;
   /* Lap Time olayları segment SONU ts'ine göre eşlenir (ms hassasiyet → yuvarla). */
   const ltMap = new Map((ds.evt.laptime || []).map((e) => [Math.round(e.ts * 100), e.value]));
+  const ls1E = (ds.evt.ls1 || []).slice().sort((a, b) => a.ts - b.ts);
+  const ls2E = (ds.evt.ls2 || []).slice().sort((a, b) => a.ts - b.ts);
   const laps = [];
   for (let i = 0; i < lapE.length; i++) {
     const t0 = lapE[i].ts;
@@ -123,12 +138,23 @@ export function duckLaps(ds) {
       ? [0, 1, 2, 3].map((k) => (w0[k] != null && w1[k] != null ? +Math.abs(w1[k] - w0[k]).toFixed(2) : null))
       : [null, null, null, null];
     const { avg, max } = speedRange(ds.cont?.speed, t0g, t0, tEnd);
+    /* Sektörler yalnız TAM tur için (resmi süre var): s1/s2 beacon'dan, s3 = süre−s1−s2.
+       Toplam ~tutmuyorsa (glitch/eksik beacon) sectors=null → teorik en iyi bu turu atlar. */
+    let sectors = null;
+    if (official != null) {
+      const s1 = evtInWindow(ls1E, t0, tEnd);
+      const s2 = evtInWindow(ls2E, t0, tEnd);
+      if (s1 != null && s2 != null) {
+        const s3 = official - s1 - s2;
+        if (s3 > 1 && s1 + s2 < official) sectors = [+s1.toFixed(3), +s2.toFixed(3), +s3.toFixed(3)];
+      }
+    }
     laps.push({
       lap: lapE[i].value, n: Math.round(span * spdHz),
       t0, tEnd,
       sec: official != null ? official : span, official, span,
       fuelL: (f0 != null && f1 != null && f0 > f1) ? +(f0 - f1).toFixed(3) : null,
-      w,
+      w, sectors,
       pit: pitIn(ds.evt.inpits, t0, tEnd),
       avgSpd: avg,
       maxSpd: (max != null && Number.isFinite(max)) ? max : null,

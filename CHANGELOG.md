@@ -11,6 +11,16 @@ Eksik giderme.
 - **Çözüm (`src/traceCodec.js`, format v2):** `x`/`y` artık sabit `scale=1` yerine, turun kendi yayılımından türeyen **ortak** bir `mapK` ile ~1e5 tamsayı çözünürlüğüne ölçekleniyor (`x` ve `y` aynı ölçek → en-boy korunur), origin çıkarılıyor; `mapK/x0/y0` başlıkta saklanıyor. UI zaten fit-to-box normalize ettiği için mutlak konum değil yalnız şekil önemli, o da kayıpsıza yakın korunuyor (Le Mans için round-trip hatası ~0.03 m). Eski v1 stringleri (metre koordinatlı) hâlâ okunuyor; GPS'li stint yeniden kaydedilince v2 ile düzeliyor.
 - **Doğrulama:** Yeni GPS regresyon testleri + 559 testin tümü geçiyor; gerçekçi Le Mans GPS turu paketlenmiş boyut 10.8 KB (< 40 KB Firebase yaprak sınırı), 300 noktanın 300'ü ayrışık.
 
+### Telemetri: stint analizine üç stratejik metrik
+
+- **Neden:** Stint analizi "tipik tur"u (medyan/ortalama) veriyordu ama endurance kararları için kritik olan tutarlılık, lastik düşüşü ve bırakılan süre görünmüyordu. Kutu grafiği yayılımı gösteriyordu ama sayı yoktu.
+- **Eklenenler (`computeSlotStats`, `src/state.js`):**
+  - **Tutarlılık** — kullanılan turların std sapması (ms). Özet kutucuğunda `±0.28 sn`. Düşük = istikrarlı tempo. <3 tur anlamsız → gizli.
+  - **Tempo eğilimi** — tur süresi ~ stint-içi sıra doğrusal regresyon eğimi (ms/tur). `+` lastik düşüşü baskın (kırmızı), `−` yakıt hafiflemesi baskın (yeşil). Net etki — sürücünün hissettiği trend. <4 tur → gizli.
+  - **Teorik en iyi tur** — kullanılan turların en iyi S1+S2+S3'lerinin toplamı; `bestMs − theoMs` = tek turda birleştirilemeyen "masada kalan" süre.
+- **Gerçek sektör beacon'ları (`duckLaps`, `src/duckParse.js`):** `.duckdb`'deki `Last Sector1/2` olayları artık tur başına çıkarılıyor (`sectors=[s1,s2,s3]`, `s3 = resmi süre − s1 − s2`); yalnız tam turlarda, toplam tutarsızsa (glitch) `null`. Teorik en iyi tur bu gerçek beacon verisini kullanıyor (trace-kesri üçlüsü tahmininden daha isabetli).
+- **Doğrulama:** duckParse + state için yeni testler; 568 testin tümü geçiyor.
+
 ## v2.2.3 — 2026-08-29
 
 Hotfix.

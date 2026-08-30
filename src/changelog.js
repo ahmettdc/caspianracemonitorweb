@@ -9,9 +9,11 @@ export const CHANGELOG = [
     date: "2026-08-30",
     tr: [
       "🗺 ÇÖZÜLDÜ: Telemetride gaz/fren grafikleri kaydediliyordu ama PİST HARİTASI kaydolmuyordu — yarışı kapatıp açınca grafikler geliyor, harita boş çıkıyordu. Sebep: LMU telemetrisindeki harita gerçek GPS'ten (enlem/boylam) geliyor ve bu koordinatlar çok küçük ondalıklı sayılar (örn. 47.9500). Kaydederken koordinatlar tam sayıya yuvarlanıyor (47.9500 → 48), böylece turun bütün noktaları tek bir noktaya çöküp harita yok oluyordu; grafik kanalları (hız/gaz/fren) büyük sayılar olduğu için etkilenmiyordu. Artık harita koordinatları turun kendi ölçeğine göre saklanıyor — harita da grafikler gibi kalıcı geliyor ve takım arkadaşları görebiliyor.",
+      "📊 Stint analizine üç yeni metrik eklendi: TUTARLILIK (tur sürelerinin std sapması — ±0.28 sn gibi; düşükse temponuz istikrarlı), TEMPO EĞİLİMİ (stint boyunca turların açılıp mı kapandığı — +0.08 sn/tur ise lastik düşüşü baskın, − ise yakıt hafiflemesi baskın) ve TEORİK EN İYİ TUR (stintteki en iyi S1+S2+S3 sektörlerinin toplamı; gerçek en iyi turunuzla arasındaki fark 'masada kalan' süredir). Sektörler artık .duckdb'deki gerçek sektör beacon'larından okunuyor.",
     ],
     en: [
       "🗺 FIXED: In telemetry the throttle/brake charts were saved but the TRACK MAP was not — reopen the race and the charts came back while the map stayed empty. Cause: the LMU telemetry map comes from real GPS (latitude/longitude), coordinates that are tiny decimals (e.g. 47.9500). On save these were rounded to whole numbers (47.9500 → 48), collapsing every point of the lap into one — the map vanished; the chart channels (speed/throttle/brake) are large numbers so they were unaffected. Map coordinates are now stored scaled to the lap's own range, so the map persists just like the charts and teammates can see it.",
+      "📊 Three new metrics in stint analysis: CONSISTENCY (std deviation of lap times, e.g. ±0.28 s — low means a steady pace), PACE TREND (whether laps opened up or tightened over the stint — +0.08 s/lap means tyre drop-off dominates, − means fuel lightening dominates), and THEORETICAL BEST LAP (sum of your best S1+S2+S3 sectors in the stint; the gap to your real best is time left on the table). Sectors now come from the real sector beacons in the .duckdb file.",
     ],
   },
   {

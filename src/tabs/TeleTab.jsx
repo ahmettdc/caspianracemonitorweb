@@ -967,6 +967,17 @@ export default function TeleTab({
               {bS?.medW?.some((w) => w != null) && tile(
                 bS.medW.map((w) => w == null ? "–" : w.toFixed(1)).join(" / "),
                 `${t("Aşınma %/tur")} · FL FR RL RR`)}
+              {bS?.sdMs != null && tile(
+                `±${(bS.sdMs / 1000).toFixed(2)} sn`,
+                t("Tutarlılık (std sapma)"))}
+              {bS?.degMsPerLap != null && tile(
+                `${bS.degMsPerLap >= 0 ? "+" : "−"}${Math.abs(bS.degMsPerLap / 1000).toFixed(2)} sn/tur`,
+                t("Tempo eğilimi · yakıt+lastik"),
+                bS.degMsPerLap > 50 ? "var(--rc-danger)" : bS.degMsPerLap < -50 ? "var(--rc-ok-2)" : null)}
+              {bS?.theoMs != null && tile(
+                fmtMs(bS.theoMs),
+                `${t("Teorik en iyi")} · ${((bS.bestMs - bS.theoMs) / 1000).toFixed(2)}s ${t("bırakıldı")}`,
+                "var(--rc-ok-2)")}
             </div>
 
             {loadedSlots.length > 1 && baseSlot && slotStats[baseSlot] && !slotStats[baseSlot].empty && (

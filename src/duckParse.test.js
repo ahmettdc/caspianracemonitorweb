@@ -23,6 +23,9 @@ function ds() {
     evt: {
       lap: [{ ts: 10, value: 0 }, { ts: 130, value: 1 }, { ts: 220, value: 2 }],
       laptime: [{ ts: 220, value: 90 }],           // seg1 sonunda yayınlanır
+      // tam turun (130→220) sektör beacon'ları: S1=30, S2=28 → S3 = 90−30−28 = 32
+      ls1: [{ ts: 160, value: 30 }],
+      ls2: [{ ts: 190, value: 28 }],
       inpits: [{ ts: 10, value: 1 }, { ts: 40, value: 0 }],
       gear: [{ ts: 10, value: 0 }, { ts: 140, value: 3 }, { ts: 200, value: 5 }],
     },
@@ -67,6 +70,21 @@ describe("duckLaps", () => {
   it("Lap olayı yoksa boş", () => {
     expect(duckLaps({ t0: 0, tEnd: 10, evt: {} })).toEqual([]);
     expect(duckLaps(null)).toEqual([]);
+  });
+  it("tam turda sektör süreleri beacon'dan (s3 = süre − s1 − s2)", () => {
+    expect(laps[1].sectors).toEqual([30, 28, 32]);   // official 90
+  });
+  it("kısmi turda (resmi süre yok) sektör null — beacon olsa da", () => {
+    expect(laps[0].sectors).toBeNull();   // out turu partial
+    expect(laps[2].sectors).toBeNull();   // son segment partial
+  });
+  it("beacon eksik/tutarsızsa sectors null (glitch koruması)", () => {
+    const d = ds();
+    d.evt.ls2 = [{ ts: 190, value: 70 }];   // s1+s2=100 > official 90 → reddet
+    expect(duckLaps(d)[1].sectors).toBeNull();
+    const d2 = ds();
+    d2.evt.ls1 = [];                        // s1 yok
+    expect(duckLaps(d2)[1].sectors).toBeNull();
   });
 });
 
