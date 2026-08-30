@@ -1,5 +1,16 @@
 # Changelog
 
+## v2.2.4 — 2026-08-30
+
+Eksik giderme.
+
+### Telemetri: pist haritası kaydolmuyordu (grafikler kaydoluyordu)
+
+- **Belirti:** v2.2.3 telemetri izlerini kalıcı hale getirdi; bir stint kaydedince gaz/fren/hız grafikleri yarışı kapatıp açınca geri geliyordu. Ancak **pist haritası** geri gelmiyordu — aynı stintin izinde harita boş kalıyordu. "Grafik kaydoldu ama harita kaydolmadı."
+- **Kök neden:** Harita ve grafikler AYNI iz nesnesinde taşınıyor ve `traceCodec.packTrace` ile Firebase'e birlikte yazılıyor. Ama `.duckdb`/LMU haritası gerçek **GPS**'ten geliyor (`mapSrc:"gps"`): `x = boylam·cos(enlem)`, `y = enlem` → değerler ~0.15 ve ~47.95 gibi, hassasiyeti ondalıkta olan küçük sayılar. `packTrace` her kanalı `Math.round(v·scale)` ile kodluyordu ve `x`/`y` için `scale = 1` idi → 47.9500 → 48, 47.9512 → 48… turun **tüm** noktaları tek bir tam sayıya çöküyordu, dolayısıyla `hasMap` çizilebilir bir şekil bulamıyordu. Grafik kanalları (hız 0–300, gaz/fren 0–100) büyük tamsayı olduğu için yuvarlamadan etkilenmiyordu — bu yüzden yalnız harita kayboluyordu.
+- **Çözüm (`src/traceCodec.js`, format v2):** `x`/`y` artık sabit `scale=1` yerine, turun kendi yayılımından türeyen **ortak** bir `mapK` ile ~1e5 tamsayı çözünürlüğüne ölçekleniyor (`x` ve `y` aynı ölçek → en-boy korunur), origin çıkarılıyor; `mapK/x0/y0` başlıkta saklanıyor. UI zaten fit-to-box normalize ettiği için mutlak konum değil yalnız şekil önemli, o da kayıpsıza yakın korunuyor (Le Mans için round-trip hatası ~0.03 m). Eski v1 stringleri (metre koordinatlı) hâlâ okunuyor; GPS'li stint yeniden kaydedilince v2 ile düzeliyor.
+- **Doğrulama:** Yeni GPS regresyon testleri + 559 testin tümü geçiyor; gerçekçi Le Mans GPS turu paketlenmiş boyut 10.8 KB (< 40 KB Firebase yaprak sınırı), 300 noktanın 300'ü ayrışık.
+
 ## v2.2.3 — 2026-08-29
 
 Hotfix.

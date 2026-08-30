@@ -91,6 +91,51 @@ describe("traceCodec round-trip", () => {
   });
 });
 
+describe("traceCodec GPS-derece haritası (v2 uyarlanır ölçek)", () => {
+  /* .duckdb/LMU haritası GERÇEK GPS'ten gelir: x=boylam·cos(enlem), y=enlem — küçük
+     dereceler (~0.01 hassasiyet). Eski sabit tamsayı yuvarlama (s=1) tüm noktaları
+     tek tamsayıya çökertip haritayı YOK EDİYORDU (grafik kaydolur, harita kaydolmaz).
+     Bu test o gerilemeyi kilitler: derece koordinatları round-trip'te şeklini korumalı. */
+  function gpsTrace(N = 300) {
+    const tr = synthTrace(N, { mapSrc: "gps" });
+    // Le Mans civarı: enlem ~47.95, boylam ~0.22; pist ~0.03° yayılır
+    tr.x = Array.from({ length: N }, (_, k) => 0.2200 + 0.015 * Math.cos((6.28 * k) / N));
+    tr.y = Array.from({ length: N }, (_, k) => 47.9500 + 0.010 * Math.sin((6.28 * k) / N));
+    return tr;
+  }
+
+  it("GPS derece x/y: pack → unpack şekli korur (çökmez)", () => {
+    const tr = gpsTrace(300);
+    const back = unpackTrace(packTrace(tr));
+    expect(back).not.toBeNull();
+    expect(back.mapSrc).toBe("gps");
+    // her nokta ~1e5 çözünürlükte (span ~0.03° → 3e-7° ≈ 0.03 m) geri gelir
+    approxEq(back.x, tr.x, 5e-6);
+    approxEq(back.y, tr.y, 5e-6);
+    // KRİTİK: noktalar ayrışık kalmalı (eski hatada hepsi aynı tamsayıya çökerdi)
+    const uniq = new Set(back.x.map((v) => Math.round(v * 1e6))).size;
+    expect(uniq).toBeGreaterThan(50);
+  });
+
+  it("GPS haritası buildCompare'da çizilebilir (hasMap true, noktalar yayılı)", () => {
+    const a = unpackTrace(packTrace(gpsTrace(300)));
+    const b = unpackTrace(packTrace(gpsTrace(300)));
+    const cmp = buildCompare(a, b);
+    expect(cmp.hasMap).toBe(true);
+    const xs = cmp.data.map((p) => p.mapX);
+    expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(1e-3);   // gerçek yayılım
+  });
+
+  it("v1 (legacy) metre stringi hâlâ okunur", () => {
+    // eski sürüm başlığı + tamsayı x/y (metre) → geriye uyum
+    const legacy = "1;3;m;100;pos\nti:0,4500,9000\nx:0,50,100\ny:0,-25,-50";
+    const back = unpackTrace(legacy);
+    expect(back).not.toBeNull();
+    expect(back.x).toEqual([0, 50, 100]);
+    expect(back.y).toEqual([0, -25, -50]);
+  });
+});
+
 describe("traceCodec ↔ buildCompare uyumu", () => {
   it("unpack'lenmiş iz çifti buildCompare'da çalışır (harita + kanallar)", () => {
     const a = unpackTrace(packTrace(synthTrace(300)));
