@@ -280,6 +280,34 @@ eğri de tahmin de web tarafında.
   iş; bilinçli olarak yapılmadı.
 - Sütun sıralanabilir (`vmax`, varsayılan azalan); tooltip anlık hızı da gösterir.
 
+### Pist haritası ayrı pencerede DONARAK ilerliyordu
+
+- **Belirti (sahada bildirildi):** "⛶ Expand akıcı ama ⧉ ayrı pencerede donarak
+  ilerliyor." Araçlar yumuşak kaymak yerine zıplayarak, düzensiz aralıklarla hareket
+  ediyordu.
+- **Kök neden — iki etken üst üste:**
+  1. Ayrı pencere, karttaki svg'nin **`outerHTML`'ini kopyalıyordu**
+     (`holder.innerHTML = svgRef.current.outerHTML`). Bu, tüm SVG düğümlerini **silip
+     yeniden kuruyor.** Araç noktaları `transition: transform .5s linear` ile
+     yumuşuyor; her karede yeni kurulan bir düğümün "önceki" konumu olmadığı için
+     CSS geçişi **hiç çalışmıyordu** → araçlar zıpladı.
+  2. Kopyalama **700 ms**'de bir yapılıyordu, veri ise **500 ms**'de (2 Hz) geliyor.
+     İki ritim aynı fazda olmadığı için kimi kare atlanıyor, kimi iki kez çiziliyordu
+     → düzensiz ilerleme.
+- **Çözüm:** kopyalama tamamen kaldırıldı; pencerenin içine **canlı React portalı**
+  ediliyor (zoom katmanının kullandığı desenin aynısı). Düğümler kalıcı olduğu için
+  CSS geçişleri çalışıyor ve güncelleme **tam veri geldiğinde** oluyor — zamanlayıcı
+  yok, Expand ile birebir aynı akıcılık.
+- **Yan bulgu (düzeltildi):** ayrı pencerenin kendi stil sayfası olmadığı için SVG'nin
+  kullandığı CSS değişkenleri (`--line2`, `--muted`, `--dim`, `--rc-surface-3`) orada
+  **çözülmüyordu** — yol bandı/ızgara kayboluyor ya da yanlış renkte çiziliyordu. (Islak
+  seansta sorun görünmüyordu çünkü ıslak yol rengi düz HEX.) Değişkenler artık ana
+  belgeden okunup kabın üstüne yazılıyor, SVG içeriden miras alıyor.
+- **Yan bulgu (düzeltildi):** ⧉'ye ikinci kez basmak aynı pencereye ikinci bir kap
+  ekliyor ve **ikinci bir yoklayıcı** başlatıyordu; eskisi hiç durmadığı için her
+  tıklama bir interval sızdırıyordu. Artık pencere açıksa yeniden kurulmuyor, öne
+  getiriliyor; sökülmede yoklayıcı da kapatılıyor.
+
 ### Kullanılmayan veri: tur sayacı
 
 `session.totalLaps` köprüden beri geliyordu, hiçbir yerde okunmuyordu. Tur-tipi yarışta

@@ -48,7 +48,10 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
   canSave, topSlot }) {
   const [zoom, setZoom] = useState(false);   // ⛶ büyük pencere (tam ekran overlay)
   const [, bump] = useState(0);              // paylaşımlı şekil gelince yeniden çiz
-  const svgRef = useRef(null);               // küçük karttaki canlı svg (yeni pencereye kopyalanır)
+  const svgRef = useRef(null);               // küçük karttaki canlı svg
+  /* Ayrı pencerenin içine PORTAL edeceğimiz kap. State, çünkü kap oluşunca
+     yeniden render olup portalı kurmamız gerekiyor. */
+  const [winHolder, setWinHolder] = useState(null);
   const winRef = useRef(null);               // ayrı tarayıcı penceresi
   useEffect(() => {
     if (!zoom) return undefined;
@@ -56,10 +59,31 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [zoom]);
-  /* ⧉ Ayrı pencere: haritayı yeni bir tarayıcı penceresinde açar; küçük karttaki
-     canlı svg'yi periyodik kopyalayarak pencereyi canlı tutar (React yeniden
-     kurulmadan). Pencere kapanınca kendi interval'i durur. */
+  /* SVG'nin kullandığı CSS değişkenleri. Ayrı pencerenin kendi stil sayfası yok →
+     `var(--line2)` gibi değerler orada ÇÖZÜLMEZ (yol bandı/ızgara kaybolur ya da
+     siyah çizilir). Ana belgeden hesaplanmış değerleri okuyup kabın üstüne yazıyoruz;
+     SVG içeriden miras alır. */
+  const MAP_VARS = ["--line2", "--muted", "--dim", "--rc-surface-3"];
+
+  /* ⧉ Ayrı pencere.
+     ESKİ YÖNTEM (v2.3.0 öncesi) kart içindeki svg'nin outerHTML'ini 700 ms'de bir
+     kaba KOPYALIYORDU. İki ayrı sorun üretiyordu:
+       1) Kopyalama tüm SVG düğümlerini SİLİP yeniden kuruyor. Araç noktaları
+          `transition: transform .5s linear` ile yumuşuyor; yeni kurulan düğümün
+          "önceki" konumu olmadığı için geçiş HİÇ çalışmıyor → araçlar zıplıyor.
+       2) 700 ms'lik kopyalama, 500 ms'lik (2 Hz) veri akışıyla aynı fazda değil →
+          kimi kare atlanıyor, kimi iki kez çiziliyor → düzensiz ilerleme.
+     Sonuç: "Expand akıcı ama ayrı pencere donarak ilerliyor" (sahada bildirildi).
+
+     YENİ: pencerenin içine doğrudan PORTAL ediyoruz. Düğümler kalıcı olduğu için
+     CSS geçişleri çalışıyor ve güncelleme tam veri geldiğinde oluyor — zamanlayıcı
+     yok, Expand ile birebir aynı akıcılık. */
+  const guardRef = useRef(0);   // pencere-kapandı yoklayıcısının id'si (tek olmalı)
   const openWin = () => {
+    /* Pencere zaten açıksa YENİDEN KURMA, öne getir. window.open aynı ADLA çağrılınca
+       mevcut pencereyi yeniden kullanır; burada erken dönmezsek o pencereye ikinci bir
+       kap eklenir ve ikinci bir yoklayıcı başlar (eskisi hiç durmaz → sızıntı). */
+    if (winRef.current && !winRef.current.closed) { winRef.current.focus(); return; }
     const w = window.open("", "rc-map-" + (trackKey || "map"), "width=760,height=800");
     if (!w) return;
     winRef.current = w;
@@ -67,12 +91,33 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
     w.document.body.style.cssText = "margin:0;background:#0B0708;height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden";
     const holder = w.document.createElement("div");
     holder.style.cssText = "width:96vmin;height:96vmin;display:flex;align-items:center;justify-content:center";
+    try {
+      const root = getComputedStyle(document.documentElement);
+      for (const v of MAP_VARS) holder.style.setProperty(v, root.getPropertyValue(v));
+    } catch { /* değişken okunamazsa harita yine çizilir, yalnız renkler yedeğe düşer */ }
     w.document.body.appendChild(holder);
-    const paint = () => { if (svgRef.current) holder.innerHTML = svgRef.current.outerHTML; };
-    paint();
-    w.setInterval(() => { if (!w.closed) paint(); }, 700);
+    setWinHolder(holder);
+    /* Pencere kapanınca portalı SÖK: ölü bir belgeye render etmeye çalışmayalım.
+       `beforeunload` bazı tarayıcılarda pencere zorla kapatılırken gelmiyor, o yüzden
+       ayrıca `w.closed` yoklanıyor (saniyede bir, yalnız pencere açıkken). */
+    const stop = () => {
+      window.clearInterval(guardRef.current);
+      guardRef.current = 0;
+      setWinHolder(null);
+      winRef.current = null;
+    };
+    w.addEventListener("beforeunload", stop);
+    window.clearInterval(guardRef.current);   // olası eski yoklayıcıyı kapat
+    guardRef.current = window.setInterval(() => {
+      if (!winRef.current || winRef.current.closed) stop();
+    }, 1000);
   };
-  useEffect(() => () => { try { winRef.current?.close?.(); } catch { /* yoksay */ } }, []);
+  /* Bileşen sökülünce pencereyi ve yoklayıcıyı kapat — açık kalan interval ölü bir
+     pencereyi saniyede bir yoklamaya devam ederdi. */
+  useEffect(() => () => {
+    window.clearInterval(guardRef.current);
+    try { winRef.current?.close?.(); } catch { /* yoksay */ }
+  }, []);
   /* pist DEĞİŞİNCE biriktirmeyi sıfırla — anahtar artık trackKey (pist adı) → şekil
      pist başına paylaşımlı olduğundan aynı pistin yarışları arasında da korunur. */
   /* rev: kutularda HERHANGİ bir değişiklik sayacı. v2.3.0'a kadar kutular yalnız
@@ -596,6 +641,13 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
       )}
     </div>
 
+    {/* ⧉ ayrı pencere — canlı React portalı (kopyalama DEĞİL; bkz. openWin) */}
+    {winHolder && createPortal(
+      <svg viewBox="0 0 520 520" width="100%" height="100%"
+        style={{ maxWidth: "100%", maxHeight: "100%" }}
+        aria-label={t("Pist Haritası")}>{svgKids}</svg>,
+      winHolder,
+    )}
     {zoom && createPortal(
       /* .rc sarmalayıcı ŞART: .wxmodal/.wxmbox stilleri `.rc ...` altında scope'lu;
          body'e doğrudan portallandığında .rc atası olmadan stilsiz kalıp "kayboluyordu". */
