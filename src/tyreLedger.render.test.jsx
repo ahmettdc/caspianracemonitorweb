@@ -51,6 +51,14 @@ describe("Lastik defteri — render", () => {
     expect(out).toContain("Lastik limiti");
   });
 
+  /* Plan↔Gerçek yalnız İKİSİ de varken çizilir. Defter boşken "plana uyuyor"
+     demek, hiçbir şey gerçekleşmemişken uyum İDDİA etmek olurdu. */
+  it("defter boşken Plan↔Gerçek çizilmez (boş uyum iddiası yok)", () => {
+    const out = render({ st: { ...base.st, tyreStints: [["1", "2", "3", "4"]] } });
+    expect(out).not.toContain("Plan ↔ Gerçek");
+    expect(out).not.toContain("plana uyuyor");
+  });
+
   it("eksik canlı proplarıyla çökmez", () => {
     expect(() => render({ tid: "", rid: "", lapKey: "" })).not.toThrow();
     expect(() => render({ tid: "T", rid: "R", lapKey: "c7" })).not.toThrow();

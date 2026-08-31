@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { Icon } from "../components";
 import { liveTyreSubscribe, liveLapsSubscribe } from "../storage";
-import { buildLedger, ledgerSummary } from "../tyreLedger";
+import { buildLedger, ledgerSummary, planChanges, comparePlan } from "../tyreLedger";
 
 const TY = ["FL", "FR", "RL", "RR"];
 const TY_COL = { "": "#37D67A", t2: "#F2C94C", tq: "#4D9FFF", t3: "#F0604D", t4: "#B91C1C", tw: "#7FE3A0", terr: "var(--rc-danger)" };
@@ -39,6 +39,12 @@ export default function TyreTab({
   }, [tid, rid, lapKey]);
   const ledger = buildLedger(tyreLog, lapMap);
   const sum = ledgerSummary(ledger);
+  /* PLAN ↔ GERÇEK (adım 2). Plan için yeni model YOK — mevcut gridden türetilir
+     (boş hücre = taşı, dolu hücre = pit işlemi). Eşleme SIRAYLA: planda tur
+     numarası olmadığı için tur-hassas hizalama mümkün değil. */
+  const plan = planChanges(st.tyreStints);
+  const cmp = comparePlan(plan, ledger);
+  const cmpOff = cmp.filter((r) => r.state === "diff" || r.state === "extra").length;
   const limit = Math.max(0, st.tyreLimit);
   const wetCount = tyreInfo.rows.reduce((n, r) => n + r.vals.filter((v) => String(v).trim() === "W").length, 0);
   const lockCorner = (id) => {
@@ -121,6 +127,38 @@ export default function TyreTab({
                 </div>
               );
             })}
+          </div>
+        )}
+        {/* ---- PLAN ↔ GERÇEK ---- yalnız ikisi de varken anlamlı */}
+        {!!cmp.length && !!ledger.length && (
+          <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--rc-border)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 9 }}>
+              <span style={{ ...hdT, fontSize: 12 }}>{t("Plan ↔ Gerçek")}</span>
+              <span style={{ fontSize: 11.5, color: cmpOff ? "var(--rc-warn)" : "var(--rc-ok)" }}>
+                {cmpOff ? `${cmpOff} ${t("sapma")}` : t("plana uyuyor")}</span>
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {cmp.map((r) => {
+                const col = r.state === "match" ? "var(--rc-ok)"
+                  : r.state === "diff" ? "var(--rc-warn)"
+                    : r.state === "extra" ? "var(--rc-danger)" : "var(--rc-border-strong)";
+                const lbl = r.state === "pending" ? t("bekliyor")
+                  : r.state === "extra" ? t("planda yok")
+                    : `${r.plan.n} → ${r.actual.n}`;
+                return (
+                  <span key={r.i} className="chip" style={{ fontSize: 10.5, color: col, borderColor: col }}
+                    title={[
+                      r.plan ? `${t("Plan")}: S${r.plan.stint} · ${r.plan.n} ${t("lastik")}` : t("Planda karşılığı yok"),
+                      r.actual ? `${t("Gerçek")}: ${t("tur")} ${r.actual.fromLap} · ${r.actual.n} ${t("lastik")}` : t("Henüz gerçekleşmedi"),
+                    ].join("\n")}>
+                    {r.i + 1}. {lbl}
+                  </span>
+                );
+              })}
+            </div>
+            <div style={{ fontSize: 11, color: "var(--rc-text-3)", marginTop: 8, lineHeight: 1.5 }}>
+              {t("Plan mevcut tablodan türetilir (dolu hücre = pit işlemi). Planda tur numarası olmadığı için eşleme SIRAYLA yapılır, tur-hassas değildir.")}
+            </div>
           </div>
         )}
         <div style={{ fontSize: 11, color: "var(--rc-text-3)", marginTop: 10, lineHeight: 1.5 }}>

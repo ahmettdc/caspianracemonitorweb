@@ -112,3 +112,58 @@ export function ledgerSummary(rows) {
     totalLaps: list.reduce((n, r) => n + r.laps, 0),
   };
 }
+
+/* ============================================================
+   ADIM 2 — PLAN ↔ GERÇEK
+   ------------------------------------------------------------
+   Plan için YENİ bir veri modeli EKLENMEDİ. Mevcut grid zaten "hangi stintte
+   hangi köşe değişiyor"u kodluyor (state.js: boş hücre = taşı, dolu hücre = o
+   köşede pit işlemi — v1.4.60 kullanıcı kararı). Planı oradan TÜRETMEK:
+     · mevcut planı olduğu gibi kullanır (göç yok, veri kaybı yok),
+     · iki ayrı plan modelinin yan yana yaşamasını önler,
+     · defterle AYNI şekli (kaç lastik takıldı) üretir → karşılaştırılabilir.
+
+   EŞLEME (bilinçli sadeleştirme): plan STINT numarasıyla, defter TUR numarasıyla
+   çalışır ve planda tur numarası YOKTUR — bu yüzden tur-hassas hizalama mümkün
+   değil. Eşleme SIRAYLA yapılır: 1. planlanan değişim ↔ 1. gerçekleşen değişim.
+   Pit duvarının sorduğu soru da budur ("plana uyuyor muyuz").
+   ============================================================ */
+
+/* Plandaki değişimler: her stint satırında DOLU hücre sayısı = takılan lastik.
+   Boş satır (hepsi taşıma) değişim değildir, listeye girmez.
+   Dönüş: [{ stint, n, corners }] — stint 1-tabanlı (S1, S2…). */
+export function planChanges(tyreStints) {
+  const rows = Array.isArray(tyreStints) ? tyreStints : [];
+  const out = [];
+  rows.forEach((row, i) => {
+    const cells = Array.isArray(row) ? row : [];
+    const corners = [];
+    cells.forEach((v, ci) => { if (String(v ?? "").trim()) corners.push(ci); });
+    if (corners.length) out.push({ stint: i + 1, n: corners.length, corners });
+  });
+  return out;
+}
+
+/* Plan ile defteri SIRAYLA eşle.
+   Dönüş: [{ i, plan, actual, state }]
+     state: "match"   plan ve gerçek aynı sayıda lastik
+            "diff"    ikisi de var ama sayı farklı
+            "pending" planlandı, henüz gerçekleşmedi
+            "extra"   gerçekleşti ama planda yok
+   Defterin ilk dönemi (n == null, "Başlangıç") bir DEĞİŞİM değildir — eşlemeye
+   girmez, yoksa her şey bir kayar. */
+export function comparePlan(plan, ledger) {
+  const p = Array.isArray(plan) ? plan : [];
+  const a = (Array.isArray(ledger) ? ledger : []).filter((r) => r.n > 0);
+  const rows = [];
+  for (let i = 0; i < Math.max(p.length, a.length); i += 1) {
+    const pl = p[i] || null;
+    const ac = a[i] || null;
+    let state;
+    if (pl && ac) state = pl.n === ac.n ? "match" : "diff";
+    else if (pl) state = "pending";
+    else state = "extra";
+    rows.push({ i, plan: pl, actual: ac, state });
+  }
+  return rows;
+}

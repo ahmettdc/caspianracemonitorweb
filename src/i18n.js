@@ -814,6 +814,14 @@ export const EN = {
     "The 'my class only' filter from standings is applied to the map too",
   // v2.3.0 — lastik defteri (gerçek pit değişimleri)
   "Lastik defteri": "Tyre log",
+  "Plan ↔ Gerçek": "Plan vs actual",
+  "sapma": "deviation", "plana uyuyor": "matches the plan",
+  "bekliyor": "pending", "planda yok": "not in plan",
+  "Plan": "Plan", "Gerçek": "Actual", "lastik": "tyres",
+  "Planda karşılığı yok": "No matching entry in the plan",
+  "Henüz gerçekleşmedi": "Has not happened yet",
+  "Plan mevcut tablodan türetilir (dolu hücre = pit işlemi). Planda tur numarası olmadığı için eşleme SIRAYLA yapılır, tur-hassas değildir.":
+    "The plan is derived from the existing table (a filled cell = a pit action). Because the plan carries no lap numbers, entries are matched IN ORDER, not lap-exactly.",
   "yarıştaki GERÇEK lastik değişimleri — elle giriş yok":
     "the REAL tyre changes from the race — no manual entry",
   "tam set": "full sets", "aks": "axle", "yakıt-only": "fuel-only",

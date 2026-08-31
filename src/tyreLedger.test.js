@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { tyreEvents, lastLap, buildLedger, ledgerSummary } from "./tyreLedger";
+import { tyreEvents, lastLap, buildLedger, ledgerSummary,
+  planChanges, comparePlan } from "./tyreLedger";
 
 describe("tyreEvents", () => {
   it("tur sırasına dizer, adet+hamur ayrıştırır", () => {
@@ -85,5 +86,68 @@ describe("ledgerSummary", () => {
   it("boş girdide sıfırlar", () => {
     expect(ledgerSummary([])).toMatchObject({ periods: 0, fullSets: 0 });
     expect(ledgerSummary(null)).toMatchObject({ periods: 0 });
+  });
+});
+
+describe("planChanges (mevcut grid'den türetilir)", () => {
+  /* state.js semantiği: boş hücre = taşı, dolu hücre = o köşede pit işlemi. */
+  it("stint satırındaki DOLU hücre sayısı = takılan lastik", () => {
+    expect(planChanges([
+      ["1", "2", "3", "4"],      // S1: 4 lastik
+      ["", "", "", ""],          // S2: taşıma → değişim yok
+      ["5", "6", "", ""],        // S3: 2 lastik (ön)
+    ])).toEqual([
+      { stint: 1, n: 4, corners: [0, 1, 2, 3] },
+      { stint: 3, n: 2, corners: [0, 1] },
+    ]);
+  });
+  it("boşluk yalnız boşluksa taşıma sayılır", () => {
+    expect(planChanges([["  ", "", null, undefined]])).toEqual([]);
+  });
+  it("bozuk girdide çökmez", () => {
+    expect(planChanges(null)).toEqual([]);
+    expect(planChanges(["metin"])).toEqual([]);
+  });
+});
+
+describe("comparePlan", () => {
+  const led = buildLedger({ 20: "4|Medium", 45: "2|Medium" }, { 1: 1, 60: 1 });
+
+  it("aynı sayıda lastik → match", () => {
+    const r = comparePlan([{ stint: 1, n: 4 }, { stint: 3, n: 2 }], led);
+    expect(r.map((x) => x.state)).toEqual(["match", "match"]);
+  });
+
+  it("sayı farklıysa diff", () => {
+    const r = comparePlan([{ stint: 1, n: 4 }, { stint: 3, n: 4 }], led);
+    expect(r[1].state).toBe("diff");
+    expect(r[1].plan.n).toBe(4);
+    expect(r[1].actual.n).toBe(2);
+  });
+
+  it("planlanmış ama gerçekleşmemiş → pending", () => {
+    const r = comparePlan([{ stint: 1, n: 4 }, { stint: 3, n: 2 }, { stint: 5, n: 4 }], led);
+    expect(r[2].state).toBe("pending");
+    expect(r[2].actual).toBe(null);
+  });
+
+  it("planda olmayan gerçek değişim → extra", () => {
+    const r = comparePlan([{ stint: 1, n: 4 }], led);
+    expect(r[1].state).toBe("extra");
+    expect(r[1].plan).toBe(null);
+  });
+
+  /* Defterin ilk dönemi "Başlangıç" (n=null) bir DEĞİŞİM değildir; eşlemeye
+     girerse tüm hizalama bir kayar ve her satır yanlış eşleşir. */
+  it("defterin 'Başlangıç' dönemi eşlemeye GİRMEZ", () => {
+    expect(led[0].n).toBe(null);
+    const r = comparePlan([{ stint: 1, n: 4 }], led);
+    expect(r[0].actual.n).toBe(4);          // ilk GERÇEK değişimle eşleşti
+    expect(r[0].actual.fromLap).toBe(20);
+  });
+
+  it("boş girdilerde boş döner", () => {
+    expect(comparePlan([], [])).toEqual([]);
+    expect(comparePlan(null, null)).toEqual([]);
   });
 });

@@ -396,7 +396,24 @@ giriş yok, tahmin yok.**
   hamur köşe başına okunamıyor.
 - **Mevcut plan tablosu DOKUNULMADAN duruyor** — defter üstüne eklendi, bir yarış
   boyunca ikisi yan yana kullanılıp sonra karar verilecek.
-- **Yapı:** `src/tyreLedger.js` (saf, 13 test) + render sözleşmesi (5 test).
+- **PLAN ↔ GERÇEK (adım 2).** Plan için **yeni veri modeli EKLENMEDİ.** Mevcut grid
+  zaten "hangi stintte hangi köşe değişiyor"u kodluyor (`state.js`: boş hücre =
+  taşı, dolu hücre = o köşede pit işlemi — v1.4.60 kullanıcı kararı), plan oradan
+  **türetiliyor**. Böylece: mevcut plan olduğu gibi kullanılır (göç yok, veri kaybı
+  yok), iki ayrı plan modeli yan yana yaşamaz, ve türetilen şekil defterinkiyle
+  **aynı** olduğu için karşılaştırılabilir.
+  - Çipler: `1. 4→4` (uyuyor) · `2. 4→2` (sapma) · `bekliyor` (planlandı, olmadı) ·
+    `planda yok` (oldu, planlanmamıştı). Başlıkta `N sapma` / `plana uyuyor`.
+  - **Eşleme SIRAYLA** (bilinçli sadeleştirme): plan stint numarasıyla, defter tur
+    numarasıyla çalışır ve **planda tur numarası yoktur** → tur-hassas hizalama
+    mümkün değil. Bu sınır ekranda yazıyor.
+  - Defterin **"Başlangıç" dönemi eşlemeye girmez** — o bir değişim değil; girseydi
+    tüm hizalama bir kayar ve her satır yanlış eşleşirdi (testle kilitli).
+  - Defter boşken karşılaştırma **çizilmez** — hiçbir şey gerçekleşmemişken
+    "plana uyuyor" demek boş bir uyum iddiası olurdu (testli).
+- **Yapı:** `src/tyreLedger.js` (saf, 22 test) + render sözleşmesi (6 test).
+  Canlı abonelik olmadan bileşen çok-render edilemediği için render testleri yalnız
+  "çizilmez" kapılarını doğrular; **pozitif yol saf modülde** test edilir.
 - **Oyun PC'si maliyeti: sıfır** — köprüye dokunulmadı, zaten yazılan düğüm okundu.
 
 ### Kullanılmayan veri: tur sayacı
@@ -407,7 +424,7 @@ sahte `/0` yazılmaz.
 
 ### Doğrulama
 
-- **JS:** 735 test geçiyor (583 → 735; **+152**). Yeni: `pitOut.test.js` (25),
+- **JS:** 745 test geçiyor (583 → 745; **+162**). Yeni: `pitOut.test.js` (25),
   `trackMapPitOut.render.test.jsx` (5). Yeni: `liveSectors.test.js` (14),
   `liveSort.test.js` (16), `liveRelative.test.js` (29), `liveStatus.test.js` (13),
   `liveTabV230.render.test.jsx` (15); `trackShape.test.js` en-kötü-durum kırpma
