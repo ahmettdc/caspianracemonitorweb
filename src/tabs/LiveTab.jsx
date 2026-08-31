@@ -677,7 +677,7 @@ export default function LiveTab({ t, live: liveProp, canEdit,
                   {avgMode ? "AVG" : "AVG5"} ⇄</button></th>
                 <th>{t("Enerji")}</th><th>{t("VE/tur")}</th>
                 <th>{t("Lastik")}</th><th>Stint</th>
-                <th>{t("Hasar")}</th><th>Incident</th><th>Pit</th>
+                <th>{t("Hasar")}</th><th>{t("Ceza")}</th><th>Pit</th>
                 <th aria-label={t("Turlar")}></th>
               </tr></thead>
               <tbody>
@@ -760,11 +760,27 @@ export default function LiveTab({ t, live: liveProp, canEdit,
                       <td style={{ fontSize: 12, fontFamily: "var(--rc-font-display)", color: (c.damage || 0) > 0.15 ? "var(--red)"
                         : (c.damage || 0) > 0.02 ? "var(--yellow)" : "var(--dim)" }}>
                         {c.damage != null ? `%${Math.round(c.damage * 100)}` : "—"}</td>
-                      {/* Incident: fişteki gibi "N.Nx" (çarpan/olay puanı) */}
-                      <td style={{ textAlign: "right", fontFamily: "var(--rc-font-display)", fontSize: 12.5,
-                        color: (c.penalties || 0) > 0 ? "var(--red)" : "var(--dim)", fontWeight: (c.penalties || 0) > 0 ? 700 : 400 }}
-                        title={t("Olay puanı (cut/puan cezaları dahil)")}>
-                        {`${(c.penalties || 0).toFixed(1)}x`}</td>
+                      {/* CEZA (v2.2.4): eskiden bu sütun "Incident" diye etiketlenip
+                          `penalties` değerini "N.Nx" biçiminde yazıyordu — üç ayrı hata:
+                          (1) `mNumPenalties` incident DEĞİL, BEKLEYEN ceza sayısıdır;
+                          (2) ceza servis edilince 0'a düştüğü için ekran temizleniyordu;
+                          (3) tamsayı sayaç ondalıklı çarpan gibi gösteriliyordu ("1.0x").
+                          Artık kümülatif toplam (penaltiesTotal) gösterilir; bekleyen ceza
+                          varsa kırmızı + "•" ile işaretlenir. Gerçek incident (temas/cut)
+                          sayısı bu veri yolunda YOKTUR (bkz. bridge/rf2_source.py başlığı). */}
+                      {(() => {
+                        const out = c.penalties || 0;              // anlık bekleyen
+                        const tot = c.penaltiesTotal ?? out;       // kümülatif (eski köprü → yedek)
+                        return (
+                          <td className="mono" style={{ textAlign: "right", fontSize: 12.5,
+                            color: out > 0 ? "var(--red)" : tot > 0 ? "var(--yellow)" : "var(--dim)",
+                            fontWeight: out > 0 ? 700 : 400 }}
+                            title={out > 0
+                              ? `${t("Bekleyen ceza")}: ${out} · ${t("Ceza sayısı (cut/puan cezaları dahil)")}: ${tot}`
+                              : t("Ceza sayısı (cut/puan cezaları dahil)")}>
+                            {tot > 0 ? `${tot}${out > 0 ? " •" : ""}` : "—"}</td>
+                        );
+                      })()}
                       <td style={{ whiteSpace: "nowrap" }}>
                         {c.inPits && <span className="chip" style={{ marginRight: 4,
                           color: "var(--yellow)", borderColor: "var(--yellow)" }}>PIT</span>}

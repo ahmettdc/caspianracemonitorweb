@@ -276,6 +276,7 @@ export function useTelemetry({ st, setSt, curTeam, curRace, role }) {
       fuel: l.fuelL != null && ratio ? +(l.fuelL / ratio).toFixed(2) : null,
       fuelL: l.fuelL != null ? +l.fuelL.toFixed(2) : null,
       w: l.w.map((x) => (x == null ? null : +x.toFixed(2))),
+      sectors: Array.isArray(l.sectors) && l.sectors.length === 3 ? l.sectors : null,
       avgSpd: l.avgSpd != null ? Math.round(l.avgSpd) : null,
       maxSpd: l.maxSpd != null ? Math.round(l.maxSpd) : null,
       partial: !!l.partial, pit: !!l.pit,

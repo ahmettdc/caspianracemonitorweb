@@ -350,11 +350,36 @@ export function computeSlotStats(st) {
        %105 eşiğini patlatmasın. Hepsi kısmiyse used'a düş (yine bir değer üret). */
     const realUsed = used.filter((l) => !l.partial);
     const bestMs = Math.min(...(realUsed.length ? realUsed : used).map((l) => l.ms));
+    /* Tutarlılık: kullanılan turların std sapması (ms). Düşük = daha tutarlı tempo.
+       <3 tur anlamsız (0 çıkar) → null. */
+    const sdMs = used.length >= 3
+      ? Math.sqrt(used.reduce((a, l) => a + (l.ms - avgMs) ** 2, 0) / used.length)
+      : null;
+    /* Tempo eğilimi: tur süresi ~ stint-içi sıra doğrusal regresyon eğimi (ms/tur).
+       + = tur açılıyor (lastik düşüşü baskın), − = kısalıyor (yakıt hafiflemesi baskın).
+       Net etki — sürücünün hissettiği trend. <4 tur güvenilmez → null. */
+    const degMsPerLap = (() => {
+      if (used.length < 4) return null;
+      const n = used.length;
+      let sx = 0, sy = 0, sxx = 0, sxy = 0;
+      used.forEach((l, i) => { sx += i; sy += l.ms; sxx += i * i; sxy += i * l.ms; });
+      const den = n * sxx - sx * sx;
+      return den ? (n * sxy - sx * sy) / den : null;
+    })();
+    /* Teorik en iyi tur: kullanılan turların en iyi S1/S2/S3'lerinin toplamı (gerçek
+       beacon sektörleri). En az 2 turda tam sektör olmalı → ms. bestMs − theoMs = masada
+       kalan süre (tek turda birleştirilemeyen sektör kazanımları). */
+    const secLaps = used.filter((l) => Array.isArray(l.sectors) && l.sectors.length === 3
+      && l.sectors.every((s) => s != null && s > 0));
+    const theoMs = secLaps.length >= 2
+      ? [0, 1, 2].reduce((a, k) => a + Math.min(...secLaps.map((l) => l.sectors[k])), 0) * 1000
+      : null;
     out[sl] = {
       laps: used.length, totalMs: used.reduce((a, l) => a + l.ms, 0),
       avgMs, avgFuel, avgW,
       medMs, medFuel, medW,
       bestMs, lim105: bestMs * 1.05,
+      sdMs, degMsPerLap, theoMs,
       dropped: t.laps.filter((l) => !l.use).length,
       tankLaps: medFuel ? 100 / medFuel : (avgFuel ? 100 / avgFuel : null),
     };

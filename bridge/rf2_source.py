@@ -18,8 +18,13 @@
   field[]: {pos, carId, driver, vehicleName, team, manufacturer, number, carClass, lapsDone,
             lapDist, posX, posZ, lastSec, lastSectors:[s1,s2,s3], bestSec, gapSec,
             intervalSec, lapsBehind, lapsBehindNext, inPits, location, pitStops, penalties,
-            tyreWear, tyres4:[fl,fr,rl,rr], tyreComp, damage, virtualEnergy, vePerLap,
-            avg5Sec, avgSec, stintSec, laps, lapsFrom, lapNums, lapKey, isPlayer}
+            penaltiesTotal, tyreWear, tyres4:[fl,fr,rl,rr], tyreComp, damage, virtualEnergy,
+            vePerLap, avg5Sec, avgSec, stintSec, laps, lapsFrom, lapNums, lapKey, isPlayer}
+  (penalties = ANLIK bekleyen ceza (mNumPenalties; servis edilince 0'a düşer),
+   penaltiesTotal = seans boyunca KÜMÜLATİF ceza (Aggregator yükselen kenar sayımı).
+   NOT: gerçek "incident" (temas + track-cut) sayısı bu transport'ta YOKTUR — LMU'nun
+   results-stream metni yalnız NATIVE LMU_Data arayüzünde bulunur; rF2 eklenti yolunda
+   TinyPedal da incidents()=0 döndürür. Bu yüzden ceza ile incident karıştırılmamalı.)
   (lapsBehind/lapsBehindNext = oyunun mLapsBehindLeader/mLapsBehindNext alanları — web
    tur-altı ("+N Tur") göstergesi bunları kullanır; lider-tur eksi araç-tur çıkarması
    lider S/F'yi geçtiği pencerede YANLIŞ "+1 Tur" verirdi.)
@@ -52,20 +57,70 @@ _PHASE = {
 }
 
 
-def _flag_of(phase, yellow):
-    """Bayrak durumu (SHMEM YEDEĞİ) → (flag, yellowSectors).
+def _sector_yellows(sectors):
+    """mSectorFlag[3] → lokal sarı sektör numaraları ([1..3]).
 
-    v1.4.74: LOKAL sektör sarıları artık `mSectorFlag`'ten ÜRETİLMEZ. LMU'da bu dizi
-    GREEN iken bile üç sektörü birden sarı gösterip yanlış 'full yellow' üretiyordu
-    (kullanıcı bug'ı: "green olduğu halde full yellow"). Yetkili lokal-sarı kaynağı
-    LMU REST `/rest/watch/sessionInfo` (bkz. lmu_api.session_flags) → read() önce onu
-    kullanır; REST kapalıysa BU muhafazakâr yedek devreye girer: yalnız TAM PİST sarısını
-    (FCY) güvenle bilir → green→green garanti, uydurma lokal sarı yok.
-      * mYellowFlagState c_ubyte: Invalid(-1) → 255 gelir ⇒ makullük şartı 0 < v < 200
-        (eskiden `yellow > 0` Invalid'i de sarı sayardı). GamePhase 6 da FCY."""
+    v2.2.4 — TinyPedal ile HİZALANDI. `mSectorFlag` "o sektörde şu an lokal sarı var mı"
+    dizisidir ve TinyPedal (LMU'da sahada kanıtlı) sarıyı KESİN EŞİTLİKLE okur:
+        any(data == 1 for data in sec_flag)      # tinypedal/adapter/lmu_reader.py
+    Bizim v1.4.74 öncesi kodumuz `> 0` kullanıyordu — Invalid/başlatılmamış bayt (255)
+    de "sarı" sayıldığı için GREEN'de üç sektör birden sarı görünüyor ve yanlış
+    'full yellow' üretiyordu. O bug yüzünden sektör sarıları TAMAMEN kapatılmıştı;
+    sonuç: lokal sarı ARTIK HİÇ görünmüyordu (asıl kullanıcı şikâyeti). Doğru çözüm
+    diziyi atmak değil, TinyPedal'ın predikatını kullanmak: yalnız `== 1`.
+    Not: rF2 başlığı sektör sırasının belirsiz olduğunu söyler ("not sure if sector 0
+    is first or last") → numaralar konumsaldır (i+1); bayrağın KENDİSİ kesindir."""
+    out = []
+    for i, v in enumerate(list(sectors or [])[:3]):
+        try:
+            if int(v) == 1:
+                out.append(i + 1)
+        except (TypeError, ValueError):
+            pass
+    return out
+
+
+def _flag_of(phase, yellow, sectors=None):
+    """Paylaşımlı bellek → (flag, yellowSectors). Bayrakların YETKİLİ kaynağı budur.
+
+    v2.2.4: LMU REST'te bayrak verisi YOK (TinyPedal'ın kullandığı LMU endpoint listesi
+    yalnız hava/seans/garaj/pit verir) → bayrak yalnız paylaşımlı bellekten gelebilir.
+    Bu yüzden lokal sarı burada üretilir; REST artık yalnız EK kaynaktır (_merge_flags).
+      * GamePhase 6 = tam pist sarısı (FCY / güvenlik aracı).
+      * mYellowFlagState yalnız TAM PİST sürecini anlatır (0=None … 7=RaceHalt);
+        c_ubyte olduğundan Invalid(-1) 255 gelir ⇒ makullük şartı 0 < v < 200.
+      * mSectorFlag = LOKAL sarı (bkz. _sector_yellows)."""
+    ysec = _sector_yellows(sectors)
     if phase == 6 or 0 < int(yellow) < 200:
-        return "FCY", []
+        return "FCY", ysec
+    if ysec:
+        return "Yellow", ysec
     return "Green", []
+
+
+#: bayrak şiddet sırası — birleştirmede en güçlüsü kazanır
+_FLAG_RANK = {"Green": 0, "Yellow": 1, "FCY": 2}
+
+
+def _merge_flags(shm_flag, shm_ysec, rest):
+    """shmem + REST bayraklarını birleştir: EN GÜÇLÜ bayrak kazanır, sektörler BİRLEŞİR.
+
+    Neden birleştirme: eskiden REST varsa shmem TAMAMEN yok sayılıyordu (`if rest_flag:`).
+    REST bayrağı kendi içinde muhafazakâr (ör. üç sektör birden sarıysa Green'e düşürür,
+    alan adları tutmazsa yetkili görünen sahte bir "Green" üretir) → gerçek sarıyı
+    MASKELİYORDU. Artık hiçbir kaynak diğerinin sarısını bastıramaz: sarı yalnız EKLENİR."""
+    flag, ysec = shm_flag, list(shm_ysec)
+    if isinstance(rest, dict):
+        rf = rest.get("flag") or "Green"
+        if _FLAG_RANK.get(rf, 0) > _FLAG_RANK.get(flag, 0):
+            flag = rf
+        for s in rest.get("yellowSectors") or []:
+            if s not in ysec:
+                ysec.append(s)
+    ysec.sort()
+    if flag == "Green" and ysec:      # sektör sarısı geldiyse Green kalamaz
+        flag = "Yellow"
+    return flag, ysec
 
 # Satırdaki "+" → tur zaman listesi için sürücü başına saklanan son tur sayısı
 # (Firebase yükünü sınırlar; endurance'ta bir-iki stint'i rahat kapsar).
@@ -595,18 +650,19 @@ class RF2Source:
         cur, end = float(info.mCurrentET), float(info.mEndET)
         phase = int(getattr(info, "mGamePhase", 0))
         yellow = int(getattr(info, "mYellowFlagState", 0))
-        # Bayrak: önce YETKİLİ LMU REST (green iken yanlış full-yellow üretmez); REST
-        # kapalı/parse edilemezse muhafazakâr shmem yedeği (yalnız FCY, green→green).
+        # Bayrak (v2.2.4): YETKİLİ kaynak paylaşımlı bellektir — lokal sarı dahil
+        # (bkz. _flag_of/_sector_yellows). REST varsa yalnız EK kaynaktır ve hiçbir
+        # sarıyı bastıramaz (_merge_flags). Eskiden REST açıkken shmem tamamen yok
+        # sayılıyor, REST kapalıyken (VARSAYILAN!) ise yedek yalnız FCY ürettiği için
+        # lokal sarı HİÇBİR koşulda görünmüyordu — sahadaki "sarı bayrak yok" hatası.
         rest_flag = None
         if getattr(self, "lmu", None) is not None:
             try:
                 rest_flag = self.lmu.session_flags()
             except Exception:
                 rest_flag = None
-        if rest_flag:
-            flag, ysec = rest_flag["flag"], rest_flag["yellowSectors"]
-        else:
-            flag, ysec = _flag_of(phase, yellow)
+        shm_flag, shm_ysec = _flag_of(phase, yellow, getattr(info, "mSectorFlag", None))
+        flag, ysec = _merge_flags(shm_flag, shm_ysec, rest_flag)
         maxlaps = int(getattr(info, "mMaxLaps", 0))
         session = {
             "phase": _PHASE.get(phase, str(phase)), "flag": flag,
@@ -801,7 +857,10 @@ class RF2Source:
             # bayrak ham değerleri — sahada bayrak yine ters düşerse --dump ile
             # alan semantiği buradan doğrulanır (LMU sürümü alanları kaydırabilir).
             # rest: REST YETKİLİ sonucu (varsa kullanıldı), sectors: shmem ham (güvenilmez).
+            # shm: paylaşımlı bellekten türetilen YETKİLİ bayrak, rest: EK kaynak,
+            # sectors: ham mSectorFlag baytları (sarı = 1; 255 = Invalid/dolu değil).
             "flagRaw": {"phase": phase, "yellow": yellow, "rest": rest_flag,
+                        "shm": [shm_flag, shm_ysec], "out": [flag, ysec],
                         "sectors": [int(x) for x in list(getattr(info, "mSectorFlag", []) or [])[:3]]},
         }
         # Saha boşken bekleme NEDENİ — UI mesaj seçimi (noplugin/menu/novehicles).
@@ -838,6 +897,8 @@ class Aggregator:
         self.last_change = {}   # araç → son pit'te değişen lastikler (bir sonraki pite kadar)
         self.prev_ve = {}       # araç → önceki tur sonundaki VE% (tur-başı tüketim için)
         self.ve_per_lap = {}    # araç → son turda tüketilen VE% (prev−cur)
+        self.prev_pen = {}      # araç → son görülen BEKLEYEN ceza (mNumPenalties)
+        self.pen_total = {}     # araç → KÜMÜLATİF ceza (yükselen kenar toplamı)
 
     def close(self):
         if hasattr(self.inner, "close"):
@@ -914,6 +975,9 @@ class Aggregator:
                 self.regress[key] = 0
                 self.pit_tyres.pop(key, None)
                 self.last_change.pop(key, None)
+                # ceza sayaçları da seansa özeldir (yeni seans → sıfırdan başla)
+                self.pen_total.pop(key, None)
+                self.prev_pen.pop(key, None)
                 # VE tur-başı tüketimi için başlangıç değerini (varsa) taban al
                 self.ve_per_lap.pop(key, None)
                 _cve = r.get("virtualEnergy")
@@ -976,6 +1040,26 @@ class Aggregator:
             # rakibin stint boyunca hangi lastiklerle gittiğini görmeli).
             r["tyreChange"] = self.last_change.get(key)
 
+            # CEZA (v2.2.4): `mNumPenalties` başlıkta "number of OUTSTANDING penalties"
+            # — yani BEKLEYEN ceza; sürücü drive-through'unu çekince 0'a GERİ DÜŞER.
+            # Kümülatif toplam sanılırsa yarış boyunca yanlış okunur (ceza servis edilir
+            # edilmez ekran temizlenir). Doğru toplam YÜKSELEN KENARLARDAN biriktirilir —
+            # TinyPedal'ın module_stats.py'deki deseninin birebir aynısı:
+            #   düşüş → tabanı indir (servis edildi), yükseliş → farkı toplama ekle.
+            # İlk görüşte yalnız taban alınır (yarışa geç katılınca eski cezalar
+            # şişirilmesin). penalties = anlık bekleyen, penaltiesTotal = kümülatif.
+            cur_pen = r.get("penalties")
+            cur_pen = int(cur_pen) if isinstance(cur_pen, (int, float)) else 0
+            prev_pen = self.prev_pen.get(key)
+            if prev_pen is None:
+                self.prev_pen[key] = cur_pen          # ilk kare → yalnız taban
+            elif cur_pen < prev_pen:
+                self.prev_pen[key] = cur_pen          # ceza çekildi → tabanı düşür
+            elif cur_pen > prev_pen:
+                self.pen_total[key] = self.pen_total.get(key, 0) + (cur_pen - prev_pen)
+                self.prev_pen[key] = cur_pen
+            r["penaltiesTotal"] = self.pen_total.get(key, 0)
+
             h = list(self.hist.get(key, ()))
             last5 = h[-5:]
             r["avg5Sec"] = round(sum(last5) / len(last5), 3) if last5 else None
@@ -996,7 +1080,7 @@ class Aggregator:
         if own is not None:
             me = next((r for r in field if r.get("isPlayer")), None)
             if me is not None:
-                for k in ("avg5Sec", "avgSec", "stintSec", "vePerLap", "laps", "lapsFrom",
-                          "lapNums", "lapKey"):
+                for k in ("avg5Sec", "avgSec", "stintSec", "vePerLap", "penaltiesTotal",
+                          "laps", "lapsFrom", "lapNums", "lapKey"):
                     own[k] = me.get(k)
         return data

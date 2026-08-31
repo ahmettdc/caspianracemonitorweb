@@ -1,5 +1,113 @@
 # Changelog
 
+## v2.2.4 — 2026-08-30
+
+Eksik giderme.
+
+### Telemetri: pist haritası kaydolmuyordu (grafikler kaydoluyordu)
+
+- **Belirti:** v2.2.3 telemetri izlerini kalıcı hale getirdi; bir stint kaydedince gaz/fren/hız grafikleri yarışı kapatıp açınca geri geliyordu. Ancak **pist haritası** geri gelmiyordu — aynı stintin izinde harita boş kalıyordu. "Grafik kaydoldu ama harita kaydolmadı."
+- **Kök neden:** Harita ve grafikler AYNI iz nesnesinde taşınıyor ve `traceCodec.packTrace` ile Firebase'e birlikte yazılıyor. Ama `.duckdb`/LMU haritası gerçek **GPS**'ten geliyor (`mapSrc:"gps"`): `x = boylam·cos(enlem)`, `y = enlem` → değerler ~0.15 ve ~47.95 gibi, hassasiyeti ondalıkta olan küçük sayılar. `packTrace` her kanalı `Math.round(v·scale)` ile kodluyordu ve `x`/`y` için `scale = 1` idi → 47.9500 → 48, 47.9512 → 48… turun **tüm** noktaları tek bir tam sayıya çöküyordu, dolayısıyla `hasMap` çizilebilir bir şekil bulamıyordu. Grafik kanalları (hız 0–300, gaz/fren 0–100) büyük tamsayı olduğu için yuvarlamadan etkilenmiyordu — bu yüzden yalnız harita kayboluyordu.
+- **Çözüm (`src/traceCodec.js`, format v2):** `x`/`y` artık sabit `scale=1` yerine, turun kendi yayılımından türeyen **ortak** bir `mapK` ile ~1e5 tamsayı çözünürlüğüne ölçekleniyor (`x` ve `y` aynı ölçek → en-boy korunur), origin çıkarılıyor; `mapK/x0/y0` başlıkta saklanıyor. UI zaten fit-to-box normalize ettiği için mutlak konum değil yalnız şekil önemli, o da kayıpsıza yakın korunuyor (Le Mans için round-trip hatası ~0.03 m). Eski v1 stringleri (metre koordinatlı) hâlâ okunuyor; GPS'li stint yeniden kaydedilince v2 ile düzeliyor.
+- **Doğrulama:** Yeni GPS regresyon testleri + 559 testin tümü geçiyor; gerçekçi Le Mans GPS turu paketlenmiş boyut 10.8 KB (< 40 KB Firebase yaprak sınırı), 300 noktanın 300'ü ayrışık.
+
+### Setup havuzu: dosya adı standardı
+
+- **Belirti:** Havuzdaki setup'lar yükleyenin ham dosya adıyla duruyordu (`setup_1.svm`, `Spa deneme (2).svm`). Havuz okunaksız, `searchSetups` `name` üzerinde çalıştığı için arama işlevsiz, indirilen dosya tanınmaz.
+- **Standart:** `<pist>_<sınıf>-<araç>_<seans>-<koşul>_v<sürüm>.svm` → `spa_gt3-ferrari_r-dry_v3.svm`
+  - **Sınıf neden ADDA:** araç id'leri sınıflar arası **tekil değil** — `ferrari` hem Hypercar 499P hem GT3 296. Sınıfsız iki farklı araç aynı adı alırdı (testle kilitlendi).
+  - Boş alanlar segmentiyle **birlikte** düşer (`__` oluşmaz); Türkçe/aksanlı harfler ASCII'ye katlanır (`portimão`→`portimao`, `Şğıöüç`→`sgiouc`); sürümde baştaki `v` yinelenmez, nokta korunur (`V1.2`→`v1.2`); ad 72 karakterle sınırlı.
+  - Kişi alanı **bilinçli olarak yok** (kullanıcı kararı) — kimin olduğu havuz arayüzünde zaten görünüyor.
+- **TÜM kayıtlara uygulanması — yazma olmadan:** Kullanıcı isteği "havuzdaki mevcut kayıtları da toplu yeniden adlandır" idi. **Bu mümkün değil:** `globalSetups/$id` `.write` kuralı yalnız *oluşturma* (`!data.exists() && newData.exists()`) ve *admin silme* izni veriyor — mevcut kayıt hiç güncellenemiyor, sahibi bile. Kayıtlar bilinçli olarak değiştirilemez; bunu açmak güvenlik tasarımını bozardı.
+  - Bunun yerine ad **okuma yolunda türetiliyor** (`withFileNames`, `watchSetups` çıktısına tek noktadan uygulanır) → eski/yeni tüm kayıtlar anında standart görünür; süzme, arama, sıralama, içerik penceresi ve **indirme** hepsi bu çıktıyı kullanır. Sıfır yazma, sıfır kural değişikliği, sıfır göç riski. Ham ad `origName`'de korunur.
+  - Yeni yüklemelerde standart ad kayda **da** yazılır (veritabanı tutarlı kalsın); okuma yolu yine türettiği için ikisi ayrışmaz (türetme meta'dan olduğu için idempotent).
+- **Çakışma:** Kişi alanı olmadığından iki pilotun aynı meta'sı aynı adı üretebilir. Aynı adı paylaşan kayıtların **tamamına** id'nin son 4 hanesi eklenir → sıralama değişse de ad sabit kalır (testli).
+- **Yan bulgu (düzeltildi):** Telemetriden havuza kaydetme yolu (`saveTeleSetup`) `name` alanını **hiç set etmiyordu** — o kayıtlar havuzda adsız görünüyor, indirilince uzantısız `setup` oluyordu. Artık aynı standarttan besleniyor.
+- **Doğrulama:** `setupPool.js`'e saf `setupFileName` / `withFileNames` + 11 yeni test (sınıf çakışması, boş segment, Türkçe katlama, sürüm biçimi, grup soneki kararlılığı, bozuk girdi). 583 testin tümü geçiyor.
+
+### Dağıtım: yeni sürüm yayınlansa da kullanıcı ESKİSİNİ görüyordu
+
+- **Belirti:** Deploy başarılı, sunucudaki paket yeni — ama tarayıcıda açınca ekran değişmemiş görünüyor. Saatler sonra kendiliğinden düzeliyor.
+- **Kök neden (iki katman üst üste):**
+  1. `index.html` `cache-control: max-age=3600` ile geliyor → tarayıcı bir saat boyunca ESKİ HTML'i kullanıyor. Varlık adları içerik-hash'li (`index-ZVVxviLi.js`) olduğundan eski HTML eski hash'leri işaret ediyor.
+  2. Service worker'ın gezinme dalı "ağ önce" ama düz `fetch(req)` ile — bu istek **tarayıcının HTTP önbelleğinden** geçiyor, yani sunucuya hiç gitmiyor. Eski HTML'in işaret ettiği eski varlıklar da `fetch` dalındaki **cache-first** mantığıyla SW önbelleğinden servis ediliyor → zincir kapanıyor ve yeni sürüm hiç yüklenmiyor.
+- **Çözüm:**
+  - `public/sw.js`: gezinme artık `fetch(req, { cache: "reload" })` — HTTP önbelleğini atlayıp her seferinde sunucuya gider; çevrimdışıysa yine önbellekteki `index.html`'e düşer. `CACHE` adı sürümlendi (`crc-v2.2.4`) → yeni SW etkinleşince bayat app-shell temizlenir.
+  - `firebase.json`: hosting başlıkları eklendi — `/` (kök) / `index.html` / `sw.js` / `manifest.webmanifest` `no-cache`, `assets/**` `immutable`. **Dikkat:** Firebase başlıkları rewrite HEDEFİNE değil **istek yoluna** göre eşler; yalnız `/index.html` yazmak kök isteğini (`/`) kapsamıyordu — sahada ölçülüp `/` kuralı ayrıca eklendi (hash'li olduğu için bir yıl güvenle önbelleklenir). Bu, önizleme kanallarını ve Firebase hosting'i kapsar; üretim GitHub Pages'te asıl düzeltmeyi SW değişikliği yapar.
+- **Not:** Bu düzeltmenin kendisi eski SW tarafından servis edilebileceği için, kullanıcıların **son bir kez** zorla yenilemesi (Ctrl/Cmd+Shift+R) gerekebilir; sonrasında sürümler kendiliğinden gelir.
+
+### Telemetri: tasarım fişi (tele-paketi, 28 Ağu 2026) uyumu
+
+Handoff paketi `handoff-spec/tele-paketi` (TELE-FİŞİ + tokens.css + referans görseller) uygulandı. Tüm tokenlar projede zaten tanımlıydı; ekran da bu tasarım sisteminden türemişti — bu yüzden iş, fişin **EK** bölümündeki farklara ve gözden kaçmış uyumsuzluklara odaklandı.
+
+- **§İK — kategori ikonları.** Setup kategorilerinde kalan emojiler kaldırıldı: `elec` 💡 → `kontrol`, `engine` 🛢 → `anahtar`. Ayrıca fişteki eşlemeye göre **ters düşmüş** iki ikon düzeltildi: `susp` `ayar`→`mekanik`, `diff` `mekanik`→`ayar`. (`other` fişte yok → nötr madde imi korundu.)
+- **§BS + §İM-3 — "Bu seansın setup'ı" butonu (YENİ).** Seans kutusunda, seans satırlarının altına / alt aksiyon barının üstüne tam genişlikte buton; tıklayınca **Setup havuzundaki "İçerik" penceresinin birebir aynısı** (`SetupContentModal`) açılır — fişin §İM-3'te tarif ettiği davranış. Dibe yaslama rolü (`margin-top:auto`) butona geçti, alt bar `12px` oldu.
+  - Sayfa-içi `SessionSetupBox` kartı ("Bu Seansın Setup'ı" bölümü) **kaldırıldı** — aynı içeriği iki ayrı yerde iki ayrı düzende gösteren ikinci bileşen ortadan kalktı; bileşen ve testleri silindi, öksüz kalan importlar temizlendi.
+  - Pencere **hiç değiştirilmedi**: `.duckdb`'ye gömülü kurulum `duckSetupToSvm` + `textToB64` ile sentetik bir havuz kaydına (`su`) çevrilip modala verilir → havuzdan açılan pencereyle aynı kod yolu, aynı düzen, aynı kategori ikonları.
+  - Tek ekleme: modala **opsiyonel** `onSave` prop'u. Seans setup'ı havuzda bir kayıt olmadığından "Havuza Kaydet" eylemi (kaldırılan kartta duruyordu) buraya taşındı. Havuzdan açılan pencere bu prop'u geçmez → **o pencere birebir eskisi gibi kaldı**.
+- **Stint kartı görselleri.** Dolu yuvalarda marka logosu (26px, `brandLogo(meta.vehicle)`) + araç görseli (124×56). Görsel yoksa `onError` ile gizlenir.
+- **Grafik kroması → tokenlar.** Recharts grafikleri Recharts varsayılanına yakın **mavi-gri** bir palet kullanıyordu (`#2B3542` ızgara · `#8C97A5` eksen · `#1F2731` tooltip) ve sıcak koyu temada yabancı duruyordu. Fişin "Renk → token" tablosuna hizalandı: ızgara `--rc-line-soft`, eksen `--rc-text-3`, tooltip `--rc-surface-3`/`--rc-border`, sektör ayırıcı `--rc-border-strong`, playhead `--rc-ok-3`, delta/viraj `--rc-warn-2`.
+  - **Yakalanan regresyon:** PDF dışa aktarımı karttaki SVG'leri ayrı bir iframe belgesine kopyalıyor; orada uygulamanın `:root`'u olmadığı için `var(--rc-…)` çözülmez ve ızgara/eksen kaybolurdu. PDF stil bloğuna aynı tokenlar birebir değerlerle eklendi. `CA`/`CB` (A/B tur renkleri) aynı sebeple bilinçli olarak HEX bırakıldı.
+
+**Fişten bilinçli sapmalar** (kullanıcı onayıyla — fiş "değer değiştirmen gerekiyorsa sor" diyor):
+
+| Fiş | Karar | Gerekçe |
+|---|---|---|
+| Elle çizilmiş SVG kutu/çizgi + 7 iz grafiği | Recharts kalır, yalnız renkler hizalanır | Zoom/pan, tooltip, senkron imleç ve mevcut performans optimizasyonları korunur |
+| `MoTeC · .ld · .duckdb · CSV` başlığı, ".ld veya .duckdb yükle" | `.duckdb` metni kalır | `.ld`/CSV desteği uygulamadan bilinçli kaldırılmıştı; fişin bu kısmı eski sürümden |
+| "⚙ Sütun eşleme" paneli (`mapCols`) | Eklenmedi | CSV/metin ayrıştırıcısına aitti, artık ulaşılamaz |
+| "Çözümlenen turlar" düz tablo | Stint başına açılır liste + dahil/hariç checkbox'ları korunur | `%105 filtre` bu seçimle çalışıyor; kaldırmak özellik kaybı olurdu |
+
+**Doğrulama:** yeni `teleTab.render.test.jsx` (5 test) fişin görsel sözleşmesini kilitliyor — slot kartı görselleri, §BS butonunun koşullu görünürlüğü ve konumu, kroma tokenları (eski mavi-gri palet artık yok), seans setup kartının kalkıp yerine pencerenin gelmesi, boş durumda `.ld`/CSV metni geçmemesi. 572 testin tümü geçiyor.
+
+### Live Timing: "Incident" sütunu yanlış veriyi yanlış biçimde gösteriyordu
+
+- **Belirti:** Ceza/incident sütunu güvenilmezdi — sürücü cezasını çekince sıfırlanıyor, biçimi de anlamsızdı (`0.0x`).
+- **Üç ayrı hata:**
+  1. **Yanlış etiket.** Sütun `Incident` diyordu (üstelik `t()`'den geçmeyen sabit İngilizce), ama beslediği veri `c.penalties` → `mNumPenalties`. Struct başlığı açık: *"number of **outstanding** penalties"*. Bu incident değil, **bekleyen ceza borcu**.
+  2. **Yanlış semantik.** "Outstanding" olduğu için drive-through çekilince **0'a geri düşüyor** → yarış boyunca alınan ceza sayısı hiçbir yerde görünmüyordu.
+  3. **Yanlış biçim.** Tamsayı sayaç `${penalties.toFixed(1)}x` ile `1.0x` diye yazılıyordu — kümülatif bir "olay puanı çarpanı" izlenimi veriyordu.
+  - İz: i18n'deki `"Bekleyen ceza"` ve `"Ceza sayısı…"` anahtarları öksüz kalmıştı — sütun bir noktada "Ceza"dan "Incident"a çevrilmiş ama veri kaynağı değişmemiş.
+- **TinyPedal karşılaştırması (kaynak tarandı):**
+  - Kümülatif cezayı **yükselen kenarlardan** biriktiriyor (`module_stats.py`): değer düşerse taban indirilir (servis edildi), yükselirse fark toplama eklenir. İlk örnekte yalnız taban alınır.
+  - **Gerçek incident'ları paylaşımlı bellekteki results-stream METNİNDEN** ayrıştırıyor (`lmu_connector.py`): `<Incident …>` ve `<TrackLimits …>` satırlarını sayıyor. Bu 64 KB'lık `scoringStream` tamponu **yalnız LMU'nun NATIVE arayüzünde** (`LMU_Data`) var.
+  - **rF2 eklenti yolunda TinyPedal'ın kendisi `incidents()` için sabit `0` döndürüyor** (`rf2_reader.py:888`) — çünkü rF2'de results-stream haritalanmıyor (`mResultsStreamPointer` yalnız 8 baytlık yer tutucu).
+  - REST'te ceza/incident **hiç yok**: TinyPedal'ın LMU endpoint listesi yalnız hava/seans/garaj/pit veriyor; `/rest/watch/standings`'e hiç dokunmuyor.
+- **Çözüm:**
+  - `Aggregator`: `penaltiesTotal` — TinyPedal'ın yükselen-kenar algoritmasıyla **kümülatif** ceza. `penalties` (anlık bekleyen) ayrı alan olarak korunuyor. Seans değişiminde sıfırlanıyor, ilk karede yalnız taban alınıyor (yarışa geç katılınca şişmez). **REST'e ihtiyaç duymaz.**
+  - `LiveTab`: sütun dürüstçe `t("Ceza")`; kümülatif toplam tamsayı olarak, 0 ise `—`; bekleyen ceza varsa kırmızı + `•`. Öksüz i18n anahtarları yeniden kullanımda; yanıltıcı `"Olay puanı…"` anahtarı silindi.
+- **Bilinçli olarak YAPILMAYAN:** gerçek incident (temas + track-cut) sayımı. Kullandığımız transport rF2 eklentisi olduğu için bu veri oyun tarafından hiç sunulmuyor; uydurmak yerine sütun doğru adlandırıldı. İstenirse LMU native `LMU_Data` arayüzüne geçmek gerekir (104 araç + farklı ScoringInfo düzeni → tüm offsetler değişir, ayrı bir iş).
+- **Doğrulama:** 4 yeni ceza regresyon testi (servis sonrası sıfırlanmama, ilk-kare tabanı, tek karede çoklu artış, alan yokluğu); tüm köprü paketleri + 568 JS testi geçiyor.
+
+### Live Timing: sarı bayrak hiç görünmüyordu
+
+- **Belirti:** Oyunda sarı bayrak sallanırken Live Timing yeşil gösteriyordu. FCY bazen geliyordu, **lokal sarı hiç gelmiyordu**.
+- **Kök neden (zincir):**
+  1. `bridge/main.py:398` — `rest_on` varsayılan **false** (v1.4.130'da oyun donması yüzünden kapatıldı, README bunu açıkça öneriyor) → `no_rest=True` → `rf2_source.py:322` `self.lmu = None`.
+  2. `read()` içinde `rest_flag = None` → shmem yedeği `_flag_of()` devrede.
+  3. `_flag_of()` (v1.4.74'ten beri) yalnız `"FCY"` ya da `"Green"` döndürüyordu — **`"Yellow"` döndüren tek bir kod yolu yoktu**. Lokal sarı varsayılan kurulumda *yapısal olarak imkânsızdı*.
+  4. v1.4.74'te sektör sarıları kaldırılmıştı çünkü eski kod `mSectorFlag > 0` kullanıyordu; Invalid/başlatılmamış bayt (255) de "sarı" sayılınca GREEN'de üç sektör birden sarı görünüyor, yanlış full-yellow üretiyordu. Yani bir yanlış-pozitif düzeltilirken yerine daha büyük bir yanlış-negatif konmuş.
+  5. Ek olarak REST açık olsaydı bile: `parse_session_flags` `/rest/watch/sessionInfo`'dan düz `GamePhase`/`YellowFlagState`/`SectorFlag` anahtarları **varsayıyor** (şekli hiç doğrulanmamış) ve REST sonucu shmem'i tamamen eziyordu (`if rest_flag:`) → sahte bir `"Green"` gerçek sarıyı maskeleyebiliyordu.
+- **TinyPedal karşılaştırması (kaynak tarandı):** TinyPedal sarıyı **yalnız `mSectorFlag`'ten** okur ve **kesin eşitlik** kullanır — `any(data == 1 for data in sec_flag)` (`tinypedal/adapter/lmu_reader.py`). `mYellowFlagState` ve `mUnderYellow`'a hiç bakmaz. Ayrıca TinyPedal'ın LMU REST endpoint listesinde **bayrak verisi yoktur** (yalnız hava/seans/garaj/pit) → bayrağın tek gerçek kaynağı paylaşımlı bellektir.
+- **Çözüm:**
+  - `_sector_yellows()` (yeni) — `mSectorFlag[3]` → sarı sektör numaraları, TinyPedal'ın `== 1` predikatıyla. 255 (Invalid) artık sarı sayılmaz → v1.4.74'ü doğuran yanlış pozitif geri gelmez.
+  - `_flag_of(phase, yellow, sectors)` — lokal sarıyı geri üretir; FCY (`GamePhase 6` / geçerli `mYellowFlagState`) önceliğini korur. **REST kapalıyken de çalışır** (asıl kazanım).
+  - `_merge_flags()` (yeni) — shmem + REST birleştirilir: en güçlü bayrak kazanır, sektörler birleşir. Hiçbir kaynak diğerinin sarısını **bastıramaz** (eski `if rest_flag:` maskelemesi kalktı).
+  - `_diag.flagRaw` genişletildi (`shm`/`out` eklendi) → sahada `--dump` ile ham bayt ↔ türetilen bayrak karşılaştırılabilir.
+- **Transport doğrulaması:** Köprü rF2 Shared Memory Map Plugin yolunu kullanıyor (`$rFactor2SMMP_Scoring$`, 128 araç) — TinyPedal'ın "LMU legacy" modu. Struct hizalaması doğru, `mSectorFlag` eklenti tarafından doldurulur. (LMU'nun *native* `LMU_Data` arayüzü 104 araçlıdır ve alan düzeni farklıdır; oraya geçilirse offsetler kayar — bu yola girilmedi.)
+- **Not:** REST varsayılan kapalı KALIYOR (donma önlemi) — bayrak artık ona ihtiyaç duymuyor. `config.example.ini` ve `bridge/README.md` buna göre düzeltildi.
+- **Doğrulama:** Bayrak için 5 yeni regresyon testi (sektör sarısı üretimi, 255 yanlış-pozitif kilidi, FCY önceliği, REST maskeleme karşıtı birleştirme); tüm köprü test paketleri geçiyor.
+
+### Telemetri: stint analizine üç stratejik metrik
+
+- **Neden:** Stint analizi "tipik tur"u (medyan/ortalama) veriyordu ama endurance kararları için kritik olan tutarlılık, lastik düşüşü ve bırakılan süre görünmüyordu. Kutu grafiği yayılımı gösteriyordu ama sayı yoktu.
+- **Eklenenler (`computeSlotStats`, `src/state.js`):**
+  - **Tutarlılık** — kullanılan turların std sapması (ms). Özet kutucuğunda `±0.28 sn`. Düşük = istikrarlı tempo. <3 tur anlamsız → gizli.
+  - **Tempo eğilimi** — tur süresi ~ stint-içi sıra doğrusal regresyon eğimi (ms/tur). `+` lastik düşüşü baskın (kırmızı), `−` yakıt hafiflemesi baskın (yeşil). Net etki — sürücünün hissettiği trend. <4 tur → gizli.
+  - **Teorik en iyi tur** — kullanılan turların en iyi S1+S2+S3'lerinin toplamı; `bestMs − theoMs` = tek turda birleştirilemeyen "masada kalan" süre.
+- **Gerçek sektör beacon'ları (`duckLaps`, `src/duckParse.js`):** `.duckdb`'deki `Last Sector1/2` olayları artık tur başına çıkarılıyor (`sectors=[s1,s2,s3]`, `s3 = resmi süre − s1 − s2`); yalnız tam turlarda, toplam tutarsızsa (glitch) `null`. Teorik en iyi tur bu gerçek beacon verisini kullanıyor (trace-kesri üçlüsü tahmininden daha isabetli).
+- **Doğrulama:** duckParse + state için yeni testler; 568 testin tümü geçiyor.
+
 ## v2.2.3 — 2026-08-29
 
 Hotfix.

@@ -11,8 +11,7 @@ import {
 import { msToLocalInput } from "./engine";
 import { SETUP_LIMITS, poolEmptyReason, lapDeltas } from "./setupPool";
 import { trackOptions, classOptions, carOptions } from "./pickerOptions";
-import { parseSvm, b64ToText, setupSummary, diffSetups, categorizeSetup,
-  duckSetupToParsed } from "./setupParse";
+import { parseSvm, b64ToText, diffSetups, categorizeSetup } from "./setupParse";
 import { renameTeam, syncMyTeamName, createSeason, deleteRace,
   leaveTeam, createTeam, joinTeam, getSetupBlob,
   getUserAvatar, saveTeamAsset, clearTeamAsset,
@@ -1565,12 +1564,19 @@ const SVM_FIELDS = {
   FastReboundSetting: "Hızlı Yaylanma", CompoundSetting: "Lastik Hamuru",
 };
 
-/* Kategori kimliği → görünen ad + ikon (setupParse SETUP_CATS sırasında çizilir). */
+/* Kategori kimliği → görünen ad + ikon (setupParse SETUP_CATS sırasında çizilir).
+   §İK (TELE-FİŞİ EK, 28 Ağu 2026): çipler ve grup başlıkları EMOJİ KULLANMAZ —
+   İkon Seti çizgi ikonları. Fişteki eşleme tablosu birebir:
+     aero→aero · tyre→lastik · susp→mekanik (yay/amortisör) · align→geometri
+     brake→fren · diff→ayar (dişli) · elec→kontrol (sürgüler) · engine→anahtar
+   (susp/diff eskiden TERS eşlenmişti; elec/engine emoji kalmıştı.) `other` fişte
+   yok → nötr madde imi korunur. */
 const CAT_META = {
   aero: { tr: "Aero", icon: <Icon name="aero" size={14} /> }, tyre: { tr: "Lastik", icon: <Icon name="lastik" size={14} /> },
-  susp: { tr: "Süspansiyon", icon: <Icon name="ayar" size={14} /> }, align: { tr: "Hizalama", icon: <Icon name="geometri" size={14} /> },
-  brake: { tr: "Fren", icon: <Icon name="fren" size={14} /> }, diff: { tr: "Diferansiyel", icon: <Icon name="mekanik" size={14} /> },
-  elec: { tr: "Elektronik", icon: "💡" }, engine: { tr: "Motor & Yakıt", icon: "🛢" },
+  susp: { tr: "Süspansiyon", icon: <Icon name="mekanik" size={14} /> }, align: { tr: "Hizalama", icon: <Icon name="geometri" size={14} /> },
+  brake: { tr: "Fren", icon: <Icon name="fren" size={14} /> }, diff: { tr: "Diferansiyel", icon: <Icon name="ayar" size={14} /> },
+  elec: { tr: "Elektronik", icon: <Icon name="kontrol" size={14} /> },
+  engine: { tr: "Motor & Yakıt", icon: <Icon name="anahtar" size={14} /> },
   other: { tr: "Diğer", icon: "•" },
 };
 
@@ -1599,7 +1605,39 @@ function useSetupBlob(su, open) {
    özet çipleri (Arka Kanat vb.), altında bölüm bölüm anlamlı değerler. open=false → null. */
 const CAT_ACC = { aero: "#4C9AFF", tyre: "#F5B23D", susp: "#37D67A", align: "#B58BFF", brake: "#FF4D5E", diff: "#EF8A2B", elec: "#4C9AFF", engine: "#C9B3B9", other: "#A88C93" };
 
-export function SetupContentModal({ open, su, onClose, t, onDownload, onAddCompare, inCompare }) {
+/* onSave (opsiyonel): yalnız TELEMETRİ seans setup'ında geçilir — o setup havuzda
+   bir kayıt DEĞİL, .duckdb'ye gömülü olduğundan "Havuza Kaydet" eylemi buraya düşer.
+   Havuzdan açılan İçerik penceresi bu prop'u GEÇMEZ → pencere birebir eskisi gibi. */
+/* "Havuza Kaydet" düğmesi — kendi kaydediliyor/kaydedildi/hata durumunu tutar
+   (SetupContentModal'ın kendisi durumsuz kalsın diye ayrı bileşen). Yalnız
+   telemetri seans setup'ında görünür (onSave geçildiğinde). */
+function SaveToPoolBtn({ su, t, onSave }) {
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [err, setErr] = useState("");
+  const doSave = async () => {
+    if (saving || saved) return;
+    setSaving(true); setErr("");
+    try { await onSave(su); setSaved(true); }
+    catch (e) { setErr(String(e?.message || t("Kaydedilemedi"))); }
+    finally { setSaving(false); }
+  };
+  return (
+    <button onClick={doSave} disabled={saving || saved} title={err || undefined}
+      style={{ padding: "8px 15px", borderRadius: 9, cursor: saving || saved ? "default" : "pointer",
+        fontSize: 12.5, opacity: saving ? .6 : 1,
+        border: `1px solid ${err ? "var(--rc-warn)" : saved ? "var(--rc-ok)" : "var(--rc-border)"}`,
+        background: saved ? "rgba(55,214,122,.12)" : "var(--rc-surface-3)",
+        color: err ? "var(--rc-warn)" : saved ? "var(--rc-ok)" : "var(--rc-text-2)" }}>
+      {err ? <><Icon name="uyari" size={13} /> {t("Kaydedilemedi")}</>
+        : saved ? `✓ ${t("Havuza kaydedildi")}`
+          : saving ? t("Kaydediliyor…")
+            : <><Icon name="yukle" size={13} /> {t("Havuza Kaydet")}</>}
+    </button>
+  );
+}
+
+export function SetupContentModal({ open, su, onClose, t, onDownload, onAddCompare, inCompare, onSave }) {
   const blob = useSetupBlob(su, open);
   const [cat, setCat] = useState("all");
   /* Filtreyi YALNIZ modal açılınca ya da farklı bir setup açılınca sıfırla.
@@ -1745,6 +1783,7 @@ export function SetupContentModal({ open, su, onClose, t, onDownload, onAddCompa
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 20px", borderTop: "1px solid var(--rc-border)", background: "var(--rc-surface-2)" }}>
           <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{totalFields} {t("alan")} · {t("LMU .svm dosyasından okundu")}</span>
           <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+            {onSave && <SaveToPoolBtn su={su} t={t} onSave={onSave} />}
             {onAddCompare && (
               <button onClick={() => onAddCompare(su)} style={{ padding: "8px 15px", borderRadius: 9, cursor: "pointer", fontSize: 12.5,
                 border: `1px solid ${inCompare ? "var(--rc-brand-bright)" : "var(--rc-border)"}`, background: inCompare ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)", color: inCompare ? "var(--rc-text)" : "var(--rc-text-2)" }}><Icon name="karsilastir" size={13} /> {t("Karşılaştırmaya ekle")}</button>
@@ -1755,104 +1794,6 @@ export function SetupContentModal({ open, su, onClose, t, onDownload, onAddCompa
           </span>
         </div>
       </div>
-    </div>
-  );
-}
-
-/* Seans Setup kutusu (v1.5.2) — .duckdb telemetrisine gömülü kurulumu Telemetri
-   sekmesinde gösterir. `setup` = ham VM_/WM_ JSON (cmpMeta.setup). Özet çipleri +
-   "Detay" ile kategorili tam görünüm (Setup İçerik penceresiyle aynı düzen, aynı
-   categorizeSetup/CAT_META) + "⬆ Havuza Kaydet" (onSave). onSave yoksa buton yok. */
-export function SessionSetupBox({ setup, meta, t, onSave }) {
-  const [open, setOpen] = useState(false);
-  const [q, setQ] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [err, setErr] = useState("");
-  if (!setup) return null;
-  const parsed = duckSetupToParsed(setup);
-  if (!parsed.ok) return null;
-  const summary = setupSummary(parsed);
-  const fieldName = (key) => t(SVM_FIELDS[key] || key);
-  const cats = categorizeSetup(parsed);
-  const count = parsed.rows.filter((r) => r.meaningful).length;
-  const needle = q.trim().toLowerCase();
-  const shown = needle
-    ? cats.map((c) => ({ ...c, rows: c.rows.filter((r) => {
-      const nm = fieldName(r.key).toLowerCase();
-      const val = (r.kind === "axle" ? `${r.front} ${r.rear}` : r.value || "").toLowerCase();
-      return nm.includes(needle) || val.includes(needle);
-    }) })).filter((c) => c.rows.length)
-    : cats;
-  const doSave = async () => {
-    if (!onSave || saving) return;
-    setSaving(true); setErr("");
-    try { await onSave(setup, meta); setSaved(true); }
-    catch (e) { setErr(String(e?.message || t("Kaydedilemedi"))); }
-    finally { setSaving(false); }
-  };
-  const segBtn = (on) => ({ padding: "7px 14px", borderRadius: 8, cursor: "pointer", fontSize: 12, whiteSpace: "nowrap",
-    border: `1px solid ${on ? "var(--rc-brand-bright)" : "var(--rc-border)"}`, background: on ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)", color: on ? "var(--rc-text)" : "var(--rc-text-2)" });
-  return (
-    <div style={{ border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)", padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".07em", fontSize: 15, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 8 }}><Icon name="somun" size={14} /> {t("Bu Seansın Setup'ı")}</span>
-        <span style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: ".09em", padding: "2px 8px", borderRadius: 99, border: "1px solid var(--rc-ok)", color: "var(--rc-ok)" }}>{t("YENİ")}</span>
-        <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>{[meta?.driver, meta?.session].filter(Boolean).join(" · ")}{count ? ` · ${count} ${t("ayar")}` : ""}</span>
-      </div>
-      {summary.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
-          {summary.map((s) => (
-            <span key={s.label} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 11px", borderRadius: 99, border: "1px solid var(--rc-border)", background: "var(--rc-surface-2)", fontSize: 11.5 }}>
-              <b style={{ fontFamily: "var(--rc-font-display)", color: "var(--rc-brand-bright)" }}>{t(s.label)}</b>
-              <span style={{ fontFamily: "var(--rc-font-display)" }}>{s.value}</span></span>
-          ))}
-        </div>
-      )}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        <span role="group" style={{ display: "inline-flex", gap: 6 }}>
-          <button aria-pressed={!open} onClick={() => setOpen(false)} style={segBtn(!open)}>{t("Özet")}</button>
-          <button aria-pressed={open} onClick={() => setOpen(true)} style={segBtn(open)}>{t("Detay")}</button>
-        </span>
-        {open && (
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("ara: kanat, basınç…")} aria-label={t("Setup alanı ara")}
-            style={{ flex: "1 1 150px", minWidth: 0, background: "var(--rc-surface-3)", border: "1px solid var(--rc-border-strong)", borderRadius: 9, color: "var(--rc-text)", padding: "8px 12px", fontSize: 12.5 }} />
-        )}
-        {onSave && (
-          <button onClick={doSave} disabled={saving || saved}
-            style={{ marginLeft: "auto", padding: "8px 14px", borderRadius: 9, cursor: saving || saved ? "default" : "pointer", fontSize: 12,
-              border: `1px solid ${saved ? "var(--rc-ok)" : "var(--rc-brand-bright)"}`, background: saved ? "rgba(55,214,122,.12)" : "var(--rc-brand)", color: saved ? "var(--rc-ok)" : "var(--rc-on-brand)", opacity: saving ? .6 : 1 }}>
-            {saved ? `✓ ${t("Havuza kaydedildi")}` : saving ? t("Kaydediliyor…") : `⬆ ${t("Havuza Kaydet")}`}
-          </button>
-        )}
-      </div>
-      {err && <div style={{ fontSize: 11.5, color: "var(--rc-warn)" }}><Icon name="uyari" size={12} /> {err}</div>}
-      {open && (shown.length ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {shown.map((c) => (
-            <section key={c.cat} style={{ border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface-2)", overflow: "hidden" }}>
-              <h4 style={{ margin: 0, display: "flex", alignItems: "center", gap: 8, padding: "9px 13px", borderBottom: "1px solid var(--rc-line-soft)", fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".06em", fontSize: 12.5, fontWeight: 700 }}>
-                <span>{CAT_META[c.cat]?.icon || "•"}</span>
-                {t(CAT_META[c.cat]?.tr || c.cat)}
-                <span style={{ marginLeft: "auto", fontSize: 10.5, color: "var(--rc-text-3)", padding: "1px 8px", borderRadius: 99, border: "1px solid var(--rc-border)", fontWeight: 400 }}>{c.rows.length}</span></h4>
-              {c.rows.map((r, i) => (
-                <div key={r.key} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 13px", borderTop: i > 0 ? "1px solid var(--rc-line-soft)" : "none" }}>
-                  <span style={{ fontSize: 12, color: "var(--rc-text-2)", flex: 1, minWidth: 0 }}>{fieldName(r.key)}</span>
-                  {r.kind === "axle" ? (
-                    <span style={{ display: "inline-flex", gap: 12, fontFamily: "var(--rc-font-display)", fontSize: 13, flex: "0 0 auto" }}>
-                      <span style={{ display: "inline-flex", gap: 4 }}><b style={{ color: "var(--rc-text-3)", fontSize: 9.5, alignSelf: "center" }}>{t("ÖN")}</b>{r.front}</span>
-                      <span style={{ display: "inline-flex", gap: 4 }}><b style={{ color: "var(--rc-text-3)", fontSize: 9.5, alignSelf: "center" }}>{t("ARKA")}</b>{r.rear}</span></span>
-                  ) : (
-                    <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 13, flex: "0 0 auto" }}>{r.value}</span>
-                  )}
-                </div>
-              ))}
-            </section>
-          ))}
-        </div>
-      ) : (
-        <div style={{ color: "var(--rc-text-3)", fontSize: 12.5 }}>{t("Eşleşen alan yok.")}</div>
-      ))}
     </div>
   );
 }

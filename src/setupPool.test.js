@@ -2,8 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   SETUP_MAX_BYTES, SETUP_LIMITS, fileTooBig, filterSetups,
   poolEmptyReason, trimSetupMeta, staleTrackFilter, fastestSetupIds,
-  searchSetups, sortSetups, lapDeltas, b64Sha256Hex,
-} from "./setupPool";
+  searchSetups, sortSetups, lapDeltas, b64Sha256Hex, setupFileName, withFileNames } from "./setupPool";
 
 const pool = [
   { id: "a", track: "spa", cond: "dry", sess: "R" },
@@ -258,5 +257,82 @@ describe("b64Sha256Hex", () => {
   it("boş/bozuk girdi → boş dize (dedupe sessiz düşer)", async () => {
     expect(await b64Sha256Hex("")).toBe("");
     expect(await b64Sha256Hex(null)).toBe("");
+  });
+});
+
+describe("setupFileName — havuz dosya adı standardı (v2.2.4)", () => {
+  const M = (o) => ({ track: "spa", cls: "gt3", car: "ferrari", cond: "dry", sess: "R", ver: "V3", ...o });
+
+  it("tam meta → <pist>_<sınıf>-<araç>_<seans>-<koşul>_v<sürüm>.svm", () => {
+    expect(setupFileName(M())).toBe("spa_gt3-ferrari_r-dry_v3.svm");
+    expect(setupFileName(M({ track: "lemans", cls: "hypercar", car: "toyota", sess: "Q", cond: "wet", ver: "V1.2" })))
+      .toBe("lemans_hypercar-toyota_q-wet_v1.2.svm");
+  });
+
+  it("sınıf ADDA ŞART: aynı araç id'si farklı sınıflarda çakışmasın", () => {
+    // `ferrari` hem Hypercar 499P hem GT3 296 → sınıfsız ikisi aynı ad olurdu
+    const a = setupFileName(M({ cls: "gt3" }));
+    const b = setupFileName(M({ cls: "hypercar" }));
+    expect(a).not.toBe(b);
+  });
+
+  it("boş alanlar segmentiyle birlikte düşer — çift ayraç oluşmaz", () => {
+    expect(setupFileName(M({ ver: "", cond: "", sess: "" }))).toBe("spa_gt3-ferrari.svm");
+    expect(setupFileName(M({ cond: "", ver: "" }))).toBe("spa_gt3-ferrari_r.svm");
+    expect(setupFileName(M({ sess: "", ver: "" }))).toBe("spa_gt3-ferrari_dry.svm");
+    expect(setupFileName({ track: "monza" })).toBe("monza.svm");
+    expect(setupFileName(M())).not.toContain("__");
+  });
+
+  it("pist yoksa \"\" döner (çağıran ham ada düşer)", () => {
+    expect(setupFileName({ cls: "gt3", car: "ferrari" })).toBe("");
+    expect(setupFileName(null)).toBe("");
+  });
+
+  it("Türkçe/aksanlı harfler ASCII'ye katlanır", () => {
+    expect(setupFileName({ track: "portimão" })).toBe("portimao.svm");
+    expect(setupFileName({ track: "Şğıöüç" })).toBe("sgiouc.svm");
+  });
+
+  it("sürümdeki baştaki v yinelenmez, nokta korunur", () => {
+    expect(setupFileName(M({ ver: "v2" }))).toContain("_v2.svm");
+    expect(setupFileName(M({ ver: "V1.2" }))).toContain("_v1.2.svm");
+    expect(setupFileName(M({ ver: "1.2" }))).toContain("_v1.2.svm");
+  });
+});
+
+describe("withFileNames — okuma yolunda ad türetme", () => {
+  it("eski kayıtların adı da meta'dan standarda döner; ham ad origName'de kalır", () => {
+    const rows = [{ id: "a1", name: "Spa deneme (2).svm", track: "spa", cls: "gt3", car: "ferrari", sess: "R", cond: "dry", ver: "V3" }];
+    const out = withFileNames(rows);
+    expect(out[0].name).toBe("spa_gt3-ferrari_r-dry_v3.svm");
+    expect(out[0].origName).toBe("Spa deneme (2).svm");
+  });
+
+  it("aynı adı üreten kayıtlara id soneki gelir — GRUBUN TAMAMINA (sıralamadan bağımsız)", () => {
+    const base = { track: "spa", cls: "gt3", car: "ferrari", sess: "R", cond: "dry", ver: "V3" };
+    const out = withFileNames([{ id: "aaaa1111", ...base }, { id: "bbbb2222", ...base }]);
+    expect(out[0].name).toBe("spa_gt3-ferrari_r-dry_v3-1111.svm");
+    expect(out[1].name).toBe("spa_gt3-ferrari_r-dry_v3-2222.svm");
+    expect(out[0].name).not.toBe(out[1].name);
+    // ters sırada da AYNI adlar (grup soneki sabit)
+    const rev = withFileNames([{ id: "bbbb2222", ...base }, { id: "aaaa1111", ...base }]);
+    expect(rev.map((r) => r.name).sort()).toEqual(out.map((r) => r.name).sort());
+  });
+
+  it("tekil kayıtta sonek YOK", () => {
+    const out = withFileNames([{ id: "aaaa1111", track: "spa", cls: "gt3", car: "ferrari" }]);
+    expect(out[0].name).toBe("spa_gt3-ferrari.svm");
+  });
+
+  it("meta'sı zayıf kayıt ham adını korur, uzantı garanti edilir", () => {
+    const out = withFileNames([{ id: "x", name: "eski_dosya" }, { id: "y", name: "" }]);
+    expect(out[0].name).toBe("eski_dosya.svm");
+    expect(out[1].name).toBe("setup.svm");   // adsız telemetri kaydı → artık boş değil
+  });
+
+  it("bozuk girdide çökmez", () => {
+    expect(withFileNames(null)).toEqual([]);
+    expect(withFileNames([null]).length).toBe(1);
   });
 });

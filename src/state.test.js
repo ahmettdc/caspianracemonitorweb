@@ -426,6 +426,53 @@ describe("computeSlotStats / computeChartData", () => {
     expect(cd[1]).toEqual({ lap: 2, A: 122 });
     expect(cd[2]).toEqual({ lap: 3 }); // 3. tur use:false → A yok
   });
+  it("<3 tur: tutarlılık null (anlamsız); <4 tur: tempo eğilimi null", () => {
+    const s = computeSlotStats(st).A;   // 2 dahil tur
+    expect(s.sdMs).toBeNull();
+    expect(s.degMsPerLap).toBeNull();
+  });
+});
+
+describe("computeSlotStats — tutarlılık / tempo eğilimi / teorik en iyi", () => {
+  const mk = (laps) => base({ telemetry: { A: { laps }, B: null, C: null, D: null } });
+  it("sdMs: dahil turların std sapması (ms)", () => {
+    // 100/102/104 sn → ort 102, sapmalar −2/0/+2 → pop. std = sqrt(8/3)·1000 ≈ 1632.99
+    const s = computeSlotStats(mk([
+      { ms: 100000, use: true, w: [null,null,null,null] }, { ms: 102000, use: true, w: [null,null,null,null] }, { ms: 104000, use: true, w: [null,null,null,null] },
+    ])).A;
+    expect(s.sdMs).toBeCloseTo(Math.sqrt(8 / 3) * 1000, 1);
+  });
+  it("degMsPerLap: düz artan tempo → pozitif eğim (ms/tur); hariç tur sayılmaz", () => {
+    const s = computeSlotStats(mk([
+      { ms: 100000, use: true, w: [null,null,null,null] }, { ms: 100500, use: true, w: [null,null,null,null] },
+      { ms: 101000, use: true, w: [null,null,null,null] }, { ms: 101500, use: true, w: [null,null,null,null] },
+    ])).A;
+    expect(s.degMsPerLap).toBeCloseTo(500, 6);   // tur başına +0.5 sn
+  });
+  it("degMsPerLap: hızlanma (yakıt hafiflemesi) → negatif eğim", () => {
+    const s = computeSlotStats(mk([
+      { ms: 101500, use: true, w: [null,null,null,null] }, { ms: 101000, use: true, w: [null,null,null,null] },
+      { ms: 100500, use: true, w: [null,null,null,null] }, { ms: 100000, use: true, w: [null,null,null,null] },
+    ])).A;
+    expect(s.degMsPerLap).toBeCloseTo(-500, 6);
+  });
+  it("theoMs: en iyi S1/S2/S3 toplamı (gerçek turdan daha hızlı olabilir)", () => {
+    // A: S1 iyi (29), B: S2 iyi (27), C: S3 iyi (31) → teorik = 29+27+31 = 87 sn
+    const s = computeSlotStats(mk([
+      { ms: 90000, use: true, w: [null,null,null,null], sectors: [29, 30, 31] },
+      { ms: 90000, use: true, w: [null,null,null,null], sectors: [30, 27, 33] },
+      { ms: 91000, use: true, w: [null,null,null,null], sectors: [31, 29, 31] },
+    ])).A;
+    expect(s.theoMs).toBe(87000);
+    expect(s.theoMs).toBeLessThan(s.bestMs);   // masada süre kaldı
+  });
+  it("theoMs: <2 sektörlü tur varsa null", () => {
+    const s = computeSlotStats(mk([
+      { ms: 90000, use: true, w: [null,null,null,null], sectors: [30, 30, 30] },
+      { ms: 91000, use: true, w: [null,null,null,null], sectors: null },
+    ])).A;
+    expect(s.theoMs).toBeNull();
+  });
 });
 
 describe("apply105Rule — kısmi/freak tur 'en iyi' sayılmaz", () => {

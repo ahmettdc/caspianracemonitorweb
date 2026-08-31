@@ -6,7 +6,7 @@
    - Firebase / Google (cross-origin): dokunulmaz, her zaman ağdan
    Sürüm değişince CACHE adını artır → eski cache temizlenir.
    ============================================================ */
-const CACHE = "crc-v2";
+const CACHE = "crc-v2.2.4";   // sürüm başına artır → eski app-shell temizlenir
 const APP_SHELL = ["./", "./index.html", "./favicon.png", "./favicon.svg", "./manifest.webmanifest"];
 
 self.addEventListener("install", (e) => {
@@ -29,8 +29,20 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;  // firebase/google → ağa bırak
 
-  if (req.mode === "navigate") {                    // SPA gezinme: ağ önce
-    e.respondWith(fetch(req).catch(() => caches.match("./index.html")));
+  /* SPA gezinme: ağ önce — AMA HTTP ÖNBELLEĞİNİ ATLAYARAK (cache:"reload").
+     v2.2.4 hata: düz `fetch(req)` tarayıcının HTTP önbelleğinden geçiyordu ve
+     index.html `max-age=3600` ile geldiği için bir SAAT boyunca ESKİ html
+     dönüyordu. Varlık adları içerik-hash'li olduğundan eski html eski hash'leri
+     işaret ediyor, o dosyalar da aşağıdaki cache-first dalından SW önbelleğinden
+     servis ediliyordu → yeni sürüm dağıtılsa bile kullanıcı eskisini görüyordu
+     ("deploy oldu ama değişmedi"). `reload` her gezinmede sunucuya gider;
+     çevrimdışıysa yine önbellekteki index.html'e düşer. */
+  if (req.mode === "navigate") {
+    e.respondWith(
+      fetch(req, { cache: "reload" })
+        .catch(() => fetch(req))                    // reload desteklenmiyorsa normal dene
+        .catch(() => caches.match("./index.html")),
+    );
     return;
   }
 

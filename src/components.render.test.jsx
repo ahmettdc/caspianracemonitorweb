@@ -2,9 +2,10 @@ import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
   VersionModal, RaceEditModal, ChatModal, SetupModal, TeamModal, CreateJoinModal, ImgSelect,
-  SetupContentModal, SetupCompareModal, SetupTable, SetupCards, SessionSetupBox,
+  SetupContentModal, SetupCompareModal, SetupTable, SetupCards,
   AdminModal, normalizeTr,
 } from "./components.jsx";
+import { duckSetupToSvm, textToB64 } from "./setupParse";
 
 /* Smoke-render testleri — App.jsx'ten çıkarılan modal bileşenlerini SAHTE prop'larla
    render eder ve çökmediğini (eksik prop / tanımsız referans) doğrular. Render bölmenin
@@ -285,25 +286,32 @@ describe("SetupCompareModal", () => {
   });
 });
 
-describe("SessionSetupBox (.duckdb gömülü setup)", () => {
-  const setup = JSON.stringify({
+describe("Seans setup'ı — havuzdaki İçerik penceresiyle AYNI bileşen", () => {
+  /* v2.2.4: ayrı `SessionSetupBox` kartı kaldırıldı. .duckdb'ye gömülü kurulum
+     `duckSetupToSvm` + `textToB64` ile sentetik bir havuz kaydına çevrilip
+     SetupContentModal'a verilir → pencere birebir havuzdaki "İçerik" penceresi. */
+  const duck = JSON.stringify({
     VM_REAR_WING: { stringValue: "6.3 deg" },
     VM_BRAKE_BALANCE: { stringValue: "50.0:50.0" },
     "WM_PRESSURE-W_FL": { stringValue: "136 kPa" },
     "WM_PRESSURE-W_RL": { stringValue: "135 kPa" },
   });
-  const meta = { driver: "AD", session: "Practice", venue: "Circuit de la Sarthe", carClass: "GT3" };
-  it("özet + Havuza Kaydet ile çökmeden render olur", () => {
-    const html = render(<SessionSetupBox setup={setup} meta={meta} t={t} onSave={noop} />);
+  const sessSu = {
+    id: "tele-session", data: textToB64(duckSetupToSvm(duck)),
+    name: "Circuit de la Sarthe · Ferrari 296 GT3",
+    track: "lemans", cls: "gt3", car: "", cond: "", sess: "",
+    note: "Telemetriden · AD · Practice", lap: "3:24.10",
+  };
+  it("duck setup → .svm çevrimi İçerik penceresinde okunur", () => {
+    const html = render(<SetupContentModal open su={sessSu} onClose={noop} t={t} />);
     expect(html).toContain("6.3 deg");
-    expect(html).toContain("Havuza Kaydet");
+    expect(html).toContain("Setup İçeriği");        // havuzdakiyle aynı başlık
+    expect(html).toContain("Telemetriden · AD · Practice");
   });
-  it("setup yoksa / bozuksa null", () => {
-    expect(render(<SessionSetupBox setup={null} meta={{}} t={t} />)).toBe("");
-    expect(render(<SessionSetupBox setup={"{bozuk"} meta={{}} t={t} />)).toBe("");
-  });
-  it("onSave yoksa kaydet butonu görünmez", () => {
-    const html = render(<SessionSetupBox setup={setup} meta={meta} t={t} />);
-    expect(html).not.toContain("Havuza Kaydet");
+  it("onSave geçilince Havuza Kaydet çıkar; havuz penceresinde (onSave yok) çıkmaz", () => {
+    const ile = render(<SetupContentModal open su={sessSu} onClose={noop} t={t} onSave={noop} />);
+    expect(ile).toContain("Havuza Kaydet");
+    const siz = render(<SetupContentModal open su={sessSu} onClose={noop} t={t} />);
+    expect(siz).not.toContain("Havuza Kaydet");     // havuz penceresi DEĞİŞMEDİ
   });
 });

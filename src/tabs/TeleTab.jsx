@@ -1,18 +1,35 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ReferenceLine, ReferenceDot, ResponsiveContainer } from "recharts";
 import { fmtLap } from "../engine";
-import { SLOT_COLORS, ASSET, TRACK_ASSET, trackName, carName, carImg, venueToTrackId } from "../constants";
-import { BoxPlot, SessionSetupBox, Icon } from "../components";
+import { SLOT_COLORS, ASSET, TRACK_ASSET, trackName, carName, carImg, brandLogo,
+  venueToTrackId } from "../constants";
+import { BoxPlot, SetupContentModal, Icon } from "../components";
+import { duckSetupToSvm, textToB64 } from "../setupParse";
 import { zoomViewAt, panView, zoomDomain, advanceCursor } from "../zoomView";
 import { sectorOf, sectorMarks } from "../ldTrace";
 import { detectApexes, cornerStats } from "../corners";
 
-/* İz karşılaştırma renkleri (A/B tur) */
+/* İz karşılaştırma renkleri (A/B tur) — fişteki --rc-danger-2 / --rc-delta ile AYNI
+   değerler. Burada HEX bırakılır: PDF dışa aktarımı ayrı bir iframe belgesi yazıyor
+   ve orada uygulamanın CSS değişkenleri tanımlı DEĞİL (var() çözülmez). */
 const CA = "#ff5470", CB = "#4d9fff";
+
+/* Grafik kroması — TELE-FİŞİ "Renk → token" tablosuna hizalı. Eskiden Recharts
+   varsayılanına yakın MAVİ-GRİ bir palet (#2B3542 ızgara · #8C97A5 eksen ·
+   #1F2731 tooltip) kullanılıyordu; uygulamanın sıcak koyu temasında yabancı
+   duruyordu. SVG attribute'unda var() Chromium'da çalışır — TrackMap.jsx aynı
+   deseni (stroke={"var(--line2)"}) zaten kullanıyor. */
+const AXIS = "var(--rc-text-3)";         // #A88C93 · eksen çizgisi + etiket
+const GRID = "var(--rc-line-soft)";      // #241519 · ızgara
+const TIP_BG = "var(--rc-surface-3)";    // #1E1418 · tooltip zemini
+const TIP_BD = "var(--rc-border)";       // #34232A · tooltip kenarlığı
+const MARK = "var(--rc-border-strong)";  // #4A2F38 · sektör ayırıcı
+const CURSOR = "var(--rc-ok-3)";         // #3AD07A · oynatma playhead'i
+const WARN2 = "var(--rc-warn-2)";        // #F5C84C · delta çizgisi + viraj no
 
 /* TraceRow prop kimlikleri modül sabiti — her render'da taze dizi/fonksiyon
    üretilirse aşağıdaki grafik memo'ları hiç tutmaz. */
-const K_DT = ["dt"], C_DT = ["#F5C84C"], C_AB = [CA, CB];
+const K_DT = ["dt"], C_DT = [WARN2], C_AB = [CA, CB];
 const K_SP = ["spA", "spB"], K_TH = ["thA", "thB"], K_BR = ["brA", "brB"],
   K_G = ["gA", "gB"], K_RPM = ["rpmA", "rpmB"], K_ST = ["stA", "stB"];
 const sp1 = (v) => (v == null ? "—" : v.toFixed(1));
@@ -42,24 +59,24 @@ function TraceRow({ data, title, unit, keys, colors, fmt, height = 132, zero, da
       <LineChart data={data} syncId="tele" margin={{ top: PLOT_T, right: PLOT_R, bottom: 0, left: 0 }}
         onMouseMove={onMove}
         onMouseLeave={onLeave}>
-        <CartesianGrid stroke="#2B3542" strokeDasharray="3 3" />
+        <CartesianGrid stroke={GRID} strokeDasharray="3 3" />
         <XAxis dataKey="d" type="number" domain={xDomain || ["dataMin", "dataMax"]}
-          allowDataOverflow stroke="#8C97A5" fontSize={10} tickFormatter={(v) => Math.round(v)}
+          allowDataOverflow stroke={AXIS} fontSize={10} tickFormatter={(v) => Math.round(v)}
           minTickGap={40} />
-        <YAxis stroke="#8C97A5" fontSize={10} width={PLOT_L}
+        <YAxis stroke={AXIS} fontSize={10} width={PLOT_L}
           domain={["auto", "auto"]} tickFormatter={fmt} />
-        <Tooltip contentStyle={{ background: "#1F2731", border: "1px solid #2B3542", fontSize: 12 }}
+        <Tooltip contentStyle={{ background: TIP_BG, border: `1px solid ${TIP_BD}`, fontSize: 12 }}
           labelFormatter={(v) => `${Math.round(v)} ${unit}`}
           formatter={(val, n) => [fmt ? fmt(val) : val, n]} />
-        {zero && <ReferenceLine y={0} stroke="#8C97A5" strokeDasharray="4 4" />}
+        {zero && <ReferenceLine y={0} stroke={AXIS} strokeDasharray="4 4" />}
         {(dots || []).map((p, i) => (
           <ReferenceDot key={`d${i}`} x={p.x} y={p.y} r={3} fill={p.c} stroke="#000"
             strokeWidth={0.6} isFront />
         ))}
         {(bounds || []).map((b) => (
-          <ReferenceLine key={b.label} x={b.d} stroke="#6B7683" strokeDasharray="2 3"
+          <ReferenceLine key={b.label} x={b.d} stroke={MARK} strokeDasharray="2 3"
             label={{ value: `S${b.label.slice(-1)}`, position: "insideTopLeft",
-              fill: "#8C97A5", fontSize: 9 }} />
+              fill: AXIS, fontSize: 9 }} />
         ))}
         {keys.map((k, i) => (
           <Line key={k} dataKey={k} name={k.endsWith("B") ? "B" : k.endsWith("A") ? "A" : k}
@@ -83,7 +100,7 @@ function TraceRow({ data, title, unit, keys, colors, fmt, height = 132, zero, da
         {frac != null && (
           <div aria-hidden style={{ position: "absolute", top: PLOT_T, bottom: PLOT_B,
             left: `calc(${PLOT_L}px + (100% - ${PLOT_L + PLOT_R}px) * ${frac})`,
-            width: 1.4, background: "#3ad07a", pointerEvents: "none" }} />
+            width: 1.4, background: CURSOR, pointerEvents: "none" }} />
         )}
       </div>
     </div>
@@ -255,12 +272,12 @@ function TrackMini({ t, data, cursor, src, big, marks, apex, onScrub }) {
             </g>
           ))}
           {apexPts.map((a) => (
-            <text key={`ap${a.no}`} x={a.x} y={a.y} fill="#F5C84C" fontSize={9 * zf}
+            <text key={`ap${a.no}`} x={a.x} y={a.y} fill={WARN2} fontSize={9 * zf}
               fontWeight="700" textAnchor="middle" dominantBaseline="central"
               stroke="#000" strokeWidth={0.5} paintOrder="stroke"
               vectorEffect="non-scaling-stroke">{a.no}</text>
           ))}
-          {cur && <circle cx={cur[0]} cy={cur[1]} r={6 * zf} fill="#3ad07a" stroke="#000"
+          {cur && <circle cx={cur[0]} cy={cur[1]} r={6 * zf} fill={CURSOR} stroke="#000"
             strokeWidth={1.4} vectorEffect="non-scaling-stroke" />}
         </svg>
         {zoomed && (
@@ -428,6 +445,11 @@ function TraceCompareCard({ t, sources, fallbackMeta, cmpASrc, setCmpASrc, cmpBS
     doc.write(`<!doctype html><html><head><meta charset="utf-8">
 <title>${esc(t("Telemetri Raporu"))}</title>
 <style>
+ /* Kopyalanan SVG'ler grafik kromasını CSS DEĞİŞKENİYLE taşır (var(--rc-…)); bu
+    iframe ayrı bir belge olduğundan uygulamanın :root'u burada YOKTUR → tanımlanmazsa
+    ızgara/eksen çizgileri kaybolur. Değerler tokens.css ile birebir aynı. */
+ :root{--rc-text-3:#A88C93;--rc-line-soft:#241519;--rc-surface-3:#1E1418;
+   --rc-border:#34232A;--rc-border-strong:#4A2F38;--rc-ok-3:#3AD07A;--rc-warn-2:#F5C84C}
  *{box-sizing:border-box}
  body{font-family:Arial,Helvetica,sans-serif;color:#1a1113;margin:24px;font-size:12px}
  h1{font-size:18px;margin:0 0 2px;letter-spacing:.04em;text-transform:uppercase}
@@ -657,7 +679,7 @@ ${svgs}
                 const bd = (v) => (v == null ? "—" : `${Math.round(v)} ${unit}`);
                 return (
                   <tr key={c.no}>
-                    <td style={{ fontWeight: 700, color: "#F5C84C" }}>{c.no}</td>
+                    <td style={{ fontWeight: 700, color: WARN2 }}>{c.no}</td>
                     <td className="mono">{Math.round(c.apexD)} {unit}</td>
                     <td className="mono">{c.aMin != null ? Math.round(c.aMin) : "—"}</td>
                     <td className="mono">{c.bMin != null ? Math.round(c.bMin) : "—"}</td>
@@ -713,6 +735,9 @@ export default function TeleTab({
   const teleHd = { fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 16, fontWeight: 700 };
   const teleCard = { border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)", padding: "16px 18px" };
   const [impOpen, setImpOpen] = useState(false);
+  /* §BS/§İM-3 — "Bu seansın setup'ı" penceresi. Setup havuzundaki "İçerik"
+     penceresinin AYNISI (SetupContentModal); ayrı bir bileşen yok. */
+  const [setupOpen, setSetupOpen] = useState(false);
   /* Kaydettikten sonra yükleme penceresini kapat (geri bildirim slot kartında görünür). */
   useEffect(() => { if (savedMsg) setImpOpen(false); }, [savedMsg]);
 
@@ -725,6 +750,11 @@ export default function TeleTab({
     const c = SLOT_COLORS[sl];
     const meta = st.telemetry[sl]?.meta || {};
     const sel = slot === sl;
+    /* Fiş: dolu yuvada sağda marka logosu (26px) + araç görseli (124×56).
+       Marka dosyanın kendi `vehicle` meta'sından; araç görseli yarış bağlamından
+       (dosyada sınıf/araç id'si yok). Görsel yoksa onError ile gizlenir. */
+    const slotBrand = filled ? brandLogo(meta.vehicle) : "";
+    const slotCar = filled && st?.carClass && st?.car ? carImg(st.carClass, st.car) : "";
     return (
       <button key={sl} onClick={() => setSlot(sl)}
         style={{ flex: "1 1 340px", minWidth: 260, display: "flex", alignItems: "center", gap: 12, textAlign: "left",
@@ -748,6 +778,14 @@ export default function TeleTab({
               ? [`${s.laps} ${t("tur")}`, meta.venue, meta.vehicle].filter(Boolean).join(" · ")
               : t("dosya bekleniyor")}</span>
         </span>
+        {(slotBrand || slotCar) && (
+          <span style={{ display: "flex", alignItems: "center", gap: 8, flex: "0 0 auto" }}>
+            {slotBrand && <img src={slotBrand} alt="" onError={hideImg}
+              style={{ width: 26, height: 26, objectFit: "contain" }} />}
+            {slotCar && <img src={slotCar} alt="" onError={hideImg}
+              style={{ width: 124, height: 56, objectFit: "contain" }} />}
+          </span>
+        )}
       </button>
     );
   };
@@ -789,6 +827,26 @@ export default function TeleTab({
   ].filter(([, v]) => v);
   const sessLoaded = !!(curS && !curS.empty);
   const hideImg = (e) => { e.currentTarget.style.display = "none"; };
+
+  /* §İM-3 — Seans setup'ı için SENTETİK havuz kaydı. SetupContentModal havuzdaki
+     `su` şeklini bekler (base64 .svm gövdesi + künye alanları); .duckdb'ye gömülü
+     kurulum `duckSetupToSvm` ile aynı .svm metnine çevrilip base64'lenir → pencere
+     HİÇ değiştirilmeden, havuzdaki "İçerik" penceresiyle birebir aynı çalışır.
+     useMemo: base64 çevrimi her render'da yapılmasın (modal kapalıyken de ucuz). */
+  const sessSu = useMemo(() => {
+    if (!cmpMeta?.setup) return null;
+    const svm = duckSetupToSvm(cmpMeta.setup);
+    if (!svm) return null;
+    return {
+      id: "tele-session",                       // havuz kimliği yok — blob yolu kullanılmaz
+      data: textToB64(svm),                     // gövde doğrudan burada (senkron)
+      name: [curMeta.venue, curMeta.vehicle].filter(Boolean).join(" · ") || t("Seans setup'ı"),
+      track: sessTrk || "", cls: sessCls || "", car: sessCar || "",
+      cond: "", sess: "",                       // CondSess: ıslak/kuru + Q/R bilinmiyor → varsayılan
+      note: [t("Telemetriden"), curMeta.driver, curMeta.session].filter(Boolean).join(" · "),
+      lap: (curS && !curS.empty) ? fmtMs(curS.bestMs) : "",
+    };
+  }, [cmpMeta, curMeta, sessTrk, sessCls, sessCar, curS, t]);
 
   /* Yükleme penceresi içeriği (eski import kartı — mantık birebir korundu). */
   const importInner = (
@@ -938,11 +996,11 @@ export default function TeleTab({
               <div style={{ height: 280 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData}>
-                    <CartesianGrid stroke="#2B3542" strokeDasharray="3 3" />
-                    <XAxis dataKey="lap" stroke="#8C97A5" fontSize={11} />
-                    <YAxis stroke="#8C97A5" fontSize={11} domain={["auto", "auto"]}
+                    <CartesianGrid stroke={GRID} strokeDasharray="3 3" />
+                    <XAxis dataKey="lap" stroke={AXIS} fontSize={11} />
+                    <YAxis stroke={AXIS} fontSize={11} domain={["auto", "auto"]}
                       tickFormatter={(v) => fmtLap(v)} width={70} />
-                    <Tooltip contentStyle={{ background: "#1F2731", border: "1px solid #2B3542" }}
+                    <Tooltip contentStyle={{ background: TIP_BG, border: `1px solid ${TIP_BD}` }}
                       labelFormatter={(l) => `Tur ${l}`}
                       formatter={(v, n) => [fmtLap(v), `Stint ${n}`]} />
                     <Legend formatter={(v) => `Stint ${v}`} />
@@ -967,6 +1025,17 @@ export default function TeleTab({
               {bS?.medW?.some((w) => w != null) && tile(
                 bS.medW.map((w) => w == null ? "–" : w.toFixed(1)).join(" / "),
                 `${t("Aşınma %/tur")} · FL FR RL RR`)}
+              {bS?.sdMs != null && tile(
+                `±${(bS.sdMs / 1000).toFixed(2)} sn`,
+                t("Tutarlılık (std sapma)"))}
+              {bS?.degMsPerLap != null && tile(
+                `${bS.degMsPerLap >= 0 ? "+" : "−"}${Math.abs(bS.degMsPerLap / 1000).toFixed(2)} sn/tur`,
+                t("Tempo eğilimi · yakıt+lastik"),
+                bS.degMsPerLap > 50 ? "var(--rc-danger)" : bS.degMsPerLap < -50 ? "var(--rc-ok-2)" : null)}
+              {bS?.theoMs != null && tile(
+                fmtMs(bS.theoMs),
+                `${t("Teorik en iyi")} · ${((bS.bestMs - bS.theoMs) / 1000).toFixed(2)}s ${t("bırakıldı")}`,
+                "var(--rc-ok-2)")}
             </div>
 
             {loadedSlots.length > 1 && baseSlot && slotStats[baseSlot] && !slotStats[baseSlot].empty && (
@@ -1019,8 +1088,33 @@ export default function TeleTab({
               ) : (
                 <div style={{ fontSize: 12, color: "var(--rc-text-3)", lineHeight: 1.6 }}>{t("Bu yuva boş — yükle ya da başka bir Stint seç.")}</div>
               )}
+              {/* §BS — "Bu seansın setup'ı": seans satırlarının ALTINA, alt aksiyon
+                  barının ÜSTÜNE tam genişlikte buton. Yalnız dosyada gömülü setup
+                  varsa görünür; tıklayınca aşağıdaki Setup kartı Detay'a açılıp
+                  görünüme kayar (openSignal). */}
+              {cmpMeta?.setup && (
+                <button onClick={() => setSetupOpen(true)}
+                  title={t("Bu seansın setup dosyasını incele")}
+                  style={{ display: "flex", alignItems: "center", gap: 10, width: "100%",
+                    boxSizing: "border-box", marginTop: "auto", padding: "11px 13px", borderRadius: 10,
+                    border: "1px solid var(--rc-border-strong)",
+                    background: "radial-gradient(120% 200% at 100% 0,rgba(150,0,24,.22),var(--rc-surface-3) 72%)",
+                    color: "var(--rc-text)", cursor: "pointer", textAlign: "left" }}>
+                  <span style={{ color: "var(--rc-brand-bright)", display: "inline-flex", flex: "0 0 auto" }}>
+                    <Icon name="ayar" size={18} /></span>
+                  <span style={{ display: "flex", flexDirection: "column", gap: 1, flex: 1, minWidth: 0 }}>
+                    <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 13.5, letterSpacing: ".02em" }}>
+                      {t("Bu seansın setup'ı")}</b>
+                    <span style={{ fontSize: 10.5, color: "var(--rc-text-3)", overflow: "hidden",
+                      textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {[sessVenue, sessVehicle].filter(Boolean).join(" · ") || t("Seans setup'ı")}
+                      {" · "}{t("içeriği incele")}</span>
+                  </span>
+                  <span style={{ color: "var(--rc-text-3)", fontSize: 15, flex: "0 0 auto" }}>→</span>
+                </button>
+              )}
               {curS && !curS.empty && (
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: "auto", paddingTop: 14, borderTop: "1px solid var(--rc-line-soft)" }}>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: cmpMeta?.setup ? 12 : "auto", paddingTop: 14, borderTop: "1px solid var(--rc-line-soft)" }}>
                   {!standalone && (
                     <button onClick={() => up({ avgLap: fmtMs(curS.medMs), ...(curS.medFuel != null ? { consumption: +curS.medFuel.toFixed(2) } : {}) })}
                       style={{ padding: "7px 14px", borderRadius: 9, border: "1px solid var(--rc-brand-bright)", background: "rgba(150,0,24,.22)", color: "var(--rc-text)", cursor: "pointer", fontSize: 12 }}>{t("Data'ya uygula")}</button>
@@ -1070,7 +1164,8 @@ export default function TeleTab({
       )}
 
       {cmpMeta?.setup && (
-        <SessionSetupBox setup={cmpMeta.setup} meta={cmpMeta} t={t} onSave={onSaveDuckSetup} />
+        <SetupContentModal open={setupOpen} su={sessSu} onClose={() => setSetupOpen(false)}
+          t={t} onSave={onSaveDuckSetup ? () => onSaveDuckSetup(cmpMeta.setup, cmpMeta) : null} />
       )}
 
       {cmpSources?.length > 0 && (

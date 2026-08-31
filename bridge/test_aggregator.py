@@ -7,7 +7,8 @@ tur kaymasına (tur 4'ün süresi tur 3 diye) ve kalıcı veri bozulmasına yol 
 """
 import sys
 
-from rf2_source import Aggregator, RF2Source, _flag_of, _wait_reason
+from rf2_source import (Aggregator, RF2Source, _flag_of, _merge_flags,
+                        _wait_reason)
 
 
 class _Wheel:
@@ -179,24 +180,117 @@ def test_carid_sifir_gecerli_kimliktir():
     assert r["lapKey"] == "c0", r["lapKey"]
 
 
-def test_bayrak_shmem_sektor_sarisi_uretmez():
-    """v1.4.74 sözleşme değişikliği: shmem yedeği artık `mSectorFlag`'ten LOKAL sarı
-    ÜRETMEZ (LMU'da green iken bile üç sektörü sarı gösterip yanlış full-yellow
-    veriyordu — kullanıcı bug'ı). Lokal sarılar yalnız YETKİLİ REST'ten gelir.
-    `_flag_of` yalnız TAM PİST sarısını (FCY) güvenle bilir → green→green garanti."""
-    assert _flag_of(5, 0) == ("Green", [])                 # yeşil faz → Green
-    # (eski sözleşmede _flag_of(5,0,[0,0,1]) == ("Yellow",[2]) idi — artık sektör yok)
+class _Pen:
+    """Tek aracı kare kare besler: BEKLEYEN ceza (mNumPenalties) dizisi."""
+
+    def __init__(self, pens):
+        self.pens = list(pens)
+        self.i = 0
+
+    def read(self):
+        pen = self.pens[min(self.i, len(self.pens) - 1)]
+        self.i += 1
+        return {"session": {}, "own": None, "field": [{
+            "pos": 1, "carId": 1, "driver": "A. Demircan", "lapsDone": 1 + self.i // 4,
+            "lastSec": 100.0, "bestSec": 100.0, "inPits": False, "penalties": pen}]}
+
+
+def _pen_run(pens):
+    agg = Aggregator(_Pen(pens))
+    out = None
+    for _ in range(len(pens)):
+        out = agg.read()
+    return out["field"][0]
+
+
+def test_ceza_kumulatif_servis_edilince_sifirlanmaz():
+    """v2.2.4 — SAHA HATASI: ceza sütunu sürücü cezasını çekince temizleniyordu.
+
+    `mNumPenalties` başlığı "number of OUTSTANDING penalties" der — BEKLEYEN ceza,
+    servis edilince 0'a düşer. Kümülatif sanılırsa yarış boyunca yanlış okunur.
+    TinyPedal (module_stats.py) toplamı YÜKSELEN KENARLARDAN biriktirir; aynısı."""
+    # ceza alındı (0→1), çekildi (1→0), tekrar alındı (0→1) → toplam 2, bekleyen 1
+    r = _pen_run([0, 0, 1, 1, 0, 0, 1, 1])
+    assert r["penaltiesTotal"] == 2, r["penaltiesTotal"]
+    assert r["penalties"] == 1                 # anlık bekleyen ayrı alanda korunur
+    # servis edildikten sonra toplam DÜŞMEZ (eski davranışta 0 görünüyordu)
+    r2 = _pen_run([0, 1, 1, 0, 0])
+    assert r2["penaltiesTotal"] == 1 and r2["penalties"] == 0
+
+
+def test_ceza_ilk_karede_taban_alinir():
+    """Yarışa GEÇ katılma / köprü yeniden başlatma: ilk karede zaten 2 ceza varsa
+    bunlar bizim sayacımıza EKLENMEZ (şişirme olmaz), yalnız taban alınır."""
+    r = _pen_run([2, 2, 2])
+    assert r["penaltiesTotal"] == 0, r["penaltiesTotal"]
+    # tabandan SONRAKİ artış sayılır
+    r2 = _pen_run([2, 2, 3])
+    assert r2["penaltiesTotal"] == 1
+
+
+def test_ceza_ayni_karede_birden_fazla_artis():
+    """İki ceza tek kare arasında gelirse fark kadar (+2) eklenir — kayıp yok."""
+    r = _pen_run([0, 0, 2])
+    assert r["penaltiesTotal"] == 2
+
+
+def test_ceza_alani_yoksa_cokmez():
+    """Eski köprü / ceza alanı üretmeyen kaynak → 0, hata yok."""
+    r = _run([(0, -1), (1, 101.0)])
+    assert r["penaltiesTotal"] == 0
+
+
+def test_bayrak_sektor_sarisi_uretilir():
+    """v2.2.4 — SAHA HATASI: "oyunda sarı sallanıyor, Live Timing'de göremiyoruz".
+
+    Zincir: REST VARSAYILAN KAPALI (donma önlemi, bridge/README) → lmu=None →
+    shmem yedeği devrede; ama v1.4.74'te o yedekten lokal sarı ÜRETİMİ kaldırılmıştı
+    → "Yellow" döndüren TEK BİR kod yolu kalmamıştı (yapısal olarak imkânsız).
+    Artık lokal sarı shmem'den TinyPedal predikatıyla (== 1) üretilir."""
+    assert _flag_of(5, 0, [0, 0, 1]) == ("Yellow", [3])
+    assert _flag_of(5, 0, [1, 0, 0]) == ("Yellow", [1])
+    assert _flag_of(5, 0, [1, 0, 1]) == ("Yellow", [1, 3])
+    assert _flag_of(5, 0, [0, 0, 0]) == ("Green", [])
+
+
+def test_bayrak_sektor_invalid_bayt_sari_sayilmaz():
+    """v1.4.74'ü doğuran YANLIŞ POZİTİF burada kilitlenir: eski kod `> 0` kullandığı
+    için Invalid/başlatılmamış bayt (255) sarı sayılıyor, GREEN'de üç sektör birden
+    sarı görünüyordu. TinyPedal'ın predikatı KESİN EŞİTLİK (== 1) → 255 yeşil kalır."""
+    assert _flag_of(5, 0, [255, 255, 255]) == ("Green", [])
+    assert _flag_of(5, 0, [0, 255, 0]) == ("Green", [])
+    # bozuk/eksik dizi de çökmemeli
+    assert _flag_of(5, 0, None) == ("Green", [])
+    assert _flag_of(5, 0, ["x", None]) == ("Green", [])
 
 
 def test_bayrak_fcy_ve_yellowstate():
     assert _flag_of(6, 0) == ("FCY", [])                   # FCY fazı
     assert _flag_of(5, 2) == ("FCY", [])                   # PitClosed → FCY süreci
+    # FCY, lokal sektör bilgisini de taşır (FCY > Yellow önceliği korunur)
+    assert _flag_of(6, 0, [0, 1, 0]) == ("FCY", [2])
 
 
 def test_bayrak_invalid_255_yesil_kalir():
     """c_ubyte alanlarda Invalid(-1) = 255. Eskiden `yellow > 0` bunu sarı sayardı."""
     assert _flag_of(5, 255) == ("Green", [])
     assert _flag_of(5, 0) == ("Green", [])
+
+
+def test_bayrak_birlesme_rest_sariyi_bastiramaz():
+    """v2.2.4 — eskiden `if rest_flag:` shmem'i TAMAMEN yok sayıyordu; REST kendi
+    içinde muhafazakâr olduğu için (3/3 sektörü Green'e düşürür, alan adları tutmazsa
+    sahte "Green" üretir) gerçek sarıyı maskeliyordu. Artık sarı yalnız EKLENİR."""
+    # REST "Green" diyor ama shmem sektör sarısı görüyor → sarı korunur
+    assert _merge_flags("Yellow", [2], {"flag": "Green", "yellowSectors": []}) == ("Yellow", [2])
+    # REST FCY görüyor, shmem yeşil → en güçlü kazanır
+    assert _merge_flags("Green", [], {"flag": "FCY", "yellowSectors": []}) == ("FCY", [])
+    # sektörler birleşir (tekrarsız, sıralı)
+    assert _merge_flags("Yellow", [1], {"flag": "Yellow", "yellowSectors": [3, 1]}) == ("Yellow", [1, 3])
+    # REST yoksa shmem aynen geçer
+    assert _merge_flags("Yellow", [2], None) == ("Yellow", [2])
+    # REST yalnız sektör verdiyse Green kalamaz
+    assert _merge_flags("Green", [], {"flag": "Green", "yellowSectors": [2]}) == ("Yellow", [2])
 
 
 def test_bekleme_nedeni_eklenti_yok():
