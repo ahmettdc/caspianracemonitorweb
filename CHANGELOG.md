@@ -16,7 +16,10 @@ Eksik giderme.
 Handoff paketi `handoff-spec/tele-paketi` (TELE-FİŞİ + tokens.css + referans görseller) uygulandı. Tüm tokenlar projede zaten tanımlıydı; ekran da bu tasarım sisteminden türemişti — bu yüzden iş, fişin **EK** bölümündeki farklara ve gözden kaçmış uyumsuzluklara odaklandı.
 
 - **§İK — kategori ikonları.** Setup kategorilerinde kalan emojiler kaldırıldı: `elec` 💡 → `kontrol`, `engine` 🛢 → `anahtar`. Ayrıca fişteki eşlemeye göre **ters düşmüş** iki ikon düzeltildi: `susp` `ayar`→`mekanik`, `diff` `mekanik`→`ayar`. (`other` fişte yok → nötr madde imi korundu.)
-- **§BS — "Bu seansın setup'ı" butonu (YENİ).** Seans kutusunda, seans satırlarının altına / alt aksiyon barının üstüne tam genişlikte buton. Fiş bunun için ayrı bir modal (`svOpen`) öngörüyordu; bu uygulamada setup içeriği zaten **sayfa-içi bir kart** (`SessionSetupBox`) olduğundan modal uydurmak yerine mevcut kart hedeflendi: `openSignal` sayacı kartı Detay'a açıp görünüme kaydırır. Dibe yaslama rolü (`margin-top:auto`) butona geçti, alt bar `12px` oldu — fişteki düzenin karşılığı.
+- **§BS + §İM-3 — "Bu seansın setup'ı" butonu (YENİ).** Seans kutusunda, seans satırlarının altına / alt aksiyon barının üstüne tam genişlikte buton; tıklayınca **Setup havuzundaki "İçerik" penceresinin birebir aynısı** (`SetupContentModal`) açılır — fişin §İM-3'te tarif ettiği davranış. Dibe yaslama rolü (`margin-top:auto`) butona geçti, alt bar `12px` oldu.
+  - Sayfa-içi `SessionSetupBox` kartı ("Bu Seansın Setup'ı" bölümü) **kaldırıldı** — aynı içeriği iki ayrı yerde iki ayrı düzende gösteren ikinci bileşen ortadan kalktı; bileşen ve testleri silindi, öksüz kalan importlar temizlendi.
+  - Pencere **hiç değiştirilmedi**: `.duckdb`'ye gömülü kurulum `duckSetupToSvm` + `textToB64` ile sentetik bir havuz kaydına (`su`) çevrilip modala verilir → havuzdan açılan pencereyle aynı kod yolu, aynı düzen, aynı kategori ikonları.
+  - Tek ekleme: modala **opsiyonel** `onSave` prop'u. Seans setup'ı havuzda bir kayıt olmadığından "Havuza Kaydet" eylemi (kaldırılan kartta duruyordu) buraya taşındı. Havuzdan açılan pencere bu prop'u geçmez → **o pencere birebir eskisi gibi kaldı**.
 - **Stint kartı görselleri.** Dolu yuvalarda marka logosu (26px, `brandLogo(meta.vehicle)`) + araç görseli (124×56). Görsel yoksa `onError` ile gizlenir.
 - **Grafik kroması → tokenlar.** Recharts grafikleri Recharts varsayılanına yakın **mavi-gri** bir palet kullanıyordu (`#2B3542` ızgara · `#8C97A5` eksen · `#1F2731` tooltip) ve sıcak koyu temada yabancı duruyordu. Fişin "Renk → token" tablosuna hizalandı: ızgara `--rc-line-soft`, eksen `--rc-text-3`, tooltip `--rc-surface-3`/`--rc-border`, sektör ayırıcı `--rc-border-strong`, playhead `--rc-ok-3`, delta/viraj `--rc-warn-2`.
   - **Yakalanan regresyon:** PDF dışa aktarımı karttaki SVG'leri ayrı bir iframe belgesine kopyalıyor; orada uygulamanın `:root`'u olmadığı için `var(--rc-…)` çözülmez ve ızgara/eksen kaybolurdu. PDF stil bloğuna aynı tokenlar birebir değerlerle eklendi. `CA`/`CB` (A/B tur renkleri) aynı sebeple bilinçli olarak HEX bırakıldı.
@@ -30,7 +33,7 @@ Handoff paketi `handoff-spec/tele-paketi` (TELE-FİŞİ + tokens.css + referans 
 | "⚙ Sütun eşleme" paneli (`mapCols`) | Eklenmedi | CSV/metin ayrıştırıcısına aitti, artık ulaşılamaz |
 | "Çözümlenen turlar" düz tablo | Stint başına açılır liste + dahil/hariç checkbox'ları korunur | `%105 filtre` bu seçimle çalışıyor; kaldırmak özellik kaybı olurdu |
 
-**Doğrulama:** yeni `teleTab.render.test.jsx` (4 test) fişin görsel sözleşmesini kilitliyor — slot kartı görselleri, §BS butonunun koşullu görünürlüğü ve konumu, kroma tokenları (eski mavi-gri palet artık yok), boş durumda `.ld`/CSV metni geçmemesi. 572 testin tümü geçiyor.
+**Doğrulama:** yeni `teleTab.render.test.jsx` (5 test) fişin görsel sözleşmesini kilitliyor — slot kartı görselleri, §BS butonunun koşullu görünürlüğü ve konumu, kroma tokenları (eski mavi-gri palet artık yok), seans setup kartının kalkıp yerine pencerenin gelmesi, boş durumda `.ld`/CSV metni geçmemesi. 572 testin tümü geçiyor.
 
 ### Live Timing: "Incident" sütunu yanlış veriyi yanlış biçimde gösteriyordu
 

@@ -3,7 +3,8 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, Referenc
 import { fmtLap } from "../engine";
 import { SLOT_COLORS, ASSET, TRACK_ASSET, trackName, carName, carImg, brandLogo,
   venueToTrackId } from "../constants";
-import { BoxPlot, SessionSetupBox, Icon } from "../components";
+import { BoxPlot, SetupContentModal, Icon } from "../components";
+import { duckSetupToSvm, textToB64 } from "../setupParse";
 import { zoomViewAt, panView, zoomDomain, advanceCursor } from "../zoomView";
 import { sectorOf, sectorMarks } from "../ldTrace";
 import { detectApexes, cornerStats } from "../corners";
@@ -734,9 +735,9 @@ export default function TeleTab({
   const teleHd = { fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 16, fontWeight: 700 };
   const teleCard = { border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)", padding: "16px 18px" };
   const [impOpen, setImpOpen] = useState(false);
-  /* §BS — "Bu seansın setup'ı" butonuna her basışta artar; SessionSetupBox bunu
-     dinleyip Detay'a açılır ve görünüme kayar (bkz. components.jsx openSignal). */
-  const [setupSignal, setSetupSignal] = useState(0);
+  /* §BS/§İM-3 — "Bu seansın setup'ı" penceresi. Setup havuzundaki "İçerik"
+     penceresinin AYNISI (SetupContentModal); ayrı bir bileşen yok. */
+  const [setupOpen, setSetupOpen] = useState(false);
   /* Kaydettikten sonra yükleme penceresini kapat (geri bildirim slot kartında görünür). */
   useEffect(() => { if (savedMsg) setImpOpen(false); }, [savedMsg]);
 
@@ -826,6 +827,26 @@ export default function TeleTab({
   ].filter(([, v]) => v);
   const sessLoaded = !!(curS && !curS.empty);
   const hideImg = (e) => { e.currentTarget.style.display = "none"; };
+
+  /* §İM-3 — Seans setup'ı için SENTETİK havuz kaydı. SetupContentModal havuzdaki
+     `su` şeklini bekler (base64 .svm gövdesi + künye alanları); .duckdb'ye gömülü
+     kurulum `duckSetupToSvm` ile aynı .svm metnine çevrilip base64'lenir → pencere
+     HİÇ değiştirilmeden, havuzdaki "İçerik" penceresiyle birebir aynı çalışır.
+     useMemo: base64 çevrimi her render'da yapılmasın (modal kapalıyken de ucuz). */
+  const sessSu = useMemo(() => {
+    if (!cmpMeta?.setup) return null;
+    const svm = duckSetupToSvm(cmpMeta.setup);
+    if (!svm) return null;
+    return {
+      id: "tele-session",                       // havuz kimliği yok — blob yolu kullanılmaz
+      data: textToB64(svm),                     // gövde doğrudan burada (senkron)
+      name: [curMeta.venue, curMeta.vehicle].filter(Boolean).join(" · ") || t("Seans setup'ı"),
+      track: sessTrk || "", cls: sessCls || "", car: sessCar || "",
+      cond: "", sess: "",                       // CondSess: ıslak/kuru + Q/R bilinmiyor → varsayılan
+      note: [t("Telemetriden"), curMeta.driver, curMeta.session].filter(Boolean).join(" · "),
+      lap: (curS && !curS.empty) ? fmtMs(curS.bestMs) : "",
+    };
+  }, [cmpMeta, curMeta, sessTrk, sessCls, sessCar, curS, t]);
 
   /* Yükleme penceresi içeriği (eski import kartı — mantık birebir korundu). */
   const importInner = (
@@ -1072,7 +1093,7 @@ export default function TeleTab({
                   varsa görünür; tıklayınca aşağıdaki Setup kartı Detay'a açılıp
                   görünüme kayar (openSignal). */}
               {cmpMeta?.setup && (
-                <button onClick={() => setSetupSignal((v) => v + 1)}
+                <button onClick={() => setSetupOpen(true)}
                   title={t("Bu seansın setup dosyasını incele")}
                   style={{ display: "flex", alignItems: "center", gap: 10, width: "100%",
                     boxSizing: "border-box", marginTop: "auto", padding: "11px 13px", borderRadius: 10,
@@ -1143,8 +1164,8 @@ export default function TeleTab({
       )}
 
       {cmpMeta?.setup && (
-        <SessionSetupBox setup={cmpMeta.setup} meta={cmpMeta} t={t} onSave={onSaveDuckSetup}
-          openSignal={setupSignal} />
+        <SetupContentModal open={setupOpen} su={sessSu} onClose={() => setSetupOpen(false)}
+          t={t} onSave={onSaveDuckSetup ? () => onSaveDuckSetup(cmpMeta.setup, cmpMeta) : null} />
       )}
 
       {cmpSources?.length > 0 && (

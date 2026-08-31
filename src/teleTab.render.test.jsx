@@ -54,6 +54,17 @@ describe("TeleTab — TELE-FİŞİ görsel sözleşmesi", () => {
     expect(varsa).toContain("margin-top:auto");
   });
 
+  it("seans setup kartı KALDIRILDI — içerik yalnız pencerede açılır (v2.2.4)", () => {
+    const html = renderToStaticMarkup(
+      <TeleTab {...props({ cmpMeta: { venue: "Spa", vehicle: "Ferrari 296 GT3",
+        setup: JSON.stringify({ VM_REAR_WING: { stringValue: "6.3 deg" } }) } })} />);
+    // eski sayfa-içi kart başlığı ve Özet/Detay sekmeleri artık yok
+    expect(html).not.toContain("Bu Seansın Setup");
+    // pencere kapalı → içerik DOM'da değil (yalnız tetikleyici buton var)
+    expect(html).not.toContain("Setup İçeriği");
+    expect(html).toContain("Bu seansın setup");
+  });
+
   it("grafik kroması tasarım tokenlarında — eski mavi-gri palet kalmadı", () => {
     const html = renderToStaticMarkup(<TeleTab {...props()} />);
     for (const eski of ["#2B3542", "#8C97A5", "#1F2731"]) {
