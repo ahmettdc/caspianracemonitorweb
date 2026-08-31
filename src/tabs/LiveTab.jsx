@@ -1022,8 +1022,13 @@ export default function LiveTab({ t, live: liveProp, canEdit,
               <button onClick={() => setSide(false)} style={{ alignSelf: "flex-end", display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 11px", borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 11.5 }}>{t("Paneli kapat")} ›</button>
               {/* Sıra (kullanıcı isteği): 1) Pist haritası 2) Kendi araç 3) Strateji */}
               {s.trackLength > 0 && fieldAll.some((c) => c.posX != null) && (
+                /* classFilter: "kendi sınıfım" süzgeci tabloyla haritayı SENKRON
+                   tutar (Poz·Sınıf başlığına basınca ikisi birden süzülür).
+                   field HÂLÂ TAM geçiliyor — harita şekli/sektör/pit gözlemleri
+                   tüm sahadan birikmeli, yalnız ÇİZİLEN araçlar süzülür. */
                 <TrackMap t={t} field={fieldAll} session={s} trackLength={s.trackLength}
-                  tid={tid} trackKey={binKey(s.trackName, s.trackLength)} canSave={canEdit} />
+                  tid={tid} trackKey={binKey(s.trackName, s.trackLength)} canSave={canEdit}
+                  classFilter={myClassOnly && playerClass ? playerClass : null} />
               )}
               {own && <OwnCar t={t} own={own} liveFuelObs={liveFuelObs} topSrc={ownTopSrc} />}
               <StrategyBar t={t} field={fieldAll} />

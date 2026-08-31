@@ -45,7 +45,7 @@ const R = 236;                  // dış halka yarıçapı
 const PAD = 148;                // iç şekil yarım-uzanımı (px)
 
 export default function TrackMap({ t, field, session, trackLength, tid, trackKey,
-  canSave, topSlot }) {
+  canSave, topSlot, classFilter = null }) {
   const [zoom, setZoom] = useState(false);   // ⛶ büyük pencere (tam ekran overlay)
   const [, bump] = useState(0);              // paylaşımlı şekil gelince yeniden çiz
   const svgRef = useRef(null);               // küçük karttaki canlı svg
@@ -193,6 +193,13 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
 
   const cars = (Array.isArray(field) ? field : [])
     .filter((c) => c.posX != null && c.posZ != null);
+  /* "Kendi sınıfım" süzgeci (LiveTab'daki Poz·Sınıf başlığıyla senkron).
+     YALNIZ ÇİZİMİ süzer — `cars` olduğu gibi kalır çünkü pist şekli kutuları,
+     sektör ve pit giriş/çıkış gözlemleri ile mesafe→zaman eğrisi TÜM SAHADAN
+     birikir. Süzülmüş listeyle biriktirseydik 14 araç yerine 3 araçla dolan bir
+     harita çok daha yavaş oluşurdu (ve süzgeç kapatılınca bile eksik kalırdı). */
+  const shownCars = classFilter
+    ? cars.filter((c) => classId(c.carClass) === classFilter) : cars;
 
   // sınıf-içi pozisyon (Pn) — pos sırasında sınıfa göre say (LiveTab ile aynı mantık)
   const order = (Array.isArray(field) ? field : []).slice()
@@ -562,7 +569,7 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
 
   // lejant (Büyük Pano) — sahadaki sınıf renkleri + oyuncu + pit
   const clsSeen = [];
-  for (const c of cars) {
+  for (const c of shownCars) {
     const id = classId(c.carClass);
     if (id && !clsSeen.includes(id)) clsSeen.push(id);
   }
@@ -605,9 +612,9 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
     {outline && <path d={outline} fill="none" stroke="var(--muted)"
       strokeWidth={1.5} strokeLinejoin="round" opacity={0.35} />}
     {/* araçlar — dış halka */}
-    {cars.map((c) => { const [x, y] = ringXY(c.lapDist); return dot(c, x, y, 9, classPos.get(c), "r"); })}
+    {shownCars.map((c) => { const [x, y] = ringXY(c.lapDist); return dot(c, x, y, 9, classPos.get(c), "r"); })}
     {/* araçlar — iç şekil */}
-    {toScreen && cars.map((c) => {
+    {toScreen && shownCars.map((c) => {
       const [x, y] = toScreen(c.posX, c.posZ);
       return dot(c, x, y, 8, classPos.get(c), "i");
     })}

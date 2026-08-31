@@ -308,6 +308,25 @@ eğri de tahmin de web tarafında.
   tıklama bir interval sızdırıyordu. Artık pencere açıksa yeniden kurulmuyor, öne
   getiriliyor; sökülmede yoklayıcı da kapatılıyor.
 
+### "Kendi sınıfım" süzgeci artık haritayla SENKRON
+
+`Poz · Sınıf` başlığına basınca tablo kendi sınıfımıza süzülüyordu ama **pist haritası
+tüm sahayı göstermeye devam ediyordu** — iki panel aynı ekranda farklı şey anlatıyordu.
+Artık süzgeç ikisini birden kapsıyor.
+
+- **Yalnız ÇİZİM süzülür, biriktirme SÜZÜLMEZ.** `field` haritaya **tam** geçirilmeye
+  devam ediyor; TrackMap içinde ayrı bir `shownCars` listesi yalnız nokta çizimi ve
+  lejant için kullanılıyor. Pist şekli kutuları, sektör sınırı, pit giriş/çıkış
+  gözlemleri ve mesafe→zaman eğrisi **tüm sahadan** birikiyor.
+  - Neden önemli: süzülmüş listeyle biriktirseydik harita 14 araç yerine 3 araçla
+    dolardı (kat kat yavaş) ve **süzgeç kapatıldığında bile eksik kalırdı** — kutular
+    bir kez dolduktan sonra güncellenmediği için kalıcı bir boşluk oluşurdu.
+  - Bu garanti testle kilitlendi: süzgeç açıkken kutu sayısı değişmemeli. (Biriktirme
+    yanlışlıkla süzülünce testin kırmızıya döndüğü doğrulandı.)
+- Sınıf-içi pozisyon numaraları (`P2` gibi) yine **tüm sahadan** hesaplanıyor — süzgeç
+  açıkken de gerçek sınıf pozisyonu görünür.
+- Pit çıkış tahmini de etkilenmez: oyuncu satırı süzülmemiş listeden bulunuyor.
+
 ### Kullanılmayan veri: tur sayacı
 
 `session.totalLaps` köprüden beri geliyordu, hiçbir yerde okunmuyordu. Tur-tipi yarışta
