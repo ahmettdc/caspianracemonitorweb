@@ -13,7 +13,10 @@ import { driverAtLap, parseLapCond, capLapEntries } from "../liveLaps";
 import { detectFlashes, carKey } from "../liveFlash";
 import { binKey } from "../trackShape";
 import { demoLive } from "../liveDemo";
-import { tyreTitle, teleStale } from "../tyreInfo";
+import { tyreTitle, teleStale, tyreChangeBadge } from "../tyreInfo";
+import { classBestSectors, sectorTones, TONE_COLOR } from "../liveSectors";
+import { sortRows, matchQuery, SORT_DEFAULT_DIR } from "../liveSort";
+import { relativeRows } from "../liveRelative";
 import { compoundAxles, parseTyreLog } from "../tyreCompound";
 import TrackMap from "./TrackMap";
 import PosChart from "./PosChart";
@@ -32,18 +35,46 @@ const veColor = (v) => (v == null ? "var(--dim)"
   : v > 50 ? "var(--green)" : v > 20 ? "var(--yellow)" : "var(--red)");
 /* gap biçimi → engine.fmtGap (taşma düzeltmesi + birim testli) */
 const gap = fmtGap;
-/* son turun S1·S2·S3 sektör süreleri (kompakt). Geçersiz/eksik → "—". */
-const secStr = (sc) => (Array.isArray(sc) && sc[0] > 0 && sc[1] > 0 && sc[2] > 0
-  ? `${sc[0].toFixed(1)}·${sc[1].toFixed(1)}·${sc[2].toFixed(1)}` : "—");
-/* ANLIK sektör: bu turda araç sektör çizgisini geçtiği AN oluşan süre.
-   köprü curSectors=[s1,s2] verir (henüz geçilmeyen = null; S3 ancak tur bitince
-   lastSectors'a düşer). En az S1 geçilmişse canlı string, yoksa null (→ son tur). */
-const liveSecStr = (c) => {
-  const cur = c && c.curSectors;
-  if (!Array.isArray(cur) || !(cur[0] > 0)) return null;
-  const f = (x) => (x > 0 ? x.toFixed(1) : "—");
-  return `${f(cur[0])}·${f(cur[1])}·—`;
-};
+/* SEKTÖR hücresi (v2.3.0) — S1·S2·S3, her biri KENDİ renginde.
+   MOR = sınıf rekoru · YEŞİL = kişisel rekor (bkz. liveSectors.js; renk semantiği
+   satır flash'ıyla birebir aynı). v2.2.4'e kadar bu hücre düz griydi: sayılar
+   vardı ama hangisinin iyi olduğu okunmuyordu.
+   Gösterilen değer: bu turda geçilmiş sektör varsa ANLIK (curSectors), yoksa son
+   turun sektörleri (lastSectors) — eski davranış birebir korunur. */
+function SectorCell({ c, t, classBest, open }) {
+  const cur = Array.isArray(c.curSectors) ? c.curSectors : [];
+  const isLive = Number(cur[0]) > 0;
+  const last = Array.isArray(c.lastSectors) ? c.lastSectors : [];
+  /* Son tur gösterimi eskiden de ancak ÜÇÜ birden geçerliyse yazılırdı (secStr) —
+     yarım veri "12.3·—·—" gibi yanıltıcı görünmesin. */
+  const lastOk = last[0] > 0 && last[1] > 0 && last[2] > 0;
+  const vals = isLive ? [cur[0], cur[1], null] : (lastOk ? last : null);
+  const base = { textAlign: open ? undefined : "center", fontSize: 11 };
+  if (!open) {
+    return <td className="mono" style={{ ...base, color: "var(--dim)" }}>·</td>;
+  }
+  if (!vals) {
+    return <td className="mono" style={{ ...base, color: "var(--dim)" }}
+      title={t("Son turun S1·S2·S3 sektör süreleri")}>—</td>;
+  }
+  const tones = sectorTones(vals, c, classBest);
+  const title = [
+    isLive ? t("Bu turda geçilen sektörler (anlık)") : t("Son turun S1·S2·S3 sektör süreleri"),
+    t("Mor: sınıf rekoru · Yeşil: kişisel rekor"),
+  ].join("\n");
+  return (
+    <td className="mono" style={base} title={title}>
+      {vals.map((v, i) => (
+        <span key={i}>
+          {i > 0 && <span style={{ color: "var(--rc-border-strong)" }}>·</span>}
+          <span style={{ color: TONE_COLOR[tones[i]] || (isLive ? "var(--rc-text-2)" : "var(--dim)"),
+            fontWeight: tones[i] ? 700 : 400 }}>
+            {Number(v) > 0 ? Number(v).toFixed(1) : "—"}</span>
+        </span>
+      ))}
+    </td>
+  );
+}
 
 /* son güncelleme yaşından bağlantı durumu.
    ts SERVER-hizalı yazılır (liveBridge) → burada da serverNow() ile karşılaştırılır;
@@ -401,6 +432,14 @@ export default function LiveTab({ t, live: liveProp, canEdit,
   const [avgMode, setAvgMode] = useState(false);   // AVG5 ↔ AVG tek sütun geçişi
   const [gapMode, setGapMode] = useState(false);   // Gap ↔ Aralık tek sütun geçişi
   const [secOpen, setSecOpen] = useState(true);    // Sektör sütunu aç/kapa (başlıktan)
+  /* v2.3.0 — sıralama: {key,dir}. key null → köprünün YARIŞ SIRASI (varsayılan).
+     Arama: pilot/takım/no/araç/sınıf üzerinden süzer (liveSort.matchQuery). */
+  const [sort, setSort] = useState({ key: null, dir: "asc" });
+  const [q, setQ] = useState("");
+  /* v2.3.0 — RELATIVE görünüm: sıralama yerine PİST KONUMUNA göre etrafımızdaki
+     araçlar (±3). Tur-altı bir araç sıralamada 15 satır aşağıdadır ama pistte tam
+     önümüzde olabilir; trafik/mavi bayrak kararı buradan okunur. */
+  const [relMode, setRelMode] = useState(false);
   const [side, setSide] = useState(true);          // sağ yan panel (harita/kendi araç/strateji) aç/kapa
   const [cmpCar, setCmpCar] = useState(null);      // satıra tıklayınca kendi pilotla karşılaştırma
   // DEMO: yerel sahte veri (oyun/köprü/Firebase gerekmez) — UI düzenlemek için
@@ -560,13 +599,52 @@ export default function LiveTab({ t, live: liveProp, canEdit,
     return { c, i, id, classPos: classCounts[id], interval, lapsDown, lapsDownNext,
       isFastest: c.bestSec > 0 && c.bestSec === fastestBest };
   });
-  const shown = myClassOnly && playerClass
+  /* Sektör renklendirmesi için sınıf başına en hızlı sektörler — SÜZGEÇTEN ÖNCE,
+     TÜM sahadan hesaplanır: "kendi sınıfım" süzgeci açıkken de rekor gerçek
+     rekordur (süzülmüş listenin en iyisi değil). */
+  const classBest = classBestSectors(fieldAll);
+  const classRows = myClassOnly && playerClass
     ? rows.filter((r) => r.id === playerClass) : rows;
+  /* RELATIVE açıkken metin araması UYGULANMAZ: "etrafımdaki araçlar"ın bir de
+     ada göre süzülmesi anlamsız bir kesişim üretir (arama kutusu da gizlenir). */
+  const relOn = relMode && !!meRow && Number(s.trackLength) > 0;
+  const rel = relOn ? relativeRows(classRows, meRow, s.trackLength, 3, 3) : null;
+  /* satır → relatif saniye (Gap sütunu yerine çizilir). Anahtar olarak SATIR
+     NESNESİ kullanılır, carKey DEĞİL: carKey null dönebilir (lapKey/carId/driver
+     üçü de yoksa) ve iki böyle satır aynı kovaya düşüp birbirinin farkını
+     gösterirdi. `shown` zaten aynı nesneleri taşır, eşleşme birebir. */
+  const relBy = new Map();
+  if (rel) for (const x of rel) relBy.set(x.r, x.relSec);
+  const queried = relOn ? classRows : classRows.filter((r) => matchQuery(r.c, q));
+  const shown = relOn ? rel.map((x) => x.r)
+    : sortRows(queried, sort.key, sort.dir,
+      { gapMode, lapMode, avgMode, showTeam });
+  /* Başlıktan sıralama: aynı sütuna tekrar tıklamak yönü çevirir, üçüncü tıklama
+     varsayılana (yarış sırası) döner — "sıralamayı nasıl kapatırım" sorusu olmasın. */
+  const toggleSort = (key) => setSort((p) => (p.key !== key
+    ? { key, dir: SORT_DEFAULT_DIR[key] || "asc" }
+    : p.dir === (SORT_DEFAULT_DIR[key] || "asc")
+      ? { key, dir: p.dir === "asc" ? "desc" : "asc" }
+      : { key: null, dir: "asc" }));
   /* Gap mini-çubuğu ölçeği (fişteki barFill görseli): en büyük gap'e göre orantı. */
   const maxGap = Math.max(1, ...shown.map((r) => r.c.gapSec || 0));
   /* Tıklanabilir sütun başlığı stili (Pilot↔Takım, Sınıf süzgeci, Son↔En İyi, AVG5↔AVG). */
   const thBtn = { background: "none", border: 0, color: "inherit", font: "inherit",
     cursor: "pointer", padding: 0, textDecoration: "underline dotted" };
+  /* Sıralama oku (v2.3.0). Mevcut takas düğmeleri (Pilot↔Takım, Gap↔Aralık…)
+     KORUNUR — sıralama ayrı ve küçük bir ok düğmesidir, böylece eski davranış
+     hiç değişmez. Etkin sütun teal renkle işaretlenir. */
+  /* NOT: bu bir BİLEŞEN değil, JSX döndüren düz bir fonksiyon. Render gövdesi
+     içinde bileşen tanımlamak her karede yeni bir tip üretir; React alt ağacı
+     söküp yeniden kurar (canlı timing saniyede birkaç kez render olur). */
+  const sortArrow = (k) => (
+    <button key={`s${k}`} onClick={() => toggleSort(k)}
+      title={t("Bu sütuna göre sırala")} aria-label={t("Bu sütuna göre sırala")}
+      style={{ background: "none", border: 0, padding: "0 0 0 3px", cursor: "pointer",
+        fontSize: 9, lineHeight: 1, verticalAlign: "middle",
+        color: sort.key === k ? "var(--teal)" : "var(--rc-border-strong)" }}>
+      {sort.key === k ? (sort.dir === "asc" ? "▲" : "▼") : "⇅"}</button>
+  );
 
   /* Bayrak rengi (canlı s.flag'a bağlı, salt-okunur) */
   const flagCol = s.flag === "Green" ? "var(--rc-ok)"
@@ -599,6 +677,16 @@ export default function LiveTab({ t, live: liveProp, canEdit,
                 <span style={{ fontSize: 10, color: "var(--rc-text-3)", textTransform: "uppercase", letterSpacing: ".08em" }}>{t("Kalan")}</span>
                 <span style={hchipV}>{s.timeLeftSec != null ? fmtHMS(s.timeLeftSec) : "—"}</span>
               </span>
+              {/* TUR SAYACI (v2.3.0): session.totalLaps köprüden beri geliyordu ama
+                  hiçbir yerde kullanılmıyordu. Tur-tipi yarışta "42/68" okumak
+                  kalan süreden daha anlamlıdır. totalLaps 0/None ise (süre-tipi
+                  yarış) gösterilmez — sahte "/0" yazmayalım. */}
+              {Number(s.totalLaps) > 0 && (
+                <span style={hchip} title={t("Liderin turu / yarış turu")}>
+                  <span style={{ fontSize: 10, color: "var(--rc-text-3)", textTransform: "uppercase", letterSpacing: ".08em" }}>{t("Tur")}</span>
+                  <span style={hchipV}>{leaderLaps}<span style={{ fontSize: 12, fontWeight: 500, color: "var(--rc-text-3)" }}>/{s.totalLaps}</span></span>
+                </span>
+              )}
               <span style={hchip} title={t("Pist / ortam sıcaklığı")}>
                 <svg width="19" height="19" viewBox="0 0 24 24" fill="none" style={{ flex: "0 0 auto" }}><rect x="9.1" y="2.6" width="5.8" height="13" rx="2.9" stroke="var(--rc-brand-bright)" strokeWidth="1.6" /><path d="M12 6.4v6.2" stroke="var(--rc-brand-bright)" strokeWidth="1.6" strokeLinecap="round" /><circle cx="12" cy="17.6" r="3.6" fill="var(--rc-brand-bright)" opacity=".85" /></svg>
                 <span style={hchipV}>{s.trackTemp != null ? `${Math.round(s.trackTemp)}°` : "—"}<span style={{ fontSize: 11, color: "var(--rc-text-3)" }}> / {s.ambientTemp != null ? `${Math.round(s.ambientTemp)}°` : "—"}</span></span>
@@ -632,7 +720,35 @@ export default function LiveTab({ t, live: liveProp, canEdit,
               })()}
             </span>
 
-            <span style={{ marginLeft: "auto", display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <span style={{ marginLeft: "auto", display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+              {/* ARAMA (v2.3.0) — pilot/takım/no/araç/sınıf. RELATIVE görünümde
+                  gizlenir: "etrafımdaki araçlar"ı ada göre süzmek anlamsız. */}
+              {!relOn && (
+                <span style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+                  <input value={q} onChange={(e) => setQ(e.target.value)}
+                    placeholder={t("Pilot / takım ara")} aria-label={t("Pilot / takım ara")}
+                    style={{ width: 150, padding: "3px 22px 3px 9px", fontSize: 11,
+                      borderRadius: 8, border: "1px solid var(--rc-border)",
+                      background: "var(--rc-surface-3)", color: "var(--rc-text)" }} />
+                  {q && (
+                    <button onClick={() => setQ("")} title={t("Aramayı temizle")}
+                      aria-label={t("Aramayı temizle")}
+                      style={{ position: "absolute", right: 4, background: "none", border: 0,
+                        color: "var(--rc-text-3)", cursor: "pointer", fontSize: 12, lineHeight: 1,
+                        padding: 2 }}>✕</button>
+                  )}
+                </span>
+              )}
+              {/* RELATIVE (v2.3.0) — yalnız kendi aracımız sahadayken ve pist uzunluğu
+                  biliniyorken anlamlı; yoksa düğme gizlenir (tıklayıp boş liste görmesin). */}
+              {!!meRow && Number(s.trackLength) > 0 && (
+                <button className={`act${relMode ? " on" : ""}`}
+                  onClick={() => setRelMode((v) => !v)}
+                  title={t("Pist konumuna göre etrafımdaki araçlar (±3)")}
+                  style={{ fontSize: 11, padding: "3px 10px",
+                    ...(relMode && { borderColor: "var(--teal)", color: "var(--teal)" }) }}>
+                  <Icon name="harita" size={12} /> {t("Relative")}</button>
+              )}
               {demoBtn}
               {document.fullscreenEnabled && (
                 <button className="act" data-tour="livebig" style={{ fontSize: 11, padding: "3px 10px" }} onClick={toggleBig}>{big ? t("✕ Küçült") : <><Icon name="buyut" size={12} /> {t("Büyük Pano")}</>}</button>
@@ -658,31 +774,39 @@ export default function LiveTab({ t, live: liveProp, canEdit,
                     title={t("Kendi sınıfım süzgeci")}
                     style={{ ...thBtn, ...(myClassOnly && { color: "var(--teal)", fontWeight: 700 }) }}>
                     {t("Poz")} · {t("Sınıf")}</button>
-                ) : `${t("Poz")} · ${t("Sınıf")}`}</th>
+                ) : `${t("Poz")} · ${t("Sınıf")}`}{sortArrow("pos")}</th>
                 <th><button onClick={() => setShowTeam((v) => !v)}
                   title={t("Pilot / Takım değiştir")} style={thBtn}>
-                  {showTeam ? t("Takım") : t("Pilot")}</button></th>
-                <th>{t("Tur")}</th>
-                <th><button onClick={() => setGapMode((v) => !v)}
-                  title={t("Gap / Aralık değiştir")} style={thBtn}>
-                  {gapMode ? t("Aralık") : "Gap"} ⇄</button></th>
+                  {showTeam ? t("Takım") : t("Pilot")}</button>{sortArrow("driver")}</th>
+                <th>{t("Tur")}{sortArrow("laps")}</th>
+                {/* RELATIVE görünümde bu sütun ± relatif saniyeyi gösterir (Gap/Aralık
+                    yerine) — takas düğmesi o modda anlamsız olduğu için gizlenir. */}
+                <th>{relOn ? <span title={t("Pistte önümüzde (−) / arkamızda (+) saniye")}>REL</span>
+                  : <><button onClick={() => setGapMode((v) => !v)}
+                    title={t("Gap / Aralık değiştir")} style={thBtn}>
+                    {gapMode ? t("Aralık") : "Gap"} ⇄</button>{sortArrow("gap")}</>}</th>
                 <th><button onClick={() => setLapMode((v) => !v)}
                   title={t("Son / En İyi değiştir")} style={thBtn}>
-                  {lapMode ? t("En İyi") : t("Son")} ⇄</button></th>
+                  {lapMode ? t("En İyi") : t("Son")} ⇄</button>{sortArrow("lap")}</th>
                 <th><button onClick={() => setSecOpen((v) => !v)}
                   title={secOpen ? t("Sektör sütununu gizle") : t("Sektör sütununu göster")} style={thBtn}>
                   {secOpen ? <>{t("Sektör")} ‹</> : "S ›"}</button></th>
                 <th><button onClick={() => setAvgMode((v) => !v)}
                   title={t("AVG5 / AVG değiştir")} style={thBtn}>
-                  {avgMode ? "AVG" : "AVG5"} ⇄</button></th>
-                <th>{t("Enerji")}</th><th>{t("VE/tur")}</th>
-                <th>{t("Lastik")}</th><th>Stint</th>
-                <th>{t("Hasar")}</th><th>{t("Ceza")}</th><th>Pit</th>
+                  {avgMode ? "AVG" : "AVG5"} ⇄</button>{sortArrow("avg")}</th>
+                <th>{t("Enerji")}{sortArrow("ve")}</th>
+                <th>{t("VE/tur")}{sortArrow("vepl")}</th>
+                <th>{t("Lastik")}{sortArrow("tyre")}</th>
+                <th>Stint{sortArrow("stint")}</th>
+                <th>{t("Hasar")}{sortArrow("dmg")}</th>
+                <th>{t("Ceza")}{sortArrow("pen")}</th>
+                <th>Pit{sortArrow("pit")}</th>
                 <th aria-label={t("Turlar")}></th>
               </tr></thead>
               <tbody>
-                {shown.map(({ c, i, id, classPos, interval, lapsDown, lapsDownNext,
-                  isFastest }) => {
+                {shown.map((row) => {
+                  const { c, i, id, classPos, interval, lapsDown, lapsDownNext,
+                    isFastest } = row;
                   const acc = classAccent(c.carClass);
                   const fl = flash[carKey(c)];   // "purple" | "green" | undefined
                   return (
@@ -727,11 +851,22 @@ export default function LiveTab({ t, live: liveProp, canEdit,
                       {/* Gap/Aralık + mini çubuk (fişteki barTrack/barFill) */}
                       <td style={gapMode ? { color: "var(--dim)" } : undefined}>
                         <span style={{ display: "flex", flexDirection: "column", gap: 3, alignItems: "flex-end" }}>
+                          {/* RELATIVE: pistte önümüzde (−) / arkamızda (+) saniye.
+                              Kendi satırımız 0 → "—" (kendimize göre fark yok). */}
+                          {relOn ? (() => {
+                            const rs = relBy.get(row);
+                            if (c.isPlayer) return <span style={{ color: "var(--rc-brand-bright)", fontWeight: 700 }}>—</span>;
+                            if (rs == null) return <span style={{ color: "var(--dim)" }}>—</span>;
+                            return <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700,
+                              color: rs < 0 ? "var(--rc-warn)" : "var(--teal)" }}>
+                              {rs < 0 ? "−" : "+"}{Math.abs(rs).toFixed(1)}</span>;
+                          })() : (
                           <span>{gapMode
                             ? (lapsDownNext >= 1 ? `+${lapsDownNext} ${t("Tur")}`
                                 : interval != null ? gap(interval) : "—")
                             : (i === 0 ? t("Lider") : lapsDown >= 1 ? `+${lapsDown} ${t("Tur")}`
                                 : gap(c.gapSec))}</span>
+                          )}
                           <span style={{ width: 54, height: 4, background: "var(--rc-line-soft)", borderRadius: 2, overflow: "hidden" }}>
                             <i style={{ display: "block", height: "100%", width: `${Math.round(Math.min(1, (c.gapSec || 0) / maxGap) * 100)}%`, background: c.isPlayer ? "var(--rc-brand-bright)" : (acc || "var(--rc-text-3)") }} />
                           </span>
@@ -741,10 +876,7 @@ export default function LiveTab({ t, live: liveProp, canEdit,
                       <td style={{ color: lapMode ? (isFastest ? "var(--purple)" : "var(--dim)") : undefined,
                         fontWeight: lapMode && isFastest ? 700 : 400 }}>
                         {lap(lapMode ? c.bestSec : c.lastSec)}</td>
-                      {(() => { const ls = liveSecStr(c); return (
-                      <td className="mono" style={{ color: ls ? "var(--rc-text-2)" : "var(--dim)", fontSize: 11, textAlign: secOpen ? undefined : "center" }}
-                        title={ls ? t("Bu turda geçilen sektörler (anlık)") : t("Son turun S1·S2·S3 sektör süreleri")}>{secOpen ? (ls || secStr(c.lastSectors)) : "·"}</td>
-                      ); })()}
+                      <SectorCell c={c} t={t} classBest={classBest} open={secOpen} />
                       {/* AVG5/AVG tek sütun (başlıktan geçiş). */}
                       <td style={{ color: "var(--dim)" }}>{lap(avgMode ? c.avgSec : c.avg5Sec)}</td>
                       {/* Enerji (VE): çubuksuz, renkli % (fişteki yeni tasarım) */}
@@ -753,8 +885,11 @@ export default function LiveTab({ t, live: liveProp, canEdit,
                       <td style={{ color: "var(--dim)", fontSize: 12 }}
                         title={t("Tur başına VE tüketimi")}>
                         {c.vePerLap != null ? `${c.vePerLap.toFixed(1)}%` : "—"}</td>
-                      {/* Lastik: hamur ikonu + tek aşınma % (fişteki tek-lastik gösterimi) */}
-                      <td><TyreCell c={c} t={t} single /></td>
+                      {/* Lastik (v2.3.0): DÖRT KÖŞE aşınma ızgarası. Kod v2.2.4'te de
+                          yazılıydı ama hücre `single` ile çağrıldığı için yalnız EN KÖTÜ
+                          köşe görünüyordu — "hangi lastik bitti" sorusu cevapsızdı.
+                          tyres4 yoksa bileşen kendiliğinden tek aşınmaya düşer. */}
+                      <td><TyreCell c={c} t={t} /></td>
                       <td className="mono" style={{ color: "var(--dim)", fontSize: 12 }}>
                         {c.stintSec > 0 ? fmtHMS(c.stintSec) : "—"}</td>
                       <td style={{ fontSize: 12, fontFamily: "var(--rc-font-display)", color: (c.damage || 0) > 0.15 ? "var(--red)"
@@ -781,10 +916,27 @@ export default function LiveTab({ t, live: liveProp, canEdit,
                             {tot > 0 ? `${tot}${out > 0 ? " •" : ""}` : "—"}</td>
                         );
                       })()}
+                      {/* PIT (v2.3.0): durum + durak sayısı + SON PİTTE DEĞİŞEN LASTİK.
+                          tyreChangeBadge tyreInfo.js'te v2.2.x'ten beri yazılı ve testliydi
+                          ama hiçbir yerde import edilmiyordu (köprü verisi de liveBridge'de
+                          kareden siliniyordu) — "rakip 2 ön mü aldı, yakıt-only mi durdu"
+                          bilgisi hiç görünmüyordu. GARAGE artık PIT'ten ayrılıyor. */}
                       <td style={{ whiteSpace: "nowrap" }}>
-                        {c.inPits && <span className="chip" style={{ marginRight: 4,
-                          color: "var(--yellow)", borderColor: "var(--yellow)" }}>PIT</span>}
+                        {c.location === "GARAGE"
+                          ? <span className="chip" style={{ marginRight: 4,
+                            color: "var(--rc-text-3)", borderColor: "var(--rc-border-strong)" }}
+                            title={t("Garaj yolunda / garajda")}>GRJ</span>
+                          : c.inPits && <span className="chip" style={{ marginRight: 4,
+                            color: "var(--yellow)", borderColor: "var(--yellow)" }}>PIT</span>}
                         <span style={{ color: "var(--dim)" }}>{c.pitStops ?? "—"}</span>
+                        {(() => {
+                          const b = tyreChangeBadge(c.tyreChange, t);
+                          if (!b) return null;
+                          return <span className="chip" style={{ marginLeft: 4, fontSize: 9.5,
+                            color: b.n === 0 ? "var(--rc-text-3)" : "var(--teal)",
+                            borderColor: b.n === 0 ? "var(--rc-border-strong)" : "var(--teal)" }}
+                            title={b.title}>{b.txt}</span>;
+                        })()}
                       </td>
                       <td style={{ textAlign: "center" }}>
                         {c.lapsDone > 0 && c.lapKey && (

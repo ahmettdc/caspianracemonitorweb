@@ -1,5 +1,130 @@
 # Changelog
 
+## v2.3.0 — 2026-08-31
+
+Live Timing standings genişletmesi. Referans olarak TinyPedal'ın `Standings`/`Relative`
+widget'ları tarandı (`docs/customization.md`); kopyalanmadı — bizimki bir **pit duvarı
+web uygulaması**, onunki bir **sürücü overlay'i**, bu yüzden yalnız bizim bağlamımızda
+karşılığı olanlar alındı. Karşılaştırmada bizde ZATEN olduğu görülenler (canlı pist
+haritası `TrackMap.jsx`, marka logosu, pit durak sayısı, trafik rozetleri
+`StrategyBar.jsx`, VE/tur, tur geçmişi) tekrar yapılmadı.
+
+### Sektör süreleri renklendirilmiyordu
+
+- **Belirti:** `Sektör` sütunu S1·S2·S3'ü düz `--rc-text-2`/`--dim` ile yazıyordu. Sayı
+  vardı, **anlam yoktu** — hangi sektörün rekor olduğu görünmüyordu. Klasik timing
+  tower'ın en çok kullanılan sinyali eksikti.
+- **Neden yapılamamıştı:** karar için sektör bazlı **kişisel en iyi** gerekir; köprü
+  yalnız `lastSectors` (son tur) ve `curSectors` (anlık) gönderiyordu. Paylaşımlı
+  bellekte veri vardı (`mBestSector1`, `mBestSector2`, `mBestLapTime`) ama okunmuyordu.
+- **Köprü (`rf2_source.py`):** `_best_sectors(v)` — struct **kümülatif** verir
+  (`mBestSector2` = en iyi S1+S2), tekil süreye çevrilir: `b2 = mBestSector2 − mBestSector1`,
+  `b3 = mBestLapTime − mBestSector2`. Her araca `bestSectors: [b1,b2,b3]` eklendi.
+  - **Zincir tutarlılığı:** `b3` kümülatif `b12`'ye dayanır. `b12` yırtık okunmuşsa
+    (`b12 < b1`) `lap − b12` **makul görünen ama uydurma** bir S3 üretiyordu; `b2`
+    geçerli değilse `b3` de üretilmiyor (testle kilitlendi).
+  - **Bilinçli kabul:** oyun bu üç alanı bağımsız en iyiler olarak tutar → `b2`/`b3`
+    farklı turlardan gelebilir, yani "teorik en iyi"ye yakındır. Timing tower'ların
+    kişisel-best ölçütü zaten budur.
+- **Web (`src/liveSectors.js`, yeni):** `classBestSectors` (sınıf başına en hızlı
+  sektörler) + `sectorTone` + `sectorTones`. Renk semantiği **`liveFlash.js` ile birebir
+  aynı** tutuldu — aynı ekranda iki farklı "mor" anlamı olmasın: MOR = sınıf rekoru,
+  YEŞİL = kişisel rekor, mor yeşili ezer.
+  - Sınıf rekoru **süzgeçten önce, tüm sahadan** hesaplanır: "kendi sınıfım" açıkken de
+    rekor gerçek rekordur, süzülmüş listenin en iyisi değil.
+- **UI:** `SectorCell` bileşeni — sektör başına ayrı renkli span. Eski `secStr`/`liveSecStr`
+  düz-string yardımcıları ölü kod olarak kaldırıldı (renk üretimi string'e sığmıyor).
+  Anlık/son-tur seçimi ve "üçü birden geçerli değilse —" davranışı **birebir korundu**.
+
+### Saha tablosunda sıralama ve arama YOKTU
+
+- **Belirti:** sıra tamamen köprünün `pos` alanıydı; kolon başlığından sıralama ve arama
+  kutusu hiç yoktu. 40+ araçlık sahada "en çok hasar alan", "kim kaç kez pitledi",
+  "AVG5'i en iyi" soruları gözle taranarak cevaplanıyordu.
+- **Çözüm (`src/liveSort.js`, yeni):** `sortRows` + `matchQuery` + `fold`.
+  - **Eksik veri her zaman sona gider.** Yön ters çevrilince `null`/`Infinity`'nin büyük
+    sayı gibi başa çıkması klasik hatadır; değeri olmayan satırlar ayrı toplanıp sona
+    eklenir (iki yönde de testli).
+  - **Eşitlikte yarış pozisyonu çözer** → kare kare gelen veride satırlar birbirinin
+    yerine zıplamaz (hepsi 0 ceza olan bir sahada bu görünür bir hataydı).
+  - **Takaslı sütunlar ekranda GÖRÜNEN değere göre sıralanır** (`gapMode`/`lapMode`/
+    `avgMode`/`showTeam` context olarak geçer) — kullanıcı ne görüyorsa ona göre sıralar.
+  - Arama Türkçe katlamalı (`setupPool.slugPart` deseni): `sahin` → `Şahin`, `agri` → `Ağrı`.
+  - **Sağlamlık:** canlı kare Firebase'den gelir ve bozuk satır taşıyabilir; `posOf`
+    null-güvenli (testin yakaladığı gerçek çökme).
+- **UI:** mevcut takas düğmeleri (`Pilot↔Takım`, `Gap↔Aralık`, `Son↔En İyi`, `AVG5↔AVG`,
+  sınıf süzgeci) **korundu** — sıralama ayrı ve küçük bir ok düğmesi, eski davranış hiç
+  değişmedi. Üçüncü tık varsayılana (yarış sırası) döner.
+
+### Relative (pist konumuna göre yakın saha) yoktu
+
+- **Belirti:** kod tabanında "relative" kelimesi hiç geçmiyordu. Sıralama tablosu yarış
+  sırasını gösterir; tur-altı bir araç sıralamada 15 satır aşağıdadır ama **pistte tam
+  önümüzde** olabilir — trafik/mavi bayrak/undercut kararları sıralamadan okunamaz.
+- **Çözüm (`src/liveRelative.js`, yeni):** `wrapDist` (tur içi mesafe farkı, **yarım tur
+  etrafında sarmalanır** → S/F çizgisini geçen çift doğru hesaplanır), `relGapSec`,
+  `refLap` (AVG5 → AVG → son tur → en iyi), `relativeRows` (oyuncu ±3).
+  - İşaret konvansiyonu TinyPedal ile aynı: **− önümüzde, + arkamızda**.
+  - **`Number(null) === 0` tuzağı:** açık kontrol olmadan `lapDist`i eksik bir araç
+    "S/F çizgisinde" sayılıp makul görünen ama tamamen **uydurma** bir relative farkı
+    üretiyordu → eksik veri elenir (testin yakaladığı gerçek hata).
+  - Pit/garajdaki araçlar elenir (pist boşluğunu yanlış gösterirler); **oyuncunun kendisi
+    pit'te olsa bile listede kalır**.
+- **Doğruluk sınırı (bilinçli):** bu bir mesafe→zaman çevrimidir, gerçek delta değil.
+  Farklı hızdaki (farklı sınıf) araçlarda yaklaşıktır; oyun bu veriyi vermiyor.
+- **UI:** `Relative` düğmesi yalnız kendi aracımız sahadayken **ve** `trackLength`
+  biliniyorken görünür (tıklayıp boş liste görmeyelim). Bu modda `Gap` sütunu ± relatif
+  saniyeye döner ve **metin araması uygulanmaz** (arama kutusu gizlenir) — "etrafımdaki
+  araçlar"ı ada göre süzmek anlamsız bir kesişim üretir.
+
+### Yazılmış ama hiç bağlanmamış iki özellik
+
+- **Lastik 4 köşe ızgarası:** `TyreCell`'in 2×2 dalı v2.2.4'te de yazılıydı ama hücre
+  `single` prop'uyla çağrıldığı için yalnız **en kötü köşe** görünüyordu — "hangi lastik
+  bitti" cevapsızdı. `single` kaldırıldı; `tyres4` yoksa bileşen kendiliğinden tek
+  aşınmaya düşer (davranış korunur).
+- **Pit lastik değişim rozeti:** `tyreInfo.tyreChangeBadge()` yazılı **ve testliydi**
+  (11 test) ama hiçbir yerden import edilmiyordu; üstelik köprü verisi
+  `liveBridge.js:245`'te "tabloda gösterilmiyor" gerekçesiyle **kareden siliniyordu**.
+  Silme kaldırıldı, rozet Pit sütununa bağlandı: `4` / `2 ÖN` / yakıt-only durakta `0`.
+  Boyut: araç başına tek küçük nesne, Firebase yaprak sınırının çok altında.
+- Ayrıca `c.location` artık kullanılıyor: **GARAGE**, PIT'ten ayrı gösteriliyor (`GRJ`).
+  Tabloda şimdiye kadar yalnız `inPits` boolean'ı okunuyordu.
+
+### `own` kendi araç kartı: pilot adı ve sınıf HİÇ gelmiyordu
+
+- **Belirti:** "Kendi Araç" kartı her zaman jenerik `Kendi Araç` yazıyor, sınıf rengi hiç
+  görünmüyordu.
+- **Kök neden:** `RF2Source` `own`'ı oyuncunun **TELEMETRY** kaydından kurar; `driver` ve
+  `carClass` ise yalnız **SCORING** satırında bulunur. `LiveTab.jsx:312-318` üçünü de
+  okuyordu ama köprü hiçbirini göndermiyordu (`own` anahtarları: fuel, tyres, throttle,
+  gear, rpm, position, s1/s2/s3, location…). `team`/`manufacturer`/`number` ise LMU REST
+  zenginleştirmesinde **yalnız field satırlarına** ekleniyordu — `own`'a hiç ulaşmıyordu.
+- **Neden fark edilmemişti:** `liveDemo.js` bu alanları elle veriyordu (`team`,
+  `manufacturer`, `number`) → demo yolunda kart doluymuş gibi görünüyordu.
+- **Çözüm:** `Aggregator.read` — oyuncunun **kendi field satırı** (REST zenginleştirmesi
+  sonrası) hepsini taşır, oradan kopyalanır. Yalnız `own`'da **eksik** olan doldurulur
+  (`vehicleName` gibi doğrudan okunan alanlar ezilmez, testli). Demo da gerçek davranışı
+  yansıtacak şekilde hizalandı.
+
+### Kullanılmayan veri: tur sayacı
+
+`session.totalLaps` köprüden beri geliyordu, hiçbir yerde okunmuyordu. Tur-tipi yarışta
+başlıkta `42/68` gösteriliyor; `totalLaps` 0/None ise (süre-tipi yarış) **gizlenir** —
+sahte `/0` yazılmaz.
+
+### Doğrulama
+
+- **JS:** 641 test geçiyor (583 → 641; **+58**). Yeni: `liveSectors.test.js` (14),
+  `liveSort.test.js` (16), `liveRelative.test.js` (17), `liveTabV230.render.test.jsx` (11).
+  Render testleri sektör renklerini **kontrollü veriyle** doğrular — demo karesinde
+  `var(--purple)` OwnCar'ın "En iyi" kutucuğunda da geçtiği için serbest arama yanlış
+  pozitif verirdi; renkli span'in içindeki **sektör değerinin kendisi** aranıyor.
+- **Köprü:** tüm paketler geçiyor; `_best_sectors` için 4, `own` düzeltmesi için 2 yeni test.
+- `npm run build` temiz.
+- **i18n:** 9 yeni anahtar TR/EN. Lastik rozeti anahtarları (`ÖnSol`, `Son pitte`, `ÖN`…)
+  i18n'de zaten vardı — rozet yazılmış ama bağlanmamış olduğu için öksüz duruyorlardı.
+
 ## v2.2.4 — 2026-08-30
 
 Eksik giderme.

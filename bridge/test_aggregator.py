@@ -427,6 +427,75 @@ def test_ve_per_lap_dolum_anomali_elenir():
     assert out == [None, None, 5.0], out
 
 
+class _BestSec:
+    """rF2 VehicleScoring'in en iyi sektör alanlarını taşıyan sahte kayıt.
+    Struct KÜMÜLATİF verir: mBestSector2 = en iyi (S1+S2)."""
+
+    def __init__(self, b1, b12, lap):
+        self.mBestSector1 = b1
+        self.mBestSector2 = b12
+        self.mBestLapTime = lap
+
+
+def test_best_sectors_kumulatiften_tekil_sureye_cevirir():
+    """b2 = mBestSector2 − mBestSector1 · b3 = mBestLapTime − mBestSector2."""
+    v = _BestSec(29.5, 29.5 + 44.0, 29.5 + 44.0 + 30.8)
+    assert RF2Source._best_sectors(v) == [29.5, 44.0, 30.8]
+
+
+def test_best_sectors_eksik_veri_none_dondurur():
+    """Tur atılmamışsa oyun -1 verir → uydurma değer üretme."""
+    assert RF2Source._best_sectors(_BestSec(-1.0, -1.0, -1.0)) == [None, None, None]
+    # yalnız S1 geçilmiş: b1 var, kümülatif S2 ve tur yok
+    assert RF2Source._best_sectors(_BestSec(29.5, -1.0, -1.0)) == [29.5, None, None]
+    # S1+S2 var ama tur henüz tamamlanmamış → b3 None
+    assert RF2Source._best_sectors(_BestSec(29.5, 73.5, -1.0)) == [29.5, 44.0, None]
+
+
+def test_best_sectors_tutarsiz_degerler_elenir():
+    """Kümülatif olmayan/geriye giden değerler (yırtık okuma) sessizce None."""
+    # b12 < b1 → S2 çıkarılamaz
+    assert RF2Source._best_sectors(_BestSec(29.5, 20.0, 100.0)) == [29.5, None, None]
+    # lap < b12 → S3 çıkarılamaz
+    assert RF2Source._best_sectors(_BestSec(29.5, 73.5, 50.0)) == [29.5, 44.0, None]
+
+
+def test_best_sectors_alan_yoksa_cokmeden_none():
+    """Eski/farklı struct düzeni: alanlar hiç yok → [None,None,None]."""
+    assert RF2Source._best_sectors(object()) == [None, None, None]
+
+
+class _OwnFake:
+    """own'ı TELEMETRİDEN kuran RF2Source davranışını taklit eder: own'da
+    driver/carClass YOK, oyuncunun field satırında VAR."""
+
+    def read(self):
+        return {"session": {}, "field": [{
+            "pos": 1, "carId": 3, "driver": "A. Demircan", "carClass": "Hypercar",
+            "team": "Caspian", "manufacturer": "Porsche", "number": "92",
+            "lapsDone": 5, "lastSec": 100.0, "bestSec": 99.0,
+            "inPits": False, "isPlayer": True}],
+            "own": {"fuel": 40.0, "vehicleName": "963"}}
+
+
+def test_own_driver_ve_carclass_oyuncu_satirindan_doldurulur():
+    """v2.3.0 hata düzeltmesi: own hiç driver/carClass taşımıyordu → kendi araç
+    kartı her zaman jenerik 'Kendi Araç' yazıyor, sınıf rengi hiç görünmüyordu."""
+    own = Aggregator(_OwnFake()).read()["own"]
+    assert own["driver"] == "A. Demircan", own
+    assert own["carClass"] == "Hypercar", own
+    # LMU REST zenginleştirmesi de yalnız field satırlarına ekleniyordu
+    assert own["team"] == "Caspian"
+    assert own["manufacturer"] == "Porsche"
+    assert own["number"] == "92"
+
+
+def test_own_mevcut_alanlar_ezilmez():
+    """own'da ZATEN dolu olan alan (vehicleName) field'dan gelen değerle ezilmemeli."""
+    own = Aggregator(_OwnFake()).read()["own"]
+    assert own["vehicleName"] == "963", own
+
+
 if __name__ == "__main__":
     fails = 0
     for name, fn in sorted(globals().items()):

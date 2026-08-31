@@ -71,6 +71,11 @@ export function demoLive(el) {
       lapsDone: laps, lastSec: +last.toFixed(3), bestSec: +(lapT - 0.5).toFixed(3),
       lastSectors: [+(last * 0.25).toFixed(3), +(last * 0.44).toFixed(3),
         +(last * 0.31).toFixed(3)],
+      /* Kişisel en iyi sektörler (v2.3.0) — mor/yeşil renklendirme demoda da
+         çalışsın diye en iyi turdan türetilir; anlık sektörlerdeki dalgalanma
+         zaman zaman bunun altına iner → renk canlı canlı yanıp söner. */
+      bestSectors: [+((lapT - 0.5) * 0.25).toFixed(3), +((lapT - 0.5) * 0.44).toFixed(3),
+        +((lapT - 0.5) * 0.31).toFixed(3)],
       inPits: (Math.floor(el / 90) % 13) === i,
       pitStops: Math.floor(laps / 45),
       // penalties = ANLIK bekleyen ceza (servis edilince 0'a düşer),
@@ -131,6 +136,10 @@ export function demoLive(el) {
       fuel: +Math.max(2, 78 - (stint / 1500) * 70).toFixed(1), fuelCapacity: 78,
       virtualEnergy: me.virtualEnergy, team: me.team,
       manufacturer: "Porsche", number: me.number, vehicleName: "911GT3R",
+      /* v2.3.0: gerçek köprü artık own'a driver/carClass da kopyalıyor
+         (Aggregator, oyuncunun field satırından) — demo da onu yansıtmalı,
+         yoksa "Kendi Araç" kartı demoda gerçek davranışı göstermez. */
+      driver: me.driver, carClass: me.carClass,
       position: me.pos, lastLapSec: me.lastSec, bestLapSec: me.bestSec,
       curLapSec: +(stint % me.lastSec).toFixed(1),
       s1: +(me.lastSec * 0.32).toFixed(3), s2: +(me.lastSec * 0.35).toFixed(3),

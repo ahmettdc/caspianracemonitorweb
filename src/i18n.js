@@ -794,6 +794,19 @@ export const EN = {
   "Tur başına VE tüketimi": "Virtual Energy used per lap",
   "Bekleyen ceza": "Outstanding penalties",
   "Ceza sayısı (cut/puan cezaları dahil)": "Penalty count (incl. cut/points penalties)",
+  // v2.3.0 — sektör renklendirme · sıralama/arama · relative · garaj · tur sayacı
+  "Mor: sınıf rekoru · Yeşil: kişisel rekor":
+    "Purple: class record · Green: personal best",
+  "Bu sütuna göre sırala": "Sort by this column",
+  "Pilot / takım ara": "Search driver / team",
+  "Aramayı temizle": "Clear search",
+  "Relative": "Relative",
+  "Pist konumuna göre etrafımdaki araçlar (±3)":
+    "Cars around me by track position (±3)",
+  "Pistte önümüzde (−) / arkamızda (+) saniye":
+    "Seconds ahead (−) / behind (+) on track",
+  "Garaj yolunda / garajda": "In the garage / heading to garage",
+  "Liderin turu / yarış turu": "Leader's lap / race laps",
   // tur geçmişi pist koşulları (v1.4.83)
   "Asfalt sıcaklığı": "Track temp", "Yol tutuş": "Grip",
   "Turlardan modellenmiş tahmin (gerçek okuma değil)":

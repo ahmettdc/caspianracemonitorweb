@@ -10,7 +10,8 @@
 Şema (web LiveTab ile birebir):
   session: {phase, flag, timeLeftSec, totalLaps, trackTemp, ambientTemp, raining,
             rain, wetness, trackName, trackLength, sessionType, sessionId}
-  own:     {fuel, fuelCapacity, virtualEnergy, position, lastLapSec, bestLapSec,
+  own:     {driver, carClass, team, manufacturer, number,
+            fuel, fuelCapacity, virtualEnergy, position, lastLapSec, bestLapSec,
             curLapSec, s1, s2, lapsDone, inPits, pitStops, location, damage, avg5Sec,
             avgSec, stintSec, tyreCompound:{front,rear},
             tyres:{fl,fr,rl,rr:{wear,tempC,pressKpa}}}
@@ -19,6 +20,7 @@
             lapDist, posX, posZ, lastSec, lastSectors:[s1,s2,s3], bestSec, gapSec,
             intervalSec, lapsBehind, lapsBehindNext, inPits, location, pitStops, penalties,
             penaltiesTotal, tyreWear, tyres4:[fl,fr,rl,rr], tyreComp, damage, virtualEnergy,
+            bestSectors:[b1,b2,b3] (kişisel en iyi sektörler → mor/yeşil renklendirme),
             vePerLap, avg5Sec, avgSec, stintSec, laps, lapsFrom, lapNums, lapKey, isPlayer}
   (penalties = ANLIK bekleyen ceza (mNumPenalties; servis edilince 0'a düşer),
    penaltiesTotal = seans boyunca KÜMÜLATİF ceza (Aggregator yükselen kenar sayımı).
@@ -276,6 +278,10 @@ class MockSource:
                                [round(lap_t * 0.25, 3), None] if frac < 0.73 else
                                [round(lap_t * 0.25, 3), round(lap_t * 0.44, 3)]),
                 "bestSec": round(self.base[i], 3),
+                # kişisel en iyi sektörler — mor/yeşil renklendirme demo yolunda da
+                # çalışsın diye (son turdan bir tık hızlı; i==1 tam eşit → "yeşil" hali)
+                "bestSectors": [round(self.base[i] * 0.25, 3), round(self.base[i] * 0.44, 3),
+                                round(self.base[i] * 0.31, 3)],
                 "_prog": laps * 1e6 + (el % lap_t),  # sıralama için ilerleme
                 "inPits": (int(el / 90) % 11) == i, "isPlayer": i == 4,
                 "pitStops": laps // 45,  # ~45 turda bir durak
@@ -565,6 +571,34 @@ class RF2Source:
         return [None, None, None]
 
     @staticmethod
+    def _best_sectors(v):
+        """Aracın KİŞİSEL EN İYİ S1/S2/S3'ü (kümülatif DEĞİL) — mor/yeşil sektör
+        renklendirmesi için. rF2 struct'ı kümülatif verir:
+          mBestSector1 = en iyi S1
+          mBestSector2 = en iyi (S1+S2) kümülatifi
+          mBestLapTime = en iyi tur
+        → b2 = mBestSector2 − mBestSector1, b3 = mBestLapTime − mBestSector2.
+
+        DİKKAT (bilinçli kabul): oyun bu üç alanı BAĞIMSIZ en iyiler olarak tutar;
+        b2/b3 farkları farklı turlardan gelebilir, yani "teorik en iyi"ye yakın bir
+        değerdir, tek bir turun sektörü olmak zorunda değil. Timing tower'ların
+        kişisel-best (yeşil) ölçütü zaten budur — sektör bazlı en iyi.
+        Makul değilse ilgili eleman None."""
+        try:
+            b1 = float(getattr(v, "mBestSector1", -1.0))
+            b12 = float(getattr(v, "mBestSector2", -1.0))      # kümülatif S1+S2
+            lap = float(getattr(v, "mBestLapTime", -1.0))
+            o1 = round(b1, 3) if b1 > 0 else None
+            o2 = round(b12 - b1, 3) if (b1 > 0 and b12 > b1) else None
+            # b3 KÜMÜLATİF b12'ye dayanır: b12 tutarsızsa (yırtık okuma, b12 < b1)
+            # lap − b12 makul GÖRÜNEN ama uydurma bir sayı verir. o2 geçerli değilse
+            # zincir kopmuştur → b3 de üretilmez.
+            o3 = round(lap - b12, 3) if (o2 is not None and lap > b12) else None
+            return [o1, o2, o3]
+        except Exception:
+            return [None, None, None]
+
+    @staticmethod
     def _cur_sectors(v):
         """ANLIK sektörler: MEVCUT turda araç sektör çizgisini geçtiği AN oluşan süre.
         rF2: mCurSector1 = bu turun S1'i (S1 çizgisini geçince geçerli),
@@ -719,6 +753,8 @@ class RF2Source:
                 "lastSec": round(float(getattr(v, "mLastLapTime", -1.0)), 3),
                 "lastSectors": self._sectors(v),   # [S1,S2,S3] (popup tur listesi)
                 "curSectors": self._cur_sectors(v),   # [s1,s2] bu turda ANLIK geçilen sektörler
+                # kişisel en iyi [b1,b2,b3] — mor/yeşil sektör renklendirmesi (v2.3.0)
+                "bestSectors": self._best_sectors(v),
                 "bestSec": round(float(getattr(v, "mBestLapTime", -1.0)), 3),
                 "gapSec": round(float(getattr(v, "mTimeBehindLeader", 0.0)), 1),
                 "intervalSec": round(float(getattr(v, "mTimeBehindNext", 0.0)), 1),
@@ -1083,4 +1119,16 @@ class Aggregator:
                 for k in ("avg5Sec", "avgSec", "stintSec", "vePerLap", "penaltiesTotal",
                           "laps", "lapsFrom", "lapNums", "lapKey"):
                     own[k] = me.get(k)
+                # v2.3.0 HATA DÜZELTMESİ: own hiç `driver`/`carClass` taşımıyordu —
+                # RF2Source.own'ı player TELEMETRY'sinden kurar, bu alanlar ise yalnız
+                # SCORING satırında var. Sonuç: "Kendi Araç" kartı her zaman jenerik
+                # "Kendi Araç" yazıyor ve sınıf rengi hiç görünmüyordu (classAccent
+                # undefined). team/manufacturer/number ise LMU REST zenginleştirmesinde
+                # yalnız field satırlarına ekleniyor — own'a hiç ulaşmıyordu.
+                # Oyuncunun KENDİ field satırı hepsini (REST sonrası) taşır → kopyala.
+                # Yalnız own'da EKSİK olanı doldur: RF2Source'un doğrudan okuduğu
+                # vehicleName gibi alanlar ezilmesin.
+                for k in ("driver", "carClass", "number", "team", "manufacturer"):
+                    if own.get(k) is None and me.get(k) is not None:
+                        own[k] = me.get(k)
         return data

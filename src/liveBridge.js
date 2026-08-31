@@ -242,7 +242,12 @@ export async function startBridge(opts, onStatus) {
       // canlı kareyi küçük tut — geçmiş ayrı düğümde. lastSectors KALIR: standings'te
       // "Sektör" sütunu (son turun S1/S2/S3'ü) canlı kareden okunur (v1.4.139).
       delete r.laps; delete r.lapsFrom; delete r.lapNums;
-      delete r.tyreChange;   // pit değişimi artık livetyre'de (tabloda gösterilmiyor)
+      /* v2.3.0: `tyreChange` ARTIK KAREDE KALIYOR. v2.2.x'te "tabloda
+         gösterilmiyor" gerekçesiyle siliniyordu, ama tyreInfo.tyreChangeBadge()
+         o zaman da yazılı ve testliydi — yalnız hiç bağlanmamıştı. Pit sütunu
+         artık rozeti çiziyor ("2 ÖN" / "4" / yakıt-only durakta "0"), yani veri
+         kullanılıyor. Boyut: araç başına tek küçük nesne ({n, corners, comp}),
+         Firebase yaprak sınırının çok altında. */
     }
     /* own da aynı tur listesini taşır (Aggregator oyuncu satırından kopyalar) ama web
        onu kullanmaz — geçmiş livelaps'ten okunur. Kareden çıkar: her yazımda ~50 sayı
