@@ -812,6 +812,20 @@ export const EN = {
   "gizli": "hidden",
   "Standings'teki 'kendi sınıfım' süzgeci haritaya da uygulanıyor":
     "The 'my class only' filter from standings is applied to the map too",
+  // v2.3.0 — lastik defteri (gerçek pit değişimleri)
+  "Lastik defteri": "Tyre log",
+  "yarıştaki GERÇEK lastik değişimleri — elle giriş yok":
+    "the REAL tyre changes from the race — no manual entry",
+  "tam set": "full sets", "aks": "axle", "yakıt-only": "fuel-only",
+  "Henüz kayıt yok — köprü çalışırken pit değişimleri buraya kendiliğinden düşer.":
+    "No entries yet — pit changes land here on their own while the bridge is running.",
+  "Yarış başındaki set — oyun ne takıldığını söylemiyor":
+    "The set the race started on — the game does not say what was fitted",
+  "lastik takıldı": "tyres fitted",
+  "Başlangıç": "Start", "YENİ": "NEW", "sürüyor": "ongoing",
+  "hamur bilinmiyor": "compound unknown",
+  "Oyun lastik SET KİMLİĞİ vermiyor; defter pit olaylarından türetilir. Hamur yalnız ön/arka okunabilir, köşe başına değil.":
+    "The game exposes no tyre SET ID; the log is derived from pit events. Compound is readable per axle only, not per corner.",
   "Seansta görülen en yüksek hız": "Highest speed seen this session",
   "Şu an": "Now",
   "Slipstream'de atılan hız da buna dahildir": "Speeds set in a slipstream are included",

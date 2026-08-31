@@ -365,6 +365,40 @@ Merge öncesi `origin/main..HEAD` incelendi; hepsi **bu sürümde eklenen** kodd
 Beşi için de regresyon testi yazıldı ve **her biri düzeltme geri alınınca kırmızıya
 döndüğü doğrulanarak** kilitlendi.
 
+### Lastik defteri (yeni) — kendi kendini dolduran GERÇEK kayıt
+
+Lastik ekranındaki plan tablosunun iki yapısal sorunu var:
+
+1. **Köşe başına HAMUR oyunda YOK.** Paylaşımlı bellek yalnız ön/arka verir
+   (`mFrontTireCompoundName` / `mRearTireCompoundName`). Yani 4 sütunlu tablo,
+   hiçbir yerde var olmayan bir ayrıntıyı kullanıcıdan istiyor.
+2. **Hücredeki `N×` rozeti planın TOPLAMI.** Bir lastiğin birinci ve ikinci
+   kullanımı birebir aynı görünüyor → *"yeni lastiği hangi stint kullandı"*
+   okunamıyor (kullanıcı bildirimi).
+
+Oysa gerçek kayıt **zaten tutuluyor**: köprü her pit değişimini
+`livetyre/{rid}/{araç}/{tur} = "adet|hamur"` olarak yazıyor (`bridge/harvest.py`).
+Lastik ekranı bundan haberdar değildi. Defter bu kaydı ilk kez okuyor — **elle
+giriş yok, tahmin yok.**
+
+- **Model: "lastik dönemi", set değil.** Oyun **set kimliği vermiyor**; uydurmak
+  yerine iki değişim arasındaki tur aralığı tutulur. Her dönem başında ne
+  takıldığını söyler: `4` → **YENİ** tam set · `2` → **aks** · `0` → yakıt-only.
+  - **Yakıt-only durak dönem AÇMAZ** — lastik değişmediği için aynı lastikler
+    devam eder; satır açsaydık defter "lastik değişti" diye yanlış okunurdu.
+    Bilgi kaybolmasın diye dönem içinde sayılır.
+  - Yarış başındaki ilk dönemin içeriği **bilinmiyor** → "Başlangıç" diye
+    etiketlenir, "4 yeni" diye **uydurulmaz**.
+- **Ekran:** tur aralığı + YENİ/aks çipi + hamur renginde şerit (genişlik tur
+  sayısıyla orantılı) + "N tur · hamur · sürüyor". Sorunun kaynağı olan
+  *"yeni lastik hangi stintte"* sorusu tanım gereği cevaplanıyor.
+- **Sınırlar ekranda yazıyor** (CLAUDE.md §1): set kimliği oyundan gelmiyor,
+  hamur köşe başına okunamıyor.
+- **Mevcut plan tablosu DOKUNULMADAN duruyor** — defter üstüne eklendi, bir yarış
+  boyunca ikisi yan yana kullanılıp sonra karar verilecek.
+- **Yapı:** `src/tyreLedger.js` (saf, 13 test) + render sözleşmesi (5 test).
+- **Oyun PC'si maliyeti: sıfır** — köprüye dokunulmadı, zaten yazılan düğüm okundu.
+
 ### Kullanılmayan veri: tur sayacı
 
 `session.totalLaps` köprüden beri geliyordu, hiçbir yerde okunmuyordu. Tur-tipi yarışta
@@ -373,7 +407,7 @@ sahte `/0` yazılmaz.
 
 ### Doğrulama
 
-- **JS:** 717 test geçiyor (583 → 717; **+134**). Yeni: `pitOut.test.js` (25),
+- **JS:** 735 test geçiyor (583 → 735; **+152**). Yeni: `pitOut.test.js` (25),
   `trackMapPitOut.render.test.jsx` (5). Yeni: `liveSectors.test.js` (14),
   `liveSort.test.js` (16), `liveRelative.test.js` (29), `liveStatus.test.js` (13),
   `liveTabV230.render.test.jsx` (15); `trackShape.test.js` en-kötü-durum kırpma

@@ -1,16 +1,44 @@
 /* Lastik stratejisi (v2.0 · handoff-spec/ekranlar/06-lastik.md). Limit sayacı +
    set envanteri + köşe bazlı atama tablosu + hızlı atama + çakışma uyarısı.
    Türetilmiş tyreInfo/racePlan ve handler'lar App'ten prop gelir. */
+import { useEffect, useState } from "react";
 import { Icon } from "../components";
+import { liveTyreSubscribe, liveLapsSubscribe } from "../storage";
+import { buildLedger, ledgerSummary } from "../tyreLedger";
 
 const TY = ["FL", "FR", "RL", "RR"];
 const TY_COL = { "": "#37D67A", t2: "#F2C94C", tq: "#4D9FFF", t3: "#F0604D", t4: "#B91C1C", tw: "#7FE3A0", terr: "var(--rc-danger)" };
 const colOf = (cls) => TY_COL[cls] ?? "#37D67A";
 
+/* Hamur → şerit rengi. Oyun hamuru yalnız ÖN/ARKA verir (köşe başına YOK), o
+   yüzden defter tek hamur metni taşır; "Ön/Arka" biçimindeki karma değerlerde
+   ilk kelimeye bakılır. Tanınmayan hamur nötr renk alır — uydurma eşleme yok. */
+const COMP_COL = (comp) => {
+  const c = String(comp || "").toLowerCase();
+  if (c.includes("wet") || c.includes("rain")) return "#4D9FFF";
+  if (c.includes("soft")) return "#F0604D";
+  if (c.includes("hard")) return "#E7E7E7";
+  if (c.includes("medium")) return "#F2C94C";
+  return "var(--rc-border-strong)";
+};
+
 export default function TyreTab({
   t, st, up, tyreInfo, racePlan, carriedAt, upTyreCell, quickTyre,
-  qsel, setQsel, QSEL_LBL, clearTyres,
+  qsel, setQsel, QSEL_LBL, clearTyres, tid, rid, lapKey,
 }) {
+  /* ---- LASTİK DEFTERİ (v2.3.0) — kendi kendini dolduran GERÇEK kayıt ----
+     Köprü her pit değişimini `livetyre/{rid}/{araç}/{tur}` olarak zaten yazıyor
+     (bridge/harvest.py); bu ekran onu ilk kez okuyor. Elle giriş yok. */
+  const [tyreLog, setTyreLog] = useState(null);
+  const [lapMap, setLapMap] = useState(null);
+  useEffect(() => {
+    if (!tid || !rid || !lapKey) { setTyreLog(null); setLapMap(null); return undefined; }
+    const a = liveTyreSubscribe(tid, rid, lapKey, setTyreLog);
+    const b = liveLapsSubscribe(tid, rid, lapKey, setLapMap);
+    return () => { a(); b(); };
+  }, [tid, rid, lapKey]);
+  const ledger = buildLedger(tyreLog, lapMap);
+  const sum = ledgerSummary(ledger);
   const limit = Math.max(0, st.tyreLimit);
   const wetCount = tyreInfo.rows.reduce((n, r) => n + r.vals.filter((v) => String(v).trim() === "W").length, 0);
   const lockCorner = (id) => {
@@ -47,6 +75,57 @@ export default function TyreTab({
         <div style={{ ...kpi, border: `1px solid ${tyreInfo.available < 0 ? "var(--rc-danger)" : "var(--rc-border)"}` }}><div style={kpiL}>{t("Kalan")}</div><div style={{ ...bigV, color: tyreInfo.available < 0 ? "var(--rc-danger)" : "var(--rc-ok)" }}>{tyreInfo.available}</div></div>
         <div style={kpi}><div style={kpiL}>{t("Stint sayısı")}</div><div style={bigV}>{racePlan.fullStints}</div></div>
         <div style={kpi}><div style={kpiL}>{t("Wet · limitsiz")}</div><div style={{ ...bigV, color: wetCount ? "#7FE3A0" : "var(--rc-border-strong)" }}>{wetCount}</div></div>
+      </div>
+
+      {/* ---- LASTİK DEFTERİ (gerçek) ---- */}
+      <div style={{ ...card, padding: "14px 16px", marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 11 }}>
+          <span style={hdT}>{t("Lastik defteri")}</span>
+          <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>
+            {t("yarıştaki GERÇEK lastik değişimleri — elle giriş yok")}</span>
+          {!!ledger.length && (
+            <span style={{ marginLeft: "auto", fontSize: 11.5, color: "var(--rc-text-3)" }}>
+              {sum.fullSets} {t("tam set")} · {sum.axleChanges} {t("aks")} · {sum.fuelOnly} {t("yakıt-only")}
+            </span>
+          )}
+        </div>
+        {!ledger.length ? (
+          <div style={{ fontSize: 12.5, color: "var(--rc-text-3)", padding: "6px 0" }}>
+            {t("Henüz kayıt yok — köprü çalışırken pit değişimleri buraya kendiliğinden düşer.")}
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {ledger.map((r) => {
+              const col = COMP_COL(r.comp);
+              /* Şerit genişliği tur sayısıyla orantılı → uzun stint göz kararı okunur. */
+              const w = Math.max(6, Math.round((r.laps / Math.max(1, sum.totalLaps)) * 100));
+              return (
+                <div key={r.idx} style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  <span style={{ minWidth: 78, fontFamily: "var(--rc-font-display)", fontSize: 12.5, color: "var(--rc-text-2)" }}>
+                    {t("Tur")} {r.fromLap}–{r.toLap}</span>
+                  {/* Dönem başında ne takıldı: YENİ (4) · 2 AKS · Başlangıç (bilinmiyor) */}
+                  <span className="chip" style={{ fontSize: 10,
+                    color: r.fresh ? "var(--rc-ok)" : r.partial ? "var(--rc-warn)" : "var(--rc-text-3)",
+                    borderColor: r.fresh ? "var(--rc-ok)" : r.partial ? "var(--rc-warn)" : "var(--rc-border-strong)" }}
+                    title={r.n == null
+                      ? t("Yarış başındaki set — oyun ne takıldığını söylemiyor")
+                      : `${r.n} ${t("lastik takıldı")}`}>
+                    {r.n == null ? t("Başlangıç") : r.fresh ? t("YENİ") : `${r.n} ${t("aks")}`}</span>
+                  <span style={{ flex: `0 0 ${w}%`, minWidth: 30, height: 10, borderRadius: 5,
+                    background: col, opacity: r.fresh ? 1 : 0.72 }}
+                    title={r.comp || t("hamur bilinmiyor")} />
+                  <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>
+                    {r.laps} {t("tur")}{r.comp ? ` · ${r.comp}` : ""}
+                    {r.fuelOnly ? ` · ${r.fuelOnly} ${t("yakıt-only")}` : ""}
+                    {r.open ? ` · ${t("sürüyor")}` : ""}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <div style={{ fontSize: 11, color: "var(--rc-text-3)", marginTop: 10, lineHeight: 1.5 }}>
+          {t("Oyun lastik SET KİMLİĞİ vermiyor; defter pit olaylarından türetilir. Hamur yalnız ön/arka okunabilir, köşe başına değil.")}
+        </div>
       </div>
 
       {/* Set envanteri */}
