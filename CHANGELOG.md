@@ -189,6 +189,48 @@ Ondan alınan iki iyileştirme:
 **Oyun PC'si maliyeti: sıfır.** Bunların hepsi web tarafında (`TrackMap.jsx`,
 `trackShape.js`); köprüye tek satır dokunulmadı, kare boyutu değişmedi.
 
+### Haritada PİT ÇIKIŞ TAHMİNİ (yeni)
+
+*"Durağım N saniye sürerse pistte kimin yanına çıkarım?"* — undercut/overcut kararının
+tek sorusu. TinyPedal'da `widget/track_map.py` `draw_pitout_prediction` olarak var;
+algoritma oradan alındı.
+
+**Mantık** (her şey "tur içi zaman" ekseninde): pit çıkışına varana kadar geçecek süre
+`Δ = (girişe kalan) + (pit yolunda geçen)`. Şu an tur-içi zamanı `T` olan araç Δ sonra
+`T + Δ`'da olur; biz `t_exit`'te çıkacağımıza göre yanına çıkacağımız araç **şu an**
+`T = t_exit + pitTimer − pitSüresi` konumundadır (tur boyunca sarmalı). Çember o
+noktaya çizilir → yanındaki araç noktasına bakarak okunur.
+
+- **Aday süreler otomatik:** `15 · 25 · 35 · 45 · 55 · 65` sn (TinyPedal varsayılanı:
+  min 15 + artım 10 × 6 tahmin). Anlamı **pit girişinden pit çıkışına toplam süre** —
+  ekranda yazan sayı da bu, gizli ofset yok.
+- **Yalnız pit TALEBİ verilmişken** çizilir (`mPitState == 1`, bu sürümde eklendi):
+  araç hâlâ pistte, karar hâlâ verilebilir. Pite girdikten sonra göstermek karar değil
+  seyir olurdu.
+
+**Eksik parçayı bu sürümün kendi verisi çözdü.** TinyPedal mesafe→zaman eğrisini
+sürücünün **en iyi turundan** kaydediyor (deltabest); bizde öyle bir kayıt yok ve
+**izleyicinin kendi turu da yok**. Ama köprü artık her araç için `timeIntoLap` +
+`estLapTime` gönderiyor → sahadaki **her araç eğriye bir örnek veriyor**
+(`zamanKesri = timeIntoLap / estLapTime`), harita kutularının aynı indeksinde
+biriktiriliyor. Eğri kesir olduğu için **tempo-bağımsız** ve tüm sahadan hızla doluyor.
+
+- **Doğruluk sınırı (dürüstçe):** eğri araçların **gerçek** turlarından gelir, temiz bir
+  referans turdan değil — trafik/hata örnekleri ortalamaya karışır. Kutu ortalaması
+  yumuşatır ama sıfırlamaz. Tahmin bir **yön** gösterir, saniye garantisi değil.
+- **Uydurma yok:** pit giriş/çıkışı gözlenmemişse, tempo/pist uzunluğu yoksa ya da eğri
+  **%35'ten az doluysa** hiçbir çember çizilmez.
+- **Yapı:** karar mantığının tamamı `src/pitOut.js`'te (saf, 25 test); `TrackMap.jsx`'te
+  yalnız çizim kaldı (CLAUDE.md §2).
+- **Test notu:** proje jsdom/testing-library kullanmıyor, bileşen çok-render edilemiyor;
+  bu yüzden render testleri yalnız "çizilmez" kapılarını doğrulayabiliyordu — özellik
+  tamamen silinse de geçerlerdi. Bu yüzden POZİTİF yol `pitOutPoints` üzerinden saf
+  olarak test edildi (üretilen 6 nokta, kutu ↔ mesafe tutarlılığı, eşiğin gerçekten
+  doluluktan kaynaklandığı). Geriye kalan kapsanmayan kısım yalnız JSX→SVG eşlemesi.
+
+**Oyun PC'si maliyeti: sıfır** — köprüye tek satır dokunulmadı, kare boyutu değişmedi;
+eğri de tahmin de web tarafında.
+
 ### Kullanılmayan veri: tur sayacı
 
 `session.totalLaps` köprüden beri geliyordu, hiçbir yerde okunmuyordu. Tur-tipi yarışta
@@ -197,7 +239,8 @@ sahte `/0` yazılmaz.
 
 ### Doğrulama
 
-- **JS:** 672 test geçiyor (583 → 672; **+89**). Yeni: `liveSectors.test.js` (14),
+- **JS:** 702 test geçiyor (583 → 702; **+119**). Yeni: `pitOut.test.js` (25),
+  `trackMapPitOut.render.test.jsx` (5). Yeni: `liveSectors.test.js` (14),
   `liveSort.test.js` (16), `liveRelative.test.js` (29), `liveStatus.test.js` (13),
   `liveTabV230.render.test.jsx` (15); `trackShape.test.js` en-kötü-durum kırpma
   kilidiyle genişletildi.

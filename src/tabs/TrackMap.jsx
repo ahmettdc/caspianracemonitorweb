@@ -9,6 +9,9 @@ import { packBins, unpackBins } from "../trackShape";
 import { observeSector, sectorFractions, sectorRanges,
   packSectors, unpackSectors, emptySectors,
   observePit, pitFractions, packPit, unpackPit, emptyPit } from "../trackSectors";
+import { emptyCurve, observeCurve, timeFracOf, curveOf,
+  pitOutPoints } from "../pitOut";
+import { pitRequested } from "../liveStatus";
 import { liveTrackSave, liveTrackSubscribe,
   liveTrackSecSave, liveTrackSecSubscribe,
   liveTrackPitSave, liveTrackPitSubscribe } from "../storage";
@@ -36,6 +39,7 @@ const ROAD_COL = "var(--line2)"; // yol rengi (siyah zeminde okunur; renkli nokt
 const ROAD_WET = "#2b4a66";     // ıslak zemin — soluk koyu mavi (yol bandı)
 const ROAD_FCY = "#5a4a1e";     // full-course yellow — koyu amber
 const YELLOW = "#F2C037";       // lokal sarı sektör yayı
+const PREDICT_COL = "#FF4D4D";  // pit çıkış tahmini çemberi (TinyPedal'daki kırmızı)
 const cx = 260, cy = 262;       // merkez
 const R = 236;                  // dış halka yarıçapı
 const PAD = 148;                // iç şekil yarım-uzanımı (px)
@@ -77,12 +81,14 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
      içerik değişiyor; memo ve paylaşım bunu kaçırmasın diye ayrı sayaç şart.
      own: hangi kutular OYUNCUNUN çizgisinden geldi (yalnız yerel, paylaşılmaz). */
   const acc = useRef({ key: null, bins: {}, own: {}, rev: 0, saved: 0, savedRev: 0,
-    sec: emptySectors(), secSaved: "", pit: emptyPit(), pitSaved: "" });
+    sec: emptySectors(), secSaved: "", pit: emptyPit(), pitSaved: "",
+    curve: emptyCurve() });
   const prevSec = useRef({});   // lapKey → son sektör (sınır geçişini yakalamak için)
   const prevLoc = useRef({});   // lapKey → son location (pit giriş/çıkış geçişi için)
   if (acc.current.key !== trackKey) {
     acc.current = { key: trackKey, bins: {}, own: {}, rev: 0, saved: 0, savedRev: 0,
-      sec: emptySectors(), secSaved: "", pit: emptyPit(), pitSaved: "" };
+      sec: emptySectors(), secSaved: "", pit: emptyPit(), pitSaved: "",
+      curve: emptyCurve() };
     prevSec.current = {};
     prevLoc.current = {};
   }
@@ -185,6 +191,10 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
         if (mine) acc.current.own[b] = 1;
         acc.current.rev += 1;
       }
+      /* MESAFE→ZAMAN eğrisi (pit çıkış tahmini için): her araç bir örnek verir.
+         Kesir olduğu için tempo-bağımsız; sahadan hızla dolar. */
+      const tf = timeFracOf(c);
+      if (tf != null) observeCurve(acc.current.curve, b, tf);
       /* sektör SINIRI: aracın mSector'ü değiştiği andaki lapDist oranı (1→2, 2→0). */
       if (c.sector != null && c.sector >= 0) {
         const prev = prevSec.current[key];
@@ -454,6 +464,40 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
     ? [pitLine(pitFr.entry, "#37D67A", "PIT IN", "pit-in"),
        pitLine(pitFr.exit, "#fff", "PIT OUT", "pit-out")]
     : null;
+
+  /* ---- PİT ÇIKIŞ TAHMİNİ (v2.3.0) — TinyPedal draw_pitout_prediction ----
+     YALNIZ pit TALEBİ verilmişken çizilir (mPitState == 1): araç hâlâ pistte,
+     karar hâlâ verilebilir durumda. Pite girdikten sonra göstermek karar değil
+     seyir olurdu. Çember: "duraǧın N sn sürerse ŞU ANDA burada olan aracın yanına
+     çıkarsın" → yakınındaki araç noktasına bakılarak okunur. */
+  const meCar = cars.find((c) => c.isPlayer) || null;
+  const meLap = meCar ? [meCar.avg5Sec, meCar.avgSec, meCar.lastSec, meCar.bestSec]
+    .map(Number).find((v) => v > 0) : null;
+  /* Tüm koşul mantığı pitOut.pitOutPoints'te (saf + testli); burada yalnız
+     "talep var mı" kapısı ve çizim kalır. */
+  const pitTargets = meCar && pitRequested(meCar)
+    ? pitOutPoints({ me: meCar, curve: curveOf(acc.current.curve), nb: NB,
+      pitFr, trackLength, lapSec: meLap })
+    : [];
+  const pitOutMarks = pitTargets.length ? pitTargets.map((tg) => {
+    const bp = bins[tg.bin];
+    const [rx, ry] = ringXYFrac(tg.distFrac);
+    return (
+      <g key={`po${tg.sec}`}>
+        <circle cx={rx} cy={ry} r={7} fill="none" stroke={PREDICT_COL} strokeWidth={2.2} />
+        {bp && toScreen && (() => {
+          const [ix, iy] = toScreen(bp.x, bp.z);
+          return (<>
+            <circle cx={ix} cy={iy} r={9} fill="none" stroke={PREDICT_COL} strokeWidth={2.2} />
+            <rect x={ix - 11} y={iy - 22} width={22} height={13} rx={3}
+              fill="var(--rc-surface-3)" stroke={PREDICT_COL} strokeWidth={1} />
+            <text x={ix} y={iy - 15.5} fill={PREDICT_COL} fontSize="9.5" fontWeight="700"
+              textAnchor="middle" dominantBaseline="central">{tg.sec}</text>
+          </>);
+        })()}
+      </g>
+    );
+  }) : null;
   // hareket yönü oku — S/F'nin hemen ötesinde, pist teğeti (saat yönü, jitter'sız)
   const dirArrow = (() => {
     if (!(trackLength > 0)) return null;
@@ -482,6 +526,7 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
       <span><i style={{ background: "#fff", boxShadow: `0 0 0 2px ${BRAND}` }} /> {t("Sen")}</span>
       {pitMarks && <><span><i style={{ background: "#37D67A" }} /> {t("Pit giriş")}</span>
         <span><i style={{ background: "#fff" }} /> PIT OUT</span></>}
+      {pitOutMarks && <span><i style={{ background: PREDICT_COL }} /> {t("Pit çıkış tahmini (sn)")}</span>}
     </div>
   );
 
@@ -517,6 +562,8 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
       const [x, y] = toScreen(c.posX, c.posZ);
       return dot(c, x, y, 8, classPos.get(c), "i");
     })}
+    {/* pit çıkış tahmini — araçların üstünde (hangi aracın yanına düştüğü okunmalı) */}
+    {pitOutMarks}
   </>);
 
   return (<>
