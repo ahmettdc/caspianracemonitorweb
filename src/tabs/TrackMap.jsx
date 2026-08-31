@@ -24,7 +24,11 @@ import { liveTrackSave, liveTrackSubscribe,
    en büyük kare boyutta; durum bu bileşende tutulduğu için biriken pist şekli ve
    canlı kareler paylaşılır (büyük görünüm de canlı akar, şekil yeniden birikmez). */
 
-const NB = 240;                 // lapDist kutu sayısı (pist şekli çözünürlüğü)
+/* lapDist kutu sayısı (pist şekli çözünürlüğü). v2.3.0'da 240→480: 5 km'lik pistte
+   kutu başına ~21 m'den ~10,4 m'ye iner, virajlar daha az düzleşir. 480 pratik
+   TAVAN — Firebase yaprak sınırı (trackShape MAX_STR 8800, kural .validate < 9000)
+   tam metre koordinatlarla 480 kutuda 7570 karakter veriyor; 600'de kırpılıyor. */
+const NB = 480;
 const BRAND = "#960018";        // ana tema
 const SECTOR_COL = "#5aa9e6";   // sektör ayırıcı (S/F kırmızısından ayrışan soğuk mavi)
 const ROAD_W = 20;              // yol bandı kalınlığı ≈ araç dairesi çapı (araç içine oturur)
@@ -67,13 +71,18 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
   useEffect(() => () => { try { winRef.current?.close?.(); } catch { /* yoksay */ } }, []);
   /* pist DEĞİŞİNCE biriktirmeyi sıfırla — anahtar artık trackKey (pist adı) → şekil
      pist başına paylaşımlı olduğundan aynı pistin yarışları arasında da korunur. */
-  const acc = useRef({ key: null, bins: {}, saved: 0, sec: emptySectors(), secSaved: "",
-    pit: emptyPit(), pitSaved: "" });
+  /* rev: kutularda HERHANGİ bir değişiklik sayacı. v2.3.0'a kadar kutular yalnız
+     EKLENİYORDU, o yüzden binCount tek başına yeterli bir "değişti mi" anahtarıydı.
+     Artık oyuncunun çizgisi mevcut bir kutuyu GÜNCELLEYEBİLİYOR → sayı değişmeden
+     içerik değişiyor; memo ve paylaşım bunu kaçırmasın diye ayrı sayaç şart.
+     own: hangi kutular OYUNCUNUN çizgisinden geldi (yalnız yerel, paylaşılmaz). */
+  const acc = useRef({ key: null, bins: {}, own: {}, rev: 0, saved: 0, savedRev: 0,
+    sec: emptySectors(), secSaved: "", pit: emptyPit(), pitSaved: "" });
   const prevSec = useRef({});   // lapKey → son sektör (sınır geçişini yakalamak için)
   const prevLoc = useRef({});   // lapKey → son location (pit giriş/çıkış geçişi için)
   if (acc.current.key !== trackKey) {
-    acc.current = { key: trackKey, bins: {}, saved: 0, sec: emptySectors(), secSaved: "",
-      pit: emptyPit(), pitSaved: "" };
+    acc.current = { key: trackKey, bins: {}, own: {}, rev: 0, saved: 0, savedRev: 0,
+      sec: emptySectors(), secSaved: "", pit: emptyPit(), pitSaved: "" };
     prevSec.current = {};
     prevLoc.current = {};
   }
@@ -89,7 +98,9 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
       for (const b of Object.keys(shared)) {
         if (!acc.current.bins[b]) { acc.current.bins[b] = shared[b]; added++; }
       }
-      if (added) bump((v) => v + 1);
+      /* Paylaşılan kutular "oyuncunun" sayılmaz (own'a yazılmaz) → kendi çizgimiz
+         gelince bunları yükseltebilir. */
+      if (added) { acc.current.rev += added; bump((v) => v + 1); }
     });
     return off;
   }, [tid, trackKey]);
@@ -163,7 +174,17 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
       const onTrack = c.location ? c.location === "TRACK" : !c.inPits;
       if (!onTrack) continue;
       const b = Math.floor(frac * NB) % NB;
-      if (!acc.current.bins[b]) acc.current.bins[b] = { x: c.posX, z: c.posZ };
+      /* v2.3.0 — ÇİZGİ KARIŞIMI azaltma: kutuyu eskiden "ilk gelen araç" belirliyor
+         ve bir daha güncellenmiyordu; farklı pilotların çizgileri karışıyor, tuhaf
+         bir çizgi atan araç tüm seans boyunca kalıcı iz bırakabiliyordu. Artık
+         OYUNCUNUN kendi çizgisi mevcut kutuyu bir kez yükseltebilir (kendi çizgimiz
+         tutarlıdır). Oyuncu kutusu bir daha ezilmez. */
+      const mine = !!c.isPlayer;
+      if (!acc.current.bins[b] || (mine && !acc.current.own[b])) {
+        acc.current.bins[b] = { x: c.posX, z: c.posZ };
+        if (mine) acc.current.own[b] = 1;
+        acc.current.rev += 1;
+      }
       /* sektör SINIRI: aracın mSector'ü değiştiği andaki lapDist oranı (1→2, 2→0). */
       if (c.sector != null && c.sector >= 0) {
         const prev = prevSec.current[key];
@@ -175,18 +196,25 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
 
   const bins = acc.current.bins;
   const binCount = Object.keys(bins).length;
+  /* Ref'ten OKUNUR (state değil): doldurma döngüsü render gövdesinde çalışıyor ve
+     binCount da aynı şekilde hesaplanıyor — rev bu satıra geldiğinde güncel. */
+  const rev = acc.current.rev;
 
   /* şekil olgunlaşınca (≈%90 kutu) takımca paylaş — owner/editor yazar, tur başına
      değil bir kez (yeni kutular geldikçe 2 sn debounce ile). Viewer yalnız okur. */
   useEffect(() => {
     if (!canSave || !tid || !trackKey) return undefined;
-    if (binCount < NB * 0.9 || binCount <= acc.current.saved) return undefined;
+    /* "değişti mi" artık binCount ile değil rev ile ölçülür: oyuncu çizgisi mevcut
+       bir kutuyu güncelleyince SAYI değişmez ama şekil iyileşir — eski koşul bu
+       iyileşmeyi hiç paylaşmazdı. */
+    if (binCount < NB * 0.9 || rev <= acc.current.savedRev) return undefined;
     const id = setTimeout(() => {
       liveTrackSave(tid, trackKey, packBins(acc.current.bins));
       acc.current.saved = binCount;
+      acc.current.savedRev = rev;
     }, 2000);
     return () => clearTimeout(id);
-  }, [canSave, tid, trackKey, binCount]);
+  }, [canSave, tid, trackKey, binCount, rev]);
 
   // gözlenen sektör sınırları (ortalama) — çizim + paylaşım için
   const secFr = sectorFractions(acc.current.sec);
@@ -241,7 +269,7 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
     }
     return { pts, toScreen, outline };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [binCount, trackKey]);
+  }, [rev, trackKey]);
 
   // dış halka açısı: lapDist oranı → tepeden saat yönünde
   const ringXY = (lapDist) => {

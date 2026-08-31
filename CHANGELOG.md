@@ -154,6 +154,41 @@ donabiliyor; `tyreInfo.teleStale` tam da onun için var).
   yok"), eksik veriden açıkça ayrılır.
 - **Yapı:** `src/liveStatus.js` (saf) + `liveStatus.test.js` (13 test).
 
+### Pist haritası: çözünürlük iki katına, çizgi karışımı azaltıldı
+
+TinyPedal'ın harita kaydı (`module_mapping.py`) incelendi. O, **sürücünün kendi tek
+temiz turunu** kaydedip pist başına SVG olarak diske yazıyor ve dosya varsa bir daha
+kayıt yapmıyor. **Bu yöntem bizde yapısal olarak çalışmaz:** TinyPedal sürücünün
+PC'sindeki overlay, bizim uygulamayı ise **sürmeyen** insanlar izliyor — yarış
+mühendisinin kendi turu yok. "Tüm araçlardan biriktirme" doğru seçim ve korundu.
+Ondan alınan iki iyileştirme:
+
+- **`NB` 240 → 480.** 5 km'lik pistte kutu başına ~21 m'den **~10,4 m**'ye iner;
+  virajlar daha az düzleşir. 480 **pratik tavan**: Firebase yaprak sınırı
+  (`MAX_STR` 8800, kural `.validate < 9000`) 600 kutuda kırpıyor.
+- **Koordinat biçimi tam metreye indirildi** (`toFixed(1)` → `toFixed(0)`).
+  Zorunluydu: 480 kutu × 1 ondalık, **en kötü durumda** (Nordschleife ölçeği
+  ±10000 m, negatif koordinatlar) **9490 karakter** üretiyor ve `packBins` bunu
+  sessizce kırpıyordu — paylaşılan şeklin kuyruğu düşerdi. Tam metreyle **7570**
+  karakter (ölçüldü). Hassasiyet kaybı yok sayılır: harita ~300 px'lik kutuya
+  normalize çiziliyor, 4 km pistte 1 px ≈ 13 m, yani 1 m bir pikselden ~13 kat ince.
+  - **Geriye uyum:** `unpackBins` `Number()` ile ayrıştırdığı için sahadaki eski
+    ondalıklı kayıtlar aynen okunur; yalnız yeni yazımlar kısalır (testli).
+- **Çizgi karışımı azaltıldı.** Kutuyu eskiden **ilk gelen araç** belirliyor ve bir
+  daha güncellenmiyordu → farklı pilotların çizgileri karışıyor, tuhaf bir çizgi atan
+  araç tüm seans boyunca kalıcı iz bırakabiliyordu. Artık **oyuncunun kendi çizgisi**
+  mevcut bir kutuyu **bir kez** yükseltebiliyor (kendi çizgimiz tutarlıdır); oyuncu
+  kutusu bir daha ezilmiyor. Paylaşılan kutular "oyuncunun" sayılmaz → kendi turumuz
+  onları da yükseltebilir.
+- **Yakalanan tuzak:** kutular v2.2.4'e kadar yalnız EKLENİYORDU, bu yüzden `binCount`
+  tek başına yeterli bir "değişti mi" anahtarıydı (memo + Firebase paylaşımı ona
+  bakıyordu). Yükseltme sayıyı değiştirmediği için bu iki yol iyileşmeyi **hiç
+  görmezdi** — şekil ekranda eski kalır, paylaşılan kayıt hiç tazelenmezdi. Ayrı bir
+  `rev` sayacı eklendi; memo ve kaydetme artık ona bakıyor.
+
+**Oyun PC'si maliyeti: sıfır.** Bunların hepsi web tarafında (`TrackMap.jsx`,
+`trackShape.js`); köprüye tek satır dokunulmadı, kare boyutu değişmedi.
+
 ### Kullanılmayan veri: tur sayacı
 
 `session.totalLaps` köprüden beri geliyordu, hiçbir yerde okunmuyordu. Tur-tipi yarışta
@@ -162,9 +197,10 @@ sahte `/0` yazılmaz.
 
 ### Doğrulama
 
-- **JS:** 670 test geçiyor (583 → 670; **+87**). Yeni: `liveSectors.test.js` (14),
+- **JS:** 672 test geçiyor (583 → 672; **+89**). Yeni: `liveSectors.test.js` (14),
   `liveSort.test.js` (16), `liveRelative.test.js` (29), `liveStatus.test.js` (13),
-  `liveTabV230.render.test.jsx` (15).
+  `liveTabV230.render.test.jsx` (15); `trackShape.test.js` en-kötü-durum kırpma
+  kilidiyle genişletildi.
   Render testleri sektör renklerini **kontrollü veriyle** doğrular — demo karesinde
   `var(--purple)` OwnCar'ın "En iyi" kutucuğunda da geçtiği için serbest arama yanlış
   pozitif verirdi; renkli span'in içindeki **sektör değerinin kendisi** aranıyor.
