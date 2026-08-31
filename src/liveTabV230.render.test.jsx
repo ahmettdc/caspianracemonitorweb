@@ -180,6 +180,24 @@ describe("LiveTab v2.3.0 — standings yenilikleri", () => {
     expect(out).not.toContain(">DURDU<");
   });
 
+  it("Vmax sütunu seans en yüksek hızını gösterir; veri yoksa —", () => {
+    const car = (o) => ({ lapsDone: 5, lastSec: 105, bestSec: 105, gapSec: 0,
+      carClass: "Hypercar", ...o });
+    const out = render({
+      ts: Date.now(), session: { sessionType: "Yarış", trackLength: 5000 }, own: null,
+      field: [
+        car({ carId: 1, pos: 1, driver: "A", topSpeed: 318, speedKph: 240 }),
+        car({ carId: 2, pos: 2, driver: "B" }),   // hız verisi yok (eski köprü)
+      ],
+    });
+    expect(out).toContain(">318<");
+    expect(out).toContain("Vmax");
+    /* Dürüstlük notu tooltip'te. NOT: kesme işareti HTML'de &#x27; olarak kaçar,
+       o yüzden apostrofsuz bir parça aranıyor. */
+    expect(out).toContain("de atılan hız da buna dahildir");
+    expect(out).toContain("Şu an: 240 km/h");
+  });
+
   it("boş saha / eksik veri ile çökmez", () => {
     expect(() => render({ ...live, field: [] })).not.toThrow();
     expect(() => render({ ...live, field: [{ pos: 1, driver: "X" }] })).not.toThrow();

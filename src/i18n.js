@@ -809,6 +809,9 @@ export const EN = {
   "Pit talebi verildi — araç henüz pistte": "Pit stop requested — car still on track",
   "Pit yolunda": "In the pit lane",
   "Pit çıkış tahmini (sn)": "Pit-out prediction (s)",
+  "Seansta görülen en yüksek hız": "Highest speed seen this session",
+  "Şu an": "Now",
+  "Slipstream'de atılan hız da buna dahildir": "Speeds set in a slipstream are included",
   "Yarışı bitiremedi": "Did not finish", "Diskalifiye": "Disqualified",
   "ÇAĞRI": "CALL", "GİRİŞ": "IN", "DURDU": "STOP", "ÇIKIŞ": "OUT",
   // tur geçmişi pist koşulları (v1.4.83)

@@ -484,6 +484,55 @@ def test_time_into_lap_sifir_gecerli_degerdir():
     assert (float(getattr(v, "mTimeIntoLap", -1.0)) or -1.0) == -1.0
 
 
+class _SpeedFake:
+    """Tek aracı kare kare besler: (lapsDone, speedKph)."""
+
+    def __init__(self, seq):
+        self.seq = list(seq)
+        self.i = 0
+
+    def read(self):
+        laps, spd = self.seq[min(self.i, len(self.seq) - 1)]
+        self.i += 1
+        return {"session": {}, "own": None, "field": [{
+            "pos": 1, "carId": 1, "driver": "A", "lapsDone": laps,
+            "lastSec": 100.0, "bestSec": 100.0, "inPits": False, "speedKph": spd}]}
+
+
+def _tops(seq):
+    agg = Aggregator(_SpeedFake(seq))
+    return [agg.read()["field"][0].get("topSpeed") for _ in range(len(seq))]
+
+
+def test_top_speed_kosan_maksimum_tutar():
+    assert _tops([(1, 180), (1, 250), (1, 210), (1, 300), (1, 120)]) \
+        == [180, 250, 250, 300, 300]
+
+
+def test_top_speed_yirtik_kare_maksimumu_ZEHIRLEMEZ():
+    """Paylaşımlı bellek yırtık okunduğunda saçma bir hız gelebilir. Maksimum bir
+    kez zehirlenirse bir daha DÜŞMEZ — yarış boyunca yanlış değer gösterilirdi."""
+    assert _tops([(1, 200), (1, 99999), (1, 260)]) == [200, 200, 260]
+    # tam sınırda kabul, üstünde ret
+    assert _tops([(1, 500)]) == [500]
+    assert _tops([(1, 501)]) == [None]
+
+
+def test_top_speed_gecersiz_okuma_yok_sayilir():
+    """0/negatif/None hız (durmuş araç, eksik alan) maksimuma yazılmaz."""
+    assert _tops([(1, 0), (1, -5), (1, None), (1, 190)]) == [None, None, None, 190]
+
+
+def test_top_speed_yeni_seansta_sifirlanir():
+    """Seans değişince (lapsDone kalıcı gerilemesi) rekor sıfırdan başlamalı,
+    yoksa antrenmanın hızı yarışta görünürdü."""
+    agg = Aggregator(_SpeedFake([(5, 300), (5, 300), (5, 300),
+                                 (1, 150), (1, 150), (1, 150), (1, 150)]))
+    out = [agg.read()["field"][0].get("topSpeed") for _ in range(7)]
+    assert out[0] == 300
+    assert out[-1] == 150, out
+
+
 class _Status:
     """mFinishStatus / mPitState taşıyan sahte scoring kaydı."""
 

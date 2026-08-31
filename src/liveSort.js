@@ -49,6 +49,8 @@ export const SORT_VALUE = {
   gap: (r, ctx) => (ctx?.gapMode ? r.interval : r.c.gapSec),
   lap: (r, ctx) => { const v = ctx?.lapMode ? r.c.bestSec : r.c.lastSec; return v > 0 ? v : null; },
   avg: (r, ctx) => { const v = ctx?.avgMode ? r.c.avgSec : r.c.avg5Sec; return v > 0 ? v : null; },
+  /* Seans en yüksek hızı — "kim düzlükte hızlı" sorusu; kanat/sürükleme kararı. */
+  vmax: (r) => (r.c.topSpeed > 0 ? r.c.topSpeed : null),
   ve: (r) => (r.c.virtualEnergy != null ? r.c.virtualEnergy : null),
   vepl: (r) => (r.c.vePerLap != null ? r.c.vePerLap : null),
   /* Lastik: EN KÖTÜ köşenin diş oranı (tabloda gösterilen değerle aynı kaynak). */
@@ -68,7 +70,7 @@ export const SORT_VALUE = {
    (Pozisyona ilk tıklayınca P1 üstte; hasara ilk tıklayınca EN ÇOK hasarlı üstte.) */
 export const SORT_DEFAULT_DIR = {
   pos: "asc", driver: "asc", gap: "asc", lap: "asc", avg: "asc", vepl: "asc",
-  laps: "desc", ve: "desc", tyre: "asc", stint: "desc", dmg: "desc",
+  laps: "desc", ve: "desc", vmax: "desc", tyre: "asc", stint: "desc", dmg: "desc",
   pen: "desc", pit: "desc",
 };
 

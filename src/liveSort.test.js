@@ -121,6 +121,17 @@ describe("sortRows", () => {
     expect(SORT_VALUE.tyre(row({}))).toBe(null);
   });
 
+  it("Vmax en yüksekten sıralanır, verisi olmayan sona gider", () => {
+    const v = [
+      row({ pos: 1, topSpeed: 305 }),
+      row({ pos: 2 }),                 // veri yok
+      row({ pos: 3, topSpeed: 322 }),
+    ];
+    expect(pos(sortRows(v, "vmax", "desc"))).toEqual([3, 1, 2]);
+    expect(pos(sortRows(v, "vmax", "asc"))).toEqual([1, 3, 2]);
+    expect(SORT_DEFAULT_DIR.vmax).toBe("desc");
+  });
+
   it("her sütunun doğal ilk yönü tanımlı", () => {
     for (const k of Object.keys(SORT_VALUE)) {
       expect(SORT_DEFAULT_DIR[k], `${k} için varsayılan yön yok`).toBeTruthy();

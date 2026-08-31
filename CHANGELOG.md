@@ -231,6 +231,31 @@ biriktiriliyor. Eğri kesir olduğu için **tempo-bağımsız** ve tüm sahadan 
 **Oyun PC'si maliyeti: sıfır** — köprüye tek satır dokunulmadı, kare boyutu değişmedi;
 eğri de tahmin de web tarafında.
 
+### Vmax — seans en yüksek hızı (yeni sütun)
+
+"Kim düzlükte hızlı" sorusu; kanat/sürükleme ve savunma/atak kararlarının girdisi.
+
+- **Kaynak `mLocalVel` — ama SCORING'den, telemetriden DEĞİL.** Bu ayrım kritik:
+  `mLocalVel` her iki yapıda da var; telemetri online'da rakiplerde bayatlar
+  (`teleLag` / `tyreInfo.teleStale` tam da bunun için), scoring ise her araç için
+  doludur. Zaten `mPos`'u buradan okuyup pist haritasını **tüm sahadan** kuruyoruz —
+  aynı struct, aynı güvenilirlik. **TinyPedal hızı telemetriden okur**
+  (`rf2_reader.py:1036`), rakip hızları onda bu yüzden güvenilmez; scoring'den
+  okuyarak bu noktada ondan sağlam oluyoruz.
+- Mevcut `_speed()` yardımcısı zaten geneldi (`mLocalVel` taşıyan herhangi bir nesne)
+  — yalnız çağrıldığı yer değişti, yeni matematik yazılmadı.
+- **Kümülatif maksimum `Aggregator`'da** (ceza sayacıyla aynı desen), seans değişince
+  sıfırlanır — antrenmanın hızı yarışta görünmez.
+- **Yırtık kare koruması:** paylaşımlı bellek yırtık okunduğunda saçma bir hız gelebilir
+  ve maksimum **kalıcı olarak zehirlenir** (bir daha düşmez, yarış boyunca yanlış
+  gösterir). `SPEED_SANE_MAX = 500` km/h üstü okuma maksimuma yazılmaz (LMU'nun en
+  hızlı aracı ~340 km/h; sınır bilerek geniş). Testle kilitlendi.
+- **Dürüstlük notu ekranda:** tooltip *"Slipstream'de atılan hız da buna dahildir"*
+  diyor — tow'da görülen 340 km/h aracın kendi düz hızı değildir ve sayı bunu ayırt
+  edemez. Karşılaştırılabilir ölçüm isteyen speed trap (herkes aynı noktada) ayrı bir
+  iş; bilinçli olarak yapılmadı.
+- Sütun sıralanabilir (`vmax`, varsayılan azalan); tooltip anlık hızı da gösterir.
+
 ### Kullanılmayan veri: tur sayacı
 
 `session.totalLaps` köprüden beri geliyordu, hiçbir yerde okunmuyordu. Tur-tipi yarışta
@@ -239,7 +264,7 @@ sahte `/0` yazılmaz.
 
 ### Doğrulama
 
-- **JS:** 702 test geçiyor (583 → 702; **+119**). Yeni: `pitOut.test.js` (25),
+- **JS:** 704 test geçiyor (583 → 704; **+121**). Yeni: `pitOut.test.js` (25),
   `trackMapPitOut.render.test.jsx` (5). Yeni: `liveSectors.test.js` (14),
   `liveSort.test.js` (16), `liveRelative.test.js` (29), `liveStatus.test.js` (13),
   `liveTabV230.render.test.jsx` (15); `trackShape.test.js` en-kötü-durum kırpma
@@ -249,11 +274,13 @@ sahte `/0` yazılmaz.
   pozitif verirdi; renkli span'in içindeki **sektör değerinin kendisi** aranıyor.
 - **Köprü:** tüm paketler geçiyor; `_best_sectors` için 4, `own` düzeltmesi için 2,
   `mTimeIntoLap == 0` tuzağı için 1 yeni test.
-- **Oyun PC'si maliyeti** (CLAUDE.md §0 denetimi, ölçüldü): kare 14 araçta +1.746 B
-  (%15,8), araç başına ~125 B → 40 araçlık gridde **~9,7 KB/sn** (2 Hz). Bunun
-  ~2,3 KB/sn'si `finishStatus`+`pitState`. Yeni REST yok, yeni thread yok, yeni mmap
-  yok, yayın hızı değişmedi, süreç önceliği aynı — tüm yeni alanlar **zaten
-  haritalanmış** Scoring struct'ından `getattr`.
+- **Oyun PC'si maliyeti** (CLAUDE.md §0 denetimi, ölçüldü): kare 14 araçta +2.162 B
+  (%19,6), araç başına ~154 B → 40 araçlık gridde **~12,1 KB/sn** (2 Hz).
+  CPU: `_best_sectors` ~0,2 ms/sn, `_speed` ~83 µs/sn (128 araç) — toplam bir
+  çekirdeğin binde birinin altı. **Yeni REST yok, yeni thread yok, yeni mmap yok,
+  yayın hızı değişmedi, süreç önceliği aynı** — tüm yeni alanlar *zaten haritalanmış*
+  Scoring struct'ından okunuyor. Harita ve pit çıkış tahmini tamamen web tarafında,
+  köprüye maliyeti sıfır.
 - `npm run build` temiz.
 - **i18n:** 9 yeni anahtar TR/EN. Lastik rozeti anahtarları (`ÖnSol`, `Son pitte`, `ÖN`…)
   i18n'de zaten vardı — rozet yazılmış ama bağlanmamış olduğu için öksüz duruyorlardı.

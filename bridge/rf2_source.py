@@ -23,6 +23,7 @@
             bestSectors:[b1,b2,b3] (kişisel en iyi sektörler → mor/yeşil renklendirme),
             timeIntoLap, estLapTime (oyunun kendi tur-içi zaman alanları → relative),
             finishStatus (0/1/2/3 = yok/bitirdi/DNF/DSQ), pitState (0..4, 1=pit talebi),
+            speedKph (anlık, scoring'den), topSpeed (seans en yükseği — Aggregator),
             vePerLap, avg5Sec, avgSec, stintSec, laps, lapsFrom, lapNums, lapKey, isPlayer}
   (penalties = ANLIK bekleyen ceza (mNumPenalties; servis edilince 0'a düşer),
    penaltiesTotal = seans boyunca KÜMÜLATİF ceza (Aggregator yükselen kenar sayımı).
@@ -297,6 +298,8 @@ class MockSource:
                 # karşılığı: tur içi geçen süre + tahmini tur süresi
                 "timeIntoLap": round(el % lap_t, 3), "estLapTime": round(lap_t, 3),
                 # yarış durumu + pit aşaması: bir araç DNF, biri pit çağırmış olsun
+                # anlık hız: tur içi konuma göre dalgalanır (düzlük/viraj taklidi)
+                "speedKph": round(120 + 190 * abs(math.sin(frac * 3.14159)) - i * 1.5),
                 "finishStatus": 2 if i == 9 else 0,
                 "pitState": 1 if (int(el / 60) % 7) == i else 0,
                 "virtualEnergy": round(max(3.0, 100 - ((el + i * 40) % 1500 / 1500) * 92), 1),
@@ -777,6 +780,13 @@ class RF2Source:
                 # Yarış durumu (v2.3.0) — struct notu: 0=none, 1=finished, 2=dnf, 3=dq.
                 # Bunlar VehicleScoring alanı → HER araç için gelir (telemetri değil,
                 # yani online'da rakiplerde de güvenilir).
+                # ANLIK HIZ — SCORING kaydından (v2.3.0). Bu ayrım kritik:
+                # mLocalVel hem telemetride hem SCORING'de var; telemetri online'da
+                # rakiplerde bayatlar (bkz. teleLag/tyreInfo.teleStale), scoring ise
+                # her araç için dolu — mPos'u zaten buradan okuyup pist haritasını
+                # tüm sahadan kuruyoruz, aynı struct. (TinyPedal hızı telemetriden
+                # okur; rakip hızları bu yüzden onda güvenilmez.)
+                "speedKph": (lambda x: round(x) if x is not None else None)(self._speed(v)),
                 "finishStatus": int(getattr(v, "mFinishStatus", 0) or 0),
                 # Pit aşaması — struct notu: 0=none, 1=request, 2=entering,
                 # 3=stopped, 4=exiting. `1` araç DAHA PİSTTEYKEN gelir: rakip pit
@@ -962,6 +972,7 @@ class Aggregator:
         self.ve_per_lap = {}    # araç → son turda tüketilen VE% (prev−cur)
         self.prev_pen = {}      # araç → son görülen BEKLEYEN ceza (mNumPenalties)
         self.pen_total = {}     # araç → KÜMÜLATİF ceza (yükselen kenar toplamı)
+        self.top_speed = {}     # araç → seans boyunca görülen EN YÜKSEK hız (km/h)
 
     def close(self):
         if hasattr(self.inner, "close"):
@@ -972,6 +983,10 @@ class Aggregator:
     #: küçük olur → o durumda bileşim değişimi ikinci sinyaldir (bkz. tyre_change).
     TYRE_JUMP = 0.05
     CORNERS = ("fl", "fr", "rl", "rr")
+
+    #: Bunun üstündeki hız okuması yırtık kare sayılır ve en yüksek hıza YAZILMAZ.
+    #: (LMU'nun en hızlı aracı ~340 km/h; sınır bilerek geniş bırakıldı.)
+    SPEED_SANE_MAX = 500
 
     @staticmethod
     def _valid_lap(last, best):
@@ -1041,6 +1056,8 @@ class Aggregator:
                 # ceza sayaçları da seansa özeldir (yeni seans → sıfırdan başla)
                 self.pen_total.pop(key, None)
                 self.prev_pen.pop(key, None)
+                # en yüksek hız da seansa özeldir
+                self.top_speed.pop(key, None)
                 # VE tur-başı tüketimi için başlangıç değerini (varsa) taban al
                 self.ve_per_lap.pop(key, None)
                 _cve = r.get("virtualEnergy")
@@ -1122,6 +1139,18 @@ class Aggregator:
                 self.pen_total[key] = self.pen_total.get(key, 0) + (cur_pen - prev_pen)
                 self.prev_pen[key] = cur_pen
             r["penaltiesTotal"] = self.pen_total.get(key, 0)
+
+            # SEANS EN YÜKSEK HIZI — koşan maksimum (ceza sayacıyla aynı desen).
+            # ÜST SINIR KORUMASI: paylaşımlı bellek yırtık okunduğunda saçma bir
+            # değer gelebilir ve maksimum KALICI olarak zehirlenir (bir daha
+            # düşmez). LMU'da en hızlı araç ~340 km/h; 500 üstü fiziksel değil.
+            cur_spd = r.get("speedKph")
+            if isinstance(cur_spd, (int, float)) and not isinstance(cur_spd, bool) \
+                    and 0 < cur_spd <= self.SPEED_SANE_MAX:
+                prev_top = self.top_speed.get(key)
+                if prev_top is None or cur_spd > prev_top:
+                    self.top_speed[key] = cur_spd
+            r["topSpeed"] = self.top_speed.get(key)
 
             h = list(self.hist.get(key, ()))
             last5 = h[-5:]

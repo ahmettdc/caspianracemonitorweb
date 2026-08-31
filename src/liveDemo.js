@@ -95,6 +95,9 @@ export function demoLive(el) {
       estLapTime: +lapT.toFixed(3),
       /* v2.3.0 durum alanları: bir araç DNF (satır soluk + DSQ/DNF çipi), bir
          araç pit ÇAĞRISI vermiş (hâlâ pistte), pittekiler aşama gösterir. */
+      // anlık hız (tur içi konuma göre) + seans rekoru — Vmax sütunu demoda dolsun
+      speedKph: Math.round(120 + 190 * Math.abs(Math.sin(frac * Math.PI)) - i * 1.5),
+      topSpeed: Math.round(312 - i * 2.4),
       finishStatus: i === 9 ? 2 : 0,
       /* pitState: pitteki araç AŞAMA gösterir (3=durdu), pistteki bir araç da
          pit ÇAĞRISI vermiş olur (1) — iki durum farklı araçlarda görünsün. */

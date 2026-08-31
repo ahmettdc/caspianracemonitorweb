@@ -795,6 +795,7 @@ export default function LiveTab({ t, live: liveProp, canEdit,
                 <th><button onClick={() => setAvgMode((v) => !v)}
                   title={t("AVG5 / AVG değiştir")} style={thBtn}>
                   {avgMode ? "AVG" : "AVG5"} ⇄</button>{sortArrow("avg")}</th>
+                <th title={t("Seansta görülen en yüksek hız")}>Vmax{sortArrow("vmax")}</th>
                 <th>{t("Enerji")}{sortArrow("ve")}</th>
                 <th>{t("VE/tur")}{sortArrow("vepl")}</th>
                 <th>{t("Lastik")}{sortArrow("tyre")}</th>
@@ -894,6 +895,18 @@ export default function LiveTab({ t, live: liveProp, canEdit,
                       <SectorCell c={c} t={t} classBest={classBest} open={secOpen} />
                       {/* AVG5/AVG tek sütun (başlıktan geçiş). */}
                       <td style={{ color: "var(--dim)" }}>{lap(avgMode ? c.avgSec : c.avg5Sec)}</td>
+                      {/* Vmax (v2.3.0): seansta görülen EN YÜKSEK hız. Kaynak scoring'in
+                          mLocalVel'i — telemetri değil, yani online'da rakiplerde de
+                          güvenilir. DÜRÜSTLÜK NOTU tooltip'te: slipstream'de atılan
+                          hız aracın kendi düz hızı değildir, sayı onu ayırt edemez. */}
+                      <td className="mono" style={{ textAlign: "right", fontSize: 12,
+                        color: c.topSpeed > 0 ? "var(--rc-text-2)" : "var(--dim)" }}
+                        title={[
+                          t("Seansta görülen en yüksek hız"),
+                          c.speedKph != null ? `${t("Şu an")}: ${Math.round(c.speedKph)} km/h` : "",
+                          t("Slipstream'de atılan hız da buna dahildir"),
+                        ].filter(Boolean).join("\n")}>
+                        {c.topSpeed > 0 ? Math.round(c.topSpeed) : "—"}</td>
                       {/* Enerji (VE): çubuksuz, renkli % (fişteki yeni tasarım) */}
                       <td style={{ textAlign: "right" }}>
                         <b style={{ color: veColor(c.virtualEnergy), fontSize: 12.5, fontFamily: "var(--rc-font-display)" }}>{c.virtualEnergy != null ? `%${Math.round(c.virtualEnergy)}` : "—"}</b></td>
