@@ -947,8 +947,16 @@ export default function LiveTab({ t, live: liveProp, canEdit,
                       {/* PIT (v2.3.0): durum + durak sayısı + SON PİTTE DEĞİŞEN LASTİK.
                           tyreChangeBadge tyreInfo.js'te v2.2.x'ten beri yazılı ve testliydi
                           ama hiçbir yerde import edilmiyordu (köprü verisi de liveBridge'de
-                          kareden siliniyordu) — "rakip 2 ön mü aldı, yakıt-only mi durdu"
-                          bilgisi hiç görünmüyordu. */}
+                          kareden siliniyordu) — "2 ön mü aldı, yakıt-only mi durdu"
+                          bilgisi hiç görünmüyordu.
+                          KAPSAM SINIRI (uçtan uca ölçüldü): tespit `tyres4` +
+                          `tyreComp`'a dayanır, ikisi de TELEMETRİDEN gelir. Online
+                          yarışta rakip telemetrisi simüle edilmez (dört teker 1.0'a
+                          donar → `_wear4` None döner), bu yüzden rozet ÇOĞU ONLINE
+                          RAKİPTE ÇIKMAZ. Kendi aracımızda ve telemetrinin dolu
+                          olduğu (offline/AI) yarışlarda tam çalışır; online'da
+                          rakipte yalnız BİLEŞİM değişimi (slick→wet) yakalanabilir.
+                          Veri yoksa rozet çizilmez — uydurma yapılmaz. */}
                       <td style={{ whiteSpace: "nowrap" }}>
                         {(() => {
                           /* v2.3.0: tek düz "PIT" yerine oyunun pit AŞAMASI

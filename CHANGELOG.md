@@ -111,6 +111,24 @@ haritası `TrackMap.jsx`, marka logosu, pit durak sayısı, trafik rozetleri
   `liveBridge.js:245`'te "tabloda gösterilmiyor" gerekçesiyle **kareden siliniyordu**.
   Silme kaldırıldı, rozet Pit sütununa bağlandı: `4` / `2 ÖN` / yakıt-only durakta `0`.
   Boyut: araç başına tek küçük nesne, Firebase yaprak sınırının çok altında.
+  - **KAPSAM SINIRI (uçtan uca ölçüldü, tahmin değil).** `Aggregator.tyre_change`
+    girdileri `tyres4` + `tyreComp`; **ikisi de TELEMETRİDEN** gelir
+    (`_wear4(tv)` / `_compound(tv)`). Online yarışta rakip telemetrisi simüle
+    edilmez — dört teker tam `1.0`'a donar ve `_wear4` bunu bilerek `None` sayar
+    (v1.4.65 kararı). Sonuç: **rozet online'da rakiplerin çoğunda ÇIKMAZ.**
+    Gerçek Aggregator'la ölçülen davranış:
+
+    | Senaryo | Sonuç |
+    |---|---|
+    | Kendi araç, 4 lastik | `{n:4}` → `4` |
+    | Kendi araç, 2 ön | `{n:2, corners:[fl,fr]}` → `2 ÖN` |
+    | Yakıt-only durak | `{n:0}` → `0` |
+    | Bileşim slick→wet (aşınma sıçraması küçük) | `{n:4, comp:"Wet"}` → `4` |
+    | **Online rakip, aşınma okunamıyor, bileşim sabit** | **`None` → rozet yok** |
+    | Online rakip, bileşim değişmiş | `{n:4, comp:"Wet"}` → `4` |
+
+    Yani: **kendi aracımızda ve offline/AI yarışlarda tam**, online'da rakipte
+    yalnız bileşim değişimi. Veri yoksa rozet çizilmez — uydurma yok.
 
 ### `own` kendi araç kartı: pilot adı ve sınıf HİÇ gelmiyordu
 

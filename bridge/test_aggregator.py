@@ -484,6 +484,77 @@ def test_time_into_lap_sifir_gecerli_degerdir():
     assert (float(getattr(v, "mTimeIntoLap", -1.0)) or -1.0) == -1.0
 
 
+class _PitTyreFake:
+    """Pit giriş/çıkış kenarını taklit eder: (inPits, tyres4, tyreComp)."""
+
+    def __init__(self, seq):
+        self.seq = list(seq)
+        self.i = 0
+
+    def read(self):
+        p, t4, tc = self.seq[min(self.i, len(self.seq) - 1)]
+        self.i += 1
+        return {"session": {}, "own": None, "field": [{
+            "pos": 1, "carId": 1, "driver": "A", "lapsDone": 10, "lastSec": 100.0,
+            "bestSec": 100.0, "inPits": p, "tyres4": t4, "tyreComp": tc}]}
+
+
+def _pit_change(seq):
+    agg = Aggregator(_PitTyreFake(seq))
+    return [agg.read()["field"][0].get("tyreChange") for _ in range(len(seq))][-1]
+
+
+_WORN = [0.55, 0.54, 0.52, 0.51]
+_FRESH = [1.0, 1.0, 1.0, 1.0]
+_FRONT = [1.0, 1.0, 0.52, 0.51]
+
+
+def test_pit_rozeti_uctan_uca_dort_lastik():
+    ch = _pit_change([(False, _WORN, "Medium"), (True, _WORN, "Medium"),
+                      (False, _FRESH, "Medium")])
+    assert ch["n"] == 4, ch
+
+
+def test_pit_rozeti_uctan_uca_iki_on():
+    ch = _pit_change([(False, _WORN, "Medium"), (True, _WORN, "Medium"),
+                      (False, _FRONT, "Medium")])
+    assert ch["n"] == 2 and ch["corners"] == ["fl", "fr"], ch
+
+
+def test_pit_rozeti_yakit_only_durak_sifir_der():
+    """0 da bilgidir: "durdu ama lastik almadı" stratejik olarak önemlidir."""
+    ch = _pit_change([(False, _WORN, "Medium"), (True, _WORN, "Medium"),
+                      (False, _WORN, "Medium")])
+    assert ch["n"] == 0, ch
+
+
+def test_pit_rozeti_bilesim_degisimi_asinmadan_bagimsiz_yakalanir():
+    """slick→wet: aşınma sıçraması küçük olsa bile bileşim değiştiyse 4 lastiktir."""
+    ch = _pit_change([(False, _WORN, "Medium"), (True, _WORN, "Medium"),
+                      (False, _WORN, "Wet")])
+    assert ch["n"] == 4 and ch["comp"] == "Wet", ch
+
+
+def test_pit_rozeti_ONLINE_RAKIPTE_CIKMAZ_kapsam_siniri():
+    """KAPSAM SINIRI — bu bir hata değil, veri yolunun sınırı; testle kayda geçiyor.
+
+    Tespit `tyres4` + `tyreComp`'a dayanır ve ikisi de TELEMETRİDEN gelir. Online
+    yarışta oyun rakip telemetrisini simüle etmez: dört teker tam 1.0'a donar,
+    `_wear4` bunu bilerek "veri yok" (None) sayar (v1.4.65). Bileşim de değişmediyse
+    karar verilemez → rozet ÇİZİLMEZ. Uydurma bir "4 lastik" ÜRETİLMEMELİDİR."""
+    assert RF2Source._wear4(_Tele([1.0, 1.0, 1.0, 1.0]), laps=10) is None
+    ch = _pit_change([(False, None, "Medium"), (True, None, "Medium"),
+                      (False, None, "Medium")])
+    assert ch is None, ch
+
+
+def test_pit_rozeti_online_rakipte_bilesim_degisimi_yine_de_yakalanir():
+    """Aşınma okunamasa bile bileşim değişimi KESİN bilgidir → 4 lastik."""
+    ch = _pit_change([(False, None, "Medium"), (True, None, "Medium"),
+                      (False, None, "Wet")])
+    assert ch["n"] == 4 and ch["comp"] == "Wet", ch
+
+
 class _SpeedFake:
     """Tek aracı kare kare besler: (lapsDone, speedKph)."""
 
