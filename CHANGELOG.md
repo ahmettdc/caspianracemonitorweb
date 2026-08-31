@@ -11,6 +11,17 @@ Eksik giderme.
 - **Çözüm (`src/traceCodec.js`, format v2):** `x`/`y` artık sabit `scale=1` yerine, turun kendi yayılımından türeyen **ortak** bir `mapK` ile ~1e5 tamsayı çözünürlüğüne ölçekleniyor (`x` ve `y` aynı ölçek → en-boy korunur), origin çıkarılıyor; `mapK/x0/y0` başlıkta saklanıyor. UI zaten fit-to-box normalize ettiği için mutlak konum değil yalnız şekil önemli, o da kayıpsıza yakın korunuyor (Le Mans için round-trip hatası ~0.03 m). Eski v1 stringleri (metre koordinatlı) hâlâ okunuyor; GPS'li stint yeniden kaydedilince v2 ile düzeliyor.
 - **Doğrulama:** Yeni GPS regresyon testleri + 559 testin tümü geçiyor; gerçekçi Le Mans GPS turu paketlenmiş boyut 10.8 KB (< 40 KB Firebase yaprak sınırı), 300 noktanın 300'ü ayrışık.
 
+### Dağıtım: yeni sürüm yayınlansa da kullanıcı ESKİSİNİ görüyordu
+
+- **Belirti:** Deploy başarılı, sunucudaki paket yeni — ama tarayıcıda açınca ekran değişmemiş görünüyor. Saatler sonra kendiliğinden düzeliyor.
+- **Kök neden (iki katman üst üste):**
+  1. `index.html` `cache-control: max-age=3600` ile geliyor → tarayıcı bir saat boyunca ESKİ HTML'i kullanıyor. Varlık adları içerik-hash'li (`index-ZVVxviLi.js`) olduğundan eski HTML eski hash'leri işaret ediyor.
+  2. Service worker'ın gezinme dalı "ağ önce" ama düz `fetch(req)` ile — bu istek **tarayıcının HTTP önbelleğinden** geçiyor, yani sunucuya hiç gitmiyor. Eski HTML'in işaret ettiği eski varlıklar da `fetch` dalındaki **cache-first** mantığıyla SW önbelleğinden servis ediliyor → zincir kapanıyor ve yeni sürüm hiç yüklenmiyor.
+- **Çözüm:**
+  - `public/sw.js`: gezinme artık `fetch(req, { cache: "reload" })` — HTTP önbelleğini atlayıp her seferinde sunucuya gider; çevrimdışıysa yine önbellekteki `index.html`'e düşer. `CACHE` adı sürümlendi (`crc-v2.2.4`) → yeni SW etkinleşince bayat app-shell temizlenir.
+  - `firebase.json`: hosting başlıkları eklendi — `index.html` / `sw.js` / `manifest.webmanifest` `no-cache`, `assets/**` `immutable` (hash'li olduğu için bir yıl güvenle önbelleklenir). Bu, önizleme kanallarını ve Firebase hosting'i kapsar; üretim GitHub Pages'te asıl düzeltmeyi SW değişikliği yapar.
+- **Not:** Bu düzeltmenin kendisi eski SW tarafından servis edilebileceği için, kullanıcıların **son bir kez** zorla yenilemesi (Ctrl/Cmd+Shift+R) gerekebilir; sonrasında sürümler kendiliğinden gelir.
+
 ### Telemetri: tasarım fişi (tele-paketi, 28 Ağu 2026) uyumu
 
 Handoff paketi `handoff-spec/tele-paketi` (TELE-FİŞİ + tokens.css + referans görseller) uygulandı. Tüm tokenlar projede zaten tanımlıydı; ekran da bu tasarım sisteminden türemişti — bu yüzden iş, fişin **EK** bölümündeki farklara ve gözden kaçmış uyumsuzluklara odaklandı.
