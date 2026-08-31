@@ -22,6 +22,7 @@
             penaltiesTotal, tyreWear, tyres4:[fl,fr,rl,rr], tyreComp, damage, virtualEnergy,
             bestSectors:[b1,b2,b3] (kişisel en iyi sektörler → mor/yeşil renklendirme),
             timeIntoLap, estLapTime (oyunun kendi tur-içi zaman alanları → relative),
+            finishStatus (0/1/2/3 = yok/bitirdi/DNF/DSQ), pitState (0..4, 1=pit talebi),
             vePerLap, avg5Sec, avgSec, stintSec, laps, lapsFrom, lapNums, lapKey, isPlayer}
   (penalties = ANLIK bekleyen ceza (mNumPenalties; servis edilince 0'a düşer),
    penaltiesTotal = seans boyunca KÜMÜLATİF ceza (Aggregator yükselen kenar sayımı).
@@ -295,6 +296,9 @@ class MockSource:
                 # relative zaman yolu (v2.3.0) — oyunun mTimeIntoLap/mEstimatedLapTime
                 # karşılığı: tur içi geçen süre + tahmini tur süresi
                 "timeIntoLap": round(el % lap_t, 3), "estLapTime": round(lap_t, 3),
+                # yarış durumu + pit aşaması: bir araç DNF, biri pit çağırmış olsun
+                "finishStatus": 2 if i == 9 else 0,
+                "pitState": 1 if (int(el / 60) % 7) == i else 0,
                 "virtualEnergy": round(max(3.0, 100 - ((el + i * 40) % 1500 / 1500) * 92), 1),
             })
         rows.sort(key=lambda r: -r["_prog"])
@@ -770,6 +774,14 @@ class RF2Source:
                 # bir değer "yok"a çevrilirdi. Sıfır burada gerçek bir okumadır.
                 "timeIntoLap": round(float(getattr(v, "mTimeIntoLap", -1.0)), 3),
                 "estLapTime": round(float(getattr(v, "mEstimatedLapTime", -1.0)), 3),
+                # Yarış durumu (v2.3.0) — struct notu: 0=none, 1=finished, 2=dnf, 3=dq.
+                # Bunlar VehicleScoring alanı → HER araç için gelir (telemetri değil,
+                # yani online'da rakiplerde de güvenilir).
+                "finishStatus": int(getattr(v, "mFinishStatus", 0) or 0),
+                # Pit aşaması — struct notu: 0=none, 1=request, 2=entering,
+                # 3=stopped, 4=exiting. `1` araç DAHA PİSTTEYKEN gelir: rakip pit
+                # çağırmış ama henüz girmemiş demektir (undercut erken uyarısı).
+                "pitState": int(getattr(v, "mPitState", 0) or 0),
                 "bestSec": round(float(getattr(v, "mBestLapTime", -1.0)), 3),
                 "gapSec": round(float(getattr(v, "mTimeBehindLeader", 0.0)), 1),
                 "intervalSec": round(float(getattr(v, "mTimeBehindNext", 0.0)), 1),

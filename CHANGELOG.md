@@ -128,6 +128,32 @@ haritası `TrackMap.jsx`, marka logosu, pit durak sayısı, trafik rozetleri
   (`vehicleName` gibi doğrudan okunan alanlar ezilmez, testli). Demo da gerçek davranışı
   yansıtacak şekilde hizalandı.
 
+### Yarış durumu (DNF/DSQ) ve pit AŞAMASI okunmuyordu
+
+TinyPedal kaynağı tarandıktan sonra eklendi. İkisi de **`rF2VehicleScoring`** alanı →
+telemetri değil, yani **online yarışta rakipler için de güvenilir** (rakip telemetrisi
+donabiliyor; `tyreInfo.teleStale` tam da onun için var).
+
+- **`mFinishStatus`** (struct: `0=none, 1=finished, 2=dnf, 3=dq`) — okunmuyordu, bu
+  yüzden **yarışı bırakan araç tabloda hâlâ yarışıyormuş gibi duruyordu**: gap'i donuyor
+  ama satır normal görünüyor, "kim hâlâ sahada" sorusu gözle çıkarılamıyordu.
+  - `DNF`/`DSQ` çipi + satır soluklaştırma (`opacity .45`). Veri donduğu için gap/tur
+    değerleri olduğu gibi bırakılır, yalnız satır yarışmadığını belli eder.
+  - **`FIN` çipi bilinçli olarak YOK:** yarış bitince **herkes** `1` olur, bilgi taşımaz.
+    `isRetired` da yalnız 2/3'ü "bırakmış" sayar.
+- **`mPitState`** (struct: `0=none, 1=request, 2=entering, 3=stopped, 4=exiting`) —
+  Pit sütunu tek düz `PIT` çipi yerine **aşama** gösteriyor: `ÇAĞRI · GİRİŞ · DURDU · ÇIKIŞ`.
+  - Asıl kazanım **`1` (request)**: bu kod araç **HÂLÂ PİSTTEYKEN** gelir → *"rakip pit
+    çağırdı ama henüz girmedi"*. Undercut'a karşı erken uyarı olduğu için diğer
+    aşamalardan **ayrı renkte** (`--rc-warn`, kalın).
+- **Geriye uyum:** köprü `.exe` ayrı güncelleniyor; eski sürümler bu alanları göndermez.
+  `pitChip` alan yoksa **eski `inPits` davranışına düşer** (düz `PIT`), `finishLabel`
+  `null` döner → özellik sessizce kaybolur, hiçbir şey bozulmaz.
+- **Uydurma yok:** bilinmeyen/bozuk kod (`9`, `-1`, `1.5`, metin) etiket üretmez.
+  `Number(null) === 0` tuzağı burada da geçerli — `0` **geçerli** bir koddur ("durum
+  yok"), eksik veriden açıkça ayrılır.
+- **Yapı:** `src/liveStatus.js` (saf) + `liveStatus.test.js` (13 test).
+
 ### Kullanılmayan veri: tur sayacı
 
 `session.totalLaps` köprüden beri geliyordu, hiçbir yerde okunmuyordu. Tur-tipi yarışta
@@ -136,16 +162,19 @@ sahte `/0` yazılmaz.
 
 ### Doğrulama
 
-- **JS:** 654 test geçiyor (583 → 654; **+71**). Yeni: `liveSectors.test.js` (14),
-  `liveSort.test.js` (16), `liveRelative.test.js` (29), `liveTabV230.render.test.jsx` (12).
+- **JS:** 670 test geçiyor (583 → 670; **+87**). Yeni: `liveSectors.test.js` (14),
+  `liveSort.test.js` (16), `liveRelative.test.js` (29), `liveStatus.test.js` (13),
+  `liveTabV230.render.test.jsx` (15).
   Render testleri sektör renklerini **kontrollü veriyle** doğrular — demo karesinde
   `var(--purple)` OwnCar'ın "En iyi" kutucuğunda da geçtiği için serbest arama yanlış
   pozitif verirdi; renkli span'in içindeki **sektör değerinin kendisi** aranıyor.
 - **Köprü:** tüm paketler geçiyor; `_best_sectors` için 4, `own` düzeltmesi için 2,
   `mTimeIntoLap == 0` tuzağı için 1 yeni test.
-- **Oyun PC'si maliyeti** (CLAUDE.md §0 denetimi, ölçüldü): kare 14 araçta +1.324 B
-  (%12), araç başına ~95 B → 40 araçlık gridde **~7,4 KB/sn** (2 Hz). Yeni REST yok,
-  yeni thread yok, yayın hızı değişmedi, süreç önceliği aynı.
+- **Oyun PC'si maliyeti** (CLAUDE.md §0 denetimi, ölçüldü): kare 14 araçta +1.746 B
+  (%15,8), araç başına ~125 B → 40 araçlık gridde **~9,7 KB/sn** (2 Hz). Bunun
+  ~2,3 KB/sn'si `finishStatus`+`pitState`. Yeni REST yok, yeni thread yok, yeni mmap
+  yok, yayın hızı değişmedi, süreç önceliği aynı — tüm yeni alanlar **zaten
+  haritalanmış** Scoring struct'ından `getattr`.
 - `npm run build` temiz.
 - **i18n:** 9 yeni anahtar TR/EN. Lastik rozeti anahtarları (`ÖnSol`, `Son pitte`, `ÖN`…)
   i18n'de zaten vardı — rozet yazılmış ama bağlanmamış olduğu için öksüz duruyorlardı.

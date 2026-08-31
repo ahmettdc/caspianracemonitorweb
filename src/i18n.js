@@ -806,6 +806,10 @@ export const EN = {
   "Pistte önümüzde (−) / arkamızda (+) saniye":
     "Seconds ahead (−) / behind (+) on track",
   "Liderin turu / yarış turu": "Leader's lap / race laps",
+  "Pit talebi verildi — araç henüz pistte": "Pit stop requested — car still on track",
+  "Pit yolunda": "In the pit lane",
+  "Yarışı bitiremedi": "Did not finish", "Diskalifiye": "Disqualified",
+  "ÇAĞRI": "CALL", "GİRİŞ": "IN", "DURDU": "STOP", "ÇIKIŞ": "OUT",
   // tur geçmişi pist koşulları (v1.4.83)
   "Asfalt sıcaklığı": "Track temp", "Yol tutuş": "Grip",
   "Turlardan modellenmiş tahmin (gerçek okuma değil)":

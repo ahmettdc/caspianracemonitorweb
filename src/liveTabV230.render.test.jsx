@@ -133,6 +133,53 @@ describe("LiveTab v2.3.0 — standings yenilikleri", () => {
     expect(out).toMatch(/color:#EF8A2B[^>]*>2</);
   });
 
+  it("DNF/DSQ çipi çizilir ve satır soluklaşır; FIN çip ÜRETMEZ", () => {
+    const car = (o) => ({ lapsDone: 5, lastSec: 105, bestSec: 105, gapSec: 0, ...o });
+    const out = render({
+      ts: Date.now(), session: { sessionType: "Yarış", trackLength: 5000 }, own: null,
+      field: [
+        car({ carId: 1, pos: 1, driver: "A", carClass: "Hypercar" }),
+        car({ carId: 2, pos: 2, driver: "B", carClass: "Hypercar", finishStatus: 2 }),
+        car({ carId: 3, pos: 3, driver: "C", carClass: "Hypercar", finishStatus: 3 }),
+        car({ carId: 4, pos: 4, driver: "D", carClass: "Hypercar", finishStatus: 1 }),
+      ],
+    });
+    expect(out).toContain(">DNF<");
+    expect(out).toContain(">DSQ<");
+    expect(out).toContain("opacity:0.45");        // bırakmış satır soluk
+    // yarış bitince HERKES finishStatus=1 olur → FIN çipi bilgi taşımaz, çizilmez
+    expect(out).not.toContain(">FIN<");
+  });
+
+  it("PİT sütunu aşamayı gösterir; ÇAĞRI araç PİSTTEYKEN ayrı renkte", () => {
+    const car = (o) => ({ lapsDone: 5, lastSec: 105, bestSec: 105, gapSec: 0,
+      carClass: "Hypercar", ...o });
+    const out = render({
+      ts: Date.now(), session: { sessionType: "Yarış", trackLength: 5000 }, own: null,
+      field: [
+        car({ carId: 1, pos: 1, driver: "A", pitState: 1, inPits: false }),  // çağrı
+        car({ carId: 2, pos: 2, driver: "B", pitState: 3, inPits: true }),   // durdu
+        car({ carId: 3, pos: 3, driver: "C", pitState: 4, inPits: true }),   // çıkış
+      ],
+    });
+    expect(out).toContain(">ÇAĞRI<");
+    expect(out).toContain(">DURDU<");
+    expect(out).toContain(">ÇIKIŞ<");
+    expect(out).toContain("Pit talebi verildi — araç henüz pistte");
+    expect(out).toContain("var(--rc-warn)");      // çağrı diğer aşamalardan ayrı ton
+  });
+
+  it("pitState YOKSA eski davranış korunur (eski köprü → düz PIT çipi)", () => {
+    const car = (o) => ({ lapsDone: 5, lastSec: 105, bestSec: 105, gapSec: 0,
+      carClass: "Hypercar", ...o });
+    const out = render({
+      ts: Date.now(), session: { sessionType: "Yarış", trackLength: 5000 }, own: null,
+      field: [car({ carId: 1, pos: 1, driver: "A", inPits: true })],
+    });
+    expect(out).toContain(">PIT<");
+    expect(out).not.toContain(">DURDU<");
+  });
+
   it("boş saha / eksik veri ile çökmez", () => {
     expect(() => render({ ...live, field: [] })).not.toThrow();
     expect(() => render({ ...live, field: [{ pos: 1, driver: "X" }] })).not.toThrow();

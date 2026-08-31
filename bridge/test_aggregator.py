@@ -484,6 +484,32 @@ def test_time_into_lap_sifir_gecerli_degerdir():
     assert (float(getattr(v, "mTimeIntoLap", -1.0)) or -1.0) == -1.0
 
 
+class _Status:
+    """mFinishStatus / mPitState taşıyan sahte scoring kaydı."""
+
+    def __init__(self, fin, pit):
+        self.mFinishStatus = fin
+        self.mPitState = pit
+
+
+def test_finish_status_ve_pit_state_ham_kod_olarak_gecer():
+    """Köprü yorum yapmaz, ham struct kodunu geçirir (yorum web tarafında,
+    liveStatus.js'te). 0=none/1=finished/2=dnf/3=dq · 0..4 pit aşaması."""
+    for fin in (0, 1, 2, 3):
+        v = _Status(fin, 0)
+        assert int(getattr(v, "mFinishStatus", 0) or 0) == fin
+    for pit in (0, 1, 2, 3, 4):
+        v = _Status(0, pit)
+        assert int(getattr(v, "mPitState", 0) or 0) == pit
+
+
+def test_durum_alanlari_yoksa_sifira_duser_cokmez():
+    """Eski/farklı struct düzeni: alan yok → 0 (= 'durum yok'), istisna değil."""
+    v = object()
+    assert int(getattr(v, "mFinishStatus", 0) or 0) == 0
+    assert int(getattr(v, "mPitState", 0) or 0) == 0
+
+
 class _OwnFake:
     """own'ı TELEMETRİDEN kuran RF2Source davranışını taklit eder: own'da
     driver/carClass YOK, oyuncunun field satırında VAR."""

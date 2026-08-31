@@ -17,6 +17,7 @@ import { tyreTitle, teleStale, tyreChangeBadge } from "../tyreInfo";
 import { classBestSectors, sectorTones, TONE_COLOR } from "../liveSectors";
 import { sortRows, matchQuery, SORT_DEFAULT_DIR } from "../liveSort";
 import { relativeRows } from "../liveRelative";
+import { finishLabel, isRetired, pitChip } from "../liveStatus";
 import { compoundAxles, parseTyreLog } from "../tyreCompound";
 import TrackMap from "./TrackMap";
 import PosChart from "./PosChart";
@@ -809,6 +810,8 @@ export default function LiveTab({ t, live: liveProp, canEdit,
                     isFastest } = row;
                   const acc = classAccent(c.carClass);
                   const fl = flash[carKey(c)];   // "purple" | "green" | undefined
+                  const fin = finishLabel(c);      // "FIN" | "DNF" | "DSQ" | null
+                  const retired = isRetired(c);    // yalnız DNF/DSQ (FIN değil)
                   return (
                     /* key = STABİL araç kimliği (carKey), pozisyon DEĞİL: pozisyon
                        key'i her geçişte satırları söküp yeniden kuruyordu (görsel
@@ -822,12 +825,24 @@ export default function LiveTab({ t, live: liveProp, canEdit,
                         .filter(Boolean).join(" ")}
                       style={{ ...(!c.isPlayer && acc ? { borderLeft: `3px solid ${acc}` } : {}),
                         ...(meRow && !c.isPlayer ? { cursor: "pointer" } : {}),
+                        /* Bırakmış araç yarışmıyor → satır soluk. Veri donduğu için
+                           gap/tur değerleri olduğu gibi kalır, yanıltmasın. */
+                        ...(retired ? { opacity: 0.45 } : {}),
                         ...(cmpFresh && carKey(cmpFresh) === carKey(c) ? { background: "rgba(76,154,255,.12)" } : {}) }}>
                       {/* Poz · Sınıf: büyük genel pozisyon + küçük SINIF İÇİ pozisyon
                           (sınıf renginde) + yön oku. Sınıf logosu (HY/GT3) yok. */}
                       <td style={{ whiteSpace: "nowrap" }}>
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
                           <b style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 18, lineHeight: 1, color: c.isPlayer ? "var(--rc-brand-bright)" : "var(--rc-text)" }}>{c.pos ?? i + 1}</b>
+                          {/* v2.3.0: DNF/DSQ (mFinishStatus). Şimdiye kadar okunmuyordu →
+                              yarışı bırakan araç tabloda hâlâ yarışıyormuş gibi duruyordu.
+                              FIN çipi yok: yarış bitince HERKES 1 olur, bilgi taşımaz. */}
+                          {fin && fin !== "FIN" && (
+                            <span className="chip" style={{ fontSize: 9, padding: "1px 5px",
+                              color: "var(--red)", borderColor: "var(--red)" }}
+                              title={fin === "DNF" ? t("Yarışı bitiremedi") : t("Diskalifiye")}>
+                              {fin}</span>
+                          )}
                           <span style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 1, lineHeight: 1 }}>
                             {id && <b style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 11.5, color: acc || "var(--rc-text-3)" }}>{classPos}</b>}
                             <span style={{ fontSize: 8.5, lineHeight: 1 }}>
@@ -922,8 +937,22 @@ export default function LiveTab({ t, live: liveProp, canEdit,
                           kareden siliniyordu) — "rakip 2 ön mü aldı, yakıt-only mi durdu"
                           bilgisi hiç görünmüyordu. */}
                       <td style={{ whiteSpace: "nowrap" }}>
-                        {c.inPits && <span className="chip" style={{ marginRight: 4,
-                          color: "var(--yellow)", borderColor: "var(--yellow)" }}>PIT</span>}
+                        {(() => {
+                          /* v2.3.0: tek düz "PIT" yerine oyunun pit AŞAMASI
+                             (mPitState). "ÇAĞRI" araç HÂLÂ PİSTTEYKEN gelir —
+                             rakip pit çağırmış, henüz girmemiş: undercut'a karşı
+                             erken uyarı, o yüzden diğer aşamalardan ayrı renkte.
+                             Eski köprüde alan yok → pitChip inPits'e düşer. */
+                          const pc = pitChip(c);
+                          if (!pc) return null;
+                          const col = pc.tone === "warn" ? "var(--rc-warn)" : "var(--yellow)";
+                          return <span className="chip" style={{ marginRight: 4,
+                            color: col, borderColor: col,
+                            ...(pc.tone === "warn" && { fontWeight: 700 }) }}
+                            title={pc.tone === "warn"
+                              ? t("Pit talebi verildi — araç henüz pistte")
+                              : t("Pit yolunda")}>{t(pc.txt)}</span>;
+                        })()}
                         <span style={{ color: "var(--dim)" }}>{c.pitStops ?? "—"}</span>
                         {(() => {
                           const b = tyreChangeBadge(c.tyreChange, t);

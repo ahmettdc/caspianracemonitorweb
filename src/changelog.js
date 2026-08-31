@@ -14,6 +14,8 @@ export const CHANGELOG = [
       "🛞 LASTİK sütunu artık DÖRT KÖŞEYİ birden gösteriyor. Önceden yalnız 'en kötü' tek bir yüzde vardı — 'hangi lastik bitti' sorusu cevapsızdı. Artık ÖnSol/ÖnSağ/ArkaSol/ArkaSağ ayrı ayrı, renkli 2×2 ızgarada. (Dört köşe verisi zaten geliyordu, sadece gösterilmiyordu.)",
       "🔧 PİT sütununa SON DURAKTA DEĞİŞEN LASTİK rozeti eklendi: '4', '2 ÖN' ya da yakıt-only durakta '0'. Rakibin undercut mu yoksa yalnız yakıt için mi durduğu artık tabloda görünüyor.",
       "🏎 ÇÖZÜLDÜ: 'Kendi Araç' kartı her zaman jenerik 'Kendi Araç' yazıyor ve sınıf rengi hiç görünmüyordu. Sebep: köprü kendi araç bilgisini oyunun TELEMETRİ tarafından kuruyor, pilot adı ve sınıf ise yalnız SIRALAMA tarafında bulunuyor — bu iki alan hiçbir zaman karta ulaşmıyordu. Artık kendi satırınızdan alınıyor; takım, marka ve araç no da aynı şekilde düzeldi.",
+      "🏁 YARIŞI BIRAKAN araçlar artık belli oluyor. Şimdiye kadar DNF/DSQ olan bir araç tabloda hâlâ yarışıyormuş gibi duruyordu (verisi donuyor ama satır normal görünüyordu) — 'kim hâlâ sahada' sorusunu gözle çıkarmak gerekiyordu. Artık DNF/DSQ çipi var ve satır soluklaşıyor.",
+      "🔧 PİT sütunu artık AŞAMA gösteriyor: ÇAĞRI · GİRİŞ · DURDU · ÇIKIŞ. En değerlisi ÇAĞRI — bu, rakip pit talebi verdiği ama HENÜZ PİSTTE olduğu an demektir; undercut'a karşı önden pozisyon almanızı sağlar, o yüzden ayrı renkte. (Köprünüz eskiyse eski düz 'PIT' çipi görünmeye devam eder; köprüyü güncelleyince aşamalar gelir.)",
       "🔢 Tur-tipi yarışlarda başlıkta TUR SAYACI ('42/68') gösteriliyor. Bu bilgi köprüden zaten geliyordu ama hiçbir yerde kullanılmıyordu. Süre-tipi yarışta gösterilmez.",
     ],
     en: [
@@ -23,6 +25,8 @@ export const CHANGELOG = [
       "🛞 The TYRE column now shows ALL FOUR CORNERS. Previously only a single 'worst' percentage was displayed — 'which tyre is done' had no answer. FL/FR/RL/RR are now shown separately in a colour-coded 2×2 grid. (The four-corner data was already arriving, it just was not being displayed.)",
       "🔧 The PIT column gained a LAST-STOP TYRE CHANGE badge: '4', '2 FRONT', or '0' for a fuel-only stop. Whether a rival undercut or only stopped for fuel is now visible in the table.",
       "🏎 FIXED: the 'My Car' card always read the generic 'My Car' and never showed a class colour. Cause: the bridge builds your own-car data from the game's TELEMETRY side, while driver name and class only exist on the SCORING side — those two fields never reached the card. They are now taken from your own row; team, brand and car number were fixed the same way.",
+      "🏁 Cars that have RETIRED are now visible as such. Until now a DNF/DSQ car still looked like it was racing (its data freezes but the row looked normal) — you had to work out 'who is still running' by eye. There is now a DNF/DSQ chip and the row dims.",
+      "🔧 The PIT column now shows the pit PHASE: CALL · IN · STOP · OUT. The valuable one is CALL — it means a rival has requested a stop but is STILL ON TRACK, which lets you get ahead of an undercut, so it is shown in a distinct colour. (With an older bridge you keep seeing the plain 'PIT' chip; updating the bridge brings the phases.)",
       "🔢 In lap-type races the header now shows a LAP COUNTER ('42/68'). This data already came from the bridge but was never used anywhere. It is hidden in timed races.",
     ],
   },

@@ -93,6 +93,13 @@ export function demoLive(el) {
          sektör yavaş), böylece demo iki yöntemin ayrıştığını gerçekten gösterir. */
       timeIntoLap: +(lapT * (frac + 0.06 * Math.sin(frac * Math.PI * 2))).toFixed(3),
       estLapTime: +lapT.toFixed(3),
+      /* v2.3.0 durum alanları: bir araç DNF (satır soluk + DSQ/DNF çipi), bir
+         araç pit ÇAĞRISI vermiş (hâlâ pistte), pittekiler aşama gösterir. */
+      finishStatus: i === 9 ? 2 : 0,
+      /* pitState: pitteki araç AŞAMA gösterir (3=durdu), pistteki bir araç da
+         pit ÇAĞRISI vermiş olur (1) — iki durum farklı araçlarda görünsün. */
+      pitState: (Math.floor(el / 90) % 13) === i ? 3
+        : (Math.floor(el / 60) % 13) === i ? 1 : 0,
       // ANLIK sektörler: bu turda geçilen S1/S2 (S1 çizgisi ~%40, S2 ~%73 sonrası)
       curSectors: (() => {
         const s1 = +(lapT * 0.25 + Math.sin(el + i) * 0.3).toFixed(1);
