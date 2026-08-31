@@ -479,22 +479,26 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
     ? pitOutPoints({ me: meCar, curve: curveOf(acc.current.curve), nb: NB,
       pitFr, trackLength, lapSec: meLap })
     : [];
+  /* Çizim YALNIZ DIŞ HALKADA (kullanıcı kararı): iç şekilde de çember+sayı vardı,
+     iki yerde aynı bilgi hem kalabalık yapıyor hem de iç şekilde araç noktalarıyla
+     üst üste biniyordu. Dış halka bu iş için zaten daha uygun — orada araçlar
+     lapDist oranına göre düzgün dizili, çember hangi aracın hizasına düştüğü
+     tek bakışta okunuyor. Sayı da halkanın DIŞINA yazılır (sektör/PIT IN
+     etiketleriyle aynı yarıçap deseni). */
   const pitOutMarks = pitTargets.length ? pitTargets.map((tg) => {
-    const bp = bins[tg.bin];
-    const [rx, ry] = ringXYFrac(tg.distFrac);
+    const a = tg.distFrac * 2 * Math.PI;
+    const ux = Math.sin(a);
+    const uy = -Math.cos(a);                 // ringXYFrac ile aynı yön (dışa)
     return (
       <g key={`po${tg.sec}`}>
-        <circle cx={rx} cy={ry} r={7} fill="none" stroke={PREDICT_COL} strokeWidth={2.2} />
-        {bp && toScreen && (() => {
-          const [ix, iy] = toScreen(bp.x, bp.z);
-          return (<>
-            <circle cx={ix} cy={iy} r={9} fill="none" stroke={PREDICT_COL} strokeWidth={2.2} />
-            <rect x={ix - 11} y={iy - 22} width={22} height={13} rx={3}
-              fill="var(--rc-surface-3)" stroke={PREDICT_COL} strokeWidth={1} />
-            <text x={ix} y={iy - 15.5} fill={PREDICT_COL} fontSize="9.5" fontWeight="700"
-              textAnchor="middle" dominantBaseline="central">{tg.sec}</text>
-          </>);
-        })()}
+        <circle cx={cx + R * ux} cy={cy + R * uy} r={7}
+          fill="none" stroke={PREDICT_COL} strokeWidth={2.2} />
+        <rect x={cx + (R + 21) * ux - 11} y={cy + (R + 21) * uy - 7}
+          width={22} height={14} rx={3}
+          fill="var(--rc-surface-3)" stroke={PREDICT_COL} strokeWidth={1} />
+        <text x={cx + (R + 21) * ux} y={cy + (R + 21) * uy}
+          fill={PREDICT_COL} fontSize="9.5" fontWeight="700"
+          textAnchor="middle" dominantBaseline="central">{tg.sec}</text>
       </g>
     );
   }) : null;

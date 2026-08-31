@@ -238,6 +238,12 @@ biriktiriliyor. Eğri kesir olduğu için **tempo-bağımsız** ve tüm sahadan 
   yumuşatır ama sıfırlamaz. Tahmin bir **yön** gösterir, saniye garantisi değil.
 - **Uydurma yok:** pit giriş/çıkışı gözlenmemişse, tempo/pist uzunluğu yoksa ya da eğri
   **%35'ten az doluysa** hiçbir çember çizilmez.
+- **Çizim yeri: yalnız DIŞ HALKA** (sahada denendikten sonraki kullanıcı kararı).
+  İlk uygulamada hem dış halkada hem iç şekilde çember vardı; iç şekilde araç
+  noktalarıyla üst üste biniyor ve aynı bilgi iki kez görünüyordu. Dış halka bu iş
+  için zaten daha uygun: araçlar orada lapDist oranına göre düzgün dizili, çemberin
+  hangi aracın hizasına düştüğü tek bakışta okunuyor. Saniye etiketi halkanın
+  dışına yazılır (sektör / PIT IN etiketleriyle aynı yarıçap deseni).
 - **Yapı:** karar mantığının tamamı `src/pitOut.js`'te (saf, 25 test); `TrackMap.jsx`'te
   yalnız çizim kaldı (CLAUDE.md §2).
 - **Test notu:** proje jsdom/testing-library kullanmıyor, bileşen çok-render edilemiyor;
