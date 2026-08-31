@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { wrapDist, relGapSec, refLap, relativeRows } from "./liveRelative";
+import { wrapDist, wrapTime, relGapSec, refLap, relativeRows } from "./liveRelative";
 
 const L = 1000;                       // 1 km'lik test pisti
 const row = (c) => ({ c });
@@ -51,6 +51,109 @@ describe("refLap", () => {
   });
   it("geçersiz (0/negatif) değerleri atlar", () => {
     expect(refLap({ avg5Sec: 0, avgSec: -1, lastSec: 93 })).toBe(93);
+  });
+});
+
+/* ---- ZAMAN ALANI yolu (v2.3.0 birincil) — TinyPedal module_relative.py yöntemi ----
+   diff = other.mTimeIntoLap − me.mTimeIntoLap, mEstimatedLapTime modülünde sarmalı. */
+describe("wrapTime", () => {
+  const L = 100;   // 100 sn'lik tur
+
+  it("ÖNDEKİ rakip NEGATİF, arkadaki POZİTİF", () => {
+    expect(wrapTime(50, 60, L)).toBeCloseTo(-10, 9);
+    expect(wrapTime(50, 40, L)).toBeCloseTo(10, 9);
+  });
+
+  it("S/F çizgisi etrafında sarmalar", () => {
+    expect(wrapTime(95, 5, L)).toBeCloseTo(-10, 9);    // rakip S/F'yi geçmiş, önümde
+    expect(wrapTime(5, 95, L)).toBeCloseTo(10, 9);     // ben geçmişim, o arkamda
+  });
+
+  it("yarım turdan uzağı KISA YOLDAN ölçer", () => {
+    // rakip 60 sn ileride = aslında 40 sn arkamda (kısa yol)
+    expect(wrapTime(0, 60, L)).toBeCloseTo(40, 9);
+  });
+
+  it("timeIntoLap 0 GEÇERLİDİR (S/F'yi yeni geçen araç), 'yok' sayılmaz", () => {
+    expect(wrapTime(0, 10, L)).toBeCloseTo(-10, 9);
+    expect(wrapTime(10, 0, L)).toBeCloseTo(10, 9);
+  });
+
+  it("eksik/geçersiz veride null (uydurma yapmaz)", () => {
+    expect(wrapTime(null, 10, L)).toBe(null);
+    expect(wrapTime(10, null, L)).toBe(null);
+    expect(wrapTime(10, 20, 0)).toBe(null);
+    expect(wrapTime(10, 20, null)).toBe(null);
+  });
+
+  it("köprünün -1 nöbetçisi 'veri yok' demektir, geçerli zaman DEĞİL", () => {
+    expect(wrapTime(-1, 10, L)).toBe(null);
+    expect(wrapTime(10, -1, L)).toBe(null);
+    expect(wrapTime(10, 20, -1)).toBe(null);
+  });
+});
+
+describe("relativeRows — zaman yolu vs mesafe yedeği", () => {
+  const row = (c) => ({ c });
+
+  /* Bu test yöntem değişikliğinin ASIL sebebini kilitler: mesafe oranı sabit hız
+     varsayar. Rakip pistin %10'u kadar ilerideyse eski hesap her zaman
+     "0.1 × turSüresi" der; oyunun kendi zaman alanı ise gerçek süreyi verir
+     (yavaş bölümde çok daha fazla). */
+  it("zaman alanı varsa MESAFE ORANINDAN farklı (ve doğru) sonuç verir", () => {
+    const me = { carId: 1, lapDist: 0, timeIntoLap: 0, estLapTime: 100, avg5Sec: 100 };
+    // rakip turun %10'u kadar ilerde AMA yavaş bölümde: 25 sn ilerde
+    const opp = { carId: 2, lapDist: 500, timeIntoLap: 25, estLapTime: 100 };
+    const out = relativeRows([row(me), row(opp)], me, 5000, 3, 3);
+    const rs = out.find((x) => x.r.c.carId === 2).relSec;
+    expect(rs).toBeCloseTo(-25, 6);      // gerçek: 25 sn önde
+    expect(rs).not.toBeCloseTo(-10, 1);  // mesafe oranı yanlışlıkla 10 sn derdi
+  });
+
+  it("zaman alanı YOKSA mesafe yedeğine düşer (eski köprü .exe)", () => {
+    const me = { carId: 1, lapDist: 0, avg5Sec: 100 };
+    const opp = { carId: 2, lapDist: 500 };
+    const out = relativeRows([row(me), row(opp)], me, 5000, 3, 3);
+    expect(out.find((x) => x.r.c.carId === 2).relSec).toBeCloseTo(-10, 6);
+  });
+
+  it("zaman alanı varken pist uzunluğu GEREKMEZ", () => {
+    const me = { carId: 1, timeIntoLap: 50, estLapTime: 100 };
+    const opp = { carId: 2, timeIntoLap: 60, estLapTime: 100 };
+    const out = relativeRows([row(me), row(opp)], me, 0, 3, 3);
+    expect(out.map((x) => x.r.c.carId)).toEqual([2, 1]);
+    expect(out.find((x) => x.r.c.carId === 2).relSec).toBeCloseTo(-10, 6);
+  });
+
+  it("-1 nöbetçisi taşıyan araç mesafe yedeğine düşer, zaman sanılmaz", () => {
+    const me = { carId: 1, lapDist: 0, timeIntoLap: 0, estLapTime: 100, avg5Sec: 100 };
+    const sentinel = { carId: 3, lapDist: 1000, timeIntoLap: -1, estLapTime: -1 };
+    const out = relativeRows([row(me), row(sentinel)], me, 5000, 3, 3);
+    // -1 zaman sanılsaydı ~+1 sn çıkardı; mesafe yedeği doğru −20 verir
+    expect(out.find((x) => x.r.c.carId === 3).relSec).toBeCloseTo(-20, 6);
+  });
+
+  it("TEK BİR araçta zaman alanı eksikse yalnız O satır mesafeye düşer", () => {
+    const me = { carId: 1, lapDist: 0, timeIntoLap: 0, estLapTime: 100, avg5Sec: 100 };
+    const withTime = { carId: 2, lapDist: 500, timeIntoLap: 25, estLapTime: 100 };
+    const noTime = { carId: 3, lapDist: 1000 };          // timeIntoLap yok
+    const out = relativeRows([row(me), row(withTime), row(noTime)], me, 5000, 3, 3);
+    const by = Object.fromEntries(out.map((x) => [x.r.c.carId, x.relSec]));
+    expect(by[2]).toBeCloseTo(-25, 6);    // zaman yolu
+    expect(by[3]).toBeCloseTo(-20, 6);    // mesafe yedeği (1000/5000 × 100)
+  });
+
+  it("zaman yolunda sıra da doğru (önden arkaya)", () => {
+    const me = { carId: 5, timeIntoLap: 50, estLapTime: 100 };
+    const f = [
+      row({ carId: 1, timeIntoLap: 70, estLapTime: 100 }),   // 20 sn önde
+      row({ carId: 2, timeIntoLap: 55, estLapTime: 100 }),   // 5 sn önde
+      row(me),
+      row({ carId: 3, timeIntoLap: 45, estLapTime: 100 }),   // 5 sn arkada
+      row({ carId: 4, timeIntoLap: 30, estLapTime: 100 }),   // 20 sn arkada
+    ];
+    expect(relativeRows(f, me, 5000, 3, 3).map((x) => x.r.c.carId))
+      .toEqual([1, 2, 5, 3, 4]);
   });
 });
 

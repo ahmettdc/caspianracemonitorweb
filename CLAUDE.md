@@ -39,10 +39,14 @@ Oyun PC'sindeki maliyeti **ölç, tahmin etme.** Sorular:
   genelde güvenli yoldur.
 - Firebase **kare boyutu** ne kadar büyüyor? Ölç: `json.dumps(frame)` ile önce/sonra.
 
-Örnek (v2.3.0 denetimi): `bestSectors` + `tyreChange` eklendi → kare 14 araçta
-+764 B (%6.9), 40 araçlık gridde ~+2.2 KB/kare ≈ **4.4 KB/sn**. `_best_sectors`
-CPU'su 128 araç için **~0.2 ms/sn** (bir çekirdeğin %0.02'si). Yeni REST yok, yeni
-thread yok, hız değişmedi. → kabul edildi.
+Örnek (v2.3.0 denetimi): `bestSectors` + `tyreChange` + `timeIntoLap`/`estLapTime`
+eklendi → kare 14 araçta +1.324 B (%12), araç başına ~95 B, 40 araçlık gridde
+**~7.4 KB/sn** (2 Hz). `_best_sectors` CPU'su 128 araç için **~0.2 ms/sn** (bir
+çekirdeğin %0.02'si). Yeni REST yok, yeni thread yok, hız değişmedi. → kabul edildi.
+
+Not: paylaşımlı bellekten ek alan okumak bu projede tercih edilen yoldur — v2.3.0'da
+relative hesabı mesafeden oyunun kendi `mTimeIntoLap` alanına taşındı ve maliyeti
+araç başına 2 `getattr` oldu. REST'e uzanmak yerine önce struct'a bak.
 
 ## 1. Veri dürüstlüğü
 

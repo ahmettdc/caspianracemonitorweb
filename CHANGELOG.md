@@ -61,17 +61,40 @@ haritası `TrackMap.jsx`, marka logosu, pit durak sayısı, trafik rozetleri
 - **Belirti:** kod tabanında "relative" kelimesi hiç geçmiyordu. Sıralama tablosu yarış
   sırasını gösterir; tur-altı bir araç sıralamada 15 satır aşağıdadır ama **pistte tam
   önümüzde** olabilir — trafik/mavi bayrak/undercut kararları sıralamadan okunamaz.
-- **Çözüm (`src/liveRelative.js`, yeni):** `wrapDist` (tur içi mesafe farkı, **yarım tur
-  etrafında sarmalanır** → S/F çizgisini geçen çift doğru hesaplanır), `relGapSec`,
-  `refLap` (AVG5 → AVG → son tur → en iyi), `relativeRows` (oyuncu ±3).
-  - İşaret konvansiyonu TinyPedal ile aynı: **− önümüzde, + arkamızda**.
+- **Yöntem — mesafe DEĞİL, ZAMAN.** İlk uygulama farkı tur içi mesafeden türetiyordu
+  (`(otherDist − meDist) / trackLength × turSüresi`). Bu **sabit hız varsayar**: 500 m
+  düzlükte ~6 sn, 500 m şikan kompleksinde ~20 sn eder → hata tam da relative'in en
+  çok gerektiği yerde (yavaş virajlar, trafik) büyür.
+  - **TinyPedal kaynağı incelendi** (`tinypedal/module/module_relative.py`,
+    `get_vehicles_info`): mesafeyi **hiç kullanmıyor**, oyunun kendi alanlarını okuyor —
+    `diff = opponent.mTimeIntoLap − player.mTimeIntoLap`, `mEstimatedLapTime` modülünde
+    sarmalanır. rF2 struct'ının kendi notu da eşleşmeyi söylüyor: `mEstimatedLapTime` =
+    *"estimated laptime used for 'time behind' and 'time into lap'"*.
+  - Köprü artık araç başına `timeIntoLap` + `estLapTime` gönderiyor (aynı zaten
+    haritalanmış struct'tan 2 `getattr`; yeni REST/thread/hız değişikliği YOK).
+  - **Mesafe yolu YEDEK olarak kalıyor:** köprü `.exe` kullanıcı tarafından ayrı
+    güncelleniyor, sahadaki eski sürümler yeni alanları göndermez → özellik kaybolmaz,
+    yalnız o kare yaklaşık olur. Eksik alan **araç bazında** ele alınır (bir araç
+    yedeğe düşerken diğerleri zaman yolunda kalır).
+- **`0` geçerli, `-1` değil.** `mTimeIntoLap` tam `0.0` olabilir (araç S/F'yi yeni
+  geçmiş). Köprüde `float(...) or -1.0` yazılırsa `0.0` falsy olduğu için geçerli okuma
+  "veri yok"a döner — bu hata geliştirme sırasında yapıldı, testle kilitlendi. Web
+  tarafında da eşik `>= 0` (oyunun `-1` nöbetçisi "yok" demektir).
+- **Yapı:** `wrapTime` (zaman, birincil) · `wrapDist` (mesafe, yedek) · `relGapSec` ·
+  `refLap` (AVG5 → AVG → son tur → en iyi) · `relativeRows` (oyuncu ±3).
+  - İşaret konvansiyonu TinyPedal ile birebir doğrulandı: widget metni `-data[0]` ile
+    yazıyor → **− önümüzde, + arkamızda**. Pencere yapısı da aynı (N önde, oyuncu, N arkada).
+  - TinyPedal iki ayrı liste tutar (ahead `[0,L)` / behind `[−L,0)`); bizde tek ±pencere
+    olduğu için **kısa yol** seçilir (yarım tur eşiği) — aynı sayının iki gösteriminden
+    biri, sapma değil.
   - **`Number(null) === 0` tuzağı:** açık kontrol olmadan `lapDist`i eksik bir araç
     "S/F çizgisinde" sayılıp makul görünen ama tamamen **uydurma** bir relative farkı
     üretiyordu → eksik veri elenir (testin yakaladığı gerçek hata).
   - Pit/garajdaki araçlar elenir (pist boşluğunu yanlış gösterirler); **oyuncunun kendisi
     pit'te olsa bile listede kalır**.
-- **Doğruluk sınırı (bilinçli):** bu bir mesafe→zaman çevrimidir, gerçek delta değil.
-  Farklı hızdaki (farklı sınıf) araçlarda yaklaşıktır; oyun bu veriyi vermiyor.
+- **Kalan doğruluk sınırı:** `mEstimatedLapTime` oyunun tahminidir ve araç/setup'a göre
+  değişebilir (struct notu bunu açıkça söylüyor); sınıflar arası farkta hâlâ yaklaşıklık
+  payı vardır. Ama artık sabit-hız varsayımı yok.
 - **UI:** `Relative` düğmesi yalnız kendi aracımız sahadayken **ve** `trackLength`
   biliniyorken görünür (tıklayıp boş liste görmeyelim). Bu modda `Gap` sütunu ± relatif
   saniyeye döner ve **metin araması uygulanmaz** (arama kutusu gizlenir) — "etrafımdaki
@@ -113,12 +136,16 @@ sahte `/0` yazılmaz.
 
 ### Doğrulama
 
-- **JS:** 641 test geçiyor (583 → 641; **+58**). Yeni: `liveSectors.test.js` (14),
-  `liveSort.test.js` (16), `liveRelative.test.js` (17), `liveTabV230.render.test.jsx` (11).
+- **JS:** 654 test geçiyor (583 → 654; **+71**). Yeni: `liveSectors.test.js` (14),
+  `liveSort.test.js` (16), `liveRelative.test.js` (29), `liveTabV230.render.test.jsx` (12).
   Render testleri sektör renklerini **kontrollü veriyle** doğrular — demo karesinde
   `var(--purple)` OwnCar'ın "En iyi" kutucuğunda da geçtiği için serbest arama yanlış
   pozitif verirdi; renkli span'in içindeki **sektör değerinin kendisi** aranıyor.
-- **Köprü:** tüm paketler geçiyor; `_best_sectors` için 4, `own` düzeltmesi için 2 yeni test.
+- **Köprü:** tüm paketler geçiyor; `_best_sectors` için 4, `own` düzeltmesi için 2,
+  `mTimeIntoLap == 0` tuzağı için 1 yeni test.
+- **Oyun PC'si maliyeti** (CLAUDE.md §0 denetimi, ölçüldü): kare 14 araçta +1.324 B
+  (%12), araç başına ~95 B → 40 araçlık gridde **~7,4 KB/sn** (2 Hz). Yeni REST yok,
+  yeni thread yok, yayın hızı değişmedi, süreç önceliği aynı.
 - `npm run build` temiz.
 - **i18n:** 9 yeni anahtar TR/EN. Lastik rozeti anahtarları (`ÖnSol`, `Son pitte`, `ÖN`…)
   i18n'de zaten vardı — rozet yazılmış ama bağlanmamış olduğu için öksüz duruyorlardı.

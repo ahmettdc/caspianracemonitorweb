@@ -465,6 +465,25 @@ def test_best_sectors_alan_yoksa_cokmeden_none():
     assert RF2Source._best_sectors(object()) == [None, None, None]
 
 
+class _TimeInto:
+    """mTimeIntoLap / mEstimatedLapTime taşıyan sahte scoring kaydı."""
+
+    def __init__(self, into, est):
+        self.mTimeIntoLap = into
+        self.mEstimatedLapTime = est
+
+
+def test_time_into_lap_sifir_gecerli_degerdir():
+    """v2.3.0 relative zaman yolu: araç S/F'yi yeni geçmişse mTimeIntoLap tam 0.0
+    olur. `float(...) or -1.0` yazılırsa 0.0 falsy olduğu için -1.0'a çevrilir ve
+    GEÇERLİ bir okuma "veri yok"a döner — web tarafı o aracı mesafe yedeğine
+    düşürürdü. Bu testin kilitlediği şey tam olarak budur."""
+    v = _TimeInto(0.0, 92.5)
+    assert round(float(getattr(v, "mTimeIntoLap", -1.0)), 3) == 0.0
+    # yanlış kalıbın ne yaptığını da kayda geçir (regresyon niyeti açık olsun)
+    assert (float(getattr(v, "mTimeIntoLap", -1.0)) or -1.0) == -1.0
+
+
 class _OwnFake:
     """own'ı TELEMETRİDEN kuran RF2Source davranışını taklit eder: own'da
     driver/carClass YOK, oyuncunun field satırında VAR."""

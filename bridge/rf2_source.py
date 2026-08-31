@@ -21,6 +21,7 @@
             intervalSec, lapsBehind, lapsBehindNext, inPits, location, pitStops, penalties,
             penaltiesTotal, tyreWear, tyres4:[fl,fr,rl,rr], tyreComp, damage, virtualEnergy,
             bestSectors:[b1,b2,b3] (kişisel en iyi sektörler → mor/yeşil renklendirme),
+            timeIntoLap, estLapTime (oyunun kendi tur-içi zaman alanları → relative),
             vePerLap, avg5Sec, avgSec, stintSec, laps, lapsFrom, lapNums, lapKey, isPlayer}
   (penalties = ANLIK bekleyen ceza (mNumPenalties; servis edilince 0'a düşer),
    penaltiesTotal = seans boyunca KÜMÜLATİF ceza (Aggregator yükselen kenar sayımı).
@@ -291,6 +292,9 @@ class MockSource:
                 "lapDist": round(frac * self.TRACK_LEN, 1), "posX": px, "posZ": pz,
                 # sektör (0=S3, 1=S1, 2=S2): eşit olmayan sınırlar → ayırıcılar görünür
                 "sector": 1 if frac < 0.40 else 2 if frac < 0.73 else 0,
+                # relative zaman yolu (v2.3.0) — oyunun mTimeIntoLap/mEstimatedLapTime
+                # karşılığı: tur içi geçen süre + tahmini tur süresi
+                "timeIntoLap": round(el % lap_t, 3), "estLapTime": round(lap_t, 3),
                 "virtualEnergy": round(max(3.0, 100 - ((el + i * 40) % 1500 / 1500) * 92), 1),
             })
         rows.sort(key=lambda r: -r["_prog"])
@@ -755,6 +759,17 @@ class RF2Source:
                 "curSectors": self._cur_sectors(v),   # [s1,s2] bu turda ANLIK geçilen sektörler
                 # kişisel en iyi [b1,b2,b3] — mor/yeşil sektör renklendirmesi (v2.3.0)
                 "bestSectors": self._best_sectors(v),
+                # RELATIVE için oyunun KENDİ zaman alanları (v2.3.0). TinyPedal'ın
+                # module_relative.py'si relatif farkı tam olarak bu ikisinden kurar
+                # (estimated_time_into / estimated_laptime). Mesafe oranından
+                # türetmek sabit hız varsayar — düz ile şikan aynı sayılır.
+                # Struct'ın kendi notu: mEstimatedLapTime = "estimated laptime used
+                # for 'time behind' and 'time into lap'" → ikisi eşleşik kullanılmalı.
+                # DİKKAT: `or -1.0` KULLANMA — mTimeIntoLap tam 0.0 olabilir (araç
+                # S/F'yi yeni geçmiş) ve `0.0 or -1.0` → -1.0 verir, yani geçerli
+                # bir değer "yok"a çevrilirdi. Sıfır burada gerçek bir okumadır.
+                "timeIntoLap": round(float(getattr(v, "mTimeIntoLap", -1.0)), 3),
+                "estLapTime": round(float(getattr(v, "mEstimatedLapTime", -1.0)), 3),
                 "bestSec": round(float(getattr(v, "mBestLapTime", -1.0)), 3),
                 "gapSec": round(float(getattr(v, "mTimeBehindLeader", 0.0)), 1),
                 "intervalSec": round(float(getattr(v, "mTimeBehindNext", 0.0)), 1),
