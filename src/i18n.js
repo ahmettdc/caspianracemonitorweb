@@ -815,6 +815,17 @@ export const EN = {
   // v2.3.0 — lastik defteri (gerçek pit değişimleri)
   "Lastik defteri": "Tyre log",
   "Plan ↔ Gerçek": "Plan vs actual",
+  // v2.3.0 — diş modeli + değişim süresi (TinyPedal planlayıcı deseni)
+  "Değişim": "Change",
+  "Bu stintte lastik değiştirmenin pit süresine maliyeti":
+    "What changing tyres in this stint costs in pit time",
+  "Stint başına aşınma": "Wear per stint",
+  "ölçülen": "measured", "Canlı ölçüm": "Live measurement", "kalan diş": "tread left",
+  "Plandaki lastik değişimi": "Tyre changes in plan",
+  "Yeni": "New", "PATLAK": "BLOWOUT",
+  "Plan bu seti kapasitesinin ötesinde çalıştırıyor":
+    "The plan runs this set beyond its capacity",
+  "Bu setin": "This set's", "stinti": "stint",
   "sapma": "deviation", "plana uyuyor": "matches the plan",
   "bekliyor": "pending", "planda yok": "not in plan",
   "Plan": "Plan", "Gerçek": "Actual", "lastik": "tyres",

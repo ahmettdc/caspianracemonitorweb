@@ -5,10 +5,15 @@ import { useEffect, useState } from "react";
 import { Icon } from "../components";
 import { liveTyreSubscribe, liveLapsSubscribe } from "../storage";
 import { buildLedger, ledgerSummary, planChanges, comparePlan } from "../tyreLedger";
+import { planTread, changeTimeOf, totalChangeTime, measuredWear } from "../tyrePlanCalc";
 
 const TY = ["FL", "FR", "RL", "RR"];
 const TY_COL = { "": "#37D67A", t2: "#F2C94C", tq: "#4D9FFF", t3: "#F0604D", t4: "#B91C1C", tw: "#7FE3A0", terr: "var(--rc-danger)" };
 const colOf = (cls) => TY_COL[cls] ?? "#37D67A";
+/* Kalan diş → renk. TinyPedal 9 kademe kullanıyor; okunabilirlik için 5'e
+   indirildi (aynı yeşil→kırmızı yön). */
+const treadCol = (v) => (v > 0.75 ? "#37D67A" : v > 0.55 ? "#9ACD32"
+  : v > 0.35 ? "#F2C94C" : v > 0.15 ? "#F0904D" : "#F0604D");
 
 /* Hamur → şerit rengi. Oyun hamuru yalnız ÖN/ARKA verir (köşe başına YOK), o
    yüzden defter tek hamur metni taşır; "Ön/Arka" biçimindeki karma değerlerde
@@ -25,6 +30,7 @@ const COMP_COL = (comp) => {
 export default function TyreTab({
   t, st, up, tyreInfo, racePlan, carriedAt, upTyreCell, quickTyre,
   qsel, setQsel, QSEL_LBL, clearTyres, tid, rid, lapKey,
+  ownTyres, lastLapNo, stintLaps,
 }) {
   /* ---- LASTİK DEFTERİ (v2.3.0) — kendi kendini dolduran GERÇEK kayıt ----
      Köprü her pit değişimini `livetyre/{rid}/{araç}/{tur}` olarak zaten yazıyor
@@ -45,6 +51,18 @@ export default function TyreTab({
   const plan = planChanges(st.tyreStints);
   const cmp = comparePlan(plan, ledger);
   const cmpOff = cmp.filter((r) => r.state === "diff" || r.state === "extra").length;
+
+  /* ---- DİŞ + DEĞİŞİM SÜRESİ (TinyPedal tyre_strategy_planner deseni) ---- */
+  const wearPct = Number(st.tyreWearPerStint);
+  const wear = Number.isFinite(wearPct) && wearPct > 0 ? wearPct / 100 : 0;
+  const t12 = Number.isFinite(Number(st.tyreChangeT12)) ? Number(st.tyreChangeT12) : 4.5;
+  const t34 = Number.isFinite(Number(st.tyreChangeT34)) ? Number(st.tyreChangeT34) : 12;
+  const tread = planTread(st.tyreQual, st.tyreStints, wear);
+  const changeSum = totalChangeTime(plan, t12, t34);
+  /* ÖLÇÜLEN aşınma: TinyPedal bu sayıyı kullanıcıya yazdırır, biz canlı
+     telemetriden ölçüyoruz. Yalnız taze setle başlayan ve süren dönemde. */
+  const openPeriod = ledger.length ? ledger[ledger.length - 1] : null;
+  const meas = measuredWear(openPeriod, ownTyres, lastLapNo, stintLaps);
   const limit = Math.max(0, st.tyreLimit);
   const wetCount = tyreInfo.rows.reduce((n, r) => n + r.vals.filter((v) => String(v).trim() === "W").length, 0);
   const lockCorner = (id) => {
@@ -81,6 +99,34 @@ export default function TyreTab({
         <div style={{ ...kpi, border: `1px solid ${tyreInfo.available < 0 ? "var(--rc-danger)" : "var(--rc-border)"}` }}><div style={kpiL}>{t("Kalan")}</div><div style={{ ...bigV, color: tyreInfo.available < 0 ? "var(--rc-danger)" : "var(--rc-ok)" }}>{tyreInfo.available}</div></div>
         <div style={kpi}><div style={kpiL}>{t("Stint sayısı")}</div><div style={bigV}>{racePlan.fullStints}</div></div>
         <div style={kpi}><div style={kpiL}>{t("Wet · limitsiz")}</div><div style={{ ...bigV, color: wetCount ? "#7FE3A0" : "var(--rc-border-strong)" }}>{wetCount}</div></div>
+        {/* AŞINMA AYARI (v2.3.0) — plandaki diş hesabını besler. TinyPedal bu
+            sayıyı hamur başına ELLE yazdırır; bizde canlı telemetriden ölçülen
+            değer öneri olarak sunulur (tek tık uygular), otomatik YAZILMAZ. */}
+        <div style={{ flex: "1 1 210px", ...card, padding: "13px 16px" }}>
+          <div style={{ ...kpiL, marginBottom: 8 }}>{t("Stint başına aşınma")}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <div style={{ display: "inline-flex", alignItems: "center", border: "1px solid var(--rc-border)", borderRadius: 10, overflow: "hidden" }}>
+              <button onClick={() => up({ tyreWearPerStint: Math.max(0, wearPct - 5) })}
+                style={{ width: 30, height: 34, border: "none", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 15 }}>−</button>
+              <b style={{ minWidth: 54, textAlign: "center", fontFamily: "var(--rc-font-display)", fontSize: 20, fontWeight: 700 }}>%{wearPct || 0}</b>
+              <button onClick={() => up({ tyreWearPerStint: Math.min(100, wearPct + 5) })}
+                style={{ width: 30, height: 34, border: "none", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 15 }}>+</button>
+            </div>
+            {meas && meas.perStint != null && (
+              <button onClick={() => up({ tyreWearPerStint: Math.round(meas.perStint * 100) })}
+                title={`${t("Canlı ölçüm")}: ${meas.laps} ${t("tur")}, ${t("kalan diş")} %${Math.round(meas.tread * 100)}`}
+                style={{ padding: "6px 10px", borderRadius: 8, cursor: "pointer", fontSize: 11.5,
+                  border: "1px solid var(--rc-ok)", background: "transparent", color: "var(--rc-ok)" }}>
+                {t("ölçülen")} %{Math.round(meas.perStint * 100)} →
+              </button>
+            )}
+          </div>
+          {!!changeSum && (
+            <div style={{ fontSize: 11, color: "var(--rc-text-3)", marginTop: 7 }}>
+              {t("Plandaki lastik değişimi")}: <b style={{ color: "var(--rc-warn)" }}>+{changeSum.toFixed(1)}s</b>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ---- LASTİK DEFTERİ (gerçek) ---- */}
@@ -194,7 +240,9 @@ export default function TyreTab({
         <div style={{ overflowX: "auto" }}>
           <table aria-label={t("Lastik strateji tablosu")} style={{ width: "100%", borderCollapse: "collapse", minWidth: 720 }}>
             <thead><tr>
-              <th style={th(true)}>Stint</th>{TY.map((c) => <th key={c} style={th()}>{c}</th>)}<th style={th(true)}>{t("Hızlı atama")}</th>
+              <th style={th(true)}>Stint</th>{TY.map((c) => <th key={c} style={th()}>{c}</th>)}
+              <th style={th()} title={t("Bu stintte lastik değiştirmenin pit süresine maliyeti")}>{t("Değişim")}</th>
+              <th style={th(true)}>{t("Hızlı atama")}</th>
             </tr></thead>
             <tbody>
               {tyreInfo.rows.map((r) => (
@@ -222,9 +270,38 @@ export default function TyreTab({
                             return <option key={k} value={k}>{k}{c > 0 ? ` · ${c}×` : ""}</option>;
                           })}
                         </select>
+                        {/* DİŞ (v2.3.0): "Yeni-%70" / "%70-%40". Kullanıcının asıl
+                            sorusu — hangi stint YENİ lastik kullanıyor — burada
+                            birebir yazıyor. Wet hücrelerinde gösterilmez (W bir
+                            set değil, yer tutucu). */}
+                        {(() => {
+                          const tr = tread[r.row + 1] && tread[r.row + 1][ci];
+                          if (!tr || !wear) return null;
+                          return (
+                            <div style={{ fontSize: 9.5, marginTop: 3, whiteSpace: "nowrap",
+                              fontFamily: "var(--rc-font-display)",
+                              color: tr.blowout ? "var(--rc-danger)" : treadCol(tr.end) }}
+                              title={tr.blowout
+                                ? t("Plan bu seti kapasitesinin ötesinde çalıştırıyor")
+                                : `${t("Bu setin")} ${tr.uses + 1}. ${t("stinti")}`}>
+                              {tr.blowout ? t("PATLAK")
+                                : `${tr.fresh ? t("Yeni") : `%${Math.round(tr.start * 100)}`}–%${Math.round(tr.end * 100)}`}
+                            </div>
+                          );
+                        })()}
                       </td>
                     );
                   })}
+                  {/* Değişim süresi: 1–2 lastik ucuz (tek taraf), 3–4 pahalı. */}
+                  <td style={{ padding: "9px 8px", borderBottom: "1px solid var(--rc-line-soft)", textAlign: "center", fontFamily: "var(--rc-font-display)", fontSize: 12 }}>
+                    {(() => {
+                      if (r.row < 0) return <span style={{ color: "var(--rc-border-strong)" }}>—</span>;
+                      const n = r.vals.filter((v) => String(v ?? "").trim()).length;
+                      const sec = changeTimeOf(n, t12, t34);
+                      if (!sec) return <span style={{ color: "var(--rc-border-strong)" }}>—</span>;
+                      return <span style={{ color: "var(--rc-warn)" }} title={`${n} ${t("lastik")}`}>+{sec.toFixed(1)}s</span>;
+                    })()}
+                  </td>
                   <td style={{ padding: "9px 14px", borderBottom: "1px solid var(--rc-line-soft)" }}>
                     {r.row >= 0 && (
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>

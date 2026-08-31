@@ -14,10 +14,20 @@ const { default: TyreTab } = await import("./tabs/TyreTab.jsx");
 const t = (s) => s;
 const base = {
   t,
-  st: { tyreLimit: 4, tyres: {} },
+  st: { tyreLimit: 4, tyres: {}, tyreQual: ["1", "2", "3", "4"],
+    tyreStints: [["", "", "", ""], ["5", "6", "", ""]],
+    tyreWearPerStint: 30, tyreChangeT12: 4.5, tyreChangeT34: 12 },
   up: () => {},
-  tyreInfo: { rows: [], cellCls: () => "", used: 0, counts: {}, allowedIn: () => true,
-    conflicts: [], available: 4 },
+  /* tyreInfo.rows gerçek şekli: { label, row, vals }; row === -1 → Qual satırı. */
+  tyreInfo: {
+    rows: [
+      { label: "Qual", row: -1, vals: ["1", "2", "3", "4"] },
+      { label: "S1", row: 0, vals: ["", "", "", ""] },      // taşıma → 2. stint
+      { label: "S2", row: 1, vals: ["5", "6", "", ""] },    // 2 lastik → +4.5s
+    ],
+    cellCls: () => "", used: 0, counts: {}, allowedIn: () => true,
+    conflicts: [], available: 4,
+  },
   racePlan: { fullStints: 3, rows: [] },
   carriedAt: () => false,
   upTyreCell: () => {}, quickTyre: () => {},
@@ -57,6 +67,25 @@ describe("Lastik defteri — render", () => {
     const out = render({ st: { ...base.st, tyreStints: [["1", "2", "3", "4"]] } });
     expect(out).not.toContain("Plan ↔ Gerçek");
     expect(out).not.toContain("plana uyuyor");
+  });
+
+  /* DİŞ MODELİ (TinyPedal tyre_strategy_planner deseni) — kullanıcının ilk
+     sorduğu şey: hangi stint YENİ lastik kullanıyor. Hücrede birebir yazmalı. */
+  it("plan hücresinde diş yazıyor: 'Yeni–%70' ve aşınmış '%70–%40'", () => {
+    const out = render();
+    expect(out).toContain("Yeni–%70");   // ilk kullanım
+    expect(out).toContain("%70–%40");    // taşınan set, ikinci stint
+  });
+
+  it("değişim süresi sütunu: 2 lastik ucuz, 4 lastik pahalı", () => {
+    const out = render();
+    expect(out).toContain("Değişim");
+    expect(out).toContain("+4.5s");      // S2'de 2 lastik
+  });
+
+  it("aşınma %0 iken diş metni ÇİZİLMEZ (sahte kesinlik yok)", () => {
+    const out = render({ st: { ...base.st, tyreWearPerStint: 0 } });
+    expect(out).not.toContain("Yeni–");
   });
 
   it("eksik canlı proplarıyla çökmez", () => {

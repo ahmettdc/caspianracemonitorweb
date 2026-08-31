@@ -416,6 +416,42 @@ giriş yok, tahmin yok.**
   "çizilmez" kapılarını doğrular; **pozitif yol saf modülde** test edilir.
 - **Oyun PC'si maliyeti: sıfır** — köprüye dokunulmadı, zaten yazılan düğüm okundu.
 
+### Lastik planı: diş modeli + değişim süresi (TinyPedal planlayıcısından)
+
+TinyPedal'ın `ui/tyre_strategy_planner.py` planlayıcısı incelendi. **Tablo yapısı
+bizimkiyle neredeyse birebir** — 4 köşe × stint, köşe kilidi
+(`enable_restricted_allocation`), stok limiti, wet muaf (`enable_limited_stock:
+false`). Bağımsız olarak aynı modele varılmış. Fark, **üstüne ne hesapladığı**:
+
+- **DİŞ MODELİ.** Hücre artık `Yeni–%70` / `%70–%40` yazıyor; diş eksiye düşerse
+  **`PATLAK`**. Bir setin kaçıncı stintinde olduğu (`uses`) taşıma zinciri
+  çözülerek bulunur. **Kullanıcının ilk sorusunun ("yeni lastiği hangi stint
+  kullandı") doğrudan cevabı bu** — hücrede *"Yeni"* kelimesi birebir yazıyor.
+- **DEĞİŞİM SÜRESİ sütunu.** `+4.5s` (1–2 lastik) / `+12.0s` (3–4). Eşik 2/3'te,
+  TinyPedal'la aynı: bir tarafı değiştirmek dört lastikten belirgin ucuz. Toplam
+  plan maliyeti KPI'da.
+- **AŞINMAYI ÖLÇÜYORUZ — TinyPedal yazdırıyor.** O, `wear_per_stint`'i hamur başına
+  kullanıcıya elle yazdırır (tahmin). Bizde canlı telemetri var: `measuredWear`
+  taze setle başlayan **açık dönemden** gerçek tur-başı aşınmayı ölçer ve
+  "ölçülen %38 →" düğmesiyle **öneri** olarak sunar. Otomatik yazmaz (kullanıcı
+  kararı korunur).
+
+**Bilinçli alınmayanlar** (uydurma yapmamak için):
+
+| TinyPedal | Bizde | Neden |
+|---|---|---|
+| Hamur başına aşınma/başlangıç dişi | Tek bir "stint başına aşınma" % | Onun hücreleri HAMUR taşır, bizimkiler SET NUMARASI — eşleme yok |
+| `Q-Soft` %90 başlangıç dişi | Yok, hepsi %100 | Oyun "bu set kaç tur görmüş" demiyor; kısmi set uydurulmaz |
+| 9 kademeli renk rampası | 5 kademe | Okunabilirlik; yön aynı (yeşil→kırmızı) |
+
+**Diğer sınırlar:** wet hücresi (`W`) diş hesabına **girmez** — `W` bir set değil,
+yer tutucudur; iki ayrı `W` aynı fiziksel lastik olmadığı için saysaydık her biri
+öncekinin üstüne aşınma biriktirir ve **uydurma bir "PATLAK"** üretirdi (testli).
+Kısmi (2 lastik) değişimde iki köşenin geçmişi bilinmediğinden **ölçüm yapılmaz**,
+tahmin üretilmez. Aşınma %0 iken diş metni **hiç çizilmez** — sahte kesinlik yok.
+
+**Yapı:** `src/tyrePlanCalc.js` (saf, 17 test). **Oyun PC'si maliyeti: sıfır.**
+
 ### Kullanılmayan veri: tur sayacı
 
 `session.totalLaps` köprüden beri geliyordu, hiçbir yerde okunmuyordu. Tur-tipi yarışta
@@ -424,7 +460,7 @@ sahte `/0` yazılmaz.
 
 ### Doğrulama
 
-- **JS:** 745 test geçiyor (583 → 745; **+162**). Yeni: `pitOut.test.js` (25),
+- **JS:** 765 test geçiyor (583 → 765; **+182**). Yeni: `pitOut.test.js` (25),
   `trackMapPitOut.render.test.jsx` (5). Yeni: `liveSectors.test.js` (14),
   `liveSort.test.js` (16), `liveRelative.test.js` (29), `liveStatus.test.js` (13),
   `liveTabV230.render.test.jsx` (15); `trackShape.test.js` en-kötü-durum kırpma
