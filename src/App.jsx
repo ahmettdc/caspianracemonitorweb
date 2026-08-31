@@ -51,7 +51,7 @@ import {
   computeLiveInfo, buildTimeline,
   applyMarkPit, applyUnmarkPit, applyResetPits,
 } from "./state";
-import { poolEmptyReason } from "./setupPool";
+import { poolEmptyReason, setupFileName } from "./setupPool";
 import {
   CoachTour, TOUR_FOR, Wheel, RoleIcon, NumField, Bolt, Tyre, Ring, Icon, Btn, Avatar,
   BADGES, teamBadgesOf, hasBadge, ChatPanel, SetupForm, SetupTable, SetupCards,
@@ -826,10 +826,17 @@ ${bottomBar}
     if (!user) throw new Error(t("Kaydetmek için giriş yapmalısın."));
     const svm = duckSetupToSvm(rawJson);
     if (!svm) throw new Error(t("Setup okunamadı."));
-    await addSetup(user, {
+    /* v2.2.4: bu yol `name` alanını HİÇ set etmiyordu → kayıt havuzda adsız
+       görünüyor, indirilince uzantısız "setup" oluyordu. Ad artık diğer yükleme
+       yolu ile AYNI standarttan (setupFileName) üretilir. */
+    const tMeta = {
       track: venueToTrackId(meta?.venue) || "",
       cls: classId(meta?.carClass) || "",
       car: "", cond: "", sess: "", champ: "", ver: "", lap: "",
+    };
+    await addSetup(user, {
+      ...tMeta,
+      name: setupFileName(tMeta) || "setup.svm",
       note: [t("Telemetriden"), meta?.driver, meta?.session].filter(Boolean).join(" · "),
       team: teamData?.meta?.name || "",
     }, textToB64(svm));

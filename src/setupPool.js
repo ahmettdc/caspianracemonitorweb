@@ -133,3 +133,81 @@ export function staleTrackFilter(setups, track) {
   const list = Array.isArray(setups) ? setups : [];
   return !list.some((x) => x.track === track);
 }
+
+/* ============================================================
+   DOSYA ADI STANDARDI (v2.2.4)
+   ------------------------------------------------------------
+   Havuza yüklenen .svm'ler kullanıcının ham dosya adıyla (`setup_1.svm`,
+   `Spa deneme (2).svm`…) saklanıyordu → havuz okunaksız, arama işe yaramaz,
+   indirilen dosya tanınmaz. Ad artık META'DAN türetilir:
+
+       <pist>_<sınıf>-<araç>_<seans>-<koşul>_v<sürüm>.svm
+       spa_gt3-ferrari_r-dry_v3.svm
+
+   Sınıf neden var: araç id'leri sınıflar arası TEKİL DEĞİL — `ferrari` hem
+   Hypercar 499P hem GT3 296. Sınıfsız iki farklı araç aynı adı alırdı.
+
+   NEDEN OKURKEN TÜRETİLİYOR (yazılmıyor): `globalSetups` kuralı mevcut kaydın
+   GÜNCELLENMESİNE izin vermiyor — yalnız oluşturma, ve silme (admin). Kayıtlar
+   bilinçli olarak değiştirilemez. Bu yüzden eski kayıtları yeniden adlandırmak
+   imkânsız; bunun yerine ad her okumada meta'dan üretilir → eski/yeni tüm
+   kayıtlar anında standart görünür, tek bir yazma bile gerekmez. Ham ad
+   `origName` olarak korunur (mükerrer uyarısı ve "aslı neydi" için).
+   ============================================================ */
+
+/* Türkçe/aksanlı harfleri ASCII'ye katla + dosya-adı güvenli parçaya çevir.
+   `ı` NFD ile ayrışmadığı için ayrıca eşlenir (ğ/ş/ç/ö/ü ayrışıp aksanı düşer). */
+function slugPart(v) {
+  return String(v ?? "").toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/ı/g, "i")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/* Sürüm alanı: nokta KORUNUR ("V1.2" → "v1.2"); baştaki v/V yinelenmesin. */
+function verPart(v) {
+  const s = String(v ?? "").toLowerCase().replace(/[^a-z0-9.]+/g, "")
+    .replace(/^v+/, "").replace(/^\.+|\.+$/g, "");
+  return s ? `v${s}` : "";
+}
+
+/* Adı olmayan/meta'sı zayıf kayıt için son çare: ham adı koru, uzantıyı garanti et. */
+function fallbackName(raw) {
+  const s = String(raw ?? "").trim();
+  if (!s) return "setup.svm";
+  return /\.svm$/i.test(s) ? s : `${s}.svm`;
+}
+
+/* meta → standart dosya adı. Pist yoksa "" (çağıran ham ada düşer).
+   Boş alanlar segmentiyle birlikte düşer → "__" gibi boşluk oluşmaz. */
+export function setupFileName(meta) {
+  const m = meta || {};
+  const track = slugPart(m.track);
+  if (!track) return "";
+  const carPart = [slugPart(m.cls), slugPart(m.car)].filter(Boolean).join("-");
+  const sess = m.sess === "Q" ? "q" : m.sess === "R" ? "r" : "";
+  const cond = m.cond === "wet" ? "wet" : m.cond === "dry" ? "dry" : "";
+  const sc = [sess, cond].filter(Boolean).join("-");
+  const base = [track, carPart, sc, verPart(m.ver)].filter(Boolean).join("_");
+  return `${base.slice(0, 72)}.svm`;
+}
+
+/* Havuz satırlarına standart ad uygula (okuma yolu — tek enjeksiyon noktası;
+   arama/süzme/sıralama/indirme hepsi bunun çıktısını kullanır).
+   Aynı adı üreten kayıtlara id'nin son 4 hanesi eklenir — kişi alanı adda
+   olmadığı için iki pilotun aynı meta'sı çakışabilir. Ek, GRUBUN TAMAMINA
+   verilir → sıralama değişse de ad sabit kalır. */
+export function withFileNames(rows) {
+  const list = Array.isArray(rows) ? rows : [];
+  const derived = list.map((r) => ({ r, fn: setupFileName(r) }));
+  const seen = {};
+  for (const d of derived) if (d.fn) seen[d.fn] = (seen[d.fn] || 0) + 1;
+  return derived.map(({ r, fn }) => ({
+    ...r,
+    origName: r?.name ?? "",
+    name: !fn ? fallbackName(r?.name)
+      : seen[fn] > 1 ? fn.replace(/\.svm$/, `-${String(r?.id ?? "").slice(-4)}.svm`)
+        : fn,
+  }));
+}

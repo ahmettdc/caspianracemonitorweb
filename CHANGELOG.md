@@ -11,6 +11,20 @@ Eksik giderme.
 - **Çözüm (`src/traceCodec.js`, format v2):** `x`/`y` artık sabit `scale=1` yerine, turun kendi yayılımından türeyen **ortak** bir `mapK` ile ~1e5 tamsayı çözünürlüğüne ölçekleniyor (`x` ve `y` aynı ölçek → en-boy korunur), origin çıkarılıyor; `mapK/x0/y0` başlıkta saklanıyor. UI zaten fit-to-box normalize ettiği için mutlak konum değil yalnız şekil önemli, o da kayıpsıza yakın korunuyor (Le Mans için round-trip hatası ~0.03 m). Eski v1 stringleri (metre koordinatlı) hâlâ okunuyor; GPS'li stint yeniden kaydedilince v2 ile düzeliyor.
 - **Doğrulama:** Yeni GPS regresyon testleri + 559 testin tümü geçiyor; gerçekçi Le Mans GPS turu paketlenmiş boyut 10.8 KB (< 40 KB Firebase yaprak sınırı), 300 noktanın 300'ü ayrışık.
 
+### Setup havuzu: dosya adı standardı
+
+- **Belirti:** Havuzdaki setup'lar yükleyenin ham dosya adıyla duruyordu (`setup_1.svm`, `Spa deneme (2).svm`). Havuz okunaksız, `searchSetups` `name` üzerinde çalıştığı için arama işlevsiz, indirilen dosya tanınmaz.
+- **Standart:** `<pist>_<sınıf>-<araç>_<seans>-<koşul>_v<sürüm>.svm` → `spa_gt3-ferrari_r-dry_v3.svm`
+  - **Sınıf neden ADDA:** araç id'leri sınıflar arası **tekil değil** — `ferrari` hem Hypercar 499P hem GT3 296. Sınıfsız iki farklı araç aynı adı alırdı (testle kilitlendi).
+  - Boş alanlar segmentiyle **birlikte** düşer (`__` oluşmaz); Türkçe/aksanlı harfler ASCII'ye katlanır (`portimão`→`portimao`, `Şğıöüç`→`sgiouc`); sürümde baştaki `v` yinelenmez, nokta korunur (`V1.2`→`v1.2`); ad 72 karakterle sınırlı.
+  - Kişi alanı **bilinçli olarak yok** (kullanıcı kararı) — kimin olduğu havuz arayüzünde zaten görünüyor.
+- **TÜM kayıtlara uygulanması — yazma olmadan:** Kullanıcı isteği "havuzdaki mevcut kayıtları da toplu yeniden adlandır" idi. **Bu mümkün değil:** `globalSetups/$id` `.write` kuralı yalnız *oluşturma* (`!data.exists() && newData.exists()`) ve *admin silme* izni veriyor — mevcut kayıt hiç güncellenemiyor, sahibi bile. Kayıtlar bilinçli olarak değiştirilemez; bunu açmak güvenlik tasarımını bozardı.
+  - Bunun yerine ad **okuma yolunda türetiliyor** (`withFileNames`, `watchSetups` çıktısına tek noktadan uygulanır) → eski/yeni tüm kayıtlar anında standart görünür; süzme, arama, sıralama, içerik penceresi ve **indirme** hepsi bu çıktıyı kullanır. Sıfır yazma, sıfır kural değişikliği, sıfır göç riski. Ham ad `origName`'de korunur.
+  - Yeni yüklemelerde standart ad kayda **da** yazılır (veritabanı tutarlı kalsın); okuma yolu yine türettiği için ikisi ayrışmaz (türetme meta'dan olduğu için idempotent).
+- **Çakışma:** Kişi alanı olmadığından iki pilotun aynı meta'sı aynı adı üretebilir. Aynı adı paylaşan kayıtların **tamamına** id'nin son 4 hanesi eklenir → sıralama değişse de ad sabit kalır (testli).
+- **Yan bulgu (düzeltildi):** Telemetriden havuza kaydetme yolu (`saveTeleSetup`) `name` alanını **hiç set etmiyordu** — o kayıtlar havuzda adsız görünüyor, indirilince uzantısız `setup` oluyordu. Artık aynı standarttan besleniyor.
+- **Doğrulama:** `setupPool.js`'e saf `setupFileName` / `withFileNames` + 11 yeni test (sınıf çakışması, boş segment, Türkçe katlama, sürüm biçimi, grup soneki kararlılığı, bozuk girdi). 583 testin tümü geçiyor.
+
 ### Dağıtım: yeni sürüm yayınlansa da kullanıcı ESKİSİNİ görüyordu
 
 - **Belirti:** Deploy başarılı, sunucudaki paket yeni — ama tarayıcıda açınca ekran değişmemiş görünüyor. Saatler sonra kendiliğinden düzeliyor.

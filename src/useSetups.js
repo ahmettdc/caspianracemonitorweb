@@ -17,7 +17,7 @@
 import { useState, useEffect } from "react";
 import { addSetup, watchSetups, getSetupBlob } from "./storage";
 import { fileTooBig, filterSetups, trimSetupMeta, staleTrackFilter,
-  searchSetups, sortSetups, b64Sha256Hex } from "./setupPool";
+  searchSetups, sortSetups, b64Sha256Hex, setupFileName, withFileNames } from "./setupPool";
 import { parseSvm, b64ToText } from "./setupParse";
 import { detectVehicle } from "./setupAutofill";
 import { carName } from "./constants";
@@ -47,7 +47,9 @@ export function useSetups({ user, udoc, userName, teamData, t, active = true,
      limitToLast(suLimit): "Daha fazla yükle" limiti artırıp yeniden abone olur. */
   useEffect(() => {
     if (!user || !udoc?.allowed || !active) { setSetups([]); return undefined; }
-    return watchSetups(setSetups, suLimit);
+    /* withFileNames: ad META'DAN türetilir (bkz. setupPool). Tek enjeksiyon
+       noktası — süzme/arama/sıralama/pencere/indirme hepsi bunu kullanır. */
+    return watchSetups((rows) => setSetups(withFileNames(rows)), suLimit);
   }, [user, udoc, active, suLimit]);
 
   /* Pencere doluysa (tam limit kadar kayıt indiyse) muhtemelen devamı vardır. */
@@ -139,8 +141,13 @@ export function useSetups({ user, udoc, userName, teamData, t, active = true,
       }
     }
     try {
+      /* Standart ad meta'dan (kırpılmış) türetilir; türetilemezse ham ada düşer.
+         Kayıtta DA saklanır ki veritabanı tutarlı olsun — okuma yolu
+         (withFileNames) eski kayıtlar için zaten yeniden türetiyor. */
+      const stdName = setupFileName(trimmed) || suFile.name;
       await addSetup(user, {
-        name: suFile.name, size: suFile.size,
+        name: stdName,
+        origName: suFile.name, size: suFile.size,
         uname: userName || user.displayName || "",
         team: teamData?.meta?.name || "",
         track: trimmed.track, cls: trimmed.cls, car: trimmed.car,
@@ -149,7 +156,7 @@ export function useSetups({ user, udoc, userName, teamData, t, active = true,
         ...((suMeta.pilot || "").trim() ? { pilot: (suMeta.pilot || "").trim().slice(0, 40) } : {}),
         ...(hash ? { hash } : {}),
       }, suFile.b64);
-      const nm = suFile.name;
+      const nm = stdName;   // onay mesajı standart adı göstersin
       setSuFile(null);
       setSuMeta((m) => ({ ...m, note: "" }));
       setSuErr("");
