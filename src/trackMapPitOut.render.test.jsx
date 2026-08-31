@@ -112,6 +112,18 @@ describe("TrackMap — sınıf süzgeci", () => {
     expect(filtered).toBe(all);
   });
 
+  /* Süzgecin haritada AÇIK olduğu görünmeliydi: sahada "çalışmıyor" sanıldı çünkü
+     demo sahasında yalnız 3 nokta gizleniyordu ve hiçbir gösterge yoktu. */
+  it("süzgeç açıkken başlıkta rozet + kaç aracın gizlendiği yazar", () => {
+    const out = render(mixed(), "hypercar");
+    expect(out).toContain("Standings&#x27;teki");   // rozet tooltip'i
+    expect(out).toMatch(/\d+ gizli/);
+  });
+
+  it("süzgeç kapalıyken rozet YOK", () => {
+    expect(render(mixed())).not.toMatch(/\d+ gizli/);
+  });
+
   it("bilinmeyen sınıf süzgecinde çökmez", () => {
     expect(() => render(mixed(), "yoksinif")).not.toThrow();
   });

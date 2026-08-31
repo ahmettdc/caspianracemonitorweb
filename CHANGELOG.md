@@ -326,6 +326,11 @@ Artık süzgeç ikisini birden kapsıyor.
 - Sınıf-içi pozisyon numaraları (`P2` gibi) yine **tüm sahadan** hesaplanıyor — süzgeç
   açıkken de gerçek sınıf pozisyonu görünür.
 - Pit çıkış tahmini de etkilenmez: oyuncu satırı süzülmemiş listeden bulunuyor.
+- **Görünürlük (sahada "çalışmıyor" sanıldı):** süzgeç haritada uygulanıyordu ama
+  hiçbir göstergesi yoktu. Demo sahasında 3 Hypercar + 11 GT3 var ve oyuncu GT3
+  olduğundan süzgeç yalnız **3 noktayı** gizliyor (14 → 11); tabloda satırlar gidince
+  bariz, haritada gözden kaçıyor. Başlığa **sınıf rozeti + kaç aracın gizlendiği**
+  eklendi (`GT3 · 3 gizli`), hem kartta hem Büyük Pano'da.
 
 ### Kullanılmayan veri: tur sayacı
 

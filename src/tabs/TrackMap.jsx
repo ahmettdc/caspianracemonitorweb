@@ -567,6 +567,21 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
       fill="var(--muted)" opacity={0.85} />;
   })();
 
+  /* SÜZGEÇ ROZETİ — süzgeç açıkken haritada NELERİN GİZLENDİĞİ görünür olmalı.
+     Sahada fark edilmedi: demo sahasında 3 Hypercar + 11 GT3 var ve oyuncu GT3
+     olduğu için süzgeç yalnız 3 noktayı gizliyor; tabloda satırlar gidince bariz
+     ama haritada gözden kaçıyor ("çalışmıyor" sanıldı). Rozet, kaç aracın
+     gizlendiğini de yazar. */
+  const hiddenCount = classFilter ? cars.length - shownCars.length : 0;
+  const filterChip = classFilter ? (
+    <span className="chip" style={{ fontSize: 10.5, color: "var(--teal)",
+      borderColor: "var(--teal)" }}
+      title={t("Standings'teki 'kendi sınıfım' süzgeci haritaya da uygulanıyor")}>
+      {(CAR_CLASSES.find(([cid]) => cid === classFilter)?.[1] || classFilter)}
+      {hiddenCount > 0 ? ` · ${hiddenCount} ${t("gizli")}` : ""}
+    </span>
+  ) : null;
+
   // lejant (Büyük Pano) — sahadaki sınıf renkleri + oyuncu + pit
   const clsSeen = [];
   for (const c of shownCars) {
@@ -632,6 +647,7 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
       <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
         <Icon name="harita" size={16} /> {t("Pist Haritası")}
         <span className="hint" style={{ margin: 0, fontWeight: 400 }}>{count}</span>
+        {filterChip}
         <button className="act" style={{ marginLeft: "auto", fontSize: 11, padding: "3px 10px" }}
           title={t("Haritayı tam ekranda aç")}
           onClick={() => setZoom(true)}><Icon name="buyut" size={12} /> {t("Büyüt")}</button>
@@ -663,6 +679,7 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
           <div className="wxmhead">
             <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <Icon name="harita" size={16} /> {t("Pist Haritası")}
+              {filterChip}
               <span style={{ fontSize: 12, color: "var(--dim)", textTransform: "none",
                 letterSpacing: 0 }}>· {count}</span>
             </span>

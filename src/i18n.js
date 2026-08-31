@@ -809,6 +809,9 @@ export const EN = {
   "Pit talebi verildi — araç henüz pistte": "Pit stop requested — car still on track",
   "Pit yolunda": "In the pit lane",
   "Pit çıkış tahmini (sn)": "Pit-out prediction (s)",
+  "gizli": "hidden",
+  "Standings'teki 'kendi sınıfım' süzgeci haritaya da uygulanıyor":
+    "The 'my class only' filter from standings is applied to the map too",
   "Seansta görülen en yüksek hız": "Highest speed seen this session",
   "Şu an": "Now",
   "Slipstream'de atılan hız da buna dahildir": "Speeds set in a slipstream are included",
