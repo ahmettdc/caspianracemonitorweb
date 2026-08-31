@@ -124,9 +124,15 @@ export function relativeRows(rows, me, trackLength, ahead = 3, behind = 3) {
     if (relT == null && dist == null) continue;
     scored.push({
       r,
-      /* Sıralama anahtarı: zaman varsa ondan (− önde olduğu için işareti çevir),
-         yoksa mesafeden. İkisi de tur boyunca monotondur → aynı sırayı verir. */
-      dist: relT != null ? -relT : dist,
+      /* Sıralama anahtarı: TUR KESRİ (birimsiz). Önce saniye ile metreyi aynı
+         anahtarta karıştırıyordu — `timeIntoLap`i eksik tek bir araç (köprünün -1
+         nöbetçisi) metre cinsinden bir anahtar alıyor ve saniye cinsinden çok daha
+         önde olan araçların üstüne çıkıp ±3 penceresini yanlış sıralıyordu.
+         İki yol da tur kesrine indirgenince birimler tutar; sıralama zaten tur
+         boyunca monoton olduğu için sonuç aynı ama karışım imkânsız. */
+      dist: relT != null
+        ? -relT / (num(c.estLapTime) > 0 ? num(c.estLapTime) : estLap)
+        : dist / Number(trackLength),
       relSec: relT != null ? relT : relGapSec(me.lapDist, c.lapDist, trackLength, ref),
       isMe: false,
     });

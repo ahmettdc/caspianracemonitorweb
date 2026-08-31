@@ -7,7 +7,7 @@ harvestLaps) yazıyordu. Sürüş PC'si donma düzeltmeleriyle birlikte hafif k�
 yazılmadı → popup her araçta "Henüz tamamlanmış tur yok" gösterdi. Bu modül
 JS harvest'inin birebir Python portudur; run_loop (nogui) ve GUI köprüsü her
 karede process() çağırır, dönen patch'ler teams/{tid} altına PATCH edilir
-(fb.patch_team) ve kare küçültülür (laps/lapsFrom/lapNums/tyreChange satırdan
+(fb.patch_team) ve kare küçültülür (laps/lapsFrom/lapNums satırdan
 silinir — JS'in yazdığı kare şekliyle aynı).
 
 Sidecar yolu (main.py --emit) DEĞİŞMEZ: orada harvest'i JS yapar.
@@ -198,7 +198,12 @@ class Harvester:
                     self.last_lap[key] = int(max_n)
                 self.last_pit[key] = pits
             # Kare küçük kalsın — geçmiş kalıcı düğümde (JS ile aynı kare şekli).
-            for f in ("laps", "lapsFrom", "lapNums", "tyreChange"):
+            # v2.3.0: `tyreChange` ARTIK SİLİNMİYOR — Pit sütunu lastik değişim
+            # rozetini bu alandan çiziyor. JS sidecar yolunda (liveBridge.js)
+            # silme kaldırılmıştı ama BURASI atlanmıştı: README sürüş PC'si için
+            # tam da bu HAFİF .exe'yi öneriyor, yani rozet asıl kullanılacağı
+            # yolda hiç görünmüyordu. Boyut: araç başına tek küçük nesne.
+            for f in ("laps", "lapsFrom", "lapNums"):
                 r.pop(f, None)
 
         own = (payload or {}).get("own")

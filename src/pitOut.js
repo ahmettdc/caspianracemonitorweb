@@ -171,7 +171,12 @@ export function pitOutPoints({ me, curve, nb, pitFr, trackLength, lapSec,
   if (!me || !pitFr || pitFr.entry == null || pitFr.exit == null) return [];
   if (!(Number(trackLength) > 0) || !(Number(lapSec) > 0)) return [];
   if (curveFill(curve, nb) < minFill) return [];
-  const nowFrac = ((Number(me.lapDist) / Number(trackLength)) % 1 + 1) % 1;
+  /* Number(null) === 0 tuzağı (CLAUDE.md §1): açık kontrol olmadan `lapDist`i
+     EKSİK bir oyuncu "S/F çizgisinde" sayılır, altı çember de makul GÖRÜNEN ama
+     tamamen uydurma konumlara çizilirdi. wrapDist'te elenen tuzağın aynısı. */
+  const d = me.lapDist;
+  if (d == null || d === "" || !Number.isFinite(Number(d))) return [];
+  const nowFrac = ((Number(d) / Number(trackLength)) % 1 + 1) % 1;
   if (!Number.isFinite(nowFrac)) return [];
   return pitOutTargets({ curve, nb, entryFrac: pitFr.entry, exitFrac: pitFr.exit,
     nowFrac, lapSec, ...opt })

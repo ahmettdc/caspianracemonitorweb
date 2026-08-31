@@ -144,7 +144,7 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
   useEffect(() => {
     if (!tid || !trackKey) return undefined;
     const off = liveTrackSubscribe(tid, trackKey, (packed) => {
-      const shared = unpackBins(packed);
+      const shared = unpackBins(packed, NB);   // eski çözünürlük varsa taşınır
       let added = 0;
       for (const b of Object.keys(shared)) {
         if (!acc.current.bins[b]) { acc.current.bins[b] = shared[b]; added++; }
@@ -269,9 +269,15 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
     /* "değişti mi" artık binCount ile değil rev ile ölçülür: oyuncu çizgisi mevcut
        bir kutuyu güncelleyince SAYI değişmez ama şekil iyileşir — eski koşul bu
        iyileşmeyi hiç paylaşmazdı. */
-    if (binCount < NB * 0.9 || rev <= acc.current.savedRev) return undefined;
+    /* Eşik %90 → %75 (v2.3.0). Kutu sayısı 240→480'e çıkınca mutlak hedef de
+       ikiye katlanmıştı: 2 Hz'de tek bir araç turda ancak ~`turSüresi × 2` örnek
+       üretir (100 sn'lik turda ~200), yani 432 kutuya AZ ARAÇLI seansta hiç
+       ulaşılamıyor ve şekil takımla hiç paylaşılmıyordu. %75 (360) hâlâ düzgün
+       bir devre çizer; kayıt zaten `rev` arttıkça yenilenir, yani şekil doldukça
+       paylaşım da tazelenir. */
+    if (binCount < NB * 0.75 || rev <= acc.current.savedRev) return undefined;
     const id = setTimeout(() => {
-      liveTrackSave(tid, trackKey, packBins(acc.current.bins));
+      liveTrackSave(tid, trackKey, packBins(acc.current.bins, NB));
       acc.current.saved = binCount;
       acc.current.savedRev = rev;
     }, 2000);

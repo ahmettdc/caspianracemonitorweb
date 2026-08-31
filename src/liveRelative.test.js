@@ -143,6 +143,24 @@ describe("relativeRows — zaman yolu vs mesafe yedeği", () => {
     expect(by[3]).toBeCloseTo(-20, 6);    // mesafe yedeği (1000/5000 × 100)
   });
 
+  /* SIRALAMA BİRİM KARIŞIMI — anahtar bir satırda saniye, ötekinde metre oluyordu.
+     `timeIntoLap`i eksik TEK bir araç metre cinsinden dev bir anahtar alıp gerçekten
+     çok daha önde olan araçların üstüne çıkıyor ve ±3 penceresini bozuyordu. */
+  it("bir araç mesafe yedeğine düşse bile SIRA doğru kalır", () => {
+    const me = { carId: 5, lapDist: 2500, timeIntoLap: 50, estLapTime: 100, avg5Sec: 100 };
+    const f = [
+      // 40 sn önde (zaman yolu)
+      row({ carId: 1, lapDist: 4500, timeIntoLap: 90, estLapTime: 100 }),
+      // zaman verisi YOK → mesafe yedeği; 100 m önde = ~2 sn
+      row({ carId: 2, lapDist: 2600, timeIntoLap: -1, estLapTime: -1 }),
+      row(me),
+      row({ carId: 3, lapDist: 2400, timeIntoLap: 48, estLapTime: 100 }),
+    ];
+    // pistte önden arkaya: 1 (40sn önde) · 2 (2sn önde) · ben · 3
+    expect(relativeRows(f, me, 5000, 3, 3).map((x) => x.r.c.carId))
+      .toEqual([1, 2, 5, 3]);
+  });
+
   it("zaman yolunda sıra da doğru (önden arkaya)", () => {
     const me = { carId: 5, timeIntoLap: 50, estLapTime: 100 };
     const f = [

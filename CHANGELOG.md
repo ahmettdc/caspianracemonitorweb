@@ -332,6 +332,39 @@ Artık süzgeç ikisini birden kapsıyor.
   bariz, haritada gözden kaçıyor. Başlığa **sınıf rozeti + kaç aracın gizlendiği**
   eklendi (`GT3 · 3 gizli`), hem kartta hem Büyük Pano'da.
 
+### Sürüm öncesi kod incelemesinde bulunan 5 hata
+
+Merge öncesi `origin/main..HEAD` incelendi; hepsi **bu sürümde eklenen** kodda.
+
+1. **Takımın eski haritası bozuk okunuyordu (en ciddisi).** Kutu sayısı 240→480'e
+   çıkarıldı ama paylaşılan kayıtta çözünürlük işareti yoktu. Kutu indeksinin anlamı
+   NB'ye bağlıdır: index 120, 240 kutuda **yarım tur**, 480 kutuda **çeyrek tur**.
+   Sonuç: v2.2.4'te kaydedilmiş şeklin tamamı yeni index uzayının ilk yarısına
+   sıkışıyordu — üstelik 240 kutu "yeterince dolu" eşiğini (216) aştığı için **bozuk
+   şekil hemen çiziliyor**, kendi aracı olmayan bir izleyicide hiç düzelmiyor ve
+   yazma yetkisi olan istemci bozuk birleşimi **takıma geri yazıyordu**.
+   → Paket artık `n480;` başlığı taşıyor; başlıksız kayıt v2.2.4 (240) varsayılıp
+   **yeniden ölçekleniyor** (atılmıyor — takımın emeği korunuyor).
+2. **Lastik rozeti hafif köprüde hiç görünmüyordu.** `liveBridge.js`'te (JS sidecar)
+   silme kaldırılmıştı ama `bridge/harvest.py` hâlâ `tyreChange`'i kareden atıyordu.
+   README sürüş PC'si için **tam da bu hafif `.exe`'yi öneriyor** → rozet asıl
+   kullanılacağı yolda ölüydü.
+3. **Relative sıralaması birim karıştırıyordu.** Anahtar bir satırda saniye, ötekinde
+   metre oluyordu; `timeIntoLap`i eksik **tek bir araç** metre cinsinden dev bir
+   anahtar alıp gerçekten çok daha önde olan araçların üstüne çıkıyor ve ±3
+   penceresini yanlış sıralıyordu. → İki yol da **tur kesrine** indirgendi.
+4. **Pit çıkış tahmininde `Number(null) === 0` tuzağı.** `lapDist`i eksik oyuncu
+   "S/F çizgisinde" sayılıyor, altı çember de makul **görünen** ama uydurma konumlara
+   çiziliyordu. CLAUDE.md §1'de kayıtlı, `wrapDist`te elenen tuzağın aynısı — yeni
+   kodda tekrar yapılmış. → Açık kontrol eklendi (`0` geçerli kalır).
+5. **Paylaşım eşiği az araçlı seansta ulaşılamıyordu.** 480 kutuda %90 = 432 kutu;
+   2 Hz'de tek araç turda ancak ~`turSüresi×2` örnek üretir (100 sn turda ~200), yani
+   şekil takımla **hiç paylaşılmıyordu**. → Eşik %75'e indirildi; kayıt `rev` arttıkça
+   yenilendiği için şekil doldukça paylaşım da tazeleniyor.
+
+Beşi için de regresyon testi yazıldı ve **her biri düzeltme geri alınınca kırmızıya
+döndüğü doğrulanarak** kilitlendi.
+
 ### Kullanılmayan veri: tur sayacı
 
 `session.totalLaps` köprüden beri geliyordu, hiçbir yerde okunmuyordu. Tur-tipi yarışta
@@ -340,7 +373,7 @@ sahte `/0` yazılmaz.
 
 ### Doğrulama
 
-- **JS:** 704 test geçiyor (583 → 704; **+121**). Yeni: `pitOut.test.js` (25),
+- **JS:** 717 test geçiyor (583 → 717; **+134**). Yeni: `pitOut.test.js` (25),
   `trackMapPitOut.render.test.jsx` (5). Yeni: `liveSectors.test.js` (14),
   `liveSort.test.js` (16), `liveRelative.test.js` (29), `liveStatus.test.js` (13),
   `liveTabV230.render.test.jsx` (15); `trackShape.test.js` en-kötü-durum kırpma

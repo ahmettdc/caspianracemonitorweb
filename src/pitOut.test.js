@@ -199,4 +199,15 @@ describe("pitOutPoints", () => {
   it("bozuk lapDist ile çökmez", () => {
     expect(pitOutPoints({ ...base, me: { lapDist: NaN, avg5Sec: 100 } })).toEqual([]);
   });
+
+  /* Number(null)===0 tuzağı (CLAUDE.md §1): açık kontrol olmadan lapDist'i EKSİK
+     oyuncu "S/F çizgisinde" sayılır ve altı çember de makul GÖRÜNEN ama tamamen
+     uydurma konumlara çizilirdi. */
+  it("lapDist EKSİKSE hiç çember üretmez (S/F sanılmaz)", () => {
+    expect(pitOutPoints({ ...base, me: { avg5Sec: 100 } })).toEqual([]);
+    expect(pitOutPoints({ ...base, me: { lapDist: null, avg5Sec: 100 } })).toEqual([]);
+    expect(pitOutPoints({ ...base, me: { lapDist: "", avg5Sec: 100 } })).toEqual([]);
+    // 0 GEÇERLİDİR: araç gerçekten S/F çizgisinde olabilir
+    expect(pitOutPoints({ ...base, me: { lapDist: 0, avg5Sec: 100 } }).length).toBe(6);
+  });
 });
