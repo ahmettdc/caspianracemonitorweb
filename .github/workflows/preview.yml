@@ -40,9 +40,27 @@ jobs:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
           CHANNEL="pr-${{ github.event.pull_request.number || github.run_id }}"
+          # TEŞHİS (v2.2.4): kabuk `bash -e` ile çalışıyor; komut başarısız olunca
+          # betik OUT ataması SATIRINDA duruyor ve alttaki `echo "$OUT"` HİÇ
+          # çalışmıyordu → firebase'in hata metni log'a hiç düşmüyor, geriye
+          # yalnız "Process completed with exit code 1" kalıyordu (teşhis edilemez).
+          # Artık: çıkış kodu yakalanır, stderr ayrı dosyaya alınır (stdout saf
+          # JSON kalmalı — URL ayrıştırıcısı onu parse ediyor) ve hata hâlinde
+          # ikisi de log'a basılır.
+          set +e
           OUT=$(npx --yes firebase-tools hosting:channel:deploy "$CHANNEL" \
-            --project caspian-race-control --expires 30d --json --token "$FIREBASE_TOKEN")
+            --project caspian-race-control --expires 30d --json --token "$FIREBASE_TOKEN" \
+            2>"$RUNNER_TEMP/fb.err")
+          CODE=$?
+          set -e
           echo "$OUT"
+          if [ "$CODE" -ne 0 ]; then
+            echo "::group::firebase stderr"
+            cat "$RUNNER_TEMP/fb.err" || true
+            echo "::endgroup::"
+            echo "::error::Firebase channel deploy başarısız (exit $CODE) — ayrıntı yukarıda."
+            exit "$CODE"
+          fi
           URL=$(printf '%s' "$OUT" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const j=JSON.parse(s);const site=Object.values(j.result||{})[0]||{};process.stdout.write(site.url||'')}catch(e){process.stdout.write('')}})")
           echo "url=$URL" >> "$GITHUB_OUTPUT"
           echo "Preview URL: $URL"
