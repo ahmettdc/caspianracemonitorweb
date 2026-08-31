@@ -88,8 +88,6 @@ haritası `TrackMap.jsx`, marka logosu, pit durak sayısı, trafik rozetleri
   `liveBridge.js:245`'te "tabloda gösterilmiyor" gerekçesiyle **kareden siliniyordu**.
   Silme kaldırıldı, rozet Pit sütununa bağlandı: `4` / `2 ÖN` / yakıt-only durakta `0`.
   Boyut: araç başına tek küçük nesne, Firebase yaprak sınırının çok altında.
-- Ayrıca `c.location` artık kullanılıyor: **GARAGE**, PIT'ten ayrı gösteriliyor (`GRJ`).
-  Tabloda şimdiye kadar yalnız `inPits` boolean'ı okunuyordu.
 
 ### `own` kendi araç kartı: pilot adı ve sınıf HİÇ gelmiyordu
 

@@ -805,7 +805,6 @@ export const EN = {
     "Cars around me by track position (±3)",
   "Pistte önümüzde (−) / arkamızda (+) saniye":
     "Seconds ahead (−) / behind (+) on track",
-  "Garaj yolunda / garajda": "In the garage / heading to garage",
   "Liderin turu / yarış turu": "Leader's lap / race laps",
   // tur geçmişi pist koşulları (v1.4.83)
   "Asfalt sıcaklığı": "Track temp", "Yol tutuş": "Grip",

@@ -920,14 +920,10 @@ export default function LiveTab({ t, live: liveProp, canEdit,
                           tyreChangeBadge tyreInfo.js'te v2.2.x'ten beri yazılı ve testliydi
                           ama hiçbir yerde import edilmiyordu (köprü verisi de liveBridge'de
                           kareden siliniyordu) — "rakip 2 ön mü aldı, yakıt-only mi durdu"
-                          bilgisi hiç görünmüyordu. GARAGE artık PIT'ten ayrılıyor. */}
+                          bilgisi hiç görünmüyordu. */}
                       <td style={{ whiteSpace: "nowrap" }}>
-                        {c.location === "GARAGE"
-                          ? <span className="chip" style={{ marginRight: 4,
-                            color: "var(--rc-text-3)", borderColor: "var(--rc-border-strong)" }}
-                            title={t("Garaj yolunda / garajda")}>GRJ</span>
-                          : c.inPits && <span className="chip" style={{ marginRight: 4,
-                            color: "var(--yellow)", borderColor: "var(--yellow)" }}>PIT</span>}
+                        {c.inPits && <span className="chip" style={{ marginRight: 4,
+                          color: "var(--yellow)", borderColor: "var(--yellow)" }}>PIT</span>}
                         <span style={{ color: "var(--dim)" }}>{c.pitStops ?? "—"}</span>
                         {(() => {
                           const b = tyreChangeBadge(c.tyreChange, t);
