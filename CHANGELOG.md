@@ -19,7 +19,7 @@ Eksik giderme.
   2. Service worker'ın gezinme dalı "ağ önce" ama düz `fetch(req)` ile — bu istek **tarayıcının HTTP önbelleğinden** geçiyor, yani sunucuya hiç gitmiyor. Eski HTML'in işaret ettiği eski varlıklar da `fetch` dalındaki **cache-first** mantığıyla SW önbelleğinden servis ediliyor → zincir kapanıyor ve yeni sürüm hiç yüklenmiyor.
 - **Çözüm:**
   - `public/sw.js`: gezinme artık `fetch(req, { cache: "reload" })` — HTTP önbelleğini atlayıp her seferinde sunucuya gider; çevrimdışıysa yine önbellekteki `index.html`'e düşer. `CACHE` adı sürümlendi (`crc-v2.2.4`) → yeni SW etkinleşince bayat app-shell temizlenir.
-  - `firebase.json`: hosting başlıkları eklendi — `index.html` / `sw.js` / `manifest.webmanifest` `no-cache`, `assets/**` `immutable` (hash'li olduğu için bir yıl güvenle önbelleklenir). Bu, önizleme kanallarını ve Firebase hosting'i kapsar; üretim GitHub Pages'te asıl düzeltmeyi SW değişikliği yapar.
+  - `firebase.json`: hosting başlıkları eklendi — `/` (kök) / `index.html` / `sw.js` / `manifest.webmanifest` `no-cache`, `assets/**` `immutable`. **Dikkat:** Firebase başlıkları rewrite HEDEFİNE değil **istek yoluna** göre eşler; yalnız `/index.html` yazmak kök isteğini (`/`) kapsamıyordu — sahada ölçülüp `/` kuralı ayrıca eklendi (hash'li olduğu için bir yıl güvenle önbelleklenir). Bu, önizleme kanallarını ve Firebase hosting'i kapsar; üretim GitHub Pages'te asıl düzeltmeyi SW değişikliği yapar.
 - **Not:** Bu düzeltmenin kendisi eski SW tarafından servis edilebileceği için, kullanıcıların **son bir kez** zorla yenilemesi (Ctrl/Cmd+Shift+R) gerekebilir; sonrasında sürümler kendiliğinden gelir.
 
 ### Telemetri: tasarım fişi (tele-paketi, 28 Ağu 2026) uyumu
