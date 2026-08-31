@@ -10,7 +10,8 @@
 Şema (web LiveTab ile birebir):
   session: {phase, flag, timeLeftSec, totalLaps, trackTemp, ambientTemp, raining,
             rain, wetness, trackName, trackLength, sessionType, sessionId}
-  own:     {fuel, fuelCapacity, virtualEnergy, position, lastLapSec, bestLapSec,
+  own:     {driver, carClass, team, manufacturer, number,
+            fuel, fuelCapacity, virtualEnergy, position, lastLapSec, bestLapSec,
             curLapSec, s1, s2, lapsDone, inPits, pitStops, location, damage, avg5Sec,
             avgSec, stintSec, tyreCompound:{front,rear},
             tyres:{fl,fr,rl,rr:{wear,tempC,pressKpa}}}
@@ -19,6 +20,10 @@
             lapDist, posX, posZ, lastSec, lastSectors:[s1,s2,s3], bestSec, gapSec,
             intervalSec, lapsBehind, lapsBehindNext, inPits, location, pitStops, penalties,
             penaltiesTotal, tyreWear, tyres4:[fl,fr,rl,rr], tyreComp, damage, virtualEnergy,
+            bestSectors:[b1,b2,b3] (kişisel en iyi sektörler → mor/yeşil renklendirme),
+            timeIntoLap, estLapTime (oyunun kendi tur-içi zaman alanları → relative),
+            finishStatus (0/1/2/3 = yok/bitirdi/DNF/DSQ), pitState (0..4, 1=pit talebi),
+            speedKph (anlık, scoring'den), topSpeed (seans en yükseği — Aggregator),
             vePerLap, avg5Sec, avgSec, stintSec, laps, lapsFrom, lapNums, lapKey, isPlayer}
   (penalties = ANLIK bekleyen ceza (mNumPenalties; servis edilince 0'a düşer),
    penaltiesTotal = seans boyunca KÜMÜLATİF ceza (Aggregator yükselen kenar sayımı).
@@ -276,6 +281,10 @@ class MockSource:
                                [round(lap_t * 0.25, 3), None] if frac < 0.73 else
                                [round(lap_t * 0.25, 3), round(lap_t * 0.44, 3)]),
                 "bestSec": round(self.base[i], 3),
+                # kişisel en iyi sektörler — mor/yeşil renklendirme demo yolunda da
+                # çalışsın diye (son turdan bir tık hızlı; i==1 tam eşit → "yeşil" hali)
+                "bestSectors": [round(self.base[i] * 0.25, 3), round(self.base[i] * 0.44, 3),
+                                round(self.base[i] * 0.31, 3)],
                 "_prog": laps * 1e6 + (el % lap_t),  # sıralama için ilerleme
                 "inPits": (int(el / 90) % 11) == i, "isPlayer": i == 4,
                 "pitStops": laps // 45,  # ~45 turda bir durak
@@ -285,6 +294,14 @@ class MockSource:
                 "lapDist": round(frac * self.TRACK_LEN, 1), "posX": px, "posZ": pz,
                 # sektör (0=S3, 1=S1, 2=S2): eşit olmayan sınırlar → ayırıcılar görünür
                 "sector": 1 if frac < 0.40 else 2 if frac < 0.73 else 0,
+                # relative zaman yolu (v2.3.0) — oyunun mTimeIntoLap/mEstimatedLapTime
+                # karşılığı: tur içi geçen süre + tahmini tur süresi
+                "timeIntoLap": round(el % lap_t, 3), "estLapTime": round(lap_t, 3),
+                # yarış durumu + pit aşaması: bir araç DNF, biri pit çağırmış olsun
+                # anlık hız: tur içi konuma göre dalgalanır (düzlük/viraj taklidi)
+                "speedKph": round(120 + 190 * abs(math.sin(frac * 3.14159)) - i * 1.5),
+                "finishStatus": 2 if i == 9 else 0,
+                "pitState": 1 if (int(el / 60) % 7) == i else 0,
                 "virtualEnergy": round(max(3.0, 100 - ((el + i * 40) % 1500 / 1500) * 92), 1),
             })
         rows.sort(key=lambda r: -r["_prog"])
@@ -565,6 +582,34 @@ class RF2Source:
         return [None, None, None]
 
     @staticmethod
+    def _best_sectors(v):
+        """Aracın KİŞİSEL EN İYİ S1/S2/S3'ü (kümülatif DEĞİL) — mor/yeşil sektör
+        renklendirmesi için. rF2 struct'ı kümülatif verir:
+          mBestSector1 = en iyi S1
+          mBestSector2 = en iyi (S1+S2) kümülatifi
+          mBestLapTime = en iyi tur
+        → b2 = mBestSector2 − mBestSector1, b3 = mBestLapTime − mBestSector2.
+
+        DİKKAT (bilinçli kabul): oyun bu üç alanı BAĞIMSIZ en iyiler olarak tutar;
+        b2/b3 farkları farklı turlardan gelebilir, yani "teorik en iyi"ye yakın bir
+        değerdir, tek bir turun sektörü olmak zorunda değil. Timing tower'ların
+        kişisel-best (yeşil) ölçütü zaten budur — sektör bazlı en iyi.
+        Makul değilse ilgili eleman None."""
+        try:
+            b1 = float(getattr(v, "mBestSector1", -1.0))
+            b12 = float(getattr(v, "mBestSector2", -1.0))      # kümülatif S1+S2
+            lap = float(getattr(v, "mBestLapTime", -1.0))
+            o1 = round(b1, 3) if b1 > 0 else None
+            o2 = round(b12 - b1, 3) if (b1 > 0 and b12 > b1) else None
+            # b3 KÜMÜLATİF b12'ye dayanır: b12 tutarsızsa (yırtık okuma, b12 < b1)
+            # lap − b12 makul GÖRÜNEN ama uydurma bir sayı verir. o2 geçerli değilse
+            # zincir kopmuştur → b3 de üretilmez.
+            o3 = round(lap - b12, 3) if (o2 is not None and lap > b12) else None
+            return [o1, o2, o3]
+        except Exception:
+            return [None, None, None]
+
+    @staticmethod
     def _cur_sectors(v):
         """ANLIK sektörler: MEVCUT turda araç sektör çizgisini geçtiği AN oluşan süre.
         rF2: mCurSector1 = bu turun S1'i (S1 çizgisini geçince geçerli),
@@ -719,6 +764,34 @@ class RF2Source:
                 "lastSec": round(float(getattr(v, "mLastLapTime", -1.0)), 3),
                 "lastSectors": self._sectors(v),   # [S1,S2,S3] (popup tur listesi)
                 "curSectors": self._cur_sectors(v),   # [s1,s2] bu turda ANLIK geçilen sektörler
+                # kişisel en iyi [b1,b2,b3] — mor/yeşil sektör renklendirmesi (v2.3.0)
+                "bestSectors": self._best_sectors(v),
+                # RELATIVE için oyunun KENDİ zaman alanları (v2.3.0). TinyPedal'ın
+                # module_relative.py'si relatif farkı tam olarak bu ikisinden kurar
+                # (estimated_time_into / estimated_laptime). Mesafe oranından
+                # türetmek sabit hız varsayar — düz ile şikan aynı sayılır.
+                # Struct'ın kendi notu: mEstimatedLapTime = "estimated laptime used
+                # for 'time behind' and 'time into lap'" → ikisi eşleşik kullanılmalı.
+                # DİKKAT: `or -1.0` KULLANMA — mTimeIntoLap tam 0.0 olabilir (araç
+                # S/F'yi yeni geçmiş) ve `0.0 or -1.0` → -1.0 verir, yani geçerli
+                # bir değer "yok"a çevrilirdi. Sıfır burada gerçek bir okumadır.
+                "timeIntoLap": round(float(getattr(v, "mTimeIntoLap", -1.0)), 3),
+                "estLapTime": round(float(getattr(v, "mEstimatedLapTime", -1.0)), 3),
+                # Yarış durumu (v2.3.0) — struct notu: 0=none, 1=finished, 2=dnf, 3=dq.
+                # Bunlar VehicleScoring alanı → HER araç için gelir (telemetri değil,
+                # yani online'da rakiplerde de güvenilir).
+                # ANLIK HIZ — SCORING kaydından (v2.3.0). Bu ayrım kritik:
+                # mLocalVel hem telemetride hem SCORING'de var; telemetri online'da
+                # rakiplerde bayatlar (bkz. teleLag/tyreInfo.teleStale), scoring ise
+                # her araç için dolu — mPos'u zaten buradan okuyup pist haritasını
+                # tüm sahadan kuruyoruz, aynı struct. (TinyPedal hızı telemetriden
+                # okur; rakip hızları bu yüzden onda güvenilmez.)
+                "speedKph": (lambda x: round(x) if x is not None else None)(self._speed(v)),
+                "finishStatus": int(getattr(v, "mFinishStatus", 0) or 0),
+                # Pit aşaması — struct notu: 0=none, 1=request, 2=entering,
+                # 3=stopped, 4=exiting. `1` araç DAHA PİSTTEYKEN gelir: rakip pit
+                # çağırmış ama henüz girmemiş demektir (undercut erken uyarısı).
+                "pitState": int(getattr(v, "mPitState", 0) or 0),
                 "bestSec": round(float(getattr(v, "mBestLapTime", -1.0)), 3),
                 "gapSec": round(float(getattr(v, "mTimeBehindLeader", 0.0)), 1),
                 "intervalSec": round(float(getattr(v, "mTimeBehindNext", 0.0)), 1),
@@ -899,6 +972,7 @@ class Aggregator:
         self.ve_per_lap = {}    # araç → son turda tüketilen VE% (prev−cur)
         self.prev_pen = {}      # araç → son görülen BEKLEYEN ceza (mNumPenalties)
         self.pen_total = {}     # araç → KÜMÜLATİF ceza (yükselen kenar toplamı)
+        self.top_speed = {}     # araç → seans boyunca görülen EN YÜKSEK hız (km/h)
 
     def close(self):
         if hasattr(self.inner, "close"):
@@ -909,6 +983,10 @@ class Aggregator:
     #: küçük olur → o durumda bileşim değişimi ikinci sinyaldir (bkz. tyre_change).
     TYRE_JUMP = 0.05
     CORNERS = ("fl", "fr", "rl", "rr")
+
+    #: Bunun üstündeki hız okuması yırtık kare sayılır ve en yüksek hıza YAZILMAZ.
+    #: (LMU'nun en hızlı aracı ~340 km/h; sınır bilerek geniş bırakıldı.)
+    SPEED_SANE_MAX = 500
 
     @staticmethod
     def _valid_lap(last, best):
@@ -978,6 +1056,8 @@ class Aggregator:
                 # ceza sayaçları da seansa özeldir (yeni seans → sıfırdan başla)
                 self.pen_total.pop(key, None)
                 self.prev_pen.pop(key, None)
+                # en yüksek hız da seansa özeldir
+                self.top_speed.pop(key, None)
                 # VE tur-başı tüketimi için başlangıç değerini (varsa) taban al
                 self.ve_per_lap.pop(key, None)
                 _cve = r.get("virtualEnergy")
@@ -1060,6 +1140,18 @@ class Aggregator:
                 self.prev_pen[key] = cur_pen
             r["penaltiesTotal"] = self.pen_total.get(key, 0)
 
+            # SEANS EN YÜKSEK HIZI — koşan maksimum (ceza sayacıyla aynı desen).
+            # ÜST SINIR KORUMASI: paylaşımlı bellek yırtık okunduğunda saçma bir
+            # değer gelebilir ve maksimum KALICI olarak zehirlenir (bir daha
+            # düşmez). LMU'da en hızlı araç ~340 km/h; 500 üstü fiziksel değil.
+            cur_spd = r.get("speedKph")
+            if isinstance(cur_spd, (int, float)) and not isinstance(cur_spd, bool) \
+                    and 0 < cur_spd <= self.SPEED_SANE_MAX:
+                prev_top = self.top_speed.get(key)
+                if prev_top is None or cur_spd > prev_top:
+                    self.top_speed[key] = cur_spd
+            r["topSpeed"] = self.top_speed.get(key)
+
             h = list(self.hist.get(key, ()))
             last5 = h[-5:]
             r["avg5Sec"] = round(sum(last5) / len(last5), 3) if last5 else None
@@ -1083,4 +1175,16 @@ class Aggregator:
                 for k in ("avg5Sec", "avgSec", "stintSec", "vePerLap", "penaltiesTotal",
                           "laps", "lapsFrom", "lapNums", "lapKey"):
                     own[k] = me.get(k)
+                # v2.3.0 HATA DÜZELTMESİ: own hiç `driver`/`carClass` taşımıyordu —
+                # RF2Source.own'ı player TELEMETRY'sinden kurar, bu alanlar ise yalnız
+                # SCORING satırında var. Sonuç: "Kendi Araç" kartı her zaman jenerik
+                # "Kendi Araç" yazıyor ve sınıf rengi hiç görünmüyordu (classAccent
+                # undefined). team/manufacturer/number ise LMU REST zenginleştirmesinde
+                # yalnız field satırlarına ekleniyor — own'a hiç ulaşmıyordu.
+                # Oyuncunun KENDİ field satırı hepsini (REST sonrası) taşır → kopyala.
+                # Yalnız own'da EKSİK olanı doldur: RF2Source'un doğrudan okuduğu
+                # vehicleName gibi alanlar ezilmesin.
+                for k in ("driver", "carClass", "number", "team", "manufacturer"):
+                    if own.get(k) is None and me.get(k) is not None:
+                        own[k] = me.get(k)
         return data

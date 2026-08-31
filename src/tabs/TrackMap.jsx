@@ -9,6 +9,9 @@ import { packBins, unpackBins } from "../trackShape";
 import { observeSector, sectorFractions, sectorRanges,
   packSectors, unpackSectors, emptySectors,
   observePit, pitFractions, packPit, unpackPit, emptyPit } from "../trackSectors";
+import { emptyCurve, observeCurve, timeFracOf, curveOf,
+  pitOutPoints } from "../pitOut";
+import { pitRequested } from "../liveStatus";
 import { liveTrackSave, liveTrackSubscribe,
   liveTrackSecSave, liveTrackSecSubscribe,
   liveTrackPitSave, liveTrackPitSubscribe } from "../storage";
@@ -24,7 +27,11 @@ import { liveTrackSave, liveTrackSubscribe,
    en büyük kare boyutta; durum bu bileşende tutulduğu için biriken pist şekli ve
    canlı kareler paylaşılır (büyük görünüm de canlı akar, şekil yeniden birikmez). */
 
-const NB = 240;                 // lapDist kutu sayısı (pist şekli çözünürlüğü)
+/* lapDist kutu sayısı (pist şekli çözünürlüğü). v2.3.0'da 240→480: 5 km'lik pistte
+   kutu başına ~21 m'den ~10,4 m'ye iner, virajlar daha az düzleşir. 480 pratik
+   TAVAN — Firebase yaprak sınırı (trackShape MAX_STR 8800, kural .validate < 9000)
+   tam metre koordinatlarla 480 kutuda 7570 karakter veriyor; 600'de kırpılıyor. */
+const NB = 480;
 const BRAND = "#960018";        // ana tema
 const SECTOR_COL = "#5aa9e6";   // sektör ayırıcı (S/F kırmızısından ayrışan soğuk mavi)
 const ROAD_W = 20;              // yol bandı kalınlığı ≈ araç dairesi çapı (araç içine oturur)
@@ -32,15 +39,19 @@ const ROAD_COL = "var(--line2)"; // yol rengi (siyah zeminde okunur; renkli nokt
 const ROAD_WET = "#2b4a66";     // ıslak zemin — soluk koyu mavi (yol bandı)
 const ROAD_FCY = "#5a4a1e";     // full-course yellow — koyu amber
 const YELLOW = "#F2C037";       // lokal sarı sektör yayı
+const PREDICT_COL = "#FF4D4D";  // pit çıkış tahmini çemberi (TinyPedal'daki kırmızı)
 const cx = 260, cy = 262;       // merkez
 const R = 236;                  // dış halka yarıçapı
 const PAD = 148;                // iç şekil yarım-uzanımı (px)
 
 export default function TrackMap({ t, field, session, trackLength, tid, trackKey,
-  canSave, topSlot }) {
+  canSave, topSlot, classFilter = null }) {
   const [zoom, setZoom] = useState(false);   // ⛶ büyük pencere (tam ekran overlay)
   const [, bump] = useState(0);              // paylaşımlı şekil gelince yeniden çiz
-  const svgRef = useRef(null);               // küçük karttaki canlı svg (yeni pencereye kopyalanır)
+  const svgRef = useRef(null);               // küçük karttaki canlı svg
+  /* Ayrı pencerenin içine PORTAL edeceğimiz kap. State, çünkü kap oluşunca
+     yeniden render olup portalı kurmamız gerekiyor. */
+  const [winHolder, setWinHolder] = useState(null);
   const winRef = useRef(null);               // ayrı tarayıcı penceresi
   useEffect(() => {
     if (!zoom) return undefined;
@@ -48,10 +59,31 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [zoom]);
-  /* ⧉ Ayrı pencere: haritayı yeni bir tarayıcı penceresinde açar; küçük karttaki
-     canlı svg'yi periyodik kopyalayarak pencereyi canlı tutar (React yeniden
-     kurulmadan). Pencere kapanınca kendi interval'i durur. */
+  /* SVG'nin kullandığı CSS değişkenleri. Ayrı pencerenin kendi stil sayfası yok →
+     `var(--line2)` gibi değerler orada ÇÖZÜLMEZ (yol bandı/ızgara kaybolur ya da
+     siyah çizilir). Ana belgeden hesaplanmış değerleri okuyup kabın üstüne yazıyoruz;
+     SVG içeriden miras alır. */
+  const MAP_VARS = ["--line2", "--muted", "--dim", "--rc-surface-3"];
+
+  /* ⧉ Ayrı pencere.
+     ESKİ YÖNTEM (v2.3.0 öncesi) kart içindeki svg'nin outerHTML'ini 700 ms'de bir
+     kaba KOPYALIYORDU. İki ayrı sorun üretiyordu:
+       1) Kopyalama tüm SVG düğümlerini SİLİP yeniden kuruyor. Araç noktaları
+          `transition: transform .5s linear` ile yumuşuyor; yeni kurulan düğümün
+          "önceki" konumu olmadığı için geçiş HİÇ çalışmıyor → araçlar zıplıyor.
+       2) 700 ms'lik kopyalama, 500 ms'lik (2 Hz) veri akışıyla aynı fazda değil →
+          kimi kare atlanıyor, kimi iki kez çiziliyor → düzensiz ilerleme.
+     Sonuç: "Expand akıcı ama ayrı pencere donarak ilerliyor" (sahada bildirildi).
+
+     YENİ: pencerenin içine doğrudan PORTAL ediyoruz. Düğümler kalıcı olduğu için
+     CSS geçişleri çalışıyor ve güncelleme tam veri geldiğinde oluyor — zamanlayıcı
+     yok, Expand ile birebir aynı akıcılık. */
+  const guardRef = useRef(0);   // pencere-kapandı yoklayıcısının id'si (tek olmalı)
   const openWin = () => {
+    /* Pencere zaten açıksa YENİDEN KURMA, öne getir. window.open aynı ADLA çağrılınca
+       mevcut pencereyi yeniden kullanır; burada erken dönmezsek o pencereye ikinci bir
+       kap eklenir ve ikinci bir yoklayıcı başlar (eskisi hiç durmaz → sızıntı). */
+    if (winRef.current && !winRef.current.closed) { winRef.current.focus(); return; }
     const w = window.open("", "rc-map-" + (trackKey || "map"), "width=760,height=800");
     if (!w) return;
     winRef.current = w;
@@ -59,21 +91,49 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
     w.document.body.style.cssText = "margin:0;background:#0B0708;height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden";
     const holder = w.document.createElement("div");
     holder.style.cssText = "width:96vmin;height:96vmin;display:flex;align-items:center;justify-content:center";
+    try {
+      const root = getComputedStyle(document.documentElement);
+      for (const v of MAP_VARS) holder.style.setProperty(v, root.getPropertyValue(v));
+    } catch { /* değişken okunamazsa harita yine çizilir, yalnız renkler yedeğe düşer */ }
     w.document.body.appendChild(holder);
-    const paint = () => { if (svgRef.current) holder.innerHTML = svgRef.current.outerHTML; };
-    paint();
-    w.setInterval(() => { if (!w.closed) paint(); }, 700);
+    setWinHolder(holder);
+    /* Pencere kapanınca portalı SÖK: ölü bir belgeye render etmeye çalışmayalım.
+       `beforeunload` bazı tarayıcılarda pencere zorla kapatılırken gelmiyor, o yüzden
+       ayrıca `w.closed` yoklanıyor (saniyede bir, yalnız pencere açıkken). */
+    const stop = () => {
+      window.clearInterval(guardRef.current);
+      guardRef.current = 0;
+      setWinHolder(null);
+      winRef.current = null;
+    };
+    w.addEventListener("beforeunload", stop);
+    window.clearInterval(guardRef.current);   // olası eski yoklayıcıyı kapat
+    guardRef.current = window.setInterval(() => {
+      if (!winRef.current || winRef.current.closed) stop();
+    }, 1000);
   };
-  useEffect(() => () => { try { winRef.current?.close?.(); } catch { /* yoksay */ } }, []);
+  /* Bileşen sökülünce pencereyi ve yoklayıcıyı kapat — açık kalan interval ölü bir
+     pencereyi saniyede bir yoklamaya devam ederdi. */
+  useEffect(() => () => {
+    window.clearInterval(guardRef.current);
+    try { winRef.current?.close?.(); } catch { /* yoksay */ }
+  }, []);
   /* pist DEĞİŞİNCE biriktirmeyi sıfırla — anahtar artık trackKey (pist adı) → şekil
      pist başına paylaşımlı olduğundan aynı pistin yarışları arasında da korunur. */
-  const acc = useRef({ key: null, bins: {}, saved: 0, sec: emptySectors(), secSaved: "",
-    pit: emptyPit(), pitSaved: "" });
+  /* rev: kutularda HERHANGİ bir değişiklik sayacı. v2.3.0'a kadar kutular yalnız
+     EKLENİYORDU, o yüzden binCount tek başına yeterli bir "değişti mi" anahtarıydı.
+     Artık oyuncunun çizgisi mevcut bir kutuyu GÜNCELLEYEBİLİYOR → sayı değişmeden
+     içerik değişiyor; memo ve paylaşım bunu kaçırmasın diye ayrı sayaç şart.
+     own: hangi kutular OYUNCUNUN çizgisinden geldi (yalnız yerel, paylaşılmaz). */
+  const acc = useRef({ key: null, bins: {}, own: {}, rev: 0, saved: 0, savedRev: 0,
+    sec: emptySectors(), secSaved: "", pit: emptyPit(), pitSaved: "",
+    curve: emptyCurve() });
   const prevSec = useRef({});   // lapKey → son sektör (sınır geçişini yakalamak için)
   const prevLoc = useRef({});   // lapKey → son location (pit giriş/çıkış geçişi için)
   if (acc.current.key !== trackKey) {
-    acc.current = { key: trackKey, bins: {}, saved: 0, sec: emptySectors(), secSaved: "",
-      pit: emptyPit(), pitSaved: "" };
+    acc.current = { key: trackKey, bins: {}, own: {}, rev: 0, saved: 0, savedRev: 0,
+      sec: emptySectors(), secSaved: "", pit: emptyPit(), pitSaved: "",
+      curve: emptyCurve() };
     prevSec.current = {};
     prevLoc.current = {};
   }
@@ -84,12 +144,14 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
   useEffect(() => {
     if (!tid || !trackKey) return undefined;
     const off = liveTrackSubscribe(tid, trackKey, (packed) => {
-      const shared = unpackBins(packed);
+      const shared = unpackBins(packed, NB);   // eski çözünürlük varsa taşınır
       let added = 0;
       for (const b of Object.keys(shared)) {
         if (!acc.current.bins[b]) { acc.current.bins[b] = shared[b]; added++; }
       }
-      if (added) bump((v) => v + 1);
+      /* Paylaşılan kutular "oyuncunun" sayılmaz (own'a yazılmaz) → kendi çizgimiz
+         gelince bunları yükseltebilir. */
+      if (added) { acc.current.rev += added; bump((v) => v + 1); }
     });
     return off;
   }, [tid, trackKey]);
@@ -131,6 +193,13 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
 
   const cars = (Array.isArray(field) ? field : [])
     .filter((c) => c.posX != null && c.posZ != null);
+  /* "Kendi sınıfım" süzgeci (LiveTab'daki Poz·Sınıf başlığıyla senkron).
+     YALNIZ ÇİZİMİ süzer — `cars` olduğu gibi kalır çünkü pist şekli kutuları,
+     sektör ve pit giriş/çıkış gözlemleri ile mesafe→zaman eğrisi TÜM SAHADAN
+     birikir. Süzülmüş listeyle biriktirseydik 14 araç yerine 3 araçla dolan bir
+     harita çok daha yavaş oluşurdu (ve süzgeç kapatılınca bile eksik kalırdı). */
+  const shownCars = classFilter
+    ? cars.filter((c) => classId(c.carClass) === classFilter) : cars;
 
   // sınıf-içi pozisyon (Pn) — pos sırasında sınıfa göre say (LiveTab ile aynı mantık)
   const order = (Array.isArray(field) ? field : []).slice()
@@ -163,7 +232,21 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
       const onTrack = c.location ? c.location === "TRACK" : !c.inPits;
       if (!onTrack) continue;
       const b = Math.floor(frac * NB) % NB;
-      if (!acc.current.bins[b]) acc.current.bins[b] = { x: c.posX, z: c.posZ };
+      /* v2.3.0 — ÇİZGİ KARIŞIMI azaltma: kutuyu eskiden "ilk gelen araç" belirliyor
+         ve bir daha güncellenmiyordu; farklı pilotların çizgileri karışıyor, tuhaf
+         bir çizgi atan araç tüm seans boyunca kalıcı iz bırakabiliyordu. Artık
+         OYUNCUNUN kendi çizgisi mevcut kutuyu bir kez yükseltebilir (kendi çizgimiz
+         tutarlıdır). Oyuncu kutusu bir daha ezilmez. */
+      const mine = !!c.isPlayer;
+      if (!acc.current.bins[b] || (mine && !acc.current.own[b])) {
+        acc.current.bins[b] = { x: c.posX, z: c.posZ };
+        if (mine) acc.current.own[b] = 1;
+        acc.current.rev += 1;
+      }
+      /* MESAFE→ZAMAN eğrisi (pit çıkış tahmini için): her araç bir örnek verir.
+         Kesir olduğu için tempo-bağımsız; sahadan hızla dolar. */
+      const tf = timeFracOf(c);
+      if (tf != null) observeCurve(acc.current.curve, b, tf);
       /* sektör SINIRI: aracın mSector'ü değiştiği andaki lapDist oranı (1→2, 2→0). */
       if (c.sector != null && c.sector >= 0) {
         const prev = prevSec.current[key];
@@ -175,18 +258,31 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
 
   const bins = acc.current.bins;
   const binCount = Object.keys(bins).length;
+  /* Ref'ten OKUNUR (state değil): doldurma döngüsü render gövdesinde çalışıyor ve
+     binCount da aynı şekilde hesaplanıyor — rev bu satıra geldiğinde güncel. */
+  const rev = acc.current.rev;
 
   /* şekil olgunlaşınca (≈%90 kutu) takımca paylaş — owner/editor yazar, tur başına
      değil bir kez (yeni kutular geldikçe 2 sn debounce ile). Viewer yalnız okur. */
   useEffect(() => {
     if (!canSave || !tid || !trackKey) return undefined;
-    if (binCount < NB * 0.9 || binCount <= acc.current.saved) return undefined;
+    /* "değişti mi" artık binCount ile değil rev ile ölçülür: oyuncu çizgisi mevcut
+       bir kutuyu güncelleyince SAYI değişmez ama şekil iyileşir — eski koşul bu
+       iyileşmeyi hiç paylaşmazdı. */
+    /* Eşik %90 → %75 (v2.3.0). Kutu sayısı 240→480'e çıkınca mutlak hedef de
+       ikiye katlanmıştı: 2 Hz'de tek bir araç turda ancak ~`turSüresi × 2` örnek
+       üretir (100 sn'lik turda ~200), yani 432 kutuya AZ ARAÇLI seansta hiç
+       ulaşılamıyor ve şekil takımla hiç paylaşılmıyordu. %75 (360) hâlâ düzgün
+       bir devre çizer; kayıt zaten `rev` arttıkça yenilenir, yani şekil doldukça
+       paylaşım da tazelenir. */
+    if (binCount < NB * 0.75 || rev <= acc.current.savedRev) return undefined;
     const id = setTimeout(() => {
-      liveTrackSave(tid, trackKey, packBins(acc.current.bins));
+      liveTrackSave(tid, trackKey, packBins(acc.current.bins, NB));
       acc.current.saved = binCount;
+      acc.current.savedRev = rev;
     }, 2000);
     return () => clearTimeout(id);
-  }, [canSave, tid, trackKey, binCount]);
+  }, [canSave, tid, trackKey, binCount, rev]);
 
   // gözlenen sektör sınırları (ortalama) — çizim + paylaşım için
   const secFr = sectorFractions(acc.current.sec);
@@ -241,7 +337,7 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
     }
     return { pts, toScreen, outline };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [binCount, trackKey]);
+  }, [rev, trackKey]);
 
   // dış halka açısı: lapDist oranı → tepeden saat yönünde
   const ringXY = (lapDist) => {
@@ -426,6 +522,44 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
     ? [pitLine(pitFr.entry, "#37D67A", "PIT IN", "pit-in"),
        pitLine(pitFr.exit, "#fff", "PIT OUT", "pit-out")]
     : null;
+
+  /* ---- PİT ÇIKIŞ TAHMİNİ (v2.3.0) — TinyPedal draw_pitout_prediction ----
+     YALNIZ pit TALEBİ verilmişken çizilir (mPitState == 1): araç hâlâ pistte,
+     karar hâlâ verilebilir durumda. Pite girdikten sonra göstermek karar değil
+     seyir olurdu. Çember: "duraǧın N sn sürerse ŞU ANDA burada olan aracın yanına
+     çıkarsın" → yakınındaki araç noktasına bakılarak okunur. */
+  const meCar = cars.find((c) => c.isPlayer) || null;
+  const meLap = meCar ? [meCar.avg5Sec, meCar.avgSec, meCar.lastSec, meCar.bestSec]
+    .map(Number).find((v) => v > 0) : null;
+  /* Tüm koşul mantığı pitOut.pitOutPoints'te (saf + testli); burada yalnız
+     "talep var mı" kapısı ve çizim kalır. */
+  const pitTargets = meCar && pitRequested(meCar)
+    ? pitOutPoints({ me: meCar, curve: curveOf(acc.current.curve), nb: NB,
+      pitFr, trackLength, lapSec: meLap })
+    : [];
+  /* Çizim YALNIZ DIŞ HALKADA (kullanıcı kararı): iç şekilde de çember+sayı vardı,
+     iki yerde aynı bilgi hem kalabalık yapıyor hem de iç şekilde araç noktalarıyla
+     üst üste biniyordu. Dış halka bu iş için zaten daha uygun — orada araçlar
+     lapDist oranına göre düzgün dizili, çember hangi aracın hizasına düştüğü
+     tek bakışta okunuyor. Sayı da halkanın DIŞINA yazılır (sektör/PIT IN
+     etiketleriyle aynı yarıçap deseni). */
+  const pitOutMarks = pitTargets.length ? pitTargets.map((tg) => {
+    const a = tg.distFrac * 2 * Math.PI;
+    const ux = Math.sin(a);
+    const uy = -Math.cos(a);                 // ringXYFrac ile aynı yön (dışa)
+    return (
+      <g key={`po${tg.sec}`}>
+        <circle cx={cx + R * ux} cy={cy + R * uy} r={7}
+          fill="none" stroke={PREDICT_COL} strokeWidth={2.2} />
+        <rect x={cx + (R + 21) * ux - 11} y={cy + (R + 21) * uy - 7}
+          width={22} height={14} rx={3}
+          fill="var(--rc-surface-3)" stroke={PREDICT_COL} strokeWidth={1} />
+        <text x={cx + (R + 21) * ux} y={cy + (R + 21) * uy}
+          fill={PREDICT_COL} fontSize="9.5" fontWeight="700"
+          textAnchor="middle" dominantBaseline="central">{tg.sec}</text>
+      </g>
+    );
+  }) : null;
   // hareket yönü oku — S/F'nin hemen ötesinde, pist teğeti (saat yönü, jitter'sız)
   const dirArrow = (() => {
     if (!(trackLength > 0)) return null;
@@ -439,9 +573,24 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
       fill="var(--muted)" opacity={0.85} />;
   })();
 
+  /* SÜZGEÇ ROZETİ — süzgeç açıkken haritada NELERİN GİZLENDİĞİ görünür olmalı.
+     Sahada fark edilmedi: demo sahasında 3 Hypercar + 11 GT3 var ve oyuncu GT3
+     olduğu için süzgeç yalnız 3 noktayı gizliyor; tabloda satırlar gidince bariz
+     ama haritada gözden kaçıyor ("çalışmıyor" sanıldı). Rozet, kaç aracın
+     gizlendiğini de yazar. */
+  const hiddenCount = classFilter ? cars.length - shownCars.length : 0;
+  const filterChip = classFilter ? (
+    <span className="chip" style={{ fontSize: 10.5, color: "var(--teal)",
+      borderColor: "var(--teal)" }}
+      title={t("Standings'teki 'kendi sınıfım' süzgeci haritaya da uygulanıyor")}>
+      {(CAR_CLASSES.find(([cid]) => cid === classFilter)?.[1] || classFilter)}
+      {hiddenCount > 0 ? ` · ${hiddenCount} ${t("gizli")}` : ""}
+    </span>
+  ) : null;
+
   // lejant (Büyük Pano) — sahadaki sınıf renkleri + oyuncu + pit
   const clsSeen = [];
-  for (const c of cars) {
+  for (const c of shownCars) {
     const id = classId(c.carClass);
     if (id && !clsSeen.includes(id)) clsSeen.push(id);
   }
@@ -454,6 +603,7 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
       <span><i style={{ background: "#fff", boxShadow: `0 0 0 2px ${BRAND}` }} /> {t("Sen")}</span>
       {pitMarks && <><span><i style={{ background: "#37D67A" }} /> {t("Pit giriş")}</span>
         <span><i style={{ background: "#fff" }} /> PIT OUT</span></>}
+      {pitOutMarks && <span><i style={{ background: PREDICT_COL }} /> {t("Pit çıkış tahmini (sn)")}</span>}
     </div>
   );
 
@@ -483,12 +633,14 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
     {outline && <path d={outline} fill="none" stroke="var(--muted)"
       strokeWidth={1.5} strokeLinejoin="round" opacity={0.35} />}
     {/* araçlar — dış halka */}
-    {cars.map((c) => { const [x, y] = ringXY(c.lapDist); return dot(c, x, y, 9, classPos.get(c), "r"); })}
+    {shownCars.map((c) => { const [x, y] = ringXY(c.lapDist); return dot(c, x, y, 9, classPos.get(c), "r"); })}
     {/* araçlar — iç şekil */}
-    {toScreen && cars.map((c) => {
+    {toScreen && shownCars.map((c) => {
       const [x, y] = toScreen(c.posX, c.posZ);
       return dot(c, x, y, 8, classPos.get(c), "i");
     })}
+    {/* pit çıkış tahmini — araçların üstünde (hangi aracın yanına düştüğü okunmalı) */}
+    {pitOutMarks}
   </>);
 
   return (<>
@@ -501,6 +653,7 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
       <h2 style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
         <Icon name="harita" size={16} /> {t("Pist Haritası")}
         <span className="hint" style={{ margin: 0, fontWeight: 400 }}>{count}</span>
+        {filterChip}
         <button className="act" style={{ marginLeft: "auto", fontSize: 11, padding: "3px 10px" }}
           title={t("Haritayı tam ekranda aç")}
           onClick={() => setZoom(true)}><Icon name="buyut" size={12} /> {t("Büyüt")}</button>
@@ -517,6 +670,13 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
       )}
     </div>
 
+    {/* ⧉ ayrı pencere — canlı React portalı (kopyalama DEĞİL; bkz. openWin) */}
+    {winHolder && createPortal(
+      <svg viewBox="0 0 520 520" width="100%" height="100%"
+        style={{ maxWidth: "100%", maxHeight: "100%" }}
+        aria-label={t("Pist Haritası")}>{svgKids}</svg>,
+      winHolder,
+    )}
     {zoom && createPortal(
       /* .rc sarmalayıcı ŞART: .wxmodal/.wxmbox stilleri `.rc ...` altında scope'lu;
          body'e doğrudan portallandığında .rc atası olmadan stilsiz kalıp "kayboluyordu". */
@@ -525,6 +685,7 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
           <div className="wxmhead">
             <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <Icon name="harita" size={16} /> {t("Pist Haritası")}
+              {filterChip}
               <span style={{ fontSize: 12, color: "var(--dim)", textTransform: "none",
                 letterSpacing: 0 }}>· {count}</span>
             </span>

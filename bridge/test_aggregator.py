@@ -427,6 +427,240 @@ def test_ve_per_lap_dolum_anomali_elenir():
     assert out == [None, None, 5.0], out
 
 
+class _BestSec:
+    """rF2 VehicleScoring'in en iyi sektör alanlarını taşıyan sahte kayıt.
+    Struct KÜMÜLATİF verir: mBestSector2 = en iyi (S1+S2)."""
+
+    def __init__(self, b1, b12, lap):
+        self.mBestSector1 = b1
+        self.mBestSector2 = b12
+        self.mBestLapTime = lap
+
+
+def test_best_sectors_kumulatiften_tekil_sureye_cevirir():
+    """b2 = mBestSector2 − mBestSector1 · b3 = mBestLapTime − mBestSector2."""
+    v = _BestSec(29.5, 29.5 + 44.0, 29.5 + 44.0 + 30.8)
+    assert RF2Source._best_sectors(v) == [29.5, 44.0, 30.8]
+
+
+def test_best_sectors_eksik_veri_none_dondurur():
+    """Tur atılmamışsa oyun -1 verir → uydurma değer üretme."""
+    assert RF2Source._best_sectors(_BestSec(-1.0, -1.0, -1.0)) == [None, None, None]
+    # yalnız S1 geçilmiş: b1 var, kümülatif S2 ve tur yok
+    assert RF2Source._best_sectors(_BestSec(29.5, -1.0, -1.0)) == [29.5, None, None]
+    # S1+S2 var ama tur henüz tamamlanmamış → b3 None
+    assert RF2Source._best_sectors(_BestSec(29.5, 73.5, -1.0)) == [29.5, 44.0, None]
+
+
+def test_best_sectors_tutarsiz_degerler_elenir():
+    """Kümülatif olmayan/geriye giden değerler (yırtık okuma) sessizce None."""
+    # b12 < b1 → S2 çıkarılamaz
+    assert RF2Source._best_sectors(_BestSec(29.5, 20.0, 100.0)) == [29.5, None, None]
+    # lap < b12 → S3 çıkarılamaz
+    assert RF2Source._best_sectors(_BestSec(29.5, 73.5, 50.0)) == [29.5, 44.0, None]
+
+
+def test_best_sectors_alan_yoksa_cokmeden_none():
+    """Eski/farklı struct düzeni: alanlar hiç yok → [None,None,None]."""
+    assert RF2Source._best_sectors(object()) == [None, None, None]
+
+
+class _TimeInto:
+    """mTimeIntoLap / mEstimatedLapTime taşıyan sahte scoring kaydı."""
+
+    def __init__(self, into, est):
+        self.mTimeIntoLap = into
+        self.mEstimatedLapTime = est
+
+
+def test_time_into_lap_sifir_gecerli_degerdir():
+    """v2.3.0 relative zaman yolu: araç S/F'yi yeni geçmişse mTimeIntoLap tam 0.0
+    olur. `float(...) or -1.0` yazılırsa 0.0 falsy olduğu için -1.0'a çevrilir ve
+    GEÇERLİ bir okuma "veri yok"a döner — web tarafı o aracı mesafe yedeğine
+    düşürürdü. Bu testin kilitlediği şey tam olarak budur."""
+    v = _TimeInto(0.0, 92.5)
+    assert round(float(getattr(v, "mTimeIntoLap", -1.0)), 3) == 0.0
+    # yanlış kalıbın ne yaptığını da kayda geçir (regresyon niyeti açık olsun)
+    assert (float(getattr(v, "mTimeIntoLap", -1.0)) or -1.0) == -1.0
+
+
+class _PitTyreFake:
+    """Pit giriş/çıkış kenarını taklit eder: (inPits, tyres4, tyreComp)."""
+
+    def __init__(self, seq):
+        self.seq = list(seq)
+        self.i = 0
+
+    def read(self):
+        p, t4, tc = self.seq[min(self.i, len(self.seq) - 1)]
+        self.i += 1
+        return {"session": {}, "own": None, "field": [{
+            "pos": 1, "carId": 1, "driver": "A", "lapsDone": 10, "lastSec": 100.0,
+            "bestSec": 100.0, "inPits": p, "tyres4": t4, "tyreComp": tc}]}
+
+
+def _pit_change(seq):
+    agg = Aggregator(_PitTyreFake(seq))
+    return [agg.read()["field"][0].get("tyreChange") for _ in range(len(seq))][-1]
+
+
+_WORN = [0.55, 0.54, 0.52, 0.51]
+_FRESH = [1.0, 1.0, 1.0, 1.0]
+_FRONT = [1.0, 1.0, 0.52, 0.51]
+
+
+def test_pit_rozeti_uctan_uca_dort_lastik():
+    ch = _pit_change([(False, _WORN, "Medium"), (True, _WORN, "Medium"),
+                      (False, _FRESH, "Medium")])
+    assert ch["n"] == 4, ch
+
+
+def test_pit_rozeti_uctan_uca_iki_on():
+    ch = _pit_change([(False, _WORN, "Medium"), (True, _WORN, "Medium"),
+                      (False, _FRONT, "Medium")])
+    assert ch["n"] == 2 and ch["corners"] == ["fl", "fr"], ch
+
+
+def test_pit_rozeti_yakit_only_durak_sifir_der():
+    """0 da bilgidir: "durdu ama lastik almadı" stratejik olarak önemlidir."""
+    ch = _pit_change([(False, _WORN, "Medium"), (True, _WORN, "Medium"),
+                      (False, _WORN, "Medium")])
+    assert ch["n"] == 0, ch
+
+
+def test_pit_rozeti_bilesim_degisimi_asinmadan_bagimsiz_yakalanir():
+    """slick→wet: aşınma sıçraması küçük olsa bile bileşim değiştiyse 4 lastiktir."""
+    ch = _pit_change([(False, _WORN, "Medium"), (True, _WORN, "Medium"),
+                      (False, _WORN, "Wet")])
+    assert ch["n"] == 4 and ch["comp"] == "Wet", ch
+
+
+def test_pit_rozeti_ONLINE_RAKIPTE_CIKMAZ_kapsam_siniri():
+    """KAPSAM SINIRI — bu bir hata değil, veri yolunun sınırı; testle kayda geçiyor.
+
+    Tespit `tyres4` + `tyreComp`'a dayanır ve ikisi de TELEMETRİDEN gelir. Online
+    yarışta oyun rakip telemetrisini simüle etmez: dört teker tam 1.0'a donar,
+    `_wear4` bunu bilerek "veri yok" (None) sayar (v1.4.65). Bileşim de değişmediyse
+    karar verilemez → rozet ÇİZİLMEZ. Uydurma bir "4 lastik" ÜRETİLMEMELİDİR."""
+    assert RF2Source._wear4(_Tele([1.0, 1.0, 1.0, 1.0]), laps=10) is None
+    ch = _pit_change([(False, None, "Medium"), (True, None, "Medium"),
+                      (False, None, "Medium")])
+    assert ch is None, ch
+
+
+def test_pit_rozeti_online_rakipte_bilesim_degisimi_yine_de_yakalanir():
+    """Aşınma okunamasa bile bileşim değişimi KESİN bilgidir → 4 lastik."""
+    ch = _pit_change([(False, None, "Medium"), (True, None, "Medium"),
+                      (False, None, "Wet")])
+    assert ch["n"] == 4 and ch["comp"] == "Wet", ch
+
+
+class _SpeedFake:
+    """Tek aracı kare kare besler: (lapsDone, speedKph)."""
+
+    def __init__(self, seq):
+        self.seq = list(seq)
+        self.i = 0
+
+    def read(self):
+        laps, spd = self.seq[min(self.i, len(self.seq) - 1)]
+        self.i += 1
+        return {"session": {}, "own": None, "field": [{
+            "pos": 1, "carId": 1, "driver": "A", "lapsDone": laps,
+            "lastSec": 100.0, "bestSec": 100.0, "inPits": False, "speedKph": spd}]}
+
+
+def _tops(seq):
+    agg = Aggregator(_SpeedFake(seq))
+    return [agg.read()["field"][0].get("topSpeed") for _ in range(len(seq))]
+
+
+def test_top_speed_kosan_maksimum_tutar():
+    assert _tops([(1, 180), (1, 250), (1, 210), (1, 300), (1, 120)]) \
+        == [180, 250, 250, 300, 300]
+
+
+def test_top_speed_yirtik_kare_maksimumu_ZEHIRLEMEZ():
+    """Paylaşımlı bellek yırtık okunduğunda saçma bir hız gelebilir. Maksimum bir
+    kez zehirlenirse bir daha DÜŞMEZ — yarış boyunca yanlış değer gösterilirdi."""
+    assert _tops([(1, 200), (1, 99999), (1, 260)]) == [200, 200, 260]
+    # tam sınırda kabul, üstünde ret
+    assert _tops([(1, 500)]) == [500]
+    assert _tops([(1, 501)]) == [None]
+
+
+def test_top_speed_gecersiz_okuma_yok_sayilir():
+    """0/negatif/None hız (durmuş araç, eksik alan) maksimuma yazılmaz."""
+    assert _tops([(1, 0), (1, -5), (1, None), (1, 190)]) == [None, None, None, 190]
+
+
+def test_top_speed_yeni_seansta_sifirlanir():
+    """Seans değişince (lapsDone kalıcı gerilemesi) rekor sıfırdan başlamalı,
+    yoksa antrenmanın hızı yarışta görünürdü."""
+    agg = Aggregator(_SpeedFake([(5, 300), (5, 300), (5, 300),
+                                 (1, 150), (1, 150), (1, 150), (1, 150)]))
+    out = [agg.read()["field"][0].get("topSpeed") for _ in range(7)]
+    assert out[0] == 300
+    assert out[-1] == 150, out
+
+
+class _Status:
+    """mFinishStatus / mPitState taşıyan sahte scoring kaydı."""
+
+    def __init__(self, fin, pit):
+        self.mFinishStatus = fin
+        self.mPitState = pit
+
+
+def test_finish_status_ve_pit_state_ham_kod_olarak_gecer():
+    """Köprü yorum yapmaz, ham struct kodunu geçirir (yorum web tarafında,
+    liveStatus.js'te). 0=none/1=finished/2=dnf/3=dq · 0..4 pit aşaması."""
+    for fin in (0, 1, 2, 3):
+        v = _Status(fin, 0)
+        assert int(getattr(v, "mFinishStatus", 0) or 0) == fin
+    for pit in (0, 1, 2, 3, 4):
+        v = _Status(0, pit)
+        assert int(getattr(v, "mPitState", 0) or 0) == pit
+
+
+def test_durum_alanlari_yoksa_sifira_duser_cokmez():
+    """Eski/farklı struct düzeni: alan yok → 0 (= 'durum yok'), istisna değil."""
+    v = object()
+    assert int(getattr(v, "mFinishStatus", 0) or 0) == 0
+    assert int(getattr(v, "mPitState", 0) or 0) == 0
+
+
+class _OwnFake:
+    """own'ı TELEMETRİDEN kuran RF2Source davranışını taklit eder: own'da
+    driver/carClass YOK, oyuncunun field satırında VAR."""
+
+    def read(self):
+        return {"session": {}, "field": [{
+            "pos": 1, "carId": 3, "driver": "A. Demircan", "carClass": "Hypercar",
+            "team": "Caspian", "manufacturer": "Porsche", "number": "92",
+            "lapsDone": 5, "lastSec": 100.0, "bestSec": 99.0,
+            "inPits": False, "isPlayer": True}],
+            "own": {"fuel": 40.0, "vehicleName": "963"}}
+
+
+def test_own_driver_ve_carclass_oyuncu_satirindan_doldurulur():
+    """v2.3.0 hata düzeltmesi: own hiç driver/carClass taşımıyordu → kendi araç
+    kartı her zaman jenerik 'Kendi Araç' yazıyor, sınıf rengi hiç görünmüyordu."""
+    own = Aggregator(_OwnFake()).read()["own"]
+    assert own["driver"] == "A. Demircan", own
+    assert own["carClass"] == "Hypercar", own
+    # LMU REST zenginleştirmesi de yalnız field satırlarına ekleniyordu
+    assert own["team"] == "Caspian"
+    assert own["manufacturer"] == "Porsche"
+    assert own["number"] == "92"
+
+
+def test_own_mevcut_alanlar_ezilmez():
+    """own'da ZATEN dolu olan alan (vehicleName) field'dan gelen değerle ezilmemeli."""
+    own = Aggregator(_OwnFake()).read()["own"]
+    assert own["vehicleName"] == "963", own
+
+
 if __name__ == "__main__":
     fails = 0
     for name, fn in sorted(globals().items()):

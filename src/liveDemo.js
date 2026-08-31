@@ -71,6 +71,11 @@ export function demoLive(el) {
       lapsDone: laps, lastSec: +last.toFixed(3), bestSec: +(lapT - 0.5).toFixed(3),
       lastSectors: [+(last * 0.25).toFixed(3), +(last * 0.44).toFixed(3),
         +(last * 0.31).toFixed(3)],
+      /* Kişisel en iyi sektörler (v2.3.0) — mor/yeşil renklendirme demoda da
+         çalışsın diye en iyi turdan türetilir; anlık sektörlerdeki dalgalanma
+         zaman zaman bunun altına iner → renk canlı canlı yanıp söner. */
+      bestSectors: [+((lapT - 0.5) * 0.25).toFixed(3), +((lapT - 0.5) * 0.44).toFixed(3),
+        +((lapT - 0.5) * 0.31).toFixed(3)],
       inPits: (Math.floor(el / 90) % 13) === i,
       pitStops: Math.floor(laps / 45),
       // penalties = ANLIK bekleyen ceza (servis edilince 0'a düşer),
@@ -82,6 +87,22 @@ export function demoLive(el) {
       virtualEnergy: +Math.max(3, 100 - ((el + i * 40) % 1500 / 1500) * 92).toFixed(1),
       lapDist: +(frac * TRACK_LEN).toFixed(1), posX: +px.toFixed(1), posZ: +pz.toFixed(1),
       sector: frac < 0.40 ? 1 : frac < 0.73 ? 2 : 0,   // 0=S3,1=S1,2=S2 (eşit değil)
+      /* relative ZAMAN yolu (v2.3.0). Demoda tur içi zamanı frac'tan DÜZ türetmek
+         zaman yolunu mesafe yolunun kopyası yapardı ve fark hiç görünmezdi —
+         gerçek pistte hız sabit değil. Hafif bir hız profili uygulanır (orta
+         sektör yavaş), böylece demo iki yöntemin ayrıştığını gerçekten gösterir. */
+      timeIntoLap: +(lapT * (frac + 0.06 * Math.sin(frac * Math.PI * 2))).toFixed(3),
+      estLapTime: +lapT.toFixed(3),
+      /* v2.3.0 durum alanları: bir araç DNF (satır soluk + DSQ/DNF çipi), bir
+         araç pit ÇAĞRISI vermiş (hâlâ pistte), pittekiler aşama gösterir. */
+      // anlık hız (tur içi konuma göre) + seans rekoru — Vmax sütunu demoda dolsun
+      speedKph: Math.round(120 + 190 * Math.abs(Math.sin(frac * Math.PI)) - i * 1.5),
+      topSpeed: Math.round(312 - i * 2.4),
+      finishStatus: i === 9 ? 2 : 0,
+      /* pitState: pitteki araç AŞAMA gösterir (3=durdu), pistteki bir araç da
+         pit ÇAĞRISI vermiş olur (1) — iki durum farklı araçlarda görünsün. */
+      pitState: (Math.floor(el / 90) % 13) === i ? 3
+        : (Math.floor(el / 60) % 13) === i ? 1 : 0,
       // ANLIK sektörler: bu turda geçilen S1/S2 (S1 çizgisi ~%40, S2 ~%73 sonrası)
       curSectors: (() => {
         const s1 = +(lapT * 0.25 + Math.sin(el + i) * 0.3).toFixed(1);
@@ -131,6 +152,10 @@ export function demoLive(el) {
       fuel: +Math.max(2, 78 - (stint / 1500) * 70).toFixed(1), fuelCapacity: 78,
       virtualEnergy: me.virtualEnergy, team: me.team,
       manufacturer: "Porsche", number: me.number, vehicleName: "911GT3R",
+      /* v2.3.0: gerçek köprü artık own'a driver/carClass da kopyalıyor
+         (Aggregator, oyuncunun field satırından) — demo da onu yansıtmalı,
+         yoksa "Kendi Araç" kartı demoda gerçek davranışı göstermez. */
+      driver: me.driver, carClass: me.carClass,
       position: me.pos, lastLapSec: me.lastSec, bestLapSec: me.bestSec,
       curLapSec: +(stint % me.lastSec).toFixed(1),
       s1: +(me.lastSec * 0.32).toFixed(3), s2: +(me.lastSec * 0.35).toFixed(3),

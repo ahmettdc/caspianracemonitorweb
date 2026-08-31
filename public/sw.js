@@ -6,7 +6,7 @@
    - Firebase / Google (cross-origin): dokunulmaz, her zaman ağdan
    Sürüm değişince CACHE adını artır → eski cache temizlenir.
    ============================================================ */
-const CACHE = "crc-v2.2.4";   // sürüm başına artır → eski app-shell temizlenir
+const CACHE = "crc-v2.3.0";   // sürüm başına artır → eski app-shell temizlenir
 const APP_SHELL = ["./", "./index.html", "./favicon.png", "./favicon.svg", "./manifest.webmanifest"];
 
 self.addEventListener("install", (e) => {

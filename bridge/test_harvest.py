@@ -26,7 +26,8 @@ def _row(key="c7", laps=None, nums=None, **over):
 
 def test_yeni_turlar_yazilir_ve_kare_kirpilir():
     h = Harvester("r1")
-    f = _frame([_row(laps=[101.0, 100.5], nums=[1, 2], lastSectors=[27.9, 48.2, 24.4])])
+    f = _frame([_row(laps=[101.0, 100.5], nums=[1, 2], lastSectors=[27.9, 48.2, 24.4],
+                     tyreChange={"n": 2, "corners": ["fl", "fr"], "lap": 2})])
     patches = h.process(f)
     assert len(patches) == 1, patches
     u = patches[0]
@@ -37,7 +38,11 @@ def test_yeni_turlar_yazilir_ve_kare_kirpilir():
     assert "livesec/r1/c7/1" not in u
     assert u["livecond/r1/c7/2"].startswith("31,4,")      # temp,wet,grip
     row = f["field"][0]
-    for fld in ("laps", "lapsFrom", "lapNums", "tyreChange"):
+    # v2.3.0: tyreChange KARE'DE KALIR — Pit sütunu lastik değişim rozetini bu
+    # alandan çiziyor. Hafif .exe köprü (README'nin sürüş PC'si için önerdiği yol)
+    # onu siliyordu, rozet asıl kullanılacağı yolda hiç görünmüyordu.
+    assert row.get("tyreChange") == {"n": 2, "corners": ["fl", "fr"], "lap": 2}, row
+    for fld in ("laps", "lapsFrom", "lapNums"):
         assert fld not in row                              # kare küçük (JS ile aynı)
 
 

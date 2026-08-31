@@ -3728,7 +3728,14 @@ ${bottomBar}
           {tab === "tyre" && (
             <TyreTab t={t} st={st} up={up} tyreInfo={tyreInfo} racePlan={racePlan}
               carriedAt={carriedAt} upTyreCell={upTyreCell} quickTyre={quickTyre}
-              qsel={qsel} setQsel={setQsel} QSEL_LBL={QSEL_LBL} clearTyres={clearTyres} />
+              qsel={qsel} setQsel={setQsel} QSEL_LBL={QSEL_LBL} clearTyres={clearTyres}
+              /* Lastik defteri: köprünün yazdığı GERÇEK pit değişimleri
+                 (livetyre/livelaps). lapKey oyuncunun araç kimliği. */
+              tid={curTeam} rid={curRace} lapKey={live?.own?.lapKey || ""}
+              /* Diş ölçümü: canlı köşe aşınması + oyuncunun turu + planlanan
+                 stint uzunluğu (ölçülen tur-başı aşınmayı stinte çevirmek için) */
+              ownTyres={live?.own?.tyres} lastLapNo={live?.own?.lapsDone}
+              stintLaps={racePlan.rows[0]?.lapsInStint} />
           )}
 
           {tab === "drivers" && (

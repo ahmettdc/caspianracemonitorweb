@@ -794,6 +794,62 @@ export const EN = {
   "Tur başına VE tüketimi": "Virtual Energy used per lap",
   "Bekleyen ceza": "Outstanding penalties",
   "Ceza sayısı (cut/puan cezaları dahil)": "Penalty count (incl. cut/points penalties)",
+  // v2.3.0 — sektör renklendirme · sıralama/arama · relative · garaj · tur sayacı
+  "Mor: sınıf rekoru · Yeşil: kişisel rekor":
+    "Purple: class record · Green: personal best",
+  "Bu sütuna göre sırala": "Sort by this column",
+  "Pilot / takım ara": "Search driver / team",
+  "Aramayı temizle": "Clear search",
+  "Relative": "Relative",
+  "Pist konumuna göre etrafımdaki araçlar (±3)":
+    "Cars around me by track position (±3)",
+  "Pistte önümüzde (−) / arkamızda (+) saniye":
+    "Seconds ahead (−) / behind (+) on track",
+  "Liderin turu / yarış turu": "Leader's lap / race laps",
+  "Pit talebi verildi — araç henüz pistte": "Pit stop requested — car still on track",
+  "Pit yolunda": "In the pit lane",
+  "Pit çıkış tahmini (sn)": "Pit-out prediction (s)",
+  "gizli": "hidden",
+  "Standings'teki 'kendi sınıfım' süzgeci haritaya da uygulanıyor":
+    "The 'my class only' filter from standings is applied to the map too",
+  // v2.3.0 — lastik defteri (gerçek pit değişimleri)
+  "Lastik defteri": "Tyre log",
+  "Plan ↔ Gerçek": "Plan vs actual",
+  // v2.3.0 — diş modeli + değişim süresi (TinyPedal planlayıcı deseni)
+  "Değişim": "Change",
+  "Bu stintte lastik değiştirmenin pit süresine maliyeti":
+    "What changing tyres in this stint costs in pit time",
+  "Stint başına aşınma": "Wear per stint",
+  "ölçülen": "measured", "Canlı ölçüm": "Live measurement", "kalan diş": "tread left",
+  "Plandaki lastik değişimi": "Tyre changes in plan",
+  "Yeni": "New", "PATLAK": "BLOWOUT",
+  "Plan bu seti kapasitesinin ötesinde çalıştırıyor":
+    "The plan runs this set beyond its capacity",
+  "Bu setin": "This set's", "stinti": "stint",
+  "sapma": "deviation", "plana uyuyor": "matches the plan",
+  "bekliyor": "pending", "planda yok": "not in plan",
+  "Plan": "Plan", "Gerçek": "Actual", "lastik": "tyres",
+  "Planda karşılığı yok": "No matching entry in the plan",
+  "Henüz gerçekleşmedi": "Has not happened yet",
+  "Plan mevcut tablodan türetilir (dolu hücre = pit işlemi). Planda tur numarası olmadığı için eşleme SIRAYLA yapılır, tur-hassas değildir.":
+    "The plan is derived from the existing table (a filled cell = a pit action). Because the plan carries no lap numbers, entries are matched IN ORDER, not lap-exactly.",
+  "yarıştaki GERÇEK lastik değişimleri — elle giriş yok":
+    "the REAL tyre changes from the race — no manual entry",
+  "tam set": "full sets", "aks": "axle", "yakıt-only": "fuel-only",
+  "Henüz kayıt yok — köprü çalışırken pit değişimleri buraya kendiliğinden düşer.":
+    "No entries yet — pit changes land here on their own while the bridge is running.",
+  "Yarış başındaki set — oyun ne takıldığını söylemiyor":
+    "The set the race started on — the game does not say what was fitted",
+  "lastik takıldı": "tyres fitted",
+  "Başlangıç": "Start", "YENİ": "NEW", "sürüyor": "ongoing",
+  "hamur bilinmiyor": "compound unknown",
+  "Oyun lastik SET KİMLİĞİ vermiyor; defter pit olaylarından türetilir. Hamur yalnız ön/arka okunabilir, köşe başına değil.":
+    "The game exposes no tyre SET ID; the log is derived from pit events. Compound is readable per axle only, not per corner.",
+  "Seansta görülen en yüksek hız": "Highest speed seen this session",
+  "Şu an": "Now",
+  "Slipstream'de atılan hız da buna dahildir": "Speeds set in a slipstream are included",
+  "Yarışı bitiremedi": "Did not finish", "Diskalifiye": "Disqualified",
+  "ÇAĞRI": "CALL", "GİRİŞ": "IN", "DURDU": "STOP", "ÇIKIŞ": "OUT",
   // tur geçmişi pist koşulları (v1.4.83)
   "Asfalt sıcaklığı": "Track temp", "Yol tutuş": "Grip",
   "Turlardan modellenmiş tahmin (gerçek okuma değil)":

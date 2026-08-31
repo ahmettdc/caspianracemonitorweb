@@ -1,5 +1,486 @@
 # Changelog
 
+## v2.3.0 — 2026-08-31
+
+Live Timing standings genişletmesi. Referans olarak TinyPedal'ın `Standings`/`Relative`
+widget'ları tarandı (`docs/customization.md`); kopyalanmadı — bizimki bir **pit duvarı
+web uygulaması**, onunki bir **sürücü overlay'i**, bu yüzden yalnız bizim bağlamımızda
+karşılığı olanlar alındı. Karşılaştırmada bizde ZATEN olduğu görülenler (canlı pist
+haritası `TrackMap.jsx`, marka logosu, pit durak sayısı, trafik rozetleri
+`StrategyBar.jsx`, VE/tur, tur geçmişi) tekrar yapılmadı.
+
+### Sektör süreleri renklendirilmiyordu
+
+- **Belirti:** `Sektör` sütunu S1·S2·S3'ü düz `--rc-text-2`/`--dim` ile yazıyordu. Sayı
+  vardı, **anlam yoktu** — hangi sektörün rekor olduğu görünmüyordu. Klasik timing
+  tower'ın en çok kullanılan sinyali eksikti.
+- **Neden yapılamamıştı:** karar için sektör bazlı **kişisel en iyi** gerekir; köprü
+  yalnız `lastSectors` (son tur) ve `curSectors` (anlık) gönderiyordu. Paylaşımlı
+  bellekte veri vardı (`mBestSector1`, `mBestSector2`, `mBestLapTime`) ama okunmuyordu.
+- **Köprü (`rf2_source.py`):** `_best_sectors(v)` — struct **kümülatif** verir
+  (`mBestSector2` = en iyi S1+S2), tekil süreye çevrilir: `b2 = mBestSector2 − mBestSector1`,
+  `b3 = mBestLapTime − mBestSector2`. Her araca `bestSectors: [b1,b2,b3]` eklendi.
+  - **Zincir tutarlılığı:** `b3` kümülatif `b12`'ye dayanır. `b12` yırtık okunmuşsa
+    (`b12 < b1`) `lap − b12` **makul görünen ama uydurma** bir S3 üretiyordu; `b2`
+    geçerli değilse `b3` de üretilmiyor (testle kilitlendi).
+  - **Bilinçli kabul:** oyun bu üç alanı bağımsız en iyiler olarak tutar → `b2`/`b3`
+    farklı turlardan gelebilir, yani "teorik en iyi"ye yakındır. Timing tower'ların
+    kişisel-best ölçütü zaten budur.
+- **Web (`src/liveSectors.js`, yeni):** `classBestSectors` (sınıf başına en hızlı
+  sektörler) + `sectorTone` + `sectorTones`. Renk semantiği **`liveFlash.js` ile birebir
+  aynı** tutuldu — aynı ekranda iki farklı "mor" anlamı olmasın: MOR = sınıf rekoru,
+  YEŞİL = kişisel rekor, mor yeşili ezer.
+  - Sınıf rekoru **süzgeçten önce, tüm sahadan** hesaplanır: "kendi sınıfım" açıkken de
+    rekor gerçek rekordur, süzülmüş listenin en iyisi değil.
+- **UI:** `SectorCell` bileşeni — sektör başına ayrı renkli span. Eski `secStr`/`liveSecStr`
+  düz-string yardımcıları ölü kod olarak kaldırıldı (renk üretimi string'e sığmıyor).
+  Anlık/son-tur seçimi ve "üçü birden geçerli değilse —" davranışı **birebir korundu**.
+
+### Saha tablosunda sıralama ve arama YOKTU
+
+- **Belirti:** sıra tamamen köprünün `pos` alanıydı; kolon başlığından sıralama ve arama
+  kutusu hiç yoktu. 40+ araçlık sahada "en çok hasar alan", "kim kaç kez pitledi",
+  "AVG5'i en iyi" soruları gözle taranarak cevaplanıyordu.
+- **Çözüm (`src/liveSort.js`, yeni):** `sortRows` + `matchQuery` + `fold`.
+  - **Eksik veri her zaman sona gider.** Yön ters çevrilince `null`/`Infinity`'nin büyük
+    sayı gibi başa çıkması klasik hatadır; değeri olmayan satırlar ayrı toplanıp sona
+    eklenir (iki yönde de testli).
+  - **Eşitlikte yarış pozisyonu çözer** → kare kare gelen veride satırlar birbirinin
+    yerine zıplamaz (hepsi 0 ceza olan bir sahada bu görünür bir hataydı).
+  - **Takaslı sütunlar ekranda GÖRÜNEN değere göre sıralanır** (`gapMode`/`lapMode`/
+    `avgMode`/`showTeam` context olarak geçer) — kullanıcı ne görüyorsa ona göre sıralar.
+  - Arama Türkçe katlamalı (`setupPool.slugPart` deseni): `sahin` → `Şahin`, `agri` → `Ağrı`.
+  - **Sağlamlık:** canlı kare Firebase'den gelir ve bozuk satır taşıyabilir; `posOf`
+    null-güvenli (testin yakaladığı gerçek çökme).
+- **UI:** mevcut takas düğmeleri (`Pilot↔Takım`, `Gap↔Aralık`, `Son↔En İyi`, `AVG5↔AVG`,
+  sınıf süzgeci) **korundu** — sıralama ayrı ve küçük bir ok düğmesi, eski davranış hiç
+  değişmedi. Üçüncü tık varsayılana (yarış sırası) döner.
+
+### Relative (pist konumuna göre yakın saha) yoktu
+
+- **Belirti:** kod tabanında "relative" kelimesi hiç geçmiyordu. Sıralama tablosu yarış
+  sırasını gösterir; tur-altı bir araç sıralamada 15 satır aşağıdadır ama **pistte tam
+  önümüzde** olabilir — trafik/mavi bayrak/undercut kararları sıralamadan okunamaz.
+- **Yöntem — mesafe DEĞİL, ZAMAN.** İlk uygulama farkı tur içi mesafeden türetiyordu
+  (`(otherDist − meDist) / trackLength × turSüresi`). Bu **sabit hız varsayar**: 500 m
+  düzlükte ~6 sn, 500 m şikan kompleksinde ~20 sn eder → hata tam da relative'in en
+  çok gerektiği yerde (yavaş virajlar, trafik) büyür.
+  - **TinyPedal kaynağı incelendi** (`tinypedal/module/module_relative.py`,
+    `get_vehicles_info`): mesafeyi **hiç kullanmıyor**, oyunun kendi alanlarını okuyor —
+    `diff = opponent.mTimeIntoLap − player.mTimeIntoLap`, `mEstimatedLapTime` modülünde
+    sarmalanır. rF2 struct'ının kendi notu da eşleşmeyi söylüyor: `mEstimatedLapTime` =
+    *"estimated laptime used for 'time behind' and 'time into lap'"*.
+  - Köprü artık araç başına `timeIntoLap` + `estLapTime` gönderiyor (aynı zaten
+    haritalanmış struct'tan 2 `getattr`; yeni REST/thread/hız değişikliği YOK).
+  - **Mesafe yolu YEDEK olarak kalıyor:** köprü `.exe` kullanıcı tarafından ayrı
+    güncelleniyor, sahadaki eski sürümler yeni alanları göndermez → özellik kaybolmaz,
+    yalnız o kare yaklaşık olur. Eksik alan **araç bazında** ele alınır (bir araç
+    yedeğe düşerken diğerleri zaman yolunda kalır).
+- **`0` geçerli, `-1` değil.** `mTimeIntoLap` tam `0.0` olabilir (araç S/F'yi yeni
+  geçmiş). Köprüde `float(...) or -1.0` yazılırsa `0.0` falsy olduğu için geçerli okuma
+  "veri yok"a döner — bu hata geliştirme sırasında yapıldı, testle kilitlendi. Web
+  tarafında da eşik `>= 0` (oyunun `-1` nöbetçisi "yok" demektir).
+- **Yapı:** `wrapTime` (zaman, birincil) · `wrapDist` (mesafe, yedek) · `relGapSec` ·
+  `refLap` (AVG5 → AVG → son tur → en iyi) · `relativeRows` (oyuncu ±3).
+  - İşaret konvansiyonu TinyPedal ile birebir doğrulandı: widget metni `-data[0]` ile
+    yazıyor → **− önümüzde, + arkamızda**. Pencere yapısı da aynı (N önde, oyuncu, N arkada).
+  - TinyPedal iki ayrı liste tutar (ahead `[0,L)` / behind `[−L,0)`); bizde tek ±pencere
+    olduğu için **kısa yol** seçilir (yarım tur eşiği) — aynı sayının iki gösteriminden
+    biri, sapma değil.
+  - **`Number(null) === 0` tuzağı:** açık kontrol olmadan `lapDist`i eksik bir araç
+    "S/F çizgisinde" sayılıp makul görünen ama tamamen **uydurma** bir relative farkı
+    üretiyordu → eksik veri elenir (testin yakaladığı gerçek hata).
+  - Pit/garajdaki araçlar elenir (pist boşluğunu yanlış gösterirler); **oyuncunun kendisi
+    pit'te olsa bile listede kalır**.
+- **Kalan doğruluk sınırı:** `mEstimatedLapTime` oyunun tahminidir ve araç/setup'a göre
+  değişebilir (struct notu bunu açıkça söylüyor); sınıflar arası farkta hâlâ yaklaşıklık
+  payı vardır. Ama artık sabit-hız varsayımı yok.
+- **UI:** `Relative` düğmesi yalnız kendi aracımız sahadayken **ve** `trackLength`
+  biliniyorken görünür (tıklayıp boş liste görmeyelim). Bu modda `Gap` sütunu ± relatif
+  saniyeye döner ve **metin araması uygulanmaz** (arama kutusu gizlenir) — "etrafımdaki
+  araçlar"ı ada göre süzmek anlamsız bir kesişim üretir.
+
+### Yazılmış ama hiç bağlanmamış iki özellik
+
+- **Lastik 4 köşe ızgarası:** `TyreCell`'in 2×2 dalı v2.2.4'te de yazılıydı ama hücre
+  `single` prop'uyla çağrıldığı için yalnız **en kötü köşe** görünüyordu — "hangi lastik
+  bitti" cevapsızdı. `single` kaldırıldı; `tyres4` yoksa bileşen kendiliğinden tek
+  aşınmaya düşer (davranış korunur).
+- **Pit lastik değişim rozeti:** `tyreInfo.tyreChangeBadge()` yazılı **ve testliydi**
+  (11 test) ama hiçbir yerden import edilmiyordu; üstelik köprü verisi
+  `liveBridge.js:245`'te "tabloda gösterilmiyor" gerekçesiyle **kareden siliniyordu**.
+  Silme kaldırıldı, rozet Pit sütununa bağlandı: `4` / `2 ÖN` / yakıt-only durakta `0`.
+  Boyut: araç başına tek küçük nesne, Firebase yaprak sınırının çok altında.
+  - **KAPSAM SINIRI (uçtan uca ölçüldü, tahmin değil).** `Aggregator.tyre_change`
+    girdileri `tyres4` + `tyreComp`; **ikisi de TELEMETRİDEN** gelir
+    (`_wear4(tv)` / `_compound(tv)`). Online yarışta rakip telemetrisi simüle
+    edilmez — dört teker tam `1.0`'a donar ve `_wear4` bunu bilerek `None` sayar
+    (v1.4.65 kararı). Sonuç: **rozet online'da rakiplerin çoğunda ÇIKMAZ.**
+    Gerçek Aggregator'la ölçülen davranış:
+
+    | Senaryo | Sonuç |
+    |---|---|
+    | Kendi araç, 4 lastik | `{n:4}` → `4` |
+    | Kendi araç, 2 ön | `{n:2, corners:[fl,fr]}` → `2 ÖN` |
+    | Yakıt-only durak | `{n:0}` → `0` |
+    | Bileşim slick→wet (aşınma sıçraması küçük) | `{n:4, comp:"Wet"}` → `4` |
+    | **Online rakip, aşınma okunamıyor, bileşim sabit** | **`None` → rozet yok** |
+    | Online rakip, bileşim değişmiş | `{n:4, comp:"Wet"}` → `4` |
+
+    Yani: **kendi aracımızda ve offline/AI yarışlarda tam**, online'da rakipte
+    yalnız bileşim değişimi. Veri yoksa rozet çizilmez — uydurma yok.
+
+### `own` kendi araç kartı: pilot adı ve sınıf HİÇ gelmiyordu
+
+- **Belirti:** "Kendi Araç" kartı her zaman jenerik `Kendi Araç` yazıyor, sınıf rengi hiç
+  görünmüyordu.
+- **Kök neden:** `RF2Source` `own`'ı oyuncunun **TELEMETRY** kaydından kurar; `driver` ve
+  `carClass` ise yalnız **SCORING** satırında bulunur. `LiveTab.jsx:312-318` üçünü de
+  okuyordu ama köprü hiçbirini göndermiyordu (`own` anahtarları: fuel, tyres, throttle,
+  gear, rpm, position, s1/s2/s3, location…). `team`/`manufacturer`/`number` ise LMU REST
+  zenginleştirmesinde **yalnız field satırlarına** ekleniyordu — `own`'a hiç ulaşmıyordu.
+- **Neden fark edilmemişti:** `liveDemo.js` bu alanları elle veriyordu (`team`,
+  `manufacturer`, `number`) → demo yolunda kart doluymuş gibi görünüyordu.
+- **Çözüm:** `Aggregator.read` — oyuncunun **kendi field satırı** (REST zenginleştirmesi
+  sonrası) hepsini taşır, oradan kopyalanır. Yalnız `own`'da **eksik** olan doldurulur
+  (`vehicleName` gibi doğrudan okunan alanlar ezilmez, testli). Demo da gerçek davranışı
+  yansıtacak şekilde hizalandı.
+
+### Yarış durumu (DNF/DSQ) ve pit AŞAMASI okunmuyordu
+
+TinyPedal kaynağı tarandıktan sonra eklendi. İkisi de **`rF2VehicleScoring`** alanı →
+telemetri değil, yani **online yarışta rakipler için de güvenilir** (rakip telemetrisi
+donabiliyor; `tyreInfo.teleStale` tam da onun için var).
+
+- **`mFinishStatus`** (struct: `0=none, 1=finished, 2=dnf, 3=dq`) — okunmuyordu, bu
+  yüzden **yarışı bırakan araç tabloda hâlâ yarışıyormuş gibi duruyordu**: gap'i donuyor
+  ama satır normal görünüyor, "kim hâlâ sahada" sorusu gözle çıkarılamıyordu.
+  - `DNF`/`DSQ` çipi + satır soluklaştırma (`opacity .45`). Veri donduğu için gap/tur
+    değerleri olduğu gibi bırakılır, yalnız satır yarışmadığını belli eder.
+  - **`FIN` çipi bilinçli olarak YOK:** yarış bitince **herkes** `1` olur, bilgi taşımaz.
+    `isRetired` da yalnız 2/3'ü "bırakmış" sayar.
+- **`mPitState`** (struct: `0=none, 1=request, 2=entering, 3=stopped, 4=exiting`) —
+  Pit sütunu tek düz `PIT` çipi yerine **aşama** gösteriyor: `ÇAĞRI · GİRİŞ · DURDU · ÇIKIŞ`.
+  - Asıl kazanım **`1` (request)**: bu kod araç **HÂLÂ PİSTTEYKEN** gelir → *"rakip pit
+    çağırdı ama henüz girmedi"*. Undercut'a karşı erken uyarı olduğu için diğer
+    aşamalardan **ayrı renkte** (`--rc-warn`, kalın).
+- **Geriye uyum:** köprü `.exe` ayrı güncelleniyor; eski sürümler bu alanları göndermez.
+  `pitChip` alan yoksa **eski `inPits` davranışına düşer** (düz `PIT`), `finishLabel`
+  `null` döner → özellik sessizce kaybolur, hiçbir şey bozulmaz.
+- **Uydurma yok:** bilinmeyen/bozuk kod (`9`, `-1`, `1.5`, metin) etiket üretmez.
+  `Number(null) === 0` tuzağı burada da geçerli — `0` **geçerli** bir koddur ("durum
+  yok"), eksik veriden açıkça ayrılır.
+- **Yapı:** `src/liveStatus.js` (saf) + `liveStatus.test.js` (13 test).
+
+### Pist haritası: çözünürlük iki katına, çizgi karışımı azaltıldı
+
+TinyPedal'ın harita kaydı (`module_mapping.py`) incelendi. O, **sürücünün kendi tek
+temiz turunu** kaydedip pist başına SVG olarak diske yazıyor ve dosya varsa bir daha
+kayıt yapmıyor. **Bu yöntem bizde yapısal olarak çalışmaz:** TinyPedal sürücünün
+PC'sindeki overlay, bizim uygulamayı ise **sürmeyen** insanlar izliyor — yarış
+mühendisinin kendi turu yok. "Tüm araçlardan biriktirme" doğru seçim ve korundu.
+Ondan alınan iki iyileştirme:
+
+- **`NB` 240 → 480.** 5 km'lik pistte kutu başına ~21 m'den **~10,4 m**'ye iner;
+  virajlar daha az düzleşir. 480 **pratik tavan**: Firebase yaprak sınırı
+  (`MAX_STR` 8800, kural `.validate < 9000`) 600 kutuda kırpıyor.
+- **Koordinat biçimi tam metreye indirildi** (`toFixed(1)` → `toFixed(0)`).
+  Zorunluydu: 480 kutu × 1 ondalık, **en kötü durumda** (Nordschleife ölçeği
+  ±10000 m, negatif koordinatlar) **9490 karakter** üretiyor ve `packBins` bunu
+  sessizce kırpıyordu — paylaşılan şeklin kuyruğu düşerdi. Tam metreyle **7570**
+  karakter (ölçüldü). Hassasiyet kaybı yok sayılır: harita ~300 px'lik kutuya
+  normalize çiziliyor, 4 km pistte 1 px ≈ 13 m, yani 1 m bir pikselden ~13 kat ince.
+  - **Geriye uyum:** `unpackBins` `Number()` ile ayrıştırdığı için sahadaki eski
+    ondalıklı kayıtlar aynen okunur; yalnız yeni yazımlar kısalır (testli).
+- **Çizgi karışımı azaltıldı.** Kutuyu eskiden **ilk gelen araç** belirliyor ve bir
+  daha güncellenmiyordu → farklı pilotların çizgileri karışıyor, tuhaf bir çizgi atan
+  araç tüm seans boyunca kalıcı iz bırakabiliyordu. Artık **oyuncunun kendi çizgisi**
+  mevcut bir kutuyu **bir kez** yükseltebiliyor (kendi çizgimiz tutarlıdır); oyuncu
+  kutusu bir daha ezilmiyor. Paylaşılan kutular "oyuncunun" sayılmaz → kendi turumuz
+  onları da yükseltebilir.
+- **Yakalanan tuzak:** kutular v2.2.4'e kadar yalnız EKLENİYORDU, bu yüzden `binCount`
+  tek başına yeterli bir "değişti mi" anahtarıydı (memo + Firebase paylaşımı ona
+  bakıyordu). Yükseltme sayıyı değiştirmediği için bu iki yol iyileşmeyi **hiç
+  görmezdi** — şekil ekranda eski kalır, paylaşılan kayıt hiç tazelenmezdi. Ayrı bir
+  `rev` sayacı eklendi; memo ve kaydetme artık ona bakıyor.
+
+**Oyun PC'si maliyeti: sıfır.** Bunların hepsi web tarafında (`TrackMap.jsx`,
+`trackShape.js`); köprüye tek satır dokunulmadı, kare boyutu değişmedi.
+
+### Haritada PİT ÇIKIŞ TAHMİNİ (yeni)
+
+*"Durağım N saniye sürerse pistte kimin yanına çıkarım?"* — undercut/overcut kararının
+tek sorusu. TinyPedal'da `widget/track_map.py` `draw_pitout_prediction` olarak var;
+algoritma oradan alındı.
+
+**Mantık** (her şey "tur içi zaman" ekseninde): pit çıkışına varana kadar geçecek süre
+`Δ = (girişe kalan) + (pit yolunda geçen)`. Şu an tur-içi zamanı `T` olan araç Δ sonra
+`T + Δ`'da olur; biz `t_exit`'te çıkacağımıza göre yanına çıkacağımız araç **şu an**
+`T = t_exit + pitTimer − pitSüresi` konumundadır (tur boyunca sarmalı). Çember o
+noktaya çizilir → yanındaki araç noktasına bakarak okunur.
+
+- **Aday süreler otomatik:** `15 · 25 · 35 · 45 · 55 · 65` sn (TinyPedal varsayılanı:
+  min 15 + artım 10 × 6 tahmin). Anlamı **pit girişinden pit çıkışına toplam süre** —
+  ekranda yazan sayı da bu, gizli ofset yok.
+- **Yalnız pit TALEBİ verilmişken** çizilir (`mPitState == 1`, bu sürümde eklendi):
+  araç hâlâ pistte, karar hâlâ verilebilir. Pite girdikten sonra göstermek karar değil
+  seyir olurdu.
+
+**Eksik parçayı bu sürümün kendi verisi çözdü.** TinyPedal mesafe→zaman eğrisini
+sürücünün **en iyi turundan** kaydediyor (deltabest); bizde öyle bir kayıt yok ve
+**izleyicinin kendi turu da yok**. Ama köprü artık her araç için `timeIntoLap` +
+`estLapTime` gönderiyor → sahadaki **her araç eğriye bir örnek veriyor**
+(`zamanKesri = timeIntoLap / estLapTime`), harita kutularının aynı indeksinde
+biriktiriliyor. Eğri kesir olduğu için **tempo-bağımsız** ve tüm sahadan hızla doluyor.
+
+- **Doğruluk sınırı (dürüstçe):** eğri araçların **gerçek** turlarından gelir, temiz bir
+  referans turdan değil — trafik/hata örnekleri ortalamaya karışır. Kutu ortalaması
+  yumuşatır ama sıfırlamaz. Tahmin bir **yön** gösterir, saniye garantisi değil.
+- **Uydurma yok:** pit giriş/çıkışı gözlenmemişse, tempo/pist uzunluğu yoksa ya da eğri
+  **%35'ten az doluysa** hiçbir çember çizilmez.
+- **Çizim yeri: yalnız DIŞ HALKA** (sahada denendikten sonraki kullanıcı kararı).
+  İlk uygulamada hem dış halkada hem iç şekilde çember vardı; iç şekilde araç
+  noktalarıyla üst üste biniyor ve aynı bilgi iki kez görünüyordu. Dış halka bu iş
+  için zaten daha uygun: araçlar orada lapDist oranına göre düzgün dizili, çemberin
+  hangi aracın hizasına düştüğü tek bakışta okunuyor. Saniye etiketi halkanın
+  dışına yazılır (sektör / PIT IN etiketleriyle aynı yarıçap deseni).
+- **Yapı:** karar mantığının tamamı `src/pitOut.js`'te (saf, 25 test); `TrackMap.jsx`'te
+  yalnız çizim kaldı (CLAUDE.md §2).
+- **Test notu:** proje jsdom/testing-library kullanmıyor, bileşen çok-render edilemiyor;
+  bu yüzden render testleri yalnız "çizilmez" kapılarını doğrulayabiliyordu — özellik
+  tamamen silinse de geçerlerdi. Bu yüzden POZİTİF yol `pitOutPoints` üzerinden saf
+  olarak test edildi (üretilen 6 nokta, kutu ↔ mesafe tutarlılığı, eşiğin gerçekten
+  doluluktan kaynaklandığı). Geriye kalan kapsanmayan kısım yalnız JSX→SVG eşlemesi.
+
+**Oyun PC'si maliyeti: sıfır** — köprüye tek satır dokunulmadı, kare boyutu değişmedi;
+eğri de tahmin de web tarafında.
+
+### Vmax — seans en yüksek hızı (yeni sütun)
+
+"Kim düzlükte hızlı" sorusu; kanat/sürükleme ve savunma/atak kararlarının girdisi.
+
+- **Kaynak `mLocalVel` — ama SCORING'den, telemetriden DEĞİL.** Bu ayrım kritik:
+  `mLocalVel` her iki yapıda da var; telemetri online'da rakiplerde bayatlar
+  (`teleLag` / `tyreInfo.teleStale` tam da bunun için), scoring ise her araç için
+  doludur. Zaten `mPos`'u buradan okuyup pist haritasını **tüm sahadan** kuruyoruz —
+  aynı struct, aynı güvenilirlik. **TinyPedal hızı telemetriden okur**
+  (`rf2_reader.py:1036`), rakip hızları onda bu yüzden güvenilmez; scoring'den
+  okuyarak bu noktada ondan sağlam oluyoruz.
+- Mevcut `_speed()` yardımcısı zaten geneldi (`mLocalVel` taşıyan herhangi bir nesne)
+  — yalnız çağrıldığı yer değişti, yeni matematik yazılmadı.
+- **Kümülatif maksimum `Aggregator`'da** (ceza sayacıyla aynı desen), seans değişince
+  sıfırlanır — antrenmanın hızı yarışta görünmez.
+- **Yırtık kare koruması:** paylaşımlı bellek yırtık okunduğunda saçma bir hız gelebilir
+  ve maksimum **kalıcı olarak zehirlenir** (bir daha düşmez, yarış boyunca yanlış
+  gösterir). `SPEED_SANE_MAX = 500` km/h üstü okuma maksimuma yazılmaz (LMU'nun en
+  hızlı aracı ~340 km/h; sınır bilerek geniş). Testle kilitlendi.
+- **Dürüstlük notu ekranda:** tooltip *"Slipstream'de atılan hız da buna dahildir"*
+  diyor — tow'da görülen 340 km/h aracın kendi düz hızı değildir ve sayı bunu ayırt
+  edemez. Karşılaştırılabilir ölçüm isteyen speed trap (herkes aynı noktada) ayrı bir
+  iş; bilinçli olarak yapılmadı.
+- Sütun sıralanabilir (`vmax`, varsayılan azalan); tooltip anlık hızı da gösterir.
+
+### Pist haritası ayrı pencerede DONARAK ilerliyordu
+
+- **Belirti (sahada bildirildi):** "⛶ Expand akıcı ama ⧉ ayrı pencerede donarak
+  ilerliyor." Araçlar yumuşak kaymak yerine zıplayarak, düzensiz aralıklarla hareket
+  ediyordu.
+- **Kök neden — iki etken üst üste:**
+  1. Ayrı pencere, karttaki svg'nin **`outerHTML`'ini kopyalıyordu**
+     (`holder.innerHTML = svgRef.current.outerHTML`). Bu, tüm SVG düğümlerini **silip
+     yeniden kuruyor.** Araç noktaları `transition: transform .5s linear` ile
+     yumuşuyor; her karede yeni kurulan bir düğümün "önceki" konumu olmadığı için
+     CSS geçişi **hiç çalışmıyordu** → araçlar zıpladı.
+  2. Kopyalama **700 ms**'de bir yapılıyordu, veri ise **500 ms**'de (2 Hz) geliyor.
+     İki ritim aynı fazda olmadığı için kimi kare atlanıyor, kimi iki kez çiziliyordu
+     → düzensiz ilerleme.
+- **Çözüm:** kopyalama tamamen kaldırıldı; pencerenin içine **canlı React portalı**
+  ediliyor (zoom katmanının kullandığı desenin aynısı). Düğümler kalıcı olduğu için
+  CSS geçişleri çalışıyor ve güncelleme **tam veri geldiğinde** oluyor — zamanlayıcı
+  yok, Expand ile birebir aynı akıcılık.
+- **Yan bulgu (düzeltildi):** ayrı pencerenin kendi stil sayfası olmadığı için SVG'nin
+  kullandığı CSS değişkenleri (`--line2`, `--muted`, `--dim`, `--rc-surface-3`) orada
+  **çözülmüyordu** — yol bandı/ızgara kayboluyor ya da yanlış renkte çiziliyordu. (Islak
+  seansta sorun görünmüyordu çünkü ıslak yol rengi düz HEX.) Değişkenler artık ana
+  belgeden okunup kabın üstüne yazılıyor, SVG içeriden miras alıyor.
+- **Yan bulgu (düzeltildi):** ⧉'ye ikinci kez basmak aynı pencereye ikinci bir kap
+  ekliyor ve **ikinci bir yoklayıcı** başlatıyordu; eskisi hiç durmadığı için her
+  tıklama bir interval sızdırıyordu. Artık pencere açıksa yeniden kurulmuyor, öne
+  getiriliyor; sökülmede yoklayıcı da kapatılıyor.
+
+### "Kendi sınıfım" süzgeci artık haritayla SENKRON
+
+`Poz · Sınıf` başlığına basınca tablo kendi sınıfımıza süzülüyordu ama **pist haritası
+tüm sahayı göstermeye devam ediyordu** — iki panel aynı ekranda farklı şey anlatıyordu.
+Artık süzgeç ikisini birden kapsıyor.
+
+- **Yalnız ÇİZİM süzülür, biriktirme SÜZÜLMEZ.** `field` haritaya **tam** geçirilmeye
+  devam ediyor; TrackMap içinde ayrı bir `shownCars` listesi yalnız nokta çizimi ve
+  lejant için kullanılıyor. Pist şekli kutuları, sektör sınırı, pit giriş/çıkış
+  gözlemleri ve mesafe→zaman eğrisi **tüm sahadan** birikiyor.
+  - Neden önemli: süzülmüş listeyle biriktirseydik harita 14 araç yerine 3 araçla
+    dolardı (kat kat yavaş) ve **süzgeç kapatıldığında bile eksik kalırdı** — kutular
+    bir kez dolduktan sonra güncellenmediği için kalıcı bir boşluk oluşurdu.
+  - Bu garanti testle kilitlendi: süzgeç açıkken kutu sayısı değişmemeli. (Biriktirme
+    yanlışlıkla süzülünce testin kırmızıya döndüğü doğrulandı.)
+- Sınıf-içi pozisyon numaraları (`P2` gibi) yine **tüm sahadan** hesaplanıyor — süzgeç
+  açıkken de gerçek sınıf pozisyonu görünür.
+- Pit çıkış tahmini de etkilenmez: oyuncu satırı süzülmemiş listeden bulunuyor.
+- **Görünürlük (sahada "çalışmıyor" sanıldı):** süzgeç haritada uygulanıyordu ama
+  hiçbir göstergesi yoktu. Demo sahasında 3 Hypercar + 11 GT3 var ve oyuncu GT3
+  olduğundan süzgeç yalnız **3 noktayı** gizliyor (14 → 11); tabloda satırlar gidince
+  bariz, haritada gözden kaçıyor. Başlığa **sınıf rozeti + kaç aracın gizlendiği**
+  eklendi (`GT3 · 3 gizli`), hem kartta hem Büyük Pano'da.
+
+### Sürüm öncesi kod incelemesinde bulunan 5 hata
+
+Merge öncesi `origin/main..HEAD` incelendi; hepsi **bu sürümde eklenen** kodda.
+
+1. **Takımın eski haritası bozuk okunuyordu (en ciddisi).** Kutu sayısı 240→480'e
+   çıkarıldı ama paylaşılan kayıtta çözünürlük işareti yoktu. Kutu indeksinin anlamı
+   NB'ye bağlıdır: index 120, 240 kutuda **yarım tur**, 480 kutuda **çeyrek tur**.
+   Sonuç: v2.2.4'te kaydedilmiş şeklin tamamı yeni index uzayının ilk yarısına
+   sıkışıyordu — üstelik 240 kutu "yeterince dolu" eşiğini (216) aştığı için **bozuk
+   şekil hemen çiziliyor**, kendi aracı olmayan bir izleyicide hiç düzelmiyor ve
+   yazma yetkisi olan istemci bozuk birleşimi **takıma geri yazıyordu**.
+   → Paket artık `n480;` başlığı taşıyor; başlıksız kayıt v2.2.4 (240) varsayılıp
+   **yeniden ölçekleniyor** (atılmıyor — takımın emeği korunuyor).
+2. **Lastik rozeti hafif köprüde hiç görünmüyordu.** `liveBridge.js`'te (JS sidecar)
+   silme kaldırılmıştı ama `bridge/harvest.py` hâlâ `tyreChange`'i kareden atıyordu.
+   README sürüş PC'si için **tam da bu hafif `.exe`'yi öneriyor** → rozet asıl
+   kullanılacağı yolda ölüydü.
+3. **Relative sıralaması birim karıştırıyordu.** Anahtar bir satırda saniye, ötekinde
+   metre oluyordu; `timeIntoLap`i eksik **tek bir araç** metre cinsinden dev bir
+   anahtar alıp gerçekten çok daha önde olan araçların üstüne çıkıyor ve ±3
+   penceresini yanlış sıralıyordu. → İki yol da **tur kesrine** indirgendi.
+4. **Pit çıkış tahmininde `Number(null) === 0` tuzağı.** `lapDist`i eksik oyuncu
+   "S/F çizgisinde" sayılıyor, altı çember de makul **görünen** ama uydurma konumlara
+   çiziliyordu. CLAUDE.md §1'de kayıtlı, `wrapDist`te elenen tuzağın aynısı — yeni
+   kodda tekrar yapılmış. → Açık kontrol eklendi (`0` geçerli kalır).
+5. **Paylaşım eşiği az araçlı seansta ulaşılamıyordu.** 480 kutuda %90 = 432 kutu;
+   2 Hz'de tek araç turda ancak ~`turSüresi×2` örnek üretir (100 sn turda ~200), yani
+   şekil takımla **hiç paylaşılmıyordu**. → Eşik %75'e indirildi; kayıt `rev` arttıkça
+   yenilendiği için şekil doldukça paylaşım da tazeleniyor.
+
+Beşi için de regresyon testi yazıldı ve **her biri düzeltme geri alınınca kırmızıya
+döndüğü doğrulanarak** kilitlendi.
+
+### Lastik defteri (yeni) — kendi kendini dolduran GERÇEK kayıt
+
+Lastik ekranındaki plan tablosunun iki yapısal sorunu var:
+
+1. **Köşe başına HAMUR oyunda YOK.** Paylaşımlı bellek yalnız ön/arka verir
+   (`mFrontTireCompoundName` / `mRearTireCompoundName`). Yani 4 sütunlu tablo,
+   hiçbir yerde var olmayan bir ayrıntıyı kullanıcıdan istiyor.
+2. **Hücredeki `N×` rozeti planın TOPLAMI.** Bir lastiğin birinci ve ikinci
+   kullanımı birebir aynı görünüyor → *"yeni lastiği hangi stint kullandı"*
+   okunamıyor (kullanıcı bildirimi).
+
+Oysa gerçek kayıt **zaten tutuluyor**: köprü her pit değişimini
+`livetyre/{rid}/{araç}/{tur} = "adet|hamur"` olarak yazıyor (`bridge/harvest.py`).
+Lastik ekranı bundan haberdar değildi. Defter bu kaydı ilk kez okuyor — **elle
+giriş yok, tahmin yok.**
+
+- **Model: "lastik dönemi", set değil.** Oyun **set kimliği vermiyor**; uydurmak
+  yerine iki değişim arasındaki tur aralığı tutulur. Her dönem başında ne
+  takıldığını söyler: `4` → **YENİ** tam set · `2` → **aks** · `0` → yakıt-only.
+  - **Yakıt-only durak dönem AÇMAZ** — lastik değişmediği için aynı lastikler
+    devam eder; satır açsaydık defter "lastik değişti" diye yanlış okunurdu.
+    Bilgi kaybolmasın diye dönem içinde sayılır.
+  - Yarış başındaki ilk dönemin içeriği **bilinmiyor** → "Başlangıç" diye
+    etiketlenir, "4 yeni" diye **uydurulmaz**.
+- **Ekran:** tur aralığı + YENİ/aks çipi + hamur renginde şerit (genişlik tur
+  sayısıyla orantılı) + "N tur · hamur · sürüyor". Sorunun kaynağı olan
+  *"yeni lastik hangi stintte"* sorusu tanım gereği cevaplanıyor.
+- **Sınırlar ekranda yazıyor** (CLAUDE.md §1): set kimliği oyundan gelmiyor,
+  hamur köşe başına okunamıyor.
+- **Mevcut plan tablosu DOKUNULMADAN duruyor** — defter üstüne eklendi, bir yarış
+  boyunca ikisi yan yana kullanılıp sonra karar verilecek.
+- **PLAN ↔ GERÇEK (adım 2).** Plan için **yeni veri modeli EKLENMEDİ.** Mevcut grid
+  zaten "hangi stintte hangi köşe değişiyor"u kodluyor (`state.js`: boş hücre =
+  taşı, dolu hücre = o köşede pit işlemi — v1.4.60 kullanıcı kararı), plan oradan
+  **türetiliyor**. Böylece: mevcut plan olduğu gibi kullanılır (göç yok, veri kaybı
+  yok), iki ayrı plan modeli yan yana yaşamaz, ve türetilen şekil defterinkiyle
+  **aynı** olduğu için karşılaştırılabilir.
+  - Çipler: `1. 4→4` (uyuyor) · `2. 4→2` (sapma) · `bekliyor` (planlandı, olmadı) ·
+    `planda yok` (oldu, planlanmamıştı). Başlıkta `N sapma` / `plana uyuyor`.
+  - **Eşleme SIRAYLA** (bilinçli sadeleştirme): plan stint numarasıyla, defter tur
+    numarasıyla çalışır ve **planda tur numarası yoktur** → tur-hassas hizalama
+    mümkün değil. Bu sınır ekranda yazıyor.
+  - Defterin **"Başlangıç" dönemi eşlemeye girmez** — o bir değişim değil; girseydi
+    tüm hizalama bir kayar ve her satır yanlış eşleşirdi (testle kilitli).
+  - Defter boşken karşılaştırma **çizilmez** — hiçbir şey gerçekleşmemişken
+    "plana uyuyor" demek boş bir uyum iddiası olurdu (testli).
+- **Yapı:** `src/tyreLedger.js` (saf, 22 test) + render sözleşmesi (6 test).
+  Canlı abonelik olmadan bileşen çok-render edilemediği için render testleri yalnız
+  "çizilmez" kapılarını doğrular; **pozitif yol saf modülde** test edilir.
+- **Oyun PC'si maliyeti: sıfır** — köprüye dokunulmadı, zaten yazılan düğüm okundu.
+
+### Lastik planı: diş modeli + değişim süresi (TinyPedal planlayıcısından)
+
+TinyPedal'ın `ui/tyre_strategy_planner.py` planlayıcısı incelendi. **Tablo yapısı
+bizimkiyle neredeyse birebir** — 4 köşe × stint, köşe kilidi
+(`enable_restricted_allocation`), stok limiti, wet muaf (`enable_limited_stock:
+false`). Bağımsız olarak aynı modele varılmış. Fark, **üstüne ne hesapladığı**:
+
+- **DİŞ MODELİ.** Hücre artık `Yeni–%70` / `%70–%40` yazıyor; diş eksiye düşerse
+  **`PATLAK`**. Bir setin kaçıncı stintinde olduğu (`uses`) taşıma zinciri
+  çözülerek bulunur. **Kullanıcının ilk sorusunun ("yeni lastiği hangi stint
+  kullandı") doğrudan cevabı bu** — hücrede *"Yeni"* kelimesi birebir yazıyor.
+- **DEĞİŞİM SÜRESİ sütunu.** `+4.5s` (1–2 lastik) / `+12.0s` (3–4). Eşik 2/3'te,
+  TinyPedal'la aynı: bir tarafı değiştirmek dört lastikten belirgin ucuz. Toplam
+  plan maliyeti KPI'da.
+- **AŞINMAYI ÖLÇÜYORUZ — TinyPedal yazdırıyor.** O, `wear_per_stint`'i hamur başına
+  kullanıcıya elle yazdırır (tahmin). Bizde canlı telemetri var: `measuredWear`
+  taze setle başlayan **açık dönemden** gerçek tur-başı aşınmayı ölçer ve
+  "ölçülen %38 →" düğmesiyle **öneri** olarak sunar. Otomatik yazmaz (kullanıcı
+  kararı korunur).
+
+**Bilinçli alınmayanlar** (uydurma yapmamak için):
+
+| TinyPedal | Bizde | Neden |
+|---|---|---|
+| Hamur başına aşınma/başlangıç dişi | Tek bir "stint başına aşınma" % | Onun hücreleri HAMUR taşır, bizimkiler SET NUMARASI — eşleme yok |
+| `Q-Soft` %90 başlangıç dişi | Yok, hepsi %100 | Oyun "bu set kaç tur görmüş" demiyor; kısmi set uydurulmaz |
+| 9 kademeli renk rampası | 5 kademe | Okunabilirlik; yön aynı (yeşil→kırmızı) |
+
+**Diğer sınırlar:** wet hücresi (`W`) diş hesabına **girmez** — `W` bir set değil,
+yer tutucudur; iki ayrı `W` aynı fiziksel lastik olmadığı için saysaydık her biri
+öncekinin üstüne aşınma biriktirir ve **uydurma bir "PATLAK"** üretirdi (testli).
+Kısmi (2 lastik) değişimde iki köşenin geçmişi bilinmediğinden **ölçüm yapılmaz**,
+tahmin üretilmez. Aşınma %0 iken diş metni **hiç çizilmez** — sahte kesinlik yok.
+
+**Yapı:** `src/tyrePlanCalc.js` (saf, 17 test). **Oyun PC'si maliyeti: sıfır.**
+
+### Kullanılmayan veri: tur sayacı
+
+`session.totalLaps` köprüden beri geliyordu, hiçbir yerde okunmuyordu. Tur-tipi yarışta
+başlıkta `42/68` gösteriliyor; `totalLaps` 0/None ise (süre-tipi yarış) **gizlenir** —
+sahte `/0` yazılmaz.
+
+### Doğrulama
+
+- **JS:** 765 test geçiyor (583 → 765; **+182**). Yeni: `pitOut.test.js` (25),
+  `trackMapPitOut.render.test.jsx` (5). Yeni: `liveSectors.test.js` (14),
+  `liveSort.test.js` (16), `liveRelative.test.js` (29), `liveStatus.test.js` (13),
+  `liveTabV230.render.test.jsx` (15); `trackShape.test.js` en-kötü-durum kırpma
+  kilidiyle genişletildi.
+  Render testleri sektör renklerini **kontrollü veriyle** doğrular — demo karesinde
+  `var(--purple)` OwnCar'ın "En iyi" kutucuğunda da geçtiği için serbest arama yanlış
+  pozitif verirdi; renkli span'in içindeki **sektör değerinin kendisi** aranıyor.
+- **Köprü:** tüm paketler geçiyor; `_best_sectors` için 4, `own` düzeltmesi için 2,
+  `mTimeIntoLap == 0` tuzağı için 1 yeni test.
+- **Oyun PC'si maliyeti** (CLAUDE.md §0 denetimi, ölçüldü): kare 14 araçta +2.162 B
+  (%19,6), araç başına ~154 B → 40 araçlık gridde **~12,1 KB/sn** (2 Hz).
+  CPU: `_best_sectors` ~0,2 ms/sn, `_speed` ~83 µs/sn (128 araç) — toplam bir
+  çekirdeğin binde birinin altı. **Yeni REST yok, yeni thread yok, yeni mmap yok,
+  yayın hızı değişmedi, süreç önceliği aynı** — tüm yeni alanlar *zaten haritalanmış*
+  Scoring struct'ından okunuyor. Harita ve pit çıkış tahmini tamamen web tarafında,
+  köprüye maliyeti sıfır.
+- `npm run build` temiz.
+- **i18n:** 9 yeni anahtar TR/EN. Lastik rozeti anahtarları (`ÖnSol`, `Son pitte`, `ÖN`…)
+  i18n'de zaten vardı — rozet yazılmış ama bağlanmamış olduğu için öksüz duruyorlardı.
+
 ## v2.2.4 — 2026-08-30
 
 Eksik giderme.

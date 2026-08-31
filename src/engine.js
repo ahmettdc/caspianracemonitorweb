@@ -114,6 +114,13 @@ export const DEFAULT_STATE = {
   tyreLimit: 26,
   tyreQual: ["1", "2", "3", "4"],
   tyreStints: Array.from({ length: 14 }, () => ["", "", "", ""]),
+  /* v2.3.0 — diş ve değişim süresi modeli (TinyPedal tyre_strategy_planner deseni).
+     tyreWearPerStint: stint başına aşınan diş YÜZDESİ. TinyPedal bunu hamur başına
+     kullanıcıya yazdırır; bizde canlı telemetriden ÖLÇÜLEN değer önerilir.
+     Değişim süresi eşiği 2/3'te: bir tarafı değiştirmek dört lastikten ucuz. */
+  tyreWearPerStint: 30,
+  tyreChangeT12: 4.5,
+  tyreChangeT34: 12,
   // Faz 3 — pilotlar
   raceStartMs: Math.floor(Date.now() / 60000) * 60000, // mutlak epoch — her istemci kendi yerelinde gösterir
   roster: [],
