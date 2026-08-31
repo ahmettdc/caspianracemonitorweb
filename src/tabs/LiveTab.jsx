@@ -835,15 +835,6 @@ export default function LiveTab({ t, live: liveProp, canEdit,
                       <td style={{ whiteSpace: "nowrap" }}>
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
                           <b style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 18, lineHeight: 1, color: c.isPlayer ? "var(--rc-brand-bright)" : "var(--rc-text)" }}>{c.pos ?? i + 1}</b>
-                          {/* v2.3.0: DNF/DSQ (mFinishStatus). Şimdiye kadar okunmuyordu →
-                              yarışı bırakan araç tabloda hâlâ yarışıyormuş gibi duruyordu.
-                              FIN çipi yok: yarış bitince HERKES 1 olur, bilgi taşımaz. */}
-                          {fin && fin !== "FIN" && (
-                            <span className="chip" style={{ fontSize: 9, padding: "1px 5px",
-                              color: "var(--red)", borderColor: "var(--red)" }}
-                              title={fin === "DNF" ? t("Yarışı bitiremedi") : t("Diskalifiye")}>
-                              {fin}</span>
-                          )}
                           <span style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 1, lineHeight: 1 }}>
                             {id && <b style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 11.5, color: acc || "var(--rc-text-3)" }}>{classPos}</b>}
                             <span style={{ fontSize: 8.5, lineHeight: 1 }}>
@@ -851,6 +842,18 @@ export default function LiveTab({ t, live: liveProp, canEdit,
                               {dirRef.current[c.lapKey || c.driver] === "down" && <span style={{ color: "var(--red)" }}>▼</span>}
                             </span>
                           </span>
+                          {/* v2.3.0: DNF/DSQ (mFinishStatus). Şimdiye kadar okunmuyordu →
+                              yarışı bırakan araç tabloda hâlâ yarışıyormuş gibi duruyordu.
+                              FIN çipi yok: yarış bitince HERKES 1 olur, bilgi taşımaz.
+                              SIRA (kullanıcı isteği): genel poz · sınıf poz · DNF —
+                              çip en SONDA. Önce ikisinin arasındaydı ve iki sayıyı
+                              birbirinden koparıp okumayı zorlaştırıyordu. */}
+                          {fin && fin !== "FIN" && (
+                            <span className="chip" style={{ fontSize: 9, padding: "1px 5px",
+                              color: "var(--red)", borderColor: "var(--red)" }}
+                              title={fin === "DNF" ? t("Yarışı bitiremedi") : t("Diskalifiye")}>
+                              {fin}</span>
+                          )}
                         </span>
                       </td>
                       {/* Pilot (fişteki r.tdName): marka logosu + isim / #no · takım (2 satır) */}

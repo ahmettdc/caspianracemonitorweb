@@ -151,6 +151,26 @@ describe("LiveTab v2.3.0 — standings yenilikleri", () => {
     expect(out).not.toContain(">FIN<");
   });
 
+  /* SIRA (kullanıcı isteği): genel poz · sınıf poz · DNF. Çip önce ikisinin
+     ARASINDAydı ve iki sayıyı koparıp okumayı zorlaştırıyordu. Sıra testle
+     kilitleniyor — yalnız "DNF görünüyor mu" kontrolü bunu kaçırırdı. */
+  it("poz hücresinde sıra: genel poz → sınıf poz → DNF", () => {
+    const car = (o) => ({ lapsDone: 5, lastSec: 105, bestSec: 105, gapSec: 0,
+      carClass: "Hypercar", ...o });
+    const field = [];
+    for (let i = 1; i <= 7; i += 1) {
+      field.push(car({ carId: i, pos: i, driver: `D${i}`,
+        ...(i === 7 ? { finishStatus: 2 } : {}) }));
+    }
+    const out = render({ ts: Date.now(), session: { sessionType: "Yarış" },
+      own: null, field });
+    const classPos = out.indexOf('color:#E7443B">7</b>');   // sınıf-içi pozisyon
+    const dnf = out.indexOf(">DNF<");
+    expect(classPos).toBeGreaterThan(-1);
+    expect(dnf).toBeGreaterThan(-1);
+    expect(classPos).toBeLessThan(dnf);
+  });
+
   it("PİT sütunu aşamayı gösterir; ÇAĞRI araç PİSTTEYKEN ayrı renkte", () => {
     const car = (o) => ({ lapsDone: 5, lastSec: 105, bestSec: 105, gapSec: 0,
       carClass: "Hypercar", ...o });
