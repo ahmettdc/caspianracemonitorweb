@@ -107,6 +107,17 @@ describe("Lastik ekranı — render (v2.3.1 fişi)", () => {
     expect(out).toContain("1 patlak");    // üst şerit rozeti
   });
 
+  /* Diş kapasiteyi aşınca fiş "PATLAK" yazıyordu; artık AÇIK patlak seçimi var ve
+     iki ayrı şey aynı adı taşıyınca hiç dokunulmamış taşıma hücreleri patlak
+     görünüyordu (kullanıcı bildirimi). Kapasite aşımı "%0" okunur. */
+  it("diş kapasiteyi aşınca 'PATLAK' değil %0 yazar", () => {
+    const out = render({
+      st: { ...base.st, tyreWearC: [9, 9, 9, 9] },   // %90/tur × 10 tur → ilk stintte biter
+    });
+    expect(out).toContain("%0");
+    expect(out).not.toContain("PATLAK");
+  });
+
   it("patlak yokken rozet hiç çizilmez", () => {
     const out = render();
     expect(out).not.toContain("PATLAK");

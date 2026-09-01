@@ -29,7 +29,7 @@ markup yapısı ve stil değerleri fişten kopyalandı, türetilmedi).
 - `readOnly` (izleyici) prop'u App.jsx'ten geçirildi — yazma eylemleri görsel olarak
   da pasif.
 
-**Fişten iki bilinçli sapma (ikisi de işaretlendi):**
+**Fişten üç bilinçli sapma (hepsi kodda işaretlendi):**
 
 1. **Boş defterde "plana uyuyor" iddiası kaldırıldı.** Fişin markup'ı karşılaştırma
    çipini KOŞULSUZ çiziyor; defter boşken bu, hiçbir şey gerçekleşmemişken uyum
@@ -39,6 +39,13 @@ markup yapısı ve stil değerleri fişten kopyalandı, türetilmedi).
 2. **`tyPitNote` yalnız plan boşken.** Fişin markup'ında bu değer hiç yer almıyordu
    ama kabul kriteri "plan boşken 'hiçbir pitte lastik değişmiyor'" diyor; referans
    görselde (plan DOLU) böyle bir satır yok. İkisini uzlaştıran okuma uygulandı.
+
+3. **Otomatik "PATLAK" etiketi kaldırıldı** (kullanıcı bildirimi). Fiş, diş eksiye
+   düşen hücreye de `tr.blowout` üzerinden "PATLAK" yazıyordu. Artık AÇIK bir patlak
+   seçimi (`tyrePop`) olduğu için iki ayrı şey aynı adı taşıyordu ve hiç
+   dokunulmamış TAŞIMA hücreleri patlak görünüyordu. Kapasite aşımı artık "%0"
+   okunuyor (sayı yine kırmızı → set bitti sinyali duruyor), gerekçe tooltip'te
+   korundu; PATLAK/PATLADI yalnız işaretlenen hücrede. Testle kilitlendi.
 
 **Gerçek veriye bağlanan yerler** (fişteki sabitler prototip örneğiydi): satırlar
 `racePlan`'dan (`tyreInfo.rows`, sabit 8 değil) · ızgara `tyreQual`+`tyreStints`'ten ·

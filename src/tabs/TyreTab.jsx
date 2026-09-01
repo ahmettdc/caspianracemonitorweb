@@ -468,7 +468,13 @@ export default function TyreTab({
                     const tr = (tyTread[ri] || [])[ci];
                     const pop = isPop(ri, ci);
                     const trOn = !!tr && (pop || tyWearCF[ci] > 0);
-                    const bad = !!tr && (pop || tr.blowout);
+                    /* FİŞTEN SAPMA (kullanıcı kararı): fiş, diş eksiye düşen hücreye de
+                       "PATLAK" yazıyordu (tr.blowout). Artık AÇIK bir patlak seçimi var
+                       (tyrePop) ve iki ayrı şey aynı adı taşıyınca, hiç dokunulmamış
+                       taşıma hücreleri "PATLAK" görünüyordu. Kapasite aşımı artık
+                       yalnız "%0" olarak okunur; PATLAK/PATLADI sadece işaretlenen
+                       hücrede. Gerekçe tooltip'te korundu. */
+                    const bad = !!tr && pop;
                     const trCol = !trOn ? "" : bad ? "var(--rc-danger)" : treadCol(tr.end);
                     const trPct = !trOn ? 0 : Math.max(0, Math.min(1, tr.end)) * 100;
                     return (
@@ -499,7 +505,7 @@ export default function TyreTab({
                                 background: bad ? "repeating-linear-gradient(115deg,var(--rc-danger) 0 3px,transparent 3px 6px)" : trCol }} />
                             </span>
                             <span style={{ flex: "0 0 auto", fontSize: 9.5, fontFamily: "var(--rc-font-display)", fontWeight: 700, letterSpacing: ".03em", whiteSpace: "nowrap", color: trCol }}>
-                              {pop ? t("PATLADI") : tr.blowout ? t("PATLAK") : `%${Math.round(tr.end * 100)}`}</span>
+                              {pop ? t("PATLADI") : `%${Math.round(Math.max(0, tr.end) * 100)}`}</span>
                           </div>
                         )}
                       </td>
