@@ -17,7 +17,8 @@
 import { liveTimingSet, liveLapsAppend, liveLapsClear,
   livePosAppend, livePosClear, liveSecAppend, liveSecClear,
   liveDrvAppend, liveDrvClear, liveTyreAppend, liveTyreClear,
-  liveCondAppend, liveCondClear, liveSessionIdGet, liveHistoryClearAll,
+  liveCondAppend, liveCondClear, liveWearAppend, liveWearClear,
+  liveSessionIdGet, liveHistoryClearAll,
   liveWriterClaim, liveWriterRelease, liveWriterSubscribe,
   liveTimingSubscribe, serverNow } from "./storage";
 import { shouldClaim, shouldYield, bridgeWaitInfo } from "./liveWriter";
@@ -172,6 +173,7 @@ export async function startBridge(opts, onStatus) {
     const drvEntries = {};   // livedrv: lapKey/n → pilot adı (yalnız DEĞİŞİM turunda)
     const tyreEntries = {};  // livetyre: lapKey/n → "{adet}|{hamur}" (yalnız pit turunda)
     const condEntries = {};  // livecond: lapKey/n → "temp,wet,grip" (yalnız en yeni tur)
+    const wearEntries = {};  // livewear: lapKey/n → "fl,fr,rl,rr" (yalnız en yeni tur)
     let clears = [];
     /* Pist koşulları KARE BAŞINA aynı (seans geneli): asfalt sıcaklığı + zemin ıslaklığı
        seans karesinden, yol tutuş (grip) sahadaki tüm araçların tur toplamından türer
@@ -234,6 +236,16 @@ export async function startBridge(opts, onStatus) {
         if (maxN > prev && Array.isArray(sc) && sc[0] > 0 && sc[1] > 0 && sc[2] > 0) {
           secEntries[`${key}/${maxN}`] = `${sc[0]},${sc[1]},${sc[2]}`;
         }
+        /* LASTİK DİŞİ (v2.3.1): dört köşe, yalnız en yeni tur. `tyres4` zaten
+           karede (köprü _wear4) → oyun PC'sine yeni okuma/istek/thread YOK.
+           Online rakipte tyres4 null gelir (oyun yaymıyor) → yazılmaz.
+           harvest.py'deki koşulla BİREBİR aynı: v2.3.0'da bir alan yalnız bu iki
+           yoldan birine eklenip diğeri atlanmıştı, tekrarlanmasın. */
+        const w4 = r.tyres4;
+        if (maxN > prev && Array.isArray(w4) && w4.length === 4
+            && w4.every((v) => Number.isFinite(v) && v >= 0 && v <= 1)) {
+          wearEntries[`${key}/${maxN}`] = w4.map((v) => v.toFixed(3)).join(",");
+        }
         // pist koşulları: en yeni tur (maxN) için bu karenin asfalt/ıslaklık/tutuşu
         if (maxN > prev && condStr) condEntries[`${key}/${maxN}`] = condStr;
         if (maxN > (lastLap[key] || 0)) lastLap[key] = maxN;
@@ -260,6 +272,7 @@ export async function startBridge(opts, onStatus) {
         await liveLapsClear(tid, rid, k); await livePosClear(tid, rid, k);
         await liveSecClear(tid, rid, k); await liveDrvClear(tid, rid, k);
         await liveTyreClear(tid, rid, k); await liveCondClear(tid, rid, k);
+        await liveWearClear(tid, rid, k);
       }
       if (Object.keys(entries).length) await liveLapsAppend(tid, rid, entries);
       if (Object.keys(posEntries).length) await livePosAppend(tid, rid, posEntries);
@@ -267,6 +280,7 @@ export async function startBridge(opts, onStatus) {
       if (Object.keys(drvEntries).length) await liveDrvAppend(tid, rid, drvEntries);
       if (Object.keys(tyreEntries).length) await liveTyreAppend(tid, rid, tyreEntries);
       if (Object.keys(condEntries).length) await liveCondAppend(tid, rid, condEntries);
+      if (Object.keys(wearEntries).length) await liveWearAppend(tid, rid, wearEntries);
     } catch (e) {
       say({ running: true, phase: "running", msg: "Geçmiş yazılamadı: " + (e?.message || e) });
     }

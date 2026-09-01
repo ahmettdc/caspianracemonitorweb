@@ -15,7 +15,8 @@ Saf mantık — ağ yok; test: bridge/test_harvest.py.
 """
 
 #: Temizlik yapılan kalıcı düğümler (JS storage.liveHistoryClearAll ile birebir).
-LAP_NODES = ("livelaps", "livepos", "livesec", "livedrv", "livetyre", "livecond")
+LAP_NODES = ("livelaps", "livepos", "livesec", "livedrv", "livetyre", "livecond",
+             "livewear")
 
 
 def _num(v):
@@ -192,6 +193,17 @@ class Harvester:
                 if (max_n > prev and isinstance(sc, list) and len(sc) == 3
                         and all(_num(v) and v > 0 for v in sc)):
                     upd[f"livesec/{self.rid}/{key}/{int(max_n)}"] = f"{sc[0]},{sc[1]},{sc[2]}"
+                # LASTİK DİŞİ (v2.3.1): dört köşe, yalnız en yeni tur — livesec
+                # deseni birebir. `tyres4` ZATEN karede (rf2_source._wear4) →
+                # yeni paylaşımlı-bellek okuması, REST isteği, thread ya da hız
+                # değişimi YOK; tek maliyet tur başına bir küçük dize.
+                # Online rakipte _wear4 None döner (oyun rakip aşınmasını
+                # yaymıyor) → hiç yazılmaz, uydurma veri üretilmez.
+                w4 = r.get("tyres4")
+                if (max_n > prev and isinstance(w4, list) and len(w4) == 4
+                        and all(_num(v) is not None and 0 <= v <= 1 for v in w4)):
+                    upd[f"livewear/{self.rid}/{key}/{int(max_n)}"] = ",".join(
+                        f"{float(v):.3f}" for v in w4)
                 if max_n > prev and cond:
                     upd[f"livecond/{self.rid}/{key}/{int(max_n)}"] = cond
                 if max_n > (self.last_lap.get(key) or 0):

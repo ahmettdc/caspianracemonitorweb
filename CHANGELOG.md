@@ -2,7 +2,61 @@
 
 ## v2.3.1 — 2026-09-01
 
-_Geliştirme sürüyor. Bu sürümün değişiklik notları iş tamamlandıkça eklenecek._
+_Geliştirme sürüyor — bu sürüme iş eklendikçe bölümler büyüyecek._
+
+### Tur başı aşınma ölçülmüyordu (yalnız "en kötü köşe" anlık dişi vardı)
+
+- **Belirti:** Lastik sekmesindeki tek aşınma sayısı `measuredWear`den geliyordu
+  (`tyrePlanCalc.js`). İki kör noktası vardı: dört köşeyi `Math.min(...)` ile
+  **en kötüye** indiriyordu (asimetrik aşınma — ör. sağ virajı bol pistte ön-sol —
+  hiç görünmüyordu) ve hızı **anlık dişten** çıkardığı için stint ortalamasıydı
+  (degradasyonun döndüğü an okunamıyordu). Çıktısı da tek bir yerde, öneri
+  butonunda kullanılıyordu.
+- **Neden yapılamamıştı:** köşe başına gerçek hız için **tur-tur** diş serisi
+  gerekir; hiçbir yerde tutulmuyordu. Veri ise zaten karedeydi (`tyres4`).
+
+- **Köprü — YENİ DÜĞÜM `livewear`:** `{lapKey}/{n} = "fl,fr,rl,rr"` (diş 0..1,
+  3 ondalık). `livesec` deseni birebir: **tur başına bir kez, yalnız en yeni tur**.
+  Kaynak `tyres4` zaten karede olduğu için **yeni paylaşımlı-bellek okuması, REST
+  isteği, thread ve hız değişimi YOK.**
+  - **İKİ YAZICI YOL DA güncellendi** — `bridge/harvest.py` (hafif .exe) *ve*
+    `src/liveBridge.js` (masaüstü sidecar), koşullar birebir aynı. v2.3.0'da bir
+    alan yalnız birine eklenip diğeri atlanmıştı (`tyreChange`); tekrarlanmadı.
+  - Online rakipte `_wear4` `None` döner (oyun rakip aşınmasını yaymaz) → **hiç
+    yazılmaz**, uydurma veri üretilmez. Aralık dışı/bozuk okuma da yazılmaz.
+
+- **Maliyet denetimi (ölçüldü, tahmin değil — CLAUDE.md §0):**
+  | Ölçüm | Sonuç |
+  |---|---|
+  | Canlı kare (2 Hz yayın) | 7684 B → 7684 B — **0 B fark** |
+  | `livewear` yazımı | 48 B/araç/tur (seyrek, tur başına) |
+  | 40 araçlık grid, ~1.5 tur/dk | **~48 B/sn** |
+  Karşılaştırma: v2.3.0'da kabul edilen denetim 2 Hz karede ~7.4 KB/sn idi; bu
+  ekleme onun ~150'de biri ve **2 Hz kareye hiç dokunmuyor**.
+
+- **Web (`src/lapWear.js`, yeni):** `wearSeries` · `cornerSegments` · `cornerRate` ·
+  `wearRates` · `lapsLeft` · `limitingCorner`.
+  - **Segment sınırı VERİDEN okunur.** Lastik değişimi dişi YÜKSELTİR; sınırı
+    `livetyre`den türetmek cazipti ama **yanlış** olurdu: o düğüm yalnız "kaç
+    lastik" tutar, **hangi köşe** olduğunu tutmaz. Sınır doğrudan ölçümden
+    okunuyor (diş artışı > `RESET_EPS`) → **2-lastik değişiminde yalnız gerçekten
+    değişen köşeler sıfırlanır**, diğer ikisinin geçmişi korunur (testli).
+  - Hız **tur numarasından** hesaplanır (örnek sayısından değil) → seride boşluk
+    varsa bozulmaz. `recent` yalnız pencere dönemden GERÇEKTEN kısaysa üretilir.
+  - **`Number(null) === 0` tuzağı** (CLAUDE.md §1'in adıyla uyardığı, v2.3.0'da
+    `lapDist`te yaşanan hata) testle yakalandı: eksik diş 0'a çöküp "0 tur kaldı"
+    diyordu — makul görünen ama uydurma bir sonuç, üstelik pit duvarına yanlışlıkla
+    "hemen gir" dedirtir. Yokluk artık sayıya çevrilmeden elenir.
+- **UI (`TyreTab.jsx`):** köşe başına %/tur + kalan diş + kalan tur + trend
+  (`↑ hızlanıyor` / `↓ yavaşlıyor`), başlıkta pit penceresini belirleyen köşe.
+  Öneri butonu artık bu gerçek ölçümden beslenir, **eski `measuredWear` yedek
+  olarak korundu** (eski köprü / kayıt henüz birikmemişken buton kaybolmasın).
+  KALAN TUR ekranda **modellenmiş tahmin** olarak etiketlendi (doğrusal varsayım).
+- **Kapsam:** Firebase kuralı + `deleteTeam` + `liveHistoryClearAll` + `LAP_NODES`
+  (seans sıfırlaması) hepsine `livewear` eklendi. Testler: `lapWear.test.js` (20),
+  `lapWear.render.test.jsx` (5), köprü tarafında 2 yeni test.
+- **Bilinen sınır:** demo modu Firebase'e yazmaz → kart demoda boş kalır (mevcut
+  lastik defteri de aynı sınırda, `liveDemo.js` bunu zaten belirtiyor).
 
 ## v2.3.0 — 2026-08-31
 

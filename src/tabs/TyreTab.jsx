@@ -3,9 +3,11 @@
    Türetilmiş tyreInfo/racePlan ve handler'lar App'ten prop gelir. */
 import { useEffect, useState } from "react";
 import { Icon } from "../components";
-import { liveTyreSubscribe, liveLapsSubscribe } from "../storage";
+import { liveTyreSubscribe, liveLapsSubscribe, liveWearSubscribe } from "../storage";
 import { buildLedger, ledgerSummary, planChanges, comparePlan } from "../tyreLedger";
 import { planTread, changeTimeOf, totalChangeTime, measuredWear } from "../tyrePlanCalc";
+import { wearSeries, wearRates, limitingCorner, lapsLeft, RECENT_LAPS } from "../lapWear";
+import { CORNER_LBL } from "../tyreInfo";
 
 const TY = ["FL", "FR", "RL", "RR"];
 const TY_COL = { "": "#37D67A", t2: "#F2C94C", tq: "#4D9FFF", t3: "#F0604D", t4: "#B91C1C", tw: "#7FE3A0", terr: "var(--rc-danger)" };
@@ -14,6 +16,11 @@ const colOf = (cls) => TY_COL[cls] ?? "#37D67A";
    indirildi (aynı yeşil→kırmızı yön). */
 const treadCol = (v) => (v > 0.75 ? "#37D67A" : v > 0.55 ? "#9ACD32"
   : v > 0.35 ? "#F2C94C" : v > 0.15 ? "#F0904D" : "#F0604D");
+
+/* Trend eşiği: son pencere hızı dönem ortalamasından bu oranda saparsa "hızlanıyor/
+   yavaşlıyor" yazılır. Salt GÖSTERİM eşiğidir (veri değil) — altında kalan fark
+   ölçüm gürültüsünden ayırt edilemeyeceği için sessiz geçilir. */
+const TREND_EPS = 0.15;
 
 /* Hamur → şerit rengi. Oyun hamuru yalnız ÖN/ARKA verir (köşe başına YOK), o
    yüzden defter tek hamur metni taşır; "Ön/Arka" biçimindeki karma değerlerde
@@ -37,11 +44,18 @@ export default function TyreTab({
      (bridge/harvest.py); bu ekran onu ilk kez okuyor. Elle giriş yok. */
   const [tyreLog, setTyreLog] = useState(null);
   const [lapMap, setLapMap] = useState(null);
+  /* TUR BAŞI AŞINMA (v2.3.1): köprü her turun dört köşe dişini `livewear`e yazar
+     (harvest.py / liveBridge.js). Kaynak `tyres4` zaten canlı karede olduğu için
+     oyun PC'sine yeni okuma/istek eklenmedi. */
+  const [wearLog, setWearLog] = useState(null);
   useEffect(() => {
-    if (!tid || !rid || !lapKey) { setTyreLog(null); setLapMap(null); return undefined; }
+    if (!tid || !rid || !lapKey) {
+      setTyreLog(null); setLapMap(null); setWearLog(null); return undefined;
+    }
     const a = liveTyreSubscribe(tid, rid, lapKey, setTyreLog);
     const b = liveLapsSubscribe(tid, rid, lapKey, setLapMap);
-    return () => { a(); b(); };
+    const c = liveWearSubscribe(tid, rid, lapKey, setWearLog);
+    return () => { a(); b(); c(); };
   }, [tid, rid, lapKey]);
   const ledger = buildLedger(tyreLog, lapMap);
   const sum = ledgerSummary(ledger);
@@ -63,6 +77,25 @@ export default function TyreTab({
      telemetriden ölçüyoruz. Yalnız taze setle başlayan ve süren dönemde. */
   const openPeriod = ledger.length ? ledger[ledger.length - 1] : null;
   const meas = measuredWear(openPeriod, ownTyres, lastLapNo, stintLaps);
+
+  /* ---- TUR BAŞI AŞINMA (v2.3.1) ---- köşe başına GERÇEK tur farklarından.
+     `measuredWear`den iki farkı var: (1) dört köşeyi "en kötü"ye indirmez,
+     (2) hızı anlık dişten değil tur-tur seriden çıkarır → son pencereyle
+     degradasyonun hızlanıp hızlanmadığı da okunur. */
+  const wSeries = wearSeries(wearLog);
+  const wRates = wearRates(wSeries);
+  const wLim = limitingCorner(wSeries);
+  const slaps = Number(stintLaps);
+  /* Öneri kaynağı: tur-tur kayıt VARSA o kullanılır (gerçek tur farkı, köşe
+     ayrışmış). Yoksa eski anlık ölçüme düşülür — eski köprüde ya da kayıt
+     henüz birikmemişken buton kaybolmasın. */
+  const suggest = (wLim && slaps > 0)
+    ? { pct: wLim.perLap * slaps, laps: wLim.laps, tread: wLim.tread,
+      corner: wLim.corner, live: true }
+    : (meas && meas.perStint != null
+      ? { pct: meas.perStint, laps: meas.laps, tread: meas.tread,
+        corner: null, live: false }
+      : null);
   const limit = Math.max(0, st.tyreLimit);
   const wetCount = tyreInfo.rows.reduce((n, r) => n + r.vals.filter((v) => String(v).trim() === "W").length, 0);
   const lockCorner = (id) => {
@@ -112,12 +145,20 @@ export default function TyreTab({
               <button onClick={() => up({ tyreWearPerStint: Math.min(100, wearPct + 5) })}
                 style={{ width: 30, height: 34, border: "none", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 15 }}>+</button>
             </div>
-            {meas && meas.perStint != null && (
-              <button onClick={() => up({ tyreWearPerStint: Math.round(meas.perStint * 100) })}
-                title={`${t("Canlı ölçüm")}: ${meas.laps} ${t("tur")}, ${t("kalan diş")} %${Math.round(meas.tread * 100)}`}
+            {suggest && (
+              <button onClick={() => up({ tyreWearPerStint: Math.round(suggest.pct * 100) })}
+                title={[
+                  suggest.live
+                    ? `${t("Tur tur diş kaydından ölçüldü")} (${suggest.laps} ${t("tur")})`
+                    : `${t("Canlı ölçüm")}: ${suggest.laps} ${t("tur")}`,
+                  suggest.corner
+                    ? `${t("Belirleyen köşe")}: ${t(CORNER_LBL[suggest.corner])}`
+                    : "",
+                  `${t("kalan diş")} %${Math.round(suggest.tread * 100)}`,
+                ].filter(Boolean).join("\n")}
                 style={{ padding: "6px 10px", borderRadius: 8, cursor: "pointer", fontSize: 11.5,
                   border: "1px solid var(--rc-ok)", background: "transparent", color: "var(--rc-ok)" }}>
-                {t("ölçülen")} %{Math.round(meas.perStint * 100)} →
+                {t("ölçülen")} %{Math.round(suggest.pct * 100)} →
               </button>
             )}
           </div>
@@ -127,6 +168,79 @@ export default function TyreTab({
             </div>
           )}
         </div>
+      </div>
+
+      {/* ---- TUR BAŞI AŞINMA (v2.3.1) — köşe başına GERÇEK ölçüm ----
+           Kaynak: köprünün her tur yazdığı dört köşe dişi (livewear). Bu kart
+           `measuredWear`in iki kör noktasını kapatır: köşeleri "en kötü"ye
+           indirmesi ve hızı tur-tur değil anlık dişten çıkarması. */}
+      <div style={{ ...card, padding: "14px 16px", marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 11 }}>
+          <span style={hdT}>{t("Tur başı aşınma")}</span>
+          <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>
+            {t("her turun diş kaydından ölçülür — elle giriş yok")}</span>
+          {wLim && wLim.left != null && (
+            <span style={{ marginLeft: "auto", fontSize: 11.5, color: "var(--rc-warn)" }}>
+              {t("Pit penceresini belirleyen")}: <b>{t(CORNER_LBL[wLim.corner])}</b>
+              {` · ~${Math.round(wLim.left)} ${t("tur")}`}
+            </span>
+          )}
+        </div>
+        {!wSeries.length ? (
+          <div style={{ fontSize: 12.5, color: "var(--rc-text-3)", padding: "6px 0" }}>
+            {t("Henüz diş kaydı yok — köprü çalışırken her tamamlanan tur buraya kendiliğinden düşer.")}
+          </div>
+        ) : (
+          <>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              {wRates.map((r) => {
+                const left = r.perLap != null ? lapsLeft(r.tread, r.perLap) : null;
+                const trend = (r.perLap != null && r.recent != null)
+                  ? (r.recent > r.perLap * (1 + TREND_EPS) ? "up"
+                    : r.recent < r.perLap * (1 - TREND_EPS) ? "down" : "flat")
+                  : null;
+                return (
+                  <div key={r.corner} style={{ flex: "1 1 150px", borderRadius: 10, padding: "10px 12px",
+                    border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                      <span style={{ fontSize: 10.5, color: "var(--rc-text-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>
+                        {t(CORNER_LBL[r.corner])}</span>
+                      {r.tread != null && (
+                        <span style={{ marginLeft: "auto", fontFamily: "var(--rc-font-display)",
+                          fontSize: 13, fontWeight: 700, color: treadCol(r.tread) }}>
+                          %{Math.round(r.tread * 100)}</span>
+                      )}
+                    </div>
+                    {r.perLap == null ? (
+                      <div style={{ fontSize: 11.5, color: "var(--rc-border-strong)" }}
+                        title={t("Bu köşede henüz iki geçerli tur okuması yok — hız üretilmiyor")}>—</div>
+                    ) : (
+                      <>
+                        <div style={{ fontFamily: "var(--rc-font-display)", fontSize: 18, fontWeight: 700 }}>
+                          %{(r.perLap * 100).toFixed(2)}
+                          <span style={{ fontSize: 11, color: "var(--rc-text-3)", fontWeight: 400 }}> /{t("tur")}</span>
+                        </div>
+                        <div style={{ fontSize: 11, color: "var(--rc-text-3)", marginTop: 3 }}>
+                          {left != null ? `~${Math.round(left)} ${t("tur kaldı")}` : "—"}
+                        </div>
+                        {trend && trend !== "flat" && (
+                          <div style={{ fontSize: 10.5, marginTop: 3,
+                            color: trend === "up" ? "var(--rc-danger)" : "var(--rc-ok)" }}
+                            title={`${t("Son")} ${RECENT_LAPS} ${t("tur")}: %${(r.recent * 100).toFixed(2)}`}>
+                            {trend === "up" ? `↑ ${t("hızlanıyor")}` : `↓ ${t("yavaşlıyor")}`}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ fontSize: 11, color: "var(--rc-text-3)", marginTop: 10, lineHeight: 1.5 }}>
+              {t("Aşınma hızı GERÇEK okumadır (turlar arası diş farkı). KALAN TUR, hızın sabit kalacağı varsayımıyla modellenmiş tahmindir — gerçek okuma değil; diş %0'a inene kadar hesaplanır. Lastik değişimi serinin kendisinden okunur (diş artışı), pit kaydından tahmin edilmez: 2 lastik değiştiğinde yalnız o köşeler sıfırlanır.")}
+            </div>
+          </>
+        )}
       </div>
 
       {/* ---- LASTİK DEFTERİ (gerçek) ---- */}

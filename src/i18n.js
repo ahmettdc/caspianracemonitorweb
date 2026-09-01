@@ -835,6 +835,22 @@ export const EN = {
     "The plan is derived from the existing table (a filled cell = a pit action). Because the plan carries no lap numbers, entries are matched IN ORDER, not lap-exactly.",
   "yarıştaki GERÇEK lastik değişimleri — elle giriş yok":
     "the REAL tyre changes from the race — no manual entry",
+  // --- Tur başı aşınma (v2.3.1) ---
+  "Tur başı aşınma": "Wear per lap",
+  "her turun diş kaydından ölçülür — elle giriş yok":
+    "measured from each lap's tread record — no manual entry",
+  "Henüz diş kaydı yok — köprü çalışırken her tamamlanan tur buraya kendiliğinden düşer.":
+    "No tread record yet — every completed lap lands here on its own while the bridge is running.",
+  "Pit penceresini belirleyen": "Pit window set by",
+  "Belirleyen köşe": "Limiting corner",
+  "tur kaldı": "laps left",
+  "hızlanıyor": "accelerating",
+  "yavaşlıyor": "easing off",
+  "Bu köşede henüz iki geçerli tur okuması yok — hız üretilmiyor":
+    "Fewer than two valid lap readings on this corner — no rate is produced",
+  "Tur tur diş kaydından ölçüldü": "Measured from the lap-by-lap tread record",
+  "Aşınma hızı GERÇEK okumadır (turlar arası diş farkı). KALAN TUR, hızın sabit kalacağı varsayımıyla modellenmiş tahmindir — gerçek okuma değil; diş %0'a inene kadar hesaplanır. Lastik değişimi serinin kendisinden okunur (diş artışı), pit kaydından tahmin edilmez: 2 lastik değiştiğinde yalnız o köşeler sıfırlanır.":
+    "The wear rate is a REAL reading (the tread difference between laps). LAPS LEFT is a modelled projection that assumes the rate stays constant — not a real reading; it is calculated down to 0% tread. A tyre change is read from the series itself (tread going back up), never guessed from the pit record: when only 2 tyres are changed, only those corners reset.",
   "tam set": "full sets", "aks": "axle", "yakıt-only": "fuel-only",
   "Henüz kayıt yok — köprü çalışırken pit değişimleri buraya kendiliğinden düşer.":
     "No entries yet — pit changes land here on their own while the bridge is running.",

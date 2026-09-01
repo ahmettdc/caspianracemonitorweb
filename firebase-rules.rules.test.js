@@ -200,6 +200,17 @@ describe("teams/livelaps + livesec (tur geçmişi)", () => {
     await assertFails(set(ref(db("dave"), "teams/team1/livetyre/race1/c7/25"), "4|Medium"));
   });
 
+  it("livewear: editor tur başı diş yazar, üye okur; string olmayan/40+ reddedilir", async () => {
+    await assertSucceeds(set(ref(db("bob"), "teams/team1/livewear/race1/c7/25"), "0.980,0.970,0.990,0.960"));
+    await assertSucceeds(get(ref(db("carol"), "teams/team1/livewear/race1/c7")));
+    await assertFails(set(ref(db("bob"), "teams/team1/livewear/race1/c7/26"), 0.98));
+    await assertFails(set(ref(db("bob"), "teams/team1/livewear/race1/c7/27"), "x".repeat(40)));
+  });
+  it("livewear: viewer yazar; yabancı yazamaz", async () => {
+    await assertSucceeds(set(ref(db("carol"), "teams/team1/livewear/race1/c7/25"), "0.980,0.970,0.990,0.960"));
+    await assertFails(set(ref(db("dave"), "teams/team1/livewear/race1/c7/25"), "0.980,0.970,0.990,0.960"));
+  });
+
   it("livecond: editor pist koşulu yazar, üye okur; string olmayan/40+ reddedilir", async () => {
     await assertSucceeds(set(ref(db("bob"), "teams/team1/livecond/race1/c7/25"), "31,22,73"));
     await assertSucceeds(get(ref(db("carol"), "teams/team1/livecond/race1/c7")));
