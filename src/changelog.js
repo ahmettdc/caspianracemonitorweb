@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v2.3.1",
+    date: "2026-09-01",
+    tr: [
+      "🚧 Bu sürüm üzerinde çalışılıyor — değişiklik notları iş tamamlandıkça buraya eklenecek.",
+    ],
+    en: [
+      "🚧 Work in progress — release notes are added here as changes land.",
+    ],
+  },
+  {
     v: "v2.3.0",
     date: "2026-08-31",
     tr: [

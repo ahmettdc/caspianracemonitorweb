@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.3.1 — 2026-09-01
+
+_Geliştirme sürüyor. Bu sürümün değişiklik notları iş tamamlandıkça eklenecek._
+
 ## v2.3.0 — 2026-08-31
 
 Live Timing standings genişletmesi. Referans olarak TinyPedal'ın `Standings`/`Relative`
