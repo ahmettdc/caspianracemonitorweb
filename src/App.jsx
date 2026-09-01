@@ -250,6 +250,15 @@ export default function App() {
   const [driverErr, setDriverErr] = useState("");
   const goDriverMode = async () => {
     setDriverErr("");
+    /* Bu eylem uygulamayı KAPATIYOR ve üst barda tek tıkla erişiliyor — yarış
+       ortasında kazara tıklanırsa mühendisin ekranı gider. Onay iste; geri dönüş
+       yolu (köprüdeki "Race Engineer'a Dön") metinde yazsın ki karar bilinçli olsun. */
+    const ok = await confirmDialog({
+      title: "DriverMode",
+      message: t("Race Monitor kapanacak ve tarayıcısız hafif köprü açılacak. Köprü bağımsız çalışır, veri akışı kesilmez — köprü penceresindeki \"Race Engineer'a Dön\" ile geri dönebilirsin."),
+      confirmText: t("Sürücü moduna geç"),
+    });
+    if (!ok) return;
     try {
       const { invoke } = await import("@tauri-apps/api/core");
       await invoke("launch_bridge_and_quit");

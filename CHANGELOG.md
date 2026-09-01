@@ -20,6 +20,10 @@ _Geliştirme sürüyor — bu sürüme iş eklendikçe bölümler büyüyecek._
   başlatılsaydı uygulamanın ÇOCUĞU olurdu ve biz kapanınca ölürdü. Rust tarafı
   `opener().open_path()` kullanıyor → bağımsız süreç, Race Monitor kapansa da yaşar.
   Komut ayrıca `parent_app.txt` bırakıyor, köprüdeki "Race Engineer'a Dön" onu okuyor.
+- **Onay soruluyor:** buton uygulamayı KAPATIYOR ve üst barda tek tıkla erişiliyor;
+  yarış ortasında kazara tıklamak mühendisin ekranını götürürdü. Uygulamanın kendi
+  `confirmDialog`'u kullanıldı (native `window.confirm` değil) ve metinde geri dönüş
+  yolu ("Race Engineer'a Dön") yazıyor — karar bilinçli olsun.
 - **Sessiz başarısızlık yok:** invoke hata dönerse (eski kurulum, exe kaynakta yok)
   sebep butonun yanında yazılır — kullanıcı tıklayıp hiçbir şey olmadığını görmez.
 
