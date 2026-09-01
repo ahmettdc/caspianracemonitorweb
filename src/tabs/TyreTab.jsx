@@ -19,6 +19,7 @@ import { useEffect, useState } from "react";
 import { Icon } from "../components";
 import { liveTyreSubscribe, liveLapsSubscribe } from "../storage";
 import { buildLedger, ledgerSummary, planChanges, comparePlan } from "../tyreLedger";
+import { popRows, popBlockedAt } from "../tyrePlanCalc";
 
 const CORNERS = ["FL", "FR", "RL", "RR"];
 
@@ -124,6 +125,13 @@ export default function TyreTab({
     const [ri, ci] = k.split(":").map(Number);
     return String((tyGrid[ri] || [])[ci] || "").trim();
   }).filter(Boolean));
+  /* Patlayan set BİR DAHA KULLANILAMAZ (fişin kendi kuralı; set kutusu ipucu da
+     bunu yazıyor) ama fişin verdiği tyPickSets bunu hiç uygulamıyordu — yalnız
+     köşe kilidine bakıyordu, patlak set sonraki stintlerde yeniden seçilebiliyordu
+     (kullanıcı bildirimi). Yasak SATIRA duyarlı: lastik patladığı satırdan SONRASI
+     için geçersizdir, öncesinde araçtaydı ve orada geçerli kalır. */
+  const popRowOf = popRows(tyPop, tyGrid);
+  const popBlocked = (id, ri) => popBlockedAt(popRowOf, id, ri);
   const togglePop = (ri, ci) => {
     if (readOnly) return;
     const k = popKey(ri, ci);
@@ -217,11 +225,19 @@ export default function TyreTab({
   /* hızlı atama — proje reducer'ına bağlanır (syncPitTyres orada çalışır) */
   const needCount = (q) => (q.wet || q.qual ? 0 : q.idx.length);
   const mkQuick = (q) => {
-    const short = needCount(q) > tyAvail;
+    const lack = needCount(q) > tyAvail;
+    /* "Qual'a dön" patlamış bir Qual setini geri yazabilirdi — patlak set hiçbir
+       yolla geri gelmemeli (seçici de aynı kuralı uygular). Yeni set atayan
+       seçenekler zaten kullanılmamış numaradan çeker, patlak set "kullanılmış"
+       olduğu için havuza girmez. */
+    const popHit = !!q.qual && tyQuick != null
+      && (tyGrid[0] || []).some((id, ci) => q.idx.includes(ci) && id && popBlocked(id, tyQuick));
+    const short = lack || popHit;
     return {
       ...q,
       short,
-      sub: short ? `${t("yetersiz")} · ${tyAvail} ${t("kaldı")}` : q.sub,
+      sub: popHit ? t("patlak set — geri alınamaz")
+        : lack ? `${t("yetersiz")} · ${tyAvail} ${t("kaldı")}` : q.sub,
       go: () => {
         if (short || tyQuick == null || readOnly) return;
         quickTyre(rowIdxOf(tyQuick), q.action);
@@ -662,22 +678,27 @@ export default function TyreTab({
                     const uses = tyUseCount[id] || 0;
                     const lock = tyLock[id];
                     const isCur = cur === id;
-                    const blocked = !!lock && lock !== corner && !isCur;
+                    const lockBlocked = !!lock && lock !== corner && !isCur;
+                    const popBlk = popBlocked(id, ri) && !isCur;
+                    const blocked = lockBlocked || popBlk;
                     const col = uses ? cellCol(id) : TY_NEW;
                     return (
                       <button key={id} onClick={() => { if (!blocked) setCell(ri, ci, id); }}
+                        title={popBlk
+                          ? `${t("Set")} ${id} · ${t("S")}${popRowOf.get(id)} ${t("stintinde patladı — sonraki stintlerde kullanılamaz")}`
+                          : lockBlocked ? `${t("Set")} ${id} · ${lock} ${t("köşesine kilitli")}` : ""}
                         style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "11px 8px", borderRadius: 10,
                           cursor: blocked ? "not-allowed" : "pointer", opacity: blocked ? 0.4 : 1,
                           border: `1px solid ${isCur ? "var(--rc-brand-bright)" : blocked ? "var(--rc-border)" : uses ? col : "var(--rc-border)"}`,
                           background: isCur ? "rgba(150,0,24,.24)" : "var(--rc-surface-3)", color: "var(--rc-text)" }}>
                         <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 22, fontWeight: 700, lineHeight: 1 }}>{id}</b>
                         <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 10, color: blocked ? "var(--rc-danger)" : uses ? col : "var(--rc-text-3)" }}>
-                          {blocked ? `🔒 ${lock}` : uses ? `${uses}× · ${lock}` : t("yeni")}</span>
+                          {popBlk ? `💥 ${t("patlak")}` : lockBlocked ? `🔒 ${lock}` : uses ? `${uses}× · ${lock}` : t("yeni")}</span>
                       </button>
                     );
                   })}
                 </div>
-                <div style={{ fontSize: 11, color: "var(--rc-text-3)", lineHeight: 1.6, marginTop: 12 }}>{t("Kilitli köşesi farklı olan setler seçilemez — bir lastik ilk takıldığı köşede kalır.")}</div>
+                <div style={{ fontSize: 11, color: "var(--rc-text-3)", lineHeight: 1.6, marginTop: 12 }}>{t("Kilitli köşesi farklı olan setler seçilemez — bir lastik ilk takıldığı köşede kalır.")}{" "}{t("Patlayan set, patladığı stintten sonrasında seçilemez.")}</div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 18px", borderTop: "1px solid var(--rc-border)", background: "var(--rc-surface-2)" }}>
                 <span style={{ fontSize: 11.5, color: "var(--rc-text-3)" }}>{t("Kalan")} <b style={{ color: tyAvail < 0 ? "var(--rc-danger)" : "var(--rc-ok)", fontFamily: "var(--rc-font-display)" }}>{tyAvail}</b> {t("set")}</span>

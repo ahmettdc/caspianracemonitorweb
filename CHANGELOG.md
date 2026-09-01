@@ -25,6 +25,14 @@ markup yapısı ve stil değerleri fişten kopyalandı, türetilmedi).
   (`TY_WEAR_BIAS`) ölçeklenir → mevcut kullanıcı planları elle müdahale istemez.
 - **Patlak** (`tyrePop: {"satır:köşe": true}`): hücre + set kutusu + başlık rozeti
   üçü birden güncellenir (fişin kabul kriteri, testle kilitlendi). Süre eklemez.
+  - **Fişin açığı kapatıldı** (kullanıcı bildirimi): fiş "patlayan set yeniden
+    kullanılamaz" diyor ve set kutusu ipucu da bunu yazıyor, ama verdiği
+    `tyPickSets` kodu bunu HİÇ uygulamıyordu — yalnız köşe kilidine bakıyordu ve
+    patlak set sonraki stintlerde geri seçilebiliyordu. Kural saf modüle çıkarıldı
+    (`tyrePlanCalc.popRows` / `popBlockedAt`, 12 test) ve SATIRA duyarlı: yasak
+    yalnız patladığı satırdan SONRASI içindir — patladığı satır ve öncesi geçerli
+    okumadır, lastik o sırada gerçekten araçtaydı. Seçicide kilit + "patlak"
+    etiketi; "Qual'a dön" hızlı ataması da patlak seti geri getiremiyor.
 - Defter ve hücre seçimi **pencereye** taşındı; hücre artık buton, altında diş barı.
 - `readOnly` (izleyici) prop'u App.jsx'ten geçirildi — yazma eylemleri görsel olarak
   da pasif.

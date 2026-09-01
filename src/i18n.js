@@ -834,6 +834,12 @@ export const EN = {
   "Plan mevcut tablodan türetilir (dolu hücre = pit işlemi). Planda tur numarası olmadığı için eşleme SIRAYLA yapılır, tur-hassas değildir.":
     "The plan is derived from the existing table (a filled cell = a pit action). Because the plan carries no lap numbers, entries are matched IN ORDER, not lap-exactly.",
   // --- Lastik stratejisi v2.3.1 (tasarım fişi 06-lastik) ---
+  "Set": "Set",
+  "S": "S",
+  "stintinde patladı — sonraki stintlerde kullanılamaz": "stint it blew out in — it cannot be used in later stints",
+  "köşesine kilitli": "is locked to corner",
+  "Patlayan set, patladığı stintten sonrasında seçilemez.": "A set that blew out cannot be picked after the stint it blew out in.",
+  "patlak set — geri alınamaz": "blown set — cannot be brought back",
   "Lastik stratejisi": "Tyre strategy",
   "Lastik strateji tablosu": "Tyre strategy table",
   "Kuru set limiti": "Dry set limit",
