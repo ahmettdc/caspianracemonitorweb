@@ -425,15 +425,24 @@ export default function App() {
   const stratUp = (i, patch) => edit((s0) => applyStratUp(s0, i, patch));
   const stratDel = (i) => edit((s0) => applyStratDel(s0, i));
   const stratPickSet = (key, v) => up({ [key]: v });
-  /* Kendi satırını GERÇEK plandan doldurur. tyre4Sec olarak TYRE_4_SEC (12 sn)
-     verilir — computePlan pit sürelerini de bununla kurar (st.tyreChangeT34
-     lastik PLANLAYICISININ ayrı değeri; ikisini karıştırmak karşılaştırmayı
-     plandan koparırdı). Plan geçersizse seedFromPlan null döner → satır
-     eklenmez, yarım plandan uydurma satır üretilmez. */
-  const stratSeed = () => {
-    const seed = seedFromPlan(st, racePlan, TYRE_4_SEC);
+  /* Bir strateji varyantının (A/B/C/D) GERÇEK planından satır doldurur —
+     "A planı mı B planı mı hızlı" karşılaştırmasının girdisi budur.
+     · Plan TIKLANDIĞINDA hesaplanır. Dört varyantı her renderda kurmak
+       pahalı olurdu (computePlan tur-tur yürüyüş + sabit-nokta döngüsü; bu
+       dosya v2.3.0'da tam bu yüzden üç çağrıyı bire indirmişti) ve maliyeti
+       canlı yarışta da ödenirdi. Seçili varyant için zaten hesaplanmış
+       racePlan yeniden kullanılır.
+     · tyre4Sec = TYRE_4_SEC (12 sn): computePlan pit sürelerini bununla
+       kurar. st.tyreChangeT34 lastik PLANLAYICISININ ayrı, kullanıcı
+       düzenlenebilir değeridir; ikisini karıştırmak karşılaştırmayı kendi
+       planından koparırdı.
+     · Plan geçersizse seedFromPlan null döner → satır EKLENMEZ. */
+  const stratSeed = (key) => {
+    const k = key || st.chosen;
+    const p = k === st.chosen ? racePlan : computePlan({ ...st, chosen: k }, "race");
+    const seed = seedFromPlan(st, p, TYRE_4_SEC);
     if (!seed) return;
-    stratAdd({ ...seed, name: teamData?.meta?.name || t("Bizim takım") });
+    stratAdd({ ...seed, name: `${t("Plan")} ${k} · ${st.strategies?.[k]} ${t("tur")}` });
   };
 
   /* boş hücre = o köşede lastik değişmedi → önceki stintten (yoksa Qual'dan) taşınan lastik.

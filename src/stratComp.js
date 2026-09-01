@@ -49,6 +49,8 @@
    React/Firebase bağımsız → stratComp.test.js doğrudan test eder.
    ============================================================ */
 
+import { parseHMS, parseLap, MIN_LAP_SEC } from "./engine";
+
 /* Sayı guard: "" · null · undefined · NaN · Infinity → null (0 DEĞİL).
    Sıfır burada GEÇERLİ bir okumadır (ör. ceza yok = 0 sn), o yüzden
    "eksik" ile "sıfır" ayrımı bu fonksiyonun tek işi. */
@@ -287,4 +289,28 @@ export function seedFromPlan(st, plan, tyre4Sec) {
 export function suggestedLaps(plan) {
   const n = num(plan?.totalLaps);
   return plan && !plan.invalid && n > 0 ? Math.round(n) : null;
+}
+
+/* ---------- plan varyantları (A planı mı B planı mı?) ---------- */
+/* Uygulamanın kendi strateji varyantları: `st.strategies` = { A: 8, B: 9, … }
+   (stint başına tur). `computePlan` bunlardan yalnız `st.chosen` olanı kurar;
+   karşılaştırma için her varyantın planı ayrı ayrı hesaplatılabilir
+   (`computePlan({ ...st, chosen: key })`).
+
+   `ready` UCUZ bir ön kontroldür: engine.computePlan'ın `invalid` koşulunun
+   tur-tur YÜRÜMEDEN bakılabilen kısmı. Dört varyantın planını her renderda
+   kurmak pahalıdır (computePlan tur-tur yürüyüş + sabit-nokta döngüsü; kod
+   tabanı bu yüzden üç çağrıyı bire indirmişti) — plan yalnız düğmeye
+   BASILINCA hesaplanır, düğmenin aktifliği buradan okunur. */
+export function strategyOptions(st) {
+  const s = st || {};
+  const map = s.strategies && typeof s.strategies === "object" ? s.strategies : {};
+  /* Yarış süresi ve ortalama tur tüm varyantlarda ORTAK; biri geçersizse
+     hiçbir varyant plan üretemez. */
+  const raceOk = parseHMS(s.raceTime) > 0;
+  const lapOk = parseLap(s.avgLap) >= MIN_LAP_SEC;
+  return Object.keys(map).sort()
+    .map((key) => ({ key, laps: num(map[key]) }))
+    .filter((o) => o.laps !== null)
+    .map((o) => ({ ...o, ready: raceOk && lapOk && o.laps > 0 }));
 }

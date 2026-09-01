@@ -27,7 +27,7 @@
       ama takımlar A26'ya kadar gidiyordu → son takım (#306) hiç seçilemiyordu. */
 import { useMemo } from "react";
 import { Icon } from "../components";
-import { teamTime, compareTeams, rankTeams, suggestedLaps, fmtLapMs } from "../stratComp";
+import { teamTime, compareTeams, rankTeams, suggestedLaps, fmtLapMs, strategyOptions } from "../stratComp";
 import { stratPick } from "../state";
 import { fmtDur } from "../engine";
 
@@ -90,9 +90,17 @@ export default function StratCompTab({ t, st, plan, readOnly = false,
   const cmp = useMemo(() => compareTeams(teams[iA], teams[iB], laps), [teams, iA, iB, laps]);
   const rank = useMemo(() => rankTeams(teams, laps), [teams, laps]);
   const sugg = suggestedLaps(plan);
+  const opts = strategyOptions(st);
+  /* İki satırın ortalama turu BİREBİR aynıysa fark yalnız pit/yakıt/lastikten
+     gelir. Bu, iki planı da uygulamadan tohumlayınca olağan durumdur:
+     computePlan tek bir efektif tur süresi kullanır, yakıt yükünün ve lastik
+     yaşının turu yavaşlatmasını MODELLEMEZ. Söylenmezse araç "az durak hep
+     kazanır" der — uzun stintin gerçek bedeli görünmez (CLAUDE.md §1:
+     modellenmeyen şey etiketlenir). */
+  const samePace = cmp.ok && cmp.a.avgLapSec === cmp.b.avgLapSec;
 
   const fieldLbl = (k) => t(COLS.find((c) => c.k === k)?.lbl || (k === "raceLaps" ? "Toplam yarış turu" : k));
-  const nameOf = (i) => String(teams[i]?.name || "").trim() || `${t("Takım")} ${i + 1}`;
+  const nameOf = (i) => String(teams[i]?.name || "").trim() || `${t("Satır")} ${i + 1}`;
 
   return (
     <div>
@@ -121,7 +129,7 @@ export default function StratCompTab({ t, st, plan, readOnly = false,
           </div>
         </div>
         <div style={{ color: "var(--rc-text-4)", fontSize: "var(--rc-fs-11)", marginTop: 8, lineHeight: 1.6 }}>
-          {t("Model: toplam süre = ortalama tur × toplam tur + (pit yolu + yakıt + lastik + ceza + hasar). İki takımın farkı bu toplamların farkıdır.")}
+          {t("Model: toplam süre = ortalama tur × toplam tur + (pit yolu + yakıt + lastik + ceza + hasar). İki satırın farkı bu toplamların farkıdır. Satırlar rakip takım da olabilir, kendi A/B planınız da.")}
         </div>
       </div>
 
@@ -130,12 +138,12 @@ export default function StratCompTab({ t, st, plan, readOnly = false,
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--rc-sp-10)", marginBottom: "var(--rc-sp-12)" }}>
           {[["stratA", iA], ["stratB", iB]].map(([key, idx]) => (
             <label key={key} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={capLbl}>{key === "stratA" ? t("Takım A") : t("Takım B")}</span>
+              <span style={capLbl}>{key === "stratA" ? t("A") : t("B")}</span>
               <select value={idx} disabled={readOnly || !teams.length}
                 onChange={(e) => onPick?.(key, Number(e.target.value))}
                 style={{ padding: "6px 8px", borderRadius: "var(--rc-r-8)", background: "var(--rc-surface-4)", color: "var(--rc-text)", border: "1px solid var(--rc-border)", fontSize: "var(--rc-fs-12)" }}>
                 {teams.length ? teams.map((r, i) => (
-                  <option key={i} value={i}>{String(r?.name || "").trim() || `${t("Takım")} ${i + 1}`}</option>
+                  <option key={i} value={i}>{String(r?.name || "").trim() || `${t("Satır")} ${i + 1}`}</option>
                 )) : <option value={0}>{t("Kayıt yok")}</option>}
               </select>
             </label>
@@ -144,7 +152,7 @@ export default function StratCompTab({ t, st, plan, readOnly = false,
 
         {!teams.length ? (
           <div style={{ color: "var(--rc-text-4)", fontSize: "var(--rc-fs-12)", padding: "10px 0" }}>
-            {t("Aşağıdaki deftere en az iki takım ekleyin.")}
+            {t("Aşağıdaki deftere en az iki satır ekleyin (iki rakip ya da kendi A/B planınız).")}
           </div>
         ) : (
           <>
@@ -198,9 +206,15 @@ export default function StratCompTab({ t, st, plan, readOnly = false,
                     {t("tempo farkı")}: <b>{signed(cmp.paceDelta)}</b>{" "}
                     ({sgnLap(cmp.lapDelta)} {t("sn/tur")})
                   </div>
+                  {samePace && (
+                    <div style={{ marginTop: 8, padding: "8px 10px", borderRadius: "var(--rc-r-8)", background: "var(--rc-tint-warn)", border: "1px solid var(--rc-warn)", color: "var(--rc-text-2)", fontSize: "var(--rc-fs-11)", lineHeight: 1.6 }}>
+                      <Icon name="uyari" size={13} />{" "}
+                      {t("İki satırın ortalama turu aynı — fark yalnız pit/yakıt/lastik kaleminden geliyor. Uzun stintin yakıt yükü ve lastik yaşı yüzünden turu yavaşlatması bu modelde YOK; gerçek tempo farkını biliyorsanız ortalama turu satır başına elle girin.")}
+                    </div>
+                  )}
                   {cmp.leader !== "tie" && (
                     <div style={{ color: "var(--rc-text-3)", fontSize: "var(--rc-fs-12)", marginTop: 4 }}>
-                      {t("Geride kalan takımın farkı kapatması için")}:{" "}
+                      {t("Geride kalanın farkı kapatması için")}:{" "}
                       <b>{cmp.breakEvenLap.toFixed(3)}</b> {t("sn/tur")}
                     </div>
                   )}
@@ -224,18 +238,25 @@ export default function StratCompTab({ t, st, plan, readOnly = false,
       {/* ---------- kayıt defteri ---------- */}
       <div style={card}>
         <div style={{ display: "flex", alignItems: "center", gap: "var(--rc-sp-8)", marginBottom: "var(--rc-sp-10)" }}>
-          <span style={{ ...capLbl, fontSize: "var(--rc-fs-12)" }}>{t("Takım kayıt defteri")}</span>
+          <span style={{ ...capLbl, fontSize: "var(--rc-fs-12)" }}>{t("Kayıt defteri")}</span>
           <span style={{ color: "var(--rc-text-4)", fontSize: "var(--rc-fs-11)" }}>
-            {teams.length} {t("takım")}
+            {teams.length} {t("satır")}
           </span>
           {!readOnly && (
-            <div style={{ marginLeft: "auto", display: "flex", gap: "var(--rc-sp-8)" }}>
-              <button type="button" onClick={() => onSeed?.()}
-                title={t("Kendi yarış planından yeni satır oluşturur (pit sayısı, süreler ve ortalama tur plandan gelir)")}
-                disabled={!plan || plan.invalid}
-                style={btn(true, !plan || plan.invalid)}>
-                <Icon name="plan" size={13} /> {t("Planımdan ekle")}
-              </button>
+            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+              <span style={capLbl} title={t("Seçtiğiniz strateji varyantının GERÇEK planından satır oluşturur — pit sayısı, süreler ve ortalama tur plandan gelir")}>
+                <Icon name="plan" size={12} /> {t("Planımdan ekle")}
+              </span>
+              {opts.map((o) => (
+                <button key={o.key} type="button" disabled={!o.ready}
+                  onClick={() => onSeed?.(o.key)}
+                  title={o.ready
+                    ? `${t("Plan")} ${o.key} — ${o.laps} ${t("tur")}/stint`
+                    : t("Bu varyantın planı kurulamıyor (yarış süresi, ortalama tur ya da stint turu eksik/geçersiz)")}
+                  style={btn(o.key === st.chosen, !o.ready)}>
+                  {o.key} · {o.laps}
+                </button>
+              ))}
               <button type="button" onClick={() => onAdd?.()} style={btn(false, false)}>
                 <Icon name="ekle" size={13} /> {t("Boş satır")}
               </button>
@@ -245,14 +266,14 @@ export default function StratCompTab({ t, st, plan, readOnly = false,
 
         {!teams.length ? (
           <div style={{ color: "var(--rc-text-4)", fontSize: "var(--rc-fs-12)" }}>
-            {t("Henüz takım yok. \"Planımdan ekle\" kendi stratejinizi hazır doldurur.")}
+            {t("Henüz satır yok. \"Planımdan ekle\" ile bir strateji varyantını (A/B/C/D) hazır doldurun; iki varyant ekleyip hangisinin hızlı olduğunu karşılaştırabilirsiniz.")}
           </div>
         ) : (
           <div style={{ overflowX: "auto" }}>
             <table style={{ borderCollapse: "collapse", minWidth: "100%" }}>
               <thead>
                 <tr>
-                  <th style={{ ...th, textAlign: "left" }}>{t("Takım")}</th>
+                  <th style={{ ...th, textAlign: "left" }}>{t("Ad")}</th>
                   {COLS.map((c) => (
                     <th key={c.k} style={th} title={t(c.hint)}>{t(c.lbl)}</th>
                   ))}
@@ -267,7 +288,7 @@ export default function StratCompTab({ t, st, plan, readOnly = false,
                     <tr key={i} style={{ borderBottom: "1px solid var(--rc-line-soft)" }}>
                       <td style={{ ...td, textAlign: "left" }}>
                         <input type="text" value={row?.name ?? ""} disabled={readOnly}
-                          placeholder={t("#00 TAKIM")} style={{ width: 168, fontSize: "var(--rc-fs-12)" }}
+                          placeholder={t("Takım ya da plan adı")} style={{ width: 168, fontSize: "var(--rc-fs-12)" }}
                           onChange={(e) => onUp?.(i, { name: e.target.value })} />
                       </td>
                       {COLS.map((c) => (
@@ -328,7 +349,7 @@ export default function StratCompTab({ t, st, plan, readOnly = false,
             <thead>
               <tr>
                 <th style={{ ...th, textAlign: "left", width: 34 }}>#</th>
-                <th style={{ ...th, textAlign: "left" }}>{t("Takım")}</th>
+                <th style={{ ...th, textAlign: "left" }}>{t("Ad")}</th>
                 <th style={th}>{t("Sabit kayıp")}</th>
                 <th style={th}>{t("Ort. tur")}</th>
                 <th style={th}>{t("Toplam")}</th>
@@ -340,7 +361,7 @@ export default function StratCompTab({ t, st, plan, readOnly = false,
                 <tr key={r.idx} style={{ borderBottom: "1px solid var(--rc-line-soft)" }}>
                   <td style={{ ...td, textAlign: "left", color: "var(--rc-text-4)" }}>{i + 1}</td>
                   <td style={{ ...td, textAlign: "left", fontFamily: "var(--rc-font-ui)" }}>
-                    {String(r.team?.name || "").trim() || `${t("Takım")} ${r.idx + 1}`}
+                    {String(r.team?.name || "").trim() || `${t("Satır")} ${r.idx + 1}`}
                   </td>
                   <td style={td}>{fmtDur(r.res.staticSec)}</td>
                   <td style={td}>{fmtLapMs(r.res.avgLapSec)}</td>

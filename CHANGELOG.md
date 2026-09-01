@@ -108,10 +108,38 @@ ikisini karıştırmak karşılaştırmayı kendi planından koparırdı.
   bilinçli ve yazılı: oyun kg → sn/tur karşılığını vermiyor, uydurmak yerine
   sütun bilgi amaçlı bırakıldı ve tooltip'te sebebi yazıyor (CLAUDE.md §1).
 
+### İki kullanım, tek ekran: rakip karşılaştırması ve "A planı mı B planı mı"
+
+Kullanıcı bildirimi: *"bazen A planı B planından hangisi hızlı demek için de
+bakıyoruz"*. Model aynı — değişen tohumlama ve etiketler.
+
+- **Varyant tohumlama.** `st.strategies` zaten dört varyant taşıyor
+  (`{A: 8, B: 9, C: 10, D: 11}` — stint başına tur) ama `computePlan` yalnız
+  `st.chosen` olanı kuruyordu. "Planımdan ekle"nin yanına her varyant için düğme
+  kondu; basılan varyantın planı `computePlan({ ...st, chosen: key })` ile
+  kurulup satır olarak ekleniyor.
+- **Plan TIKLANINCA hesaplanıyor.** Dört varyantı her renderda kurmak
+  `computePlan`'ı (tur-tur yürüyüş + sabit-nokta döngüsü) dörde katlardı; bu
+  dosya v2.3.0'da tam bu yüzden üç çağrıyı bire indirmişti ve maliyet canlı
+  yarışta da ödenirdi. Düğmelerin aktifliği ucuz bir ön kontrolden okunuyor
+  (`strategyOptions` — `invalid` koşulunun yürümeden bakılabilen kısmı), seçili
+  varyant için zaten hesaplanmış `racePlan` yeniden kullanılıyor.
+- **Etiketler nötrleştirildi:** "Takım A/B" → "A/B", "Takım kayıt defteri" →
+  "Kayıt defteri", "N takım" → "N satır", ad sütunu "Ad", yer tutucu "Takım ya da
+  plan adı". Aynı ekran hem rakip hem kendi planlarınız için okunuyor.
+
+**Modellenmeyen şey etiketlendi (CLAUDE.md §1).** İki satırın ortalama turu
+birebir aynıysa sonuç kutusunda uyarı çıkıyor. Bu, iki planı da uygulamadan
+tohumlayınca OLAĞAN durumdur: `computePlan` tek bir efektif tur süresi kullanır
+(`effLapSec`), uzun stintin yakıt yükü ve lastik yaşı yüzünden yavaşlamasını
+modellemez. Uyarı olmasaydı araç "az durak hep kazanır" derdi — uzun stintin
+gerçek bedeli görünmeden. Uyarı, gerçek tempo farkı biliniyorsa ortalama turun
+satır başına elle girilmesini söylüyor.
+
 ### Doğrulama
 
-- **865 JS testi** (52 → 54 dosya; öncesi 797, +68). Yeni: `stratComp.test.js` 46 ·
-  `stratCompTab.render.test.jsx` 10 · `state.test.js` +12 reducer testi.
+- **875 JS testi** (52 → 54 dosya; öncesi 797, +78). Yeni: `stratComp.test.js` 51 ·
+  `stratCompTab.render.test.jsx` 15 · `state.test.js` +12 reducer testi.
 - Excel'in sayıları regresyon kilidi olarak testte: `+47.0` · `−13.9` ·
   `−0.350 sn/tur` · `−60.9 sn` · son-pit kaldıracının işaret değiştirmesi
   (`+19.1`) · boş takımın `ok:false` dönmesi.

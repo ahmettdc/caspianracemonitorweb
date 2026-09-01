@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { num, parseLapSec, fmtLapMs, teamTime, compareTeams, rankTeams,
-  stintWarnings, seedFromPlan, suggestedLaps, EMPTY_TEAM, REQUIRED_FIELDS } from "./stratComp";
+  stintWarnings, seedFromPlan, suggestedLaps, strategyOptions,
+  EMPTY_TEAM, REQUIRED_FIELDS } from "./stratComp";
 
 /* Excel'deki (Caspian Motorsport Race Control v1.28) iki DOLU satır — modelin
    referans doğrulaması bu ikisiyle yapılır. Dosyadaki değerler birebir. */
@@ -295,5 +296,34 @@ describe("suggestedLaps", () => {
     expect(suggestedLaps({ totalLaps: 174, invalid: true })).toBe(null);
     expect(suggestedLaps({ totalLaps: 0, invalid: false })).toBe(null);
     expect(suggestedLaps(null)).toBe(null);
+  });
+});
+
+describe("strategyOptions — plan varyantları (A/B/C/D)", () => {
+  const base = { strategies: { A: 8, B: 9, C: 10, D: 11 },
+    raceTime: "2:24:00", avgLap: "2:02.500" };
+  it("varyantları sırayla ve tur sayısıyla verir", () => {
+    expect(strategyOptions(base).map((o) => `${o.key}:${o.laps}`))
+      .toEqual(["A:8", "B:9", "C:10", "D:11"]);
+    expect(strategyOptions(base).every((o) => o.ready)).toBe(true);
+  });
+  it("stint turu 0/boş olan varyant hazır DEĞİL", () => {
+    const o = strategyOptions({ ...base, strategies: { A: 0, B: 9 } });
+    expect(o.find((x) => x.key === "A").ready).toBe(false);
+    expect(o.find((x) => x.key === "B").ready).toBe(true);
+  });
+  it("ortalama tur ya da yarış süresi geçersizse HİÇBİR varyant hazır değil", () => {
+    expect(strategyOptions({ ...base, avgLap: "" }).some((o) => o.ready)).toBe(false);
+    expect(strategyOptions({ ...base, raceTime: "" }).some((o) => o.ready)).toBe(false);
+    // MIN_LAP_SEC altı "tur süresi" yazım hatasıdır (engine kuralı)
+    expect(strategyOptions({ ...base, avgLap: "2.21" }).some((o) => o.ready)).toBe(false);
+  });
+  it("tur sayısı yazılmamış anahtar hiç listelenmez", () => {
+    expect(strategyOptions({ ...base, strategies: { A: 8, B: "" } }).map((o) => o.key))
+      .toEqual(["A"]);
+  });
+  it("bozuk girdide çökmez", () => {
+    expect(strategyOptions(null)).toEqual([]);
+    expect(strategyOptions({ strategies: "çöp" })).toEqual([]);
   });
 });

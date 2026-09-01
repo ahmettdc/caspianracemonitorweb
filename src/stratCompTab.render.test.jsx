@@ -47,7 +47,7 @@ describe("StratCompTab — karşılaştırma", () => {
   });
 
   it("breakeven satırı çizilir", () => {
-    expect(draw(st)).toContain("Geride kalan takımın farkı kapatması için");
+    expect(draw(st)).toContain("Geride kalanın farkı kapatması için");
   });
 });
 
@@ -72,8 +72,8 @@ describe("StratCompTab — eksik veri (CLAUDE.md §1)", () => {
 
   it("defter boşken çökmez ve yönlendirme gösterir", () => {
     const html = draw(mk({ stratTeams: [] }));
-    expect(html).toContain("Aşağıdaki deftere en az iki takım ekleyin.");
-    expect(html).toContain("Henüz takım yok.");
+    expect(html).toContain("Aşağıdaki deftere en az iki satır ekleyin");
+    expect(html).toContain("Henüz satır yok.");
   });
 
   /* Excel'de STINT NUMBERS sütunu hiçbir formüle girmiyordu (ölü sütun);
@@ -93,6 +93,13 @@ describe("StratCompTab — sıralama ve izleyici modu", () => {
     expect(html).toContain("#13 TEAM SHIBA");
   });
 
+  it("başlıklar takım/plan ayrımı yapmaz (aynı ekran ikisine de hizmet eder)", () => {
+    const html = draw(mk({ stratTeams: [PESCARA, CASPIAN], stratA: 0, stratB: 1, stratLaps: 174 }));
+    expect(html).toContain("Kayıt defteri");
+    expect(html).toContain("Satırlar rakip takım da olabilir, kendi A/B planınız da.");
+    expect(html).not.toContain("Takım A");
+  });
+
   it("izleyici modunda yazma eylemleri çizilmez", () => {
     const st = mk({ stratTeams: [PESCARA, CASPIAN], stratA: 0, stratB: 1, stratLaps: 174 });
     const ro = draw(st, { readOnly: true });
@@ -101,5 +108,39 @@ describe("StratCompTab — sıralama ve izleyici modu", () => {
     expect(ro).toContain("disabled");
     // düzenlenebilir modda butonlar yerinde
     expect(draw(st)).toContain("Planımdan ekle");
+  });
+});
+
+describe("StratCompTab — A planı mı B planı mı (kendi varyantlarımız)", () => {
+  /* Uygulamanın kendi strateji varyantları (st.strategies = {A:8,B:9,C:10,D:11},
+     stint başına tur). Her biri için ayrı tohumlama düğmesi çizilir; plan
+     TIKLANINCA hesaplanır, dördü birden renderda kurulmaz. */
+  it("her strateji varyantı için tohumlama düğmesi çizilir", () => {
+    const html = draw(mk({ stratTeams: [CASPIAN], stratLaps: 174 }));
+    ["A · 8", "B · 9", "C · 10", "D · 11"].forEach((v) => expect(html).toContain(v));
+  });
+
+  it("stint turu geçersiz varyantın düğmesi pasif", () => {
+    const html = draw(mk({ strategies: { A: 0, B: 9, C: 10, D: 11 },
+      stratTeams: [CASPIAN], stratLaps: 174 }));
+    expect(html).toContain("Bu varyantın planı kurulamıyor");
+  });
+
+  /* CLAUDE.md §1 — MODELLENMEYEN ŞEY ETİKETLENİR. İki planı da uygulamadan
+     tohumlayınca ortalama tur BİREBİR aynı gelir: computePlan tek bir efektif
+     tur süresi kullanır, uzun stintin yakıt yükü ve lastik yaşı yüzünden
+     yavaşlamasını modellemez. Uyarı olmadan araç "az durak hep kazanır" der. */
+  it("iki satırın temposu aynıysa 'fark yalnız pit/yakıt/lastikten' uyarısı çıkar", () => {
+    const planA = { name: "Plan A · 8 tur", pits: 8, stints: 9, pitLane: 40,
+      fuelFull: 40, fuelLast: 12, tyreTime: 12, tyreCount: 8, avgLap: "2:02.500" };
+    const planB = { ...planA, name: "Plan B · 11 tur", pits: 6, stints: 7, tyreCount: 6 };
+    const html = draw(mk({ stratTeams: [planA, planB], stratA: 0, stratB: 1, stratLaps: 174 }));
+    expect(html).toContain("Uzun stintin yakıt yükü ve lastik yaşı");
+    expect(html).toContain("sn önde");           // sonuç yine de hesaplanır
+  });
+
+  it("tempolar FARKLIYSA uyarı çıkmaz", () => {
+    const html = draw(mk({ stratTeams: [PESCARA, CASPIAN], stratA: 0, stratB: 1, stratLaps: 174 }));
+    expect(html).not.toContain("Uzun stintin yakıt yükü ve lastik yaşı");
   });
 });

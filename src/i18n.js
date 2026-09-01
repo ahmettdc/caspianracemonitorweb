@@ -1416,11 +1416,13 @@ export const EN = {
   "Toplam yarış turu": "Total race laps",
   "Plandan al": "From plan",
   "Stint planındaki toplam tur sayısını buraya yaz": "Copy the total lap count from the stint plan",
-  "Model: toplam süre = ortalama tur × toplam tur + (pit yolu + yakıt + lastik + ceza + hasar). İki takımın farkı bu toplamların farkıdır.":
-    "Model: total time = avg lap × total laps + (pit lane + fuel + tyres + penalty + damage). The gap between two teams is the difference of these totals.",
-  "Takım A": "Team A", "Takım B": "Team B",
+  "Model: toplam süre = ortalama tur × toplam tur + (pit yolu + yakıt + lastik + ceza + hasar). İki satırın farkı bu toplamların farkıdır. Satırlar rakip takım da olabilir, kendi A/B planınız da.":
+    "Model: total time = avg lap × total laps + (pit lane + fuel + tyres + penalty + damage). The gap between two rows is the difference of these totals. Rows can be rival teams, or your own plan A and B.",
+  "Satır": "Row", "Ad": "Name", "satır": "rows",
+  "Takım ya da plan adı": "Team or plan name", "Kayıt defteri": "Register",
   "Kayıt yok": "No entries",
-  "Aşağıdaki deftere en az iki takım ekleyin.": "Add at least two teams to the register below.",
+  "Aşağıdaki deftere en az iki satır ekleyin (iki rakip ya da kendi A/B planınız).":
+    "Add at least two rows to the register below (two rivals, or your own plan A and B).",
   "Kalem": "Item", "Fark (A − B)": "Delta (A − B)",
   "Pit sayısı": "Pit stops", "Pit yolu toplamı": "Pit lane total",
   "Yakıt toplamı": "Fuel total", "Lastik toplamı": "Tyre total",
@@ -1429,15 +1431,18 @@ export const EN = {
   "sn önde": "s ahead", "İki strateji eşit": "The two strategies are equal",
   "Sabit kayıp farkı": "Fixed-loss delta", "tempo farkı": "pace delta",
   "sn/tur": "s/lap",
-  "Geride kalan takımın farkı kapatması için": "For the trailing team to close the gap",
+  "Geride kalanın farkı kapatması için": "For the trailing one to close the gap",
   "Karşılaştırma yapılamıyor — eksik alan var:": "Cannot compare — missing fields:",
-  "Takım kayıt defteri": "Team register", "takım": "teams",
   "Planımdan ekle": "Add from my plan", "Boş satır": "Blank row",
-  "Kendi yarış planından yeni satır oluşturur (pit sayısı, süreler ve ortalama tur plandan gelir)":
-    "Creates a row from your own race plan (pit count, times and average lap come from the plan)",
-  "Henüz takım yok. \"Planımdan ekle\" kendi stratejinizi hazır doldurur.":
-    "No teams yet. \"Add from my plan\" fills in your own strategy.",
-  "#00 TAKIM": "#00 TEAM", "örn. 13 tur-tek": "e.g. 13 laps-single",
+  "Seçtiğiniz strateji varyantının GERÇEK planından satır oluşturur — pit sayısı, süreler ve ortalama tur plandan gelir":
+    "Creates a row from the REAL plan of the strategy variant you pick — pit count, times and average lap come from the plan",
+  "Bu varyantın planı kurulamıyor (yarış süresi, ortalama tur ya da stint turu eksik/geçersiz)":
+    "This variant's plan cannot be built (race time, average lap or stint laps missing/invalid)",
+  "İki satırın ortalama turu aynı — fark yalnız pit/yakıt/lastik kaleminden geliyor. Uzun stintin yakıt yükü ve lastik yaşı yüzünden turu yavaşlatması bu modelde YOK; gerçek tempo farkını biliyorsanız ortalama turu satır başına elle girin.":
+    "Both rows have the same average lap — the difference comes only from pit/fuel/tyre items. This model does NOT include a longer stint being slower from fuel load and tyre age; if you know the real pace difference, enter the average lap per row by hand.",
+  "Henüz satır yok. \"Planımdan ekle\" ile bir strateji varyantını (A/B/C/D) hazır doldurun; iki varyant ekleyip hangisinin hızlı olduğunu karşılaştırabilirsiniz.":
+    "No rows yet. Use \"Add from my plan\" to fill in a strategy variant (A/B/C/D); add two variants to compare which one is faster.",
+  "örn. 13 tur-tek": "e.g. 13 laps-single",
   "Satırı sil": "Delete row",
   "Boş bırakılan ceza ve hasar 0 sn sayılır. Diğer alanlar boşsa o takım hesaplanmaz — eksik veri sıfır varsayılmaz.":
     "Blank penalty and damage count as 0 s. If any other field is blank that team is not calculated — missing data is never assumed to be zero.",
