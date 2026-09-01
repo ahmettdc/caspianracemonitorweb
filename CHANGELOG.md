@@ -4,7 +4,64 @@
 
 _Geliştirme sürüyor — bu sürüme iş eklendikçe bölümler büyüyecek._
 
+### Lastik ekranı v2.3.1 tasarımına geçirildi
+
+Kaynak: `design_handoff_lastik/fis/06-lastik.md` ("birebir uygula" kuralıyla geldi —
+markup yapısı ve stil değerleri fişten kopyalandı, türetilmedi).
+
+- **Tokenlar:** fişte "token yok — sor" işaretli sekiz renk `styles.js` `:root`'a
+  eklendi: `--rc-tread-1…5` (fişin kendi önerisi; üç kademesi zaten tokenli olduğu
+  için hex tekrarlanmadı, mevcut token'a bağlandı), `--rc-danger-4`,
+  `--rc-danger-soft`, `--rc-surface-6`, `--rc-surface-7`, `--rc-text-6`,
+  `--rc-on-set`, `--rc-tint-danger`. Renkler fişten birebir; yalnız ad verildi.
+  Not: paketteki `tokens/tokens.css`, projedeki `styles.js` ile **birebir aynıydı**
+  (115 token, sıfır fark) → ayrıca alınmadı.
+- **Üst şerit** tek karta indi (limit stepper · numaralı set bütçesi · köşe aşınma
+  stepper'ları · toplam değişim süresi). 5 KPI kartı ve "Set envanteri" çip şeridi
+  kaldırıldı (26 sette ölçeklenmiyordu).
+- **Aşınma tur+köşe bazlı** (`tyreWearC: number[4]`, adım %0.1/tur, 0-20).
+  Göç kuralı fişten: 8'in üstündeki değer eski stint-bazlı kayıttır, `v / stintLaps`
+  ile tura çevrilir; hiç değer yoksa `tyreWearPerStint` köşe eğilimiyle
+  (`TY_WEAR_BIAS`) ölçeklenir → mevcut kullanıcı planları elle müdahale istemez.
+- **Patlak** (`tyrePop: {"satır:köşe": true}`): hücre + set kutusu + başlık rozeti
+  üçü birden güncellenir (fişin kabul kriteri, testle kilitlendi). Süre eklemez.
+- Defter ve hücre seçimi **pencereye** taşındı; hücre artık buton, altında diş barı.
+- `readOnly` (izleyici) prop'u App.jsx'ten geçirildi — yazma eylemleri görsel olarak
+  da pasif.
+
+**Fişten iki bilinçli sapma (ikisi de işaretlendi):**
+
+1. **Boş defterde "plana uyuyor" iddiası kaldırıldı.** Fişin markup'ı karşılaştırma
+   çipini KOŞULSUZ çiziyor; defter boşken bu, hiçbir şey gerçekleşmemişken uyum
+   İDDİA etmek olurdu — CLAUDE.md §1'in yasakladığı ve v2.3.0'da özellikle
+   düzeltilmiş hata sınıfı. Çip ve Plan↔Gerçek bölümü yalnız gerçek kayıt varken
+   çizilir.
+2. **`tyPitNote` yalnız plan boşken.** Fişin markup'ında bu değer hiç yer almıyordu
+   ama kabul kriteri "plan boşken 'hiçbir pitte lastik değişmiyor'" diyor; referans
+   görselde (plan DOLU) böyle bir satır yok. İkisini uzlaştıran okuma uygulandı.
+
+**Gerçek veriye bağlanan yerler** (fişteki sabitler prototip örneğiydi): satırlar
+`racePlan`'dan (`tyreInfo.rows`, sabit 8 değil) · ızgara `tyreQual`+`tyreStints`'ten ·
+yazımlar projenin reducer'larından (`upTyreCell`/`quickTyre` — `syncPitTyres` orada
+çalışır, ızgarayı doğrudan yazmak pit bayraklarını bayat bırakırdı) · defter
+Firebase'den · `TY_STINT_LAPS` gerçek plandan (yoksa fişin 19'una düşer).
+
+**Doğrulama:** 788 JS testi · `npm run build` · render sözleşmesi yeni düzene göre
+yeniden yazıldı (12 test: boş-defter koruması, diş barı, patlak üçlüsü, izleyici
+modu) · çıktı Chromium'da render edilip `gorseller/06-lastik-*.png` ile
+karşılaştırıldı: diş yüzdeleri (%66·%72·%68·%73 / %32·%43·%35·%47 / %15·%3·%20),
+satır süreleri ve patlak gösterimi referansla birebir.
+
 ### Tur başı aşınma ölçülmüyordu (yalnız "en kötü köşe" anlık dişi vardı)
+
+> **Durum notu (aynı sürüm içinde):** bu bölümün eklediği `livewear` düğümü ve
+> köprü yazımı YERİNDE ve çalışıyor. Ancak üstteki tasarım fişi bu ekranı yeniden
+> kurarken "ölçülen" butonunu kendi formülüne bağladı (köşe başına
+> `(1 − diş) / tur`, anlık okumadan) ve kullanıcı fişe tam sadakat seçti → `lapWear.js`
+> şu an UI'dan çağrılmıyor. Modül ve 20 testi korundu, veri birikmeye devam ediyor;
+> okuyucu tarafı ileride bağlanabilir. Kartın render testi (`lapWear.render.test.jsx`)
+> kart kalktığı için silindi.
+
 
 - **Belirti:** Lastik sekmesindeki tek aşınma sayısı `measuredWear`den geliyordu
   (`tyrePlanCalc.js`). İki kör noktası vardı: dört köşeyi `Math.min(...)` ile

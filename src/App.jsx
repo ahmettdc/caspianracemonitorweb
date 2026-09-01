@@ -3735,7 +3735,10 @@ ${bottomBar}
               /* Diş ölçümü: canlı köşe aşınması + oyuncunun turu + planlanan
                  stint uzunluğu (ölçülen tur-başı aşınmayı stinte çevirmek için) */
               ownTyres={live?.own?.tyres} lastLapNo={live?.own?.lapsDone}
-              stintLaps={racePlan.rows[0]?.lapsInStint} />
+              stintLaps={racePlan.rows[0]?.lapsInStint}
+              /* v2.3.1 tasarım fişi: izleyici modunda yazma eylemleri görsel
+                 olarak da pasif (cursor not-allowed, opaklık .45). */
+              readOnly={!canEdit} />
           )}
 
           {tab === "drivers" && (
