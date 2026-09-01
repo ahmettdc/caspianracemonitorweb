@@ -119,3 +119,39 @@ export function measuredWear(period, tyres, currentLap, stintLaps) {
     tread,
   };
 }
+
+/* ============================================================
+   PATLAK — patlayan set bir daha kullanılamaz (v2.3.1)
+   ------------------------------------------------------------
+   Tasarım fişi "patlayan set yeniden kullanılamaz" diyor (set kutusu ipucu da
+   bunu yazıyor) ama fişin verdiği seçici kodu bunu HİÇ uygulamıyordu: yalnız
+   köşe kilidine bakıyordu, patlak set sonraki stintlerde yeniden seçilebiliyordu
+   (kullanıcı bildirimi). Kural SATIRA duyarlıdır: lastik patladığı satırdan
+   SONRASI için geçersizdir — öncesinde araçtaydı, orada geçerli kalır.
+   ============================================================ */
+
+/* Patlak işaretleri ({"satır:köşe": true}) + ızgara → Map(setId → patladığı İLK
+   satır). Wet ("W") bir set değildir, sayılmaz; boş hücreler atlanır. */
+export function popRows(tyPop, grid) {
+  const out = new Map();
+  if (!tyPop || typeof tyPop !== "object") return out;
+  const rows = Array.isArray(grid) ? grid : [];
+  for (const k of Object.keys(tyPop)) {
+    if (!tyPop[k]) continue;
+    const [ri, ci] = String(k).split(":").map(Number);
+    if (!Number.isInteger(ri) || !Number.isInteger(ci)) continue;
+    const id = String((rows[ri] || [])[ci] ?? "").trim();
+    if (!id || id === "W") continue;
+    const prev = out.get(id);
+    if (prev == null || ri < prev) out.set(id, ri);
+  }
+  return out;
+}
+
+/* Set `id`, `row` satırında patlak yüzünden yasak mı? Yalnız patladığı satırdan
+   SONRASI yasaktır (patladığı satırın kendisi ve öncesi geçerli okumadır). */
+export function popBlockedAt(rowsMap, id, row) {
+  if (!(rowsMap instanceof Map)) return false;
+  const pr = rowsMap.get(String(id ?? "").trim());
+  return pr != null && Number(row) > pr;
+}

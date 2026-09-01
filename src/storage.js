@@ -416,7 +416,8 @@ export async function deleteTeam(tid, ownerUid, joinCode) {
   if (!db || !tid) return;
   const subs = ["meta", "members", "names", "photos", "badges", "seasons", "races",
     "raceState", "teleTrace", "assets", "chat", "raceChat", "live", "livelaps", "livepos", "livesec",
-    "livecond", "livedrv", "livetyre", "livewriter", "livetrack", "livetracksec", "livetrackpit"];
+    "livecond", "livedrv", "livetyre", "livewear", "livewriter", "livetrack", "livetracksec",
+    "livetrackpit"];
   const updates = {};
   for (const s of subs) updates[`teams/${tid}/${s}`] = null;
   if (ownerUid) updates[`users/${ownerUid}/teams/${tid}`] = null;
@@ -669,6 +670,27 @@ export function liveTyreSubscribe(tid, rid, lapKey, cb) {
     (err) => { console.warn("livetyre read failed:", err?.message); cb(null); });
 }
 
+/* ---- tur → LASTİK DİŞİ geçmişi (livewear, v2.3.1) — tur başı aşınma ----
+   teams/{tid}/livewear/{rid}/{lapKey}/{n} = "fl,fr,rl,rr" (diş oranı 0..1, 3 ondalık).
+   livesec deseniyle birebir: tur başına BİR KEZ, yalnız en yeni tur. Kaynak `tyres4`
+   zaten canlı karede olduğu için köprüye yeni okuma/istek eklemez.
+   Okuma tarafı: src/lapWear.js (köşe başına gerçek tur başı aşınma + kalan tur). */
+export async function liveWearAppend(tid, rid, entries) {
+  if (!db || !tid || !rid || !entries) return;
+  await update(ref(db, `teams/${tid}/livewear/${rid}`), entries);
+}
+export async function liveWearClear(tid, rid, lapKey) {
+  if (!db || !tid || !rid || !lapKey) return;
+  await set(ref(db, `teams/${tid}/livewear/${rid}/${lapKey}`), null);
+}
+/* Bir aracın tur→diş kayıtlarını dinle. cb({n: "fl,fr,rl,rr"}) alır. */
+export function liveWearSubscribe(tid, rid, lapKey, cb) {
+  if (!db || !tid || !rid || !lapKey) { cb(null); return () => {}; }
+  return onValue(ref(db, `teams/${tid}/livewear/${rid}/${lapKey}`),
+    (s) => cb(s.exists() ? s.val() : null),
+    (err) => { console.warn("livewear read failed:", err?.message); cb(null); });
+}
+
 /* ---- seans belirteci → canlı-geçmiş temizleme (v1.4.135) ----
    Köprü, canlı karede session.sessionId (kararlı seans belirteci) yayar. Yeni bir
    seans başlayınca (antrenman→yarış, yeni seans) bu belirteç değişir → o yarışın (rid)
@@ -696,6 +718,7 @@ export async function liveHistoryClearAll(tid, rid) {
     [`livedrv/${rid}`]: null,
     [`livetyre/${rid}`]: null,
     [`livecond/${rid}`]: null,
+    [`livewear/${rid}`]: null,
   });
 }
 

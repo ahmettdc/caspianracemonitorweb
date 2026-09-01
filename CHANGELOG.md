@@ -1,5 +1,158 @@
 # Changelog
 
+## v2.3.1 — 2026-09-01
+
+_Geliştirme sürüyor — bu sürüme iş eklendikçe bölümler büyüyecek._
+
+### DriverMode butonu — masaüstünden hafif köprüye tek tıkla geçiş
+
+- **Belirti:** sürüş PC'sinde masaüstü uygulaması WebView2 taşıdığı için oyunla
+  çekişiyor (CLAUDE.md §0, donma sebebi #2) ve README tam da bu yüzden sürüş PC'si
+  için tarayıcısız köprüyü öneriyor — ama uygulamadan köprüye geçmenin bir yolu
+  YOKTU; kullanıcı uygulamayı elle kapatıp exe'yi elle bulmak zorundaydı.
+- **Aslında arka uç HAZIRDI:** `src-tauri/src/lib.rs` içindeki `launch_bridge_and_quit`
+  komutu yazılmış ve `invoke_handler`'a kayıtlıydı, `CaspianLiveBridge.exe` de
+  `bundle.resources` ile kuruluma gömülüydü (desktop.yml derleyip kopyalıyor) —
+  yalnız ÖN YÜZDE ÇAĞIRAN YOKTU. Bu değişiklik o bağlantıyı kuruyor.
+- **UI:** üst barda TR/EN ile Rehber arasında, marka renginde `kask` ikonlu buton.
+  Yalnız `isTauri` iken çizilir (web'de anlamı yok).
+- **Neden `invoke` + ShellExecute:** köprü sidecar olarak (`Command.sidecar`)
+  başlatılsaydı uygulamanın ÇOCUĞU olurdu ve biz kapanınca ölürdü. Rust tarafı
+  `opener().open_path()` kullanıyor → bağımsız süreç, Race Monitor kapansa da yaşar.
+  Komut ayrıca `parent_app.txt` bırakıyor, köprüdeki "Race Engineer'a Dön" onu okuyor.
+- **Onay soruluyor:** buton uygulamayı KAPATIYOR ve üst barda tek tıkla erişiliyor;
+  yarış ortasında kazara tıklamak mühendisin ekranını götürürdü. Uygulamanın kendi
+  `confirmDialog`'u kullanıldı (native `window.confirm` değil) ve metinde geri dönüş
+  yolu ("Race Engineer'a Dön") yazıyor — karar bilinçli olsun.
+- **Sessiz başarısızlık yok:** invoke hata dönerse (eski kurulum, exe kaynakta yok)
+  sebep butonun yanında yazılır — kullanıcı tıklayıp hiçbir şey olmadığını görmez.
+
+### Lastik ekranı v2.3.1 tasarımına geçirildi
+
+Kaynak: `design_handoff_lastik/fis/06-lastik.md` ("birebir uygula" kuralıyla geldi —
+markup yapısı ve stil değerleri fişten kopyalandı, türetilmedi).
+
+- **Tokenlar:** fişte "token yok — sor" işaretli sekiz renk `styles.js` `:root`'a
+  eklendi: `--rc-tread-1…5` (fişin kendi önerisi; üç kademesi zaten tokenli olduğu
+  için hex tekrarlanmadı, mevcut token'a bağlandı), `--rc-danger-4`,
+  `--rc-danger-soft`, `--rc-surface-6`, `--rc-surface-7`, `--rc-text-6`,
+  `--rc-on-set`, `--rc-tint-danger`. Renkler fişten birebir; yalnız ad verildi.
+  Not: paketteki `tokens/tokens.css`, projedeki `styles.js` ile **birebir aynıydı**
+  (115 token, sıfır fark) → ayrıca alınmadı.
+- **Üst şerit** tek karta indi (limit stepper · numaralı set bütçesi · köşe aşınma
+  stepper'ları · toplam değişim süresi). 5 KPI kartı ve "Set envanteri" çip şeridi
+  kaldırıldı (26 sette ölçeklenmiyordu).
+- **Aşınma tur+köşe bazlı** (`tyreWearC: number[4]`, adım %0.1/tur, 0-20).
+  Göç kuralı fişten: 8'in üstündeki değer eski stint-bazlı kayıttır, `v / stintLaps`
+  ile tura çevrilir; hiç değer yoksa `tyreWearPerStint` köşe eğilimiyle
+  (`TY_WEAR_BIAS`) ölçeklenir → mevcut kullanıcı planları elle müdahale istemez.
+- **Patlak** (`tyrePop: {"satır:köşe": true}`): hücre + set kutusu + başlık rozeti
+  üçü birden güncellenir (fişin kabul kriteri, testle kilitlendi). Süre eklemez.
+  - **Fişin açığı kapatıldı** (kullanıcı bildirimi): fiş "patlayan set yeniden
+    kullanılamaz" diyor ve set kutusu ipucu da bunu yazıyor, ama verdiği
+    `tyPickSets` kodu bunu HİÇ uygulamıyordu — yalnız köşe kilidine bakıyordu ve
+    patlak set sonraki stintlerde geri seçilebiliyordu. Kural saf modüle çıkarıldı
+    (`tyrePlanCalc.popRows` / `popBlockedAt`, 12 test) ve SATIRA duyarlı: yasak
+    yalnız patladığı satırdan SONRASI içindir — patladığı satır ve öncesi geçerli
+    okumadır, lastik o sırada gerçekten araçtaydı. Seçicide kilit + "patlak"
+    etiketi; "Qual'a dön" hızlı ataması da patlak seti geri getiremiyor.
+- Defter ve hücre seçimi **pencereye** taşındı; hücre artık buton, altında diş barı.
+- `readOnly` (izleyici) prop'u App.jsx'ten geçirildi — yazma eylemleri görsel olarak
+  da pasif.
+
+**Fişten üç bilinçli sapma (hepsi kodda işaretlendi):**
+
+1. **Boş defterde "plana uyuyor" iddiası kaldırıldı.** Fişin markup'ı karşılaştırma
+   çipini KOŞULSUZ çiziyor; defter boşken bu, hiçbir şey gerçekleşmemişken uyum
+   İDDİA etmek olurdu — CLAUDE.md §1'in yasakladığı ve v2.3.0'da özellikle
+   düzeltilmiş hata sınıfı. Çip ve Plan↔Gerçek bölümü yalnız gerçek kayıt varken
+   çizilir.
+2. **`tyPitNote` yalnız plan boşken.** Fişin markup'ında bu değer hiç yer almıyordu
+   ama kabul kriteri "plan boşken 'hiçbir pitte lastik değişmiyor'" diyor; referans
+   görselde (plan DOLU) böyle bir satır yok. İkisini uzlaştıran okuma uygulandı.
+
+3. **Otomatik "PATLAK" etiketi kaldırıldı** (kullanıcı bildirimi). Fiş, diş eksiye
+   düşen hücreye de `tr.blowout` üzerinden "PATLAK" yazıyordu. Artık AÇIK bir patlak
+   seçimi (`tyrePop`) olduğu için iki ayrı şey aynı adı taşıyordu ve hiç
+   dokunulmamış TAŞIMA hücreleri patlak görünüyordu. Kapasite aşımı artık "%0"
+   okunuyor (sayı yine kırmızı → set bitti sinyali duruyor), gerekçe tooltip'te
+   korundu; PATLAK/PATLADI yalnız işaretlenen hücrede. Testle kilitlendi.
+
+**Gerçek veriye bağlanan yerler** (fişteki sabitler prototip örneğiydi): satırlar
+`racePlan`'dan (`tyreInfo.rows`, sabit 8 değil) · ızgara `tyreQual`+`tyreStints`'ten ·
+yazımlar projenin reducer'larından (`upTyreCell`/`quickTyre` — `syncPitTyres` orada
+çalışır, ızgarayı doğrudan yazmak pit bayraklarını bayat bırakırdı) · defter
+Firebase'den · `TY_STINT_LAPS` gerçek plandan (yoksa fişin 19'una düşer).
+
+**Doğrulama:** 788 JS testi · `npm run build` · render sözleşmesi yeni düzene göre
+yeniden yazıldı (12 test: boş-defter koruması, diş barı, patlak üçlüsü, izleyici
+modu) · çıktı Chromium'da render edilip `gorseller/06-lastik-*.png` ile
+karşılaştırıldı: diş yüzdeleri (%66·%72·%68·%73 / %32·%43·%35·%47 / %15·%3·%20),
+satır süreleri ve patlak gösterimi referansla birebir.
+
+### Tur başı aşınma ölçülmüyordu (yalnız "en kötü köşe" anlık dişi vardı)
+
+> **Durum notu (aynı sürüm içinde):** bu bölümün eklediği `livewear` düğümü ve
+> köprü yazımı YERİNDE ve çalışıyor. Ancak üstteki tasarım fişi bu ekranı yeniden
+> kurarken "ölçülen" butonunu kendi formülüne bağladı (köşe başına
+> `(1 − diş) / tur`, anlık okumadan) ve kullanıcı fişe tam sadakat seçti → `lapWear.js`
+> şu an UI'dan çağrılmıyor. Modül ve 20 testi korundu, veri birikmeye devam ediyor;
+> okuyucu tarafı ileride bağlanabilir. Kartın render testi (`lapWear.render.test.jsx`)
+> kart kalktığı için silindi.
+
+
+- **Belirti:** Lastik sekmesindeki tek aşınma sayısı `measuredWear`den geliyordu
+  (`tyrePlanCalc.js`). İki kör noktası vardı: dört köşeyi `Math.min(...)` ile
+  **en kötüye** indiriyordu (asimetrik aşınma — ör. sağ virajı bol pistte ön-sol —
+  hiç görünmüyordu) ve hızı **anlık dişten** çıkardığı için stint ortalamasıydı
+  (degradasyonun döndüğü an okunamıyordu). Çıktısı da tek bir yerde, öneri
+  butonunda kullanılıyordu.
+- **Neden yapılamamıştı:** köşe başına gerçek hız için **tur-tur** diş serisi
+  gerekir; hiçbir yerde tutulmuyordu. Veri ise zaten karedeydi (`tyres4`).
+
+- **Köprü — YENİ DÜĞÜM `livewear`:** `{lapKey}/{n} = "fl,fr,rl,rr"` (diş 0..1,
+  3 ondalık). `livesec` deseni birebir: **tur başına bir kez, yalnız en yeni tur**.
+  Kaynak `tyres4` zaten karede olduğu için **yeni paylaşımlı-bellek okuması, REST
+  isteği, thread ve hız değişimi YOK.**
+  - **İKİ YAZICI YOL DA güncellendi** — `bridge/harvest.py` (hafif .exe) *ve*
+    `src/liveBridge.js` (masaüstü sidecar), koşullar birebir aynı. v2.3.0'da bir
+    alan yalnız birine eklenip diğeri atlanmıştı (`tyreChange`); tekrarlanmadı.
+  - Online rakipte `_wear4` `None` döner (oyun rakip aşınmasını yaymaz) → **hiç
+    yazılmaz**, uydurma veri üretilmez. Aralık dışı/bozuk okuma da yazılmaz.
+
+- **Maliyet denetimi (ölçüldü, tahmin değil — CLAUDE.md §0):**
+  | Ölçüm | Sonuç |
+  |---|---|
+  | Canlı kare (2 Hz yayın) | 7684 B → 7684 B — **0 B fark** |
+  | `livewear` yazımı | 48 B/araç/tur (seyrek, tur başına) |
+  | 40 araçlık grid, ~1.5 tur/dk | **~48 B/sn** |
+  Karşılaştırma: v2.3.0'da kabul edilen denetim 2 Hz karede ~7.4 KB/sn idi; bu
+  ekleme onun ~150'de biri ve **2 Hz kareye hiç dokunmuyor**.
+
+- **Web (`src/lapWear.js`, yeni):** `wearSeries` · `cornerSegments` · `cornerRate` ·
+  `wearRates` · `lapsLeft` · `limitingCorner`.
+  - **Segment sınırı VERİDEN okunur.** Lastik değişimi dişi YÜKSELTİR; sınırı
+    `livetyre`den türetmek cazipti ama **yanlış** olurdu: o düğüm yalnız "kaç
+    lastik" tutar, **hangi köşe** olduğunu tutmaz. Sınır doğrudan ölçümden
+    okunuyor (diş artışı > `RESET_EPS`) → **2-lastik değişiminde yalnız gerçekten
+    değişen köşeler sıfırlanır**, diğer ikisinin geçmişi korunur (testli).
+  - Hız **tur numarasından** hesaplanır (örnek sayısından değil) → seride boşluk
+    varsa bozulmaz. `recent` yalnız pencere dönemden GERÇEKTEN kısaysa üretilir.
+  - **`Number(null) === 0` tuzağı** (CLAUDE.md §1'in adıyla uyardığı, v2.3.0'da
+    `lapDist`te yaşanan hata) testle yakalandı: eksik diş 0'a çöküp "0 tur kaldı"
+    diyordu — makul görünen ama uydurma bir sonuç, üstelik pit duvarına yanlışlıkla
+    "hemen gir" dedirtir. Yokluk artık sayıya çevrilmeden elenir.
+- **UI (`TyreTab.jsx`):** köşe başına %/tur + kalan diş + kalan tur + trend
+  (`↑ hızlanıyor` / `↓ yavaşlıyor`), başlıkta pit penceresini belirleyen köşe.
+  Öneri butonu artık bu gerçek ölçümden beslenir, **eski `measuredWear` yedek
+  olarak korundu** (eski köprü / kayıt henüz birikmemişken buton kaybolmasın).
+  KALAN TUR ekranda **modellenmiş tahmin** olarak etiketlendi (doğrusal varsayım).
+- **Kapsam:** Firebase kuralı + `deleteTeam` + `liveHistoryClearAll` + `LAP_NODES`
+  (seans sıfırlaması) hepsine `livewear` eklendi. Testler: `lapWear.test.js` (20),
+  `lapWear.render.test.jsx` (5), köprü tarafında 2 yeni test.
+- **Bilinen sınır:** demo modu Firebase'e yazmaz → kart demoda boş kalır (mevcut
+  lastik defteri de aynı sınırda, `liveDemo.js` bunu zaten belirtiyor).
+
 ## v2.3.0 — 2026-08-31
 
 Live Timing standings genişletmesi. Referans olarak TinyPedal'ın `Standings`/`Relative`

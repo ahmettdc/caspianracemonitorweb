@@ -238,6 +238,34 @@ export default function App() {
   });
   /* Komut paleti (Ctrl/Cmd+K) — hızlı sekme/aksiyon erişimi. */
   const [cmdOpen, setCmdOpen] = useState(false);
+  /* SÜRÜCÜ MODU (v2.3.1) — yalnız masaüstü uygulamasında görünür.
+     NEDEN: sürüş PC'sinde ağır WebView2 arayüzü oyunla GPU/CPU çekişir; CLAUDE.md §0
+     bunu donmanın bilinen 2. sebebi olarak sayıyor ve sürüş PC'si için TARAYICISIZ
+     hafif köprüyü öneriyor. Tek tıkla geçiş: Rust tarafındaki launch_bridge_and_quit
+     kuruluma gömülü CaspianLiveBridge.exe'yi ShellExecute ile BAĞIMSIZ başlatır
+     (çocuk süreç değil → Race Monitor kapanınca ölmez), sonra bu uygulamayı gerçekten
+     kapatır (X→tepsiye gizleme değil).
+     Hata sessiz kalmamalı: kullanıcı tıkladı ve uygulama kapanmadıysa nedenini
+     görmeli (ör. eski kurulumda exe kaynağa gömülü değil). */
+  const [driverErr, setDriverErr] = useState("");
+  const goDriverMode = async () => {
+    setDriverErr("");
+    /* Bu eylem uygulamayı KAPATIYOR ve üst barda tek tıkla erişiliyor — yarış
+       ortasında kazara tıklanırsa mühendisin ekranı gider. Onay iste; geri dönüş
+       yolu (köprüdeki "Race Engineer'a Dön") metinde yazsın ki karar bilinçli olsun. */
+    const ok = await confirmDialog({
+      title: "DriverMode",
+      message: t("Race Monitor kapanacak ve tarayıcısız hafif köprü açılacak. Köprü bağımsız çalışır, veri akışı kesilmez — köprü penceresindeki \"Race Engineer'a Dön\" ile geri dönebilirsin."),
+      confirmText: t("Sürücü moduna geç"),
+    });
+    if (!ok) return;
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      await invoke("launch_bridge_and_quit");
+    } catch (e) {
+      setDriverErr(String(e?.message || e || "bilinmeyen hata"));
+    }
+  };
   useEffect(() => {
     const h = (e) => {
       if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")) {
@@ -2470,6 +2498,20 @@ ${bottomBar}
                 <button onClick={() => switchLang("tr")} style={langBtn(lang !== "en")}>TR</button>
                 <button onClick={() => switchLang("en")} style={langBtn(lang === "en")}>EN</button>
               </span>
+              {isTauri && (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <button onClick={goDriverMode} data-tour="drivermode"
+                    title={t("Race Monitor kapanır, tarayıcısız hafif köprü (CaspianLiveBridge) açılır — sürüş PC'sinde oyunu yormamak için")}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8,
+                      border: "1px solid var(--rc-brand-bright)", background: "transparent", color: "var(--rc-brand-bright)",
+                      cursor: "pointer", fontSize: 12, whiteSpace: "nowrap" }}><Icon name="kask" size={14} /> DriverMode</button>
+                  {!!driverErr && (
+                    <span title={driverErr} style={{ maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis",
+                      whiteSpace: "nowrap", fontSize: 11, color: "var(--rc-danger)" }}>
+                      {t("Köprü açılamadı")}: {driverErr}</span>
+                  )}
+                </span>
+              )}
               <button onClick={() => { setCoachStart(0); setCoachOpen(true); }}
                 style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8,
                   border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12 }}><Icon name="rehber" size={14} /> {t("Rehber")}</button>
@@ -3735,7 +3777,10 @@ ${bottomBar}
               /* Diş ölçümü: canlı köşe aşınması + oyuncunun turu + planlanan
                  stint uzunluğu (ölçülen tur-başı aşınmayı stinte çevirmek için) */
               ownTyres={live?.own?.tyres} lastLapNo={live?.own?.lapsDone}
-              stintLaps={racePlan.rows[0]?.lapsInStint} />
+              stintLaps={racePlan.rows[0]?.lapsInStint}
+              /* v2.3.1 tasarım fişi: izleyici modunda yazma eylemleri görsel
+                 olarak da pasif (cursor not-allowed, opaklık .45). */
+              readOnly={!canEdit} />
           )}
 
           {tab === "drivers" && (

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { isDrySet, effectiveGrid, planTread, changeTimeOf, totalChangeTime,
-  measuredWear } from "./tyrePlanCalc";
+  measuredWear, popRows, popBlockedAt } from "./tyrePlanCalc";
 
 describe("isDrySet", () => {
   it("W bir SET DEĞİL (yer tutucu) — diş hesabına girmez", () => {
@@ -130,5 +130,55 @@ describe("measuredWear (TinyPedal'da yok — o yazdırır, biz ölçeriz)", () =
     const m = measuredWear(period, tyres(0.6), 30, 0);
     expect(m.perLap).toBeCloseTo(0.02, 9);
     expect(m.perStint).toBe(null);
+  });
+});
+
+
+/* PATLAK — fiş "patlayan set yeniden kullanılamaz" diyordu ama seçici kodu bunu
+   uygulamıyordu; patlak set sonraki stintlerde geri seçilebiliyordu. */
+const GRID = [
+  ["1", "2", "3", "4"],   // 0 Qual
+  ["1", "5", "3", "6"],   // 1 S1
+  ["7", "5", "8", "6"],   // 2 S2
+  ["W", "W", "W", "W"],   // 3 S3
+];
+
+describe("popRows", () => {
+  it("set → patladığı İLK satırı verir", () => {
+    const m = popRows({ "1:0": true, "2:1": true }, GRID);
+    expect(m.get("1")).toBe(1);
+    expect(m.get("5")).toBe(2);
+  });
+  it("aynı set birden çok kez patlaksa EN ERKEN satır kazanır", () => {
+    expect(popRows({ "2:1": true, "1:1": true }, GRID).get("5")).toBe(1);
+  });
+  it("wet ve boş hücre set değildir — sayılmaz", () => {
+    expect(popRows({ "3:0": true }, GRID).size).toBe(0);
+    expect(popRows({ "0:9": true }, GRID).size).toBe(0);
+  });
+  it("bozuk anahtar / false değer / boş girdi atlanır", () => {
+    expect(popRows({ abc: true, "1:0": false }, GRID).size).toBe(0);
+    expect(popRows(null, GRID).size).toBe(0);
+    expect(popRows({ "1:0": true }, null).size).toBe(0);
+  });
+});
+
+describe("popBlockedAt", () => {
+  const m = popRows({ "1:0": true }, GRID);   // set 1, S1'de patladı
+  it("patladığı satırdan SONRASI yasak", () => {
+    expect(popBlockedAt(m, "1", 2)).toBe(true);
+    expect(popBlockedAt(m, "1", 3)).toBe(true);
+  });
+  it("patladığı satır ve ÖNCESİ geçerli (o sırada araçtaydı)", () => {
+    expect(popBlockedAt(m, "1", 1)).toBe(false);
+    expect(popBlockedAt(m, "1", 0)).toBe(false);
+  });
+  it("patlamamış set hiçbir satırda yasak değil", () => {
+    expect(popBlockedAt(m, "3", 3)).toBe(false);
+  });
+  it("boş/geçersiz girdide çökmez", () => {
+    expect(popBlockedAt(null, "1", 2)).toBe(false);
+    expect(popBlockedAt(m, "", 2)).toBe(false);
+    expect(popBlockedAt(m, undefined, 2)).toBe(false);
   });
 });

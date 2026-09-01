@@ -1,7 +1,8 @@
 """Harvester regresyon testleri (bağımlılıksız — `python3 bridge/test_harvest.py`).
 
 Kritik sözleşme: hafif köprü, JS liveBridge.harvestLaps ile AYNI kalıcı düğümleri
-(livelaps/livepos/livesec/livedrv/livetyre/livecond) aynı anahtar/değer biçimiyle
+(livelaps/livepos/livesec/livedrv/livetyre/livecond/livewear) aynı anahtar/değer
+biçimiyle
 yazar ve kareyi aynı biçimde kırpar. Bu port olmadan hafif köprüyle "+" tur listesi
 popup'ı her araçta boş kalıyordu (kullanıcı bug'ı: "last lap atıldı ama kaydetmiyor").
 """
@@ -96,11 +97,35 @@ def test_pit_turu_negatif_pozisyon_ve_lastik_kaydi():
     assert p2 == [], p2                                    # değişim bir kez yazılır
 
 
+def test_livewear_tur_basi_dis_yazilir():
+    """v2.3.1: dört köşe diş, YALNIZ en yeni tur (livesec deseni). Kaynak `tyres4`
+    zaten karede (rf2_source._wear4) → oyun PC'sine yeni okuma/istek eklenmedi."""
+    h = Harvester("r1")
+    u = h.process(_frame([_row(laps=[101.0, 100.5], nums=[1, 2],
+                               tyres4=[0.98, 0.97, 0.995, 0.96])]))[0]
+    assert u["livewear/r1/c7/2"] == "0.980,0.970,0.995,0.960"
+    assert "livewear/r1/c7/1" not in u                    # yalnız en yeni tur
+
+
+def test_livewear_yayinlanmayan_asinma_yazilmaz():
+    """Online yarışta oyun RAKİP aşınmasını yaymaz → _wear4 None döner. Uydurma
+    veri yazmaktansa HİÇ yazma (CLAUDE.md §1 veri dürüstlüğü)."""
+    h = Harvester("r1")
+    u = h.process(_frame([_row(laps=[101.0], nums=[1], tyres4=None)]))[0]
+    assert not any(k.startswith("livewear/") for k in u), u
+    # bozuk/aralık dışı okuma da yazılmaz
+    for bad in ([0.9, 0.9, 1.4, 0.9], [0.9, 0.9, 0.9], "0.9", [0.9, 0.9, 0.9, -0.1]):
+        hb = Harvester("r1")
+        ub = hb.process(_frame([_row(laps=[101.0], nums=[1], tyres4=bad)]))[0]
+        assert not any(k.startswith("livewear/") for k in ub), (bad, ub)
+
+
 def test_seans_degisince_temizlik_once_gelir():
     h = Harvester("r1", known_session_id="5")             # antrenman kayıtlıydı
     p = h.process(_frame([_row(laps=[101.0], nums=[1])], sid="10"))
     assert p[0] == {f"{n}/r1": None for n in
-                    ("livelaps", "livepos", "livesec", "livedrv", "livetyre", "livecond")}
+                    ("livelaps", "livepos", "livesec", "livedrv", "livetyre", "livecond",
+                     "livewear")}
     assert p[1]["livelaps/r1/c7/1"] == 101.0              # temizlikten SONRA yeni turlar
 
 

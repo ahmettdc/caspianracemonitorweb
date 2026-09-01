@@ -119,6 +119,13 @@ export const DEFAULT_STATE = {
      kullanıcıya yazdırır; bizde canlı telemetriden ÖLÇÜLEN değer önerilir.
      Değişim süresi eşiği 2/3'te: bir tarafı değiştirmek dört lastikten ucuz. */
   tyreWearPerStint: 30,
+  /* v2.3.1 tasarım fişi — aşınma artık TUR başına ve KÖŞE başına (FL FR RL RR).
+     Boş bırakılırsa tyreWearPerStint köşe eğilimiyle ölçeklenip tura bölünür
+     (TyreTab TY_WEAR_BIAS); 8'in üstündeki değer eski stint-bazlı kayıttır. */
+  tyreWearC: [],
+  /* Patlak işaretleri: {"satır:köşe": true} — satır 0 = Qual. İşaretli hücrede
+     set yarış içinde patlamıştır, yeniden kullanılamaz. */
+  tyrePop: {},
   tyreChangeT12: 4.5,
   tyreChangeT34: 12,
   // Faz 3 — pilotlar

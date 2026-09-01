@@ -56,6 +56,19 @@ export const css = `
   --rc-ok:#37D67A; --rc-ok-2:#40D68C; --rc-ok-3:#3AD07A; --rc-ok-soft:#7FE3A0;
   --rc-warn:#F5B23D; --rc-warn-2:#F5C84C; --rc-warn-3:#F2C94C; --rc-flag-yellow:#F2C037;
   --rc-danger:#FF4D5E; --rc-danger-2:#FF5470; --rc-danger-3:#F0604D;
+  /* v2.3.1 — Lastik ekranı tasarım fişi (design_handoff_lastik/fis/06-lastik.md):
+     fişte "token yok — sor" işaretli sekiz değer. Renkler fişten BİREBİR alındı,
+     yalnız ad verildi. Diş ölçeği fişin kendi önerisi (--rc-tread-1…5); üç kademesi
+     zaten tokenli olduğu için hex tekrarlanmaz, mevcut token'a bağlanır. */
+  --rc-tread-1:var(--rc-ok); --rc-tread-2:#9ACD32; --rc-tread-3:var(--rc-warn-3);
+  --rc-tread-4:#F0904D; --rc-tread-5:var(--rc-danger-3);
+  --rc-danger-4:#B91C1C;        /* 4×+ aşırı set kullanımı */
+  --rc-danger-soft:#FF8A96;     /* patlak hücre metni */
+  --rc-surface-6:#160F12;       /* köşe aşınma kutusu zemini */
+  --rc-surface-7:#1B1114;       /* kullanılmayan set kutusu */
+  --rc-text-6:#6B5158;          /* kullanılmayan set numarası */
+  --rc-on-set:#160D10;          /* dolu set kutusu üstündeki koyu metin */
+  --rc-tint-danger:rgba(255,77,94,.14);
   --rc-info:#4C9AFF; --rc-delta:#4D9FFF; --rc-info-2:#6694FF; --rc-info-3:#5AA9E6;
   --rc-info-4:#4FB0EC; --rc-info-soft:#7CCDFF;
   --rc-purple:#B58BFF; --rc-purple-2:#B06FFC;
