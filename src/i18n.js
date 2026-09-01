@@ -833,6 +833,9 @@ export const EN = {
   "Henüz gerçekleşmedi": "Has not happened yet",
   "Plan mevcut tablodan türetilir (dolu hücre = pit işlemi). Planda tur numarası olmadığı için eşleme SIRAYLA yapılır, tur-hassas değildir.":
     "The plan is derived from the existing table (a filled cell = a pit action). Because the plan carries no lap numbers, entries are matched IN ORDER, not lap-exactly.",
+  // --- Sürücü modu (v2.3.1) ---
+  "Race Monitor kapanır, tarayıcısız hafif köprü (CaspianLiveBridge) açılır — sürüş PC'sinde oyunu yormamak için": "Race Monitor closes and the browserless lightweight bridge (CaspianLiveBridge) starts — so it does not load the game on the driving PC",
+  "Köprü açılamadı": "The bridge could not be started",
   // --- Lastik stratejisi v2.3.1 (tasarım fişi 06-lastik) ---
   "Set": "Set",
   "S": "S",

@@ -4,6 +4,25 @@
 
 _Geliştirme sürüyor — bu sürüme iş eklendikçe bölümler büyüyecek._
 
+### DriverMode butonu — masaüstünden hafif köprüye tek tıkla geçiş
+
+- **Belirti:** sürüş PC'sinde masaüstü uygulaması WebView2 taşıdığı için oyunla
+  çekişiyor (CLAUDE.md §0, donma sebebi #2) ve README tam da bu yüzden sürüş PC'si
+  için tarayıcısız köprüyü öneriyor — ama uygulamadan köprüye geçmenin bir yolu
+  YOKTU; kullanıcı uygulamayı elle kapatıp exe'yi elle bulmak zorundaydı.
+- **Aslında arka uç HAZIRDI:** `src-tauri/src/lib.rs` içindeki `launch_bridge_and_quit`
+  komutu yazılmış ve `invoke_handler`'a kayıtlıydı, `CaspianLiveBridge.exe` de
+  `bundle.resources` ile kuruluma gömülüydü (desktop.yml derleyip kopyalıyor) —
+  yalnız ÖN YÜZDE ÇAĞIRAN YOKTU. Bu değişiklik o bağlantıyı kuruyor.
+- **UI:** üst barda TR/EN ile Rehber arasında, marka renginde `kask` ikonlu buton.
+  Yalnız `isTauri` iken çizilir (web'de anlamı yok).
+- **Neden `invoke` + ShellExecute:** köprü sidecar olarak (`Command.sidecar`)
+  başlatılsaydı uygulamanın ÇOCUĞU olurdu ve biz kapanınca ölürdü. Rust tarafı
+  `opener().open_path()` kullanıyor → bağımsız süreç, Race Monitor kapansa da yaşar.
+  Komut ayrıca `parent_app.txt` bırakıyor, köprüdeki "Race Engineer'a Dön" onu okuyor.
+- **Sessiz başarısızlık yok:** invoke hata dönerse (eski kurulum, exe kaynakta yok)
+  sebep butonun yanında yazılır — kullanıcı tıklayıp hiçbir şey olmadığını görmez.
+
 ### Lastik ekranı v2.3.1 tasarımına geçirildi
 
 Kaynak: `design_handoff_lastik/fis/06-lastik.md` ("birebir uygula" kuralıyla geldi —
