@@ -1,5 +1,125 @@
 # Changelog
 
+## v2.4.0 — 2026-09-01
+
+### Yeni ekran: Strateji Karşılaştırma (yarış öncesi karar aracı)
+
+Kaynak: takımın kendi Excel'i — `Caspian_Motorsport_Race_Control_V1.28.xlsm`,
+`TEAMS STRATEGY` (takım kayıt defteri) + `STRATEGY COMP` (karşılaştırma) sayfaları.
+Kullanıcının tarifi: **"yarış sırasında kullanmayacağız, yarıştan önce doğru
+stratejiye karar vermek için"**.
+
+- **Oyun PC'si maliyeti: SIFIR** (CLAUDE.md §0 denetimi). Ekran yarış sırasında
+  çalışmıyor; yeni REST isteği yok, yeni thread/timer yok, yayın hızı değişmiyor,
+  Firebase karesi büyümüyor. Girdiler tamamen kullanıcının elle girdiği plan
+  verisi, tek istisna "Planımdan ekle" — o da uygulamanın ZATEN hesapladığı
+  `computePlan` çıktısını okuyor, köprüden bir şey istemiyor.
+
+- **Model** (`src/stratComp.js`, saf modül, 46 test):
+
+  ```
+  tempo  = ortalamaTur × toplamTur
+  sabit  = pitAdet × pitYolu + tamServis × (pitAdet − 1) + sonPitYakıtı
+         + lastikAdet × lastikSüresi + ceza + hasar
+  TOPLAM = tempo + sabit
+  ```
+
+  Excel'in sayıları birebir üretiliyor ve testle kilitlendi: dosyadaki
+  `#4 PESCARA SRT` ↔ `#75 CASPIAN MOTORSPORT` karşılaştırmasında
+  `D16 STRATEGY RESULT = +47.0` ve `D17 TOTAL RESULT = −13.9`, ara değerler
+  `D12 = −0.350 sn/tur`, `B16 = −60.9 sn`.
+
+- **Katmanlar:** hesap `stratComp.js` · durum `state.js` reducer'ları
+  (`applyStratAdd/Up/Del`, `stratPick`) · ekran `tabs/StratCompTab.jsx`.
+  Kalıcılık için kural değişikliği GEREKMEDİ: oda durumu zaten tek bir
+  `stateJson` olarak `teams/{tid}/raceState/{rid}` altına yazılıyor, yeni alanlar
+  (`stratTeams`, `stratLaps`, `stratA`, `stratB`) oraya doğrudan giriyor ve
+  `migrate` ile eski odalarda kendini onarıyor.
+
+### Excel'in üç gerçek kırığı — taşınmadı, düzeltildi
+
+Model taşınırken kaynak dosya formül seviyesinde okundu; üç kırık bulundu ve
+hiçbiri koda geçirilmedi.
+
+1. **Eksik veri sıfır sayılıyordu.** `STRATEGY COMP`'un `XLOOKUP`'larında
+   `if_not_found` yok ve kayıt defterindeki 25 takımın **23'ü boştu** (yalnız
+   satır 2 ve 3 dolu). Boş bir takım seçilince ortalama tur `0` okunuyor,
+   `D12 = (0 − 2:02.5) × 86400 = −122.5 sn/tur` çıkıyor ve 174 turluk yarışta
+   `TOTAL RESULT = −21.867 sn` (≈ 6 saat) gibi **tamamen uydurma** bir sonuç
+   üretiliyordu — üstelik negatif olduğu için koşullu biçim onu **yeşile**
+   boyuyordu. CLAUDE.md §1'in adını koyduğu `Number(null) === 0` tuzağının
+   Excel'deki karşılığı. Artık zorunlu alanı eksik takım **hesaplanmıyor**:
+   `teamTime()` `ok:false` ve `missing[]` döndürüyor, ekran eksik alanları
+   adıyla listeliyor, tek bir sayı bile göstermiyor.
+   Ceza ve hasar bunun dışında: boş bırakılmaları "yok" (0 sn) olarak okunuyor
+   — yarış öncesi normal durum bu ve kural ekranda yazılı.
+
+2. **Renkler kullanıcının kendi takımı aleyhine okunuyordu.** Koşullu biçim
+   `D12`, `B16`, `D16:D17` üzerinde `<0 → yeşil`, `>0 → kırmızı`; ama tüm
+   deltalar `sol − sağ` yönünde ve kullanıcının takımı **sağda** duruyordu.
+   Sonuç: `D17 = −13.9` (rakip önde) yeşil, `D16 = +47` (biz öndeyiz) kırmızı.
+   Artık kazanan **adıyla** yazılıyor ("#4 PESCARA SRT 13.9 sn önde"); renk
+   yalnız o cümleyi tekrarlıyor.
+
+3. **Paneller simetrik görünüp simetrik değildi.** Sağ panelde tempo terimi
+   sabit `0` yazılıydı (`I16`, `K12`) ve sağın `STRATEGY TIME` toplamı (`I17`)
+   o terimi hiç içermiyordu, solunki (`B17`) içeriyordu — yani sağ taraf sessizce
+   "referans"tı ve takımların yerini değiştirmek sonucu bozardı. Mutlak süre
+   kurgusu (her takım için toplam yarış süresi, sonra fark) aynı sayıları
+   üretiyor ama simetrik ve ikiden fazla takıma ölçekleniyor; testle kilitlendi
+   ("takımların yeri değişince sonuç yalnız işaret değiştirir").
+
+İki küçük kırık daha bulundu ve yeni ekranda karşılığı yok: livery `XLOOKUP`'ı
+boyut uyuşmazlığı yüzünden `#VALUE!` döndürüyordu (arama `A2:A25` 24 satır,
+dönüş `B2:B20` 19 satır) ve açılır listenin aralığı `A2:A25` olduğu için
+defterdeki son takım (`#306 BOYD TRANSPORT RC`, `A26`) hiç seçilemiyordu —
+yeni seçici defterin tamamını gösteriyor.
+
+### "Planımdan ekle" — son durak yakıtı artık elle girilmiyor
+
+Excel'de kendi satırınızın on alanı elle giriliyordu ve dosyada tam da bu yüzden
+bir kalem eksik kalmıştı: `FUEL TIME (LAST PIT)` hâlâ **tam servis (40 sn)**
+yazıyordu, oysa sayfanın kendi notu `F4:G5`'te bunu **"ÖNEMLİ!"** diye
+işaretliyor — son durakta yalnız bitirmeye yetecek yakıt alınır. Rakip satırında
+7 sn girilmişti, bizimkinde girilmemişti.
+
+Uygulama bu değeri zaten hesaplıyor: `computePlan` `lastRefuelPct` döndürüyor.
+`seedFromPlan()` satırı ondan kuruyor (`fuelFull × lastRefuelPct / 100`), ayrıca
+pit/stint sayısını, pit yolu süresini, lastik değişen durak sayısını ve havaya
+göre düzeltilmiş ortalama turu plandan alıyor.
+
+Etkinin büyüklüğü: dosyadaki karşılaştırmada bu tek hücre 40 → 7 olduğunda
+`TOTAL RESULT` **−13.9 sn'den +19.1 sn'ye** dönüyor, yani sonuç işaret
+değiştiriyor. Plan geçersizse (`invalid`) `seedFromPlan` `null` dönüyor ve satır
+eklenmiyor — yarım plandan satır uydurulmuyor.
+
+**Lastik süresi kaynağı bilinçli seçildi:** `TYRE_4_SEC` (12 sn), yani
+`computePlan`'ın pit sürelerini kurarken kullandığı sabit. `DEFAULT_STATE`'teki
+`tyreChangeT34` lastik PLANLAYICISININ ayrı, kullanıcı düzenlenebilir değeri;
+ikisini karıştırmak karşılaştırmayı kendi planından koparırdı.
+
+### Excel'de ölü duran iki sütun işe koşuldu
+
+- `STINT NUMBERS` hiçbir formüle girmiyordu. Artık pit sayısıyla çapraz
+  doğrulanıyor: stint ≠ pit + 1 ise satırda uyarı işareti çıkıyor. Aynı şekilde
+  lastik değişimi durak sayısını geçemez. Uyarılar **hesabı durdurmuyor**, yalnız
+  veri girişi hatasını gösteriyor.
+- `TOTAL BALLAST` de hiçbir hesaba girmiyordu ve **hâlâ girmiyor** — ama bu kez
+  bilinçli ve yazılı: oyun kg → sn/tur karşılığını vermiyor, uydurmak yerine
+  sütun bilgi amaçlı bırakıldı ve tooltip'te sebebi yazıyor (CLAUDE.md §1).
+
+### Doğrulama
+
+- **865 JS testi** (52 → 54 dosya; öncesi 797, +68). Yeni: `stratComp.test.js` 46 ·
+  `stratCompTab.render.test.jsx` 10 · `state.test.js` +12 reducer testi.
+- Excel'in sayıları regresyon kilidi olarak testte: `+47.0` · `−13.9` ·
+  `−0.350 sn/tur` · `−60.9 sn` · son-pit kaldıracının işaret değiştirmesi
+  (`+19.1`) · boş takımın `ok:false` dönmesi.
+- `npm run build` temiz · `npx oxlint src` yeni uyarı üretmiyor (i18n kopya
+  anahtar sayısı 25 → 25, yani hiçbir mevcut çeviri ezilmedi; "Ceza" anahtarı
+  Canlı Timing'in `"Pen."` sütununa ait olduğu için yeni sütun "Ceza süresi"
+  adıyla ayrıldı).
+
 ## v2.3.1 — 2026-09-01
 
 _Geliştirme sürüyor — bu sürüme iş eklendikçe bölümler büyüyecek._

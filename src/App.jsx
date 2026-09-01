@@ -37,6 +37,7 @@ import {
   WEATHER, wxLog, wxAtRel, effCons, tyState,
   computePlan, migrate, lastStintFuel,
 } from "./engine";
+import { seedFromPlan } from "./stratComp";
 import {
   SLOT_COLORS, APP_VERSION, SEEN_VER_KEY, ASSET, AV,
   TRACKS, PIT_LANE_TIMES, TRACK_ASSET, trackFlag,
@@ -50,6 +51,7 @@ import {
   computeTyreInfo, computeDriverPlan,
   computeLiveInfo, buildTimeline,
   applyMarkPit, applyUnmarkPit, applyResetPits,
+  applyStratAdd, applyStratUp, applyStratDel,
 } from "./state";
 import { poolEmptyReason, setupFileName } from "./setupPool";
 import {
@@ -98,6 +100,7 @@ const FuelTab = lazyRetry(() => import("./tabs/FuelTab"));
 const TyreTab = lazyRetry(() => import("./tabs/TyreTab"));
 const DriversTab = lazyRetry(() => import("./tabs/DriversTab"));
 const TeleTab = lazyRetry(() => import("./tabs/TeleTab"));
+const StratCompTab = lazyRetry(() => import("./tabs/StratCompTab"));
 const LiveTab = lazyRetry(() => import("./tabs/LiveTab"));
 
 /* ============================================================
@@ -416,6 +419,22 @@ export default function App() {
   /* tablo + pit lastik bayrakları birlikte sıfırlanır (bayraklar kalırsa plan
      tabloda olmayan lastik değişimlerine süre eklemeye devam ediyordu) */
   const clearTyres = () => edit((s0) => applyClearTyres(s0));
+
+  /* ---- Strateji Karşılaştırma (v2.4.0) — yarış ÖNCESİ hesap aracı ---- */
+  const stratAdd = (team) => edit((s0) => applyStratAdd(s0, team));
+  const stratUp = (i, patch) => edit((s0) => applyStratUp(s0, i, patch));
+  const stratDel = (i) => edit((s0) => applyStratDel(s0, i));
+  const stratPickSet = (key, v) => up({ [key]: v });
+  /* Kendi satırını GERÇEK plandan doldurur. tyre4Sec olarak TYRE_4_SEC (12 sn)
+     verilir — computePlan pit sürelerini de bununla kurar (st.tyreChangeT34
+     lastik PLANLAYICISININ ayrı değeri; ikisini karıştırmak karşılaştırmayı
+     plandan koparırdı). Plan geçersizse seedFromPlan null döner → satır
+     eklenmez, yarım plandan uydurma satır üretilmez. */
+  const stratSeed = () => {
+    const seed = seedFromPlan(st, racePlan, TYRE_4_SEC);
+    if (!seed) return;
+    stratAdd({ ...seed, name: teamData?.meta?.name || t("Bizim takım") });
+  };
 
   /* boş hücre = o köşede lastik değişmedi → önceki stintten (yoksa Qual'dan) taşınan lastik.
      Depoya yazılmaz, sadece görsel; fiziksel olarak aynı lastik olduğu için sayıma girmez. */
@@ -1394,6 +1413,7 @@ ${bottomBar}
     { id: "fuel", label: t("Son Stint Yakıtı"), keywords: "fuel yakıt", icon: <Icon name="yakit" size={15} />, run: () => setTab("fuel") },
     { id: "live", label: t("Canlı"), keywords: "live canlı timing", icon: <Icon name="canli" size={15} />, run: () => setTab("live") },
     { id: "tyre", label: t("Lastik"), keywords: "tyre lastik", icon: <Icon name="lastik" size={15} />, run: () => setTab("tyre") },
+    { id: "stratcomp", label: t("Strateji Karşılaştırma"), keywords: "strategy strateji karşılaştırma compare rakip", icon: <Icon name="karsilastir" size={15} />, run: () => setTab("stratcomp") },
     { id: "drivers", label: t("Pilotlar"), keywords: "drivers pilot", icon: <Icon name="kask" size={15} />, run: () => setTab("drivers") },
     { id: "tele", label: t("Telemetri"), keywords: "telemetry telemetri", icon: <Icon name="telemetri" size={15} />, run: () => setTab("tele") },
     { id: "setup", label: t("Setup"), keywords: "setup", icon: <Icon name="setup" size={15} />, run: () => setTab("setup") },
@@ -2027,6 +2047,7 @@ ${bottomBar}
           ["fuel", t("Yakıt"), <Icon key="i" name="yakit" size={20} />],
           ["live", t("Canlı"), <Icon key="i" name="canli" size={20} />],
           ["tyre", t("Lastik"), <Icon key="i" name="lastik" size={20} />],
+          ["stratcomp", t("Strateji"), <Icon key="i" name="karsilastir" size={20} />],
           ["drivers", t("Pilot"), <Icon key="i" name="kask" size={20} />],
           ["tele", t("Tele"), <Icon key="i" name="telemetri" size={20} />],
           ["setup", t("Setup"), <Icon key="i" name="setup" size={20} />],
@@ -3212,7 +3233,7 @@ ${bottomBar}
      Kaynak: handoff-spec/ekranlar/00-kabuk.md. Yatay sekme çubuğunun yerine geçen sabit
      sol ray. Değerler fişteki dinamik stil objelerinden birebir; hex → var(--rc-*). */
   /* ---- v2.0 yarış üst çubuğu (handoff-spec/ekranlar/00-yaris-ust-cubugu.md) ---- */
-  const isRace = ["live", "dash", "stint", "fuel", "tyre", "drivers"].includes(tab);
+  const isRace = ["live", "dash", "stint", "fuel", "tyre", "drivers", "stratcomp"].includes(tab);
   const rcInfo = races[curRace] || {};
   const raceTitle = rcInfo.name || trackName(rcInfo.trackId || st.track) || t("Yarış");
   const raceSub = [rcInfo.round ? `R${rcInfo.round}` : "", trackName(rcInfo.trackId || st.track),
@@ -3780,6 +3801,14 @@ ${bottomBar}
               stintLaps={racePlan.rows[0]?.lapsInStint}
               /* v2.3.1 tasarım fişi: izleyici modunda yazma eylemleri görsel
                  olarak da pasif (cursor not-allowed, opaklık .45). */
+              readOnly={!canEdit} />
+          )}
+
+          {tab === "stratcomp" && (
+            <StratCompTab t={t} st={st} plan={racePlan}
+              onLaps={(v) => up({ stratLaps: v })}
+              onAdd={() => stratAdd()} onUp={stratUp} onDel={stratDel}
+              onSeed={stratSeed} onPick={stratPickSet}
               readOnly={!canEdit} />
           )}
 
