@@ -91,7 +91,14 @@ export function fmtLapMs(sec) {
 /* Boş takım kaydı — yeni satır eklerken kullanılır. Sayısal alanlar ""
    (girilmedi), 0 DEĞİL: 0 "ceza yok" demek, "" "bilinmiyor" demek. */
 export const EMPTY_TEAM = {
+  /* v2.4.0 tasarım fişi: satır artık bir ARAÇ da taşıyor (hero kartındaki
+     görsel, kayıt defteri küçük resmi, sıralama satırı). Hesaba girmez —
+     yalnız kimlik/görsel. `num` araç numarası (hayalet rakam), `cls` sınıf
+     rozeti ve araç listesini seçer. */
   name: "",
+  num: "",
+  car: "",
+  cls: "",
   pits: "",
   stints: "",
   pitLane: "",

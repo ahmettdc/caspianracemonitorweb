@@ -446,12 +446,34 @@ export default function App() {
        düzenlenebilir değeridir; ikisini karıştırmak karşılaştırmayı kendi
        planından koparırdı.
      · Plan geçersizse seedFromPlan null döner → satır EKLENMEZ. */
-  const stratSeed = (key) => {
+  const stratPlanOf = (key) => {
     const k = key || st.chosen;
     const p = k === st.chosen ? racePlan : computePlan({ ...st, chosen: k }, "race");
-    const seed = seedFromPlan(st, p, TYRE_4_SEC);
+    return { k, seed: seedFromPlan(st, p, TYRE_4_SEC) };
+  };
+  const stratSeedName = (k) => `${t("Plan")} ${k} · ${st.strategies?.[k]} ${t("tur")}`;
+  const stratSeed = (key) => {
+    const { k, seed } = stratPlanOf(key);
     if (!seed) return;
-    stratAdd({ ...seed, name: `${t("Plan")} ${k} · ${st.strategies?.[k]} ${t("tur")}` });
+    stratAdd({ ...seed, name: stratSeedName(k), cls: st.stratClass || st.carClass || "",
+      car: st.car || "" });
+  };
+  /* MEVCUT satırı plandan doldur (düzenleme penceresindeki düğmeler). Kimlik
+     alanları (ad/araç/no/sınıf) KORUNUR — kullanıcı onları elle girmişti; ad
+     yalnız BOŞSA plan adı yazılır (fişin kuralı). */
+  const stratSeedInto = (i, key) => {
+    const { k, seed } = stratPlanOf(key);
+    if (!seed) return;
+    edit((s0) => {
+      const rows = Array.isArray(s0.stratTeams) ? s0.stratTeams : [];
+      if (!(i >= 0 && i < rows.length)) return s0;
+      const cur = rows[i] || {};
+      const { name: _n, num: _u, car: _c, cls: _l, ...vals } = seed;
+      return applyStratUp(s0, i, {
+        ...vals,
+        name: String(cur.name || "").trim() || stratSeedName(k),
+      });
+    });
   };
 
   /* boş hücre = o köşede lastik değişmedi → önceki stintten (yoksa Qual'dan) taşınan lastik.
@@ -3835,7 +3857,8 @@ ${bottomBar}
               onLaps={(v) => up({ stratLaps: v })}
               onTrack={(v) => up({ stratTrack: v })} onClass={(v) => up({ stratClass: v })}
               onAdd={stratAddBlank} onUp={stratUp} onDel={stratDel}
-              onSeed={stratSeed} onPick={stratPickSet}
+              onSeed={stratSeed} onSeedInto={stratSeedInto} onPick={stratPickSet}
+              teamAssets={teamData?.assets}
               readOnly={!canEdit} />
           )}
 

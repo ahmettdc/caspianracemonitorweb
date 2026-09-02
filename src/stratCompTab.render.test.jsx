@@ -7,10 +7,10 @@
    stintTab.render.test.jsx ile aynı desen: renderToStaticMarkup, DOM gerekmez. */
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import StratCompTab from "./tabs/StratCompTab.jsx";
+import StratCompTab, { RowEditModal } from "./tabs/StratCompTab.jsx";
 import { computePlan, migrate, DEFAULT_STATE } from "./engine.js";
-import { TRACKS, CAR_CLASSES, PIT_LANE_TIMES } from "./constants.js";
-import { trackDefaults } from "./stratComp.js";
+import { TRACKS, CAR_CLASSES, PIT_LANE_TIMES, CARS } from "./constants.js";
+import { trackDefaults, teamTime, stintWarnings } from "./stratComp.js";
 
 const noop = () => {};
 /* Excel'in iki DOLU satırı — dosyadaki değerler birebir. */
@@ -25,7 +25,8 @@ const draw = (st, opt = {}) => renderToStaticMarkup(
   <StratCompTab t={(x) => x} st={st} plan={computePlan(st, "race")}
     tracks={TRACKS} carClasses={CAR_CLASSES} lmuReady
     trackDefs={trackDefaults(st.stratTrack || st.track, st.stratClass || st.carClass, LMU, PIT_LANE_TIMES)}
-    onLaps={noop} onTrack={noop} onClass={noop} onAdd={noop} onUp={noop} onDel={noop} onSeed={noop} onPick={noop}
+    onLaps={noop} onTrack={noop} onClass={noop} onAdd={noop} onUp={noop} onDel={noop}
+    onSeed={noop} onSeedInto={noop} onPick={noop}
     {...opt} />);
 
 describe("StratCompTab — karşılaştırma", () => {
@@ -38,13 +39,13 @@ describe("StratCompTab — karşılaştırma", () => {
     expect(html).toContain("sn önde");
   });
 
-  /* Kalemler projenin tek süre biçimleyicisiyle (engine.fmtDur) yazılır:
-     280 sn → "4:40.0". Excel'in ham saniyeleri burada dakika:saniye okunur. */
+  /* v2.4.0 tasarım fişi: sabit kayıp kalemleri DÜZ saniye, tek ondalık
+     ("280.0") — fişin kendi fmtDur'u. Excel'in ham saniyeleriyle aynı okuma. */
   it("Excel'in kalem dökümünü üretir (280/247/72 ve 240/240/72 sn)", () => {
     const html = draw(st);
-    ["4:40.0", "4:07.0", "1:12.0", "9:59.0"].forEach((v) => expect(html).toContain(v));
-    expect(html).toContain("4:00.0");   // Caspian pit yolu 240 sn = yakıt 240 sn
-    expect(html).toContain("9:12.0");   // Caspian sabit kayıp 552 sn
+    ["280.0", "247.0", "72.0", "599.0"].forEach((v) => expect(html).toContain(v));
+    expect(html).toContain("240.0");   // Caspian pit yolu 240 sn = yakıt 240 sn
+    expect(html).toContain("552.0");   // Caspian sabit kayıp 552 sn
   });
 
   it("sabit kayıp farkı +47 sn olarak görünür", () => {
@@ -52,7 +53,7 @@ describe("StratCompTab — karşılaştırma", () => {
   });
 
   it("breakeven satırı çizilir", () => {
-    expect(draw(st)).toContain("Geride kalanın farkı kapatması için");
+    expect(draw(st)).toContain("Geride kalan turda");
   });
 });
 
@@ -77,15 +78,15 @@ describe("StratCompTab — eksik veri (CLAUDE.md §1)", () => {
 
   it("defter boşken çökmez ve yönlendirme gösterir", () => {
     const html = draw(mk({ stratTeams: [] }));
-    expect(html).toContain("Aşağıdaki deftere en az iki satır ekleyin");
-    expect(html).toContain("Henüz satır yok.");
+    expect(html).toContain("Karşılaştırma yapılamıyor");
+    expect(html).toContain("Kayıt defteri");
   });
 
   /* Excel'de STINT NUMBERS sütunu hiçbir formüle girmiyordu (ölü sütun);
      burada en azından pit sayısıyla çapraz doğrulanıp uyarı basılır. */
   it("stint ≠ pit + 1 satırında uyarı işareti çizilir", () => {
     const html = draw(mk({ stratTeams: [{ ...CASPIAN, stints: 99 }], stratLaps: 174 }));
-    expect(html).toContain("Stint sayısı pit sayısı + 1 olmalı");
+    expect(html).toContain("Stint sayısı pit + 1 olmalı");
   });
 });
 
@@ -93,7 +94,7 @@ describe("StratCompTab — sıralama ve izleyici modu", () => {
   it("verisi tam olanlar sıralanır, eksik olanlar ayrı yazılır", () => {
     const html = draw(mk({ stratTeams: [CASPIAN, PESCARA, { name: "#13 TEAM SHIBA" }],
       stratA: 0, stratB: 1, stratLaps: 174 }));
-    expect(html).toContain("Tüm defter — tahmini bitiş sırası");
+    expect(html).toContain("Tüm defter · tahmini bitiş sırası");
     expect(html).toContain("Sıralamaya girmeyen (eksik veri)");
     expect(html).toContain("#13 TEAM SHIBA");
   });
@@ -101,7 +102,7 @@ describe("StratCompTab — sıralama ve izleyici modu", () => {
   it("başlıklar takım/plan ayrımı yapmaz (aynı ekran ikisine de hizmet eder)", () => {
     const html = draw(mk({ stratTeams: [PESCARA, CASPIAN], stratA: 0, stratB: 1, stratLaps: 174 }));
     expect(html).toContain("Kayıt defteri");
-    expect(html).toContain("Satırlar rakip takım da olabilir, kendi A/B planınız da.");
+    expect(html).toContain("satır · rakip ya da kendi A/B planınız");
     expect(html).not.toContain("Takım A");
   });
 
@@ -140,13 +141,13 @@ describe("StratCompTab — A planı mı B planı mı (kendi varyantlarımız)", 
       fuelFull: 40, fuelLast: 12, tyreTime: 12, tyreCount: 8, avgLap: "2:02.500" };
     const planB = { ...planA, name: "Plan B · 11 tur", pits: 6, stints: 7, tyreCount: 6 };
     const html = draw(mk({ stratTeams: [planA, planB], stratA: 0, stratB: 1, stratLaps: 174 }));
-    expect(html).toContain("Uzun stintin yakıt yükü ve lastik yaşı");
+    expect(html).toContain("uzun stintin lastik/yakıt yavaşlaması modelde yok");
     expect(html).toContain("sn önde");           // sonuç yine de hesaplanır
   });
 
   it("tempolar FARKLIYSA uyarı çıkmaz", () => {
     const html = draw(mk({ stratTeams: [PESCARA, CASPIAN], stratA: 0, stratB: 1, stratLaps: 174 }));
-    expect(html).not.toContain("Uzun stintin yakıt yükü ve lastik yaşı");
+    expect(html).not.toContain("uzun stintin lastik/yakıt yavaşlaması modelde yok");
   });
 });
 
@@ -166,5 +167,100 @@ describe("StratCompTab — pist seçimi ve otomatik doldurma önerisi", () => {
   it("pist seçili değilken öneri satırı çizilmez", () => {
     const html = draw(mk({ stratTeams: [CASPIAN], stratLaps: 174 }));
     expect(html).not.toContain("Öneri:");
+  });
+});
+
+describe("StratCompTab — v2.4.0 tasarım fişi parçaları", () => {
+  const st = mk({ stratTeams: [{ ...PESCARA, num: "4", car: "ferrari", cls: "gt3" },
+    { ...CASPIAN, num: "75", car: "corvette", cls: "gt3" }],
+    stratA: 0, stratB: 1, stratLaps: 174, stratTrack: "spa" });
+
+  it("hero kartları PLAN A / PLAN B ve tahmini bitişi çizer", () => {
+    const html = draw(st);
+    expect(html).toContain("PLAN A");
+    expect(html).toContain("PLAN B");
+    expect(html).toContain("Tahmini bitiş");
+    expect(html).toContain("6:04:13");   // Pescara toplam (21853.1 sn)
+    expect(html).toContain("6:04:27");   // Caspian toplam (21867 sn)
+  });
+
+  it("hayalet araç numarası ve araç görseli satırdan gelir", () => {
+    const html = draw(st);
+    expect(html).toContain("#4");
+    expect(html).toContain("#75");
+    expect(html).toContain("cars/gt3/ferrari");
+    expect(html).toContain("class/gt3.png");
+  });
+
+  it("karar kartı: sonuç, kazanan, fark ve iki istatistik kutusu", () => {
+    const html = draw(st);
+    expect(html).toContain("Sonuç");
+    expect(html).toContain("Tempo farkı");
+    expect(html).toContain("Sabit farkı");
+    expect(html).toContain("−60.9");     // tempo farkı
+    expect(html).toContain("0.080");     // breakeven sn/tur
+  });
+
+  /* Fişin kuralı: iki satır ORTAK ölçekte çizilir (max = büyük sabit kayıp),
+     değeri 0 olan segment hiç çizilmez, %11'den dar segmentin yazısı gizlenir. */
+  it("sabit kayıp dağılımı ortak ölçekte, sıfır segmentsiz çizilir", () => {
+    const html = draw(st);
+    expect(html).toContain("Sabit kayıp dağılımı");
+    expect(html).toContain("Pit yolu");
+    expect(html).toContain("Hasar");        // efsane (legend) her zaman tam
+    // ceza/hasar 0 → ÇUBUKTA segment yok (segmentin title'ı "Ceza: …" olurdu).
+    // Döküm TABLOSU yine "0.0" yazar — fişin kuralı bu, ikisi farklı yer.
+    expect(html).not.toContain('title="Ceza:');
+    expect(html).not.toContain('title="Hasar:');
+    expect(html).toContain('title="Pit yolu:');   // dolu kalem segmenti var
+  });
+
+  it("pist seçilince başlıkta bayrak ve pist adı görünür", () => {
+    const html = draw(st);
+    expect(html).toContain("flags/spa.png");
+    expect(html).toContain("Spa-Francorchamps");
+  });
+
+  it("kayıt defteri satırı araç görseli + ad ile çizilir, izleyicide düzenleme yok", () => {
+    expect(draw(st)).toContain("✎");
+    expect(draw(st, { readOnly: true })).not.toContain("✎");
+  });
+});
+
+describe("RowEditModal — fişin 6. bölümü (satır düzenleme penceresi)", () => {
+  const row = { name: "#4 PESCARA SRT", num: "4", car: "ferrari", cls: "gt3",
+    pits: "6", stints: "7", pitLane: "24", fuelFull: "40", fuelLast: "2",
+    tyreTime: "12", tyreCount: "4", avgLap: "2:02.150" };
+  const drawModal = (r, opt = {}) => renderToStaticMarkup(
+    <RowEditModal t={(x) => x} row={r} idx={0} res={teamTime(r, 174)}
+      warns={stintWarnings(r)} carList={CARS.gt3} carClasses={CAR_CLASSES} clsSel="gt3"
+      opts={[{ key: "A", laps: 8, ready: true }, { key: "B", laps: 9, ready: true }]}
+      carSrc="/assets/cars/gt3/ferrari.webp"
+      onUp={noop} onDel={noop} onSeedInto={noop} onClose={noop} {...opt} />);
+
+  it("başlık, ad/araç alanları ve 11 sayısal alan çizilir", () => {
+    const html = drawModal(row);
+    expect(html).toContain("Kayıt satırı");
+    expect(html).toContain("değerleri düzenle");
+    expect(html).toContain("Takım / plan adı");
+    expect(html).toContain("Ferrari 296 GT3");     // gerçek CARS listesinden
+    expect(html).toContain("Strateji planından doldur");
+    expect(html).toContain("Bitti");
+    expect(html).toContain("Satırı sil");
+  });
+
+  it("adı boş satırda alt yazı 'yeni satır' olur", () => {
+    expect(drawModal({ ...row, name: "" })).toContain("yeni satır — değerleri gir");
+  });
+
+  /* Eksik zorunlu alan amber kenarlıkla işaretlenir — hesabı durduran alanı
+     kullanıcı pencerede görebilmeli (CLAUDE.md §1). */
+  it("eksik zorunlu alan amber işaretlenir", () => {
+    const html = drawModal({ ...row, avgLap: "" });
+    expect(html).toContain("var(--rc-warn)");
+  });
+
+  it("tutarsız satırda uyarı bloğu çıkar", () => {
+    expect(drawModal({ ...row, stints: "99" })).toContain("Stint sayısı pit + 1 olmalı");
   });
 });

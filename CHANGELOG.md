@@ -158,10 +158,53 @@ average lap süreleri otomatik gelebilir biz gerekirse üstünden değiştiririz
 - Yeni durum alanları `stratTrack` · `stratClass` (migrate ile eski odalar
   kendini onarır). Pist listesi `TRACKS`, sınıf listesi `CAR_CLASSES`.
 
+### Ekran tasarım fişine göre yeniden kuruldu (hifi port)
+
+Kaynak: `design_handoff_strateji_karsilastirma` — "birebir port" (fidelity:
+hifi) kuralıyla geldi. Ölçüler, boşluklar, yazı tipleri, metinler ve
+etkileşimler prototipten (`Strateji Karşılaştırma.dc.html`) alındı.
+
+**Yeni bölümler:** iki "hero" plan kartı (araç görseli · hayalet numara · sınıf
+rozeti · tahmini bitiş) · ortada karar kartı (kazanan adı, büyük fark, kazanana
+doğru büyüyen çubuk, tempo/sabit istatistik kutuları, breakeven satırı) ·
+**sabit kayıp dağılımı çubuğu** (pit yolu/yakıt/lastik/ceza/hasar, iki plan
+ORTAK ölçekte, sıfır kalem çizilmez, %11'den dar dilimde yazı gizlenir) ·
+salt-okunur kayıt defteri + satır düzenleme penceresi · araç görselli sıralama ·
+−/+ tur sayacı.
+
+**Renkler: fişin hex'leri = uygulamanın tokenları.** Fiş "app tokenlarını
+kullanma" diyor; karşılaştırıldığında fişteki **24 rengin 24'ü** `styles.js`'te
+zaten aynı değerle tanımlı çıktı (tasarım uygulamanın kendi paletiyle çizilmiş).
+Bu yüzden token üzerinden yazıldı: koyu temada renk fişle birebir aynı, açık
+tema da bozulmuyor. Token karşılığı olmayan tek renk `#FFE2B0` (amber uyarı
+metni) → `--rc-warn-text` olarak eklendi (v2.3.1 lastik fişindeki desen).
+Fontlar zaten uyuyordu: `index.html` Rajdhani + IBM Plex Mono + Inter'i fişin
+istediği ağırlıklarla yüklüyor.
+
+**Fişten üç bilinçli sapma** (hepsi kodda işaretli):
+
+1. **Hesap prototipten değil, `stratComp.js`'ten.** Fişin "Calculation model"i
+   zaten bu modülden kopyalanmış (README öyle diyor) ve modül Excel'in
+   sayılarına karşı test edilmiş. Prototipin `seed()`'i ise pit yolu 24 /
+   yakıt 40 / ort. tur "2:02.400" gibi SABİT değerler yazıyor — README bunu
+   *"placeholder demo data · wire the real register to the app's data source"*
+   diye işaretliyor. "Planımdan ekle" gerçek `computePlan` çıktısını kullanır.
+2. **Seçim listeleri gerçek veriden.** Prototip 5 GT3 aracını sabit yazıyor;
+   burada uygulamanın `CARS`/`CAR_CLASSES` listesi ve `teamAssets.carImageSrc`
+   (takımın yüklediği görsel varsa o) kullanılır.
+3. **Pist + sınıf seçici korundu.** Prototipin başlığında bayrak ve "6H Spa"
+   alt yazısı var ama seçici yok — fiş, seçicinin eklendiği commit'ten önceki
+   PR'a bakıyor. Seçici başlığa fişin diliyle yerleştirildi; bayrak ve alt yazı
+   seçili pistten gelir.
+
+Düzenleme penceresi ayrı bileşene çıkarıldı (`RowEditModal`): sekmedeki
+`editIdx` YEREL state olduğu için (kalıcı değil — TyreTab deseni) statik render
+onu açamıyordu; ayrılınca pencere de doğrudan test edilebildi.
+
 ### Doğrulama
 
-- **884 JS testi** (52 → 54 dosya; öncesi 797, +87). Yeni: `stratComp.test.js` 57 ·
-  `stratCompTab.render.test.jsx` 18 · `state.test.js` +12 reducer testi.
+- **894 JS testi** (52 → 54 dosya; öncesi 797, +97). Yeni: `stratComp.test.js` 57 ·
+  `stratCompTab.render.test.jsx` 28 · `state.test.js` +12 reducer testi.
 - Excel'in sayıları regresyon kilidi olarak testte: `+47.0` · `−13.9` ·
   `−0.350 sn/tur` · `−60.9 sn` · son-pit kaldıracının işaret değiştirmesi
   (`+19.1`) · boş takımın `ok:false` dönmesi.
