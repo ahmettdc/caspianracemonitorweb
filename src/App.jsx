@@ -1459,10 +1459,10 @@ ${bottomBar}
     { id: "fuel", label: t("Son Stint Yakıtı"), keywords: "fuel yakıt", icon: <Icon name="yakit" size={15} />, run: () => setTab("fuel") },
     { id: "live", label: t("Canlı"), keywords: "live canlı timing", icon: <Icon name="canli" size={15} />, run: () => setTab("live") },
     { id: "tyre", label: t("Lastik"), keywords: "tyre lastik", icon: <Icon name="lastik" size={15} />, run: () => setTab("tyre") },
-    { id: "stratcomp", label: t("Strateji Karşılaştırma"), keywords: "strategy strateji karşılaştırma compare rakip", icon: <Icon name="karsilastir" size={15} />, run: () => setTab("stratcomp") },
     { id: "drivers", label: t("Pilotlar"), keywords: "drivers pilot", icon: <Icon name="kask" size={15} />, run: () => setTab("drivers") },
     { id: "tele", label: t("Telemetri"), keywords: "telemetry telemetri", icon: <Icon name="telemetri" size={15} />, run: () => setTab("tele") },
     { id: "setup", label: t("Setup"), keywords: "setup", icon: <Icon name="setup" size={15} />, run: () => setTab("setup") },
+    { id: "stratcomp", label: t("Strateji Karşılaştırma"), keywords: "strategy strateji karşılaştırma compare rakip", icon: <Icon name="karsilastir" size={15} />, run: () => setTab("stratcomp") },
     ...(raceChan ? [{ id: "rchat", label: t("Yarış Sohbeti"), keywords: "chat sohbet", icon: <Icon name="sohbet" size={15} />, run: () => setTab("rchat") }] : []),
     { id: "theme", label: theme === "light" ? t("Koyu temaya geç") : t("Açık temaya geç"), keywords: "theme tema dark light", icon: <Icon name={theme === "light" ? "moon" : "sun"} size={15} />, run: toggleTheme },
     { id: "density", label: t("Yoğunluğu değiştir"), keywords: "density yoğunluk", icon: <Icon name="rows" size={15} />, run: toggleDensity },
@@ -2099,10 +2099,10 @@ ${bottomBar}
           ["fuel", t("Yakıt"), <Icon key="i" name="yakit" size={20} />],
           ["live", t("Canlı"), <Icon key="i" name="canli" size={20} />],
           ["tyre", t("Lastik"), <Icon key="i" name="lastik" size={20} />],
-          ["stratcomp", t("Strateji"), <Icon key="i" name="karsilastir" size={20} />],
           ["drivers", t("Pilot"), <Icon key="i" name="kask" size={20} />],
           ["tele", t("Tele"), <Icon key="i" name="telemetri" size={20} />],
           ["setup", t("Setup"), <Icon key="i" name="setup" size={20} />],
+          ["stratcomp", t("Strateji"), <Icon key="i" name="karsilastir" size={20} />],
         ].map(([k, lbl, ico]) => (
           <button key={k} id={`tab-${k}`} data-tour={`nav-${k}`} onClick={() => onTab(k)} style={navBtn(activeKey === k)}>
             {ico}<span style={railLabel}>{lbl}</span>
