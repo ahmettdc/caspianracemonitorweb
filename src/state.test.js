@@ -8,6 +8,7 @@ import {
   computeTyreInfo, computeDriverPlan, computeSlotStats, computeChartData,
   computeLiveInfo, buildTimeline, apply105Rule,
   applyMarkPit, applyUnmarkPit, applyResetPits,
+  applyStratAdd, applyStratUp, applyStratDel, stratPick,
 } from "./state.js";
 
 /* DEFAULT_STATE'ten türeyen temel durum — DERİN kopya (iç diziler paylaşılmasın,
@@ -544,5 +545,79 @@ describe("buildTimeline", () => {
     expect(tl[0].label).toBe("S1");
     expect(tl[1].cls).toBe("pit");
     expect(tl[2].label).toBe("S2");
+  });
+});
+
+/* ============================================================
+   STRATEJİ KARŞILAŞTIRMA reducer'ları (v2.4.0)
+   ============================================================ */
+describe("applyStratAdd / applyStratUp", () => {
+  it("boş satır ekler — sayısal alanlar '' (0 değil)", () => {
+    const s = applyStratAdd({ ...DEFAULT_STATE });
+    expect(s.stratTeams).toHaveLength(1);
+    expect(s.stratTeams[0].pits).toBe("");
+    expect(s.stratTeams[0].name).toBe("");
+  });
+  it("verilen alanlarla ekler (plandan tohumlama)", () => {
+    const s = applyStratAdd({ ...DEFAULT_STATE }, { name: "#75", pits: 6 });
+    expect(s.stratTeams[0]).toMatchObject({ name: "#75", pits: 6, avgLap: "" });
+  });
+  it("tek satırı günceller, diğerlerine dokunmaz", () => {
+    let s = applyStratAdd(applyStratAdd({ ...DEFAULT_STATE }, { name: "A" }), { name: "B" });
+    s = applyStratUp(s, 1, { pitLane: 40 });
+    expect(s.stratTeams[0]).toMatchObject({ name: "A", pitLane: "" });
+    expect(s.stratTeams[1]).toMatchObject({ name: "B", pitLane: 40 });
+  });
+  it("aralık dışı indekste durum DEĞİŞMEZ", () => {
+    const s = applyStratAdd({ ...DEFAULT_STATE }, { name: "A" });
+    expect(applyStratUp(s, 5, { pitLane: 1 })).toBe(s);
+    expect(applyStratUp(s, -1, { pitLane: 1 })).toBe(s);
+  });
+  it("bozuk stratTeams'te çökmez", () => {
+    expect(applyStratAdd({ stratTeams: null }).stratTeams).toHaveLength(1);
+  });
+});
+
+describe("applyStratDel — seçim kayması", () => {
+  const base = () => ({ ...DEFAULT_STATE,
+    stratTeams: [{ name: "A" }, { name: "B" }, { name: "C" }, { name: "D" }] });
+
+  /* REGRESYON: seçili takımlar İNDEKSLE tutuluyor. Silinen satırın üstündeki
+     bir indeks kaymazsa kullanıcı, adını hiç görmediği BAŞKA bir takımı
+     karşılaştırıyor olurdu — sayılar makul görünür, karşılaştırma yanlıştır. */
+  it("silinenin ALTINDAKİ seçim bir azalır, ÜSTÜNDEKİ yerinde kalır", () => {
+    const s = applyStratDel({ ...base(), stratA: 0, stratB: 3 }, 1);
+    expect(s.stratTeams.map((r) => r.name)).toEqual(["A", "C", "D"]);
+    expect(s.stratA).toBe(0);
+    expect(s.stratB).toBe(2);
+  });
+  it("silinen satırın kendisi seçiliyse 0'a düşer", () => {
+    expect(applyStratDel({ ...base(), stratA: 2, stratB: 2 }, 2))
+      .toMatchObject({ stratA: 0, stratB: 0 });
+  });
+  it("son satır silinince seçim listenin içinde kalır", () => {
+    const s = applyStratDel({ ...base(), stratA: 3, stratB: 3 }, 3);
+    expect(s.stratA).toBe(0);
+    expect(s.stratB).toBe(0);
+  });
+  it("liste boşalınca seçim 0", () => {
+    const s = applyStratDel({ ...DEFAULT_STATE, stratTeams: [{ name: "A" }], stratA: 0, stratB: 0 }, 0);
+    expect(s.stratTeams).toEqual([]);
+    expect(s.stratA).toBe(0);
+  });
+  it("aralık dışı silme durumu DEĞİŞTİRMEZ", () => {
+    const s = base();
+    expect(applyStratDel(s, 9)).toBe(s);
+  });
+});
+
+describe("stratPick — seçili indeksi güvenli oku", () => {
+  const s = { stratTeams: [{ name: "A" }, { name: "B" }], stratA: 1, stratB: 7 };
+  it("geçerli indeks olduğu gibi", () => expect(stratPick(s, "stratA")).toBe(1));
+  it("liste dışı indeks 0'a düşer (stratTeams[-1] okunmaz)", () => {
+    expect(stratPick(s, "stratB")).toBe(0);
+    expect(stratPick({ stratTeams: [], stratA: 3 }, "stratA")).toBe(0);
+    expect(stratPick({ stratTeams: [{}], stratA: "abc" }, "stratA")).toBe(0);
+    expect(stratPick({ stratTeams: [{}], stratA: -1 }, "stratA")).toBe(0);
   });
 });

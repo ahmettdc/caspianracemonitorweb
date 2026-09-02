@@ -55,6 +55,9 @@ export const css = `
   /* Durum */
   --rc-ok:#37D67A; --rc-ok-2:#40D68C; --rc-ok-3:#3AD07A; --rc-ok-soft:#7FE3A0;
   --rc-warn:#F5B23D; --rc-warn-2:#F5C84C; --rc-warn-3:#F2C94C; --rc-flag-yellow:#F2C037;
+  /* v2.4.0 strateji fişi: amber uyarı BLOĞUNUN metni (zemin --rc-tint-warn,
+     kenarlık --rc-warn). Fişte token karşılığı olmayan tek renk buydu. */
+  --rc-warn-text:#FFE2B0;
   --rc-danger:#FF4D5E; --rc-danger-2:#FF5470; --rc-danger-3:#F0604D;
   /* v2.3.1 — Lastik ekranı tasarım fişi (design_handoff_lastik/fis/06-lastik.md):
      fişte "token yok — sor" işaretli sekiz değer. Renkler fişten BİREBİR alındı,

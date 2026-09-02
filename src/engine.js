@@ -140,6 +140,20 @@ export const DEFAULT_STATE = {
   stintLaps: Array.from({ length: 14 }, () => ""), // opsiyonel stint ort. tur "m:ss.00"
   // Faz 4 — telemetri (MoTeC)
   telemetry: { A: null, B: null, C: null, D: null },
+  /* v2.4.0 — Strateji Karşılaştırma (yarış ÖNCESİ hesap aracı).
+     stratLaps "" bırakılırsa UI plandan öneri gösterir ama KENDİLİĞİNDEN
+     yazmaz: tur sayısı tempo teriminin çarpanıdır, kullanıcı onaylamalı.
+     stratTeams satırlarında sayısal alanlar "" (girilmedi) — 0 değil; ikisinin
+     farkı stratComp.js'in tüm hesabını taşıyor (CLAUDE.md §1). */
+  stratLaps: "",
+  stratTeams: [],
+  stratA: 0,   // karşılaştırmada sol takım (stratTeams indeksi)
+  stratB: 1,   // sağ takım
+  /* Pist + sınıf seçimi: yeni satırda pit yolu (PIT_LANE_TIMES) ve ortalama tur
+     (lmuData) otomatik gelsin diye. Boş bırakılırsa öneri yok — kullanıcı yine
+     elle girer. Sınıf "" ise pit yolu yine gelir, ortalama tur gelmez. */
+  stratTrack: "",
+  stratClass: "",
 };
 
 /* ---------- pit & lastik sabitleri ---------- */
@@ -449,6 +463,10 @@ export const migrate = (s) => {
   if (!Array.isArray(m.lapOverrides)) m.lapOverrides = Array(MAX_STINTS).fill("");
   if (!Array.isArray(m.stintLaps)) m.stintLaps = Array(MAX_STINTS).fill("");
   if (!Array.isArray(m.weatherLog)) m.weatherLog = [];
+  /* Diziler {...DEFAULT_STATE, ...s} ile kendini onarmaz: eski oda kaydında
+     alan YOKSA undefined gelmez (yayılım onu hiç görmez) ama alan BOZUKSA
+     (ör. Firebase'den nesne olarak döndüyse) olduğu gibi geçer → .map çöker. */
+  if (!Array.isArray(m.stratTeams)) m.stratTeams = [];
   if (!m.weatherLog.length && s && s.weather && s.weather !== "dry")
     m.weatherLog = [{ t: 0, w: s.weather }]; // eski "tüm yarış" seçimi
   return m;

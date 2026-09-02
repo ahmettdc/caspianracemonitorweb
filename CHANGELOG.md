@@ -1,5 +1,269 @@
 # Changelog
 
+## v2.4.0 — 2026-09-01
+
+### Yeni ekran: Strateji Karşılaştırma (yarış öncesi karar aracı)
+
+Kaynak: takımın kendi Excel'i — `Caspian_Motorsport_Race_Control_V1.28.xlsm`,
+`TEAMS STRATEGY` (takım kayıt defteri) + `STRATEGY COMP` (karşılaştırma) sayfaları.
+Kullanıcının tarifi: **"yarış sırasında kullanmayacağız, yarıştan önce doğru
+stratejiye karar vermek için"**.
+
+- **Oyun PC'si maliyeti: SIFIR** (CLAUDE.md §0 denetimi). Ekran yarış sırasında
+  çalışmıyor; yeni REST isteği yok, yeni thread/timer yok, yayın hızı değişmiyor,
+  Firebase karesi büyümüyor. Girdiler tamamen kullanıcının elle girdiği plan
+  verisi, tek istisna "Planımdan ekle" — o da uygulamanın ZATEN hesapladığı
+  `computePlan` çıktısını okuyor, köprüden bir şey istemiyor.
+
+- **Model** (`src/stratComp.js`, saf modül, 46 test):
+
+  ```
+  tempo  = ortalamaTur × toplamTur
+  sabit  = pitAdet × pitYolu + tamServis × (pitAdet − 1) + sonPitYakıtı
+         + lastikAdet × lastikSüresi + ceza + hasar
+  TOPLAM = tempo + sabit
+  ```
+
+  Excel'in sayıları birebir üretiliyor ve testle kilitlendi: dosyadaki
+  `#4 PESCARA SRT` ↔ `#75 CASPIAN MOTORSPORT` karşılaştırmasında
+  `D16 STRATEGY RESULT = +47.0` ve `D17 TOTAL RESULT = −13.9`, ara değerler
+  `D12 = −0.350 sn/tur`, `B16 = −60.9 sn`.
+
+- **Katmanlar:** hesap `stratComp.js` · durum `state.js` reducer'ları
+  (`applyStratAdd/Up/Del`, `stratPick`) · ekran `tabs/StratCompTab.jsx`.
+  Kalıcılık için kural değişikliği GEREKMEDİ: oda durumu zaten tek bir
+  `stateJson` olarak `teams/{tid}/raceState/{rid}` altına yazılıyor, yeni alanlar
+  (`stratTeams`, `stratLaps`, `stratA`, `stratB`) oraya doğrudan giriyor ve
+  `migrate` ile eski odalarda kendini onarıyor.
+
+### Excel'in üç gerçek kırığı — taşınmadı, düzeltildi
+
+Model taşınırken kaynak dosya formül seviyesinde okundu; üç kırık bulundu ve
+hiçbiri koda geçirilmedi.
+
+1. **Eksik veri sıfır sayılıyordu.** `STRATEGY COMP`'un `XLOOKUP`'larında
+   `if_not_found` yok ve kayıt defterindeki 25 takımın **23'ü boştu** (yalnız
+   satır 2 ve 3 dolu). Boş bir takım seçilince ortalama tur `0` okunuyor,
+   `D12 = (0 − 2:02.5) × 86400 = −122.5 sn/tur` çıkıyor ve 174 turluk yarışta
+   `TOTAL RESULT = −21.867 sn` (≈ 6 saat) gibi **tamamen uydurma** bir sonuç
+   üretiliyordu — üstelik negatif olduğu için koşullu biçim onu **yeşile**
+   boyuyordu. CLAUDE.md §1'in adını koyduğu `Number(null) === 0` tuzağının
+   Excel'deki karşılığı. Artık zorunlu alanı eksik takım **hesaplanmıyor**:
+   `teamTime()` `ok:false` ve `missing[]` döndürüyor, ekran eksik alanları
+   adıyla listeliyor, tek bir sayı bile göstermiyor.
+   Ceza ve hasar bunun dışında: boş bırakılmaları "yok" (0 sn) olarak okunuyor
+   — yarış öncesi normal durum bu ve kural ekranda yazılı.
+
+2. **Renkler kullanıcının kendi takımı aleyhine okunuyordu.** Koşullu biçim
+   `D12`, `B16`, `D16:D17` üzerinde `<0 → yeşil`, `>0 → kırmızı`; ama tüm
+   deltalar `sol − sağ` yönünde ve kullanıcının takımı **sağda** duruyordu.
+   Sonuç: `D17 = −13.9` (rakip önde) yeşil, `D16 = +47` (biz öndeyiz) kırmızı.
+   Artık kazanan **adıyla** yazılıyor ("#4 PESCARA SRT 13.9 sn önde"); renk
+   yalnız o cümleyi tekrarlıyor.
+
+3. **Paneller simetrik görünüp simetrik değildi.** Sağ panelde tempo terimi
+   sabit `0` yazılıydı (`I16`, `K12`) ve sağın `STRATEGY TIME` toplamı (`I17`)
+   o terimi hiç içermiyordu, solunki (`B17`) içeriyordu — yani sağ taraf sessizce
+   "referans"tı ve takımların yerini değiştirmek sonucu bozardı. Mutlak süre
+   kurgusu (her takım için toplam yarış süresi, sonra fark) aynı sayıları
+   üretiyor ama simetrik ve ikiden fazla takıma ölçekleniyor; testle kilitlendi
+   ("takımların yeri değişince sonuç yalnız işaret değiştirir").
+
+İki küçük kırık daha bulundu ve yeni ekranda karşılığı yok: livery `XLOOKUP`'ı
+boyut uyuşmazlığı yüzünden `#VALUE!` döndürüyordu (arama `A2:A25` 24 satır,
+dönüş `B2:B20` 19 satır) ve açılır listenin aralığı `A2:A25` olduğu için
+defterdeki son takım (`#306 BOYD TRANSPORT RC`, `A26`) hiç seçilemiyordu —
+yeni seçici defterin tamamını gösteriyor.
+
+### "Planımdan ekle" — son durak yakıtı artık elle girilmiyor
+
+Excel'de kendi satırınızın on alanı elle giriliyordu ve dosyada tam da bu yüzden
+bir kalem eksik kalmıştı: `FUEL TIME (LAST PIT)` hâlâ **tam servis (40 sn)**
+yazıyordu, oysa sayfanın kendi notu `F4:G5`'te bunu **"ÖNEMLİ!"** diye
+işaretliyor — son durakta yalnız bitirmeye yetecek yakıt alınır. Rakip satırında
+7 sn girilmişti, bizimkinde girilmemişti.
+
+Uygulama bu değeri zaten hesaplıyor: `computePlan` `lastRefuelPct` döndürüyor.
+`seedFromPlan()` satırı ondan kuruyor (`fuelFull × lastRefuelPct / 100`), ayrıca
+pit/stint sayısını, pit yolu süresini, lastik değişen durak sayısını ve havaya
+göre düzeltilmiş ortalama turu plandan alıyor.
+
+Etkinin büyüklüğü: dosyadaki karşılaştırmada bu tek hücre 40 → 7 olduğunda
+`TOTAL RESULT` **−13.9 sn'den +19.1 sn'ye** dönüyor, yani sonuç işaret
+değiştiriyor. Plan geçersizse (`invalid`) `seedFromPlan` `null` dönüyor ve satır
+eklenmiyor — yarım plandan satır uydurulmuyor.
+
+**Lastik süresi kaynağı bilinçli seçildi:** `TYRE_4_SEC` (12 sn), yani
+`computePlan`'ın pit sürelerini kurarken kullandığı sabit. `DEFAULT_STATE`'teki
+`tyreChangeT34` lastik PLANLAYICISININ ayrı, kullanıcı düzenlenebilir değeri;
+ikisini karıştırmak karşılaştırmayı kendi planından koparırdı.
+
+### Excel'de ölü duran iki sütun işe koşuldu
+
+- `STINT NUMBERS` hiçbir formüle girmiyordu. Artık pit sayısıyla çapraz
+  doğrulanıyor: stint ≠ pit + 1 ise satırda uyarı işareti çıkıyor. Aynı şekilde
+  lastik değişimi durak sayısını geçemez. Uyarılar **hesabı durdurmuyor**, yalnız
+  veri girişi hatasını gösteriyor.
+- `TOTAL BALLAST` de hiçbir hesaba girmiyordu ve **hâlâ girmiyor** — ama bu kez
+  bilinçli ve yazılı: oyun kg → sn/tur karşılığını vermiyor, uydurmak yerine
+  sütun bilgi amaçlı bırakıldı ve tooltip'te sebebi yazıyor (CLAUDE.md §1).
+
+### İki kullanım, tek ekran: rakip karşılaştırması ve "A planı mı B planı mı"
+
+Kullanıcı bildirimi: *"bazen A planı B planından hangisi hızlı demek için de
+bakıyoruz"*. Model aynı — değişen tohumlama ve etiketler.
+
+- **Varyant tohumlama.** `st.strategies` zaten dört varyant taşıyor
+  (`{A: 8, B: 9, C: 10, D: 11}` — stint başına tur) ama `computePlan` yalnız
+  `st.chosen` olanı kuruyordu. "Planımdan ekle"nin yanına her varyant için düğme
+  kondu; basılan varyantın planı `computePlan({ ...st, chosen: key })` ile
+  kurulup satır olarak ekleniyor.
+- **Plan TIKLANINCA hesaplanıyor.** Dört varyantı her renderda kurmak
+  `computePlan`'ı (tur-tur yürüyüş + sabit-nokta döngüsü) dörde katlardı; bu
+  dosya v2.3.0'da tam bu yüzden üç çağrıyı bire indirmişti ve maliyet canlı
+  yarışta da ödenirdi. Düğmelerin aktifliği ucuz bir ön kontrolden okunuyor
+  (`strategyOptions` — `invalid` koşulunun yürümeden bakılabilen kısmı), seçili
+  varyant için zaten hesaplanmış `racePlan` yeniden kullanılıyor.
+- **Etiketler nötrleştirildi:** "Takım A/B" → "A/B", "Takım kayıt defteri" →
+  "Kayıt defteri", "N takım" → "N satır", ad sütunu "Ad", yer tutucu "Takım ya da
+  plan adı". Aynı ekran hem rakip hem kendi planlarınız için okunuyor.
+
+**Modellenmeyen şey etiketlendi (CLAUDE.md §1).** İki satırın ortalama turu
+birebir aynıysa sonuç kutusunda uyarı çıkıyor. Bu, iki planı da uygulamadan
+tohumlayınca OLAĞAN durumdur: `computePlan` tek bir efektif tur süresi kullanır
+(`effLapSec`), uzun stintin yakıt yükü ve lastik yaşı yüzünden yavaşlamasını
+modellemez. Uyarı olmasaydı araç "az durak hep kazanır" derdi — uzun stintin
+gerçek bedeli görünmeden. Uyarı, gerçek tempo farkı biliniyorsa ortalama turun
+satır başına elle girilmesini söylüyor.
+
+### Pist + sınıf seçici — pit yolu ve ortalama tur otomatik
+
+Kullanıcı bildirimi: *"pisti de seçebilelim böylece pit yolu süresi ve ortalama
+average lap süreleri otomatik gelebilir biz gerekirse üstünden değiştiririz"*.
+
+- **İki alan da GERÇEK kaynaktan** (uydurma yok, CLAUDE.md §1):
+  - pit yolu → `PIT_LANE_TIMES[pist]` (LMU Endurance Planner verisi)
+  - ortalama tur → `lmuData.data[pist][sınıf].avgLap` — uygulamanın zaten
+    günlük çektiği "Ohne Speed" tempo tablosu (`public/assets/lmu-data.json`,
+    `.github/workflows/lmu-laptimes.yml`). ~1.02 "Good" temposu.
+- **Saf yardımcı** `trackDefaults(trackId, classId, lmuData, pitLaneTimes)`
+  (stratComp.js, 6 test): her alan BAĞIMSIZ `null` döner — pit yolu verisi olan
+  ama LMU'da olmayan pistte ortalama tur boş kalır, tersi de. UI "veri yok"
+  yazar, o alanı boş bırakır.
+- **Öneri, kilit değil.** "Boş satır" eklerken pit yolu + ortalama tur hazır
+  gelir (yalnız verisi olan alan); kullanıcı üstüne yazabilir. Plan-tohumlu
+  satırlar bundan etkilenmez — onların değeri kendi planından (daha doğru) gelir.
+- **Pist boşsa mevcut yarışa düşer** (`st.stratTrack || st.track`,
+  `st.stratClass || st.carClass`) — bir yarış açıkken seçim tekrarına gerek yok.
+- Yeni durum alanları `stratTrack` · `stratClass` (migrate ile eski odalar
+  kendini onarır). Pist listesi `TRACKS`, sınıf listesi `CAR_CLASSES`.
+
+### Ekran tasarım fişine göre yeniden kuruldu (hifi port)
+
+Kaynak: `design_handoff_strateji_karsilastirma` — "birebir port" (fidelity:
+hifi) kuralıyla geldi. Ölçüler, boşluklar, yazı tipleri, metinler ve
+etkileşimler prototipten (`Strateji Karşılaştırma.dc.html`) alındı.
+
+**Yeni bölümler:** iki "hero" plan kartı (araç görseli · hayalet numara · sınıf
+rozeti · tahmini bitiş) · ortada karar kartı (kazanan adı, büyük fark, kazanana
+doğru büyüyen çubuk, tempo/sabit istatistik kutuları, breakeven satırı) ·
+**sabit kayıp dağılımı çubuğu** (pit yolu/yakıt/lastik/ceza/hasar, iki plan
+ORTAK ölçekte, sıfır kalem çizilmez, %11'den dar dilimde yazı gizlenir) ·
+salt-okunur kayıt defteri + satır düzenleme penceresi · araç görselli sıralama ·
+−/+ tur sayacı.
+
+**Renkler: fişin hex'leri = uygulamanın tokenları.** Fiş "app tokenlarını
+kullanma" diyor; karşılaştırıldığında fişteki **24 rengin 24'ü** `styles.js`'te
+zaten aynı değerle tanımlı çıktı (tasarım uygulamanın kendi paletiyle çizilmiş).
+Bu yüzden token üzerinden yazıldı: koyu temada renk fişle birebir aynı, açık
+tema da bozulmuyor. Token karşılığı olmayan tek renk `#FFE2B0` (amber uyarı
+metni) → `--rc-warn-text` olarak eklendi (v2.3.1 lastik fişindeki desen).
+Fontlar zaten uyuyordu: `index.html` Rajdhani + IBM Plex Mono + Inter'i fişin
+istediği ağırlıklarla yüklüyor.
+
+**Fişten üç bilinçli sapma** (hepsi kodda işaretli):
+
+1. **Hesap prototipten değil, `stratComp.js`'ten.** Fişin "Calculation model"i
+   zaten bu modülden kopyalanmış (README öyle diyor) ve modül Excel'in
+   sayılarına karşı test edilmiş. Prototipin `seed()`'i ise pit yolu 24 /
+   yakıt 40 / ort. tur "2:02.400" gibi SABİT değerler yazıyor — README bunu
+   *"placeholder demo data · wire the real register to the app's data source"*
+   diye işaretliyor. "Planımdan ekle" gerçek `computePlan` çıktısını kullanır.
+2. **Seçim listeleri gerçek veriden.** Prototip 5 GT3 aracını sabit yazıyor;
+   burada uygulamanın `CARS`/`CAR_CLASSES` listesi ve `teamAssets.carImageSrc`
+   (takımın yüklediği görsel varsa o) kullanılır.
+3. **Pist + sınıf seçici korundu.** Prototipin başlığında bayrak ve "6H Spa"
+   alt yazısı var ama seçici yok — fiş, seçicinin eklendiği commit'ten önceki
+   PR'a bakıyor. Seçici başlığa fişin diliyle yerleştirildi; bayrak ve alt yazı
+   seçili pistten gelir.
+
+Düzenleme penceresi ayrı bileşene çıkarıldı (`RowEditModal`): sekmedeki
+`editIdx` YEREL state olduğu için (kalıcı değil — TyreTab deseni) statik render
+onu açamıyordu; ayrılınca pencere de doğrudan test edilebildi.
+
+### Kod incelemesinde bulunan 7 hata düzeltildi
+
+Hepsi bu sürümün kendi kodunda; `/code-review` taraması + sayısal doğrulama.
+
+**1. Tohumlanan satır planın temposunu yanlış alıyordu** (`stratComp.js`).
+`seedFromPlan` ortalama tur olarak `plan.lapSec` kullanıyordu — bu değer
+engine'de `baseLap × endWx.lap`, yani yalnız yarış SONU havasının çarpanı.
+Kuru→ıslak bir planda bu tüm yarışa uygulanınca tempo şişiyordu: 6 saatlik
+dry→xwet planda ölçüldü, satır **22.356 sn** diyordu, planın gerçek stint
+toplamı **20.750 sn** (+1.606 sn ≈ **27 dakika**). Artık ortalama tur
+`Σ stintSec / totalLaps`.
+
+**2. Yakıt ve lastik plandan kopuktu** (`stratComp.js`). Tohum her durağa tam
+servis yakıt ve her lastik durağına `TYRE_4_SEC` (12 sn) yazıyordu. Oysa
+`computePlan` yakıtı durak başına ÖLÇEKLER (sonraki stintin VE %'si), `pits[i].fuel`
+kapalıysa hiç eklemez, ve 1-2 lastikte `TYRE_2_SEC` (5 sn) kullanır. Ölçülen:
+2 lastikli + bir yakıtsız duraklı planda lastik **84 sn** yerine gerçek **35 sn**,
+yakıt **293** yerine **249**, sabit kayıp **531** yerine **438**. Alanlar artık
+`plan.rows`tan geri çıkarılıyor (`pitSec − pitYolu − lastikSn − tamir`), plan
+tamir süresi de HASAR alanına yazılıyor.
+
+**Sözleşme testle kilitlendi:** tohumlanan satırın toplamı = planın kendi yarış
+süresi. Dört senaryoda uçtan uca ölçüldü (düz kuru · dry→xwet · 2 lastik +
+yakıtsız durak · tamirli): sapma **< 0.7 sn** (yuvarlama).
+
+**3. Tek satırlık defterde satır KENDİSİYLE karşılaştırılıyordu**
+(`StratCompTab.jsx`). `stratPick` A ve B'yi de 0'a kırpınca ekran
+"İki strateji eşit · 0.0" yazıyordu — hiç karşılaştırma yokken üretilmiş
+uydurma bir "sonuç". Artık `sameRow` denetimi var ve iki ayrı uyarı çıkıyor.
+
+**4. "Plandan doldur" kullanıcının verisini siliyordu** (`App.jsx`).
+`stratSeedInto` yalnız kimlik alanlarını hariç tutuyordu; girilen **ceza** ve
+**balast** sessizce siliniyordu. Artık korunuyor; hasar yalnız planda gerçekten
+tamir varsa yazılıyor.
+
+**5. MoTeC/Avrupa tur yazımı reddediliyordu** (`stratComp.js`). `engine.parseLap`
+`"2.02.500"` biçimini uygulamanın her yerinde kabul ediyor; `parseLapSec`
+etmiyordu ve satır "ort. tur eksik" görünüyordu — kullanıcı yalnız BİÇİMİN
+yanlış olduğunu göremiyordu.
+
+**6. Adsız ama verisi tam satır kayboluyordu** (`stratComp.js`). `rankTeams` ad
+şartı koyduğu için böyle bir satır ne sıralamaya ne de "sıralamaya girmeyen
+(eksik veri)" listesine giriyordu. Sekme onu zaten "Satır N" diye adlandırıyor.
+
+**7. Ölü dışa aktarımlar + zayıf indeks kırpma** (`StratCompTab.jsx`).
+`compareTeams` ve `state.stratPick` dışa aktarılmış ve test edilmişti ama sekme
+ikisini de yeniden yazıyordu; yerel kırpma tam sayı olmayan indeksi geçirip
+`teams[1.5]` okumasına izin veriyordu. İkisi de artık kullanılıyor, delta
+matematiği tek yerde.
+
+### Doğrulama
+
+- **901 JS testi** (52 → 54 dosya; öncesi 797, +104). Yeni: `stratComp.test.js` 61 ·
+  `stratCompTab.render.test.jsx` 31 · `state.test.js` +12 reducer testi. Yukarıdaki
+  yedi hatanın her biri regresyon testiyle kilitlendi.
+- Excel'in sayıları regresyon kilidi olarak testte: `+47.0` · `−13.9` ·
+  `−0.350 sn/tur` · `−60.9 sn` · son-pit kaldıracının işaret değiştirmesi
+  (`+19.1`) · boş takımın `ok:false` dönmesi.
+- `npm run build` temiz · `npx oxlint src` yeni uyarı üretmiyor (i18n kopya
+  anahtar sayısı 25 → 25, yani hiçbir mevcut çeviri ezilmedi; "Ceza" anahtarı
+  Canlı Timing'in `"Pen."` sütununa ait olduğu için yeni sütun "Ceza süresi"
+  adıyla ayrıldı).
+
 ## v2.3.1 — 2026-09-01
 
 _Geliştirme sürüyor — bu sürüme iş eklendikçe bölümler büyüyecek._

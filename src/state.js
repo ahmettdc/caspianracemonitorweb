@@ -5,6 +5,7 @@
    ============================================================ */
 import { computePlan, tyState, parseHMS, fmtHMS } from "./engine";
 import { quantile } from "./constants";
+import { EMPTY_TEAM } from "./stratComp";
 
 /* ---------- uzak state güvenli ayrıştırma ---------- */
 /* Bozuk/yarım JSON senkron döngüsünü çökertmesin — null dönerse çağıran atlar. */
@@ -536,4 +537,51 @@ export function buildTimeline(plan) {
     if (r.pitSec > 0) segs.push({ w: (r.pitSec / plan.raceSec) * 100, cls: "pit", label: "" });
     return segs;
   });
+}
+
+/* ============================================================
+   STRATEJİ KARŞILAŞTIRMA reducer'ları (v2.4.0)
+   ------------------------------------------------------------
+   Takım kayıt defteri (stratTeams) üzerinde ekle/düzenle/sil. Seçili iki
+   takım İNDEKSLE tutulduğu için satır silmek seçimi kaydırır — silme
+   reducer'ı bunu kendisi düzeltir, aksi halde kullanıcı sildiği satırdan
+   sonra BAŞKA bir takımı karşılaştırıyor olurdu ve bunu fark etmezdi.
+   ============================================================ */
+
+/* Kayıt defterini her zaman dizi olarak ver (eski oda kaydı / bozuk veri). */
+const stratRows = (s) => (Array.isArray(s?.stratTeams) ? s.stratTeams : []);
+
+export function applyStratAdd(s, team) {
+  return { ...s, stratTeams: [...stratRows(s), { ...EMPTY_TEAM, ...team }] };
+}
+
+export function applyStratUp(s, i, patch) {
+  const rows = stratRows(s);
+  if (!(i >= 0 && i < rows.length)) return s;
+  return { ...s, stratTeams: rows.map((r, j) => (j === i ? { ...r, ...patch } : r)) };
+}
+
+export function applyStratDel(s, i) {
+  const rows = stratRows(s);
+  if (!(i >= 0 && i < rows.length)) return s;
+  const stratTeams = rows.filter((_, j) => j !== i);
+  /* Seçimi kaydır: silinen satırın ÜSTÜNDEKİ seçim yerinde kalır, ALTINDAKİ
+     bir azalır, silinen satırın kendisi seçiliyse 0'a düşer. Sonra listenin
+     içinde kalacak şekilde kırpılır (boş listede 0). */
+  const fix = (v) => {
+    const n = Number(v) || 0;
+    const shifted = n > i ? n - 1 : (n === i ? 0 : n);
+    return Math.max(0, Math.min(shifted, Math.max(0, stratTeams.length - 1)));
+  };
+  return { ...s, stratTeams, stratA: fix(s.stratA), stratB: fix(s.stratB) };
+}
+
+/* Seçili indeksi listeye göre güvenli hale getir (satır silinmiş eski kayıt,
+   Firebase'den gelen bozuk değer). Liste boşsa 0 döner — UI zaten "takım yok"
+   gösterir, ama .length kontrolü olmadan stratTeams[-1] okunurdu. */
+export function stratPick(s, key) {
+  const rows = stratRows(s);
+  const n = Number(s?.[key]);
+  if (!Number.isInteger(n) || n < 0 || n >= rows.length) return 0;
+  return n;
 }
