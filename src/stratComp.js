@@ -314,3 +314,31 @@ export function strategyOptions(st) {
     .filter((o) => o.laps !== null)
     .map((o) => ({ ...o, ready: raceOk && lapOk && o.laps > 0 }));
 }
+
+/* ---------- pistten otomatik doldurma (v2.4.0) ---------- */
+/* Pist (+ sınıf) seçilince satırın iki alanını GERÇEK kaynaklardan önerir:
+     pitLane = PIT_LANE_TIMES[pist]           (LMU Endurance Planner verisi)
+     avgLap  = lmuData.data[pist][sınıf].avgLap ("Ohne Speed" tablosu, ~1.02 "Good")
+   İkisi de AYRI kaynak; biri varsa öbürü olmayabilir → her alan bağımsız null
+   döner. UI "veri yok" gösterir, uydurma sayı KOYMAZ (CLAUDE.md §1). Kullanıcı
+   önerinin üstüne yazabilir — bu yüzden yalnız "öneri"dir, kilit değil.
+
+   Not: pit yolu süresi pist × sınıftan bağımsızdır (aynı pit yolu); ortalama tur
+   sınıfa bağlıdır (Hypercar ile GT3 ~15 sn/tur ayrışır) → sınıf zorunlu ama pit
+   yolu sınıf boşken de gelir. */
+export function trackDefaults(trackId, classId, lmuData, pitLaneTimes) {
+  const track = String(trackId || "").trim();
+  const cls = String(classId || "").trim();
+  const plt = pitLaneTimes && typeof pitLaneTimes === "object" ? pitLaneTimes : {};
+  const pitLane = track && num(plt[track]) != null ? num(plt[track]) : null;
+
+  let avgLap = null;
+  const d = lmuData && lmuData.data ? lmuData.data[track] : null;
+  if (d && cls) {
+    const entry = d[cls];
+    const raw = entry && typeof entry === "object" ? entry.avgLap : null;
+    // avgLap tablodan "m:ss.mmm" metni gelir; geçerli bir tur süresine çözülüyorsa al
+    if (parseLapSec(raw) > 0) avgLap = String(raw).trim();
+  }
+  return { pitLane, avgLap };
+}

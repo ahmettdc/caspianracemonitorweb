@@ -136,10 +136,32 @@ modellemez. Uyarı olmasaydı araç "az durak hep kazanır" derdi — uzun stint
 gerçek bedeli görünmeden. Uyarı, gerçek tempo farkı biliniyorsa ortalama turun
 satır başına elle girilmesini söylüyor.
 
+### Pist + sınıf seçici — pit yolu ve ortalama tur otomatik
+
+Kullanıcı bildirimi: *"pisti de seçebilelim böylece pit yolu süresi ve ortalama
+average lap süreleri otomatik gelebilir biz gerekirse üstünden değiştiririz"*.
+
+- **İki alan da GERÇEK kaynaktan** (uydurma yok, CLAUDE.md §1):
+  - pit yolu → `PIT_LANE_TIMES[pist]` (LMU Endurance Planner verisi)
+  - ortalama tur → `lmuData.data[pist][sınıf].avgLap` — uygulamanın zaten
+    günlük çektiği "Ohne Speed" tempo tablosu (`public/assets/lmu-data.json`,
+    `.github/workflows/lmu-laptimes.yml`). ~1.02 "Good" temposu.
+- **Saf yardımcı** `trackDefaults(trackId, classId, lmuData, pitLaneTimes)`
+  (stratComp.js, 6 test): her alan BAĞIMSIZ `null` döner — pit yolu verisi olan
+  ama LMU'da olmayan pistte ortalama tur boş kalır, tersi de. UI "veri yok"
+  yazar, o alanı boş bırakır.
+- **Öneri, kilit değil.** "Boş satır" eklerken pit yolu + ortalama tur hazır
+  gelir (yalnız verisi olan alan); kullanıcı üstüne yazabilir. Plan-tohumlu
+  satırlar bundan etkilenmez — onların değeri kendi planından (daha doğru) gelir.
+- **Pist boşsa mevcut yarışa düşer** (`st.stratTrack || st.track`,
+  `st.stratClass || st.carClass`) — bir yarış açıkken seçim tekrarına gerek yok.
+- Yeni durum alanları `stratTrack` · `stratClass` (migrate ile eski odalar
+  kendini onarır). Pist listesi `TRACKS`, sınıf listesi `CAR_CLASSES`.
+
 ### Doğrulama
 
-- **875 JS testi** (52 → 54 dosya; öncesi 797, +78). Yeni: `stratComp.test.js` 51 ·
-  `stratCompTab.render.test.jsx` 15 · `state.test.js` +12 reducer testi.
+- **884 JS testi** (52 → 54 dosya; öncesi 797, +87). Yeni: `stratComp.test.js` 57 ·
+  `stratCompTab.render.test.jsx` 18 · `state.test.js` +12 reducer testi.
 - Excel'in sayıları regresyon kilidi olarak testte: `+47.0` · `−13.9` ·
   `−0.350 sn/tur` · `−60.9 sn` · son-pit kaldıracının işaret değiştirmesi
   (`+19.1`) · boş takımın `ok:false` dönmesi.

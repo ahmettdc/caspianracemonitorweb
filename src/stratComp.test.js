@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { num, parseLapSec, fmtLapMs, teamTime, compareTeams, rankTeams,
-  stintWarnings, seedFromPlan, suggestedLaps, strategyOptions,
+  stintWarnings, seedFromPlan, suggestedLaps, strategyOptions, trackDefaults,
   EMPTY_TEAM, REQUIRED_FIELDS } from "./stratComp";
 
 /* Excel'deki (Caspian Motorsport Race Control v1.28) iki DOLU satır — modelin
@@ -325,5 +325,39 @@ describe("strategyOptions — plan varyantları (A/B/C/D)", () => {
   it("bozuk girdide çökmez", () => {
     expect(strategyOptions(null)).toEqual([]);
     expect(strategyOptions({ strategies: "çöp" })).toEqual([]);
+  });
+});
+
+describe("trackDefaults — pistten otomatik doldurma", () => {
+  const PLT = { lemans: 31, spa: 21 };
+  const LMU = { data: {
+    lemans: { hypercar: { avgLap: "3:28.50" }, gt3: { avgLap: "3:55.10" } },
+    spa: { gt3: { avgLap: "2:20.00" } },
+  } };
+
+  it("pit yolu ve ortalama tur GERÇEK kaynaklardan gelir", () => {
+    expect(trackDefaults("lemans", "hypercar", LMU, PLT))
+      .toEqual({ pitLane: 31, avgLap: "3:28.50" });
+  });
+  it("pit yolu sınıftan bağımsız (sınıf boşken de gelir)", () => {
+    expect(trackDefaults("spa", "", LMU, PLT)).toEqual({ pitLane: 21, avgLap: null });
+  });
+  it("her alan BAĞIMSIZ null — pit yolu yoksa ort. tur yine gelir", () => {
+    // monza PIT_LANE_TIMES'ta var ama LMU'da yok kurgusu:
+    expect(trackDefaults("monza", "gt3", LMU, { monza: 28 }))
+      .toEqual({ pitLane: 28, avgLap: null });
+  });
+  it("pist/sınıf LMU'da yoksa ort. tur null — uydurma yok", () => {
+    expect(trackDefaults("lemans", "lmp2", LMU, PLT).avgLap).toBe(null);
+    expect(trackDefaults("bilinmeyen", "gt3", LMU, PLT))
+      .toEqual({ pitLane: null, avgLap: null });
+  });
+  it("bozuk avgLap metni (çözülemeyen) null döner", () => {
+    const bad = { data: { x: { gt3: { avgLap: "çöp" } } } };
+    expect(trackDefaults("x", "gt3", bad, {}).avgLap).toBe(null);
+  });
+  it("bozuk girdide çökmez", () => {
+    expect(trackDefaults(null, null, null, null)).toEqual({ pitLane: null, avgLap: null });
+    expect(trackDefaults("lemans", "gt3", {}, PLT)).toEqual({ pitLane: 31, avgLap: null });
   });
 });

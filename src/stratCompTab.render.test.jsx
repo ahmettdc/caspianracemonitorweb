@@ -9,6 +9,8 @@ import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import StratCompTab from "./tabs/StratCompTab.jsx";
 import { computePlan, migrate, DEFAULT_STATE } from "./engine.js";
+import { TRACKS, CAR_CLASSES, PIT_LANE_TIMES } from "./constants.js";
+import { trackDefaults } from "./stratComp.js";
 
 const noop = () => {};
 /* Excel'in iki DOLU satırı — dosyadaki değerler birebir. */
@@ -18,9 +20,12 @@ const CASPIAN = { name: "#75 CASPIAN MOTORSPORT", pits: 6, stints: 7, pitLane: 4
   fuelFull: 40, fuelLast: 40, tyreTime: 12, tyreCount: 6, avgLap: "2:02.500" };
 
 const mk = (over) => migrate({ ...DEFAULT_STATE, ...over });
+const LMU = { data: { lemans: { hypercar: { avgLap: "3:28.50" }, gt3: { avgLap: "3:55.10" } } } };
 const draw = (st, opt = {}) => renderToStaticMarkup(
   <StratCompTab t={(x) => x} st={st} plan={computePlan(st, "race")}
-    onLaps={noop} onAdd={noop} onUp={noop} onDel={noop} onSeed={noop} onPick={noop}
+    tracks={TRACKS} carClasses={CAR_CLASSES} lmuReady
+    trackDefs={trackDefaults(st.stratTrack || st.track, st.stratClass || st.carClass, LMU, PIT_LANE_TIMES)}
+    onLaps={noop} onTrack={noop} onClass={noop} onAdd={noop} onUp={noop} onDel={noop} onSeed={noop} onPick={noop}
     {...opt} />);
 
 describe("StratCompTab — karşılaştırma", () => {
@@ -142,5 +147,24 @@ describe("StratCompTab — A planı mı B planı mı (kendi varyantlarımız)", 
   it("tempolar FARKLIYSA uyarı çıkmaz", () => {
     const html = draw(mk({ stratTeams: [PESCARA, CASPIAN], stratA: 0, stratB: 1, stratLaps: 174 }));
     expect(html).not.toContain("Uzun stintin yakıt yükü ve lastik yaşı");
+  });
+});
+
+describe("StratCompTab — pist seçimi ve otomatik doldurma önerisi", () => {
+  it("pist seçince pit yolu ve ortalama tur önerisi gösterilir (gerçek kaynak)", () => {
+    const html = draw(mk({ stratTrack: "lemans", stratClass: "gt3", stratTeams: [CASPIAN], stratLaps: 174 }));
+    expect(html).toContain("Öneri");
+    expect(html).toContain("31 sn");       // PIT_LANE_TIMES.lemans
+    expect(html).toContain("3:55.10");     // LMU lemans/gt3 avgLap
+    expect(html).toContain("otomatik gelir");
+  });
+  it("pit yolu verisi olmayan pistte 'veri yok' — uydurma yok (CLAUDE.md §1)", () => {
+    // daytona PIT_LANE_TIMES'ta yok
+    const html = draw(mk({ stratTrack: "daytona", stratClass: "gt3", stratTeams: [CASPIAN], stratLaps: 174 }));
+    expect(html).toContain("veri yok");
+  });
+  it("pist seçili değilken öneri satırı çizilmez", () => {
+    const html = draw(mk({ stratTeams: [CASPIAN], stratLaps: 174 }));
+    expect(html).not.toContain("Öneri:");
   });
 });

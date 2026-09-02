@@ -149,6 +149,11 @@ export const DEFAULT_STATE = {
   stratTeams: [],
   stratA: 0,   // karşılaştırmada sol takım (stratTeams indeksi)
   stratB: 1,   // sağ takım
+  /* Pist + sınıf seçimi: yeni satırda pit yolu (PIT_LANE_TIMES) ve ortalama tur
+     (lmuData) otomatik gelsin diye. Boş bırakılırsa öneri yok — kullanıcı yine
+     elle girer. Sınıf "" ise pit yolu yine gelir, ortalama tur gelmez. */
+  stratTrack: "",
+  stratClass: "",
 };
 
 /* ---------- pit & lastik sabitleri ---------- */

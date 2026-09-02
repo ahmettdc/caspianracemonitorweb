@@ -79,7 +79,8 @@ const hms = (v) => {
 };
 
 export default function StratCompTab({ t, st, plan, readOnly = false,
-  onLaps, onAdd, onUp, onDel, onSeed, onPick }) {
+  tracks = [], carClasses = [], trackDefs = {}, lmuReady = false,
+  onLaps, onTrack, onClass, onAdd, onUp, onDel, onSeed, onPick }) {
   const teams = Array.isArray(st.stratTeams) ? st.stratTeams : [];
   const laps = st.stratLaps;
   /* Seçili indeksler state.stratPick'ten — kural TEK yerde. Satır silinmiş
@@ -127,6 +128,36 @@ export default function StratCompTab({ t, st, plan, readOnly = false,
               </button>
             )}
           </div>
+        </div>
+        {/* pist + sınıf → yeni satırda pit yolu ve ortalama tur otomatik gelir */}
+        <div style={{ display: "flex", alignItems: "flex-end", gap: "var(--rc-sp-10)", flexWrap: "wrap", marginTop: "var(--rc-sp-12)" }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <span style={capLbl}>{t("Pist")}</span>
+            <select value={st.stratTrack || ""} disabled={readOnly}
+              onChange={(e) => onTrack?.(e.target.value)}
+              style={{ padding: "6px 8px", borderRadius: "var(--rc-r-8)", background: "var(--rc-surface-4)", color: "var(--rc-text)", border: "1px solid var(--rc-border)", fontSize: "var(--rc-fs-12)", minWidth: 150 }}>
+              <option value="">{t("Pist seç (isteğe bağlı)")}</option>
+              {tracks.map((tr) => <option key={tr.id} value={tr.id}>{tr.name}</option>)}
+            </select>
+          </label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <span style={capLbl}>{t("Sınıf")}</span>
+            <select value={st.stratClass || ""} disabled={readOnly}
+              onChange={(e) => onClass?.(e.target.value)}
+              style={{ padding: "6px 8px", borderRadius: "var(--rc-r-8)", background: "var(--rc-surface-4)", color: "var(--rc-text)", border: "1px solid var(--rc-border)", fontSize: "var(--rc-fs-12)", minWidth: 110 }}>
+              <option value="">{t("Sınıf")}</option>
+              {carClasses.map(([id, lbl]) => <option key={id} value={id}>{lbl}</option>)}
+            </select>
+          </label>
+          {(st.stratTrack || st.stratClass) && (
+            <span style={{ fontSize: "var(--rc-fs-11)", color: "var(--rc-text-3)", lineHeight: 1.6, paddingBottom: 6 }}>
+              {t("Öneri")}:{" "}
+              <b>{t("pit yolu")}</b> {trackDefs.pitLane != null ? `${trackDefs.pitLane} sn` : t("veri yok")}
+              {" · "}
+              <b>{t("ort. tur")}</b> {trackDefs.avgLap || (lmuReady ? t("veri yok") : "…")}
+              {" — "}{t("yeni satıra otomatik gelir, üstüne yazabilirsiniz")}
+            </span>
+          )}
         </div>
         <div style={{ color: "var(--rc-text-4)", fontSize: "var(--rc-fs-11)", marginTop: 8, lineHeight: 1.6 }}>
           {t("Model: toplam süre = ortalama tur × toplam tur + (pit yolu + yakıt + lastik + ceza + hasar). İki satırın farkı bu toplamların farkıdır. Satırlar rakip takım da olabilir, kendi A/B planınız da.")}

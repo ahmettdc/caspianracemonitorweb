@@ -1468,4 +1468,8 @@ export const EN = {
   "Bilgi amaçlı — hesaba GİRMEZ (oyun kg → sn/tur karşılığını vermiyor)":
     "Informational — NOT part of the calculation (the game does not expose a kg → s/lap conversion)",
   "m:ss.mmm": "m:ss.mmm",
+  "Pist seç (isteğe bağlı)": "Pick a track (optional)",
+  "Öneri": "Suggested", "pit yolu": "pit lane",
+  "veri yok": "no data",
+  "yeni satıra otomatik gelir, üstüne yazabilirsiniz": "auto-fills a new row; you can override it",
 };

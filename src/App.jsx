@@ -37,7 +37,7 @@ import {
   WEATHER, wxLog, wxAtRel, effCons, tyState,
   computePlan, migrate, lastStintFuel,
 } from "./engine";
-import { seedFromPlan } from "./stratComp";
+import { seedFromPlan, trackDefaults as stratTrackDefaults } from "./stratComp";
 import {
   SLOT_COLORS, APP_VERSION, SEEN_VER_KEY, ASSET, AV,
   TRACKS, PIT_LANE_TIMES, TRACK_ASSET, trackFlag,
@@ -422,6 +422,15 @@ export default function App() {
 
   /* ---- Strateji Karşılaştırma (v2.4.0) — yarış ÖNCESİ hesap aracı ---- */
   const stratAdd = (team) => edit((s0) => applyStratAdd(s0, team));
+  /* Boş satır eklerken pist önerisi (aşağıda stratDefs) varsa pit yolu ve ort.
+     turu hazır getir — yalnız VERİSİ olan alanı (biri null ise boş kalır,
+     kullanıcı elle girer). stratDefs lmuData'dan sonra tanımlı; bu closure
+     tıklamada çalıştığı için TDZ yok, ama okunurluk için ilerideki referans
+     bilinçli. */
+  const stratAddBlank = () => stratAdd({
+    ...(stratDefs.pitLane != null ? { pitLane: stratDefs.pitLane } : {}),
+    ...(stratDefs.avgLap ? { avgLap: stratDefs.avgLap } : {}),
+  });
   const stratUp = (i, patch) => edit((s0) => applyStratUp(s0, i, patch));
   const stratDel = (i) => edit((s0) => applyStratDel(s0, i));
   const stratPickSet = (key, v) => up({ [key]: v });
@@ -1454,6 +1463,12 @@ ${bottomBar}
     if (!d) return null;
     return d[`${st.carClass}:${st.car}`] || d[st.carClass] || null;
   })();
+  /* Strateji Karşılaştırma pist önerisi: seçili pist/sınıf (yoksa mevcut yarışın)
+     → pit yolu + ortalama tur. lmuData yüklendikten sonra tanımlı; stratAddBlank
+     ve sekme buradan okur. */
+  const stratTrackSel = st.stratTrack || st.track;
+  const stratClassSel = st.stratClass || st.carClass;
+  const stratDefs = stratTrackDefaults(stratTrackSel, stratClassSel, lmuData, PIT_LANE_TIMES);
   /* pist/araç değişince LMU temposunu varsayılan olarak yaz (ilk yüklemede
      kayıtlı değeri ezmez; kullanıcı sonradan elle değiştirebilir) */
   const lmuPrevSel = useRef(null);
@@ -3815,8 +3830,11 @@ ${bottomBar}
 
           {tab === "stratcomp" && (
             <StratCompTab t={t} st={st} plan={racePlan}
+              tracks={TRACKS} carClasses={CAR_CLASSES}
+              trackDefs={stratDefs} lmuReady={!!lmuData}
               onLaps={(v) => up({ stratLaps: v })}
-              onAdd={() => stratAdd()} onUp={stratUp} onDel={stratDel}
+              onTrack={(v) => up({ stratTrack: v })} onClass={(v) => up({ stratClass: v })}
+              onAdd={stratAddBlank} onUp={stratUp} onDel={stratDel}
               onSeed={stratSeed} onPick={stratPickSet}
               readOnly={!canEdit} />
           )}
