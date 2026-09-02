@@ -74,6 +74,11 @@ export function parseLapSec(v) {
     if (!Number.isFinite(m) || !Number.isFinite(sec)) return null;
     return m * 60 + sec;
   }
+  /* "2.02.500" (dakika.saniye.salise — MoTeC/Avrupa yazımı). engine.parseLap bunu
+     uygulamanın HER YERİNDE kabul ediyor; burada reddetmek satırı "ort. tur eksik"
+     diye işaretliyor ve kullanıcı yalnız BİÇİM yanlış olduğunu göremiyordu. */
+  const m3 = t.match(/^(\d+)\.([0-5]\d)\.(\d+)$/);
+  if (m3) return Number(m3[1]) * 60 + Number(m3[2]) + Number(`0.${m3[3]}`);
   const n = Number(t);
   return Number.isFinite(n) ? n : null;
 }
@@ -223,7 +228,11 @@ export function rankTeams(teams, raceLaps) {
   const rows = (Array.isArray(teams) ? teams : []).map((team, idx) => ({
     team, idx, res: teamTime(team, raceLaps),
   }));
-  const named = rows.filter((r) => String(r.team?.name || "").trim());
+  /* "Boş satır" gürültüsünü ele, ama AD ŞARTI KOYMA: adsız ama verisi tam bir
+     satır eskiden ne sıralamaya ne de "eksik veri" listesine giriyordu — sessizce
+     kayboluyordu. Sekme onu zaten "Satır N" diye adlandırıyor. */
+  const named = rows.filter((r) => String(r.team?.name || "").trim()
+    || REQUIRED_FIELDS.some((k) => num(r.team?.[k]) !== null || String(r.team?.[k] ?? "").trim()));
   const ranked = named.filter((r) => r.res.ok).sort((x, y) => x.res.totalSec - y.res.totalSec);
   const lead = ranked.length ? ranked[0].res.totalSec : null;
   return {
@@ -233,61 +242,83 @@ export function rankTeams(teams, raceLaps) {
 }
 
 /* ---------- kendi planından tohumlama ---------- */
-/* Kullanıcının KENDİ takım satırını, uygulamanın zaten kurduğu yarış planından
-   doldurur. Excel'de bu on alan elle giriliyordu ve dosyada tam da bu yüzden
-   bir kalem eksik kalmıştı: son durak yakıt süresi hâlâ TAM SERVİS (40 sn)
-   yazıyordu, oysa son durakta yalnız bitirmeye yetecek kadar alınır. Plan bunu
-   `lastRefuelPct` olarak zaten hesaplıyor (engine.computePlan) — buradan
-   okununca kalem kendiliğinden doğru gelir.
+/* Kullanıcının KENDİ satırını, uygulamanın zaten kurduğu yarış planından doldurur.
 
-   ALANLAR NEREDEN:
-     pits      = plan.fullStints − 1   (son stint duraksız biter)
-     stints    = plan.fullStints
-     pitLane   = st.pitLaneTime        (pist seçilince PIT_LANE_TIMES'tan gelir)
-     fuelFull  = st.fuelTime           (tam depo dolum süresi)
-     fuelLast  = st.fuelTime × plan.lastRefuelPct / 100
-     tyreTime  = tyre4Sec              (planın kendi 4 lastik süresi — çağıran verir)
-     tyreCount = st.pits içinde lastik işaretli durak sayısı
-     avgLap    = plan.lapSec           (havaya göre düzeltilmiş efektif tur)
-     raceLaps  = plan.totalLaps
+   SÖZLEŞME: tohumlanan satır, planın GERÇEK toplamlarını yeniden üretir —
+   `teamTime(seed).totalSec` ≈ planın kendi yarış süresi. Bu yüzden alanlar
+   plan satırlarından (`plan.rows`) GERİ ÇIKARILIR, varsayılan sabitlerden değil:
 
-   Plan geçersizse (`invalid`) null döner — yarım plandan sayı üretilmez. */
-export function seedFromPlan(st, plan, tyre4Sec) {
+     ort. tur  = Σ stintSec / totalLaps
+        NEDEN: `plan.lapSec` yalnız yarış SONU havasının çarpanını taşır
+        (engine: `baseLap × endWx.lap`). Kuru→ıslak bir yarışta bu tüm yarışa
+        uygulanınca tempo şişiyordu — ölçüldü: 6 saatlik dry→xwet planda
+        seed 22.356 sn, planın gerçek stint toplamı 20.750 sn (+1.606 sn ≈ 27 dk).
+     yakıt     = Σ (pitSec − pitYolu − lastikSn − tamir)   [son stint hariç]
+        NEDEN: computePlan yakıtı durak başına ÖLÇEKLER (sonraki stintin VE %'si)
+        ve `pits[i].fuel` kapalıysa HİÇ eklemez. Her durağa tam servis yazmak
+        şişiriyordu.
+     lastik    = Σ tyreSecOf(satır.tyreCount)
+        NEDEN: computePlan 1-2 lastikte TYRE_2_SEC (5 sn), 3-4'te TYRE_4_SEC
+        (12 sn) kullanır. Hepsine 12 yazmak 2 lastikli planda ölçüldü:
+        84 sn yerine gerçek 35 sn.
+     hasar     = Σ repairSec   (plan tamir süresi gerçekten pit süresine giriyor)
+
+   `tyreSecOf` engine'in aynı adlı İÇ fonksiyonunun aynası (race modu). Dışa
+   aktarılmadığı için burada tekrarlandı; engine'deki kademe değişirse burası da
+   güncellenmeli — bu yüzden iki sabit de ÇAĞIRANDAN geçer, gömülü değil.
+
+   Plan geçersizse (`invalid`) null döner — yarım plandan satır üretilmez. */
+export function seedFromPlan(st, plan, tyre2Sec, tyre4Sec) {
   const s = st || {};
   const p = plan || {};
   if (p.invalid) return null;
-  const stints = num(p.fullStints);
+  const rows = Array.isArray(p.rows) ? p.rows : [];
   const totalLaps = num(p.totalLaps);
-  const lapSec = num(p.lapSec);
-  if (!(stints > 0) || !(totalLaps > 0) || !(lapSec > 0)) return null;
+  if (!rows.length || !(totalLaps > 0)) return null;
 
-  const pits = Math.max(0, stints - 1);
-  const fuelFull = num(s.fuelTime);
-  const lastPct = num(p.lastRefuelPct);
-  /* lastRefuelPct yoksa (plan tek stint ya da hesap yakınsamadı) son durak
-     yakıtını UYDURMA: tam servis süresine düşmek "40 sn" hatasını tekrarlardı,
-     0 yazmak ise bedava durak iddiası olurdu. Alan boş bırakılır. */
-  const fuelLast = fuelFull !== null && lastPct !== null
-    ? Math.round(fuelFull * lastPct) / 100 : "";
+  const tyreSecOf = (c) => {
+    const n = num(c) ?? 0;
+    return n <= 0 ? 0 : (n <= 2 ? (num(tyre2Sec) ?? 0) : (num(tyre4Sec) ?? 0));
+  };
+  const pitLane = num(s.pitLaneTime);
+  /* Son stintin arkasında pit YOKTUR (engine `isLast` → pitSec 0). */
+  const stops = rows.filter((r) => !r.isLast);
+  const pits = stops.length;
 
-  /* Lastik değişen durak sayısı: plandaki gerçek duraklarda dört köşeden biri
-     bile işaretliyse o durak sayılır (pit satırı = stint indeksi). */
-  const pitRows = Array.isArray(s.pits) ? s.pits.slice(0, pits) : [];
-  const tyreCount = pitRows.filter(
-    (r) => Array.isArray(r?.tyres) && r.tyres.some(Boolean)).length;
+  const stintTotal = rows.reduce((a, r) => a + (num(r.stintSec) ?? 0), 0);
+  if (!(stintTotal > 0)) return null;
+  const avgLapSec = stintTotal / totalLaps;
+
+  const tyreTotal = stops.reduce((a, r) => a + tyreSecOf(r.tyreCount), 0);
+  const tyreCount = stops.filter((r) => (num(r.tyreCount) ?? 0) > 0).length;
+  const repairTotal = stops.reduce((a, r) => a + (num(r.repairSec) ?? 0), 0);
+
+  /* Yakıt: pit süresinden diğer üç kalem düşülerek geri çıkarılır. pitLane
+     bilinmiyorsa yakıt da ayrıştırılamaz → alanlar boş bırakılır (uydurma yok). */
+  let fuelFull = "", fuelLast = "";
+  if (pitLane !== null && pits > 0) {
+    const fuelOf = (r) => Math.max(0, (num(r.pitSec) ?? 0) - pitLane
+      - tyreSecOf(r.tyreCount) - (num(r.repairSec) ?? 0));
+    const last = fuelOf(stops[stops.length - 1]);
+    const rest = stops.slice(0, -1).reduce((a, r) => a + fuelOf(r), 0);
+    fuelLast = Math.round(last * 10) / 10;
+    /* Model yakıtı "tam servis × (pit−1) + son pit" diye tutuyor; tek durakta
+       (pits=1) "tam servis" terimi hiç çarpılmaz, 0 yazmak doğru. */
+    fuelFull = pits > 1 ? Math.round((rest / (pits - 1)) * 10) / 10 : 0;
+  }
 
   return {
     ...EMPTY_TEAM,
     pits,
-    stints,
-    pitLane: num(s.pitLaneTime) ?? "",
-    fuelFull: fuelFull ?? "",
+    stints: rows.length,
+    pitLane: pitLane ?? "",
+    fuelFull,
     fuelLast,
-    tyreTime: num(tyre4Sec) ?? "",
+    tyreTime: tyreCount > 0 ? Math.round((tyreTotal / tyreCount) * 10) / 10 : 0,
     tyreCount,
-    avgLap: fmtLapMs(lapSec),
+    avgLap: fmtLapMs(avgLapSec),
     penalty: 0,
-    damage: 0,
+    damage: Math.round(repairTotal * 10) / 10,
   };
 }
 

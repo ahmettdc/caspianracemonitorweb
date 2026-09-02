@@ -264,3 +264,29 @@ describe("RowEditModal — fişin 6. bölümü (satır düzenleme penceresi)", (
     expect(drawModal({ ...row, stints: "99" })).toContain("Stint sayısı pit + 1 olmalı");
   });
 });
+
+describe("StratCompTab — kod incelemesi düzeltmeleri (regresyon)", () => {
+  /* REGRESYON: tek satırlık defterde stratPick A ve B'yi de 0'a kırpıyordu;
+     ekran satırı KENDİSİYLE karşılaştırıp "İki strateji eşit · 0.0" yazıyordu —
+     hiçbir karşılaştırma yokken üretilmiş uydurma bir "sonuç". */
+  it("tek satırlık defterde satır KENDİSİYLE karşılaştırılmaz", () => {
+    const html = draw(mk({ stratTeams: [CASPIAN], stratA: 0, stratB: 0, stratLaps: 174 }));
+    expect(html).not.toContain("İki strateji eşit");
+    expect(html).not.toContain("sn önde");
+    expect(html).toContain("Karşılaştırma için deftere en az iki satır ekleyin.");
+  });
+
+  it("A ve B aynı satırı gösterirse ayrı uyarı çıkar", () => {
+    const html = draw(mk({ stratTeams: [PESCARA, CASPIAN], stratA: 1, stratB: 1, stratLaps: 174 }));
+    expect(html).toContain("A ve B aynı satırı gösteriyor");
+    expect(html).not.toContain("İki strateji eşit");
+  });
+
+  /* REGRESYON: yerel clamp tam sayı olmayan indeksi geçiriyor, teams[1.5]
+     okunuyordu. state.stratPick bunu eler. */
+  it("tam sayı olmayan seçim indeksi 0'a düşer, çökmez", () => {
+    const html = draw(mk({ stratTeams: [PESCARA, CASPIAN], stratA: 1.5, stratB: 1, stratLaps: 174 }));
+    expect(html).toContain("#4 PESCARA SRT");   // 1.5 → 0 (Pescara)
+    expect(html).toContain("sn önde");
+  });
+});

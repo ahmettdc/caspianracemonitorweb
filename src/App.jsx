@@ -441,15 +441,15 @@ export default function App() {
        dosya v2.3.0'da tam bu yüzden üç çağrıyı bire indirmişti) ve maliyeti
        canlı yarışta da ödenirdi. Seçili varyant için zaten hesaplanmış
        racePlan yeniden kullanılır.
-     · tyre4Sec = TYRE_4_SEC (12 sn): computePlan pit sürelerini bununla
-       kurar. st.tyreChangeT34 lastik PLANLAYICISININ ayrı, kullanıcı
-       düzenlenebilir değeridir; ikisini karıştırmak karşılaştırmayı kendi
-       planından koparırdı.
+     · Lastik kademeleri TYRE_2_SEC (5 sn) + TYRE_4_SEC (12 sn): computePlan pit
+       sürelerini bunlarla kurar (1-2 lastik ucuz kademe). st.tyreChangeT12/T34
+       lastik PLANLAYICISININ ayrı, kullanıcı düzenlenebilir değerleridir;
+       ikisini karıştırmak karşılaştırmayı kendi planından koparırdı.
      · Plan geçersizse seedFromPlan null döner → satır EKLENMEZ. */
   const stratPlanOf = (key) => {
     const k = key || st.chosen;
     const p = k === st.chosen ? racePlan : computePlan({ ...st, chosen: k }, "race");
-    return { k, seed: seedFromPlan(st, p, TYRE_4_SEC) };
+    return { k, seed: seedFromPlan(st, p, TYRE_2_SEC, TYRE_4_SEC) };
   };
   const stratSeedName = (k) => `${t("Plan")} ${k} · ${st.strategies?.[k]} ${t("tur")}`;
   const stratSeed = (key) => {
@@ -458,9 +458,13 @@ export default function App() {
     stratAdd({ ...seed, name: stratSeedName(k), cls: st.stratClass || st.carClass || "",
       car: st.car || "" });
   };
-  /* MEVCUT satırı plandan doldur (düzenleme penceresindeki düğmeler). Kimlik
-     alanları (ad/araç/no/sınıf) KORUNUR — kullanıcı onları elle girmişti; ad
-     yalnız BOŞSA plan adı yazılır (fişin kuralı). */
+  /* MEVCUT satırı plandan doldur (düzenleme penceresindeki düğmeler).
+     KORUNAN alanlar — plandan gelmeyen, kullanıcının elle girdiği her şey:
+     kimlik (ad/araç/no/sınıf), CEZA ve BALAST. Eskiden yalnız kimlik hariç
+     tutuluyordu; ceza ve balast sessizce siliniyordu. Ad yalnız BOŞSA plan adı
+     yazılır (fişin kuralı). HASAR plandan gelir (pitRepairs) ama planda tamir
+     yoksa kullanıcının girdiği değer korunur — 0 yazıp üzerine yazmak
+     kullanıcının bilgisini silmek olurdu. */
   const stratSeedInto = (i, key) => {
     const { k, seed } = stratPlanOf(key);
     if (!seed) return;
@@ -468,9 +472,11 @@ export default function App() {
       const rows = Array.isArray(s0.stratTeams) ? s0.stratTeams : [];
       if (!(i >= 0 && i < rows.length)) return s0;
       const cur = rows[i] || {};
-      const { name: _n, num: _u, car: _c, cls: _l, ...vals } = seed;
+      const { name: _n, num: _u, car: _c, cls: _l,
+        penalty: _p, ballast: _b, damage, ...vals } = seed;
       return applyStratUp(s0, i, {
         ...vals,
+        ...(Number(damage) > 0 ? { damage } : {}),
         name: String(cur.name || "").trim() || stratSeedName(k),
       });
     });

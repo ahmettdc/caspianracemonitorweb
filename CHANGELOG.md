@@ -201,10 +201,61 @@ Düzenleme penceresi ayrı bileşene çıkarıldı (`RowEditModal`): sekmedeki
 `editIdx` YEREL state olduğu için (kalıcı değil — TyreTab deseni) statik render
 onu açamıyordu; ayrılınca pencere de doğrudan test edilebildi.
 
+### Kod incelemesinde bulunan 7 hata düzeltildi
+
+Hepsi bu sürümün kendi kodunda; `/code-review` taraması + sayısal doğrulama.
+
+**1. Tohumlanan satır planın temposunu yanlış alıyordu** (`stratComp.js`).
+`seedFromPlan` ortalama tur olarak `plan.lapSec` kullanıyordu — bu değer
+engine'de `baseLap × endWx.lap`, yani yalnız yarış SONU havasının çarpanı.
+Kuru→ıslak bir planda bu tüm yarışa uygulanınca tempo şişiyordu: 6 saatlik
+dry→xwet planda ölçüldü, satır **22.356 sn** diyordu, planın gerçek stint
+toplamı **20.750 sn** (+1.606 sn ≈ **27 dakika**). Artık ortalama tur
+`Σ stintSec / totalLaps`.
+
+**2. Yakıt ve lastik plandan kopuktu** (`stratComp.js`). Tohum her durağa tam
+servis yakıt ve her lastik durağına `TYRE_4_SEC` (12 sn) yazıyordu. Oysa
+`computePlan` yakıtı durak başına ÖLÇEKLER (sonraki stintin VE %'si), `pits[i].fuel`
+kapalıysa hiç eklemez, ve 1-2 lastikte `TYRE_2_SEC` (5 sn) kullanır. Ölçülen:
+2 lastikli + bir yakıtsız duraklı planda lastik **84 sn** yerine gerçek **35 sn**,
+yakıt **293** yerine **249**, sabit kayıp **531** yerine **438**. Alanlar artık
+`plan.rows`tan geri çıkarılıyor (`pitSec − pitYolu − lastikSn − tamir`), plan
+tamir süresi de HASAR alanına yazılıyor.
+
+**Sözleşme testle kilitlendi:** tohumlanan satırın toplamı = planın kendi yarış
+süresi. Dört senaryoda uçtan uca ölçüldü (düz kuru · dry→xwet · 2 lastik +
+yakıtsız durak · tamirli): sapma **< 0.7 sn** (yuvarlama).
+
+**3. Tek satırlık defterde satır KENDİSİYLE karşılaştırılıyordu**
+(`StratCompTab.jsx`). `stratPick` A ve B'yi de 0'a kırpınca ekran
+"İki strateji eşit · 0.0" yazıyordu — hiç karşılaştırma yokken üretilmiş
+uydurma bir "sonuç". Artık `sameRow` denetimi var ve iki ayrı uyarı çıkıyor.
+
+**4. "Plandan doldur" kullanıcının verisini siliyordu** (`App.jsx`).
+`stratSeedInto` yalnız kimlik alanlarını hariç tutuyordu; girilen **ceza** ve
+**balast** sessizce siliniyordu. Artık korunuyor; hasar yalnız planda gerçekten
+tamir varsa yazılıyor.
+
+**5. MoTeC/Avrupa tur yazımı reddediliyordu** (`stratComp.js`). `engine.parseLap`
+`"2.02.500"` biçimini uygulamanın her yerinde kabul ediyor; `parseLapSec`
+etmiyordu ve satır "ort. tur eksik" görünüyordu — kullanıcı yalnız BİÇİMİN
+yanlış olduğunu göremiyordu.
+
+**6. Adsız ama verisi tam satır kayboluyordu** (`stratComp.js`). `rankTeams` ad
+şartı koyduğu için böyle bir satır ne sıralamaya ne de "sıralamaya girmeyen
+(eksik veri)" listesine giriyordu. Sekme onu zaten "Satır N" diye adlandırıyor.
+
+**7. Ölü dışa aktarımlar + zayıf indeks kırpma** (`StratCompTab.jsx`).
+`compareTeams` ve `state.stratPick` dışa aktarılmış ve test edilmişti ama sekme
+ikisini de yeniden yazıyordu; yerel kırpma tam sayı olmayan indeksi geçirip
+`teams[1.5]` okumasına izin veriyordu. İkisi de artık kullanılıyor, delta
+matematiği tek yerde.
+
 ### Doğrulama
 
-- **894 JS testi** (52 → 54 dosya; öncesi 797, +97). Yeni: `stratComp.test.js` 57 ·
-  `stratCompTab.render.test.jsx` 28 · `state.test.js` +12 reducer testi.
+- **901 JS testi** (52 → 54 dosya; öncesi 797, +104). Yeni: `stratComp.test.js` 61 ·
+  `stratCompTab.render.test.jsx` 31 · `state.test.js` +12 reducer testi. Yukarıdaki
+  yedi hatanın her biri regresyon testiyle kilitlendi.
 - Excel'in sayıları regresyon kilidi olarak testte: `+47.0` · `−13.9` ·
   `−0.350 sn/tur` · `−60.9 sn` · son-pit kaldıracının işaret değiştirmesi
   (`+19.1`) · boş takımın `ok:false` dönmesi.

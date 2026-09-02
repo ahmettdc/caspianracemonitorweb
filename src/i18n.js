@@ -1515,4 +1515,6 @@ export const EN = {
   "yeni satır — değerleri gir": "new row — enter the values",
   "örn. #4 PESCARA SRT": "e.g. #4 PESCARA SRT",
   "İki satırın ortalama turu aynı — fark yalnız pit/yakıt/lastikten geliyor; uzun stintin lastik/yakıt yavaşlaması modelde yok.": "Both rows have the same average lap — the difference comes only from pit/fuel/tyres; a longer stint being slower from tyre/fuel load is not in this model.",
+  "Karşılaştırma için deftere en az iki satır ekleyin.": "Add at least two rows to the register to compare.",
+  "A ve B aynı satırı gösteriyor — iki farklı satır seçin.": "A and B point at the same row — pick two different rows.",
 };

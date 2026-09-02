@@ -43,8 +43,9 @@
    Ekran yarış SIRASINDA kullanılmaz: canlı kareye ve köprüye dokunmaz
    (CLAUDE.md §0 — yeni REST/thread/timer yok). */
 import { useState, useMemo } from "react";
-import { teamTime, rankTeams, stintWarnings, strategyOptions, suggestedLaps,
-  fmtLapMs, parseLapSec, num } from "../stratComp";
+import { teamTime, compareTeams, rankTeams, stintWarnings, strategyOptions,
+  suggestedLaps, fmtLapMs, parseLapSec, num } from "../stratComp";
+import { stratPick } from "../state";
 import { ASSET, AV, TRACK_ASSET, trackName, CARS } from "../constants";
 import { carImageSrc } from "../teamAssets";
 
@@ -156,13 +157,20 @@ export default function StratCompTab({ t, st, plan, readOnly = false,
 
   const teams = Array.isArray(st.stratTeams) ? st.stratTeams : [];
   const laps = num(st.stratLaps);
-  const clampi = (x) => Math.max(0, Math.min(Number(x) || 0, teams.length - 1));
-  const iA = clampi(st.stratA), iB = clampi(st.stratB);
+  /* Seçili indeksler state.stratPick'ten — kural TEK yerde ve tam sayı olmayan
+     değeri de eler (yerel bir clamp `teams[1.5]` okumasına izin veriyordu). */
+  const iA = stratPick(st, "stratA"), iB = stratPick(st, "stratB");
   const nameOf = (i) => (teams[i] && String(teams[i].name || "").trim()) || `${t("Satır")} ${i + 1}`;
 
-  const A = useMemo(() => teamTime(teams[iA], laps), [teams, iA, laps]);
-  const B = useMemo(() => teamTime(teams[iB], laps), [teams, iB, laps]);
-  const cmpOk = A.ok && B.ok;
+  /* compareTeams hem iki tarafı hem farkları verir — deltalar burada ikinci kez
+     yazılmasın (tek doğruluk kaynağı, Excel'e karşı test edilmiş olan o). */
+  const cmp = useMemo(() => compareTeams(teams[iA], teams[iB], laps), [teams, iA, iB, laps]);
+  const A = cmp.a, B = cmp.b;
+  /* AYNI SATIR iki tarafta seçiliyse karşılaştırma anlamsız: tek satırlık
+     defterde stratPick ikisini de 0'a kırpıyor ve ekran satırı KENDİSİYLE
+     karşılaştırıp "İki strateji eşit · 0.0" yazıyordu — uydurma bir "sonuç". */
+  const sameRow = teams.length < 2 || iA === iB;
+  const cmpOk = cmp.ok && !sameRow;
   const rank = useMemo(() => rankTeams(teams, laps), [teams, laps]);
   const sugg = suggestedLaps(plan);
   const opts = strategyOptions(st);
@@ -233,9 +241,7 @@ export default function StratCompTab({ t, st, plan, readOnly = false,
   /* ---------- karar (verdict) ---------- */
   let verdict = null, cmpMissing = "";
   if (cmpOk) {
-    const staticDelta = A.staticSec - B.staticSec, paceDelta = A.paceSec - B.paceSec,
-      totalDelta = A.totalSec - B.totalSec, lapDelta = A.avgLapSec - B.avgLapSec;
-    const leader = totalDelta === 0 ? "tie" : (totalDelta < 0 ? "a" : "b");
+    const { staticDelta, paceDelta, totalDelta, lapDelta, leader } = cmp;
     const col = leader === "tie" ? "var(--rc-text-2)" : "var(--rc-ok)";
     verdict = {
       col, leader,
@@ -244,13 +250,17 @@ export default function StratCompTab({ t, st, plan, readOnly = false,
       gapSub: leader === "tie" ? t("sn") : t("sn önde"),
       pace: `${signed(paceDelta)} (${sgnLap(lapDelta)}/${t("tur")})`,
       static: signed(staticDelta),
-      breakEven: (laps > 0 ? Math.abs(totalDelta) / laps : 0).toFixed(3),
+      breakEven: (cmp.breakEvenLap ?? 0).toFixed(3),
       /* İki satırın ortalama turu BİREBİR aynıysa fark yalnız pit/yakıt/
          lastikten gelir — modellenmeyen şey etiketlenir (CLAUDE.md §1). */
       samePace: A.avgLapSec === B.avgLapSec,
       barPct: Math.max(4, Math.min(50, Math.abs(totalDelta) / 1.2)),
       toward: leader === "a",
     };
+  } else if (sameRow) {
+    cmpMissing = teams.length < 2
+      ? t("Karşılaştırma için deftere en az iki satır ekleyin.")
+      : t("A ve B aynı satırı gösteriyor — iki farklı satır seçin.");
   } else {
     const parts = [];
     [[iA, A], [iB, B]].forEach(([i, r]) => {

@@ -43,6 +43,16 @@ describe("parseLapSec", () => {
   /* REGRESYON: engine.parseLap boş girdide 0 döner. Burada 0 dönmek, boş bir
      takımın "0 saniyelik tur atıyor" sayılmasına ve 174 turda −21.315 sn'lik
      uydurma bir avantaja yol açardı (Excel'in gerçek davranışı). */
+  /* REGRESYON: engine.parseLap "2.02.500" (dakika.saniye.salise, MoTeC/Avrupa
+     yazımı) biçimini uygulamanın HER YERİNDE kabul ediyor. Burada reddetmek
+     satırı "ort. tur eksik" diye işaretliyor, kullanıcı yalnız BİÇİMİN yanlış
+     olduğunu göremiyordu. */
+  it("MoTeC/Avrupa yazımı 2.02.500 kabul edilir (engine.parseLap ile aynı)", () => {
+    expect(parseLapSec("2.02.500")).toBeCloseTo(122.5, 9);
+    expect(parseLapSec("3.59.50")).toBeCloseTo(239.5, 9);
+    // iki noktalı ama orta grup 60+ → tur süresi değil, düz sayı okuması
+    expect(parseLapSec("2.99.5")).toBe(null);
+  });
   it("boş/bozuk → null, ASLA 0", () => {
     expect(parseLapSec("")).toBe(null);
     expect(parseLapSec("   ")).toBe(null);
@@ -219,8 +229,21 @@ describe("rankTeams", () => {
   it("eksik veri sıralamaya SOKULMAZ, ayrı listede döner", () => {
     expect(r.incomplete.map((x) => x.team.name)).toEqual(["#13 TEAM SHIBA"]);
   });
-  it("adsız satır (boş kayıt) hiç sayılmaz", () => {
+  it("tamamen boş satır sayılmaz", () => {
     expect(r.ranked.length + r.incomplete.length).toBe(3);
+  });
+  /* REGRESYON: ad şartı koyulunca ADSIZ ama verisi TAM bir satır ne sıralamaya
+     ne de "eksik veri" listesine giriyordu — sessizce kayboluyordu. Sekme onu
+     zaten "Satır N" diye adlandırıyor. */
+  it("adsız ama verisi TAM satır sıralamaya girer", () => {
+    const { name: _drop, ...anon } = PESCARA;
+    const rr = rankTeams([CASPIAN, anon], LAPS);
+    expect(rr.ranked).toHaveLength(2);
+    expect(rr.incomplete).toHaveLength(0);
+  });
+  it("adsız ve EKSİK satır 'sıralamaya girmeyen' listesinde görünür", () => {
+    const rr = rankTeams([CASPIAN, { pits: 6 }], LAPS);
+    expect(rr.incomplete).toHaveLength(1);
   });
   it("kaynak dizideki sıra (idx) korunur — düzenleme için gerekli", () => {
     expect(r.ranked.find((x) => x.team.name === CASPIAN.name).idx).toBe(0);
@@ -230,61 +253,80 @@ describe("rankTeams", () => {
   });
 });
 
-describe("seedFromPlan — kendi planından doldur", () => {
-  const st = { pitLaneTime: 40, fuelTime: 40, pits: [
-    { tyres: [true, true, true, true] }, { tyres: [false, false, false, false] },
-    { tyres: [true, true, true, true] }, { tyres: [true, false, false, false] },
-    { tyres: [true, true, true, true] }, { tyres: [true, true, true, true] },
-  ] };
-  const plan = { fullStints: 7, totalLaps: 174, lapSec: 122.5,
-    lastRefuelPct: 40, invalid: false };
+describe("seedFromPlan — planın GERÇEK toplamlarını yeniden üretir", () => {
+  /* engine.computePlan'ın döndürdüğü satır şekli: stintSec · pitSec · tyreCount
+     · repairSec · isLast. Değerler elle kuruldu ki beklenen sayı görünsün. */
+  const st = { pitLaneTime: 20 };
+  const plan = { invalid: false, totalLaps: 100, lapSec: 999 /* KASITLI yanlış */,
+    rows: [
+      // 3 durak + son stint. pitSec = 20 (yol) + yakıt + lastik + tamir
+      { stintSec: 3000, lapsInStint: 25, pitSec: 20 + 40 + 12 + 0, tyreCount: 4, repairSec: 0 },
+      { stintSec: 3000, lapsInStint: 25, pitSec: 20 + 40 + 5 + 0, tyreCount: 2, repairSec: 0 },
+      { stintSec: 3000, lapsInStint: 25, pitSec: 20 + 10 + 0 + 6, tyreCount: 0, repairSec: 6 },
+      { stintSec: 3000, lapsInStint: 25, pitSec: 0, tyreCount: 0, repairSec: 0, isLast: true },
+    ] };
+  const seed = seedFromPlan(st, plan, 5, 12);
 
-  it("pit/stint sayısı plandan gelir (son stint duraksız)", () => {
-    const r = seedFromPlan(st, plan, 12);
-    expect(r.stints).toBe(7);
-    expect(r.pits).toBe(6);
+  it("pit/stint sayısı: son stintin arkasında pit yoktur", () => {
+    expect(seed.pits).toBe(3);
+    expect(seed.stints).toBe(4);
   });
 
-  /* Excel'de ELLE atlanan kalem: son durakta tam servis (40 sn) yazıyordu.
-     Plan `lastRefuelPct` zaten %40 diyor → 16 sn. Aradaki 24 sn, dosyadaki
-     karşılaştırmanın sonucunu işaret değiştirecek büyüklükteydi. */
-  it("son pit yakıtı plandan hesaplanır — tam servise DÜŞMEZ", () => {
-    const r = seedFromPlan(st, plan, 12);
-    expect(r.fuelFull).toBe(40);
-    expect(r.fuelLast).toBe(16);      // 40 × %40
+  /* REGRESYON — plan.lapSec yalnız yarış SONU havasının çarpanını taşır
+     (engine: baseLap × endWx.lap). Kuru→ıslak bir planda bunu tüm yarışa
+     uygulamak tempoyu şişiriyordu: ölçülen sapma 6 saatlik dry→xwet planda
+     +1.606 sn (≈ 27 dk). Ortalama tur artık Σ stintSec / totalLaps. */
+  it("ortalama tur planın GERÇEK stint toplamından gelir, lapSec'ten DEĞİL", () => {
+    expect(seed.avgLap).toBe("2:00.000");        // 12000 sn / 100 tur
+    expect(parseLapSec(seed.avgLap) * 100).toBeCloseTo(12000, 6);
   });
 
-  it("lastik değişen durak sayısı plan satırlarından sayılır", () => {
-    // ilk 6 durak: 4'ünde lastik işaretli (2. durak boş)
-    expect(seedFromPlan(st, plan, 12).tyreCount).toBe(5);
+  /* REGRESYON — computePlan 1-2 lastikte TYRE_2_SEC (5), 3-4'te TYRE_4_SEC (12)
+     kullanır; hepsine 12 yazmak 2 lastikli planda 84 sn yerine 35 sn'lik gerçek
+     süreyi şişiriyordu. Lastik değişmeyen durak sayıma girmez. */
+  it("lastik: kademe (5/12) ve DEĞİŞEN durak sayısı plandan", () => {
+    expect(seed.tyreCount).toBe(2);              // 3. durakta lastik yok
+    expect(seed.tyreTime).toBeCloseTo(8.5, 6);   // (12 + 5) / 2 ortalama
+    expect(teamTime({ ...seed, avgLap: "2:00.000" }, 100).tyreSec).toBeCloseTo(17, 6);
   });
 
-  it("ortalama tur havaya göre düzeltilmiş efektif turdur", () => {
-    expect(seedFromPlan(st, plan, 12).avgLap).toBe("2:02.500");
+  /* REGRESYON — computePlan yakıtı durak başına ÖLÇEKLER ve pits[i].fuel
+     kapalıysa hiç eklemez; her durağa tam servis yazmak şişiriyordu. */
+  it("yakıt pit süresinden geri çıkarılır (tam servis + son pit ayrı)", () => {
+    expect(seed.fuelLast).toBeCloseTo(10, 6);    // son durağın gerçek yakıtı
+    expect(seed.fuelFull).toBeCloseTo(40, 6);    // (40 + 40) / 2
+    expect(teamTime({ ...seed, avgLap: "2:00.000" }, 100).fuelSec).toBeCloseTo(90, 6);
   });
 
-  it("tohumlanan satır DOĞRUDAN hesaplanabilir olmalı", () => {
-    const r = teamTime(seedFromPlan(st, plan, 12), 174);
-    expect(r.ok).toBe(true);
-    expect(r.staticSec).toBe(6 * 40 + (40 * 5 + 16) + 5 * 12);
+  it("plan tamir süresi HASAR alanına yazılır", () => {
+    expect(seed.damage).toBeCloseTo(6, 6);
   });
 
-  /* Yarım plandan sayı üretmek CLAUDE.md §1 ihlali olurdu. */
-  it("geçersiz plan → null (uydurma satır yok)", () => {
-    expect(seedFromPlan(st, { ...plan, invalid: true }, 12)).toBe(null);
-    expect(seedFromPlan(st, { ...plan, totalLaps: 0 }, 12)).toBe(null);
-    expect(seedFromPlan(st, null, 12)).toBe(null);
+  /* Sözleşmenin bütünü: tohumlanan satır planın kendi yarış süresini üretir. */
+  it("satırın toplamı = planın stint + pit toplamı (birebir)", () => {
+    const res = teamTime(seed, 100);
+    const planTotal = plan.rows.reduce((a, r) => a + r.stintSec + r.pitSec, 0);
+    expect(res.ok).toBe(true);
+    expect(res.totalSec).toBeCloseTo(planTotal, 6);
   });
 
-  it("lastRefuelPct yoksa son pit yakıtı BOŞ bırakılır (tam servise düşmez)", () => {
-    const r = seedFromPlan(st, { ...plan, lastRefuelPct: null }, 12);
+  it("geçersiz/boş plan → null (uydurma satır yok)", () => {
+    expect(seedFromPlan(st, { ...plan, invalid: true }, 5, 12)).toBe(null);
+    expect(seedFromPlan(st, { ...plan, rows: [] }, 5, 12)).toBe(null);
+    expect(seedFromPlan(st, { ...plan, totalLaps: 0 }, 5, 12)).toBe(null);
+    expect(seedFromPlan(st, null, 5, 12)).toBe(null);
+  });
+
+  it("pit yolu süresi bilinmiyorsa yakıt AYRIŞTIRILAMAZ — alan boş kalır", () => {
+    const r = seedFromPlan({}, plan, 5, 12);
+    expect(r.pitLane).toBe("");
+    expect(r.fuelFull).toBe("");
     expect(r.fuelLast).toBe("");
-    expect(teamTime(r, 174).missing).toEqual(["fuelLast"]);
+    expect(teamTime(r, 100).ok).toBe(false);
   });
 
   it("bozuk girdide çökmez", () => {
-    expect(seedFromPlan(null, plan, 12).tyreCount).toBe(0);
-    expect(seedFromPlan({}, plan, 12).pitLane).toBe("");
+    expect(seedFromPlan(null, plan, 5, 12).pits).toBe(3);
   });
 });
 
