@@ -2,7 +2,134 @@
 
 ## v2.4.1 — 2026-09-04
 
-Hata düzeltme sürümü. Bu bölüm düzeltmeler indikçe doldurulacak.
+Hata düzeltme sürümü. Yeni özellik yok; kod tabanı altı alana bölünüp taranarak
+bulunan 40 bulgudan **veri kaybına, canlı sistemin sessizce ölmesine ve yanlış
+yarış kararına** yol açan 12'si düzeltildi. Her düzeltme testle kilitlendi ve
+testlerin çoğu eski kodda düşüyor (yani hatayı gerçekten yakalıyor).
+
+### Veri kaybı ve senkron
+
+- **Oda değişiminde plan kayboluyordu** (`useRaceSync.js` · `App.jsx`).
+  `schedulePush` 800 ms'lik bir zamanlayıcı kurar; zamanlayıcı hedef odayı
+  KURULURKEN yakalar ama yazılacak state'i ATEŞLENDİĞİNDE okur.
+  `openRace`/`leaveRace` bu zamanlayıcıyı iptal etmiyordu ve `pushState` ne
+  `applying` bayrağına ne de hedef odaya bakıyordu (yalnız `schedulePush`
+  bakıyordu). A yarışında hücre düzenleyip 800 ms dolmadan B'ye geçince B'nin
+  state'i A'nın yoluna yazılıyor, rev arttığı için A'daki diğer editörler de
+  uyguluyor ve plan HER CİHAZDA kayboluyordu.
+
+  İki kapı da gerekli: `openRace`'in `await` penceresinde `curRace` HENÜZ eski
+  odadır ama `stRef` çoktan yenisidir (oda karşılaştırması yakalayamaz), oda
+  değiştikten sonrasını ise `applying` yakalayamaz. Oda değişiminde önce
+  `flushPending` (son düzenleme MEVCUT odaya yazılsın), sonra `cancelPending`.
+
+- **Rev çakışmasında sessiz ayrışma** (`useRaceSync.js`). Rev sunucuda
+  transaction ile değil istemcide `rev + 1` olarak üretilip düz `set` ile
+  yazılıyor. İki editör aynı rev'ten yazınca ikisi de aynı numarayı üretir;
+  `remote.rev > localRev` koşulu yüzünden KAYBEDEN taraf kazananın yazımını hiç
+  uygulamıyordu. Kendi yazımımızın `updatedAt` damgası tutuluyor: aynı rev'te
+  geri gelen damga bizimki değilse o rev'i başkası kazanmış demektir → uygula.
+
+  İki karar da yeni saf modülde (`src/raceSyncGate.js`), 13 testle. Bu projede
+  DOM test koşumu yok; hook'un içinde kalsalardı hiç test edilemezlerdi.
+
+### Köprü yaşam döngüsü
+
+- **"Zombi köprü"** (`liveBridge.js`). `startBridge` iki `await` içeriyor
+  (dinamik import + `liveSessionIdGet`). Bu pencerede `stopBridge` gelirse
+  `starting` hiç sıfırlanmıyor, `stopping` true kalıyordu: askıdaki çağrı devam
+  edip sidecar'ı YİNE DE doğuruyor, ama `flush` her karede erken dönüyordu.
+  Oyun PC'sinde paylaşımlı bellek okuyan bir süreç çalışıyor (CLAUDE.md §0),
+  arayüz "çalışıyor" diyor, Firebase'e TEK KARE gitmiyor — ve `bridgeRunning()`
+  true olduğu için 4 sn'lik oto-yeniden deneme onu asla canlandırmıyordu.
+
+- **Eski sürecin sahiplik kaçağı** (`liveBridge.js`). `cmd.on("close")` kim
+  olduğuna bakmadan abonelikleri ve `child`'ı temizleyip kirayı bırakıyordu.
+  Yarış değiştirilince eski sürecin `close`'u ms'ler sonra gelip YENİ köprünün
+  aboneliklerini iptal ediyordu: kira hep null → her karede transaction, remote
+  hep null → hafif köprüye boyun eğilmiyor (v1.8.8'de düzeltilen iki-yazıcı
+  yanıp sönmesi geri geliyor), `child` null → 4 sn sonra İKİNCİ bir sidecar.
+
+  Her çalıştırma artık kendi jetonunu (`runSeq`) taşıyor; jeton güncel değilse
+  hiçbir paylaşılan duruma dokunmuyor. `stopBridge` jetonu ilerletip `starting`
+  kilidini de açıyor.
+
+### Yanlış yarış kararı
+
+- **Bayrak turu tuzağı** (`stratComp.js`). `walkByTime` son stintte bayrak
+  turunu tur sayısına ekliyor (`L += 1`) ama süresi `stintSec`'e girmiyor
+  (`stintSec = startLeft`). `Σ stintSec / totalLaps` bölümünün payı bir turluk
+  süre EKSİK, paydası bir tur FAZLA → "Planımdan ekle" satırının ortalama turu
+  sistematik olarak HIZLI. Ölçüldü: `2:02.500 → 2:00.457` · `3:29.000 →
+  3:25.907` · `2:00.000 → 1:58.113`. Toplam süre sözleşmesi korunduğu için
+  ekranda görünmüyordu, ama elle girilmiş rakip satırıyla karşılaştırma sahte
+  avantaj üretiyordu. Ort. tur artık son stint hariç satırlardan türetiliyor ve
+  dört senaryoda da girdiyi birebir geri veriyor.
+
+- **Son stintin dolumu** (`engine.js`). `pctForPit` kalan turu `cd / lapSec` ile
+  buluyordu; `lapSec` yarış ortalaması. Aynı fonksiyon stinte özel VE tüketimini
+  (`stintCons`) hesaba katıyor ama tur süresini (`fixLap`, satırda zaten hazır)
+  yok sayıyordu. Son stinte ortalamadan hızlı bir tur girilince plan BİR TUR
+  EKSİK yakıt söylüyordu; ters yönde gereksiz fazla dolum + boşa pit süresi.
+
+- **Lastik plan↔gerçek eşlemesi** (`tyreLedger.js` · `TyreTab.jsx`).
+  `planChanges` ızgaranın dolu hücrelerini sayıyordu. Üç hata: (1) `tyreStints[0]`
+  yarış ÖNCESİ takmadır, arkasında pit yoktur — sayılınca eşleme bir kayıyor ve
+  plana TAM uyulan yarışta "1 sapma" çıkıyordu; (2) plan kısalınca ızgarada
+  kalan stintler KPI'ya sızıyordu; (3) "aynı seti tekrar yaz" engine'de 0 sn
+  iken KPI'da 12 sn görünüyordu. Değişimler artık `st.pits[i].tyres`
+  bayraklarından — engine'in lastik süresini aldığı kaynaktan — türetiliyor.
+
+  Ölçüldü (S1 start + S3'te 4 + S5'te 2, plana tam uyulmuş):
+  öncesi KPI **+28.5 s** / engine 16.5 s / "1 sapma" → sonrası **+16.5 s** /
+  16.5 s / **0 sapma**.
+
+- **Relative sırası** (`liveRelative.js`). Sıralama anahtarı RAKİBİN
+  `estLapTime`'ına bölüyordu; `relSec` ise oyuncunun turuyla hesaplanıyor. Her
+  satır farklı ölçekle normalize edilince çok sınıflı sahada (LMU'da her zaman)
+  REL sütunu monoton olmuyor ve ±3 penceresine yanlış araç giriyordu.
+
+### Köprü (oyun PC'si)
+
+- **Telemetri eşleme sınırı** (`rf2_source.py`). Telemetri dizisi SCORING'in
+  `mNumVehicles`'ı ile taranıyordu. Telemetri online'da scoring'den az araç
+  yayınlar; yazılmamış slotların `mID`'si 0 olduğu için `tele_by_id[0] = boş`
+  ataması slot 0'daki GERÇEK aracın telemetrisini eziyordu → `tyres4=[0,0,0,0]`,
+  `tyreWear=0`, `damage=0`. Oyunun vermediği veri "sıfır" diye uydurulmuş
+  oluyordu (CLAUDE.md §1) ve harvest üzerinden kalıcı `livewear` düğümüne de
+  yazılıyordu. Sınır artık telemetrinin KENDİ `mNumVehicles`'ı (alan zaten
+  vardı, hiç okunmuyordu); maliyet kare başına tek `getattr`.
+
+- **`--no-rest` bayrağının kaçağı** (`main.py` · `gui.py`). `main()` bayrağı
+  hesaplayıp `launch(args.config)` çağırıyordu; `cmd_dump`/`cmd_dump_wx` de
+  almıyordu. Yani donma teşhisi için var olan bayrak, çift tıklamayla açılan
+  varsayılan yolda ve teşhis komutlarının kendisinde sessizce yok sayılıyordu.
+  Uçtan uca bağlandı; durum şeridi ve log gerçek REST durumunu yazıyor.
+
+  REST'in arayüzde varsayılan AÇIK kalması **kullanıcı kararıdır** (v1.7.3'te
+  bilinçli açılmıştı). CLAUDE.md §0 ve `bridge/README.md` bugünkü gerçeğe göre
+  güncellendi — ikisi de hâlâ "varsayılan kapalı" ve arayüzden kaldırılmış bir
+  "REST aç" kutusundan bahsediyordu.
+
+### Telemetri
+
+- **S/F reseti gerçek mesafe kanalını düşürüyordu** (`duckTrace.js` ·
+  `ldTrace.js`). Izgara `[t0, tEnd]` KAPALI aralıkta kuruluyor; son örnek tam
+  olarak bir sonraki `Lap` olayının ts'ine denk gelir ve orada `Lap Dist`
+  sıfırlanmıştır. Bu "mesafe geriye gitti" sayılıp TÜM tur hız
+  entegrasyonuyla yeniden kuruluyordu — oyunun verdiği gerçek okuma varken
+  MODELLENMİŞ mesafe kullanılıyordu (CLAUDE.md §1). S/F geçişinin ızgaraya göre
+  konumu turdan tura kaydığı için aynı stintte bazı turlar gerçek, bazıları
+  modellenmiş mesafeyle ölçekleniyordu. Tur ORTASINDAKİ gerçek geri sıçrama
+  hâlâ hız yedeğine düşüyor.
+
+### Doğrulama
+
+- **934 JS testi** geçiyor (öncesi 901, +33) · **5 köprü test dosyası** geçiyor
+  (biri yeni: `test_rf2_tele_map.py`, gerçek ctypes struct'larıyla)
+- `npm run build` temiz · `oxlint` uyarı sayısı değişmedi (47, hepsi mevcut)
+- Yeni saf modül: `src/raceSyncGate.js` (13 test) · yeni test dosyaları:
+  `src/liveBridge.lifecycle.test.js` (4 test, sidecar kabuğu taklit edilir)
 
 ## v2.4.0 — 2026-09-01
 
