@@ -40,6 +40,19 @@ import { rubberPct } from "./engine";
 let child = null;          // çalışan sidecar süreci (Child)
 let stopping = false;
 let starting = false;      // spawn sürerken tekrar başlatmayı engelle (oto-yeniden dene)
+/* ÇALIŞTIRMA JETONU (v2.4.1). startBridge iki `await` içerir (dinamik import +
+   liveSessionIdGet). Bu pencerede stopBridge gelirse eskiden `starting` hiç
+   sıfırlanmıyor, `stopping` true kalıyordu: askıdaki çağrı devam edip sidecar'ı
+   YİNE DE spawn ediyor, ama flush her karede `stopping` yüzünden erken dönüyordu
+   → oyun PC'sinde paylaşımlı bellek okuyan bir süreç çalışıyor, arayüz
+   "çalışıyor" diyor, Firebase'e TEK KARE gitmiyordu ("zombi köprü"). Üstelik
+   bridgeRunning() true olduğu için 4 sn'lik oto-yeniden deneme onu asla
+   canlandırmıyordu.
+   Ayrıca eski sürecin `close` olayı, sahiplik kontrolü olmadığı için YENİ
+   köprünün aboneliklerini ve kirasını siliyordu (v1.8.8'de düzeltilen iki-yazıcı
+   yanıp sönmesi geri geliyordu). Her çalıştırma kendi jetonunu taşır; jeton
+   güncel değilse hiçbir paylaşılan duruma dokunulmaz. */
+let runSeq = 0;
 let leaseCtx = null;       // { tid, rid, uid } — durdururken kirayı bırakmak için
 let unsubLease = null;     // livewriter aboneliğini kaldıran fonksiyon
 let unsubRemote = null;    // canlı kare aboneliği (başka yazıcıya boyun eğme — shouldYield)
@@ -55,16 +68,21 @@ export async function startBridge(opts, onStatus) {
 
   stopping = false;
   starting = true;
+  const myRun = ++runSeq;          // bu çalıştırmanın jetonu
+  /* Bu çalıştırma hâlâ güncel mi? Değilse araya stopBridge (ya da yeni bir
+     startBridge) girmiştir; askıda kalan iş paylaşılan duruma DOKUNMAMALI. */
+  const mine = () => myRun === runSeq;
   say({ running: true, phase: "starting", msg: "Köprü başlatılıyor…" });
 
   let Command;
   try {
     ({ Command } = await import("@tauri-apps/plugin-shell"));
   } catch (e) {
-    starting = false;
+    if (mine()) starting = false;
     say({ running: false, phase: "error", msg: "Sidecar kabuğu yüklenemedi: " + (e?.message || e) });
     return;
   }
+  if (!mine()) return;             // import beklerken durduruldu → sidecar'ı HİÇ doğurma
 
   const args = ["--emit", "--hz", String(hz)];
   if (mock) args.push("--mock");
@@ -100,6 +118,7 @@ export async function startBridge(opts, onStatus) {
   leaseCtx = { tid, rid, uid };
   if (unsubLease) { try { unsubLease(); } catch { /* yoksay */ } unsubLease = null; }
   if (electing) unsubLease = liveWriterSubscribe(tid, rid, (v) => { lease = v; });
+  const myUnsubLease = unsubLease;   // BU çalıştırmanın aboneliği (modül değişkeni sonra ezilebilir)
   /* BAŞKA yazıcıya boyun eğme (v1.8.8): hafif köprü kiraya katılmadığından kira
      seçimi onu GÖREMİYOR; aynı hesabın iki penceresi de kirayı ikisi de "benim"
      sayıyordu → iki yazıcı, ekran kare kare yanıp sönüyordu. Her karemize rastgele
@@ -111,6 +130,13 @@ export async function startBridge(opts, onStatus) {
   unsubRemote = liveTimingSubscribe(tid, rid, (v) => {
     if (v && typeof v.ts === "number" && v.wid !== myWid) remote = { ts: v.ts, by: v.by || "" };
   });
+  const myUnsubRemote = unsubRemote;
+  /* Bu çalıştırmanın aboneliklerini bırak — modül değişkenlerine DOKUNMADAN
+     (onlar artık yeni çalıştırmaya ait olabilir). */
+  const dropMySubs = () => {
+    try { if (myUnsubLease) myUnsubLease(); } catch { /* yoksay */ }
+    try { if (myUnsubRemote) myUnsubRemote(); } catch { /* yoksay */ }
+  };
 
   /* Kareyi yazmadan önce tur geçmişini kalıcı livelaps düğümüne taşı:
      her satırın laps[]/lapsFrom'undan yeni turları (n > lastLap) topla, tek update
@@ -393,14 +419,21 @@ export async function startBridge(opts, onStatus) {
     if (s) say({ running: true, phase: "running", msg: s });   // bilgi satırı
   });
   cmd.on("error", (e) => {
+    if (!mine()) return;      // eski çalıştırmanın hatası — yeni köprüyü bozma
     say({ running: false, phase: "error", msg: "Sidecar hatası: " + (e?.message || e) });
     child = null;
   });
   cmd.on("close", (data) => {
     if (writeTimer) { clearTimeout(writeTimer); writeTimer = null; }
+    dropMySubs();
+    /* SAHİPLİK: eski sürecin `close`'u ms'ler geç gelebilir. Kontrol olmadan
+       YENİ köprünün aboneliklerini iptal edip kirasını bırakıyordu → kira hep
+       null (her karede transaction), remote hep null (hafif köprüye boyun
+       eğilmiyor), child=null (4 sn sonra İKİNCİ bir sidecar). */
+    if (!mine()) return;
     child = null;
-    if (unsubLease) { try { unsubLease(); } catch { /* yoksay */ } unsubLease = null; }
-    if (unsubRemote) { try { unsubRemote(); } catch { /* yoksay */ } unsubRemote = null; }
+    unsubLease = null;
+    unsubRemote = null;
     if (electing && uid) liveWriterRelease(tid, rid, uid);   // kirayı bırak → devir hızlı
     say({ running: false, phase: "stopped",
       msg: stopping ? "Durduruldu" : `Köprü kapandı (kod ${data?.code ?? "?"})` });
@@ -410,14 +443,25 @@ export async function startBridge(opts, onStatus) {
   // başlatmada (sid saklanana eşit) geçmişi temizlemez; okunamazsa (null) yine
   // temizlemeyiz (ancak GERÇEK bir seans değişikliğinde temizler → güvenli taraf).
   try { knownSessionId = await liveSessionIdGet(tid, rid); } catch { knownSessionId = null; }
+  /* Firebase okumasını beklerken durdurulduysak sidecar'ı HİÇ doğurma —
+     doğsaydı yazamayan bir "zombi köprü" olurdu. */
+  if (!mine()) { dropMySubs(); return; }
 
   try {
     child = await cmd.spawn();
     starting = false;
+    /* spawn beklerken durdurulduysak süreci HEMEN öldür (oyun PC'sinde başıboş
+       bir okuyucu bırakma — CLAUDE.md §0). */
+    if (!mine()) {
+      const c = child; child = null;
+      dropMySubs();
+      try { await c.kill(); } catch { /* zaten kapanmış olabilir */ }
+      return;
+    }
     say({ running: true, phase: "running", msg: "Köprü çalışıyor", cars });
   } catch (e) {
-    starting = false;
-    child = null;
+    if (mine()) { starting = false; child = null; }
+    dropMySubs();
     say({ running: false, phase: "error", msg: "Sidecar başlatılamadı: " + (e?.message || e) });
   }
 }
@@ -425,6 +469,12 @@ export async function startBridge(opts, onStatus) {
 /* Köprüyü durdur — sidecar sürecini öldür. */
 export async function stopBridge(onStatus) {
   stopping = true;
+  /* Askıdaki startBridge'i geçersiz kıl VE `starting` kilidini aç. Eskiden
+     `starting` true kalıyordu: sonraki startBridge `if (child || starting)`
+     ile sessizce çıkıyor, askıdaki eski çağrı ise sidecar'ı doğurup hiç kare
+     yazmıyordu (zombi köprü). */
+  runSeq += 1;
+  starting = false;
   const c = child;
   child = null;
   if (unsubLease) { try { unsubLease(); } catch { /* yoksay */ } unsubLease = null; }
