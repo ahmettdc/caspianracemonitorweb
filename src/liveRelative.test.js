@@ -240,3 +240,39 @@ describe("relativeRows", () => {
     expect(out.find((x) => x.r.c.carId === 2).relSec).toBe(null);
   });
 });
+
+/* REGRESYON (v2.4.1) — ÇOK SINIFLI SAHADA SIRA.
+   Sıralama anahtarı RAKİBİN `estLapTime`'ına bölüyordu; `relSec` ise oyuncunun
+   turuyla hesaplanıyor. Her satır farklı ölçekle normalize edilince tur temposu
+   farklı sınıflar (Hypercar ~1:35 · LMGT3 ~1:50) birbirinin önüne geçiyor:
+   REL sütunu monoton olmuyor ve ±3 penceresine yanlış araç giriyordu. */
+describe("relativeRows — sıra relSec ile uyumlu (çok sınıflı)", () => {
+  const row = (carId, timeIntoLap, estLapTime) => ({
+    c: { carId, timeIntoLap, estLapTime, inPits: false, location: "TRACK" },
+  });
+
+  it("yavaş sınıftaki araç, daha yakın olan hızlı sınıf aracının önüne GEÇMEZ", () => {
+    // Ben: Hypercar, tur 90 sn, tur içi 50 sn.
+    const me = { carId: 1, timeIntoLap: 50, estLapTime: 90 };
+    // car2 (LMGT3, tur 105) 20.0 sn önde · car3 (Hypercar, tur 90) 19.5 sn önde.
+    // Doğru sıra: car2 (daha önde) → car3 → ben.
+    const rows = [row(1, 50, 90), row(2, 70, 105), row(3, 69.5, 90)];
+    const out = relativeRows(rows, me, 5000, 3, 3);
+    const rel = out.map((x) => Math.round(x.relSec * 10) / 10);
+    // Pistte önden arkaya: relSec artan olmalı (negatif = önde)
+    for (let i = 1; i < rel.length; i++) expect(rel[i]).toBeGreaterThanOrEqual(rel[i - 1]);
+    expect(out.map((x) => x.r.c.carId)).toEqual([2, 3, 1]);
+  });
+
+  it("sıra HER ZAMAN relSec ile monoton (karışık tempolar)", () => {
+    const me = { carId: 1, timeIntoLap: 45, estLapTime: 95 };
+    const rows = [
+      row(1, 45, 95),
+      row(2, 60, 110), row(3, 52, 92), row(4, 30, 108), row(5, 38, 96),
+    ];
+    const out = relativeRows(rows, me, 5000, 4, 4);
+    for (let i = 1; i < out.length; i++) {
+      expect(out[i].relSec).toBeGreaterThanOrEqual(out[i - 1].relSec);
+    }
+  });
+});

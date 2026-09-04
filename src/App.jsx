@@ -304,6 +304,16 @@ export default function App() {
      GEÇMEZ; kendi setTab(k) seçimleri korunur (ör. menüden doğrudan "Canlı"ya girme). */
   const openRace = async (rid, landTab) => {
     if (!curTeam || !rid) return;
+    /* ODA DEĞİŞİMİ — bekleyen yazımı önce MEVCUT odaya gönder, sonra iptal et.
+       `schedulePush` 800 ms'lik bir zamanlayıcı kurar; zamanlayıcı `rid`'i
+       yakalar ama `stRef.current`'ı ATEŞLENDİĞİNDE okur. Eskiden iptal
+       edilmediği için, 800 ms dolmadan başka yarışa geçilince YENİ odanın
+       state'i ESKİ odanın yoluna yazılıyordu — rev arttığından eski odadaki
+       diğer editörler de bunu uyguluyor ve o yarışın planı HER CİHAZDA
+       kayboluyordu. flush önce çağrılır ki kullanıcının son düzenlemesi
+       düşmesin (stRef HENÜZ eski odanın state'i). */
+    flushPending();
+    cancelPending();
     /* İlk boyama için uzak state'i çekmeyi DENE — ama giriş buna BAĞLI DEĞİL.
        Eskiden raceStateGet geçici bir ağ hatasıyla düşünce catch çalışıyor,
        setCurRace/setEntered HİÇ ateşlenmiyordu → kullanıcı lobide kalıyor,
@@ -314,6 +324,7 @@ export default function App() {
     try {
       const remote = await raceStateGet(curTeam, rid);
       sync.current.rev = remote?.rev || 0;
+      sync.current.mineAt = null;   // yeni oda → bekleyen "benim yazımım" damgası yok
       let loaded = null;
       if (remote?.stateJson) {
         const parsed = safeParseState(remote.stateJson);
@@ -335,6 +346,7 @@ export default function App() {
     } catch (e) {
       /* fetch düştü → yine de gir; abonelik state'i getirecek. */
       sync.current.rev = 0;
+      sync.current.mineAt = null;
       setSyncMsg(t("Bağlantı hatası: ") + (e?.message || ""));
     }
     setCurRace(rid);
@@ -346,6 +358,8 @@ export default function App() {
   };
 
   const leaveRace = () => {
+    flushPending();   // son düzenleme lobiye çıkarken kaybolmasın
+    cancelPending();  // geride zamanlayıcı kalmasın (bkz. openRace)
     setCurRace(""); setRole("editor"); setLastSync(null); setSyncMsg("");
     setEntered(false); setPickDone(false); setSetupDone(false);
     setScheduleOnly(false);   // rail "Menü" → bağımsız Resmi Yarışlar ekranından da çık
@@ -965,7 +979,8 @@ ${bottomBar}
   curTeamRef.current = curTeam;
   /* işbirlikçi yarış-durumu senkronizasyonu (debounce push + canlı dinle) → hook.
      openRace/leaveRace App'te kalır ve dönen `sync` ref'ini + setter'ları kullanır. */
-  const { syncMsg, setSyncMsg, lastSync, setLastSync, sync } = useRaceSync({
+  const { syncMsg, setSyncMsg, lastSync, setLastSync, sync,
+    cancelPending, flushPending } = useRaceSync({
     st, setSt, curRace, curTeamRef, role, userName, stRef, t });
   /* canlı timing aboneliği + yakıt öğrenici (App.jsx'ten çıkarıldı) */
   const { live, liveFuelObs, lapCapture } = useLive({ curRace, curTeamRef, stRef, canEditRef });

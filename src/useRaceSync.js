@@ -16,19 +16,43 @@
    ve setSyncMsg/setLastSync'i kullanır — aynı `sync` nesnesi paylaşılır.
 
    Girdi: { st, setSt, curRace, curTeamRef, role, userName, stRef, t }.
-   Çıktı: { syncMsg, setSyncMsg, lastSync, setLastSync, sync }. */
+   Çıktı: { syncMsg, setSyncMsg, lastSync, setLastSync, sync, pushState,
+            cancelPending, flushPending }.
+   Oda değiştirirken ikisi de ÇAĞRILMALI (openRace/leaveRace): önce
+   `flushPending` (bekleyen düzenleme HÂLÂ AÇIK odaya yazılsın), sonra
+   `cancelPending` (geride zamanlayıcı kalmasın). */
 import { useState, useEffect, useRef } from "react";
 import { raceStateSet, raceStateSubscribe } from "./storage";
 import { migrate } from "./engine";
 import { safeParseState } from "./state";
+import { shouldPush, shouldApplyRemote } from "./raceSyncGate";
 
 export function useRaceSync({ st, setSt, curRace, curTeamRef, role, userName, stRef, t }) {
   const [syncMsg, setSyncMsg] = useState("");
   const [lastSync, setLastSync] = useState(null); // {by, at}
-  const sync = useRef({ rev: 0, applying: false, timer: null });
+  const sync = useRef({ rev: 0, applying: false, timer: null, mineAt: null });
+  /* Hangi odadayız — bekleyen yazımın hedefiyle karşılaştırmak için.
+     Effect'te güncellenir; debounce en az 800 ms olduğundan timer ateşlendiğinde
+     ref güncel olur. */
+  const curRaceRef = useRef(curRace);
+  useEffect(() => { curRaceRef.current = curRace; }, [curRace]);
+
+  /* Bekleyen (debounce + retry) yazımları İPTAL et. Oda değiştirirken şart:
+     zamanlayıcı `rid`'i yakalar ama `stRef.current`'ı ATEŞLENDİĞİNDE okur.
+     Aradan oda değişirse YENİ odanın state'i ESKİ odanın yoluna yazılıyordu —
+     rev arttığı için eski odadaki diğer editörler de bunu uyguluyor ve o
+     yarışın planı HER CİHAZDA kayboluyordu (v2.4.1). */
+  const cancelPending = () => {
+    clearTimeout(sync.current.timer); sync.current.timer = null;
+    clearTimeout(sync.current.retry); sync.current.retry = null;
+  };
 
   const pushState = async (rid, attempt = 0) => {
     const tid = curTeamRef.current;
+    /* Gerekçe ve iki kapının NEDEN ikisinin de gerektiği: raceSyncGate.js.
+       Eskiden `applying`'e yalnız `schedulePush` bakıyordu; `pushState` hiç
+       bakmıyordu ve hedef odayı hiç doğrulamıyordu. */
+    if (!shouldPush(sync.current.applying, rid, curRaceRef.current)) return;
     const stateJson = JSON.stringify(stRef.current);
     try {
       const rev = sync.current.rev + 1;
@@ -36,7 +60,11 @@ export function useRaceSync({ st, setSt, curRace, curTeamRef, role, userName, st
       await raceStateSet(tid, rid, {
         stateJson, rev, updatedBy: userName || "isimsiz", updatedAt,
       });
-      sync.current.rev = rev; setLastSync({ by: t("sen"), at: updatedAt }); setSyncMsg("");
+      sync.current.rev = rev;
+      /* Kendi yazımımızın damgası — aynı rev'te BAŞKASININ yazımı geri gelirse
+         (rev çakışması) ayırt edebilmek için. Bkz. raceSyncGate.shouldApplyRemote. */
+      sync.current.mineAt = updatedAt;
+      setLastSync({ by: t("sen"), at: updatedAt }); setSyncMsg("");
     } catch (e) {
       /* Eskiden "tekrar denenecek" yazıp aslında denemiyordu → geçici bir yazma hatasında
          (ör. telemetri yüklemesi) veri sessizce kayboluyordu. Artık gerçek exponential
@@ -54,8 +82,7 @@ export function useRaceSync({ st, setSt, curRace, curTeamRef, role, userName, st
 
   const schedulePush = () => {
     if (!curRace || role !== "editor" || sync.current.applying) return;
-    clearTimeout(sync.current.timer);
-    clearTimeout(sync.current.retry);   // bekleyen retry'ı iptal et — yeni push güncel state'i yazar
+    cancelPending();                    // bekleyen retry dahil — yeni push güncel state'i yazar
     sync.current.timer = setTimeout(() => pushState(curRace), 800);
   };
 
@@ -66,8 +93,7 @@ export function useRaceSync({ st, setSt, curRace, curTeamRef, role, userName, st
   const flush = () => {
     if (!curRace || role !== "editor" || sync.current.applying) return;
     if (!sync.current.timer && !sync.current.retry) return;   // bekleyen yok
-    clearTimeout(sync.current.timer); sync.current.timer = null;
-    clearTimeout(sync.current.retry); sync.current.retry = null;
+    cancelPending();
     pushState(curRace);
   };
 
@@ -90,12 +116,16 @@ export function useRaceSync({ st, setSt, curRace, curTeamRef, role, userName, st
   useEffect(() => {
     if (!curRace) return undefined;
     const off = raceStateSubscribe(curTeamRef.current, curRace, (remote) => {
-      if (remote.rev > sync.current.rev) {
+      if (shouldApplyRemote(remote.rev, remote.updatedAt,
+        sync.current.rev, sync.current.mineAt)) {
         /* bozuk/yarım uzak veri gelirse rev'i ilerletme, son iyi durumu koru */
         const parsed = safeParseState(remote.stateJson);
         if (!parsed) { console.warn("Bozuk uzak state atlandı (rev", remote.rev, ")"); return; }
         sync.current.applying = true;
         sync.current.rev = remote.rev;
+        /* Uzak durumu aldık → artık "benim yazımım" diye bekleyen bir damga yok.
+           Aksi halde aynı rev tekrar gelirse sonsuz uygulama döngüsü olurdu. */
+        sync.current.mineAt = null;
         setSt(migrate(parsed));
         setLastSync({ by: remote.updatedBy, at: remote.updatedAt });
         /* başka bir editör yazdı → kısa görünürlük uyarısı (son yazan kazanır) */
@@ -107,5 +137,6 @@ export function useRaceSync({ st, setSt, curRace, curTeamRef, role, userName, st
     return () => off();
   }, [curRace]);
 
-  return { syncMsg, setSyncMsg, lastSync, setLastSync, sync, pushState };
+  return { syncMsg, setSyncMsg, lastSync, setLastSync, sync, pushState,
+    cancelPending, flushPending: flush };
 }
