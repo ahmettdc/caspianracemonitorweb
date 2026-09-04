@@ -147,9 +147,24 @@ export function buildTrace(readers, lap, N = 600) {
     rawV[j] = ms;
     if (distOk) {
       const dv = at(readers.dist, tAbs);
-      rawDist[j] = Number.isFinite(dv) ? dv - d0dist : (rawDist[j - 1] ?? 0);
+      let d = Number.isFinite(dv) ? dv - d0dist : (rawDist[j - 1] ?? 0);
       // mesafe kanalı geriye giderse (tur başı reset / glitch) → hız entegrasyonuna düş
-      if (j > 0 && rawDist[j] < rawDist[j - 1] - 1) { distOk = false; }
+      /* S/F RESETİ SON ÖRNEĞE DÜŞÜYOR (v2.4.1). Izgara [t0, tEnd] KAPALI
+         aralıkta kuruluyor; son örnek (j = M-1) tam olarak bir sonraki `Lap`
+         olayının ts'ine denk gelir ve orada oyunun `Lap Dist` kanalı S/F
+         çizgisinde SIFIRLANMIŞTIR. Bunu "mesafe geriye gitti" sayıp tüm turu
+         hız entegrasyonuyla yeniden kurmak, oyunun verdiği GERÇEK mesafeyi
+         çöpe atıp yerine MODELLENMİŞ bir mesafe koyuyordu (CLAUDE.md §1) —
+         üstelik S/F geçişinin ızgaraya göre alt-örnek konumu turdan tura
+         değiştiği için aynı stintte bazı turlar gerçek, bazıları modellenmiş
+         mesafeyle ölçekleniyordu (ölçüldü: 5000 m'lik turda 4995 ↔ 5278 m).
+         Tur ORTASINDAKİ gerçek geri sıçrama hâlâ yedeğe düşürür; yalnız son
+         örnek tek adımlık trapez ile ileri taşınır. */
+      if (j > 0 && d < rawDist[j - 1] - 1) {
+        if (j < M - 1) distOk = false;                 // tur ortası → hız entegrasyonu
+        else d = rawDist[j - 1] + ((prevMs + ms) / 2) * dt;
+      }
+      if (distOk) rawDist[j] = d;
     }
     if (!distOk) {
       if (j > 0) cum += ((prevMs + ms) / 2) * dt;                 // trapez

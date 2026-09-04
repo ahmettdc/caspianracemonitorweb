@@ -108,3 +108,52 @@ describe("buildCompare (duck izleri)", () => {
     expect(cmp.data[0]).toHaveProperty("dt");
   });
 });
+
+/* REGRESYON (v2.4.1) — S/F RESETİ SON ÖRNEĞE DÜŞÜNCE GERÇEK MESAFE ÇÖPE GİDİYORDU.
+   Izgara [t0, tEnd] KAPALI aralıkta kuruluyor; son örnek (j = M-1) tam olarak
+   bir sonraki `Lap` olayının ts'ine denk gelir ve orada oyunun `Lap Dist`
+   kanalı S/F çizgisinde SIFIRLANMIŞTIR. Eskiden bu "mesafe geriye gitti"
+   sayılıp TÜM tur hız entegrasyonuyla yeniden kuruluyordu — yani oyunun
+   verdiği gerçek mesafe atılıp yerine MODELLENMİŞ bir mesafe konuyordu
+   (CLAUDE.md §1). */
+describe("buildDuckTrace — S/F reseti gerçek mesafe kanalını düşürmez", () => {
+  /* Hız bilerek mesafe kanalıyla TUTARSIZ (190 km/h ≈ 52.78 m/s) ki hangi
+     kaynağın kullanıldığı tur uzunluğundan anlaşılsın:
+       gerçek Lap Dist  → 5000 m/tur
+       hız entegrasyonu → ~5278 m/tur (%5.6 fazla) */
+  const LAP_M = 5000, HZ = 10, LAP_S = 100, N = 4000;
+  const ds = () => ({
+    t0: 0, tEnd: 400,
+    cont: {
+      speed: { hz: HZ, v: Array.from({ length: N }, () => 190) },
+      /* Mesafe kanalı S/F'de sıfırlanır; reset ANI lap olayıyla aynı. */
+      dist: { hz: HZ, v: Array.from({ length: N }, (_, i) => ((i / HZ) % LAP_S) / LAP_S * LAP_M) },
+    },
+    cont4: {},
+    evt: { lap: [0, 1, 2, 3, 4].map((n) => ({ ts: n * LAP_S, value: n })) },
+  });
+
+  for (const M of [200, 400, 601]) {
+    it(`M=${M}: tur uzunluğu GERÇEK kanaldan (~${LAP_M} m), hızdan değil`, () => {
+      const d = ds();
+      const laps = duckLaps(d);
+      const R = buildDuckReaders(d);
+      for (const lap of laps.slice(0, 3)) {
+        const tr = buildDuckTrace(R, lap, M);
+        expect(tr.distUnit).toBe("m");
+        /* %2 tolerans: yalnız SON örnek tek adımlık trapezle ileri taşınıyor.
+           Hız entegrasyonu %5.6 fazla verirdi → bu aralığa giremez. */
+        expect(tr.len).toBeGreaterThan(LAP_M * 0.98);
+        expect(tr.len).toBeLessThan(LAP_M * 1.02);
+      }
+    });
+  }
+
+  it("tur ORTASINDAKİ gerçek geri sıçrama HÂLÂ hız yedeğine düşürür", () => {
+    const d = ds();
+    const half = Math.floor((LAP_S * HZ) / 2);
+    for (let i = half; i < half + 20; i++) d.cont.dist.v[i] = 10;
+    const tr = buildDuckTrace(buildDuckReaders(d), duckLaps(d)[0], 400);
+    expect(tr.len).toBeGreaterThan(LAP_M * 1.02);   // ≈5278 → modellenmiş
+  });
+});
