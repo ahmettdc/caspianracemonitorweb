@@ -509,3 +509,45 @@ describe("rubberPct — TinyPedal tutuş (rubber) tahmini", () => {
     expect(rubberPct("Antrenman", undefined)).toBe(25);
   });
 });
+
+/* REGRESYON (v2.4.1) — SON STİNTİN DOLUMU kendi tur süresini kullanır.
+   `pctForPit` kalan tur sayısını `cd / lapSec` ile buluyordu; `lapSec` YARIŞ
+   ortalamasıdır. Aynı fonksiyon stinte özel VE tüketimini (`stintCons[i+1]`)
+   özenle hesaba katıyor ama tur süresini (`fixLap`, satırda zaten hazır)
+   yok sayıyordu. Son stinte ortalamadan HIZLI bir tur girildiğinde kalan tur
+   BİR EKSİK sayılıyor ve plan bir tur eksik yakıt söylüyordu — yarışta
+   yakıtsız kalmak demek. */
+describe("computePlan — son stintin dolumu stintin KENDİ turunu kullanır", () => {
+  const planWithLastLap = (v) => {
+    const st = { ...DEFAULT_STATE, raceTime: "1:00:00", avgLap: "4:00.00",
+      consumption: 10, strategies: { A: 5, B: 8, C: 10, D: 11 }, chosen: "C",
+      weatherLog: [], pitLaneTime: 20, fuelTime: 40, extraLap: 1,
+      fuelRatio: 0.86, multiclass: false, leaderLap: "" };
+    const plan = computePlan(st, "race");
+    const li = plan.rows.length - 1;          // son stintin indeksi
+    if (!v) return plan;
+    const stintLaps = Array(14).fill("");
+    stintLaps[li] = v;
+    return computePlan({ ...st, stintLaps }, "race");
+  };
+
+  it("hızlı son stint → daha ÇOK tur kalır → daha ÇOK yakıt (eksik dolum yok)", () => {
+    const base = planWithLastLap(null);
+    const fast = planWithLastLap("3:00.00");   // yarış ort. 4:00'ten hızlı
+    expect(base.lastRefuelPct).not.toBe(null);
+    expect(fast.lastRefuelPct).not.toBe(null);
+    expect(fast.lastRefuelPct).toBeGreaterThan(base.lastRefuelPct);
+  });
+
+  it("yavaş son stint → daha AZ tur kalır → daha AZ yakıt (fazla dolum yok)", () => {
+    const base = planWithLastLap(null);
+    const slow = planWithLastLap("5:30.00");
+    expect(slow.lastRefuelPct).toBeLessThan(base.lastRefuelPct);
+  });
+
+  it("son stinte override YOKSA davranış değişmez (yarış ortalaması)", () => {
+    /* Kök-neden koruması: düzeltme yalnız fixLap > 0 iken devreye girmeli. */
+    expect(planWithLastLap(null).lastRefuelPct)
+      .toBeCloseTo(planWithLastLap("").lastRefuelPct, 6);
+  });
+});

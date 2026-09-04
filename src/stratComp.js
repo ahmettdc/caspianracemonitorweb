@@ -285,9 +285,27 @@ export function seedFromPlan(st, plan, tyre2Sec, tyre4Sec) {
   const stops = rows.filter((r) => !r.isLast);
   const pits = stops.length;
 
+  /* Ort. tur: SON stint hariç türetilir.
+     NEDEN (v2.4.1): engine `walkByTime` son stintte BAYRAK turunu tur sayısına
+     ekler (`addBayrak` → `L += 1`) ama o turun SÜRESİ `stintSec`'e girmez
+     (`stintSec = startLeft`, bayrağa kalan süre). Yani `Σ stintSec / totalLaps`
+     bölümünün payı bir turluk süre EKSİK, paydası bir tur FAZLA → sonuç
+     sistematik olarak HIZLI çıkıyordu. Toplam süre sözleşmesi korunduğu için
+     hata görünmüyor, ama ekrandaki "Ort. tur" ve "Tempo farkı /tur" yanlış
+     oluyor ve elle girilmiş rakip satırıyla karşılaştırma sahte avantaj
+     üretiyordu (6 saatlik planda ölçüldü: girilen 2:02.500 → yazılan 2:00.457,
+     24 saatte 3:29.000 → 3:25.907).
+     Son stint hariç satırlar bayrak turu taşımadığı için bölüm girdiyi birebir
+     geri verir. Tek stintli planda (son-hariç satır yok) bayrak turunu paydadan
+     düşmek aynı işi görür. */
   const stintTotal = rows.reduce((a, r) => a + (num(r.stintSec) ?? 0), 0);
   if (!(stintTotal > 0)) return null;
-  const avgLapSec = stintTotal / totalLaps;
+  const mid = rows.filter((r) => !r.isLast);
+  const midSec = mid.reduce((a, r) => a + (num(r.stintSec) ?? 0), 0);
+  const midLaps = mid.reduce((a, r) => a + (num(r.lapsInStint) ?? 0), 0);
+  const avgLapSec = midLaps > 0 && midSec > 0
+    ? midSec / midLaps
+    : stintTotal / Math.max(1, totalLaps - 1);
 
   const tyreTotal = stops.reduce((a, r) => a + tyreSecOf(r.tyreCount), 0);
   const tyreCount = stops.filter((r) => (num(r.tyreCount) ?? 0) > 0).length;

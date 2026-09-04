@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { computePlan, DEFAULT_STATE, migrate } from "./engine";
 import { num, parseLapSec, fmtLapMs, teamTime, compareTeams, rankTeams,
   stintWarnings, seedFromPlan, suggestedLaps, strategyOptions, trackDefaults,
   EMPTY_TEAM, REQUIRED_FIELDS } from "./stratComp";
@@ -275,7 +276,10 @@ describe("seedFromPlan — planın GERÇEK toplamlarını yeniden üretir", () =
   /* REGRESYON — plan.lapSec yalnız yarış SONU havasının çarpanını taşır
      (engine: baseLap × endWx.lap). Kuru→ıslak bir planda bunu tüm yarışa
      uygulamak tempoyu şişiriyordu: ölçülen sapma 6 saatlik dry→xwet planda
-     +1.606 sn (≈ 27 dk). Ortalama tur artık Σ stintSec / totalLaps. */
+     +1.606 sn (≈ 27 dk). Ortalama tur artık planın gerçek stint süresinden
+     türetiliyor (v2.4.1'den beri SON stint hariç — aşağıdaki gerçek-plan
+     bloğuna bak; bu fikstürde satırlar birebir tutarlı olduğu için iki
+     türetme de aynı sayıyı verir). */
   it("ortalama tur planın GERÇEK stint toplamından gelir, lapSec'ten DEĞİL", () => {
     expect(seed.avgLap).toBe("2:00.000");        // 12000 sn / 100 tur
     expect(parseLapSec(seed.avgLap) * 100).toBeCloseTo(12000, 6);
@@ -401,5 +405,47 @@ describe("trackDefaults — pistten otomatik doldurma", () => {
   it("bozuk girdide çökmez", () => {
     expect(trackDefaults(null, null, null, null)).toEqual({ pitLane: null, avgLap: null });
     expect(trackDefaults("lemans", "gt3", {}, PLT)).toEqual({ pitLane: 31, avgLap: null });
+  });
+});
+
+/* REGRESYON (v2.4.1) — BAYRAK TURU TUZAĞI.
+   engine `walkByTime` son stintte bayrak turunu tur sayısına ekler
+   (`addBayrak` → `L += 1`) ama o turun SÜRESİ `stintSec`'e girmez
+   (`stintSec = startLeft`, bayrağa kalan süre). Dolayısıyla
+   `Σ stintSec / totalLaps` bölümünün payı bir turluk süre EKSİK, paydası bir
+   tur FAZLA → tohumlanan satırın "Ort. tur"u sistematik olarak HIZLI çıkıyordu.
+   Toplam süre sözleşmesi korunduğu için hata ekranda görünmüyordu, ama
+   kullanıcının elle girdiği rakip satırıyla karşılaştırma SAHTE avantaj
+   üretiyordu. Ölçülen (v2.4.0): girilen 2:02.500 → yazılan 2:00.457,
+   24 saatlik planda 3:29.000 → 3:25.907.
+   Bu blok fikstür değil GERÇEK `computePlan` kullanır — tuzak yalnız orada
+   doğuyor, elle kurulmuş satırlarda değil. */
+describe("seedFromPlan — gerçek computePlan: ort. tur girdiyi birebir verir", () => {
+  const cases = [
+    ["6:00:00", "2:02.500", "D"],
+    ["24:00:00", "3:29.000", "B"],
+    ["2:24:00", "3:59.500", "C"],
+    ["0:30:00", "2:00.000", "A"],
+  ];
+  for (const [raceLen, avgLap, strategy] of cases) {
+    it(`${raceLen} · ${strategy} · ${avgLap}`, () => {
+      const st = migrate({ ...DEFAULT_STATE, raceLen, avgLap, consumption: 8.97, strategy });
+      const plan = computePlan(st);
+      const seed = seedFromPlan(st, plan, 5, 12);
+      expect(seed).not.toBe(null);
+      /* Kuru planda (hava çarpanı 1) tohumlanan ort. tur girilen turun TA
+         KENDİSİ olmalı — 1 ms tolerans yalnız fmtLapMs yuvarlaması için. */
+      expect(parseLapSec(seed.avgLap)).toBeCloseTo(parseLapSec(avgLap), 2);
+    });
+  }
+
+  it("son stint hariç türetme bayrak turunu paydaya sokmaz", () => {
+    const st = migrate({ ...DEFAULT_STATE, raceLen: "6:00:00", avgLap: "2:02.500",
+      consumption: 8.97, strategy: "D" });
+    const plan = computePlan(st);
+    const naive = plan.rows.reduce((a, r) => a + r.stintSec, 0) / plan.totalLaps;
+    /* Naif bölüm HÂLÂ hızlı olmalı — yoksa bu test hatayı yakalamıyor demektir. */
+    expect(naive).toBeLessThan(parseLapSec("2:02.500") - 0.05);
+    expect(parseLapSec(seedFromPlan(st, plan, 5, 12).avgLap)).toBeGreaterThan(naive);
   });
 });
