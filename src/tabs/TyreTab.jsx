@@ -195,7 +195,13 @@ export default function TyreTab({
 
   const t12 = Number.isFinite(Number(st.tyreChangeT12)) ? Number(st.tyreChangeT12) : 4.5;
   const t34 = Number.isFinite(Number(st.tyreChangeT34)) ? Number(st.tyreChangeT34) : 12;
-  const plan = planChanges(st.tyreStints);
+  /* Plan uzunluğuyla SINIRLA — ızgara 14 satır sabit, plan kısalınca artakalan
+     satırlar KPI'ya ve eşlemeye sızıyordu (bkz. tyreLedger.planChanges). */
+  /* Plan uzunluğuyla SINIRLA — ızgara 14 satır sabit, plan kısalınca artakalan
+     satırlar KPI'ya ve eşlemeye sızıyordu (bkz. tyreLedger.planChanges).
+     tyreInfo.rows'un ilk satırı "Qual" olduğu için plan stint sayısı = uzunluk - 1. */
+  const planLen = Math.max(0, (tyreInfo?.rows?.length || 0) - 1);
+  const plan = planChanges(st, planLen);
   const tyChangeSum = plan.reduce((s, c) => s + changeTimeOf(c.n, t12, t34), 0);
   const cmp = comparePlan(plan, ledger);
   const cmpOff = cmp.filter((r) => r.state === "diff" || r.state === "extra").length;

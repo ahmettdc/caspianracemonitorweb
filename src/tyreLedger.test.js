@@ -89,24 +89,55 @@ describe("ledgerSummary", () => {
   });
 });
 
-describe("planChanges (mevcut grid'den türetilir)", () => {
-  /* state.js semantiği: boş hücre = taşı, dolu hücre = o köşede pit işlemi. */
-  it("stint satırındaki DOLU hücre sayısı = takılan lastik", () => {
-    expect(planChanges([
-      ["1", "2", "3", "4"],      // S1: 4 lastik
-      ["", "", "", ""],          // S2: taşıma → değişim yok
-      ["5", "6", "", ""],        // S3: 2 lastik (ön)
-    ])).toEqual([
-      { stint: 1, n: 4, corners: [0, 1, 2, 3] },
-      { stint: 3, n: 2, corners: [0, 1] },
+/* v2.4.1 — planChanges artık `st.pits[i].tyres` BAYRAKLARINDAN türetiliyor,
+   `tyreStints` ızgarasından değil. Gerekçe (üç hata) tyreLedger.js başlığında;
+   özet: (1) S1 yarış öncesi takmadır, pit değildir — sayılınca hem KPI şişiyor
+   hem defterle eşleme bir kayıyordu, (2) plan kısalınca artakalan ızgara
+   satırları KPI'ya sızıyordu, (3) "aynı seti tekrar yaz" engine'de 0 sn iken
+   KPI'da 12 sn görünüyordu. Bayraklar bu üç kuralı zaten uyguluyor ve engine
+   lastik süresini de onlardan alıyor. */
+describe("planChanges (pit bayraklarından türetilir)", () => {
+  /* pits[i] = stint i+1'den SONRAKİ durak; taktığı lastikler stint i+2'de koşulur.
+     Bayrak 0 = taşı, > 0 = gerçek işlem (bkz. state.pitTyreFlag). */
+  const st = (flags) => ({ pits: flags.map((f) => ({ tyres: f })) });
+
+  it("bayrağı > 0 olan köşeler değişimdir; etiket KOŞULAN stint", () => {
+    expect(planChanges(st([
+      [1, 1, 1, 1],      // S1 sonrası durak → S2'de 4 lastik
+      [0, 0, 0, 0],      // taşıma → değişim yok
+      [1, 1, 0, 0],      // S3 sonrası durak → S4'te 2 lastik (ön)
+    ]))).toEqual([
+      { stint: 2, n: 4, corners: [0, 1, 2, 3] },
+      { stint: 4, n: 2, corners: [0, 1] },
     ]);
   });
-  it("boşluk yalnız boşluksa taşıma sayılır", () => {
-    expect(planChanges([["  ", "", null, undefined]])).toEqual([]);
+
+  it("REGRESYON: S1 START lastiği değişim SAYILMAZ", () => {
+    /* Izgarada S1 doluydu ve eskiden 1. değişim sayılıyordu; pits dizisi onu
+       hiç taşımaz, dolayısıyla listede de yoktur. */
+    const r = planChanges(st([[1, 1, 1, 1]]));
+    expect(r).toHaveLength(1);
+    expect(r[0].stint).toBe(2);          // S1 DEĞİL
   });
+
+  it("REGRESYON: plan uzunluğu dışındaki duraklar sayılmaz", () => {
+    const flags = st([[1, 1, 1, 1], [0, 0, 0, 0], [0, 0, 0, 0],
+      [1, 1, 1, 1], [1, 1, 0, 0]]);      // S5 ve S6 sonrası duraklar
+    expect(planChanges(flags, 4)).toEqual([                 // 4 stint → en fazla 3 durak
+      { stint: 2, n: 4, corners: [0, 1, 2, 3] },
+    ]);
+    expect(planChanges(flags)).toHaveLength(3);             // sınırsız → hepsi
+  });
+
+  it("REGRESYON: 'aynı seti tekrar yaz' (bayrak 0) değişim değildir", () => {
+    expect(planChanges(st([[0, 0, 0, 0]]))).toEqual([]);
+  });
+
   it("bozuk girdide çökmez", () => {
     expect(planChanges(null)).toEqual([]);
-    expect(planChanges(["metin"])).toEqual([]);
+    expect(planChanges({})).toEqual([]);
+    expect(planChanges({ pits: "metin" })).toEqual([]);
+    expect(planChanges({ pits: [{}, { tyres: "x" }] })).toEqual([]);
   });
 });
 
