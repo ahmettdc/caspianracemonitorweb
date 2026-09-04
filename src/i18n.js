@@ -1630,4 +1630,6 @@ export const EN = {
   "Pencere": "Window",
   "Geçersiz süre — yok sayıldı. Saat:dakika:saniye yazın (örn. 0:53:15 ya da 53:15). Düz sayı saniye demektir ve stint süresi olamaz.": "Invalid duration — ignored. Write hours:minutes:seconds (e.g. 0:53:15 or 53:15). A bare number means seconds and cannot be a stint length.",
   "Yazma başarısız — bağlantını kontrol et": "Write failed — check your connection",
+  "Tur tur ölçüm (köprü kaydı)": "Lap-by-lap measurement (bridge log)",
+  "En kritik köşe": "Limiting corner",
 };

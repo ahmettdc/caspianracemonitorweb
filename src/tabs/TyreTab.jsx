@@ -17,7 +17,8 @@
    · TY_STINT_LAPS gerçek plandan (stintLaps); plan yoksa fişin 19'una düşer. */
 import { useEffect, useState } from "react";
 import { Icon } from "../components";
-import { liveTyreSubscribe, liveLapsSubscribe } from "../storage";
+import { liveTyreSubscribe, liveWearSubscribe, liveLapsSubscribe } from "../storage";
+import { wearSeries, wearRates, limitingCorner } from "../lapWear";
 import { buildLedger, ledgerSummary, planChanges, comparePlan } from "../tyreLedger";
 import { popRows, popBlockedAt } from "../tyrePlanCalc";
 
@@ -73,11 +74,19 @@ export default function TyreTab({
   /* Lastik defteri — köprünün livetyre kaydı (v2.3.0). Elle giriş yok. */
   const [tyreLog, setTyreLog] = useState(null);
   const [lapMap, setLapMap] = useState(null);
+  /* TUR BAŞI DİŞ geçmişi (livewear). Köprü bunu HER TUR zaten yazıyordu
+     (harvest.py) ama v2.4.1'e kadar hiçbir ekran okumuyordu: lapWear.js (180
+     satır + 20 test) ve liveWearSubscribe ölü yoldu — oyun PC'sinde ödenen
+     maliyetin karşılığı alınmıyordu. Ek maliyet YOK: aynı düğüm, tek abonelik. */
+  const [wearLog, setWearLog] = useState(null);
   useEffect(() => {
-    if (!tid || !rid || !lapKey) { setTyreLog(null); setLapMap(null); return undefined; }
+    if (!tid || !rid || !lapKey) {
+      setTyreLog(null); setLapMap(null); setWearLog(null); return undefined;
+    }
     const a = liveTyreSubscribe(tid, rid, lapKey, setTyreLog);
     const b = liveLapsSubscribe(tid, rid, lapKey, setLapMap);
-    return () => { a(); b(); };
+    const c = liveWearSubscribe(tid, rid, lapKey, setWearLog);
+    return () => { a(); b(); c(); };
   }, [tid, rid, lapKey]);
 
   /* Pencere/menü durumları — ekrana özel, state'e yazılmaz (fiş: tyPick/tyQuick/tyLog) */
@@ -212,15 +221,38 @@ export default function TyreTab({
     const v = ["fl", "fr", "rl", "rr"].map((k) => Number(ownTyres && ownTyres[k] && ownTyres[k].wear));
     return v.every((x) => Number.isFinite(x) && x >= 0 && x <= 1) ? v : null;
   })();
-  const tyMeas = (() => {
+  /* BİRİNCİL ÖLÇÜM: köprünün tur tur yazdığı diş geçmişi (lapWear).
+     Neden daha iyi: `cornerSegments` her KÖŞENİN kendi dönemini diş artışından
+     bulur, yani KISMİ değişimi (yalnız ön ikili) de doğru çözer ve hız iki
+     gerçek okuma arasındaki farktan gelir. Aşağıdaki yedek yalnız "4 lastik
+     birden değişmiş + dönem açık" halinde çalışıyor ve dişin stint başında
+     tam 1.00 olduğunu VARSAYIYOR. */
+  const wearMeas = (() => {
+    const series = wearSeries(wearLog);
+    if (series.length < 2) return null;
+    const rates = wearRates(series);
+    const perLap = rates.map((r) => r.perLap);
+    if (!perLap.every((v) => Number.isFinite(v) && v > 0)) return null;
+    const lim = limitingCorner(series);
+    const tread = rates.map((r) => (Number.isFinite(r.tread) ? r.tread : null));
+    const laps = series[series.length - 1].lap - series[0].lap;
+    return { laps, perLap, avg: perLap.reduce((a, b) => a + b, 0) / 4,
+      tread: tread.every((x) => x != null) ? tread : liveTread, lim, src: "log" };
+  })();
+
+  /* YEDEK: anlık diş + defterdeki açık dönem. lapWear serisi henüz iki tura
+     ulaşmadıysa (yeni takılmış lastik) devreye girer. */
+  const tyMeasFallback = (() => {
     const p = ledger.length ? ledger[ledger.length - 1] : null;
     if (!p || p.n !== 4 || !p.open || !liveTread) return null;
     const laps = Number(lastLapNo) - Number(p.fromLap);
     if (!(laps >= 1)) return null;
     const perLap = liveTread.map((x) => (1 - x) / laps);
     if (!perLap.every((v) => v > 0)) return null;
-    return { laps, perLap, avg: perLap.reduce((a, b) => a + b, 0) / 4, tread: liveTread };
+    return { laps, perLap, avg: perLap.reduce((a, b) => a + b, 0) / 4,
+      tread: liveTread, lim: null, src: "anlik" };
   })();
+  const tyMeas = wearMeas || tyMeasFallback;
 
   const wetCount = tyWet;
   const kpiL = { color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".1em" };
@@ -362,7 +394,7 @@ export default function TyreTab({
           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
             {!!tyMeas && (
               <button onClick={() => !readOnly && up({ tyreWearC: tyMeas.perLap.map((v) => r1(v * 100)) })}
-                title={`${t("Canlı ölçüm")} · ${tyMeas.laps} ${t("tur")} — ${t("kalan diş")} ${CORNERS.map((c, i) => `${c} %${Math.round(tyMeas.tread[i] * 100)}`).join(" · ")}\n${t("Tıkla: dört köşeye ayrı ayrı uygula")} (${tyMeas.perLap.map((v) => `%${(v * 100).toFixed(1)}`).join(" ")}/${t("tur")})`}
+                title={`${tyMeas.src === "log" ? t("Tur tur ölçüm (köprü kaydı)") : t("Canlı ölçüm")} · ${tyMeas.laps} ${t("tur")} — ${t("kalan diş")} ${CORNERS.map((c, i) => `${c} %${Math.round(tyMeas.tread[i] * 100)}`).join(" · ")}${tyMeas.lim ? `\n${t("En kritik köşe")}: ${tyMeas.lim.corner} — ${t("kalan tur")} ~${Math.floor(tyMeas.lim.left)}` : ""}\n${t("Tıkla: dört köşeye ayrı ayrı uygula")} (${tyMeas.perLap.map((v) => `%${(v * 100).toFixed(1)}`).join(" ")}/${t("tur")})`}
                 style={{ padding: "6px 10px", borderRadius: 8, cursor: readOnly ? "not-allowed" : "pointer", fontSize: 11.5, whiteSpace: "nowrap", border: "1px solid var(--rc-ok)", background: "transparent", color: "var(--rc-ok)" }}>
                 {t("ölçülen")} ⌀%{(tyMeas.avg * 100).toFixed(1)}/{t("tur")} →</button>
             )}
