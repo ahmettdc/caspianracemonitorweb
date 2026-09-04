@@ -729,11 +729,22 @@ class RF2Source:
         }
 
         # telemetriyi mID ile eşle (saha başına lastik aşınması + hasar için)
+        #
+        # Sınır TELEMETRİ buffer'ının KENDİ mNumVehicles'ı olmalı — scoring'in `num`u
+        # değil. Telemetri online'da scoring'den AZ araç yayınlar; scoring sayısıyla
+        # tarayınca eklentinin hiç yazmadığı slotlar da taranır ve bunların mID'si 0
+        # (ya da önceki lobiden kalma) olduğu için `tele_by_id[0] = boş_kayıt` ataması
+        # slot 0'daki GERÇEK aracın telemetrisini ezer → o araç için tyres4=[0,0,0,0],
+        # tyreWear=0, damage=0 (uydurma sıfır — CLAUDE.md §1). Maliyeti tek getattr.
+        tnum = int(getattr(tele, "mNumVehicles", 0) or 0)
         tele_by_id = {}
         player_et = 0.0        # oyuncunun telemetri saati — rakip karesi ne kadar geride?
-        for i in range(min(num, len(tele.mVehicles))):
+        for i in range(min(tnum, len(tele.mVehicles))):
             tv = tele.mVehicles[i]
-            tele_by_id[int(getattr(tv, "mID", -1))] = tv
+            tid_ = int(getattr(tv, "mID", -1))
+            if tid_ < 0:       # yazılmamış/geçersiz slot — eşlemeye girmesin
+                continue
+            tele_by_id[tid_] = tv
             if bool(getattr(tv, "mIsPlayer", 0)):
                 player_et = float(getattr(tv, "mElapsedTime", 0.0) or 0.0)
 

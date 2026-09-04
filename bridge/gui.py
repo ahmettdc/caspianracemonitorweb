@@ -94,9 +94,14 @@ def _logo_paths():
 
 
 class BridgeGUI:
-    def __init__(self, root, config_path):
+    def __init__(self, root, config_path, no_rest=False):
         self.root = root
         self.cfg = config_path
+        # --no-rest ile açıldıysa REST'i KAPAT. Arayüzde toggle yok (v1.7.3'te
+        # kaldırıldı, REST varsayılan AÇIK); ama bayrak veriliyorsa donma teşhisi
+        # yapılıyordur ve BU YOLA DA ulaşmalı. Eskiden launch() bayrağı hiç
+        # taşımıyordu → `--no-rest` çift tıklama/arayüz yolunda sessizce yok sayılıyordu.
+        self.force_no_rest = bool(no_rest)
         self.stop_evt = threading.Event()
         self.worker = None
         self.tray = None          # sistem tepsisi ikonu (pystray) — lazy
@@ -928,19 +933,26 @@ class BridgeGUI:
         hz_txt = f"{hz:g}"
         self.root.after(0, lambda: self.live_sub.set(
             f"teams/…{tid[-4:]}/live/…{rid[-4:]} · {hz_txt} Hz · "
-            f"{self.L('REST 3 s', 'REST 3 sn')}"))
-        # §2.1/2.3: REST HEP AÇIK, yenileme 3 sn SABİT (kullanıcı toggle'ı kaldırıldı).
-        self.lg.info("=== Köprü başladı === hedef teams/%s/live/%s · %g Hz · REST:AÇIK (3s) · öncelik:%s",
-                     tid, rid, hz, "düşük" if low else "normal")
-        self.log(self.L(f"REST: ON — background 3s · priority: {'low' if low else 'normal'}",
-                        f"REST: AÇIK — arka plan 3s · öncelik: {'düşük' if low else 'normal'}"))
+            f"{self.L('REST off', 'REST kapalı') if self.force_no_rest else self.L('REST 3 s', 'REST 3 sn')}"))
+        # §2.1/2.3: REST varsayılan AÇIK, yenileme 3 sn SABİT (kullanıcı toggle'ı kaldırıldı).
+        # Tek istisna: `--no-rest` bayrağı. Donma teşhisi yapan kullanıcı bunu verir ve
+        # bayrak artık bu yola da ulaşıyor (eskiden launch() taşımıyordu).
+        no_rest = self.force_no_rest
+        rest_txt = "KAPALI (--no-rest)" if no_rest else "AÇIK (3s)"
+        self.lg.info("=== Köprü başladı === hedef teams/%s/live/%s · %g Hz · REST:%s · öncelik:%s",
+                     tid, rid, hz, rest_txt, "düşük" if low else "normal")
+        self.log(self.L(
+            f"REST: {'OFF (--no-rest)' if no_rest else 'ON — background 3s'} · "
+            f"priority: {'low' if low else 'normal'}",
+            f"REST: {'KAPALI (--no-rest)' if no_rest else 'AÇIK — arka plan 3 sn'} · "
+            f"öncelik: {'düşük' if low else 'normal'}"))
         try:
             fb = self._client()
             self.log(self.L("[firebase] signing in…", "[firebase] giriş…"))
             fb.sign_in()
             self.log(self.L(f"Signed in — UID: {fb.uid}", f"Giriş yapıldı — UID: {fb.uid}"))
             self.lg.info("giriş OK — UID %s", fb.uid)
-            src = make_source(False, False, 3.0)   # mock=False, no_rest=False (REST açık), aralık 3s
+            src = make_source(False, no_rest, 3.0)   # mock=False, REST 3 sn (--no-rest ile kapanır)
             self.log(self.L("Reading game (shared memory)", "Oyun (paylaşımlı bellek) okunuyor"))
         except Exception as e:  # noqa: BLE001
             self.log(f"başlatılamadı: {e}")
@@ -1058,11 +1070,11 @@ class BridgeGUI:
             self._real_quit()
 
 
-def launch(config_path=None):
+def launch(config_path=None, no_rest=False):
     _hide_console()
     if not config_path:
         from logfile import default_config_path
         config_path = default_config_path()
     root = tk.Tk()
-    BridgeGUI(root, config_path)
+    BridgeGUI(root, config_path, no_rest)
     root.mainloop()

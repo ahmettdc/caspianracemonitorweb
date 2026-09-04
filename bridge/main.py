@@ -178,9 +178,13 @@ def fb_from_cfg(cp):
             f.get("email", ""))
 
 
-def cmd_dump(mock):
-    """Kaynaktan bir örnek oku ve JSON bas — Firebase'e dokunma."""
-    src = make_source(mock)
+def cmd_dump(mock, no_rest=False):
+    """Kaynaktan bir örnek oku ve JSON bas — Firebase'e dokunma.
+
+    `--no-rest` buraya da geçer: bu komut donma teşhisi için kullanılıyor ve
+    eskiden bayrağı yok sayıp LMU REST'e istek atıyordu (yani teşhis komutu
+    teşhis edilen yükü kendisi üretiyordu)."""
+    src = make_source(mock, no_rest)
     try:
         payload = build_payload(src, "dump")
     finally:
@@ -242,7 +246,7 @@ def cmd_check_plugin():
               "\nen güvenli değerle başla, sorun çıkmazsa bir üst kademeye geç.")
 
 
-def cmd_dump_wx(mock):
+def cmd_dump_wx(mock, no_rest=False):
     """HAVA DOĞRULAMA modu — Firebase'e dokunmaz, sürekli çalışır (Ctrl+C ile çık).
 
     Neden: uygulamada yağış/ıslaklık yüzdesini kelimeye çeviriyoruz (Damp, Slightly
@@ -271,7 +275,7 @@ def cmd_dump_wx(mock):
               "(mock modda zaten sorgulanmaz).")
     print("\n[canlı] saniyede bir: ıslaklık ve yağış. Oyundaki yazıyla karşılaştır.\n"
           "        (Ctrl+C ile çık)\n")
-    src = make_source(mock)
+    src = make_source(mock, no_rest)
     try:
         while True:
             t0 = time.time()
@@ -514,10 +518,10 @@ def main():
             cmd_emit(args.mock, args.hz, args.no_rest)
             return
         if args.dump:                     # kaynağı göster — Firebase/config gerekmez
-            cmd_dump(args.mock)
+            cmd_dump(args.mock, bool(args.no_rest))
             return
         if args.dump_wx:                  # hava sözlüğü + canlı yüzdeler (doğrulama)
-            cmd_dump_wx(args.mock)
+            cmd_dump_wx(args.mock, bool(args.no_rest))
             return
         if args.check_plugin:             # performans teşhisi — yalnız OKUR
             cmd_check_plugin()
@@ -537,7 +541,7 @@ def main():
             print(f"[arayüz açılamadı: {e}] — config.ini ile çalışılıyor.")
             run_loop(read_config_or_die(args.config), False, False, no_rest=nr)
             return
-        launch(args.config)
+        launch(args.config, no_rest=bool(args.no_rest))
     except SystemExit:
         raise
     except KeyboardInterrupt:

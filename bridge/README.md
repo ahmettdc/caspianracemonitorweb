@@ -26,13 +26,18 @@ tüm takım için salt-okunur gösterir.
 > aynı paylaşımlı belleği okur. Sürücü bunu çalıştırır, mühendisler canlıyı **web'den**
 > izler.
 
-> 🧊 **Oyun DONUYORSA (v1.4.130+):** köprüdeki **"⚡ REST aç"** kutusunu **KAPALI bırak**
-> (varsayılan kapalı). LMU REST, oyunun kendi localhost sunucusuna saniyede birkaç istek
-> attığı için donmanın en güçlü sebebidir. Kapalıyken pozisyon/tur/gap/lastik **ve
-> bayraklar (sarı/FCY dahil, v2.2.4)** yine çalışır; yalnız **VE%** ve **gerçek takım
-> adı** gelmez. Köprü ayrıca artık **düşük öncelikte**
-> çalışır (oyun çekişmede kazanır). Donma bittiyse ve VE/takım istiyorsan kutuyu aç; donma
-> geri gelirse REST sebep demektir, kapalı bırak.
+> 🧊 **Oyun DONUYORSA:** köprüyü **`--no-rest` ile** başlat — LMU REST kapanır.
+> ```
+> CaspianLiveBridge.exe --no-rest
+> ```
+> LMU REST, oyunun kendi localhost sunucusuna saniyede birkaç istek attığı için donmanın
+> en güçlü sebebidir. v1.7.3'ten beri arayüzde REST **varsayılan AÇIK** (3 sn sabit) ve
+> eski **"⚡ REST aç" kutusu kaldırıldı** — bu yüzden tek kaldıraç bayraktır. **v2.4.1'e
+> kadar bu bayrak arayüz yolunda çalışmıyordu** (çift tıklamayla açtığında sessizce yok
+> sayılıyordu); artık `--dump` ve `--dump-wx` teşhis komutlarında da geçerli.
+> REST kapalıyken pozisyon/tur/gap/lastik **ve bayraklar (sarı/FCY dahil, v2.2.4)** yine
+> çalışır; yalnız **VE%** ve **gerçek takım adı** gelmez. Köprü ayrıca **düşük öncelikte**
+> çalışır (oyun çekişmede kazanır). Donma bayrakla geçiyorsa sebep REST demektir.
 
 > 📦 **Kurulumla birlikte (v1.4.128+):** masaüstü **setup.exe**'yi kurunca hafif köprü
 > (`CaspianLiveBridge.exe`) de kurulur ve **Başlat menüsüne "Caspian Hafif Kopru"** kısayolu
