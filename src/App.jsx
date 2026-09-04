@@ -691,7 +691,7 @@ export default function App() {
         return { html: parts.length ? parts.join("") : `<span class="svc n">${esc(t("geçiş"))}</span>` };
       };
       html = mkTable(
-        ["#", "Stint", t("Tur"), "Start", "Finish", t("Pilot"), t("Servis"), "Pit", "End Stint", "Time Left"],
+        ["#", "Stint", t("Tur sayısı"), "Start", "Finish", t("Pilot"), t("Servis"), "Pit", "End Stint", "Time Left"],
         rows.map((r, i) => {
           const dp = driverPlan?.rows?.[i];
           return [
@@ -1402,7 +1402,7 @@ ${bottomBar}
                         <input id="avfile" type="file" accept={IMG_ACCEPT_TYPES.join(",")} style={{ display: "none" }}
                           onChange={(e) => { onAvatarFile(e.target.files?.[0]); e.target.value = ""; }} />
                         <button disabled={avBusy} onClick={() => document.getElementById("avfile")?.click()}
-                          style={{ padding: "6px 13px", borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer", fontSize: 12 }}>{avBusy ? t("Yükleniyor…") : t("Yükle")}</button>
+                          style={{ padding: "6px 13px", borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text)", cursor: "pointer", fontSize: 12 }}>{avBusy ? t("Yüklüyor…") : t("Yükle")}</button>
                         {(myAvatar || avStage) && (
                           <button disabled={avBusy} onClick={async () => { setAvStage(""); setAvErr(""); await clearUserAvatar(user.uid).catch(() => {}); setMyAvatar(""); }}
                             style={{ padding: "6px 13px", borderRadius: 8, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-3)", cursor: "pointer", fontSize: 12 }}>{t("Kaldır")}</button>
