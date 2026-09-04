@@ -33,6 +33,16 @@ import { liveTrackSave, liveTrackSubscribe,
    tam metre koordinatlarla 480 kutuda 7570 karakter veriyor; 600'de kırpılıyor. */
 const NB = 480;
 const BRAND = "#960018";        // ana tema
+/* PİT GİRİŞ/ÇIKIŞ renkleri — TEMA DUYARLI (v2.4.1).
+   PIT OUT sabit "#fff" ile çiziliyordu. Kartın zemini .card{background:var(--panel)}
+   ve açık temada --panel = #FFFFFF → kontrast 1.00, yani çizgi de etiket de
+   TAMAMEN GÖRÜNMEZ oluyordu (PIT IN yeşil olduğu için görünüyordu; kullanıcı
+   yalnız birini görüyordu). "⛶ Büyüt" penceresi de aynı zemini kullanıyor.
+   "⧉ Pencere" ayrı penceresinin zemini sabit koyu olduğu için orada sorun
+   yoktu — aynı SVG üç zeminde farklı davranıyordu.
+   --rc-text iki temada da zemine göre okunur (koyuda #F3EAEC, açıkta #1B1215). */
+const PIT_IN_COL = "#37D67A";
+const PIT_OUT_COL = "var(--rc-text)";
 const SECTOR_COL = "#5aa9e6";   // sektör ayırıcı (S/F kırmızısından ayrışan soğuk mavi)
 const ROAD_W = 20;              // yol bandı kalınlığı ≈ araç dairesi çapı (araç içine oturur)
 const ROAD_COL = "var(--line2)"; // yol rengi (siyah zeminde okunur; renkli noktalar üstte)
@@ -529,8 +539,8 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
     );
   };
   const pitMarks = pitFr
-    ? [pitLine(pitFr.entry, "#37D67A", "PIT IN", "pit-in"),
-       pitLine(pitFr.exit, "#fff", "PIT OUT", "pit-out")]
+    ? [pitLine(pitFr.entry, PIT_IN_COL, "PIT IN", "pit-in"),
+       pitLine(pitFr.exit, PIT_OUT_COL, "PIT OUT", "pit-out")]
     : null;
 
   /* ---- PİT ÇIKIŞ TAHMİNİ (v2.3.0) — TinyPedal draw_pitout_prediction ----
@@ -611,8 +621,8 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
           {CAR_CLASSES.find(([cid]) => cid === id)?.[1] || id}</span>
       ))}
       <span><i style={{ background: "#fff", boxShadow: `0 0 0 2px ${BRAND}` }} /> {t("Sen")}</span>
-      {pitMarks && <><span><i style={{ background: "#37D67A" }} /> {t("Pit giriş")}</span>
-        <span><i style={{ background: "#fff" }} /> PIT OUT</span></>}
+      {pitMarks && <><span><i style={{ background: PIT_IN_COL }} /> {t("Pit giriş")}</span>
+        <span><i style={{ background: PIT_OUT_COL }} /> PIT OUT</span></>}
       {pitOutMarks && <span><i style={{ background: PREDICT_COL }} /> {t("Pit çıkış tahmini (sn)")}</span>}
     </div>
   );

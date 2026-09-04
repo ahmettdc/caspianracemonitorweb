@@ -119,6 +119,66 @@ export const css = `
   --focus:var(--accent);
   --sel-bg:rgba(150,0,24,.12); --sel-bg-soft:rgba(150,0,24,.06);
   --sel-border:var(--accent);
+
+  /* --- v2.4.1: --rc-* TASARIM TOKENLARININ AÇIK TEMA KARŞILIĞI ---
+     Bu blok eskiden YALNIZ eski tokenları (--bg/--panel/--txt/--line/--accent…)
+     rol-swap ediyordu; oysa kabuk ve tüm sekmeler v2.0'dan beri --rc-* ile
+     çiziliyor (2551 kullanım vs eski tokenlarda 54). Sonuç: açık temada yalnız
+     sayfa zemini ve dört .card aydınlanıyor, nav rayı / üst çubuk / modallar /
+     komut paleti / sekme içerikleri KOYU kalıyordu — ve zemini eski token'dan,
+     metni --rc-*'tan alan yerlerde okunmaz kontrast çıkıyordu (--rc-text
+     #F3EAEC ile #FFFFFF: 1.18).
+     Ölçü/tipografi tokenları (--rc-fs-*, --rc-sp-*, --rc-r-*, --rc-ls-*,
+     --rc-font-*) temadan bağımsız — burada YOKLAR, bilerek. */
+
+  /* zeminler: koyu rampanın aynası */
+  --rc-bg:#F4EEF0; --rc-surface:#FFFFFF; --rc-surface-2:#FAF5F6;
+  --rc-surface-3:#F2E9EC; --rc-surface-4:#F8F2F4; --rc-surface-5:#F1E7EA;
+  --rc-surface-6:#F6EDEF; --rc-surface-7:#F1E8EA;
+  --rc-surface-inset:#EBE1E5; --rc-track-2:#DCCBD1;
+
+  /* çizgi/kenarlık: koyudan açığa değil, açıktan koyuya doğru okunur */
+  --rc-line-soft:#EADCE0; --rc-border:#DCC9D0; --rc-border-strong:#C4ACB4;
+  --rc-border-hi:#AF959E; --rc-border-mute:#9C828B; --rc-icon-off:#9B8189;
+
+  /* metin rampası TERS çevrildi (en koyu = birincil) */
+  --rc-text:#1B1215; --rc-text-2:#4A3A40; --rc-text-3:#6C5A61;
+  --rc-text-4:#87737B; --rc-text-5:#9C8A91; --rc-text-6:#A08A92;
+
+  /* marka: #960018 korunur; parlak/derin tonlar açık zemin için koyulaştırıldı.
+     --rc-on-brand marka DOLGUSU üstündeki metin → iki temada da açık kalır. */
+  --rc-brand:#960018; --rc-brand-bright:#B3243C; --rc-brand-deep:#A5182F;
+
+  /* anlamsal renkler: açık zeminde okunacak kadar koyulaştırıldı
+     (koyu temadaki parlak tonlar beyaz üstünde 1.5-2.0 kontrast veriyordu) */
+  --rc-ok:#128A4D; --rc-ok-2:#0F8A52; --rc-ok-3:#12874C; --rc-ok-soft:#2F9E63;
+  --rc-warn:#A9700A; --rc-warn-2:#9C6D08; --rc-warn-3:#9A6C08;
+  --rc-flag-yellow:#9C7407; --rc-warn-text:#7A5205;
+  --rc-danger:#C62330; --rc-danger-2:#C22246; --rc-danger-3:#C0402C;
+  --rc-danger-soft:#B03340;
+  --rc-info:#1667D4; --rc-delta:#1569D6; --rc-info-2:#2F62CC;
+  --rc-info-3:#1E7BB8; --rc-info-4:#1780BC; --rc-info-soft:#2A8FC4;
+  --rc-purple:#6C3FD0; --rc-purple-2:#7A34D4;
+  --rc-neutral:#4A5C6B; --rc-neutral-2:#3E4C58;
+  --rc-light:#2B2226; --rc-light-2:#211A1D; --rc-white:#1B1215;
+
+  /* diş rampası (yeşil→kırmızı) aynı sırayı korur, açık zemine göre koyu */
+  --rc-tread-2:#5F8A12; --rc-tread-4:#B85A18;
+
+  /* sınıf renkleri kimliktir — tonu korunur, doygunluğu okunur seviyeye çekilir */
+  --rc-cls-hypercar:#C2291F; --rc-cls-gt3:#B35F09; --rc-cls-lmp2:#1667D4;
+  --rc-cls-lmp3:#6C3FD0; --rc-cls-gte:#128A4D;
+
+  /* tint'ler: koyu tema alfaları açık zeminde görünmez kalıyordu */
+  --rc-tint-ok:rgba(18,138,77,.12); --rc-tint-warn:rgba(169,112,10,.12);
+  --rc-tint-info:rgba(22,103,212,.11); --rc-tint-purple:rgba(108,63,208,.10);
+  --rc-tint-danger:rgba(198,35,48,.11);
+
+  /* gölgeler: açık zeminde koyu temanın .55 alfası leke gibi duruyordu */
+  --rc-shadow-card:0 18px 44px rgba(40,18,26,.13);
+  --rc-shadow-pop:0 14px 32px rgba(40,18,26,.16);
+  --rc-shadow-img:0 8px 22px rgba(40,18,26,.18);
+  --rc-glow-brand:rgba(150,0,24,.14);
 }
 /* light modda koyu-sabit dekoratif zeminleri açık tona çevir (aksi halde açık zeminde
    koyu leke gibi durur). Tam-ekran pit board/big board bilinçli koyu kalır. */
