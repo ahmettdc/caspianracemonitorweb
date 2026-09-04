@@ -3,9 +3,10 @@
 ## v2.4.1 — 2026-09-04
 
 Hata düzeltme sürümü. Yeni özellik yok; kod tabanı altı alana bölünüp taranarak
-bulunan 40 bulgudan **gizliliğe, veri kaybına, canlı sistemin sessizce ölmesine
-ve yanlış yarış kararına** yol açan 13'ü düzeltildi. Her düzeltme testle
-kilitlendi ve testlerin çoğu eski kodda düşüyor (yani hatayı gerçekten yakalıyor).
+bulunan 40 bulgunun **tamamı** düzeltildi. Her düzeltme testle kilitlendi ve
+testlerin çoğu eski kodda düşüyor (yani hatayı gerçekten yakalıyor). Üç yerde
+denetim kalıcı hale getirildi: i18n bütünlüğü, açık tema token kapsamı ve
+sektör paylaşımının bağımlılık sözleşmesi artık testte.
 
 ### Gizlilik
 
@@ -156,15 +157,149 @@ kilitlendi ve testlerin çoğu eski kodda düşüyor (yani hatayı gerçekten ya
   modellenmiş mesafeyle ölçekleniyordu. Tur ORTASINDAKİ gerçek geri sıçrama
   hâlâ hız yedeğine düşüyor.
 
+### Arayüz ve çeviri
+
+- **Sektör sınırları takıma HİÇ paylaşılmıyordu** (`TrackMap.jsx`). Paylaşım
+  effect'i `sectorFractions()` ÇIKTISINI bağımlılık dizisinde taşıyordu; bu
+  fonksiyon her çağrıda YENİ nesne döndürür ve React `Object.is` ile
+  karşılaştırdığı için effect her render yeniden kuruluyor, 2000 ms'lik
+  debounce HİÇ dolmuyordu (canlı akış 2 Hz → aralık 500 ms). Bağımlılık kararlı
+  string'e indirildi. Aynı dosyadaki pit effect'i ilkel bağımlılık kullandığı
+  için çalışıyordu — fark oradan görüldü.
+
+- **i18n: 3 sessiz ezme + 107 eksik EN anahtarı** (`i18n.js`). 1587 yazımda 24
+  yinelenen anahtar vardı; üçünde değer farklıydı ve ikinci yazım birincisini
+  yok ediyordu:
+
+  | anahtar | ezilen | kazanan |
+  |---|---|---|
+  | `Yükleniyor…` | `Loading…` | `Uploading…` |
+  | `Tur` | `Laps` | `Lap` |
+  | `Otomatiğe dön` | `Back to automatic` | `Back to auto` |
+
+  Birincisi yüzünden EN'de açılış iskeleti, Suspense fallback'leri ve sohbet
+  kanal listesi "Uploading…" yazıyordu. Yükleme ve sayım anlamları ayrı
+  anahtarlara alındı (`Yüklüyor…`, `Tur sayısı`); bugünkü davranış değişmedi.
+  107 eksik anahtarın 19'unda çeviri zaten vardı, anahtar yalnız büyük/küçük
+  harf farkıyla tutmuyordu — çağrı yerindeki Türkçe metin korunarak anahtar
+  eklendi. **Denetim teste bağlandı** (`i18n.test.js`).
+
+- **Açık tema yarım kalmıştı** (`styles.js`). `:root[data-theme="light"]` yalnız
+  eski tokenları rol-swap ediyordu; kabuk ve sekmeler v2.0'dan beri `--rc-*`
+  ile çiziliyor (2551 kullanım vs 54). Nav rayı, üst çubuk, modallar, komut
+  paleti ve tüm sekme içerikleri koyu kalıyor, `--rc-text` (#F3EAEC) ile beyaz
+  kartın kontrastı **1.18** oluyordu. 67 override eklendi; ölçü/tipografi
+  tokenları bilerek tekrarlanmadı. **Denetim teste bağlandı**
+  (`styles.theme.test.js` — kapsam + WCAG AA kontrast).
+
+- **Açık temada "PIT OUT" görünmezdi** (`TrackMap.jsx`). Sabit `#fff` ile
+  çiziliyordu, kart zemini açık temada `#FFFFFF` → kontrast **1.00**. PIT IN
+  yeşil olduğu için görünüyordu; kullanıcı yalnız birini görüyordu.
+
+### Canlı timing
+
+- **Bekleyen cezası olan araç "—" gösteriyordu** (`LiveTab.jsx`). Hücre yalnız
+  kümülatif toplama bakıyordu; köprü yarış ortasında başlarsa `pen_total` taban
+  alınır ve toplam 0'da kalır → o anda drive-through bekleyen araçlar
+  kırmızı-kalın bir "—" ile "cezası yok" diyordu.
+
+- **"En İyi" moru saha geneliydi, sınıf değil** (`LiveTab.jsx`). Aynı ekranda
+  sektör hücresi ve satır flash'ı moru sınıf rekoru için kullanıyor;
+  `liveSectors.js` başlığı "aynı ekranda iki farklı mor anlamı olmasın" diye
+  bunu şart koşuyor ve kodun kendi yorumu da "sınıf en hızlısı mor" diyordu.
+
+- **Relative penceresi sınıf süzgecini uyguluyordu** (`LiveTab.jsx`).
+  Relative'in tanımlı işi trafik, undercut penceresi ve mavi bayrak — hepsi
+  DİĞER sınıf araçlarıyla ilgili. Süzgeç artık yalnız standings ve harita için.
+
+- **Bayat kare plana yazabiliyordu** (`useLiveSync` · `useLive` · `liveSync`).
+  Hook karenin yaşına hiç bakmıyordu ve yarış değişiminde önceki kare
+  bırakılmıyordu. B yarışının düğümünde günler önce kalmış bir kare sahte bir
+  `markPit()` bastırabiliyor, bayat `timeLeftSec` ile `raceStartMs`'i kaydırıp
+  tüm stint pencerelerini bozabiliyordu. Yeni saf `isFrameFresh` kapısı (30 sn,
+  LiveTab'in "bağlantı koptu" eşiğiyle aynı) + seans belirteci kontrolü.
+
+### Telemetri
+
+- **Kalıcı iz meta'sı iki farklı şekildeydi** (`useTelemetry.js`). Yazan taraf
+  düğüme `{at, laps, n, mapSrc, capped}`, oturum-içi state'e SEANS meta'sını
+  koyuyor; okuyan taraf DÜĞÜM meta'sını `meta` diye atıyordu. Yenilemeden sonra
+  künye çizilmiyor, PDF künyesi boş kalıyor ve **"farklı pist" uyarısı kalıcı
+  kaynaklarda ASLA tetiklenemiyordu** — bir veri-dürüstlüğü koruması sessizce
+  devre dışıydı. Şekil tek saf kaynağa taşındı (`teleTraceMeta.js`).
+
+- **Aynı `.duckdb` ikinci kez seçilemiyordu**; input sıfırlaması yalnız
+  reddetme dalındaydı, `.duckdb` dalı ondan önce `return` ediyordu.
+- **`readersRef` hiç boşaltılmıyordu** → açılan her dosyanın materyalize
+  telemetrisi oturum boyunca bellekte kalıyordu. `WeakMap`'e çevrildi.
+- **Seans süresi "en çok örnekli" kanaldan** hesaplanıyordu (`duckdb.js`);
+  100 Hz × 12000 (120 sn) kanalı 10 Hz × 2400 (240 sn) kanalını yeniyor ve
+  süreyi yarıya düşürüyordu. Saf `longestContSec`'e çıkarıldı.
+
+### Plan, durum, servis worker
+
+- **Pit'siz planda "eksik veri" damgası** (`stratComp.js`) — `teamTime` zaten
+  `pits === 0` iken yakıt/pit yolu terimlerini 0 alıyordu ama zorunluluk
+  listesi bunları koşulsuz istiyordu. Yeni `requiredFieldsFor` yalnız hesaba
+  gireni arıyor; alan EKSİK (null) iken hâlâ zorunlu ("bilinmiyor" ≠ "yok").
+- **"Pitleri sıfırla" elle girilen TAMİR sürelerini siliyordu** (`state.js`) —
+  onay penceresi bunu söylemiyor, geri alma yok, fonksiyonun kendi yorumu da
+  "elle girilen korunur" diyordu.
+- **Tarihi çözülemeyen yarış "sıradaki" olarak kilitleniyordu**
+  (`lmuParse.js`) — `startMs: null` ile listeye giriyor, `raceStatus` onu
+  sonsuza dek "yaklaşan" sayıyor, `sortByStart` en başa koyuyordu → hero
+  kartı "01.01.1970 · 0 dk" gösterip gerçek sıradaki yarışı gizliyordu.
+- **Yankı yazımı 50 ms'lik zamanlayıcıya bağlıydı** (`useRaceSync.js`) — süre
+  varsayımı yerine içerik kimliği kullanılıyor.
+- **Günlük tazelenen `lmu-data.json` sürüme kadar donuyordu** (`sw.js`) — dosya
+  içerik-hash'i taşımıyor ve cache-first serviste kilitleniyordu. `.json`
+  istekleri artık ağ-önce.
+- **Hesap değişince seçili takım sıfırlanmıyordu** (`useTeams.js`).
+- **Pilot programında "· N tur" hiç görünmüyordu** — alan hiç üretilmiyordu.
+
+### Köprü (oyun PC'si) — üçü yükü AZALTIYOR
+
+- **Harvest hatası backoff'suz yeniden deneniyordu** (`main.py` · `gui.py`).
+  `apply_harvest` hatayı fırlatmıyor döndürüyor; döngüdeki `fails` sayacı yalnız
+  `except` dalında arttığı için üstel bekleme HİÇ devreye girmiyordu. Her
+  karede kuyruğun ilk patch'i yeniden deneniyor ve `requests.patch(timeout=15)`
+  **canlı kareyi de blokluyordu** → yayın **2 Hz'den ~0,06 Hz'e** düşüyordu.
+  Artık tur geçmişi üstel geri çekiliyor (2→32 kare), canlı kare akıyor; kare
+  yine kırpıldığı için Firebase karesi şişmiyor.
+- **`psutil.process_iter` her dakika okuma döngüsündeydi** (`rf2_source.py`) —
+  başarılı okumadan sonra da tüm süreçler dolaşılıp her biri için `exe` yolu
+  isteniyordu. Fetch-once desenine geçirildi.
+- **`close()` hiçbir mmap'i kapatmıyordu** (`rF2data.py` ·
+  `sharedMemoryAPI.py`) — üç `close()` tek `try` içindeydi, canlı ctypes
+  görünümleri yüzünden ilki `BufferError` atıyor ve kalan ikisi atlanıyordu.
+  Ölçüldü: eski kodda üçü de açık kalıyor, yenisinde üçü de kapanıyor.
+- **`messagebox` GUI olmayan thread'den çağrılıyordu** (`gui.py`) — tkinter
+  thread-güvenli değil; artık `root.after` ile ana thread'e marshal ediliyor.
+- **Bozuk `hz` CLI köprüsünü çökertiyordu** (`main.py`) — `ValueError`
+  `run_loop`'un try/except'lerinin dışındaydı.
+
+### Ölü yol kapatıldı
+
+- **`lapWear` Lastik ekranına bağlandı.** Köprü her tur `livewear` yazıyordu
+  ama hiçbir ekran okumuyordu (180 satır + 20 test boştaydı) — oyun PC'sindeki
+  maliyet ödeniyor, karşılığı alınmıyordu. Ölçüm butonu artık birincil kaynak
+  olarak bunu kullanıyor: **kısmi değişimi** de çözüyor ve hızı iki gerçek
+  okuma arasındaki farktan alıyor (eski hesap dişin stint başında tam dolu
+  olduğunu varsayıp stint ortasında yakalanan sette hızı şişiriyordu).
+  Yeni REST isteği / thread / hız değişikliği yok; köprüye dokunulmadı.
+
 ### Doğrulama
 
-- **934 JS testi** geçiyor (öncesi 901, +33) · **74 Firebase kural testi**
-  geçiyor (öncesi 63, +11 — `npm run test:rules`, emülatör ister) · **5 köprü
-  test dosyası** geçiyor (biri yeni: `test_rf2_tele_map.py`, gerçek ctypes
-  struct'larıyla)
-- `npm run build` temiz · `oxlint` uyarı sayısı değişmedi (47, hepsi mevcut)
-- Yeni saf modül: `src/raceSyncGate.js` (13 test) · yeni test dosyaları:
-  `src/liveBridge.lifecycle.test.js` (4 test, sidecar kabuğu taklit edilir)
+- **983 JS testi** geçiyor (öncesi 901, **+82**) · **74 Firebase kural testi**
+  geçiyor (öncesi 63, +11 — `npm run test:rules`, emülatör ister) · **6 köprü
+  test dosyası** geçiyor (ikisi yeni: `test_rf2_tele_map.py` gerçek ctypes
+  struct'larıyla, `test_bridge_loop.py` backoff/hz/mmap sözleşmeleri)
+- `npm run build` temiz · `oxlint` uyarısı **47 → 22** (25 `no-dupe-keys`
+  uyarısının hepsi gitti; kalanların hepsi düzeltme öncesinden)
+- Yeni saf modüller: `src/raceSyncGate.js` (13 test) · `src/teleTraceMeta.js`
+  (6 test) · yeni test dosyaları: `src/liveBridge.lifecycle.test.js` (sidecar
+  kabuğu taklit edilir) · `src/i18n.test.js` · `src/styles.theme.test.js` ·
+  `src/duckdbDur.test.js` · `src/liveTabV241.render.test.jsx`
 
 ## v2.4.0 — 2026-09-01
 
