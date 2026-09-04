@@ -578,8 +578,20 @@ export default function LiveTab({ t, live: liveProp, canEdit,
 
   // türetilmiş: sınıf-içi pozisyon, seans en hızlı turu, oyuncu sınıfı
   const leaderLaps = fieldAll[0]?.lapsDone ?? 0;
-  const fastestBest = Math.min(
-    ...fieldAll.map((c) => c.bestSec).filter((v) => v > 0), Infinity);
+  /* "En İyi" sütununun MORU: SINIF rekoru (saha geneli değil).
+     Aynı ekranda sektör hücresi (liveSectors.classBestSectors) ve satır flash'ı
+     (liveFlash.detectFlashes) moru zaten SINIF rekoru için kullanıyor;
+     liveSectors.js başlığı "aynı ekranda iki farklı 'mor' anlamı olmasın" diye
+     bunu açıkça şart koşuyor. Buradaki hesap saha geneli minimumdu, yani çok
+     sınıflı bir LMU sahasında hiçbir GT3 satırı mor olamıyordu: GT3 sınıf rekoru
+     mor satır flash'ıyla yanıp sönerken "En İyi" hücresi soluk gri kalıyordu.
+     (Satır 894'teki yorum da zaten "sınıf en hızlısı mor" diyordu.) */
+  const classFastest = {};
+  for (const c of fieldAll) {
+    if (!(c.bestSec > 0)) continue;
+    const cid = classId(c.carClass);
+    if (!(classFastest[cid] > 0) || c.bestSec < classFastest[cid]) classFastest[cid] = c.bestSec;
+  }
   const playerClass = classId(fieldAll.find((c) => c.isPlayer)?.carClass);
   const classCounts = {};
   const rows = fieldAll.map((c, i) => {
@@ -598,7 +610,7 @@ export default function LiveTab({ t, live: liveProp, canEdit,
       ? Math.max(0, c.lapsBehind) : Math.max(0, leaderLaps - (c.lapsDone ?? 0));
     const lapsDownNext = c.lapsBehindNext != null ? Math.max(0, c.lapsBehindNext) : 0;
     return { c, i, id, classPos: classCounts[id], interval, lapsDown, lapsDownNext,
-      isFastest: c.bestSec > 0 && c.bestSec === fastestBest };
+      isFastest: c.bestSec > 0 && c.bestSec === classFastest[id] };
   });
   /* Sektör renklendirmesi için sınıf başına en hızlı sektörler — SÜZGEÇTEN ÖNCE,
      TÜM sahadan hesaplanır: "kendi sınıfım" süzgeci açıkken de rekor gerçek
@@ -609,7 +621,14 @@ export default function LiveTab({ t, live: liveProp, canEdit,
   /* RELATIVE açıkken metin araması UYGULANMAZ: "etrafımdaki araçlar"ın bir de
      ada göre süzülmesi anlamsız bir kesişim üretir (arama kutusu da gizlenir). */
   const relOn = relMode && !!meRow && Number(s.trackLength) > 0;
-  const rel = relOn ? relativeRows(classRows, meRow, s.trackLength, 3, 3) : null;
+  /* RELATIVE TÜM SAHADAN kurulur — "kendi sınıfım" süzgeci UYGULANMAZ.
+     Süzülmüş liste veriliyordu; oysa relative'in tanımlı işi (liveRelative.js
+     başlığı) trafik, undercut penceresi ve MAVİ BAYRAK kararlarıdır ve bunlar
+     tam olarak DİĞER sınıf araçlarıyla ilgilidir. Süzgeç açıkken Hypercar'ın
+     0.4 sn önündeki GT3 satırı görünmez oluyor, ±3 penceresi ise çok daha
+     uzaktaki aynı-sınıf araçlarla doluyordu. Sınıf süzgeci standings ve harita
+     için geçerliliğini koruyor; relative satırlarında sınıf rengi zaten var. */
+  const rel = relOn ? relativeRows(rows, meRow, s.trackLength, 3, 3) : null;
   /* satır → relatif saniye (Gap sütunu yerine çizilir). Anahtar olarak SATIR
      NESNESİ kullanılır, carKey DEĞİL: carKey null dönebilir (lapKey/carId/driver
      üçü de yoksa) ve iki böyle satır aynı kovaya düşüp birbirinin farkını
@@ -944,7 +963,14 @@ export default function LiveTab({ t, live: liveProp, canEdit,
                             title={out > 0
                               ? `${t("Bekleyen ceza")}: ${out} · ${t("Ceza sayısı (cut/puan cezaları dahil)")}: ${tot}`
                               : t("Ceza sayısı (cut/puan cezaları dahil)")}>
-                            {tot > 0 ? `${tot}${out > 0 ? " •" : ""}` : "—"}</td>
+                            {/* BEKLEYEN ceza varken kümülatif toplam 0 ise de yaz (v2.4.1).
+                                Köprü/aggregator yarış ORTASINDA başlarsa (köprü yeniden
+                                başlatma, yazıcı devri, uygulamanın sonradan açılması)
+                                pen_total süreç-içi durum olduğu için taban alınır ve
+                                penaltiesTotal 0'da kalır — o anda drive-through bekleyen
+                                araçlar kırmızı-kalın bir "—" gösteriyordu, yani "cezası
+                                yok" diyordu. Bilgi yalnız tooltip'te kalıyordu. */}
+                            {tot > 0 ? `${tot}${out > 0 ? " •" : ""}` : (out > 0 ? `${out} •` : "—")}</td>
                         );
                       })()}
                       {/* PIT (v2.3.0): durum + durak sayısı + SON PİTTE DEĞİŞEN LASTİK.

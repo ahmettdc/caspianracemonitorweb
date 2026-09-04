@@ -17,7 +17,8 @@
    Dönüş: { sync, setSyncOpt, drift, lastAuto, wxSug, avgSug, pitMismatch }. */
 import { useState, useEffect, useMemo, useRef } from "react";
 import { detectPitEntry, clockDriftSec, alignedStartMs, weatherSuggestion,
-  avgLapSuggestion } from "./liveSync";
+  avgLapSuggestion, isFrameFresh } from "./liveSync";
+import { serverNow } from "./storage";
 
 const LS_KEY = "caspian.liveSync";
 const DEFAULTS = { autoPit: true, autoClock: true };
@@ -38,6 +39,7 @@ export function useLiveSync({ live, st, liveInfo, up, markPit, canEdit, user }) 
   const [lastAuto, setLastAuto] = useState(null);  // { stint, at } — "🤖 işaretlendi" rozeti
   const [drift, setDrift] = useState(null);        // sn — kayma çipi (izleyicide de görünür)
   const prevOwnRef = useRef(null);
+  const prevSidRef = useRef(null);   // seans belirteci — değişince prevOwn geçersiz
   const lastAlignRef = useRef(0);
 
   // Senkron YALNIZ YARIŞ seansında: antrenman/sıralamada oto-PIT, saat hizalama ve
@@ -47,7 +49,14 @@ export function useLiveSync({ live, st, liveInfo, up, markPit, canEdit, user }) 
   /* Kare başına tetikleme — yalnız canlı kareyi YAZAN istemci durum yazar. */
   useEffect(() => {
     const own = live?.own;
-    const prevOwn = prevOwnRef.current;
+    /* SEANS DEĞİŞTİYSE önceki kare geçersizdir. Aksi halde antrenman→yarış
+       geçişinde (ya da köprü yeniden başlayınca) iki farklı seansın karesi
+       karşılaştırılıp sahte bir pit girişi üretilebiliyordu. Yarış değişimini
+       useLive zaten `setLive(null)` ile kapatıyor; bu, aynı odadaki seans
+       değişiminin karşılığı. */
+    const sid = live?.session?.sessionId ?? null;
+    const prevOwn = prevSidRef.current === sid ? prevOwnRef.current : null;
+    prevSidRef.current = sid;
     prevOwnRef.current = own || null;
     const now = Date.now();
     const amWriter = !!live?.by && !!user?.email && live.by === user.email;
@@ -56,6 +65,9 @@ export function useLiveSync({ live, st, liveInfo, up, markPit, canEdit, user }) 
     setDrift((p) => (p === d ? p : d));   // skaler/null — değişmediyse render tetikleme
 
     if (!canEdit || !amWriter || !isRace) return;
+    /* BAYAT KARE PLANA YAZAMAZ (bkz. liveSync.isFrameFresh). Karenin ts'i
+       server-hizalı yazılır, bu yüzden serverNow() ile karşılaştırılır. */
+    if (!isFrameFresh(live?.ts, serverNow())) return;
 
     // Oto-PIT: pit yoluna giriş karesi → markPit (applyMarkPit pit fazında/çiftte null)
     if (sync.autoPit && detectPitEntry(prevOwn, own)

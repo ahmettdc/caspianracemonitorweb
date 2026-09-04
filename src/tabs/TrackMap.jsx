@@ -291,14 +291,24 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
      debounce (şekil deseni). Viewer yalnız okur. */
   useEffect(() => {
     if (!canSave || !tid || !trackKey || !secStr) return undefined;
-    if (!(secFr && secFr.f12 != null && secFr.f20 != null)) return undefined;
+    /* İKİ SINIR DA gözlenmiş olmalı. Eskiden bu kontrol `secFr` nesnesi üzerinden
+       yapılıyor ve `secFr` BAĞIMLILIK DİZİSİNDE duruyordu — ama `sectorFractions`
+       her çağrıda YENİ bir nesne döndürüyor ({f12, f20}), React de Object.is ile
+       karşılaştırdığı için effect HER RENDER yeniden kuruluyordu: cleanup
+       çalışıyor, 2000 ms'lik zamanlayıcı hiç dolmuyordu. Canlı akış 2 Hz olduğu
+       ve TrackMap her karede yeniden render edildiği için aralık 500 ms < 2000 ms
+       → sektör sınırları takıma HİÇ yazılmıyordu. Editör kendi ekranında
+       ayırıcıları görüyor, izleyici takım arkadaşları hiç görmüyordu.
+       `secStr` kararlı bir string ve aynı bilgiyi taşıyor: packSectors iki alanı
+       "f12,f20" diye yazar, biri eksikse o taraf boş kalır. */
+    if (secStr.split(",").filter(Boolean).length !== 2) return undefined;
     if (secStr === acc.current.secSaved) return undefined;
     const id = setTimeout(() => {
       liveTrackSecSave(tid, trackKey, secStr);
       acc.current.secSaved = secStr;
     }, 2000);
     return () => clearTimeout(id);
-  }, [canSave, tid, trackKey, secStr, secFr]);
+  }, [canSave, tid, trackKey, secStr]);
 
   // gözlenen pit giriş/çıkış (ortalama) — işaret + paylaşım için
   const pitFr = pitFractions(acc.current.pit);

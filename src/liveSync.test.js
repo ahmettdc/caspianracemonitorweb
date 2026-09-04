@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { DEFAULT_STATE } from "./engine.js";
 import { detectPitEntry, clockDriftSec, alignedStartMs, weatherSuggestion,
-  avgLapSuggestion } from "./liveSync.js";
+  avgLapSuggestion, isFrameFresh } from "./liveSync.js";
 
 const st = (over = {}) => ({ ...DEFAULT_STATE, raceTime: "2:00:00",
   raceStartMs: 1_000_000, avgLap: "3:59.50", weatherLog: [], ...over });
@@ -101,5 +101,49 @@ describe("avgLapSuggestion", () => {
   it("canlı veri yoksa null", () => {
     expect(avgLapSuggestion(null, st())).toBeNull();
     expect(avgLapSuggestion({ avg5Sec: -1 }, st())).toBeNull();
+  });
+});
+
+/* REGRESYON (v2.4.1) — BAYAT KARE PLANA YAZAMAZ.
+   useLiveSync karenin YAŞINA hiç bakmıyordu. LiveTab'de "bağlantı koptu"
+   koruması (30 sn) var ama bu hook'ta yoktu: B yarışının live düğümünde
+   köprünün günler önce bıraktığı son kare duruyorsa (araç garajda/pitte,
+   sessionType "Yarış", by = benim e-postam) o kare tek başına sahte bir
+   markPit() bastırabiliyor ve bayat timeLeftSec ile raceStartMs'i
+   kaydırabiliyordu — tüm stint pencereleri kayardı. */
+describe("isFrameFresh — yalnız TAZE kare plana yazabilir", () => {
+  const now = 1_700_000_000_000;
+
+  it("2 Hz'lik normal akış taze", () => {
+    expect(isFrameFresh(now - 500, now)).toBe(true);
+    expect(isFrameFresh(now, now)).toBe(true);
+  });
+
+  it("eşiğin altı taze, üstü bayat (30 sn)", () => {
+    expect(isFrameFresh(now - 29_999, now)).toBe(true);
+    expect(isFrameFresh(now - 30_001, now)).toBe(false);
+    expect(isFrameFresh(now - 3 * 24 * 3600e3, now)).toBe(false);   // günler önce
+  });
+
+  it("gelecekten gelen kare (saat farkı) bayat DEĞİLDİR", () => {
+    expect(isFrameFresh(now + 2000, now)).toBe(true);
+  });
+
+  it("eksik/bozuk ts → yazma (uydurma yok)", () => {
+    expect(isFrameFresh(null, now)).toBe(false);
+    expect(isFrameFresh(undefined, now)).toBe(false);
+    expect(isFrameFresh(0, now)).toBe(false);
+    expect(isFrameFresh("abc", now)).toBe(false);
+    /* `Number(null) === 0` tuzağı: eksik `now` sayıya çevrilince 0 olur ve 0
+       sonludur — koruma önce VARLIĞA bakmalı (CLAUDE.md §1). */
+    expect(isFrameFresh(now, null)).toBe(false);
+    expect(isFrameFresh(now, undefined)).toBe(false);
+    expect(isFrameFresh(now, "")).toBe(false);
+    expect(isFrameFresh("", now)).toBe(false);
+  });
+
+  it("eşik çağırandan geçirilebilir", () => {
+    expect(isFrameFresh(now - 5000, now, 1000)).toBe(false);
+    expect(isFrameFresh(now - 500, now, 1000)).toBe(true);
   });
 });
