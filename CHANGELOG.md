@@ -3,9 +3,42 @@
 ## v2.4.1 — 2026-09-04
 
 Hata düzeltme sürümü. Yeni özellik yok; kod tabanı altı alana bölünüp taranarak
-bulunan 40 bulgudan **veri kaybına, canlı sistemin sessizce ölmesine ve yanlış
-yarış kararına** yol açan 12'si düzeltildi. Her düzeltme testle kilitlendi ve
-testlerin çoğu eski kodda düşüyor (yani hatayı gerçekten yakalıyor).
+bulunan 40 bulgudan **gizliliğe, veri kaybına, canlı sistemin sessizce ölmesine
+ve yanlış yarış kararına** yol açan 13'ü düzeltildi. Her düzeltme testle
+kilitlendi ve testlerin çoğu eski kodda düşüyor (yani hatayı gerçekten yakalıyor).
+
+### Gizlilik
+
+- **Katılım kodunu bilmeden takıma girilebiliyordu** (`firebase-rules.json` ·
+  `storage.js`). İki eksik birleşiyordu:
+
+  1. `teamCodes` `.read` KOLEKSİYON seviyesindeydi → onaylı her kullanıcı tek
+     okumayla TÜM takım id'lerini çekebiliyordu.
+  2. `members/$uid` self-join dalı yalnız "kendi uid'im + kayıt yok + değer
+     `viewer`" diyordu; katılım kodu **hiç doğrulanmıyordu**. `joinTeam` kodu
+     kontrol ediyordu ama bu YALNIZ istemci tarafıydı — konsoldan atlatılabilir.
+
+  Sonuç: onaylı bir kullanıcı `get(ref(db,'teamCodes'))` ile tid listesini alıp
+  `set(ref(db,'teams/<tid>/members/<kendi uid>'),'viewer')` yazarak istediği
+  takıma girebiliyor, ardından `raceState` (tüm strateji planı), `chat` ve
+  `live*` düğümlerini okuyabiliyordu.
+
+  **Düzeltme:** `.read` `$code` seviyesine indirildi (bilinen tek kod okunur,
+  liste dökülmez) ve self-join dalı artık kod ispatı istiyor. Kural dili
+  istemcinin "yazdığı kodu" göremediği için ispat ayrı bir yazımla bırakılıyor:
+  `teamJoin/{tid}/{uid} = kod`, kural bunu `teams/{tid}/meta/joinCode` ile
+  karşılaştırıyor. Düğümün `.read`'i YOK → kod sızmıyor. `joinCode`'un STRING
+  olması ayrıca şart: kodu olmayan bir takımda `null == null` tuzağa dönerdi.
+  İki ayrı istek zorunlu çünkü kural `root`'u yazım ÖNCESİ durumu gösterir.
+
+  Diğer dallar (takımdan ayrılma, sahip atamaları, meta yokken yeni takım
+  kurulumu) **değişmedi** ve testle korundu. Emülatör testi 63 → **74**; yeni
+  11 testin 6'sı eski kurallarda düşüyor, yani açığı gerçekten gösteriyorlar.
+
+  **Not (düzeltilmedi):** katılım kodu 6 karakter ve 31 harflik bir alfabeden
+  (≈ 887 milyon olasılık). `teamCodes/{kod}` okuması istek başına bir tahmin
+  imkânı verdiği için kararlı bir saldırgan için teorik bir sınır. Kod boyunu
+  büyütmek mevcut takımların kodlarını geçersiz kılacağı için ayrı bir karar.
 
 ### Veri kaybı ve senkron
 
@@ -125,8 +158,10 @@ testlerin çoğu eski kodda düşüyor (yani hatayı gerçekten yakalıyor).
 
 ### Doğrulama
 
-- **934 JS testi** geçiyor (öncesi 901, +33) · **5 köprü test dosyası** geçiyor
-  (biri yeni: `test_rf2_tele_map.py`, gerçek ctypes struct'larıyla)
+- **934 JS testi** geçiyor (öncesi 901, +33) · **74 Firebase kural testi**
+  geçiyor (öncesi 63, +11 — `npm run test:rules`, emülatör ister) · **5 köprü
+  test dosyası** geçiyor (biri yeni: `test_rf2_tele_map.py`, gerçek ctypes
+  struct'larıyla)
 - `npm run build` temiz · `oxlint` uyarı sayısı değişmedi (47, hepsi mevcut)
 - Yeni saf modül: `src/raceSyncGate.js` (13 test) · yeni test dosyaları:
   `src/liveBridge.lifecycle.test.js` (4 test, sidecar kabuğu taklit edilir)

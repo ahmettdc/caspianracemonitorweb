@@ -23,9 +23,18 @@
     },
 
     "teamCodes": {
-      ".read": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true",
       "$code": {
+        ".read": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true",
         ".write": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && (!data.exists() || (!newData.exists() && root.child('teams').child(data.val()).child('members').child(auth.uid).val() == 'owner'))"
+      }
+    },
+
+    "teamJoin": {
+      "$tid": {
+        "$uid": {
+          ".write": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && auth.uid == $uid",
+          ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 24)"
+        }
       }
     },
 
@@ -67,7 +76,7 @@
         "members": {
           ".read": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && data.child(auth.uid).exists()",
           "$uid": {
-            ".write": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && ((auth.uid == $uid && !data.exists() && newData.val() == 'viewer') || (auth.uid == $uid && !newData.exists()) || root.child('teams').child($tid).child('members').child(auth.uid).val() == 'owner' || !root.child('teams').child($tid).child('meta').exists())"
+            ".write": "auth != null && root.child('users').child(auth.uid).child('allowed').val() == true && ((auth.uid == $uid && !data.exists() && newData.val() == 'viewer' && root.child('teams').child($tid).child('meta').child('joinCode').isString() && root.child('teamJoin').child($tid).child(auth.uid).val() == root.child('teams').child($tid).child('meta').child('joinCode').val()) || (auth.uid == $uid && !newData.exists()) || root.child('teams').child($tid).child('members').child(auth.uid).val() == 'owner' || !root.child('teams').child($tid).child('meta').exists())"
           }
         },
         "names": {
