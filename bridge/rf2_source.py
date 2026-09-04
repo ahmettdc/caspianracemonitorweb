@@ -413,10 +413,21 @@ class RF2Source:
         bizim OKUMADIĞIMIZ buffer'ları (FFB/Graphics 400 FPS!) hâlâ yazıyorsa arayüz
         bunu söyleyip doğru `UnsubscribedBuffersMask` değerini önerir. Ayar dosyasına
         YAZILMAZ — yalnız okunur (başka araçların ihtiyacını biz bilemeyiz)."""
+        # BİR KEZ BAŞARIYLA OKUNDUYSA BİR DAHA TARAMA (v2.4.1). Eklentinin
+        # CustomPluginVariables.JSON'u oyun çalışırken değişmez; oysa burası
+        # başarılı okumadan SONRA da 60 sn'de bir psutil.process_iter(["name",
+        # "exe"]) çalıştırıyordu — TÜM süreçleri dolaşıp her biri için `exe`
+        # yolunu istiyor (Windows'ta OpenProcess/QueryFullProcessImageName
+        # çağrı fırtınası) ve bu iş OKUMA DÖNGÜSÜNÜN İÇİNDE, yarış boyunca,
+        # oyunun çalıştığı PC'de tekrarlanıyordu (CLAUDE.md §0). Tek çıktısı
+        # kozmetik bir arayüz uyarısı. Yorum yalnız DOSYA okumasını pahalı
+        # sayıyordu; asıl pahalı kısım süreç taramasıydı ve sınırlanmamıştı.
+        # LmuApi'nin katalog/gökyüzü için kullandığı "fetch-once" deseni.
+        if self.plugin is not None:
+            return self.plugin
         now = time.time()
-        # Kontrol YALNIZ zamana bakar: sonuç None olsa da (ayar okunamadı) 60 sn beklenir.
-        # Aksi halde başarısız okuma HER KAREDE psutil.process_iter çalıştırırdı —
-        # düzeltmeye çalıştığımız sorunun aynısı.
+        # Okuma BAŞARISIZSA (oyun henüz açılmamış olabilir) 60 sn'de bir yeniden
+        # dene — ama her karede değil.
         if self.plugin_at and now - self.plugin_at < self.PLUGIN_CFG_EVERY:
             return self.plugin
         self.plugin_at = now

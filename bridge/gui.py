@@ -18,7 +18,7 @@ import tkinter.font as tkfont
 from tkinter import messagebox
 
 from fb import FirebaseClient
-from main import make_source, build_payload, lower_priority, start_harvester, apply_harvest
+from main import make_source, build_payload, lower_priority, start_harvester, apply_harvest, HARVEST_BACKOFF_MAX
 from logfile import get_logger, heartbeat_line, log_path, parent_app_path
 
 API_KEY = "AIzaSyB9hEH26etwvn9adAGNOpPAlpUym1qzpns"
@@ -857,17 +857,37 @@ class BridgeGUI:
         return True
 
     def _save_or_warn(self):
+        """Kaydet; başarısızsa uyar. Dönen: kaydedildi mi.
+
+        UYARI ANA THREAD'DEN GÖSTERİLİR (v2.4.1). Bu fonksiyon `_google_worker`
+        tarafından bir ARKA PLAN thread'inden de çağrılıyor ve `messagebox`
+        doğrudan oradan açılıyordu. Tcl/tkinter thread-güvenli DEĞİLDİR;
+        sonucu `RuntimeError: main thread is not in main loop` ya da arayüz
+        kilitlenmesidir. Sınıftaki diğer TÜM arayüz dokunuşları zaten
+        `self.root.after(0, ...)` ile ana thread'e marshal ediliyor — yalnız
+        burası atlanmıştı. Tetikleyici: config.ini salt-okunur bir klasörde
+        (kodun kendi uyarısındaki Program Files senaryosu) + "Google ile Giriş".
+        """
         try:
             self.save()
             return True
         except Exception as e:  # noqa: BLE001
-            messagebox.showerror(
-                self.L("Could not save", "Kaydedilemedi"),
-                self.L(f"{e}\n\nMove the exe to a folder like Desktop/Documents "
-                       f"instead of Program Files.",
-                       f"{e}\n\nExe'yi Program Files yerine Masaüstü/Belgeler gibi "
-                       f"bir klasöre taşı."))
+            title = self.L("Could not save", "Kaydedilemedi")
+            body = self.L(f"{e}\n\nMove the exe to a folder like Desktop/Documents "
+                          f"instead of Program Files.",
+                          f"{e}\n\nExe'yi Program Files yerine Masaüstü/Belgeler gibi "
+                          f"bir klasöre taşı.")
+            self._ui(lambda: messagebox.showerror(title, body))
             return False
+
+    def _ui(self, fn):
+        """Bir arayüz çağrısını ANA THREAD'de çalıştır (hangi thread'den
+        çağrıldığından bağımsız). tkinter thread-güvenli olmadığı için
+        worker thread'lerden gelen her arayüz dokunuşu buradan geçmeli."""
+        try:
+            self.root.after(0, fn)
+        except Exception:  # noqa: BLE001  (pencere kapanmış olabilir)
+            pass
 
     # ---------- actions ----------
     def selftest(self):
@@ -966,18 +986,28 @@ class BridgeGUI:
         harv = start_harvester(fb, tid, rid)
         pend = []
         fails = 0
+        h_fails = 0      # ardışık harvest hatası (bkz. main.HARVEST_BACKOFF_MAX)
+        h_skip = 0       # kalan atlama karesi — tur geçmişi geri çekilir, CANLI KARE akar
         sent = 0
         last_hb = 0.0
         while not self.stop_evt.is_set():
             t0 = time.time()
             try:
                 payload = build_payload(src, self._by())
-                pend, herr = apply_harvest(fb, tid, harv, payload, pend)
-                if herr:
-                    self.lg.warning("tur geçmişi yazılamadı (yeniden denenecek): %s", herr)
-                elif harv.frame_written:
-                    self.lg.info("tur geçmişi: +%d tur (toplam %d)",
-                                 harv.frame_written, harv.total_written)
+                send_h = h_skip <= 0
+                pend, herr = apply_harvest(fb, tid, harv, payload, pend, send=send_h)
+                if not send_h:
+                    h_skip -= 1
+                elif herr:
+                    h_fails += 1
+                    h_skip = min(2 ** min(h_fails, 5), HARVEST_BACKOFF_MAX)
+                    self.lg.warning("tur geçmişi yazılamadı (%d kare atlanacak): %s",
+                                    h_skip, herr)
+                else:
+                    h_fails = 0
+                    if harv.frame_written:
+                        self.lg.info("tur geçmişi: +%d tur (toplam %d)",
+                                     harv.frame_written, harv.total_written)
                 t1 = time.time()
                 fb.put_live(tid, rid, payload)
                 t2 = time.time()

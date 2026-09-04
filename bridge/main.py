@@ -117,6 +117,21 @@ def make_source(mock, no_rest=False, rest_interval=3.0):
     return Aggregator(RF2Source(no_rest=no_rest, rest_interval=rest_interval))
 
 
+def _hz_of(cp):
+    """[rate] hz — korumalı. Bozuk/boş değer CLI köprüsünü ÇÖKERTİYORDU:
+    `float(...)` ValueError'ı run_loop'un içindeki try/except'lerin DIŞINDA,
+    main()'in genel yakalayıcısına düşüyor ve süreç sys.exit(1) ile kapanıyordu.
+    Türkçe locale'de elle yazılmış `hz = 2,0` (virgül) ya da boş bırakılmış bir
+    değer bunu tetikliyor. Aynı ayrıştırma GUI'de (gui.py) ve rest_interval'de
+    zaten korumalıydı — yalnız burası açıktaydı. Klamplama run_loop'ta."""
+    try:
+        v = float(str(cp["rate"].get("hz", "2")).strip().replace(",", ".")) \
+            if cp.has_section("rate") else 2.0
+    except (ValueError, TypeError):
+        v = 2.0
+    return v if v > 0 else 2.0
+
+
 def _rest_interval_of(cp):
     """config [rate] rest_interval (sn) — varsayılan 3.0; 0.5..60 arasına klamplanır."""
     try:
@@ -148,20 +163,39 @@ def start_harvester(fb, tid, rid):
     return Harvester(rid, known)
 
 
-def apply_harvest(fb, tid, harv, payload, pending):
+def apply_harvest(fb, tid, harv, payload, pending, send=True):
     """Kareden tur geçmişini çıkar (payload YERİNDE kırpılır) ve teams/{tid}'e yaz.
     Dönen: (kalan_patchler, hata) — geçici ağ hatasında kalanlar sonraki turda
-    yeniden denenir (tur geçmişi kaybolmasın); kuyruk ~20 patch ile sınırlı."""
+    yeniden denenir (tur geçmişi kaybolmasın); kuyruk ~20 patch ile sınırlı.
+
+    `send=False`: kareyi YİNE kırp (payload küçük kalsın, Firebase karesi
+    şişmesin) ama AĞA DOKUNMA. Çağıran ardışık hatada geri çekilmek için
+    kullanır — bkz. run_loop'taki h_skip."""
     patches = pending + harv.process(payload)
     # web: "Köprü N tur kaydetti" — köprünün web'den bağımsız kaydettiğinin kanıtı
     if isinstance(payload, dict):
         payload["lapsWritten"] = harv.total_written
+    if not send:
+        return patches[:20], None
     for i, p in enumerate(patches):
         try:
             fb.patch_team(tid, p)
         except Exception as e:  # noqa: BLE001
             return patches[i:][:20], e
     return [], None
+
+
+"""Ardışık harvest hatasında kaç kare atlanacağı (üstel, tavan 32 kare).
+
+NEDEN (v2.4.1): apply_harvest hatayı FIRLATMIYOR, döndürüyor. Döngüdeki `fails`
+sayacı yalnız `except` dalında artıyordu; harvest hatası o dala girmediği için
+`fails` 0 kalıyor ve üstel bekleme HİÇ devreye girmiyordu. Her karede kuyruğun
+ilk patch'i yeniden deneniyor ve `requests.patch(..., timeout=15)` ağ
+kara-deliğinde 15 sn BLOKLUYORDU (üstüne bir token yenileme isteği eklenebilir).
+Yani ağ kötüleştiğinde canlı kare periyodu 0,5 sn'den ~15-30 sn'ye çıkıyordu —
+tam da pit duvarının canlı veriye en çok ihtiyaç duyduğu anda. Artık tur
+geçmişi geri çekiliyor, CANLI KARE akmaya devam ediyor."""
+HARVEST_BACKOFF_MAX = 32
 
 
 def fb_from_cfg(cp):
@@ -394,7 +428,7 @@ def run_loop(cp, mock, once, no_rest=None):
     lg = get_logger()
     fb, by = fb_from_cfg(cp)
     tid, rid = cp["race"]["team_id"].strip(), cp["race"]["race_id"].strip()
-    hz = float(cp["rate"].get("hz", "2")) if cp.has_section("rate") else 2.0
+    hz = _hz_of(cp)
     period = 1.0 / max(0.2, min(hz, 10))
     # REST varsayılan KAPALI (oyun donmasının en güçlü şüphelisi). config [rate] rest_on
     # ile ya da --no-rest bayrağıyla belirlenir. no_rest=None → config'e bak.
@@ -425,17 +459,27 @@ def run_loop(cp, mock, once, no_rest=None):
     harv = start_harvester(fb, tid, rid)
     pend = []
     fails = 0
+    h_fails = 0          # ardışık harvest hatası
+    h_skip = 0           # kalan atlama karesi (bkz. HARVEST_BACKOFF_MAX)
     sent = 0
     last_hb = 0.0
     while True:
         t0 = time.time()
         try:
             payload = build_payload(src, by)
-            pend, herr = apply_harvest(fb, tid, harv, payload, pend)
-            if herr:
-                lg.warning("tur geçmişi yazılamadı (yeniden denenecek): %s", herr)
+            send_h = h_skip <= 0
+            pend, herr = apply_harvest(fb, tid, harv, payload, pend, send=send_h)
+            if not send_h:
+                h_skip -= 1
+            elif herr:
+                h_fails += 1
+                h_skip = min(2 ** min(h_fails, 5), HARVEST_BACKOFF_MAX)
+                lg.warning("tur geçmişi yazılamadı (%d kare atlanacak): %s", h_skip, herr)
             elif harv.frame_written:
+                h_fails = 0
                 lg.info("tur geçmişi: +%d tur (toplam %d)", harv.frame_written, harv.total_written)
+            else:
+                h_fails = 0
             t1 = time.time()
             fb.put_live(tid, rid, payload)
             t2 = time.time()
