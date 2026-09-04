@@ -125,6 +125,35 @@ export const EMPTY_TEAM = {
 export const REQUIRED_FIELDS = ["pits", "pitLane", "fuelFull", "fuelLast",
   "tyreTime", "tyreCount", "avgLap"];
 
+/* Bu satır için GERÇEKTEN gereken alanlar. Bir alan hesaba GİRMİYORSA
+   aranmaz — aksi halde satır "eksik veri" damgası yiyip hiç hesaplanmıyordu.
+
+   NEDEN (v2.4.1): `teamTime`ın kendi formülü `pits === 0` iken yakıt terimini
+   de pit yolu terimini de 0 alıyor (fuelSec = 0, pitLaneSec = pits × pitLane
+   = 0), ama zorunluluk listesi bunları koşulsuz istiyordu. Sonuç: 30 dakikalık
+   bir sprint (tek stint, hiç durak yok) "Planımdan ekle" ile eklenince
+   `seedFromPlan` yakıt alanlarını boş bırakıyor (pitLane !== null && pits > 0
+   koşulu) ve satır hesaplanamıyordu: hero kartı "—", satır "Sıralamaya
+   girmeyen (eksik veri)" listesinde, karşılaştırmada "Eksik alan: Yakıt tam,
+   Yakıt son". Tutarsızlık seedFromPlan'ın kendi içindeydi: aynı durumda
+   `tyreTime` 0 yazılıyor, yakıt boş bırakılıyordu. */
+export function requiredFieldsFor(team) {
+  const t = team || {};
+  const pits = num(t.pits);
+  const tyreCount = num(t.tyreCount);
+  /* Durak yoksa pit yolu ve yakıt kalemleri toplama hiç girmez;
+     lastik değişmiyorsa lastik süresi de girmez (0 × süre).
+     Alan EKSİKSE (null) hâlâ zorunlu sayılır — "bilinmiyor" ile "yok" ayrı. */
+  const needPitFuel = pits === null || pits > 0;
+  const needTyreTime = tyreCount === null || tyreCount > 0;
+  /* Sıra REQUIRED_FIELDS'ten gelir → "eksik alan" listesi kararlı görünür. */
+  return REQUIRED_FIELDS.filter((k) => {
+    if (k === "pitLane" || k === "fuelFull" || k === "fuelLast") return needPitFuel;
+    if (k === "tyreTime") return needTyreTime;
+    return true;
+  });
+}
+
 /* ---------- tek takım ---------- */
 /* Bir takımın toplam yarış süresini ve kalem kalem dökümünü verir.
    raceLaps geçersizse tempo terimi kurulamaz → ok:false.
@@ -151,7 +180,8 @@ export function teamTime(team, raceLaps) {
   const avgLapSec = parseLapSec(t.avgLap);
 
   const vals = { pits, pitLane, fuelFull, fuelLast, tyreTime, tyreCount, avgLap: avgLapSec };
-  REQUIRED_FIELDS.forEach((k) => { if (vals[k] === null) missing.push(k); });
+  /* Yalnız HESABA GİREN alanlar zorunlu (bkz. requiredFieldsFor). */
+  requiredFieldsFor(t).forEach((k) => { if (vals[k] === null) missing.push(k); });
   if (laps === null || laps <= 0) missing.push("raceLaps");
   /* Negatif adet/süre fizik olarak yok — veri girişi hatasıdır, sessizce
      hesaplanıp makul görünen bir sonuç üretmesin. */

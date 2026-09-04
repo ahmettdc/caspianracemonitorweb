@@ -19,7 +19,7 @@ const render = (live) => renderToStaticMarkup(
   <LiveTab t={t} live={live} canEdit={false} tid="x" rid="y" />);
 
 /* Kareyi bozmadan tek tek araçları yamalar. */
-const patch = (base, fn) => ({ ...base, field: base.field.map((c, i) => ({ ...c, ...(fn(c, i) || {}) })) });
+const patch = (base, fn) => ({ ...base, field: base.field.map((c, i) => ({ ...c, ...fn(c, i) })) });
 
 describe("Ceza sütunu — bekleyen ceza kümülatif toplam 0 iken de görünür", () => {
   /* Köprü/aggregator yarış ORTASINDA başlarsa pen_total taban alınır ve

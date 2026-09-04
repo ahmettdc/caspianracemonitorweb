@@ -30,7 +30,8 @@ import { shouldPush, shouldApplyRemote } from "./raceSyncGate";
 export function useRaceSync({ st, setSt, curRace, curTeamRef, role, userName, stRef, t }) {
   const [syncMsg, setSyncMsg] = useState("");
   const [lastSync, setLastSync] = useState(null); // {by, at}
-  const sync = useRef({ rev: 0, applying: false, timer: null, mineAt: null });
+  const sync = useRef({ rev: 0, applying: false, timer: null, mineAt: null,
+    lastAppliedJson: null });   // yankı koruması — bkz. pushState
   /* Hangi odadayız — bekleyen yazımın hedefiyle karşılaştırmak için.
      Effect'te güncellenir; debounce en az 800 ms olduğundan timer ateşlendiğinde
      ref güncel olur. */
@@ -54,6 +55,18 @@ export function useRaceSync({ st, setSt, curRace, curTeamRef, role, userName, st
        bakmıyordu ve hedef odayı hiç doğrulamıyordu. */
     if (!shouldPush(sync.current.applying, rid, curRaceRef.current)) return;
     const stateJson = JSON.stringify(stRef.current);
+    /* YANKI YAZIMI (v2.4.1): uzak durumu uyguladıktan sonra yankıyı engelleyen
+       tek şey 50 ms'lik bir zamanlayıcıydı. `setSt(migrate(parsed))` her
+       seferinde YENİ bir nesne ürettiği için `useEffect([st])` mutlaka
+       ateşleniyor; render + effect zinciri 50 ms'yi aşarsa (yavaş cihaz, canlı
+       timing yoğunken 14+ stintlik büyük bir state) bayrak çoktan düşmüş oluyor
+       ve istemci ALDIĞI state'i rev+1 ile geri yazıyordu. Karşı taraf bunu yeni
+       sürüm sanıp uyguluyor, o da yankı yazıyor → iki istemci arasında sonu
+       gelmeyen yazım gidip gelmesi (Firebase trafiği + "Uzaktan güncellendi"
+       uyarısının sürekli yanıp sönmesi).
+       Süre varsayımı yerine KİMLİK: yazılacak içerik en son UYGULADIĞIMIZ
+       içerikle birebir aynıysa yazacak bir şey yok. */
+    if (stateJson === sync.current.lastAppliedJson) return;
     try {
       const rev = sync.current.rev + 1;
       const updatedAt = Date.now();
@@ -122,6 +135,7 @@ export function useRaceSync({ st, setSt, curRace, curTeamRef, role, userName, st
         const parsed = safeParseState(remote.stateJson);
         if (!parsed) { console.warn("Bozuk uzak state atlandı (rev", remote.rev, ")"); return; }
         sync.current.applying = true;
+        sync.current.lastAppliedJson = remote.stateJson;
         sync.current.rev = remote.rev;
         /* Uzak durumu aldık → artık "benim yazımım" diye bekleyen bir damga yok.
            Aksi halde aynı rev tekrar gelirse sonsuz uygulama döngüsü olurdu. */

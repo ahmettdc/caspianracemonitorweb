@@ -198,6 +198,16 @@ export function parseRacingToday(html) {
     while ((cm = clsRe.exec(inner)) !== null) classes.push(cm[1]);
 
     const startMs = Date.parse(startIso);
+    /* TARİHİ ÇÖZÜLEMEYEN KAYIT LİSTEYE GİRMEZ (v2.4.1). Eskiden startMs null
+       ile ekleniyordu; `raceStatus` `if (!start) return "upcoming"` dediği için
+       yarış SONSUZA DEK "yaklaşan" kalıyor, `sortByStart` `(a.startMs || 0)`
+       ile onu EN BAŞA koyuyor ve `nextOfficialRace` onu döndürüyordu → hero
+       kartı gerçek sıradaki yarışı gizleyip "01.01.1970 · 0 dk" gösteriyordu.
+       Ajanda listesinde ise startOfDay(null) bugünün altında kaldığı için hiç
+       görünmüyordu; yani hata yalnız hero'da ve açıklamasız çıkıyordu.
+       Bu, dosyanın kendi kuralının uygulanması: "tarihsiz/adsız kart atlanır
+       (uydurma yok)" — CLAUDE.md §1. */
+    if (!Number.isFinite(startMs)) continue;
     races.push({
       id: slugFromHref(href),   // href yolu zaten benzersiz (daily/… veya weekly/<id>)
       kind,
@@ -245,6 +255,16 @@ export function parseCardsPage(html, kind) {
     while ((cm = clsRe.exec(inner)) !== null) classes.push(cm[1]);
 
     const startMs = Date.parse(startIso);
+    /* TARİHİ ÇÖZÜLEMEYEN KAYIT LİSTEYE GİRMEZ (v2.4.1). Eskiden startMs null
+       ile ekleniyordu; `raceStatus` `if (!start) return "upcoming"` dediği için
+       yarış SONSUZA DEK "yaklaşan" kalıyor, `sortByStart` `(a.startMs || 0)`
+       ile onu EN BAŞA koyuyor ve `nextOfficialRace` onu döndürüyordu → hero
+       kartı gerçek sıradaki yarışı gizleyip "01.01.1970 · 0 dk" gösteriyordu.
+       Ajanda listesinde ise startOfDay(null) bugünün altında kaldığı için hiç
+       görünmüyordu; yani hata yalnız hero'da ve açıklamasız çıkıyordu.
+       Bu, dosyanın kendi kuralının uygulanması: "tarihsiz/adsız kart atlanır
+       (uydurma yok)" — CLAUDE.md §1. */
+    if (!Number.isFinite(startMs)) continue;
     races.push({
       id: slugFromHref(href),
       kind,

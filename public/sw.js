@@ -46,6 +46,29 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
+  /* VERİ DOSYALARI (.json): AĞ ÖNCE, düşerse önbellek (stale-while-offline).
+     v2.4.1 hata: aşağıdaki cache-first dalı bunları da kapsıyordu. Varlık
+     adları içerik-hash'li ama `public/` altındaki dosyalar olduğu gibi
+     kopyalanır — `assets/lmu-data.json` hash TAŞIMAZ. Bu dosya bir GitHub
+     Action tarafından HER GÜN yeniden üretilip commit'leniyor; SW yüklü bir
+     kullanıcı önbelleğe giren kopyayı CACHE adı değişene (yani bir sonraki
+     SÜRÜM yükseltmesine) kadar görüyordu. Sonuç: "Ohne Speed" tempo tablosu ve
+     Strateji Karşılaştırma'nın pist/sınıf önerileri sürümler arası bayat
+     kalıyordu. CLAUDE.md §3'teki "sw.js CACHE adı unutulursa eski sürüm
+     görünür" hatasının VERİ DOSYASI karşılığı. */
+  if (url.pathname.endsWith(".json")) {
+    e.respondWith(
+      fetch(req).then((res) => {
+        if (res && res.ok && res.type === "basic") {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(req, copy));
+        }
+        return res;
+      }).catch(() => caches.match(req).then((hit) => hit || Response.error())),
+    );
+    return;
+  }
+
   // statik varlıklar: cache önce, yoksa ağdan al + cache'le.
   // ÖNEMLİ: JS/CSS gibi varlık istekleri BAŞARISIZ olursa index.html (HTML)
   // DÖNDÜRÜLMEZ — aksi halde dinamik import "text/html is not a valid MIME"

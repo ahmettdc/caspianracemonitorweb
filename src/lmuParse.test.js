@@ -250,3 +250,35 @@ describe("parseWeekendMeta — tam 'Race weekend' paneli (v2.1)", () => {
     });
   });
 });
+
+/* REGRESYON (v2.4.1) — TARİHİ ÇÖZÜLEMEYEN YARIŞ "SIRADAKİ" OLARAK KİLİTLENİYORDU.
+   `datetime` VAR ama Date.parse edilemiyorsa (lmugarage "Soon"/"TBA" yazarsa ya
+   da düzen değişirse) satır atılmıyor, `startMs: null` ile listeye giriyordu.
+   Sonra: `raceStatus` `if (!start) return "upcoming"` → yarış SONSUZA DEK
+   yaklaşan · `sortByStart` `(a.startMs || 0)` → EN BAŞA · `nextOfficialRace`
+   onu döndürüyor → hero kartı gerçek sıradaki yarışı gizleyip
+   "01.01.1970 · 0 dk" gösteriyordu. Ajanda listesinde ise startOfDay(null)
+   bugünün altında kaldığı için hiç görünmüyordu — hata yalnız hero'da ve
+   açıklamasız çıkıyordu. Dosyanın kendi kuralı zaten "tarihsiz/adsız kart
+   atlanır (uydurma yok)" diyor (CLAUDE.md §1). */
+describe("tarihi çözülemeyen kayıt listeye GİRMEZ", () => {
+  const bozuk = FIXTURE.replace('datetime="2026-08-13T06:30:00+00:00"', 'datetime="Soon"');
+
+  it("parseRacingToday: bozuk tarihli satır atlanır, sağlam olan kalır", () => {
+    const out = parseRacingToday(bozuk);
+    expect(out.races).toHaveLength(1);
+    expect(out.races[0].name).toBe("2.4h Spa");
+    expect(out.races.every((r) => Number.isFinite(r.startMs))).toBe(true);
+  });
+
+  it("hiçbir kayıtta startMs null kalmaz", () => {
+    for (const r of parseRacingToday(FIXTURE).races) {
+      expect(Number.isFinite(r.startMs)).toBe(true);
+    }
+  });
+
+  it("tamamen bozuk girdide boş liste (çökme yok)", () => {
+    const hepsi = FIXTURE.replace(/datetime="[^"]*"/g, 'datetime="TBA"');
+    expect(parseRacingToday(hepsi).races).toEqual([]);
+  });
+});

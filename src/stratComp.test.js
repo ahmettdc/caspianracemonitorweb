@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { computePlan, DEFAULT_STATE, migrate } from "./engine";
 import { num, parseLapSec, fmtLapMs, teamTime, compareTeams, rankTeams,
   stintWarnings, seedFromPlan, suggestedLaps, strategyOptions, trackDefaults,
-  EMPTY_TEAM, REQUIRED_FIELDS } from "./stratComp";
+  EMPTY_TEAM, REQUIRED_FIELDS, requiredFieldsFor } from "./stratComp";
 
 /* Excel'deki (Caspian Motorsport Race Control v1.28) iki DOLU satır — modelin
    referans doğrulaması bu ikisiyle yapılır. Dosyadaki değerler birebir. */
@@ -447,5 +447,50 @@ describe("seedFromPlan — gerçek computePlan: ort. tur girdiyi birebir verir",
     /* Naif bölüm HÂLÂ hızlı olmalı — yoksa bu test hatayı yakalamıyor demektir. */
     expect(naive).toBeLessThan(parseLapSec("2:02.500") - 0.05);
     expect(parseLapSec(seedFromPlan(st, plan, 5, 12).avgLap)).toBeGreaterThan(naive);
+  });
+});
+
+/* REGRESYON (v2.4.1) — PİT'SİZ PLANDA "EKSİK VERİ" DAMGASI.
+   `teamTime`ın kendi formülü `pits === 0` iken yakıt terimini de pit yolu
+   terimini de 0 alıyor (fuelSec = 0, pitLaneSec = pits × pitLane = 0), ama
+   zorunluluk listesi bunları KOŞULSUZ istiyordu. 30 dakikalık bir sprint
+   (tek stint, hiç durak yok) "Planımdan ekle" ile eklenince seedFromPlan yakıt
+   alanlarını boş bırakıyor ve satır hiç hesaplanmıyordu: hero kartı "—", satır
+   "Sıralamaya girmeyen (eksik veri)" listesinde. Tutarsızlık seedFromPlan'ın
+   kendi içindeydi: aynı durumda tyreTime 0 yazılıyor, yakıt boş bırakılıyordu. */
+describe("requiredFieldsFor — hesaba GİRMEYEN alan zorunlu değildir", () => {
+  const SPRINT = { name: "#75", pits: 0, stints: 1, pitLane: "", fuelFull: "",
+    fuelLast: "", tyreTime: 0, tyreCount: 0, avgLap: "1:52.500", penalty: 0, damage: 0 };
+
+  it("durak yoksa pit yolu ve yakıt alanları aranmaz", () => {
+    expect(requiredFieldsFor(SPRINT)).toEqual(["pits", "tyreCount", "avgLap"]);
+  });
+
+  it("pit'siz satır HESAPLANIR (eksik veri damgası yemez)", () => {
+    const r = teamTime(SPRINT, 16);
+    expect(r.ok).toBe(true);
+    expect(r.missing).toEqual([]);
+    expect(r.pitLaneSec).toBe(0);
+    expect(r.fuelSec).toBe(0);
+    expect(r.tyreSec).toBe(0);
+    expect(r.totalSec).toBeCloseTo(112.5 * 16, 6);
+  });
+
+  it("durak VARSA yakıt alanları hâlâ zorunlu", () => {
+    const withPits = { ...SPRINT, pits: 2, pitLane: 22 };
+    expect(requiredFieldsFor(withPits)).toContain("fuelFull");
+    expect(teamTime(withPits, 16).missing).toEqual(["fuelFull", "fuelLast"]);
+  });
+
+  it("lastik değişmiyorsa lastik SÜRESİ aranmaz, ADEDİ hep aranır", () => {
+    const r = requiredFieldsFor({ ...SPRINT, tyreTime: "" });
+    expect(r).not.toContain("tyreTime");
+    expect(r).toContain("tyreCount");
+  });
+
+  it("alan EKSİK (null) iken hâlâ zorunlu — 'bilinmiyor' ile 'yok' ayrı", () => {
+    /* pits boşsa durak olup olmadığını bilmiyoruz → yakıt alanları yine istenir,
+       yoksa boş bir satır sessizce "0 duraklı geçerli plan" sayılırdı. */
+    expect(requiredFieldsFor({ ...SPRINT, pits: "" })).toContain("fuelFull");
   });
 });
