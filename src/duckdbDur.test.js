@@ -11,8 +11,8 @@ import { longestContSec } from "./duckdb.js";
 describe("longestContSec — SÜRE'ye göre seçer, örnek sayısına göre değil", () => {
   it("yüksek frekanslı KISA kanal, düşük frekanslı UZUN kanalı yenemez", () => {
     const cont = {
-      rpm: { hz: 100, v: new Array(12000) },     // 120 sn — daha ÇOK örnek
-      speed: { hz: 10, v: new Array(2400) },     // 240 sn — daha UZUN
+      rpm: { hz: 100, v: Array.from({ length: 12000 }) },     // 120 sn — daha ÇOK örnek
+      speed: { hz: 10, v: Array.from({ length: 2400 }) },     // 240 sn — daha UZUN
     };
     expect(longestContSec(cont)).toBe(240);
     // eski hesap (en çok örnekli): 12000 / 100 = 120 → yarısı
@@ -20,16 +20,16 @@ describe("longestContSec — SÜRE'ye göre seçer, örnek sayısına göre değ
   });
 
   it("tek kanal / eşit frekans doğal sonucu verir", () => {
-    expect(longestContSec({ speed: { hz: 10, v: new Array(300) } })).toBe(30);
+    expect(longestContSec({ speed: { hz: 10, v: Array.from({ length: 300 }) } })).toBe(30);
     expect(longestContSec({
-      a: { hz: 10, v: new Array(100) }, b: { hz: 10, v: new Array(250) },
+      a: { hz: 10, v: Array.from({ length: 100 }) }, b: { hz: 10, v: Array.from({ length: 250 }) },
     })).toBe(25);
   });
 
   it("bozuk/eksik kanal atlanır, çökmez (uydurma süre yok)", () => {
     expect(longestContSec(null)).toBe(0);
     expect(longestContSec({})).toBe(0);
-    expect(longestContSec({ a: null, b: { hz: 0, v: new Array(10) },
-      c: { hz: 10, v: [] }, d: { hz: NaN, v: new Array(5) } })).toBe(0);
+    expect(longestContSec({ a: null, b: { hz: 0, v: Array.from({ length: 10 }) },
+      c: { hz: 10, v: [] }, d: { hz: NaN, v: Array.from({ length: 5 }) } })).toBe(0);
   });
 });

@@ -39,7 +39,7 @@ const dark = decls(bodies(":root{"));
 const light = decls(bodies(':root[data-theme="light"]{'));
 
 const isColor = (v) => /#[0-9a-f]{3,8}\b/i.test(v) || /\brgba?\(/i.test(v);
-const isAlias = (v) => /^var\(--rc-/.test(v);
+const isAlias = (v) => v.startsWith("var(--rc-");
 
 /* Açık temada BİLEREK aynı kalanlar — her biri gerekçeli. */
 const SHARED = new Set([
@@ -67,7 +67,8 @@ describe("açık tema (--rc-* tasarım tokenları)", () => {
   });
 
   it("ÖLÇÜ/TİPOGRAFİ tokenları açık temada TEKRARLANMAZ (tema bağımsız)", () => {
-    const wrong = [...light.keys()].filter((k) => /^--rc-(fs|sp|r|ls|font)-/.test(k));
+    const SIZE_PREFIXES = ["--rc-fs-", "--rc-sp-", "--rc-r-", "--rc-ls-", "--rc-font-"];
+    const wrong = [...light.keys()].filter((k) => SIZE_PREFIXES.some((p) => k.startsWith(p)));
     expect(wrong).toEqual([]);
   });
 
