@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.4.1 — 2026-09-04
+
+Hata düzeltme sürümü. Bu bölüm düzeltmeler indikçe doldurulacak.
+
 ## v2.4.0 — 2026-09-01
 
 ### Yeni ekran: Strateji Karşılaştırma (yarış öncesi karar aracı)
