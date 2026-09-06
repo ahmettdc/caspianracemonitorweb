@@ -199,13 +199,25 @@ class SimInfoAPI(rF2data.SimInfo):
             self.Rf2Scor.mVehicles[self.__playersDriverNum()].mVehicleName)
 
     def close(self):
-        # This didn't help with the errors
-        try:
-            self._rf2_tele.close()
-            self._rf2_scor.close()
-            self._rf2_ext.close()
-        except BufferError:  # "cannot close exported pointers exist"
-            pass
+        """Paylaşımlı bellek eşlemelerini kapat (rF2data.SimInfo.close ile aynı
+        düzeltme — v2.4.1). Üç close() tek try içindeydi; canlı ctypes
+        görünümleri yüzünden İLK çağrı BufferError atıyor, except onu yutuyor ve
+        kalan ikisi hiç çalışmıyordu → close() fiilen no-op, her Durdur→Başlat
+        yeni bir eşleme (~320 KB + handle) bırakıyordu."""
+        for name in ("Rf2Tele", "Rf2Scor", "Rf2Ext"):
+            try:
+                if getattr(self, name, None) is not None:
+                    setattr(self, name, None)
+            except Exception:  # noqa: BLE001
+                pass
+        for name in ("_rf2_tele", "_rf2_scor", "_rf2_ext"):
+            mm = getattr(self, name, None)
+            if mm is None:
+                continue
+            try:
+                mm.close()
+            except (BufferError, ValueError, OSError):
+                pass
 
     def __del__(self):
         self.close()

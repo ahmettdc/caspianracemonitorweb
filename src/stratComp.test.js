@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
+import { computePlan, DEFAULT_STATE, migrate } from "./engine";
 import { num, parseLapSec, fmtLapMs, teamTime, compareTeams, rankTeams,
   stintWarnings, seedFromPlan, suggestedLaps, strategyOptions, trackDefaults,
-  EMPTY_TEAM, REQUIRED_FIELDS } from "./stratComp";
+  EMPTY_TEAM, REQUIRED_FIELDS, requiredFieldsFor } from "./stratComp";
 
 /* Excel'deki (Caspian Motorsport Race Control v1.28) iki DOLU satır — modelin
    referans doğrulaması bu ikisiyle yapılır. Dosyadaki değerler birebir. */
@@ -275,7 +276,10 @@ describe("seedFromPlan — planın GERÇEK toplamlarını yeniden üretir", () =
   /* REGRESYON — plan.lapSec yalnız yarış SONU havasının çarpanını taşır
      (engine: baseLap × endWx.lap). Kuru→ıslak bir planda bunu tüm yarışa
      uygulamak tempoyu şişiriyordu: ölçülen sapma 6 saatlik dry→xwet planda
-     +1.606 sn (≈ 27 dk). Ortalama tur artık Σ stintSec / totalLaps. */
+     +1.606 sn (≈ 27 dk). Ortalama tur artık planın gerçek stint süresinden
+     türetiliyor (v2.4.1'den beri SON stint hariç — aşağıdaki gerçek-plan
+     bloğuna bak; bu fikstürde satırlar birebir tutarlı olduğu için iki
+     türetme de aynı sayıyı verir). */
   it("ortalama tur planın GERÇEK stint toplamından gelir, lapSec'ten DEĞİL", () => {
     expect(seed.avgLap).toBe("2:00.000");        // 12000 sn / 100 tur
     expect(parseLapSec(seed.avgLap) * 100).toBeCloseTo(12000, 6);
@@ -401,5 +405,92 @@ describe("trackDefaults — pistten otomatik doldurma", () => {
   it("bozuk girdide çökmez", () => {
     expect(trackDefaults(null, null, null, null)).toEqual({ pitLane: null, avgLap: null });
     expect(trackDefaults("lemans", "gt3", {}, PLT)).toEqual({ pitLane: 31, avgLap: null });
+  });
+});
+
+/* REGRESYON (v2.4.1) — BAYRAK TURU TUZAĞI.
+   engine `walkByTime` son stintte bayrak turunu tur sayısına ekler
+   (`addBayrak` → `L += 1`) ama o turun SÜRESİ `stintSec`'e girmez
+   (`stintSec = startLeft`, bayrağa kalan süre). Dolayısıyla
+   `Σ stintSec / totalLaps` bölümünün payı bir turluk süre EKSİK, paydası bir
+   tur FAZLA → tohumlanan satırın "Ort. tur"u sistematik olarak HIZLI çıkıyordu.
+   Toplam süre sözleşmesi korunduğu için hata ekranda görünmüyordu, ama
+   kullanıcının elle girdiği rakip satırıyla karşılaştırma SAHTE avantaj
+   üretiyordu. Ölçülen (v2.4.0): girilen 2:02.500 → yazılan 2:00.457,
+   24 saatlik planda 3:29.000 → 3:25.907.
+   Bu blok fikstür değil GERÇEK `computePlan` kullanır — tuzak yalnız orada
+   doğuyor, elle kurulmuş satırlarda değil. */
+describe("seedFromPlan — gerçek computePlan: ort. tur girdiyi birebir verir", () => {
+  const cases = [
+    ["6:00:00", "2:02.500", "D"],
+    ["24:00:00", "3:29.000", "B"],
+    ["2:24:00", "3:59.500", "C"],
+    ["0:30:00", "2:00.000", "A"],
+  ];
+  for (const [raceLen, avgLap, strategy] of cases) {
+    it(`${raceLen} · ${strategy} · ${avgLap}`, () => {
+      const st = migrate({ ...DEFAULT_STATE, raceLen, avgLap, consumption: 8.97, strategy });
+      const plan = computePlan(st);
+      const seed = seedFromPlan(st, plan, 5, 12);
+      expect(seed).not.toBe(null);
+      /* Kuru planda (hava çarpanı 1) tohumlanan ort. tur girilen turun TA
+         KENDİSİ olmalı — 1 ms tolerans yalnız fmtLapMs yuvarlaması için. */
+      expect(parseLapSec(seed.avgLap)).toBeCloseTo(parseLapSec(avgLap), 2);
+    });
+  }
+
+  it("son stint hariç türetme bayrak turunu paydaya sokmaz", () => {
+    const st = migrate({ ...DEFAULT_STATE, raceLen: "6:00:00", avgLap: "2:02.500",
+      consumption: 8.97, strategy: "D" });
+    const plan = computePlan(st);
+    const naive = plan.rows.reduce((a, r) => a + r.stintSec, 0) / plan.totalLaps;
+    /* Naif bölüm HÂLÂ hızlı olmalı — yoksa bu test hatayı yakalamıyor demektir. */
+    expect(naive).toBeLessThan(parseLapSec("2:02.500") - 0.05);
+    expect(parseLapSec(seedFromPlan(st, plan, 5, 12).avgLap)).toBeGreaterThan(naive);
+  });
+});
+
+/* REGRESYON (v2.4.1) — PİT'SİZ PLANDA "EKSİK VERİ" DAMGASI.
+   `teamTime`ın kendi formülü `pits === 0` iken yakıt terimini de pit yolu
+   terimini de 0 alıyor (fuelSec = 0, pitLaneSec = pits × pitLane = 0), ama
+   zorunluluk listesi bunları KOŞULSUZ istiyordu. 30 dakikalık bir sprint
+   (tek stint, hiç durak yok) "Planımdan ekle" ile eklenince seedFromPlan yakıt
+   alanlarını boş bırakıyor ve satır hiç hesaplanmıyordu: hero kartı "—", satır
+   "Sıralamaya girmeyen (eksik veri)" listesinde. Tutarsızlık seedFromPlan'ın
+   kendi içindeydi: aynı durumda tyreTime 0 yazılıyor, yakıt boş bırakılıyordu. */
+describe("requiredFieldsFor — hesaba GİRMEYEN alan zorunlu değildir", () => {
+  const SPRINT = { name: "#75", pits: 0, stints: 1, pitLane: "", fuelFull: "",
+    fuelLast: "", tyreTime: 0, tyreCount: 0, avgLap: "1:52.500", penalty: 0, damage: 0 };
+
+  it("durak yoksa pit yolu ve yakıt alanları aranmaz", () => {
+    expect(requiredFieldsFor(SPRINT)).toEqual(["pits", "tyreCount", "avgLap"]);
+  });
+
+  it("pit'siz satır HESAPLANIR (eksik veri damgası yemez)", () => {
+    const r = teamTime(SPRINT, 16);
+    expect(r.ok).toBe(true);
+    expect(r.missing).toEqual([]);
+    expect(r.pitLaneSec).toBe(0);
+    expect(r.fuelSec).toBe(0);
+    expect(r.tyreSec).toBe(0);
+    expect(r.totalSec).toBeCloseTo(112.5 * 16, 6);
+  });
+
+  it("durak VARSA yakıt alanları hâlâ zorunlu", () => {
+    const withPits = { ...SPRINT, pits: 2, pitLane: 22 };
+    expect(requiredFieldsFor(withPits)).toContain("fuelFull");
+    expect(teamTime(withPits, 16).missing).toEqual(["fuelFull", "fuelLast"]);
+  });
+
+  it("lastik değişmiyorsa lastik SÜRESİ aranmaz, ADEDİ hep aranır", () => {
+    const r = requiredFieldsFor({ ...SPRINT, tyreTime: "" });
+    expect(r).not.toContain("tyreTime");
+    expect(r).toContain("tyreCount");
+  });
+
+  it("alan EKSİK (null) iken hâlâ zorunlu — 'bilinmiyor' ile 'yok' ayrı", () => {
+    /* pits boşsa durak olup olmadığını bilmiyoruz → yakıt alanları yine istenir,
+       yoksa boş bir satır sessizce "0 duraklı geçerli plan" sayılırdı. */
+    expect(requiredFieldsFor({ ...SPRINT, pits: "" })).toContain("fuelFull");
   });
 });

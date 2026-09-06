@@ -702,13 +702,37 @@ class SimInfo:
         self.Rf2Ext = rF2Extended.from_buffer(self._rf2_ext)
 
     def close(self):
-      # This didn't help with the errors
-      try:
-        self._rf2_tele.close()
-        self._rf2_scor.close()
-        self._rf2_ext.close()
-      except BufferError: # "cannot close exported pointers exist"
-        pass
+        """Paylaşımlı bellek eşlemelerini kapat.
+
+        v2.4.1: üç `close()` TEK bir try içindeydi ve `Rf2Tele/Rf2Scor/Rf2Ext`
+        canlı ctypes GÖRÜNÜMLERİ tuttuğu için İLK close() `BufferError: cannot
+        close exported pointers exist` atıyor, `except BufferError: pass` onu
+        yutuyor ve KALAN İKİ close() hiç çalışmıyordu. Yani close() fiilen
+        no-op'tu: eşlemeler ancak nesne çöp toplandığında serbest kalıyordu ve
+        arayüzdeki her Durdur→Başlat döngüsü yeni bir eşleme (~320 KB + handle)
+        açıyordu. Ölçüldü: rF2Telemetry 236,0 KB · rF2Scoring 73,5 KB ·
+        rF2Extended 9,9 KB.
+
+        Düzeltme: önce görünümler bırakılır (dışa aktarılmış işaretçi kalmasın),
+        sonra her eşleme KENDİ try'ında kapatılır — biri düşerse diğerleri yine
+        kapanır.
+        """
+        # canlı görünümleri bırak → BufferError'ın sebebi ortadan kalkar
+        for name in ("Rf2Tele", "Rf2Scor", "Rf2Ext"):
+            try:
+                if getattr(self, name, None) is not None:
+                    setattr(self, name, None)
+            except Exception:  # noqa: BLE001
+                pass
+        for name in ("_rf2_tele", "_rf2_scor", "_rf2_ext"):
+            mm = getattr(self, name, None)
+            if mm is None:
+                continue
+            try:
+                mm.close()
+            except (BufferError, ValueError, OSError):
+                # "cannot close exported pointers exist" / zaten kapalı — diğerlerini engelleme
+                pass
 
     def __del__(self):
         self.close()

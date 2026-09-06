@@ -15,6 +15,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { computeSlotStats, computeChartData, apply105Rule } from "./state";
 import { teleTraceSet, teleTraceGetAll, teleTraceRemove } from "./storage";
 import { packTrace, unpackTrace, MAX_TRACE_STR } from "./traceCodec";
+import { packTraceMeta, readTraceSess, readTraceLaps } from "./teleTraceMeta";
 
 /* Tüm izler AYNI nokta sayısında üretilir — buildCompare index-hizalı çalışır
    (k. nokta = tur kesri k/(N-1)); kalıcı iz ve oturum-içi iz farklı N olursa
@@ -54,7 +55,14 @@ export function useTelemetry({ st, setSt, curTeam, curRace, role }) {
   const [stintTele, setStintTele] = useState({});   // { A:{file,header,laps,meta}, ... }
   const [cmpASrc, setCmpASrc] = useState("cur");    // "cur" = yüklü dosya · "A"/"B"/… = kayıtlı stint
   const [cmpBSrc, setCmpBSrc] = useState("cur");
-  const readersRef = useRef(new Map());   // File → readers (kimlikle önbellek; bayatlamaz)
+  /* File → readers önbelleği. WeakMap: anahtar zaten `File` nesnesi ve GÜÇLÜ bir
+     Map hiçbir yerde boşaltılmıyordu — duck yolunda değer dataset'in TÜM kanal
+     dizilerine referans tutuyor (buildDuckReaders(header.duck)), yani açılan her
+     .duckdb oturum boyunca bellekte kalıyordu. removeSlot stintTele/savedTrace'i
+     temizleyip Firebase kaydını siliyor ama bu girdiyi bırakmıyordu → o dosyanın
+     materyalize edilmiş bütün telemetrisi GC'lenemiyordu. WeakMap ile dosyaya
+     başka referans kalmayınca okuyucular da serbest kalır. */
+  const readersRef = useRef(new WeakMap());
   /* Kalıcı izler (Firebase teleTrace'ten yüklenmiş, unpack'lenmiş). stintTele'nin
      KALICI muadili: file/header yok, iz nesneleri hazır. { A:{laps:[{sec,partial,lap}], meta, traces:[traceObj|null], mapSrc } } */
   const [savedTrace, setSavedTrace] = useState({});
@@ -73,6 +81,13 @@ export function useTelemetry({ st, setSt, curTeam, curRace, role }) {
   const onTeleFile = (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
+    /* AYNI DOSYA TEKRAR SEÇİLEBİLSİN. Tarayıcı, değeri değişmeyen bir file
+       input'u için `change` olayını tetiklemez; sıfırlama yalnız REDDETME
+       dalında vardı, .duckdb dalı `return` ile ondan önce çıkıyordu. Sonuç:
+       dosyayı yükle → kaydet (pencere kapanır) → yeniden aç → AYNI dosyayı seç
+       → hiçbir şey olmuyordu; ne yükleniyor göstergesi ne hata. Aynısı
+       removeSlot sonrası yeniden yüklemede de oluyordu. */
+    e.target.value = "";
     setSavedMsg("");   // yeni dosya → eski kayıt onayını temizle
     /* .duckdb = LMU yerel telemetri kaydı (MoTeC .ld'nin yerini alır) → duckdb-wasm ile
        oku, aynı motec şekli. Ağır WASM (~35 MB) LAZY: yalnız .duckdb açılınca indirilir. */
@@ -109,8 +124,7 @@ export function useTelemetry({ st, setSt, curTeam, curRace, role }) {
     setTeleFile(null); setTeleHeader(null); setCmpData(null); setCmpLaps(null); setCmpMeta(null);
     setCmpASrc("cur"); setCmpBSrc("cur");
     setParsed({ error: "Yalnızca .duckdb dosyaları desteklenir" });
-    e.target.value = "";   // aynı dosya tekrar seçilebilsin
-  };
+  };   // input sıfırlaması yukarıda, her iki dalı da kapsıyor
 
   /* Bir kaynak anahtarı → kaynak nesnesi. Üç tip:
      "cur" = yüklü dosya {file, header, laps, meta};
@@ -186,8 +200,12 @@ export function useTelemetry({ st, setSt, curTeam, curRace, role }) {
         if (!node?.lap) continue;
         const keys = Object.keys(node.lap).map(Number).filter(Number.isInteger).sort((a, b) => a - b);
         const traces = keys.map((k) => unpackTrace(node.lap[k]));
-        const laps = Array.isArray(node.meta?.laps) ? node.meta.laps : keys.map(() => ({}));
-        out[sl] = { laps, meta: node.meta || null, traces, mapSrc: node.meta?.mapSrc || null };
+        /* Şekil TEK kaynaktan (teleTraceMeta) — yazan ve okuyan taraf eskiden
+           ayrışmıştı, `meta` yenileme öncesi SEANS meta'sı, sonrası DÜĞÜM
+           meta'sı oluyordu. */
+        out[sl] = { laps: readTraceLaps(node.meta, keys.length),
+          meta: readTraceSess(node.meta), traces,
+          mapSrc: node.meta?.mapSrc || null };
       }
       setSavedTrace(out);
       /* Dosya yüklenmemişken (yarış yeni açıldı) karşılaştırmayı otomatik ilk kayıtlı
@@ -249,8 +267,18 @@ export function useTelemetry({ st, setSt, curTeam, curRace, role }) {
         if (done % 5 === 0) await new Promise((r) => setTimeout(r));   // UI nefes alsın
       }
       if (!metaLaps.length) { setTraceSaving(null); return; }
+      /* SEANS meta'sı (`sess`) da kalıcılaşır. Eskiden yalnız oturum içinde
+         tutuluyordu: `savedTrace[sl].meta` yazımdan sonra SEANS meta'sı
+         ({venue, vehicle, driver, trk, amb}), Firebase'ten geri okunduğunda ise
+         DÜĞÜM meta'sı ({at, laps, n, mapSrc, capped}) oluyordu — aynı slot
+         sayfa yenilemeden önce ve sonra FARKLI şekilde geliyordu. Sonuç:
+         yenilemeden sonra Tur Karşılaştırma kartında pist/araç/pilot/sıcaklık
+         satırı hiç çizilmiyor, PDF raporunun künyesi boş kalıyor ve en
+         önemlisi "farklı pist — kıyas dikkatli" uyarısı (venDiff) kalıcı
+         kaynaklarda ASLA tetiklenemiyordu; bu bir veri-dürüstlüğü koruması ve
+         sessizce devre dışıydı. */
       await teleTraceSet(curTeam, curRace, sl, {
-        meta: { at: Date.now(), laps: metaLaps, n: metaLaps.length, mapSrc, capped },
+        meta: packTraceMeta({ laps: metaLaps, mapSrc, capped, sess: meta }),
         lap: lapMap,
       });
       // optimistik: yeniden yükleme beklemeden kalıcı kaynak hazır olsun

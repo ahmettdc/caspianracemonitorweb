@@ -12,6 +12,27 @@
    ============================================================ */
 import { DUCK_CONT, DUCK_CONT4, DUCK_EVT, DUCK_CLOCK } from "./duckParse";
 
+/* Sürekli kanallar arasındaki EN UZUN SÜRE (saniye). Saat kanalı yoksa seans
+   süresi buradan gelir.
+
+   NEDEN SAF VE AYRI (v2.4.1): eskiden bu seçim satır içinde ÖRNEK SAYISINA
+   göre yapılıyordu (`v.length > baseLen`) ve süre `baseLen / baseHz` diye
+   hesaplanıyordu — yorumun kendisi "en uzun sürekli kanaldan" dediği halde.
+   Yüksek frekanslı ama KISA bir kanal (100 Hz × 12000 = 120 sn) düşük
+   frekanslı uzun bir kanalı (10 Hz × 2400 = 240 sn) yeniyor ve seans süresini
+   yarıya düşürüyordu → tEnd erken, son turun izi kırpılıyor ve duckMeta
+   orta-seans sıcaklığını yanlış noktadan örnekliyordu. */
+export function longestContSec(cont) {
+  let best = 0;
+  for (const c of Object.values(cont || {})) {
+    const hz = Number(c?.hz), n = c?.v?.length;
+    if (!(hz > 0) || !(n > 0)) continue;
+    const d = n / hz;
+    if (d > best) best = d;
+  }
+  return best;
+}
+
 /* Vite: WASM + worker'ı ayrı varlık olarak emit et (CDN yok — offline/Tauri güvenli). */
 async function makeDB() {
   const duckdb = await import("@duckdb/duckdb-wasm");
@@ -118,15 +139,21 @@ export async function openDuck(file) {
 
       // sürekli kanallar (tek değer)
       const cont = {};
-      let baseLen = 0, baseHz = 10;
+      /* En UZUN kanalın SÜRESİ (sn) — örnek SAYISI değil.
+         Eskiden `v.length > baseLen` ile en çok ÖRNEKLİ kanal seçiliyor ve süre
+         `baseLen / baseHz` diye hesaplanıyordu; oysa yorumun kendisi "en uzun
+         sürekli kanaldan" diyor. Yüksek frekanslı ama KISA bir kanal (100 Hz ×
+         12000 = 120 sn) düşük frekanslı uzun bir kanalı (10 Hz × 2400 = 240 sn)
+         yeniyor ve seans süresini YARIYA düşürüyordu → tEnd erken, son turun
+         izi kırpılıyor ve duckMeta orta-seans sıcaklığını yanlış noktadan
+         örnekliyordu. (Yalnız saat kanalı bulunamadığında devreye girer.) */
       for (const key of Object.keys(DUCK_CONT)) {
         const name = resolve(chNames, DUCK_CONT[key]);
         if (!name) continue;
         const [v] = await col(name, "value");
-        const hz = hzOf.get(name) || 10;
-        cont[key] = { hz, v };
-        if (v.length > baseLen) { baseLen = v.length; baseHz = hz; }
+        cont[key] = { hz: hzOf.get(name) || 10, v };
       }
+      const baseDur = longestContSec(cont);
       // 4-köşe sürekli kanallar
       const cont4 = {};
       for (const key of Object.keys(DUCK_CONT4)) {
@@ -147,8 +174,8 @@ export async function openDuck(file) {
       }
       if (!t0 && Number.isFinite(minTs)) t0 = minTs;   // saat yoksa en küçük olay ts'i
 
-      // veri sonu: saat ya da en uzun sürekli kanaldan
-      const dur = clockLen ? clockLen / clockHz : baseLen / baseHz;
+      // veri sonu: saat ya da en uzun (SÜRE olarak) sürekli kanaldan
+      const dur = clockLen ? clockLen / clockHz : baseDur;
       const tEnd = t0 + dur;
 
       return { meta, t0, tEnd, cont, cont4, evt };

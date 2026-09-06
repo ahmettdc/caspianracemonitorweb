@@ -73,3 +73,27 @@ export function avgLapSuggestion(own, st) {
   if (cur > 0 && Math.abs(sec - cur) / cur <= 0.01) return null;
   return { sec, txt: fmtLap(sec) };
 }
+
+/* Bu kare, PLANA YAZMAYI (oto-PIT / oto-saat) tetikleyecek kadar TAZE mi?
+
+   NEDEN (v2.4.1): useLiveSync karenin YAŞINA hiç bakmıyordu. LiveTab'de
+   "bağlantı koptu" koruması (connOf, 30 sn) var ama bu hook'ta yoktu. B
+   yarışının live düğümünde köprünün GÜNLER ÖNCE bıraktığı son kare duruyorsa
+   (araç garajda/pitte, sessionType "Yarış", by = benim e-postam) o kare tek
+   başına sahte bir markPit() bastırabiliyor ve bayat timeLeftSec ile
+   raceStartMs'i kaydırabiliyordu — tüm stint pencereleri kayardı.
+
+   Eşik LiveTab'in "bağlantı koptu" eşiğiyle aynı (30 sn): yazan istemcinin
+   kendi kareleri 2 Hz geldiği için bu sınır fazlasıyla geniş. */
+export const LIVE_WRITE_MAX_AGE_MS = 30000;
+
+export function isFrameFresh(ts, now, maxAgeMs = LIVE_WRITE_MAX_AGE_MS) {
+  /* `Number(null) === 0` TUZAĞI (CLAUDE.md §1): null/"" sayıya çevrilince 0 olur
+     ve 0 sonlu bir sayıdır. Eksik `now` böylece "1970" sayılıp her kareyi bayat,
+     eksik `ts` ise sıfır yaşlı gösterebilirdi. Önce VARLIK denetlenir. */
+  if (ts == null || now == null || ts === "" || now === "") return false;
+  const t = Number(ts), n = Number(now);
+  if (!Number.isFinite(t) || !Number.isFinite(n) || t <= 0 || n <= 0) return false;
+  /* Gelecekten gelen kare (saat farkı) bayat değildir; negatif yaş kabul. */
+  return n - t <= maxAgeMs;
+}

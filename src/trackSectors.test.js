@@ -121,3 +121,34 @@ describe("packSectors / unpackSectors — paylaşım", () => {
     expect(unpackSectors("2,3")).toBeNull();       // 0..1 dışı
   });
 });
+
+/* REGRESYON (v2.4.1) — SEKTÖR SINIRLARI TAKIMA HİÇ PAYLAŞILMIYORDU.
+   TrackMap'in paylaşım effect'i `sectorFractions()` ÇIKTISINI bağımlılık
+   dizisinde taşıyordu. Bu fonksiyon her çağrıda YENİ bir nesne döndürür; React
+   Object.is ile karşılaştırdığı için effect her render yeniden kuruluyor,
+   cleanup çalışıyor ve 2000 ms'lik debounce zamanlayıcısı HİÇ dolmuyordu.
+   Canlı akış 2 Hz (CLAUDE.md §0 varsayılanı) ve TrackMap her karede render
+   edildiği için aralık 500 ms < 2000 ms → yazım hiç gerçekleşmiyordu.
+   Bu blok effect'in dayandığı iki sözleşmeyi kilitliyor. */
+describe("sektör paylaşımı — effect bağımlılığı KARARLI olmalı", () => {
+  const st = { b12: { sum: 0.66, n: 2 }, b20: { sum: 1.4, n: 2 } };
+
+  it("sectorFractions HER ÇAĞRIDA yeni nesne döner → bağımlılık olamaz", () => {
+    expect(sectorFractions(st)).not.toBe(sectorFractions(st));
+    expect(sectorFractions(st)).toEqual(sectorFractions(st));
+  });
+
+  it("packSectors aynı gözlem için AYNI string'i verir → bağımlılık olabilir", () => {
+    expect(packSectors(sectorFractions(st))).toBe(packSectors(sectorFractions(st)));
+    expect(typeof packSectors(sectorFractions(st))).toBe("string");
+  });
+
+  it("string'den 'iki sınır da gözlendi mi' okunabilir (effect'in kapısı)", () => {
+    const both = (s) => s.split(",").filter(Boolean).length === 2;
+    expect(both(packSectors(sectorFractions(st)))).toBe(true);
+    // yalnız S1/S2 gözlendi → paylaşılmamalı
+    expect(both(packSectors(sectorFractions({ b12: { sum: 0.33, n: 1 }, b20: { sum: 0, n: 0 } })))).toBe(false);
+    // hiç gözlem yok → packSectors boş string (CLAUDE.md §1: gözlem yoksa çizilmez/paylaşılmaz)
+    expect(packSectors(sectorFractions({ b12: { sum: 0, n: 0 }, b20: { sum: 0, n: 0 } }))).toBe("");
+  });
+});

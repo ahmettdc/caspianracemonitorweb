@@ -149,7 +149,19 @@ export async function joinTeam(user, joinCode, memberName = "") {
   // ZATEN ÜYE olmayı şart koşuyor; katılan henüz üye değil → okuma reddedilir ve
   // tüm katılım "Katılınamadı" ile çökerdi. Etiket geçici olarak tid yazılır;
   // üye olunca watchTeam meta'yı okur ve App effect'i (syncMyTeamName) gerçek adla
-  // tazeler. members'ı 'viewer' yazma izni katılana kendi uid'i için zaten var.
+  // tazeler.
+  /* KATILIM KODU İSPATI (v2.4.1 — güvenlik). Kodun DOĞRULANMASI eskiden yalnız
+     burada, yani İSTEMCİDE yapılıyordu: kural tarafında `members/$uid` self-join
+     dalı sadece "kendi uid'im + kayıt yok + değer 'viewer'" diyordu. `teamCodes`
+     de koleksiyon seviyesinde okunabildiği için onaylı bir kullanıcı tek okumayla
+     tüm takım id'lerini çekip konsoldan istediği takıma viewer olarak girebiliyor,
+     ardından raceState (tüm strateji planı), chat ve canlı veriyi okuyabiliyordu.
+     Kural dili istemcinin "yazdığı kodu" göremediği için ispat AYRI BİR YAZIMLA
+     bırakılır: `teamJoin/{tid}/{uid} = kod`. Kural bunu `teams/{tid}/meta/joinCode`
+     ile karşılaştırır; düğüm okunamaz (.read yok), yani kod sızmaz.
+     İki ayrı istek şart — kural `root`'u yazım ÖNCESİ durumu gösterir, dolayısıyla
+     ispat aynı update içinde gönderilseydi görülemezdi. */
+  await set(ref(db, `teamJoin/${tid}/${user.uid}`), code);
   await update(ref(db), {
     [`teams/${tid}/names/${user.uid}`]: nm,
     [`teams/${tid}/members/${user.uid}`]: "viewer",

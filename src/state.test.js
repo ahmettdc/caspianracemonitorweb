@@ -621,3 +621,71 @@ describe("stratPick — seçili indeksi güvenli oku", () => {
     expect(stratPick({ stratTeams: [{}], stratA: -1 }, "stratA")).toBe(0);
   });
 });
+
+/* REGRESYON (v2.4.1) — "PİTLERİ SIFIRLA" ELLE GİRİLEN TAMİR SÜRELERİNİ SİLİYORDU.
+   `pitRepairs` tamamen ELLE girilen tamir saniyeleridir (setRepair · StintTab
+   hasar girdisi) ve plandaki pit sürelerini besler — bir "gerçek pit işareti"
+   DEĞİLDİR. Onay penceresi yalnız "Gerçek pit işaretlemelerini sıfırla?" diye
+   soruyor, fonksiyonun kendi yorumu da "elle girilen override'lar korunur"
+   diyordu; buna rağmen siliniyordu ve geri alma yok. */
+describe("applyResetPits — elle girileni KORUR", () => {
+  const base = {
+    actualPits: [1, 2, 3],
+    pitRepairs: [30, 0, 45],
+    autoOvr: [true, false, false],
+    overrides: ["0:52:10", "0:48:00", ""],
+  };
+
+  it("elle girilen TAMİR süreleri korunur", () => {
+    expect(applyResetPits(base)).not.toHaveProperty("pitRepairs");
+    /* Reducer bir YAMA döndürüyor; pitRepairs yamada yoksa state'te kalır. */
+    const next = { ...base, ...applyResetPits(base) };
+    expect(next.pitRepairs).toEqual([30, 0, 45]);
+  });
+
+  it("gerçek pit işaretleri ve OTOMATİK yazılmış override'lar silinir", () => {
+    const next = { ...base, ...applyResetPits(base) };
+    expect(next.actualPits).toEqual([]);
+    expect(next.autoOvr).toEqual([]);
+    expect(next.overrides[0]).toBe("");        // autoOvr[0] = true → otomatikti
+  });
+
+  it("ELLE girilen override'lar korunur (mevcut sözleşme)", () => {
+    const next = { ...base, ...applyResetPits(base) };
+    expect(next.overrides[1]).toBe("0:48:00");
+  });
+
+  it("boş/eksik state'te çökmez", () => {
+    expect(() => applyResetPits({})).not.toThrow();
+    expect(applyResetPits({}).actualPits).toEqual([]);
+  });
+});
+
+/* REGRESYON (v2.4.1) — PİLOT PROGRAMINDA "· N tur" HİÇ GÖRÜNMÜYORDU.
+   DriversTab satırı `{r.laps != null ? ` · ${r.laps} tur` : ""}` yazıyor ama
+   computeDriverPlan satırlara yalnız {idx, start, finish, dur} koyuyordu —
+   `laps` alanı hiç üretilmiyordu, yani koşul HER ZAMAN false'tu. */
+describe("computeDriverPlan — satırlar stint tur sayısını taşır", () => {
+  const st = { ...DEFAULT_STATE, raceTime: "2:00:00", avgLap: "2:00.00",
+    consumption: 10, strategies: { A: 5, B: 8, C: 10, D: 11 }, chosen: "C",
+    weatherLog: [], pitLaneTime: 20, fuelTime: 40, extraLap: 1, fuelRatio: 0.86,
+    raceStartMs: Date.parse("2026-09-04T12:00:00Z") };
+  const plan = computePlan(st, "race");
+  const dp = computeDriverPlan(st, plan);
+
+  it("her satırda laps alanı VAR ve sayı", () => {
+    expect(dp.rows.length).toBeGreaterThan(1);
+    for (const r of dp.rows) expect(Number.isFinite(r.laps)).toBe(true);
+  });
+
+  it("laps değeri planın kendi stint turuyla aynı", () => {
+    dp.rows.forEach((r, i) => expect(r.laps).toBe(plan.rows[i].lapsInStint));
+  });
+
+  it("mevcut alanlar (idx/start/finish/dur) korunur", () => {
+    expect(dp.rows[0]).toEqual(expect.objectContaining({
+      idx: expect.any(Number), start: expect.any(Number),
+      finish: expect.any(Number), dur: expect.any(Number),
+    }));
+  });
+});

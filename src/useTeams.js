@@ -23,8 +23,19 @@ export function useTeams({ user, access }) {
   useEffect(() => {
     if (!user || !access) return undefined;
     return watchMyTeams(user.uid, (t) => {
-      setMyTeams(t || {});
-      setCurTeam((c) => c || Object.keys(t || {})[0] || "");
+      const list = t || {};
+      setMyTeams(list);
+      /* SEÇİLİ TAKIM ARTIK LİSTEDE YOKSA KENDİNİ DÜZELTİR (v2.4.1).
+         Eskiden `c || ilk` deniyordu: `c` doluysa ASLA değişmiyordu. Uygulama
+         içinden çıkıp (sayfa yenilemeden) başka bir Google hesabıyla girince
+         ne curTeam ne myTeams temizleniyor, curTeam aynı kaldığı için ikinci
+         effect de yeniden çalışmıyor ve önceki hesabın takımına açılmış
+         watchTeam/watchSeasons/watchRaces abonelikleri KAPANMIYORDU (yalnız
+         izin reddiyle boşalıyorlardı). Kullanıcı, üyesi olmadığı eski takım
+         seçiliyken boş sezon/yarış listesi görüyor ve elle başka takıma
+         tıklamadan düzelmiyordu. Aynı düzeltme takımdan çıkarılma durumunu da
+         kapatır. */
+      setCurTeam((c) => (c && list[c] ? c : Object.keys(list)[0] || ""));
     });
   }, [user, access]);
 

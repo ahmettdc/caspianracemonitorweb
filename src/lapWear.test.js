@@ -136,3 +136,58 @@ describe("limitingCorner", () => {
     expect(limitingCorner([])).toBeNull();
   });
 });
+
+/* v2.4.1 — lapWear artık Lastik ekranına BAĞLI (ölü yol değil).
+   Köprü her tur `livewear` yazıyordu ama hiçbir ekran okumuyordu: 180 satırlık
+   modül + liveWearSubscribe boştaydı, yani oyun PC'sinde ödenen maliyetin
+   karşılığı alınmıyordu. TyreTab'ın ölçüm butonu artık BİRİNCİL kaynak olarak
+   bunu kullanıyor; eski "anlık diş + açık dönem" hesabı yedeğe düştü.
+
+   Bu blok TyreTab'ın dayandığı sözleşmeyi kilitliyor: kısmi değişim doğru
+   çözülmeli ve iki gerçek okuma arasındaki farktan hız çıkmalı — eski yedek
+   ikisini de yapamıyordu (4 lastik birden değişmiş olmasını şart koşuyor ve
+   stint başında dişin tam 1.00 olduğunu VARSAYIYOR). */
+describe("TyreTab ölçüm sözleşmesi — kısmi değişim ve gerçek okuma farkı", () => {
+  it("KISMİ değişim (yalnız ön ikili) doğru çözülür", () => {
+    /* Tur 1-3 hepsi aşınıyor; tur 4'te ÖN ikili yenileniyor (diş artışı). */
+    const log = {
+      1: "0.90,0.90,0.90,0.90",
+      2: "0.80,0.80,0.86,0.86",
+      3: "0.70,0.70,0.82,0.82",
+      4: "1.00,1.00,0.78,0.78",
+      5: "0.90,0.90,0.74,0.74",
+    };
+    const series = wearSeries(log);
+    const rates = wearRates(series);
+    // ön: yeni dönem (tur 4-5) → %10/tur · arka: tek dönem → %4/tur
+    expect(rates[0].perLap).toBeCloseTo(0.10, 3);
+    expect(rates[1].perLap).toBeCloseTo(0.10, 3);
+    expect(rates[2].perLap).toBeCloseTo(0.04, 3);
+    expect(rates[3].perLap).toBeCloseTo(0.04, 3);
+  });
+
+  it("hız, dişin 1.00'dan başladığı VARSAYIMINA değil gerçek farka dayanır", () => {
+    /* Stint ortasında yakalanmış set: ilk okuma 0.62. Eski yedek bunu
+       (1 − 0.42) / tur diye okuyup hızı ŞİŞİRİRDİ. */
+    const series = wearSeries({ 10: "0.62,0.62,0.62,0.62", 12: "0.52,0.52,0.52,0.52" });
+    const r = wearRates(series);
+    expect(r[0].perLap).toBeCloseTo(0.05, 3);       // (0.62 − 0.52) / 2 tur
+  });
+
+  it("EN KRİTİK köşe ve kalan tur türetilir (pit penceresi)", () => {
+    const series = wearSeries({
+      1: "0.90,0.90,0.90,0.90",
+      5: "0.50,0.70,0.74,0.74",   // FL en hızlı aşınan
+    });
+    const lim = limitingCorner(series);
+    expect(lim).not.toBe(null);
+    expect(lim.corner).toBe("fl");
+    expect(lim.left).toBeCloseTo(0.5 / 0.1, 3);     // %50 diş / %10 per tur
+  });
+
+  it("tek okuma varken ölçüm YOK (uydurma hız üretilmez)", () => {
+    expect(wearRates(wearSeries({ 3: "0.90,0.90,0.90,0.90" }))
+      .every((r) => r.perLap === null)).toBe(true);
+    expect(limitingCorner(wearSeries({}))).toBe(null);
+  });
+});

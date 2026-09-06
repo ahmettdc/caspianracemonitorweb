@@ -999,7 +999,7 @@ export function SetupForm({
           {onCancel && <button onClick={onCancel} style={{ padding: "9px 16px", borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", cursor: "pointer", fontSize: 12.5 }}>{t("Vazgeç")}</button>}
           <button onClick={saveSetup} disabled={!canSave}
             style={{ padding: "9px 18px", borderRadius: 9, border: `1px solid ${canSave ? "var(--rc-brand-bright)" : "var(--rc-border)"}`, background: canSave ? "var(--rc-brand)" : "var(--rc-surface-3)", color: canSave ? "var(--rc-on-brand)" : "var(--rc-text-3)", cursor: canSave ? "pointer" : "not-allowed", fontSize: 12.5, fontWeight: 600, opacity: suBusy ? .6 : 1 }}>
-            {suBusy ? t("Yükleniyor…") : t("Havuza yükle")}</button>
+            {suBusy ? t("Yüklüyor…") : t("Havuza yükle")}</button>
         </span>
       </div>
     </div>
@@ -1040,7 +1040,7 @@ export function SetupTable({ rows, t, st, lang, isAdmin, onDownload, onDelete, o
           <span style={hd}>{t("Dosya")}</span>
           <span style={{ ...hd, textAlign: "left" }}>{t("Koşul")}</span>
           <span style={hd}>{t("Araç")}</span>
-          <span style={{ ...hd, textAlign: "right" }}>{t("Tur")}</span>
+          <span style={{ ...hd, textAlign: "right" }}>{t("Tur sayısı")}</span>
           <span style={hd}>{t("Yükleyen")}</span>
           <span style={{ ...hd, textAlign: "right" }}>{t("İşlem")}</span>
         </div>
@@ -2250,7 +2250,7 @@ function AssetUpload({ label, current, fallback = "", specKey, aspect, w,
             onChange={(e) => pick(e.target.files?.[0])} />
           <button className="minibtn" style={{ width: "auto", padding: "0 10px" }}
             disabled={busy} onClick={() => inpRef.current?.click()}>
-            {busy ? t("Yükleniyor…") : current ? t("Değiştir") : `⬆ ${t("Yükle")}`}
+            {busy ? t("Yüklüyor…") : current ? t("Değiştir") : `⬆ ${t("Yükle")}`}
           </button>
           {current && (
             <button className="minibtn" style={{ width: "auto", padding: "0 10px" }}
@@ -2391,7 +2391,7 @@ export function TeamScreen({ user, t, lang, myTeams, curTeam, setCurTeam,
               {logoSrc
                 ? <img src={logoSrc} alt="" style={{ maxWidth: "78%", maxHeight: "78%", objectFit: "contain" }} />
                 : <img src={`${ASSET}logo.png`} alt="" style={{ maxWidth: "70%", maxHeight: "70%", objectFit: "contain", opacity: .5 }} />}
-              <span style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "5px 0", background: "rgba(11,7,8,.82)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".09em", color: "var(--rc-text-2)" }}>{logoBusy ? t("Yükleniyor…") : t("sürükle-bırak")}</span>
+              <span style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "5px 0", background: "rgba(11,7,8,.82)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".09em", color: "var(--rc-text-2)" }}>{logoBusy ? t("Yüklüyor…") : t("sürükle-bırak")}</span>
               {canEditTeam && <input type="file" accept={IMG_ACCEPT_TYPES.join(",")} style={{ display: "none" }}
                 onChange={(e) => { onLogoFile(e.target.files?.[0]); e.target.value = ""; }} />}
             </label>

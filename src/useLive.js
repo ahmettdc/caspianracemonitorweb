@@ -30,6 +30,12 @@ export function useLive({ curRace, curTeamRef, stRef, canEditRef }) {
   // canlı timing düğümünü dinle (LMU köprüsü yazar; salt-okunur)
   useEffect(() => {
     if (!curRace) { setLive(null); return undefined; }
+    /* Yarış DEĞİŞTİ → eski odanın son karesini hemen bırak. Eskiden yalnız
+       `!curRace` iken null'lanıyordu; A'dan B'ye geçince B'nin ilk karesi
+       gelene kadar A'nın karesi duruyordu ve useLiveSync bunu B'nin ilk
+       karesiyle karşılaştırıp sahte bir pit girişi görebiliyordu
+       (detectPitEntry(A_own, B_own)). */
+    setLive(null);
     fuelObsRef.current = newFuelObs();   // yarış değişti → öğreniciyi sıfırla
     lapObsRef.current = newLapObs();     // tur gözlemcisini de sıfırla
     setLiveFuelObs(null);

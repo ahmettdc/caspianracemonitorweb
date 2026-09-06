@@ -310,7 +310,10 @@ export function computeDriverPlan(st, racePlan) {
     const s0 = cur;
     const f0 = s0 + r.stintSec * 1000;                 // Excel C: kapatılmamış bitiş
     const dur = Math.max(0, Math.min(f0, finishMs) - s0); // Excel D (FARK): yarış bitişiyle kırpılır
-    rows.push({ idx: r.idx, start: s0, finish: f0, dur });
+    /* `laps`: DriversTab satırı "· N tur" yazıyor ama alan hiç üretilmiyordu
+       (`r.laps != null` her zaman false) → pilot programında stint tur sayısı
+       HİÇ görünmüyordu. Veri planın satırında zaten hazır, ek hesap yok. */
+    rows.push({ idx: r.idx, start: s0, finish: f0, dur, laps: r.lapsInStint ?? null });
     cur = f0 + r.pitSec * 1000;
   }
   const totals = {};
@@ -522,10 +525,19 @@ export function applyUnmarkPit(st) {
   return patch;
 }
 
-/* Tüm gerçek pit işaretlemelerini sıfırla (elle girilen override'lar korunur). */
+/* Tüm gerçek pit İŞARETLEMELERİNİ sıfırla (elle girilen değerler korunur).
+
+   `pitRepairs` DÖNÜŞTEN ÇIKARILDI (v2.4.1): o alan tamamen ELLE girilen tamir
+   saniyeleridir (setRepair · StintTab hasar girdisi) ve plandaki pit sürelerini
+   besler — bir "gerçek pit işareti" değildir. Onay penceresi yalnız "Gerçek pit
+   işaretlemelerini sıfırla?" diye soruyor, fonksiyonun kendi yorumu da "elle
+   girilen override'lar korunur" diyordu; buna rağmen siliniyordu ve geri alma
+   yok. Kullanıcı 3 pite hasar süresi girip yarış içinde işaretlemeyi yanlış
+   yapınca "⟲ Sıfırla"ya basıyor ve tamir süreleri kayboluyor, plan pit
+   süreleri sessizce kısalıyordu. */
 export function applyResetPits(st) {
   const overrides = (st.overrides || []).map((v, i) => ((st.autoOvr || [])[i] ? "" : v));
-  return { actualPits: [], pitRepairs: [], autoOvr: [], overrides };
+  return { actualPits: [], autoOvr: [], overrides };
 }
 
 export function buildTimeline(plan) {

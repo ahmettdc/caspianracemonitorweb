@@ -12,13 +12,24 @@ artırmıyorsa eklenir.
 ### Donmanın bilinen sebepleri (sahada ölçüldü, tahmin değil)
 
 1. **LMU REST API** (`127.0.0.1:6397`) — oyunun KENDİ localhost sunucusuna istek atar.
-   Donmanın **en güçlü sebebi**. v1.4.130'dan beri **varsayılan KAPALI** (`rest_on`
-   false → `no_rest=True`). Bu varsayılan **değiştirilmeyecek.**
-   - Kapalıyken pozisyon/tur/gap/lastik **ve bayraklar** (sarı/FCY dahil, v2.2.4) çalışır.
-   - Yalnız **VE%** ve **gerçek takım adı** REST'e bağlı. Bu ikisi için bile REST
-     açılması kullanıcının bilinçli kararıdır, varsayılan değil.
+   Donmanın **en güçlü sebebi**. Durum sürüm sürüm değişti, bugünkü gerçek şu
+   (v2.4.1'de kod okunarak doğrulandı — bu paragraf eskiden koda uymuyordu):
+   - **Arayüz (`gui.py`) yolunda REST AÇIK**, yenileme 3 sn sabit. v1.7.3'te bilinçli
+     olarak açıldı; gerekçe v1.4.140'taki **fetch-once** düzeltmesi (katalog/gökyüzü
+     sözlüğü artık bir kez çekilip önbelleğe alınıyor, her karede değil). Kullanıcı
+     toggle'ı o sürümde arayüzden kaldırıldı.
+   - **`--nogui` / CLI yolunda varsayılan KAPALI** — `[rate] rest_on` okunur, yoksa false.
+     Not: arayüz `save()` çağrıldığında config'e `rest_on = true` yazar, yani arayüz bir
+     kez çalıştıktan sonra CLI yolu da açık başlar.
+   - **`--no-rest` her yolda REST'i kapatır** (v2.4.1). Öncesinde bayrak `launch()`'a
+     hiç geçirilmiyordu, yani arayüz/çift tıklama yolunda ve `--dump`/`--dump-wx`
+     teşhis komutlarında **sessizce yok sayılıyordu**. Donma şüphesinde başvurulacak
+     kaldıraç budur.
+   - REST kapalıyken pozisyon/tur/gap/lastik **ve bayraklar** (sarı/FCY dahil, v2.2.4)
+     çalışır. Yalnız **VE%** ve **gerçek takım adı** REST'e bağlıdır.
    - Yeni bir özellik REST gerektiriyorsa: **önce paylaşımlı bellekte var mı diye bak.**
-     v2.2.4'te bayrak tam da böyle REST'ten shmem'e taşındı.
+     v2.2.4'te bayrak tam da böyle REST'ten shmem'e taşındı. Bu kural değişmedi —
+     REST'in açık olması yeni REST çağrısı eklemeyi serbest bırakmaz.
 2. **WebView2 / Chromium** — masaüstü uygulaması gömer, oyunun GPU/çekirdekleriyle
    yarışır. Sürüş PC'sinde **hafif köprü .exe** (tarayıcısız) önerilir.
 3. **Yüksek yayın hızı** — `[rate] hz` varsayılan **2** (0.5 sn periyot), 0.2–10 arası

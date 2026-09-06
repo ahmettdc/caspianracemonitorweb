@@ -129,10 +129,17 @@ export function relativeRows(rows, me, trackLength, ahead = 3, behind = 3) {
          nöbetçisi) metre cinsinden bir anahtar alıyor ve saniye cinsinden çok daha
          önde olan araçların üstüne çıkıp ±3 penceresini yanlış sıralıyordu.
          İki yol da tur kesrine indirgenince birimler tutar; sıralama zaten tur
-         boyunca monoton olduğu için sonuç aynı ama karışım imkânsız. */
-      dist: relT != null
-        ? -relT / (num(c.estLapTime) > 0 ? num(c.estLapTime) : estLap)
-        : dist / Number(trackLength),
+         boyunca monoton olduğu için sonuç aynı ama karışım imkânsız.
+
+         PAYDA OYUNCUNUN `estLap`'İ OLMALI (v2.4.1 düzeltmesi). Eskiden zaman
+         dalı RAKİBİN `estLapTime`'ına bölüyordu; oysa `relT` zaten oyuncunun
+         turuyla (`wrapTime(..., estLap)`) hesaplanıyor. Her satır farklı ölçekle
+         normalize edilince ÇOK SINIFLI sahada (LMU'da her zaman — Hypercar ~1:35
+         vs LMGT3 ~1:50, %15 fark) sıra `relSec` ile uyuşmuyordu: REL sütunu
+         yukarıdan aşağı monoton olmuyor ve ±3 penceresine yanlış araç giriyordu.
+         Tek payda kullanılınca anahtar `relSec`'in sabit katı olur → sıra
+         doğrudan `relSec`'e göre monoton. */
+      dist: relT != null ? -relT / estLap : dist / Number(trackLength),
       relSec: relT != null ? relT : relGapSec(me.lapDist, c.lapDist, trackLength, ref),
       isMe: false,
     });

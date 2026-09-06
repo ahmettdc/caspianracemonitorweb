@@ -129,18 +129,52 @@ export function ledgerSummary(rows) {
    Pit duvarının sorduğu soru da budur ("plana uyuyor muyuz").
    ============================================================ */
 
-/* Plandaki değişimler: her stint satırında DOLU hücre sayısı = takılan lastik.
-   Boş satır (hepsi taşıma) değişim değildir, listeye girmez.
-   Dönüş: [{ stint, n, corners }] — stint 1-tabanlı (S1, S2…). */
-export function planChanges(tyreStints) {
-  const rows = Array.isArray(tyreStints) ? tyreStints : [];
+/* Plandaki lastik DEĞİŞİMLERİ — `st.pits[i].tyres` bayraklarından türetilir.
+   Dönüş: [{ stint, n, corners }] — stint 1-tabanlı (o lastiklerle KOŞULAN stint).
+
+   NEDEN GRID'DEN DEĞİL, BAYRAKLARDAN (v2.4.1): eskiden `tyreStints` ızgarasının
+   her DOLU hücresi bir değişim sayılıyordu. Üç ayrı hata çıkıyordu:
+
+   1) S1 SATIRI YARIŞ ÖNCESİ TAKMA. `tyreStints[0]` yarışa çıkış setidir,
+      öncesinde PİT YOKTUR — `syncPitTyres` de `pits[i] ← tyreStints[i+1]`
+      diyerek onu hiçbir pite bağlamaz. Değişim sayılınca (a) "Plandaki lastik
+      değişimi +Xs" KPI'sı yarış öncesi takmayı da ücretlendiriyor, (b) 1.
+      planlanan değişim 1. GERÇEK pit durağıyla eşleşiyor → TÜM eşleme bir
+      kayıyor (defterin "Başlangıç" dönemi zaten `n > 0` ile elendiği için
+      karşı taraf kaymıyor). Plana tam uyulan bir yarışta ekran "1 sapma"
+      gösteriyordu.
+   2) PLAN DIŞI STİNTLER. Izgara 14 satır sabittir; strateji/yarış süresi
+      değişip plan kısalınca S7/S8 hücreleri state'te kalıyor ve KPI'ya
+      giriyordu (ölçüldü: +40.5 s yerine gerçek +24.0 s). Aynı state'te set
+      bütçesi (`computeTyreInfo`) plan uzunluğuyla sınırlı olduğu için iki
+      hesap aynı ızgaradan farklı sonuç veriyordu.
+   3) "AYNI SETİ TEKRAR YAZ" DEĞİŞİM DEĞİLDİR. Seçici S2'ye S1'dekiyle aynı
+      numarayı yazmaya izin veriyor; `pitTyreFlag` bunu 0 (taşı) sayıyor ve
+      engine plana 0 sn koyuyor, ama grid'e bakan KPI 12 sn yazıyordu — aynı
+      satırda iki çelişen bilgi.
+
+   `pits[i].tyres` bu üç kuralı ZATEN uyguluyor ve engine lastik süresini de
+   ondan alıyor. Aynı kaynağı kullanmak ikisinin bir daha ayrışmasını imkânsız
+   kılar (CLAUDE.md §1: tek doğruluk kaynağı).
+
+   @param st       oda durumu ({ pits: [{ tyres: [f,f,f,f] }] })
+   @param planLen  plandaki stint sayısı (racePlan.rows.length) — verilmezse
+                   `pits` uzunluğuyla sınırlanır */
+export function planChanges(st, planLen) {
+  const pits = Array.isArray(st?.pits) ? st.pits : [];
+  /* Son stintin arkasında pit yoktur → en fazla planLen - 1 durak. */
+  const lim = Number(planLen) > 0
+    ? Math.min(pits.length, Math.max(0, Math.floor(planLen) - 1))
+    : pits.length;
   const out = [];
-  rows.forEach((row, i) => {
-    const cells = Array.isArray(row) ? row : [];
+  for (let i = 0; i < lim; i += 1) {
+    const flags = Array.isArray(pits[i]?.tyres) ? pits[i].tyres : [];
     const corners = [];
-    cells.forEach((v, ci) => { if (String(v ?? "").trim()) corners.push(ci); });
-    if (corners.length) out.push({ stint: i + 1, n: corners.length, corners });
-  });
+    flags.forEach((f, ci) => { if (Number(f) > 0) corners.push(ci); });
+    /* pits[i] = stint i+1'den SONRAKİ durak → takılan lastikler stint i+2'de
+       koşulur. Etiket o stintin numarasıdır (1-tabanlı). */
+    if (corners.length) out.push({ stint: i + 2, n: corners.length, corners });
+  }
   return out;
 }
 

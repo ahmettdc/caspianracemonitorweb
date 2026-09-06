@@ -417,7 +417,17 @@ export function computePlan(st, mode /* "race" | "code80" */) {
       const cRaw = Number(st.stintCons?.[i + 1]);
       const consNext = (cRaw > 0 ? cRaw : baseCons) * endWx.fuel;
       const cd = rws[i].timeLeft + flagExtra;
-      const lapsLeft = Math.max(1, Math.ceil(cd / lapSec - 1e-9));
+      /* Kalan tur sayısı SON STİNTİN kendi tur süresiyle bölünür — yarış
+         ortalamasıyla değil. Aynı fonksiyon stinte özel VE tüketimini
+         (`stintCons[i+1]`) zaten hesaba katıyordu; tur süresi gözden kaçmıştı.
+         Son stinte ortalamadan HIZLI bir tur girildiğinde (ör. 2:24 yarışta
+         ort. 3:59.5 iken son stinte 3:00) kalan tur bir eksik sayılıyor ve plan
+         BİR TUR EKSİK yakıt söylüyordu — yarışta yakıtsız kalmak demek. Ters
+         yönde (yavaş son stint) gereksiz fazla dolum + boşa pit süresi.
+         `fixLap` satırda zaten hazır; hava çarpanı fixLap'e UYGULANMAZ
+         (kullanıcı o koşulun turunu yazıyor — bkz. satır 270). */
+      const lapNext = Number(next.fixLap) > 0 ? Number(next.fixLap) : lapSec;
+      const lapsLeft = Math.max(1, Math.ceil(cd / lapNext - 1e-9));
       return Math.min(100, Math.max(0, (lapsLeft + st.extraLap) * consNext));
     }
     return Math.min(100, Math.max(0, next.fuelNeed));

@@ -125,6 +125,35 @@ export const EMPTY_TEAM = {
 export const REQUIRED_FIELDS = ["pits", "pitLane", "fuelFull", "fuelLast",
   "tyreTime", "tyreCount", "avgLap"];
 
+/* Bu satır için GERÇEKTEN gereken alanlar. Bir alan hesaba GİRMİYORSA
+   aranmaz — aksi halde satır "eksik veri" damgası yiyip hiç hesaplanmıyordu.
+
+   NEDEN (v2.4.1): `teamTime`ın kendi formülü `pits === 0` iken yakıt terimini
+   de pit yolu terimini de 0 alıyor (fuelSec = 0, pitLaneSec = pits × pitLane
+   = 0), ama zorunluluk listesi bunları koşulsuz istiyordu. Sonuç: 30 dakikalık
+   bir sprint (tek stint, hiç durak yok) "Planımdan ekle" ile eklenince
+   `seedFromPlan` yakıt alanlarını boş bırakıyor (pitLane !== null && pits > 0
+   koşulu) ve satır hesaplanamıyordu: hero kartı "—", satır "Sıralamaya
+   girmeyen (eksik veri)" listesinde, karşılaştırmada "Eksik alan: Yakıt tam,
+   Yakıt son". Tutarsızlık seedFromPlan'ın kendi içindeydi: aynı durumda
+   `tyreTime` 0 yazılıyor, yakıt boş bırakılıyordu. */
+export function requiredFieldsFor(team) {
+  const t = team || {};
+  const pits = num(t.pits);
+  const tyreCount = num(t.tyreCount);
+  /* Durak yoksa pit yolu ve yakıt kalemleri toplama hiç girmez;
+     lastik değişmiyorsa lastik süresi de girmez (0 × süre).
+     Alan EKSİKSE (null) hâlâ zorunlu sayılır — "bilinmiyor" ile "yok" ayrı. */
+  const needPitFuel = pits === null || pits > 0;
+  const needTyreTime = tyreCount === null || tyreCount > 0;
+  /* Sıra REQUIRED_FIELDS'ten gelir → "eksik alan" listesi kararlı görünür. */
+  return REQUIRED_FIELDS.filter((k) => {
+    if (k === "pitLane" || k === "fuelFull" || k === "fuelLast") return needPitFuel;
+    if (k === "tyreTime") return needTyreTime;
+    return true;
+  });
+}
+
 /* ---------- tek takım ---------- */
 /* Bir takımın toplam yarış süresini ve kalem kalem dökümünü verir.
    raceLaps geçersizse tempo terimi kurulamaz → ok:false.
@@ -151,7 +180,8 @@ export function teamTime(team, raceLaps) {
   const avgLapSec = parseLapSec(t.avgLap);
 
   const vals = { pits, pitLane, fuelFull, fuelLast, tyreTime, tyreCount, avgLap: avgLapSec };
-  REQUIRED_FIELDS.forEach((k) => { if (vals[k] === null) missing.push(k); });
+  /* Yalnız HESABA GİREN alanlar zorunlu (bkz. requiredFieldsFor). */
+  requiredFieldsFor(t).forEach((k) => { if (vals[k] === null) missing.push(k); });
   if (laps === null || laps <= 0) missing.push("raceLaps");
   /* Negatif adet/süre fizik olarak yok — veri girişi hatasıdır, sessizce
      hesaplanıp makul görünen bir sonuç üretmesin. */
@@ -285,9 +315,27 @@ export function seedFromPlan(st, plan, tyre2Sec, tyre4Sec) {
   const stops = rows.filter((r) => !r.isLast);
   const pits = stops.length;
 
+  /* Ort. tur: SON stint hariç türetilir.
+     NEDEN (v2.4.1): engine `walkByTime` son stintte BAYRAK turunu tur sayısına
+     ekler (`addBayrak` → `L += 1`) ama o turun SÜRESİ `stintSec`'e girmez
+     (`stintSec = startLeft`, bayrağa kalan süre). Yani `Σ stintSec / totalLaps`
+     bölümünün payı bir turluk süre EKSİK, paydası bir tur FAZLA → sonuç
+     sistematik olarak HIZLI çıkıyordu. Toplam süre sözleşmesi korunduğu için
+     hata görünmüyor, ama ekrandaki "Ort. tur" ve "Tempo farkı /tur" yanlış
+     oluyor ve elle girilmiş rakip satırıyla karşılaştırma sahte avantaj
+     üretiyordu (6 saatlik planda ölçüldü: girilen 2:02.500 → yazılan 2:00.457,
+     24 saatte 3:29.000 → 3:25.907).
+     Son stint hariç satırlar bayrak turu taşımadığı için bölüm girdiyi birebir
+     geri verir. Tek stintli planda (son-hariç satır yok) bayrak turunu paydadan
+     düşmek aynı işi görür. */
   const stintTotal = rows.reduce((a, r) => a + (num(r.stintSec) ?? 0), 0);
   if (!(stintTotal > 0)) return null;
-  const avgLapSec = stintTotal / totalLaps;
+  const mid = rows.filter((r) => !r.isLast);
+  const midSec = mid.reduce((a, r) => a + (num(r.stintSec) ?? 0), 0);
+  const midLaps = mid.reduce((a, r) => a + (num(r.lapsInStint) ?? 0), 0);
+  const avgLapSec = midLaps > 0 && midSec > 0
+    ? midSec / midLaps
+    : stintTotal / Math.max(1, totalLaps - 1);
 
   const tyreTotal = stops.reduce((a, r) => a + tyreSecOf(r.tyreCount), 0);
   const tyreCount = stops.filter((r) => (num(r.tyreCount) ?? 0) > 0).length;

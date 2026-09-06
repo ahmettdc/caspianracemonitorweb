@@ -31,13 +31,15 @@ beforeEach(async () => {
       admin: { allowed: true, admin: true },
     });
     await set(ref(db, "teams/team1"), {
-      meta: { ownerUid: "alice" },
+      meta: { ownerUid: "alice", joinCode: "ABC123" },
       members: { alice: "owner", bob: "editor", carol: "viewer" },
+      raceState: { race1: { stateJson: "{}", rev: 1 } },
     });
     await set(ref(db, "teams/team2"), {
-      meta: { ownerUid: "dave" },
+      meta: { ownerUid: "dave", joinCode: "XYZ789" },
       members: { dave: "owner" },
     });
+    await set(ref(db, "teamCodes"), { ABC123: "team1", XYZ789: "team2" });
   });
 });
 
@@ -383,5 +385,85 @@ describe("lmuSchedule", () => {
   it("istemci (admin bile) yazamaz — yalnız Action admin token'ı yazar", async () => {
     await assertFails(set(ref(db("alice"), "lmuSchedule"), { count: 0, races: [] }));
     await assertFails(set(ref(db("admin"), "lmuSchedule"), { count: 0, races: [] }));
+  });
+});
+
+/* ============================================================
+   v2.4.1 GÜVENLİK — KATILIM KODU İSPATI
+   ------------------------------------------------------------
+   Açık (v2.4.0'a kadar): (a) `teamCodes` .read KOLEKSİYON seviyesindeydi →
+   onaylı her kullanıcı tek okumayla TÜM takım id'lerini çekebiliyordu;
+   (b) `members/$uid` self-join kuralı yalnız "kendi uid'im + kayıt yok +
+   değer 'viewer'" diyordu, katılım kodu İSPATI istemiyordu. İkisi birleşince
+   onaylı bir kullanıcı istediği takıma viewer olarak katılıp raceState
+   (tüm strateji planı), chat ve canlı veriyi okuyabiliyordu. `joinTeam`
+   kodu doğruluyordu ama bu YALNIZ istemci tarafıydı.
+   ============================================================ */
+describe("teamCodes + takıma katılma (katılım kodu ispatı)", () => {
+  const join = (uid, tid, code) => update(ref(db(uid)), {
+    [`teams/${tid}/names/${uid}`]: "Dave",
+    [`teams/${tid}/members/${uid}`]: "viewer",
+    [`users/${uid}/teams/${tid}`]: tid,
+  });
+
+  it("kod KOLEKSİYONU listelenemez (tüm tid'ler dökülmesin)", async () => {
+    await assertFails(get(ref(db("dave"), "teamCodes")));
+    await assertFails(get(ref(db("alice"), "teamCodes")));   // sahip bile listeleyemez
+  });
+
+  it("BİLİNEN tek kod okunabilir (joinTeam bunu yapar)", async () => {
+    await assertSucceeds(get(ref(db("dave"), "teamCodes/ABC123")));
+  });
+
+  it("KODSUZ katılım reddedilir (asıl açık)", async () => {
+    await assertFails(join("dave", "team1"));
+  });
+
+  it("YANLIŞ kod ispatıyla katılım reddedilir", async () => {
+    await assertSucceeds(set(ref(db("dave"), "teamJoin/team1/dave"), "WRONG1"));
+    await assertFails(join("dave", "team1"));
+  });
+
+  it("BAŞKA takımın kodu bu takıma yaramaz", async () => {
+    await assertSucceeds(set(ref(db("dave"), "teamJoin/team1/dave"), "XYZ789"));
+    await assertFails(join("dave", "team1"));
+  });
+
+  it("DOĞRU kod ispatıyla katılım geçer ve üyelik açılır", async () => {
+    await assertFails(get(ref(db("dave"), "teams/team1/raceState")));   // önce yabancı
+    await assertSucceeds(set(ref(db("dave"), "teamJoin/team1/dave"), "ABC123"));
+    await assertSucceeds(join("dave", "team1"));
+    await assertSucceeds(get(ref(db("dave"), "teams/team1/raceState")));
+  });
+
+  it("başkasının uid'i için ispat yazılamaz", async () => {
+    await assertFails(set(ref(db("dave"), "teamJoin/team1/bob"), "ABC123"));
+  });
+
+  it("ispat düğümü OKUNAMAZ (kod sızmasın)", async () => {
+    await assertSucceeds(set(ref(db("dave"), "teamJoin/team1/dave"), "ABC123"));
+    await assertFails(get(ref(db("dave"), "teamJoin/team1/dave")));
+    await assertFails(get(ref(db("alice"), "teamJoin/team1")));
+  });
+
+  it("MEVCUT üyeler etkilenmez: rol değişimi, ayrılma, sahip atamaları", async () => {
+    await assertSucceeds(set(ref(db("alice"), "teams/team1/members/carol"), "editor"));
+    await assertSucceeds(set(ref(db("carol"), "teams/team1/members/carol"), null));
+    await assertFails(set(ref(db("bob"), "teams/team1/members/carol"), "owner"));
+  });
+
+  it("YENİ TAKIM kurulumu (meta yokken bootstrap) hâlâ çalışır", async () => {
+    await assertSucceeds(update(ref(db("dave")), {
+      "teams/newteam/meta": { ownerUid: "dave", joinCode: "QQQ111", name: "N" },
+      "teams/newteam/members/dave": "owner",
+      "teams/newteam/names/dave": "Dave",
+      "users/dave/teams/newteam": "N",
+      "teamCodes/QQQ111": "newteam",
+    }));
+  });
+
+  it("onaysız kullanıcı hiçbir şekilde katılamaz", async () => {
+    await assertFails(set(ref(db("mallory"), "teamJoin/team1/mallory"), "ABC123"));
+    await assertFails(join("mallory", "team1"));
   });
 });

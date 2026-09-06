@@ -6,7 +6,7 @@
    - Firebase / Google (cross-origin): dokunulmaz, her zaman ağdan
    Sürüm değişince CACHE adını artır → eski cache temizlenir.
    ============================================================ */
-const CACHE = "crc-v2.4.0";   // sürüm başına artır → eski app-shell temizlenir
+const CACHE = "crc-v2.4.1";   // sürüm başına artır → eski app-shell temizlenir
 const APP_SHELL = ["./", "./index.html", "./favicon.png", "./favicon.svg", "./manifest.webmanifest"];
 
 self.addEventListener("install", (e) => {
@@ -42,6 +42,29 @@ self.addEventListener("fetch", (e) => {
       fetch(req, { cache: "reload" })
         .catch(() => fetch(req))                    // reload desteklenmiyorsa normal dene
         .catch(() => caches.match("./index.html")),
+    );
+    return;
+  }
+
+  /* VERİ DOSYALARI (.json): AĞ ÖNCE, düşerse önbellek (stale-while-offline).
+     v2.4.1 hata: aşağıdaki cache-first dalı bunları da kapsıyordu. Varlık
+     adları içerik-hash'li ama `public/` altındaki dosyalar olduğu gibi
+     kopyalanır — `assets/lmu-data.json` hash TAŞIMAZ. Bu dosya bir GitHub
+     Action tarafından HER GÜN yeniden üretilip commit'leniyor; SW yüklü bir
+     kullanıcı önbelleğe giren kopyayı CACHE adı değişene (yani bir sonraki
+     SÜRÜM yükseltmesine) kadar görüyordu. Sonuç: "Ohne Speed" tempo tablosu ve
+     Strateji Karşılaştırma'nın pist/sınıf önerileri sürümler arası bayat
+     kalıyordu. CLAUDE.md §3'teki "sw.js CACHE adı unutulursa eski sürüm
+     görünür" hatasının VERİ DOSYASI karşılığı. */
+  if (url.pathname.endsWith(".json")) {
+    e.respondWith(
+      fetch(req).then((res) => {
+        if (res && res.ok && res.type === "basic") {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(req, copy));
+        }
+        return res;
+      }).catch(() => caches.match(req).then((hit) => hit || Response.error())),
     );
     return;
   }

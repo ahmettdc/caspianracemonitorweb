@@ -1,5 +1,306 @@
 # Changelog
 
+## v2.4.1 — 2026-09-04
+
+Hata düzeltme sürümü. Yeni özellik yok; kod tabanı altı alana bölünüp taranarak
+bulunan 40 bulgunun **tamamı** düzeltildi. Her düzeltme testle kilitlendi ve
+testlerin çoğu eski kodda düşüyor (yani hatayı gerçekten yakalıyor). Üç yerde
+denetim kalıcı hale getirildi: i18n bütünlüğü, açık tema token kapsamı ve
+sektör paylaşımının bağımlılık sözleşmesi artık testte.
+
+### Gizlilik
+
+- **Katılım kodunu bilmeden takıma girilebiliyordu** (`firebase-rules.json` ·
+  `storage.js`). İki eksik birleşiyordu:
+
+  1. `teamCodes` `.read` KOLEKSİYON seviyesindeydi → onaylı her kullanıcı tek
+     okumayla TÜM takım id'lerini çekebiliyordu.
+  2. `members/$uid` self-join dalı yalnız "kendi uid'im + kayıt yok + değer
+     `viewer`" diyordu; katılım kodu **hiç doğrulanmıyordu**. `joinTeam` kodu
+     kontrol ediyordu ama bu YALNIZ istemci tarafıydı — konsoldan atlatılabilir.
+
+  Sonuç: onaylı bir kullanıcı `get(ref(db,'teamCodes'))` ile tid listesini alıp
+  `set(ref(db,'teams/<tid>/members/<kendi uid>'),'viewer')` yazarak istediği
+  takıma girebiliyor, ardından `raceState` (tüm strateji planı), `chat` ve
+  `live*` düğümlerini okuyabiliyordu.
+
+  **Düzeltme:** `.read` `$code` seviyesine indirildi (bilinen tek kod okunur,
+  liste dökülmez) ve self-join dalı artık kod ispatı istiyor. Kural dili
+  istemcinin "yazdığı kodu" göremediği için ispat ayrı bir yazımla bırakılıyor:
+  `teamJoin/{tid}/{uid} = kod`, kural bunu `teams/{tid}/meta/joinCode` ile
+  karşılaştırıyor. Düğümün `.read`'i YOK → kod sızmıyor. `joinCode`'un STRING
+  olması ayrıca şart: kodu olmayan bir takımda `null == null` tuzağa dönerdi.
+  İki ayrı istek zorunlu çünkü kural `root`'u yazım ÖNCESİ durumu gösterir.
+
+  Diğer dallar (takımdan ayrılma, sahip atamaları, meta yokken yeni takım
+  kurulumu) **değişmedi** ve testle korundu. Emülatör testi 63 → **74**; yeni
+  11 testin 6'sı eski kurallarda düşüyor, yani açığı gerçekten gösteriyorlar.
+
+  **Not (düzeltilmedi):** katılım kodu 6 karakter ve 31 harflik bir alfabeden
+  (≈ 887 milyon olasılık). `teamCodes/{kod}` okuması istek başına bir tahmin
+  imkânı verdiği için kararlı bir saldırgan için teorik bir sınır. Kod boyunu
+  büyütmek mevcut takımların kodlarını geçersiz kılacağı için ayrı bir karar.
+
+### Veri kaybı ve senkron
+
+- **Oda değişiminde plan kayboluyordu** (`useRaceSync.js` · `App.jsx`).
+  `schedulePush` 800 ms'lik bir zamanlayıcı kurar; zamanlayıcı hedef odayı
+  KURULURKEN yakalar ama yazılacak state'i ATEŞLENDİĞİNDE okur.
+  `openRace`/`leaveRace` bu zamanlayıcıyı iptal etmiyordu ve `pushState` ne
+  `applying` bayrağına ne de hedef odaya bakıyordu (yalnız `schedulePush`
+  bakıyordu). A yarışında hücre düzenleyip 800 ms dolmadan B'ye geçince B'nin
+  state'i A'nın yoluna yazılıyor, rev arttığı için A'daki diğer editörler de
+  uyguluyor ve plan HER CİHAZDA kayboluyordu.
+
+  İki kapı da gerekli: `openRace`'in `await` penceresinde `curRace` HENÜZ eski
+  odadır ama `stRef` çoktan yenisidir (oda karşılaştırması yakalayamaz), oda
+  değiştikten sonrasını ise `applying` yakalayamaz. Oda değişiminde önce
+  `flushPending` (son düzenleme MEVCUT odaya yazılsın), sonra `cancelPending`.
+
+- **Rev çakışmasında sessiz ayrışma** (`useRaceSync.js`). Rev sunucuda
+  transaction ile değil istemcide `rev + 1` olarak üretilip düz `set` ile
+  yazılıyor. İki editör aynı rev'ten yazınca ikisi de aynı numarayı üretir;
+  `remote.rev > localRev` koşulu yüzünden KAYBEDEN taraf kazananın yazımını hiç
+  uygulamıyordu. Kendi yazımımızın `updatedAt` damgası tutuluyor: aynı rev'te
+  geri gelen damga bizimki değilse o rev'i başkası kazanmış demektir → uygula.
+
+  İki karar da yeni saf modülde (`src/raceSyncGate.js`), 13 testle. Bu projede
+  DOM test koşumu yok; hook'un içinde kalsalardı hiç test edilemezlerdi.
+
+### Köprü yaşam döngüsü
+
+- **"Zombi köprü"** (`liveBridge.js`). `startBridge` iki `await` içeriyor
+  (dinamik import + `liveSessionIdGet`). Bu pencerede `stopBridge` gelirse
+  `starting` hiç sıfırlanmıyor, `stopping` true kalıyordu: askıdaki çağrı devam
+  edip sidecar'ı YİNE DE doğuruyor, ama `flush` her karede erken dönüyordu.
+  Oyun PC'sinde paylaşımlı bellek okuyan bir süreç çalışıyor (CLAUDE.md §0),
+  arayüz "çalışıyor" diyor, Firebase'e TEK KARE gitmiyor — ve `bridgeRunning()`
+  true olduğu için 4 sn'lik oto-yeniden deneme onu asla canlandırmıyordu.
+
+- **Eski sürecin sahiplik kaçağı** (`liveBridge.js`). `cmd.on("close")` kim
+  olduğuna bakmadan abonelikleri ve `child`'ı temizleyip kirayı bırakıyordu.
+  Yarış değiştirilince eski sürecin `close`'u ms'ler sonra gelip YENİ köprünün
+  aboneliklerini iptal ediyordu: kira hep null → her karede transaction, remote
+  hep null → hafif köprüye boyun eğilmiyor (v1.8.8'de düzeltilen iki-yazıcı
+  yanıp sönmesi geri geliyor), `child` null → 4 sn sonra İKİNCİ bir sidecar.
+
+  Her çalıştırma artık kendi jetonunu (`runSeq`) taşıyor; jeton güncel değilse
+  hiçbir paylaşılan duruma dokunmuyor. `stopBridge` jetonu ilerletip `starting`
+  kilidini de açıyor.
+
+### Yanlış yarış kararı
+
+- **Bayrak turu tuzağı** (`stratComp.js`). `walkByTime` son stintte bayrak
+  turunu tur sayısına ekliyor (`L += 1`) ama süresi `stintSec`'e girmiyor
+  (`stintSec = startLeft`). `Σ stintSec / totalLaps` bölümünün payı bir turluk
+  süre EKSİK, paydası bir tur FAZLA → "Planımdan ekle" satırının ortalama turu
+  sistematik olarak HIZLI. Ölçüldü: `2:02.500 → 2:00.457` · `3:29.000 →
+  3:25.907` · `2:00.000 → 1:58.113`. Toplam süre sözleşmesi korunduğu için
+  ekranda görünmüyordu, ama elle girilmiş rakip satırıyla karşılaştırma sahte
+  avantaj üretiyordu. Ort. tur artık son stint hariç satırlardan türetiliyor ve
+  dört senaryoda da girdiyi birebir geri veriyor.
+
+- **Son stintin dolumu** (`engine.js`). `pctForPit` kalan turu `cd / lapSec` ile
+  buluyordu; `lapSec` yarış ortalaması. Aynı fonksiyon stinte özel VE tüketimini
+  (`stintCons`) hesaba katıyor ama tur süresini (`fixLap`, satırda zaten hazır)
+  yok sayıyordu. Son stinte ortalamadan hızlı bir tur girilince plan BİR TUR
+  EKSİK yakıt söylüyordu; ters yönde gereksiz fazla dolum + boşa pit süresi.
+
+- **Lastik plan↔gerçek eşlemesi** (`tyreLedger.js` · `TyreTab.jsx`).
+  `planChanges` ızgaranın dolu hücrelerini sayıyordu. Üç hata: (1) `tyreStints[0]`
+  yarış ÖNCESİ takmadır, arkasında pit yoktur — sayılınca eşleme bir kayıyor ve
+  plana TAM uyulan yarışta "1 sapma" çıkıyordu; (2) plan kısalınca ızgarada
+  kalan stintler KPI'ya sızıyordu; (3) "aynı seti tekrar yaz" engine'de 0 sn
+  iken KPI'da 12 sn görünüyordu. Değişimler artık `st.pits[i].tyres`
+  bayraklarından — engine'in lastik süresini aldığı kaynaktan — türetiliyor.
+
+  Ölçüldü (S1 start + S3'te 4 + S5'te 2, plana tam uyulmuş):
+  öncesi KPI **+28.5 s** / engine 16.5 s / "1 sapma" → sonrası **+16.5 s** /
+  16.5 s / **0 sapma**.
+
+- **Relative sırası** (`liveRelative.js`). Sıralama anahtarı RAKİBİN
+  `estLapTime`'ına bölüyordu; `relSec` ise oyuncunun turuyla hesaplanıyor. Her
+  satır farklı ölçekle normalize edilince çok sınıflı sahada (LMU'da her zaman)
+  REL sütunu monoton olmuyor ve ±3 penceresine yanlış araç giriyordu.
+
+### Köprü (oyun PC'si)
+
+- **Telemetri eşleme sınırı** (`rf2_source.py`). Telemetri dizisi SCORING'in
+  `mNumVehicles`'ı ile taranıyordu. Telemetri online'da scoring'den az araç
+  yayınlar; yazılmamış slotların `mID`'si 0 olduğu için `tele_by_id[0] = boş`
+  ataması slot 0'daki GERÇEK aracın telemetrisini eziyordu → `tyres4=[0,0,0,0]`,
+  `tyreWear=0`, `damage=0`. Oyunun vermediği veri "sıfır" diye uydurulmuş
+  oluyordu (CLAUDE.md §1) ve harvest üzerinden kalıcı `livewear` düğümüne de
+  yazılıyordu. Sınır artık telemetrinin KENDİ `mNumVehicles`'ı (alan zaten
+  vardı, hiç okunmuyordu); maliyet kare başına tek `getattr`.
+
+- **`--no-rest` bayrağının kaçağı** (`main.py` · `gui.py`). `main()` bayrağı
+  hesaplayıp `launch(args.config)` çağırıyordu; `cmd_dump`/`cmd_dump_wx` de
+  almıyordu. Yani donma teşhisi için var olan bayrak, çift tıklamayla açılan
+  varsayılan yolda ve teşhis komutlarının kendisinde sessizce yok sayılıyordu.
+  Uçtan uca bağlandı; durum şeridi ve log gerçek REST durumunu yazıyor.
+
+  REST'in arayüzde varsayılan AÇIK kalması **kullanıcı kararıdır** (v1.7.3'te
+  bilinçli açılmıştı). CLAUDE.md §0 ve `bridge/README.md` bugünkü gerçeğe göre
+  güncellendi — ikisi de hâlâ "varsayılan kapalı" ve arayüzden kaldırılmış bir
+  "REST aç" kutusundan bahsediyordu.
+
+### Telemetri
+
+- **S/F reseti gerçek mesafe kanalını düşürüyordu** (`duckTrace.js` ·
+  `ldTrace.js`). Izgara `[t0, tEnd]` KAPALI aralıkta kuruluyor; son örnek tam
+  olarak bir sonraki `Lap` olayının ts'ine denk gelir ve orada `Lap Dist`
+  sıfırlanmıştır. Bu "mesafe geriye gitti" sayılıp TÜM tur hız
+  entegrasyonuyla yeniden kuruluyordu — oyunun verdiği gerçek okuma varken
+  MODELLENMİŞ mesafe kullanılıyordu (CLAUDE.md §1). S/F geçişinin ızgaraya göre
+  konumu turdan tura kaydığı için aynı stintte bazı turlar gerçek, bazıları
+  modellenmiş mesafeyle ölçekleniyordu. Tur ORTASINDAKİ gerçek geri sıçrama
+  hâlâ hız yedeğine düşüyor.
+
+### Arayüz ve çeviri
+
+- **Sektör sınırları takıma HİÇ paylaşılmıyordu** (`TrackMap.jsx`). Paylaşım
+  effect'i `sectorFractions()` ÇIKTISINI bağımlılık dizisinde taşıyordu; bu
+  fonksiyon her çağrıda YENİ nesne döndürür ve React `Object.is` ile
+  karşılaştırdığı için effect her render yeniden kuruluyor, 2000 ms'lik
+  debounce HİÇ dolmuyordu (canlı akış 2 Hz → aralık 500 ms). Bağımlılık kararlı
+  string'e indirildi. Aynı dosyadaki pit effect'i ilkel bağımlılık kullandığı
+  için çalışıyordu — fark oradan görüldü.
+
+- **i18n: 3 sessiz ezme + 107 eksik EN anahtarı** (`i18n.js`). 1587 yazımda 24
+  yinelenen anahtar vardı; üçünde değer farklıydı ve ikinci yazım birincisini
+  yok ediyordu:
+
+  | anahtar | ezilen | kazanan |
+  |---|---|---|
+  | `Yükleniyor…` | `Loading…` | `Uploading…` |
+  | `Tur` | `Laps` | `Lap` |
+  | `Otomatiğe dön` | `Back to automatic` | `Back to auto` |
+
+  Birincisi yüzünden EN'de açılış iskeleti, Suspense fallback'leri ve sohbet
+  kanal listesi "Uploading…" yazıyordu. Yükleme ve sayım anlamları ayrı
+  anahtarlara alındı (`Yüklüyor…`, `Tur sayısı`); bugünkü davranış değişmedi.
+  107 eksik anahtarın 19'unda çeviri zaten vardı, anahtar yalnız büyük/küçük
+  harf farkıyla tutmuyordu — çağrı yerindeki Türkçe metin korunarak anahtar
+  eklendi. **Denetim teste bağlandı** (`i18n.test.js`).
+
+- **Açık tema yarım kalmıştı** (`styles.js`). `:root[data-theme="light"]` yalnız
+  eski tokenları rol-swap ediyordu; kabuk ve sekmeler v2.0'dan beri `--rc-*`
+  ile çiziliyor (2551 kullanım vs 54). Nav rayı, üst çubuk, modallar, komut
+  paleti ve tüm sekme içerikleri koyu kalıyor, `--rc-text` (#F3EAEC) ile beyaz
+  kartın kontrastı **1.18** oluyordu. 67 override eklendi; ölçü/tipografi
+  tokenları bilerek tekrarlanmadı. **Denetim teste bağlandı**
+  (`styles.theme.test.js` — kapsam + WCAG AA kontrast).
+
+- **Açık temada "PIT OUT" görünmezdi** (`TrackMap.jsx`). Sabit `#fff` ile
+  çiziliyordu, kart zemini açık temada `#FFFFFF` → kontrast **1.00**. PIT IN
+  yeşil olduğu için görünüyordu; kullanıcı yalnız birini görüyordu.
+
+### Canlı timing
+
+- **Bekleyen cezası olan araç "—" gösteriyordu** (`LiveTab.jsx`). Hücre yalnız
+  kümülatif toplama bakıyordu; köprü yarış ortasında başlarsa `pen_total` taban
+  alınır ve toplam 0'da kalır → o anda drive-through bekleyen araçlar
+  kırmızı-kalın bir "—" ile "cezası yok" diyordu.
+
+- **"En İyi" moru saha geneliydi, sınıf değil** (`LiveTab.jsx`). Aynı ekranda
+  sektör hücresi ve satır flash'ı moru sınıf rekoru için kullanıyor;
+  `liveSectors.js` başlığı "aynı ekranda iki farklı mor anlamı olmasın" diye
+  bunu şart koşuyor ve kodun kendi yorumu da "sınıf en hızlısı mor" diyordu.
+
+- **Relative penceresi sınıf süzgecini uyguluyordu** (`LiveTab.jsx`).
+  Relative'in tanımlı işi trafik, undercut penceresi ve mavi bayrak — hepsi
+  DİĞER sınıf araçlarıyla ilgili. Süzgeç artık yalnız standings ve harita için.
+
+- **Bayat kare plana yazabiliyordu** (`useLiveSync` · `useLive` · `liveSync`).
+  Hook karenin yaşına hiç bakmıyordu ve yarış değişiminde önceki kare
+  bırakılmıyordu. B yarışının düğümünde günler önce kalmış bir kare sahte bir
+  `markPit()` bastırabiliyor, bayat `timeLeftSec` ile `raceStartMs`'i kaydırıp
+  tüm stint pencerelerini bozabiliyordu. Yeni saf `isFrameFresh` kapısı (30 sn,
+  LiveTab'in "bağlantı koptu" eşiğiyle aynı) + seans belirteci kontrolü.
+
+### Telemetri
+
+- **Kalıcı iz meta'sı iki farklı şekildeydi** (`useTelemetry.js`). Yazan taraf
+  düğüme `{at, laps, n, mapSrc, capped}`, oturum-içi state'e SEANS meta'sını
+  koyuyor; okuyan taraf DÜĞÜM meta'sını `meta` diye atıyordu. Yenilemeden sonra
+  künye çizilmiyor, PDF künyesi boş kalıyor ve **"farklı pist" uyarısı kalıcı
+  kaynaklarda ASLA tetiklenemiyordu** — bir veri-dürüstlüğü koruması sessizce
+  devre dışıydı. Şekil tek saf kaynağa taşındı (`teleTraceMeta.js`).
+
+- **Aynı `.duckdb` ikinci kez seçilemiyordu**; input sıfırlaması yalnız
+  reddetme dalındaydı, `.duckdb` dalı ondan önce `return` ediyordu.
+- **`readersRef` hiç boşaltılmıyordu** → açılan her dosyanın materyalize
+  telemetrisi oturum boyunca bellekte kalıyordu. `WeakMap`'e çevrildi.
+- **Seans süresi "en çok örnekli" kanaldan** hesaplanıyordu (`duckdb.js`);
+  100 Hz × 12000 (120 sn) kanalı 10 Hz × 2400 (240 sn) kanalını yeniyor ve
+  süreyi yarıya düşürüyordu. Saf `longestContSec`'e çıkarıldı.
+
+### Plan, durum, servis worker
+
+- **Pit'siz planda "eksik veri" damgası** (`stratComp.js`) — `teamTime` zaten
+  `pits === 0` iken yakıt/pit yolu terimlerini 0 alıyordu ama zorunluluk
+  listesi bunları koşulsuz istiyordu. Yeni `requiredFieldsFor` yalnız hesaba
+  gireni arıyor; alan EKSİK (null) iken hâlâ zorunlu ("bilinmiyor" ≠ "yok").
+- **"Pitleri sıfırla" elle girilen TAMİR sürelerini siliyordu** (`state.js`) —
+  onay penceresi bunu söylemiyor, geri alma yok, fonksiyonun kendi yorumu da
+  "elle girilen korunur" diyordu.
+- **Tarihi çözülemeyen yarış "sıradaki" olarak kilitleniyordu**
+  (`lmuParse.js`) — `startMs: null` ile listeye giriyor, `raceStatus` onu
+  sonsuza dek "yaklaşan" sayıyor, `sortByStart` en başa koyuyordu → hero
+  kartı "01.01.1970 · 0 dk" gösterip gerçek sıradaki yarışı gizliyordu.
+- **Yankı yazımı 50 ms'lik zamanlayıcıya bağlıydı** (`useRaceSync.js`) — süre
+  varsayımı yerine içerik kimliği kullanılıyor.
+- **Günlük tazelenen `lmu-data.json` sürüme kadar donuyordu** (`sw.js`) — dosya
+  içerik-hash'i taşımıyor ve cache-first serviste kilitleniyordu. `.json`
+  istekleri artık ağ-önce.
+- **Hesap değişince seçili takım sıfırlanmıyordu** (`useTeams.js`).
+- **Pilot programında "· N tur" hiç görünmüyordu** — alan hiç üretilmiyordu.
+
+### Köprü (oyun PC'si) — üçü yükü AZALTIYOR
+
+- **Harvest hatası backoff'suz yeniden deneniyordu** (`main.py` · `gui.py`).
+  `apply_harvest` hatayı fırlatmıyor döndürüyor; döngüdeki `fails` sayacı yalnız
+  `except` dalında arttığı için üstel bekleme HİÇ devreye girmiyordu. Her
+  karede kuyruğun ilk patch'i yeniden deneniyor ve `requests.patch(timeout=15)`
+  **canlı kareyi de blokluyordu** → yayın **2 Hz'den ~0,06 Hz'e** düşüyordu.
+  Artık tur geçmişi üstel geri çekiliyor (2→32 kare), canlı kare akıyor; kare
+  yine kırpıldığı için Firebase karesi şişmiyor.
+- **`psutil.process_iter` her dakika okuma döngüsündeydi** (`rf2_source.py`) —
+  başarılı okumadan sonra da tüm süreçler dolaşılıp her biri için `exe` yolu
+  isteniyordu. Fetch-once desenine geçirildi.
+- **`close()` hiçbir mmap'i kapatmıyordu** (`rF2data.py` ·
+  `sharedMemoryAPI.py`) — üç `close()` tek `try` içindeydi, canlı ctypes
+  görünümleri yüzünden ilki `BufferError` atıyor ve kalan ikisi atlanıyordu.
+  Ölçüldü: eski kodda üçü de açık kalıyor, yenisinde üçü de kapanıyor.
+- **`messagebox` GUI olmayan thread'den çağrılıyordu** (`gui.py`) — tkinter
+  thread-güvenli değil; artık `root.after` ile ana thread'e marshal ediliyor.
+- **Bozuk `hz` CLI köprüsünü çökertiyordu** (`main.py`) — `ValueError`
+  `run_loop`'un try/except'lerinin dışındaydı.
+
+### Ölü yol kapatıldı
+
+- **`lapWear` Lastik ekranına bağlandı.** Köprü her tur `livewear` yazıyordu
+  ama hiçbir ekran okumuyordu (180 satır + 20 test boştaydı) — oyun PC'sindeki
+  maliyet ödeniyor, karşılığı alınmıyordu. Ölçüm butonu artık birincil kaynak
+  olarak bunu kullanıyor: **kısmi değişimi** de çözüyor ve hızı iki gerçek
+  okuma arasındaki farktan alıyor (eski hesap dişin stint başında tam dolu
+  olduğunu varsayıp stint ortasında yakalanan sette hızı şişiriyordu).
+  Yeni REST isteği / thread / hız değişikliği yok; köprüye dokunulmadı.
+
+### Doğrulama
+
+- **983 JS testi** geçiyor (öncesi 901, **+82**) · **74 Firebase kural testi**
+  geçiyor (öncesi 63, +11 — `npm run test:rules`, emülatör ister) · **6 köprü
+  test dosyası** geçiyor (ikisi yeni: `test_rf2_tele_map.py` gerçek ctypes
+  struct'larıyla, `test_bridge_loop.py` backoff/hz/mmap sözleşmeleri)
+- `npm run build` temiz · `oxlint` uyarısı **47 → 22** (25 `no-dupe-keys`
+  uyarısının hepsi gitti; kalanların hepsi düzeltme öncesinden)
+- Yeni saf modüller: `src/raceSyncGate.js` (13 test) · `src/teleTraceMeta.js`
+  (6 test) · yeni test dosyaları: `src/liveBridge.lifecycle.test.js` (sidecar
+  kabuğu taklit edilir) · `src/i18n.test.js` · `src/styles.theme.test.js` ·
+  `src/duckdbDur.test.js` · `src/liveTabV241.render.test.jsx`
+
 ## v2.4.0 — 2026-09-01
 
 ### Yeni ekran: Strateji Karşılaştırma (yarış öncesi karar aracı)
