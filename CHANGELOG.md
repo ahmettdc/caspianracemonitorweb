@@ -1,5 +1,47 @@
 # Changelog
 
+## v2.4.2 — 2026-09-11
+
+Tek düzeltmeli hotfix. Saha bildirimi: *"güncelleme geldiğinde mouse scroll ile aşağı
+yukarı hareket ettiremiyorum. güncellemeyi kuramıyorum."*
+
+### Güncelleme penceresi kaydırılamıyordu → güncelleme kurulamıyordu
+
+`src/UpdateModal.jsx` — kart üç şeyi aynı anda yapıyordu ve üçü birleşince çıkmaz
+oluyordu:
+
+1. Kartta **`maxHeight` yoktu** → içerik uzunsa kart pencereden uzun oluyor.
+2. Kartta **`overflow: "hidden"`** vardı → taşan kısım sessizce kırpılıyor.
+3. Modal açıkken **`document.body.style.overflow = "hidden"`** → arka plan da kilitli.
+
+Sonuç: fare tekerleği hiçbir şeyi hareket ettirmiyor. Scrim `align-items: center`
+olduğu için kart yukarıdan ve aşağıdan eşit kırpılıyor, yani alt bar ekran dışında
+kalıyordu — **"Şimdi güncelle" / "Yeniden başlat" düğmelerine ulaşmanın hiçbir yolu
+yoktu.**
+
+İçeriğin neden uzadığı da tesadüf değil: "Öne çıkanlar" listesi `CHANGELOG[0]`'ın ilk
+üç maddesinden geliyor (`src/App.jsx:1346`) ve v2.4.1'de bu maddeler kısa başlık değil
+tam paragraftı. 452 px genişlikte üç paragraf + başlık + alt bar ~700 px'i geçiyor;
+pencere bundan kısaysa hata her güncellemede tekrarlanıyor.
+
+**Düzeltme:** kart `maxHeight: calc(100vh - 48px)` (scrim'in 24 px dolgusu düşülür) ve
+dikey flex oldu. Başlık (✕ dahil), indirme çubuğu ve alt bar `flex: 0 0 auto` ile
+**sabit**; aradaki sürüm-notu bölgesi `overflow-y: auto` ile **kayıyor**
+(`overscroll-behavior: contain` → kaydırma kenarda arkaya sıçramıyor). Böylece notlar
+ne kadar uzun olursa olsun eylem düğmeleri her zaman görünür ve indirme yüzdesi
+kaydırmayla gözden kaybolmuyor.
+
+İçeriğe **dokunulmadı** — metin kısaltılmadı, hiçbir madde gizlenmedi; yalnız düzen
+düzeltildi.
+
+**Test:** `src/updateModal.render.test.jsx` — 6 test, **hepsi eski kodda düşüyor.**
+Sadece stil dizesi aramıyor; kayan bölgenin `<div>` derinliğini sayarak eylem
+düğmelerinin ve ilerleme çubuğunun o bölgenin **dışında** kaldığını ispatlıyor, yani
+"düğme ekrandan çıkamaz" koşulu teste bağlandı.
+
+Köprü (`bridge/`) etkilenmedi: yeni REST/ağ isteği yok, yeni thread yok, yayın hızı
+değişmedi, Firebase kare boyutu aynı. Değişiklik tamamen arayüz düzeni.
+
 ## v2.4.1 — 2026-09-04
 
 Hata düzeltme sürümü. Yeni özellik yok; kod tabanı altı alana bölünüp taranarak

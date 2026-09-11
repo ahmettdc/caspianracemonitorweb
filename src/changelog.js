@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v2.4.2",
+    date: "2026-09-11",
+    tr: [
+      "🖱️ GÜNCELLEME PENCERESİ KAYDIRILAMIYOR, GÜNCELLEME KURULAMIYORDU. \"Öne çıkanlar\" satırları sürüm notlarının ilk üç maddesinden gelir ve v2.4.1'de bunlar tam paragraftı; pencere kartının yükseklik sınırı olmadığı için kart ekranı aşıyor, taşan kısım kırpılıyordu. Modal açıkken arka plan kaydırması da kilitlendiğinden fare tekerleği hiçbir şeyi hareket ettirmiyor ve \"Şimdi güncelle\" / \"Yeniden başlat\" düğmelerine ULAŞILAMIYORDU — yani güncelleme geldiğinde kurulamıyordu. Artık kart ekrandan uzun olamıyor: başlık, indirme çubuğu ve alt bar sabit, aradaki sürüm notu bölgesi kayıyor. Düğmeler notlar ne kadar uzun olursa olsun her zaman görünür.",
+    ],
+    en: [
+      "🖱️ THE UPDATE WINDOW COULD NOT BE SCROLLED, SO THE UPDATE COULD NOT BE INSTALLED. The \"highlights\" rows are the first three release-note items, and in v2.4.1 those were full paragraphs; because the card had no height limit it grew past the screen and the overflow was clipped. Background scrolling is locked while the modal is open, so the mouse wheel moved nothing and the \"Update now\" / \"Restart\" buttons were UNREACHABLE — an update that arrived could not be installed. The card can no longer exceed the screen: the header, the download bar and the footer stay fixed while the release-note area scrolls. The buttons are always visible, however long the notes are.",
+    ],
+  },
+  {
     v: "v2.4.1",
     date: "2026-09-04",
     tr: [
