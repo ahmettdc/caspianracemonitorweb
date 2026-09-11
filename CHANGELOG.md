@@ -1,5 +1,74 @@
 # Changelog
 
+## v2.4.3 — 2026-09-11
+
+v2.4.2'nin devamı. Saha bildirimi: *"windows'ta tam ekran böyle görünüyor eski
+versiyonda, o yüzden güncelleme butonuna basamıyoruz."*
+
+### Pencere tam ekranda bile sığmıyordu
+
+v2.4.2 pencereyi kaydırılabilir yaptı (alt bar sabit) — ama **asıl sebep duruyordu.**
+"Öne çıkanlar" satırları `CHANGELOG[0]`'ın ilk üç maddesinin **tamamını** basıyor ve
+o maddeler tam paragraf. Uzunluk sürümden sürüme değişiyor:
+
+| sürüm | ilk üç maddenin toplamı |
+|---|---|
+| v2.4.0 | **2311 karakter** |
+| v2.3.0 | 1668 |
+| v2.4.1 | 1209 |
+
+Yani en kötü hâli, v2.4.0'dan güncelleyen kullanıcı — bildirimi yapan kişi tam olarak
+bu durumdaydı (pencere "v2.4.0 → v2.4.2" gösteriyordu).
+
+**Ölçüm** (Chromium, gerçek changelog metni, kart doğal yüksekliği):
+
+| kart genişliği | v2.4.0 tam metin | v2.4.0 başlık |
+|---|---|---|
+| 452 px (v2.4.2) | **1125 px** | 471 px |
+| 560 px | 904 px | 401 px |
+| **620 px (yeni)** | 848 px | **384 px** |
+| 904 px (2×) | 661 px | 367 px |
+
+452 px'te kart 1125 px istiyor → 1080p **tam ekranda bile** taşıyor, ekran
+görüntüsündeki tablo bu. Dikkat: **yalnızca genişletmek yetmiyor** — 2 kat genişlikte
+bile 661 px, yani 1366×768 dizüstünde veya Windows %150 ölçeklemede yine taşar. Sabit
+başlık + sürüm satırı + alt bar (~260 px) genişlikten hiç etkilenmiyor; sadece metin
+bloğu daralıyor.
+
+**Düzeltme — iki parça:**
+
+1. **Satır artık maddenin başlık cümlesi** (`src/updateHighlights.js`, saf modül).
+   Maddeler zaten büyük harfle yazılmış bir başlıkla açılıyor ("🗺️ SEKTÖR AYIRICILARI
+   TAKIMA HİÇ ULAŞMIYORDU."), o yüzden ilk cümle tek başına anlamlı bir öne çıkan.
+   Cümle sonu araması `[.!?;]` + **boşluk** istiyor — bilerek, yoksa `v2.4.1'de` ya da
+   `3.5 sn` içindeki nokta cümle sonu sanılırdı. Cümle bulunamazsa 170 karakterde
+   **sözcük sınırından** kırpılıyor.
+2. **Kart 452 → 620 px** (`maxWidth: 100%` duruyor, dar pencerede yine sığıyor).
+   620 seçildi çünkü 620 → 904 arasında 284 px genişlik yalnız ~17 px kazandırıyor ve
+   diyaloğu 1366'lık ekranda şeride çeviriyor.
+
+Sonuç: aynı v2.4.0 notlarıyla kart **1125 → 384 px** (−%66).
+
+**Kırpılan metin gizlenmiyor:** satır kısaltıldığında `…` ile bitiyor ve tam metin
+pencerenin kendi "Tüm değişiklikler" bağlantısında duruyor. Kırpıldığını söylemeden
+kırpmak bu kod tabanında kabul edilmiyor (§1).
+
+v2.4.2'nin kaydırma düzeltmesi **kalıyor** — genişlik ve kırpma taşma *ihtimalini*
+düşürür, kaydırma *garantiler*. Çok küçük bir pencerede hâlâ tek güvence o.
+
+**Test:** `src/updateHighlights.test.js` (10 test — sürüm numarasındaki nokta tuzağı,
+sözcük sınırı, boş girdi, ve GERÇEK v2.4.0 maddeleriyle uçtan uca) ·
+`src/updateModal.render.test.jsx` 620 px kilidiyle 7 teste çıktı.
+
+Köprü (`bridge/`) etkilenmedi: yeni REST/ağ isteği yok, yeni thread yok, yayın hızı
+değişmedi, Firebase kare boyutu aynı.
+
+**Not — bu düzeltme eski sürümdeki kullanıcıyı kurtarmaz.** Masaüstü uygulamasında
+pencereyi çizen KURULU sürümün kodu; v2.4.0'da olan biri düzeltilmiş pencereyi ancak
+güncelledikten sonra görür. O ana kadar geçici çözüm: pencere açılınca odak zaten
+birincil düğmede (`UpdateModal.jsx`, v2.2.1'den beri) → **düğme görünmese de Enter**
+güncellemeyi başlatır.
+
 ## v2.4.2 — 2026-09-11
 
 Tek düzeltmeli hotfix. Saha bildirimi: *"güncelleme geldiğinde mouse scroll ile aşağı

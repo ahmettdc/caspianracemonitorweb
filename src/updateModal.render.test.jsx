@@ -76,7 +76,12 @@ describe("UpdateModal render (v2.4.2 — kaydırılamayan güncelleme penceresi)
     expect(h.indexOf("42%")).toBeGreaterThan(e);
   });
 
-  it("#6 öne çıkan yokken de çizilir (boş gövde kartı bozmaz)", () => {
+  it("#6 kart 620 px — 452'de v2.4.0 uzunluğundaki notlar 1125 px istiyordu (v2.4.3)", () => {
+    expect(html).toContain("width:620px");
+    expect(html).toContain("max-width:100%");   // dar pencerede yine de sığsın
+  });
+
+  it("#7 öne çıkan yokken de çizilir (boş gövde kartı bozmaz)", () => {
     const h = render({ highlights: [] });
     expect(h).toContain("Şimdi güncelle");
     expect(h).toContain("max-height:calc(100vh - 48px)");
