@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v2.4.3",
+    date: "2026-09-11",
+    tr: [
+      "🖱️ GÜNCELLEME PENCERESİ TAM EKRANDA BİLE SIĞMIYORDU — güncelle düğmesine basılamıyordu. v2.4.2 pencereyi kaydırılabilir yapmıştı ama asıl sebep duruyordu: \"Öne çıkanlar\" satırları sürüm notlarının ilk üç maddesinin TAMAMINI basıyordu. v2.4.0'dan güncelleyen birinde bu 2311 karakter demek; ölçüldü, kart 1125 piksel istiyor, yani 1080p tam ekranda dahi taşıyor. Artık satır maddenin BAŞLIK cümlesi (kırpma varsa sonunda …) ve kart 452 yerine 620 piksel geniş. Aynı notlarla kart 1125 → 384 piksele indi; tam metin yine bir tık ötede, \"Tüm değişiklikler\" bağlantısında.",
+    ],
+    en: [
+      "🖱️ THE UPDATE WINDOW DID NOT FIT EVEN FULL-SCREEN — the update button could not be clicked. v2.4.2 made the window scrollable, but the real cause remained: the \"highlights\" rows printed the release-note items in FULL. For someone updating from v2.4.0 that is 2311 characters; measured, the card asks for 1125 pixels, so it overflows even a 1080p full screen. Each row is now the item's HEADLINE sentence (ending in … when shortened) and the card is 620 pixels wide instead of 452. With the same notes the card went from 1125 to 384 pixels; the full text is still one click away, under \"All changes\".",
+    ],
+  },
+  {
     v: "v2.4.2",
     date: "2026-09-11",
     tr: [

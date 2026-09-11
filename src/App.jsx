@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef, useCallback, lazy, Suspense, Frag
 import UpdateModal from "./UpdateModal";
 import { useUpdater } from "./useUpdater";
 import { CHANGELOG } from "./changelog";
+import { updateHighlights } from "./updateHighlights";
 import { isTauri } from "./tauriEnv";
 import { useLiveBridge } from "./useLiveBridge";
 import { useLive } from "./useLive";
@@ -1343,13 +1344,16 @@ ${bottomBar}
 
   /* ---- güncelleme penceresi (ortada modal — eski üst şeritlerin yerine) ---- */
   const updater = useUpdater();
-  const updateHighlights = (CHANGELOG?.[0]?.[lang === "en" ? "en" : "tr"] || []).slice(0, 3);
+  /* Öne çıkanlar = maddenin BAŞLIK cümlesi. Changelog maddeleri tam paragraf ve
+     pencereyi taşıracak kadar uzun (v2.4.0'ın ilk üçü 2311 karakter → kart 1125 px,
+     1080p TAM EKRANDA bile sığmıyordu). Tam metin "Tüm değişiklikler"de duruyor. */
+  const updateHl = updateHighlights(CHANGELOG?.[0]?.[lang === "en" ? "en" : "tr"]);
   const updateModal = (
     <UpdateModal
       open={updater.open} lang={lang} phase={updater.phase} pct={updater.pct}
       autoRestart={updater.autoRestart} forced={updater.forced}
       oldVersion={updater.meta.oldVersion} newVersion={updater.meta.newVersion} size={updater.meta.size}
-      highlights={updateHighlights}
+      highlights={updateHl}
       onToggleAuto={updater.toggleAuto} onUpdate={updater.update} onRestart={updater.restart}
       onLater={updater.later} onClose={updater.close}
       onAllChanges={() => { updater.close(); openVersions(); }} />

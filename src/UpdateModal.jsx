@@ -116,7 +116,11 @@ export default function UpdateModal({
         background: "radial-gradient(120% 90% at 50% 40%,rgba(11,7,8,.35),rgba(8,5,6,.82))",
         backdropFilter: "blur(3px)", animation: "gpFade .2s ease" }}>
       <div ref={cardRef} onClick={(e) => e.stopPropagation()}
-        style={{ width: 452, maxWidth: "100%", background: "var(--rc-surface)",
+        /* 620: 452'de v2.4.0 uzunluğundaki notlarla kart 1125 px istiyordu; 620'de 848,
+           başlık kırpmasıyla birlikte 384 px (Chromium'da ölçüldü, v2.4.3). Daha genişi
+           (904) yalnız 60-70 px kazandırıp diyaloğu şeride çeviriyor — sabit başlık +
+           sürüm satırı + alt bar ~260 px genişlikten etkilenmiyor. */
+        style={{ width: 620, maxWidth: "100%", background: "var(--rc-surface)",
           border: "1px solid var(--rc-border-strong)", borderRadius: 18, overflow: "hidden",
           /* Pencereden uzun olamaz (scrim'in 24px dolgusu düşülür) + dikey flex: başlık ve
              alt bar SABİT, aradaki gövde kayar. Öncesinde maxHeight yoktu; "öne çıkanlar"
