@@ -118,14 +118,20 @@ export default function UpdateModal({
       <div ref={cardRef} onClick={(e) => e.stopPropagation()}
         style={{ width: 452, maxWidth: "100%", background: "var(--rc-surface)",
           border: "1px solid var(--rc-border-strong)", borderRadius: 18, overflow: "hidden",
+          /* Pencereden uzun olamaz (scrim'in 24px dolgusu düşülür) + dikey flex: başlık ve
+             alt bar SABİT, aradaki gövde kayar. Öncesinde maxHeight yoktu; "öne çıkanlar"
+             tam paragraf olduğu için kart pencereyi aşıyor, overflow:hidden taşanı kırpıyor
+             ve body scroll'u da kilitli olduğu için kullanıcı ALT BARA HİÇ ULAŞAMIYOR,
+             yani güncellemeyi kuramıyordu (v2.4.2). */
+          maxHeight: "calc(100vh - 48px)", display: "flex", flexDirection: "column",
           boxShadow: "0 30px 80px rgba(0,0,0,.62), 0 0 0 1px rgba(0,0,0,.4)",
           animation: "gpPop .3s cubic-bezier(.2,.9,.3,1.1)" }}>
 
         {/* üst aksan şeridi */}
-        <div style={{ height: 3, background: "linear-gradient(90deg,var(--rc-brand),var(--rc-brand-bright) 45%,var(--rc-warn))" }} />
+        <div style={{ height: 3, flex: "0 0 auto", background: "linear-gradient(90deg,var(--rc-brand),var(--rc-brand-bright) 45%,var(--rc-warn))" }} />
 
-        {/* başlık */}
-        <div style={{ padding: "22px 24px 18px", display: "flex", alignItems: "flex-start", gap: 16 }}>
+        {/* başlık — sabit: kapat (✕) düğmesi her zaman erişilebilir kalsın */}
+        <div style={{ flex: "0 0 auto", padding: "22px 24px 18px", display: "flex", alignItems: "flex-start", gap: 16 }}>
           <div style={{ flex: "0 0 auto", width: 52, height: 52, borderRadius: 14,
             background: "radial-gradient(120% 120% at 30% 20%,rgba(245,178,61,.24),rgba(245,178,61,.06))",
             border: "1px solid rgba(245,178,61,.4)", display: "flex", alignItems: "center",
@@ -151,6 +157,10 @@ export default function UpdateModal({
                 fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", flex: "0 0 auto" }}>✕</button>
           )}
         </div>
+
+        {/* KAYAN GÖVDE — uzun sürüm notu burada kaydırılır (fare tekerleği çalışır).
+            overscrollBehavior:"contain" → kenara gelince kaydırma arkaya sıçramaz. */}
+        <div style={{ flex: "1 1 auto", minHeight: 0, overflowY: "auto", overscrollBehavior: "contain" }}>
 
         {/* sürüm geçişi */}
         {(oldVersion || newVersion) && (
@@ -188,9 +198,12 @@ export default function UpdateModal({
           </div>
         )}
 
-        {/* indirme çubuğu (yalnız downloading) */}
+        </div>
+        {/* /kayan gövde */}
+
+        {/* indirme çubuğu (yalnız downloading) — SABİT: ilerleme kaydırmayla kaybolmasın */}
         {isDownloading && (
-          <div style={{ padding: "12px 24px 4px" }}>
+          <div style={{ flex: "0 0 auto", padding: "12px 24px 4px" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 7 }}>
               <span style={{ fontSize: 11.5, color: "var(--rc-text-2)", display: "inline-flex", alignItems: "center", gap: 7 }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F5B23D" strokeWidth="2.4" strokeLinecap="round" style={{ animation: "gpSpin .9s linear infinite" }}><path d="M12 3a9 9 0 1 0 9 9" opacity=".9" /></svg>
@@ -209,8 +222,8 @@ export default function UpdateModal({
           </div>
         )}
 
-        {/* alt bar */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 24px 20px", marginTop: 8,
+        {/* alt bar — SABİT: "Şimdi güncelle" / "Yeniden başlat" her zaman görünür */}
+        <div style={{ flex: "0 0 auto", display: "flex", alignItems: "center", gap: 10, padding: "16px 24px 20px", marginTop: 8,
           borderTop: "1px solid var(--rc-line-soft)", flexWrap: "wrap" }}>
           <label onClick={onToggleAuto} style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 11.5,
             color: "var(--rc-text-3)", cursor: "pointer", userSelect: "none" }}>
