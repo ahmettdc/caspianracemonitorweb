@@ -1,13 +1,13 @@
 {
  "source": "Ohne Speed's LMU laptimes spreadsheet",
- "updated": "2026-09-22",
+ "updated": "2026-09-23",
  "note": "avgLap='Good ~1.02' temposu. tiers: alien(~100%)..c107. hot=hotlap (Class avgW; araçta kendi en iyi turu). data[pist]['sinif:arac'] araç özel. Otomatik üretildi: scripts/fetch-lmu-laptimes.mjs.",
  "data": {
   "bahrain": {
    "gt3": {
     "avgLap": "2:01.28",
     "tiers": {
-     "alien": "1:58.91",
+     "alien": "1:58.90",
      "c101": "2:00.09",
      "c102": "2:01.28",
      "c103": "2:02.47",
@@ -19,32 +19,32 @@
     "hot": "1:58.31"
    },
    "hypercar": {
-    "avgLap": "1:47.51",
+    "avgLap": "1:47.47",
     "tiers": {
-     "alien": "1:45.40",
-     "c101": "1:46.46",
-     "c102": "1:47.51",
-     "c103": "1:48.56",
-     "c104": "1:49.62",
-     "c105": "1:50.67",
-     "c106": "1:51.73",
-     "c107": "1:52.78"
+     "alien": "1:45.36",
+     "c101": "1:46.42",
+     "c102": "1:47.47",
+     "c103": "1:48.52",
+     "c104": "1:49.58",
+     "c105": "1:50.63",
+     "c106": "1:51.69",
+     "c107": "1:52.74"
     },
-    "hot": "1:44.88"
+    "hot": "1:44.84"
    },
    "lmp3": {
-    "avgLap": "1:55.91",
+    "avgLap": "1:55.78",
     "tiers": {
-     "alien": "1:53.63",
-     "c101": "1:54.77",
-     "c102": "1:55.91",
-     "c103": "1:57.04",
-     "c104": "1:58.18",
-     "c105": "1:59.31",
-     "c106": "2:00.45",
-     "c107": "2:01.59"
+     "alien": "1:53.51",
+     "c101": "1:54.65",
+     "c102": "1:55.78",
+     "c103": "1:56.92",
+     "c104": "1:58.05",
+     "c105": "1:59.19",
+     "c106": "2:00.32",
+     "c107": "2:01.46"
     },
-    "hot": "1:53.07"
+    "hot": "1:52.95"
    },
    "lmp2": {
     "avgLap": "1:48.50",
@@ -65,50 +65,50 @@
     "hot": "1:45.85"
    },
    "gte": {
-    "avgLap": "2:01.05",
+    "avgLap": "2:00.73",
     "tiers": {
-     "alien": "1:58.68",
-     "c101": "1:59.86",
-     "c102": "2:01.05",
-     "c103": "2:02.24",
-     "c104": "2:03.42",
-     "c105": "2:04.61",
-     "c106": "2:05.80",
-     "c107": "2:06.98"
+     "alien": "1:58.37",
+     "c101": "1:59.55",
+     "c102": "2:00.73",
+     "c103": "2:01.92",
+     "c104": "2:03.10",
+     "c105": "2:04.28",
+     "c106": "2:05.47",
+     "c107": "2:06.65"
     },
-    "hot": "1:58.09"
-   },
-   "gt3:corvette": {
-    "avgLap": "2:01.56",
-    "hot": "1:58.58"
+    "hot": "1:57.78"
    },
    "gt3:bmw": {
     "avgLap": "2:01.06",
     "hot": "1:58.10"
    },
-   "gt3:porsche": {
-    "avgLap": "2:01.53",
-    "hot": "1:58.55"
-   },
-   "gt3:aston": {
-    "avgLap": "2:01.37",
-    "hot": "1:58.40"
+   "gt3:corvette": {
+    "avgLap": "2:01.56",
+    "hot": "1:58.58"
    },
    "gt3:ferrari": {
     "avgLap": "2:01.26",
     "hot": "1:58.29"
    },
+   "gt3:aston": {
+    "avgLap": "2:01.37",
+    "hot": "1:58.40"
+   },
+   "gt3:porsche": {
+    "avgLap": "2:01.49",
+    "hot": "1:58.51"
+   },
    "gt3:ford": {
     "avgLap": "2:01.45",
     "hot": "1:58.48"
    },
-   "gt3:mclaren": {
-    "avgLap": "2:01.51",
-    "hot": "1:58.53"
-   },
    "gt3:mercedes": {
     "avgLap": "2:01.62",
     "hot": "1:58.64"
+   },
+   "gt3:mclaren": {
+    "avgLap": "2:01.51",
+    "hot": "1:58.53"
    },
    "gt3:lexus": {
     "avgLap": "2:01.46",
@@ -123,68 +123,68 @@
     "hot": "1:44.77"
    },
    "hypercar:alpine": {
-    "avgLap": "1:47.62",
-    "hot": "1:44.99"
-   },
-   "hypercar:bmw": {
-    "avgLap": "1:47.44",
-    "hot": "1:44.81"
+    "avgLap": "1:47.47",
+    "hot": "1:44.84"
    },
    "hypercar:genesis": {
     "avgLap": "1:47.79",
     "hot": "1:45.15"
    },
-   "hypercar:peugeot": {
-    "avgLap": "1:47.77",
-    "hot": "1:45.13"
+   "hypercar:bmw": {
+    "avgLap": "1:47.44",
+    "hot": "1:44.81"
    },
    "hypercar:ferrari": {
     "avgLap": "1:47.62",
     "hot": "1:44.99"
    },
+   "hypercar:peugeot": {
+    "avgLap": "1:47.77",
+    "hot": "1:45.13"
+   },
+   "hypercar:porsche": {
+    "avgLap": "1:47.68",
+    "hot": "1:45.04"
+   },
    "hypercar:toyota": {
     "avgLap": "1:47.40",
     "hot": "1:44.77"
-   },
-   "hypercar:porsche": {
-    "avgLap": "1:47.67",
-    "hot": "1:45.04"
    },
    "hypercar:isotta": {
     "avgLap": "1:47.38",
     "hot": "1:44.75"
    },
    "hypercar:glickenhaus": {
-    "avgLap": "1:47.97",
-    "hot": "1:45.33"
+    "avgLap": "1:47.39",
+    "hot": "1:44.76"
    },
    "lmp3:duqueine": {
-    "avgLap": "1:55.56",
+    "avgLap": "1:55.55",
     "hot": "1:52.73"
    },
    "lmp3:ligier": {
-    "avgLap": "1:56.18",
-    "hot": "1:53.33"
+    "avgLap": "1:55.89",
+    "hot": "1:53.06"
    },
    "lmp3:adess": {
-    "avgLap": "1:56.45",
-    "hot": "1:53.60"
+    "avgLap": "1:56.35",
+    "hot": "1:53.51"
    },
    "gte:porsche": {
     "avgLap": "2:00.95",
     "hot": "1:57.99"
    },
    "gte:ferrari": {
-    "avgLap": "2:00.98",
-    "hot": "1:58.02"
+    "avgLap": "2:00.95",
+    "hot": "1:57.99"
    },
    "gte:corvette": {
     "avgLap": "2:01.22",
     "hot": "1:58.26"
    },
    "gte:aston": {
-    "avgLap": "2:01.22",
-    "hot": "1:58.26"
+    "avgLap": "2:00.42",
+    "hot": "1:57.48"
    }
   },
   "barcelona": {
@@ -203,18 +203,18 @@
     "hot": "1:40.36"
    },
    "hypercar": {
-    "avgLap": "1:30.29",
+    "avgLap": "1:30.32",
     "tiers": {
-     "alien": "1:28.52",
-     "c101": "1:29.41",
-     "c102": "1:30.29",
-     "c103": "1:31.18",
-     "c104": "1:32.06",
-     "c105": "1:32.95",
-     "c106": "1:33.83",
-     "c107": "1:34.72"
+     "alien": "1:28.55",
+     "c101": "1:29.43",
+     "c102": "1:30.32",
+     "c103": "1:31.20",
+     "c104": "1:32.09",
+     "c105": "1:32.97",
+     "c106": "1:33.86",
+     "c107": "1:34.74"
     },
-    "hot": "1:28.08"
+    "hot": "1:28.10"
    },
    "lmp3": {
     "avgLap": "1:36.28",
@@ -262,81 +262,85 @@
     },
     "hot": "1:39.71"
    },
-   "gt3:corvette": {
-    "avgLap": "1:42.80",
-    "hot": "1:40.28"
-   },
    "gt3:bmw": {
     "avgLap": "1:43.13",
     "hot": "1:40.60"
    },
-   "gt3:porsche": {
-    "avgLap": "1:42.91",
-    "hot": "1:40.39"
-   },
-   "gt3:aston": {
-    "avgLap": "1:43.02",
-    "hot": "1:40.50"
+   "gt3:corvette": {
+    "avgLap": "1:42.80",
+    "hot": "1:40.28"
    },
    "gt3:ferrari": {
     "avgLap": "1:42.62",
     "hot": "1:40.11"
    },
+   "gt3:aston": {
+    "avgLap": "1:43.02",
+    "hot": "1:40.50"
+   },
+   "gt3:porsche": {
+    "avgLap": "1:42.91",
+    "hot": "1:40.39"
+   },
    "gt3:ford": {
     "avgLap": "1:43.31",
     "hot": "1:40.78"
    },
-   "gt3:mclaren": {
-    "avgLap": "1:43.04",
-    "hot": "1:40.52"
-   },
    "gt3:mercedes": {
     "avgLap": "1:43.32",
     "hot": "1:40.79"
+   },
+   "gt3:mclaren": {
+    "avgLap": "1:43.04",
+    "hot": "1:40.52"
    },
    "gt3:lexus": {
     "avgLap": "1:43.27",
     "hot": "1:40.74"
    },
    "hypercar:lamborghini": {
-    "avgLap": "1:30.07",
+    "avgLap": "1:30.08",
     "hot": "1:27.87"
    },
    "hypercar:cadillac": {
-    "avgLap": "1:30.32",
+    "avgLap": "1:30.33",
     "hot": "1:28.11"
    },
    "hypercar:alpine": {
-    "avgLap": "1:30.41",
+    "avgLap": "1:30.42",
     "hot": "1:28.20"
    },
-   "hypercar:bmw": {
-    "avgLap": "1:30.08",
-    "hot": "1:27.88"
-   },
    "hypercar:genesis": {
-    "avgLap": "1:30.47",
+    "avgLap": "1:30.48",
     "hot": "1:28.26"
    },
-   "hypercar:peugeot": {
-    "avgLap": "1:30.52",
-    "hot": "1:28.30"
+   "hypercar:bmw": {
+    "avgLap": "1:30.09",
+    "hot": "1:27.88"
    },
    "hypercar:ferrari": {
-    "avgLap": "1:30.38",
+    "avgLap": "1:30.39",
     "hot": "1:28.17"
    },
-   "hypercar:toyota": {
-    "avgLap": "1:30.29",
-    "hot": "1:28.08"
+   "hypercar:peugeot": {
+    "avgLap": "1:30.53",
+    "hot": "1:28.30"
    },
    "hypercar:porsche": {
-    "avgLap": "1:30.80",
+    "avgLap": "1:30.81",
     "hot": "1:28.58"
    },
+   "hypercar:toyota": {
+    "avgLap": "1:30.30",
+    "hot": "1:28.08"
+   },
    "hypercar:isotta": {
-    "avgLap": "1:30.59",
+    "avgLap": "1:30.60",
     "hot": "1:28.37"
+   },
+   "hypercar:glickenhaus": {
+    "avgLap": "1:30.86",
+    "hot": "1:28.63"
    },
    "lmp3:duqueine": {
     "avgLap": "1:36.04",
@@ -369,32 +373,32 @@
   },
   "lemans": {
    "gt3": {
-    "avgLap": "3:59.55",
+    "avgLap": "3:59.52",
     "tiers": {
-     "alien": "3:54.85",
-     "c101": "3:57.20",
-     "c102": "3:59.55",
-     "c103": "4:01.90",
-     "c104": "4:04.25",
-     "c105": "4:06.60",
-     "c106": "4:08.95",
-     "c107": "4:11.29"
+     "alien": "3:54.82",
+     "c101": "3:57.17",
+     "c102": "3:59.52",
+     "c103": "4:01.86",
+     "c104": "4:04.21",
+     "c105": "4:06.56",
+     "c106": "4:08.91",
+     "c107": "4:11.26"
     },
-    "hot": "3:53.69"
+    "hot": "3:53.65"
    },
    "hypercar": {
-    "avgLap": "3:27.42",
+    "avgLap": "3:27.44",
     "tiers": {
-     "alien": "3:23.35",
-     "c101": "3:25.39",
-     "c102": "3:27.42",
-     "c103": "3:29.46",
-     "c104": "3:31.49",
-     "c105": "3:33.52",
-     "c106": "3:35.56",
-     "c107": "3:37.59"
+     "alien": "3:23.37",
+     "c101": "3:25.40",
+     "c102": "3:27.44",
+     "c103": "3:29.47",
+     "c104": "3:31.50",
+     "c105": "3:33.54",
+     "c106": "3:35.57",
+     "c107": "3:37.60"
     },
-    "hot": "3:22.34"
+    "hot": "3:22.36"
    },
    "lmp3": {
     "avgLap": "3:47.67",
@@ -442,40 +446,40 @@
     },
     "hot": "3:50.39"
    },
-   "gt3:corvette": {
-    "avgLap": "3:59.47",
-    "hot": "3:53.61"
-   },
    "gt3:bmw": {
-    "avgLap": "3:59.33",
+    "avgLap": "3:59.35",
     "hot": "3:53.48"
    },
-   "gt3:porsche": {
-    "avgLap": "3:59.67",
-    "hot": "3:53.81"
-   },
-   "gt3:aston": {
-    "avgLap": "3:59.92",
-    "hot": "3:54.05"
+   "gt3:corvette": {
+    "avgLap": "3:59.48",
+    "hot": "3:53.61"
    },
    "gt3:ferrari": {
-    "avgLap": "3:59.63",
+    "avgLap": "3:59.64",
     "hot": "3:53.77"
    },
-   "gt3:ford": {
-    "avgLap": "3:59.89",
-    "hot": "3:54.02"
+   "gt3:aston": {
+    "avgLap": "3:59.93",
+    "hot": "3:54.05"
    },
-   "gt3:mclaren": {
-    "avgLap": "3:59.60",
+   "gt3:porsche": {
+    "avgLap": "3:59.61",
     "hot": "3:53.74"
    },
+   "gt3:ford": {
+    "avgLap": "3:59.43",
+    "hot": "3:53.56"
+   },
    "gt3:mercedes": {
-    "avgLap": "3:59.55",
+    "avgLap": "3:59.56",
     "hot": "3:53.69"
    },
-   "gt3:lexus": {
+   "gt3:mclaren": {
     "avgLap": "3:59.61",
+    "hot": "3:53.74"
+   },
+   "gt3:lexus": {
+    "avgLap": "3:59.62",
     "hot": "3:53.75"
    },
    "hypercar:lamborghini": {
@@ -490,33 +494,37 @@
     "avgLap": "3:27.72",
     "hot": "3:22.63"
    },
-   "hypercar:bmw": {
-    "avgLap": "3:27.98",
-    "hot": "3:22.89"
-   },
    "hypercar:genesis": {
     "avgLap": "3:27.33",
     "hot": "3:22.25"
    },
-   "hypercar:peugeot": {
-    "avgLap": "3:27.50",
-    "hot": "3:22.42"
+   "hypercar:bmw": {
+    "avgLap": "3:27.98",
+    "hot": "3:22.89"
    },
    "hypercar:ferrari": {
     "avgLap": "3:27.94",
     "hot": "3:22.85"
    },
-   "hypercar:toyota": {
-    "avgLap": "3:27.57",
-    "hot": "3:22.49"
+   "hypercar:peugeot": {
+    "avgLap": "3:27.50",
+    "hot": "3:22.42"
    },
    "hypercar:porsche": {
     "avgLap": "3:27.99",
     "hot": "3:22.90"
    },
+   "hypercar:toyota": {
+    "avgLap": "3:27.57",
+    "hot": "3:22.49"
+   },
    "hypercar:isotta": {
     "avgLap": "3:27.60",
     "hot": "3:22.52"
+   },
+   "hypercar:glickenhaus": {
+    "avgLap": "3:27.88",
+    "hot": "3:22.79"
    },
    "lmp3:duqueine": {
     "avgLap": "3:47.52",
@@ -537,18 +545,18 @@
   },
   "cota": {
    "gt3": {
-    "avgLap": "2:08.43",
+    "avgLap": "2:08.46",
     "tiers": {
-     "alien": "2:05.91",
-     "c101": "2:07.17",
-     "c102": "2:08.43",
-     "c103": "2:09.69",
-     "c104": "2:10.95",
-     "c105": "2:12.21",
-     "c106": "2:13.47",
-     "c107": "2:14.73"
+     "alien": "2:05.95",
+     "c101": "2:07.20",
+     "c102": "2:08.46",
+     "c103": "2:09.72",
+     "c104": "2:10.98",
+     "c105": "2:12.24",
+     "c106": "2:13.50",
+     "c107": "2:14.76"
     },
-    "hot": "2:05.29"
+    "hot": "2:05.32"
    },
    "hypercar": {
     "avgLap": "1:54.27",
@@ -565,36 +573,36 @@
     "hot": "1:51.47"
    },
    "lmp3": {
-    "avgLap": "2:02.16",
+    "avgLap": "2:02.12",
     "tiers": {
-     "alien": "1:59.76",
-     "c101": "2:00.96",
-     "c102": "2:02.16",
-     "c103": "2:03.35",
-     "c104": "2:04.55",
-     "c105": "2:05.75",
-     "c106": "2:06.95",
-     "c107": "2:08.14"
+     "alien": "1:59.72",
+     "c101": "2:00.92",
+     "c102": "2:02.12",
+     "c103": "2:03.32",
+     "c104": "2:04.51",
+     "c105": "2:05.71",
+     "c106": "2:06.91",
+     "c107": "2:08.10"
     },
-    "hot": "1:59.17"
+    "hot": "1:59.13"
    },
    "lmp2": {
-    "avgLap": "1:54.58",
+    "avgLap": "1:54.21",
     "tiers": {
-     "alien": "1:52.34",
-     "c101": "1:53.46",
-     "c102": "1:54.58",
-     "c103": "1:55.71",
-     "c104": "1:56.83",
-     "c105": "1:57.95",
-     "c106": "1:59.08",
-     "c107": "2:00.20"
+     "alien": "1:51.97",
+     "c101": "1:53.09",
+     "c102": "1:54.21",
+     "c103": "1:55.33",
+     "c104": "1:56.45",
+     "c105": "1:57.57",
+     "c106": "1:58.69",
+     "c107": "1:59.81"
     },
-    "hot": "1:51.78"
+    "hot": "1:51.42"
    },
    "lmp2:oreca": {
-    "avgLap": "1:54.58",
-    "hot": "1:51.78"
+    "avgLap": "1:54.21",
+    "hot": "1:51.42"
    },
    "gte": {
     "avgLap": "2:05.77",
@@ -610,40 +618,40 @@
     },
     "hot": "2:02.69"
    },
-   "gt3:corvette": {
-    "avgLap": "2:08.81",
-    "hot": "2:05.66"
-   },
    "gt3:bmw": {
     "avgLap": "2:08.36",
     "hot": "2:05.22"
    },
-   "gt3:porsche": {
-    "avgLap": "2:08.37",
-    "hot": "2:05.23"
-   },
-   "gt3:aston": {
-    "avgLap": "2:08.40",
-    "hot": "2:05.26"
+   "gt3:corvette": {
+    "avgLap": "2:08.52",
+    "hot": "2:05.38"
    },
    "gt3:ferrari": {
     "avgLap": "2:08.47",
     "hot": "2:05.33"
    },
-   "gt3:ford": {
-    "avgLap": "2:08.27",
-    "hot": "2:05.13"
+   "gt3:aston": {
+    "avgLap": "2:08.40",
+    "hot": "2:05.26"
    },
-   "gt3:mclaren": {
-    "avgLap": "2:08.48",
-    "hot": "2:05.34"
+   "gt3:porsche": {
+    "avgLap": "2:08.37",
+    "hot": "2:05.23"
+   },
+   "gt3:ford": {
+    "avgLap": "2:08.46",
+    "hot": "2:05.32"
    },
    "gt3:mercedes": {
     "avgLap": "2:08.77",
     "hot": "2:05.62"
    },
+   "gt3:mclaren": {
+    "avgLap": "2:08.57",
+    "hot": "2:05.43"
+   },
    "gt3:lexus": {
-    "avgLap": "2:08.64",
+    "avgLap": "2:08.63",
     "hot": "2:05.49"
    },
    "hypercar:lamborghini": {
@@ -658,41 +666,45 @@
     "avgLap": "1:54.37",
     "hot": "1:51.57"
    },
-   "hypercar:bmw": {
-    "avgLap": "1:54.06",
-    "hot": "1:51.27"
-   },
    "hypercar:genesis": {
     "avgLap": "1:54.33",
     "hot": "1:51.53"
    },
-   "hypercar:peugeot": {
-    "avgLap": "1:54.48",
-    "hot": "1:51.67"
+   "hypercar:bmw": {
+    "avgLap": "1:54.06",
+    "hot": "1:51.27"
    },
    "hypercar:ferrari": {
     "avgLap": "1:54.67",
     "hot": "1:51.86"
    },
+   "hypercar:peugeot": {
+    "avgLap": "1:54.48",
+    "hot": "1:51.67"
+   },
+   "hypercar:porsche": {
+    "avgLap": "1:54.53",
+    "hot": "1:51.72"
+   },
    "hypercar:toyota": {
     "avgLap": "1:54.54",
     "hot": "1:51.73"
    },
-   "hypercar:porsche": {
-    "avgLap": "1:54.55",
-    "hot": "1:51.74"
-   },
    "hypercar:isotta": {
-    "avgLap": "1:54.43",
-    "hot": "1:51.63"
+    "avgLap": "1:54.25",
+    "hot": "1:51.45"
+   },
+   "hypercar:glickenhaus": {
+    "avgLap": "1:54.62",
+    "hot": "1:51.81"
    },
    "lmp3:duqueine": {
     "avgLap": "2:01.98",
     "hot": "1:58.99"
    },
    "lmp3:ligier": {
-    "avgLap": "2:02.35",
-    "hot": "1:59.36"
+    "avgLap": "2:02.13",
+    "hot": "1:59.14"
    },
    "lmp3:adess": {
     "avgLap": "2:02.88",
@@ -764,37 +776,37 @@
     "avgLap": "1:35.80",
     "hot": "1:33.45"
    },
-   "gt3:corvette": {
-    "avgLap": "1:47.32",
-    "hot": "1:44.69"
-   },
    "gt3:bmw": {
     "avgLap": "1:47.27",
     "hot": "1:44.64"
    },
-   "gt3:porsche": {
-    "avgLap": "1:47.31",
-    "hot": "1:44.68"
-   },
-   "gt3:aston": {
-    "avgLap": "1:47.31",
-    "hot": "1:44.68"
+   "gt3:corvette": {
+    "avgLap": "1:47.32",
+    "hot": "1:44.69"
    },
    "gt3:ferrari": {
     "avgLap": "1:47.34",
     "hot": "1:44.71"
    },
+   "gt3:aston": {
+    "avgLap": "1:47.31",
+    "hot": "1:44.68"
+   },
+   "gt3:porsche": {
+    "avgLap": "1:47.31",
+    "hot": "1:44.68"
+   },
    "gt3:ford": {
     "avgLap": "1:47.17",
     "hot": "1:44.54"
    },
-   "gt3:mclaren": {
-    "avgLap": "1:47.40",
-    "hot": "1:44.77"
-   },
    "gt3:mercedes": {
     "avgLap": "1:47.51",
     "hot": "1:44.87"
+   },
+   "gt3:mclaren": {
+    "avgLap": "1:47.40",
+    "hot": "1:44.77"
    },
    "gt3:lexus": {
     "avgLap": "1:47.51",
@@ -812,29 +824,29 @@
     "avgLap": "1:34.96",
     "hot": "1:32.63"
    },
-   "hypercar:bmw": {
-    "avgLap": "1:34.95",
-    "hot": "1:32.62"
-   },
    "hypercar:genesis": {
     "avgLap": "1:34.85",
     "hot": "1:32.53"
    },
-   "hypercar:peugeot": {
-    "avgLap": "1:35.02",
-    "hot": "1:32.69"
+   "hypercar:bmw": {
+    "avgLap": "1:34.95",
+    "hot": "1:32.62"
    },
    "hypercar:ferrari": {
     "avgLap": "1:35.00",
     "hot": "1:32.67"
    },
-   "hypercar:toyota": {
-    "avgLap": "1:34.52",
-    "hot": "1:32.21"
+   "hypercar:peugeot": {
+    "avgLap": "1:35.02",
+    "hot": "1:32.69"
    },
    "hypercar:porsche": {
     "avgLap": "1:34.58",
     "hot": "1:32.26"
+   },
+   "hypercar:toyota": {
+    "avgLap": "1:34.52",
+    "hot": "1:32.21"
    },
    "hypercar:isotta": {
     "avgLap": "1:34.98",
@@ -932,25 +944,25 @@
     },
     "hot": "1:38.75"
    },
-   "gt3:corvette": {
-    "avgLap": "1:42.25",
-    "hot": "1:39.75"
-   },
    "gt3:bmw": {
     "avgLap": "1:42.20",
     "hot": "1:39.70"
    },
-   "gt3:porsche": {
-    "avgLap": "1:42.11",
-    "hot": "1:39.61"
+   "gt3:corvette": {
+    "avgLap": "1:42.25",
+    "hot": "1:39.75"
+   },
+   "gt3:ferrari": {
+    "avgLap": "1:42.08",
+    "hot": "1:39.58"
    },
    "gt3:aston": {
     "avgLap": "1:42.21",
     "hot": "1:39.71"
    },
-   "gt3:ferrari": {
-    "avgLap": "1:42.08",
-    "hot": "1:39.58"
+   "gt3:porsche": {
+    "avgLap": "1:42.11",
+    "hot": "1:39.61"
    },
    "gt3:ford": {
     "avgLap": "1:42.13",
@@ -976,29 +988,29 @@
     "avgLap": "1:30.30",
     "hot": "1:28.09"
    },
-   "hypercar:bmw": {
-    "avgLap": "1:30.35",
-    "hot": "1:28.13"
-   },
    "hypercar:genesis": {
     "avgLap": "1:30.18",
     "hot": "1:27.97"
    },
-   "hypercar:peugeot": {
-    "avgLap": "1:30.47",
-    "hot": "1:28.25"
+   "hypercar:bmw": {
+    "avgLap": "1:30.35",
+    "hot": "1:28.13"
    },
    "hypercar:ferrari": {
     "avgLap": "1:30.08",
     "hot": "1:27.87"
    },
-   "hypercar:toyota": {
-    "avgLap": "1:30.46",
-    "hot": "1:28.24"
+   "hypercar:peugeot": {
+    "avgLap": "1:30.47",
+    "hot": "1:28.25"
    },
    "hypercar:porsche": {
     "avgLap": "1:30.06",
     "hot": "1:27.85"
+   },
+   "hypercar:toyota": {
+    "avgLap": "1:30.46",
+    "hot": "1:28.24"
    },
    "lmp3:duqueine": {
     "avgLap": "1:36.84",
@@ -1096,37 +1108,37 @@
     },
     "hot": "1:40.17"
    },
-   "gt3:corvette": {
-    "avgLap": "1:44.20",
-    "hot": "1:41.65"
-   },
    "gt3:bmw": {
     "avgLap": "1:44.40",
     "hot": "1:41.85"
    },
-   "gt3:porsche": {
-    "avgLap": "1:44.30",
-    "hot": "1:41.75"
-   },
-   "gt3:aston": {
-    "avgLap": "1:44.59",
-    "hot": "1:42.03"
+   "gt3:corvette": {
+    "avgLap": "1:44.20",
+    "hot": "1:41.65"
    },
    "gt3:ferrari": {
     "avgLap": "1:44.44",
     "hot": "1:41.89"
    },
+   "gt3:aston": {
+    "avgLap": "1:44.59",
+    "hot": "1:42.03"
+   },
+   "gt3:porsche": {
+    "avgLap": "1:44.30",
+    "hot": "1:41.75"
+   },
    "gt3:ford": {
     "avgLap": "1:44.36",
     "hot": "1:41.81"
    },
-   "gt3:mclaren": {
-    "avgLap": "1:44.30",
-    "hot": "1:41.75"
-   },
    "gt3:mercedes": {
     "avgLap": "1:44.44",
     "hot": "1:41.89"
+   },
+   "gt3:mclaren": {
+    "avgLap": "1:44.30",
+    "hot": "1:41.75"
    },
    "gt3:lexus": {
     "avgLap": "1:44.44",
@@ -1144,29 +1156,29 @@
     "avgLap": "1:31.39",
     "hot": "1:29.15"
    },
-   "hypercar:bmw": {
-    "avgLap": "1:31.44",
-    "hot": "1:29.20"
-   },
    "hypercar:genesis": {
     "avgLap": "1:31.47",
     "hot": "1:29.23"
    },
-   "hypercar:peugeot": {
-    "avgLap": "1:31.45",
-    "hot": "1:29.21"
+   "hypercar:bmw": {
+    "avgLap": "1:31.44",
+    "hot": "1:29.20"
    },
    "hypercar:ferrari": {
     "avgLap": "1:31.54",
     "hot": "1:29.30"
    },
-   "hypercar:toyota": {
-    "avgLap": "1:31.61",
-    "hot": "1:29.37"
+   "hypercar:peugeot": {
+    "avgLap": "1:31.45",
+    "hot": "1:29.21"
    },
    "hypercar:porsche": {
     "avgLap": "1:31.51",
     "hot": "1:29.27"
+   },
+   "hypercar:toyota": {
+    "avgLap": "1:31.61",
+    "hot": "1:29.37"
    },
    "hypercar:isotta": {
     "avgLap": "1:31.74",
@@ -1264,37 +1276,37 @@
     },
     "hot": "1:32.50"
    },
-   "gt3:corvette": {
-    "avgLap": "1:35.71",
-    "hot": "1:33.37"
-   },
    "gt3:bmw": {
     "avgLap": "1:35.45",
     "hot": "1:33.12"
    },
-   "gt3:porsche": {
-    "avgLap": "1:35.49",
-    "hot": "1:33.16"
-   },
-   "gt3:aston": {
-    "avgLap": "1:35.60",
-    "hot": "1:33.27"
+   "gt3:corvette": {
+    "avgLap": "1:35.71",
+    "hot": "1:33.37"
    },
    "gt3:ferrari": {
     "avgLap": "1:35.62",
     "hot": "1:33.29"
    },
+   "gt3:aston": {
+    "avgLap": "1:35.60",
+    "hot": "1:33.27"
+   },
+   "gt3:porsche": {
+    "avgLap": "1:35.49",
+    "hot": "1:33.16"
+   },
    "gt3:ford": {
     "avgLap": "1:35.41",
     "hot": "1:33.08"
    },
-   "gt3:mclaren": {
-    "avgLap": "1:35.57",
-    "hot": "1:33.24"
-   },
    "gt3:mercedes": {
     "avgLap": "1:35.52",
     "hot": "1:33.19"
+   },
+   "gt3:mclaren": {
+    "avgLap": "1:35.57",
+    "hot": "1:33.24"
    },
    "gt3:lexus": {
     "avgLap": "1:35.33",
@@ -1312,15 +1324,11 @@
     "avgLap": "1:24.19",
     "hot": "1:22.13"
    },
-   "hypercar:bmw": {
-    "avgLap": "1:24.21",
-    "hot": "1:22.15"
-   },
    "hypercar:genesis": {
     "avgLap": "1:24.12",
     "hot": "1:22.06"
    },
-   "hypercar:peugeot": {
+   "hypercar:bmw": {
     "avgLap": "1:24.21",
     "hot": "1:22.15"
    },
@@ -1328,13 +1336,17 @@
     "avgLap": "1:24.23",
     "hot": "1:22.17"
    },
-   "hypercar:toyota": {
-    "avgLap": "1:24.25",
-    "hot": "1:22.19"
+   "hypercar:peugeot": {
+    "avgLap": "1:24.21",
+    "hot": "1:22.15"
    },
    "hypercar:porsche": {
     "avgLap": "1:24.05",
     "hot": "1:21.99"
+   },
+   "hypercar:toyota": {
+    "avgLap": "1:24.25",
+    "hot": "1:22.19"
    },
    "hypercar:isotta": {
     "avgLap": "1:24.46",
@@ -1434,37 +1446,37 @@
     "avgLap": "1:13.57",
     "hot": "1:11.77"
    },
-   "gt3:corvette": {
-    "avgLap": "1:23.50",
-    "hot": "1:21.45"
-   },
    "gt3:bmw": {
     "avgLap": "1:23.52",
     "hot": "1:21.47"
    },
-   "gt3:porsche": {
-    "avgLap": "1:23.54",
-    "hot": "1:21.49"
-   },
-   "gt3:aston": {
-    "avgLap": "1:23.66",
-    "hot": "1:21.61"
+   "gt3:corvette": {
+    "avgLap": "1:23.50",
+    "hot": "1:21.45"
    },
    "gt3:ferrari": {
     "avgLap": "1:23.33",
     "hot": "1:21.28"
    },
+   "gt3:aston": {
+    "avgLap": "1:23.66",
+    "hot": "1:21.61"
+   },
+   "gt3:porsche": {
+    "avgLap": "1:23.54",
+    "hot": "1:21.49"
+   },
    "gt3:ford": {
     "avgLap": "1:23.69",
     "hot": "1:21.64"
    },
-   "gt3:mclaren": {
-    "avgLap": "1:23.87",
-    "hot": "1:21.81"
-   },
    "gt3:mercedes": {
     "avgLap": "1:23.56",
     "hot": "1:21.51"
+   },
+   "gt3:mclaren": {
+    "avgLap": "1:23.87",
+    "hot": "1:21.81"
    },
    "gt3:lexus": {
     "avgLap": "1:23.83",
@@ -1482,29 +1494,29 @@
     "avgLap": "1:13.98",
     "hot": "1:12.17"
    },
-   "hypercar:bmw": {
-    "avgLap": "1:14.41",
-    "hot": "1:12.59"
-   },
    "hypercar:genesis": {
     "avgLap": "1:14.31",
     "hot": "1:12.50"
    },
-   "hypercar:peugeot": {
-    "avgLap": "1:14.39",
-    "hot": "1:12.57"
+   "hypercar:bmw": {
+    "avgLap": "1:14.41",
+    "hot": "1:12.59"
    },
    "hypercar:ferrari": {
     "avgLap": "1:14.34",
     "hot": "1:12.53"
    },
-   "hypercar:toyota": {
-    "avgLap": "1:14.52",
-    "hot": "1:12.70"
+   "hypercar:peugeot": {
+    "avgLap": "1:14.39",
+    "hot": "1:12.57"
    },
    "hypercar:porsche": {
     "avgLap": "1:14.38",
     "hot": "1:12.56"
+   },
+   "hypercar:toyota": {
+    "avgLap": "1:14.52",
+    "hot": "1:12.70"
    },
    "hypercar:isotta": {
     "avgLap": "1:14.31",
@@ -1598,37 +1610,37 @@
     },
     "hot": "1:46.26"
    },
-   "gt3:corvette": {
-    "avgLap": "1:51.23",
-    "hot": "1:48.50"
-   },
    "gt3:bmw": {
     "avgLap": "1:51.04",
     "hot": "1:48.32"
    },
-   "gt3:porsche": {
-    "avgLap": "1:51.09",
-    "hot": "1:48.37"
-   },
-   "gt3:aston": {
-    "avgLap": "1:51.21",
-    "hot": "1:48.49"
+   "gt3:corvette": {
+    "avgLap": "1:51.23",
+    "hot": "1:48.50"
    },
    "gt3:ferrari": {
     "avgLap": "1:51.07",
     "hot": "1:48.35"
    },
+   "gt3:aston": {
+    "avgLap": "1:51.21",
+    "hot": "1:48.49"
+   },
+   "gt3:porsche": {
+    "avgLap": "1:51.09",
+    "hot": "1:48.37"
+   },
    "gt3:ford": {
     "avgLap": "1:51.19",
     "hot": "1:48.47"
    },
-   "gt3:mclaren": {
-    "avgLap": "1:51.10",
-    "hot": "1:48.38"
-   },
    "gt3:mercedes": {
     "avgLap": "1:51.13",
     "hot": "1:48.41"
+   },
+   "gt3:mclaren": {
+    "avgLap": "1:51.10",
+    "hot": "1:48.38"
    },
    "gt3:lexus": {
     "avgLap": "1:51.31",
@@ -1646,29 +1658,29 @@
     "avgLap": "1:36.88",
     "hot": "1:34.50"
    },
-   "hypercar:bmw": {
-    "avgLap": "1:36.63",
-    "hot": "1:34.26"
-   },
    "hypercar:genesis": {
     "avgLap": "1:36.42",
     "hot": "1:34.05"
    },
-   "hypercar:peugeot": {
-    "avgLap": "1:36.75",
-    "hot": "1:34.38"
+   "hypercar:bmw": {
+    "avgLap": "1:36.63",
+    "hot": "1:34.26"
    },
    "hypercar:ferrari": {
     "avgLap": "1:36.64",
     "hot": "1:34.27"
    },
-   "hypercar:toyota": {
-    "avgLap": "1:36.70",
-    "hot": "1:34.33"
+   "hypercar:peugeot": {
+    "avgLap": "1:36.75",
+    "hot": "1:34.38"
    },
    "hypercar:porsche": {
     "avgLap": "1:36.57",
     "hot": "1:34.20"
+   },
+   "hypercar:toyota": {
+    "avgLap": "1:36.70",
+    "hot": "1:34.33"
    },
    "hypercar:isotta": {
     "avgLap": "1:36.84",
@@ -1770,25 +1782,25 @@
     "avgLap": "2:06.28",
     "hot": "2:03.19"
    },
-   "gt3:porsche": {
-    "avgLap": "2:06.26",
-    "hot": "2:03.17"
-   },
    "gt3:aston": {
     "avgLap": "2:06.21",
     "hot": "2:03.12"
+   },
+   "gt3:porsche": {
+    "avgLap": "2:06.26",
+    "hot": "2:03.17"
    },
    "gt3:ford": {
     "avgLap": "2:06.09",
     "hot": "2:03.00"
    },
-   "gt3:mclaren": {
-    "avgLap": "2:06.71",
-    "hot": "2:03.61"
-   },
    "gt3:mercedes": {
     "avgLap": "2:06.44",
     "hot": "2:03.35"
+   },
+   "gt3:mclaren": {
+    "avgLap": "2:06.71",
+    "hot": "2:03.61"
    },
    "hypercar:lamborghini": {
     "avgLap": "1:51.58",
@@ -1798,13 +1810,13 @@
     "avgLap": "1:51.14",
     "hot": "1:48.42"
    },
-   "hypercar:peugeot": {
-    "avgLap": "1:51.18",
-    "hot": "1:48.46"
-   },
    "hypercar:ferrari": {
     "avgLap": "1:51.21",
     "hot": "1:48.49"
+   },
+   "hypercar:peugeot": {
+    "avgLap": "1:51.18",
+    "hot": "1:48.46"
    },
    "lmp3:duqueine": {
     "avgLap": "1:58.99",
@@ -1898,37 +1910,37 @@
     },
     "hot": "1:41.60"
    },
-   "gt3:corvette": {
-    "avgLap": "1:45.83",
-    "hot": "1:43.24"
-   },
    "gt3:bmw": {
     "avgLap": "1:45.39",
     "hot": "1:42.81"
    },
-   "gt3:porsche": {
-    "avgLap": "1:45.73",
-    "hot": "1:43.14"
-   },
-   "gt3:aston": {
-    "avgLap": "1:45.28",
-    "hot": "1:42.70"
+   "gt3:corvette": {
+    "avgLap": "1:45.83",
+    "hot": "1:43.24"
    },
    "gt3:ferrari": {
     "avgLap": "1:45.54",
     "hot": "1:42.96"
    },
+   "gt3:aston": {
+    "avgLap": "1:45.28",
+    "hot": "1:42.70"
+   },
+   "gt3:porsche": {
+    "avgLap": "1:45.73",
+    "hot": "1:43.14"
+   },
    "gt3:ford": {
     "avgLap": "1:45.42",
     "hot": "1:42.84"
    },
-   "gt3:mclaren": {
-    "avgLap": "1:45.61",
-    "hot": "1:43.03"
-   },
    "gt3:mercedes": {
     "avgLap": "1:45.49",
     "hot": "1:42.91"
+   },
+   "gt3:mclaren": {
+    "avgLap": "1:45.61",
+    "hot": "1:43.03"
    },
    "gt3:lexus": {
     "avgLap": "1:45.86",
@@ -1946,29 +1958,29 @@
     "avgLap": "1:33.09",
     "hot": "1:30.82"
    },
-   "hypercar:bmw": {
-    "avgLap": "1:32.77",
-    "hot": "1:30.50"
-   },
    "hypercar:genesis": {
     "avgLap": "1:32.66",
     "hot": "1:30.40"
    },
-   "hypercar:peugeot": {
-    "avgLap": "1:33.48",
-    "hot": "1:31.20"
+   "hypercar:bmw": {
+    "avgLap": "1:32.77",
+    "hot": "1:30.50"
    },
    "hypercar:ferrari": {
     "avgLap": "1:33.07",
     "hot": "1:30.80"
    },
-   "hypercar:toyota": {
-    "avgLap": "1:33.07",
-    "hot": "1:30.80"
+   "hypercar:peugeot": {
+    "avgLap": "1:33.48",
+    "hot": "1:31.20"
    },
    "hypercar:porsche": {
     "avgLap": "1:32.83",
     "hot": "1:30.56"
+   },
+   "hypercar:toyota": {
+    "avgLap": "1:33.07",
+    "hot": "1:30.80"
    },
    "hypercar:isotta": {
     "avgLap": "1:33.58",
@@ -2074,13 +2086,13 @@
     },
     "hot": "1:51.84"
    },
-   "gt3:corvette": {
-    "avgLap": "1:57.04",
-    "hot": "1:54.17"
-   },
    "gt3:bmw": {
     "avgLap": "1:56.66",
     "hot": "1:53.80"
+   },
+   "gt3:corvette": {
+    "avgLap": "1:57.04",
+    "hot": "1:54.17"
    },
    "gt3:aston": {
     "avgLap": "1:56.49",
@@ -2090,13 +2102,13 @@
     "avgLap": "1:57.29",
     "hot": "1:54.42"
    },
-   "gt3:mclaren": {
-    "avgLap": "1:57.38",
-    "hot": "1:54.51"
-   },
    "gt3:mercedes": {
     "avgLap": "1:57.23",
     "hot": "1:54.36"
+   },
+   "gt3:mclaren": {
+    "avgLap": "1:57.38",
+    "hot": "1:54.51"
    },
    "gt3:lexus": {
     "avgLap": "1:57.21",
@@ -2114,25 +2126,25 @@
     "avgLap": "1:41.44",
     "hot": "1:38.95"
    },
-   "hypercar:bmw": {
-    "avgLap": "1:41.39",
-    "hot": "1:38.91"
-   },
    "hypercar:genesis": {
     "avgLap": "1:41.60",
     "hot": "1:39.11"
+   },
+   "hypercar:bmw": {
+    "avgLap": "1:41.39",
+    "hot": "1:38.91"
    },
    "hypercar:peugeot": {
     "avgLap": "1:41.90",
     "hot": "1:39.40"
    },
-   "hypercar:toyota": {
-    "avgLap": "1:41.76",
-    "hot": "1:39.27"
-   },
    "hypercar:porsche": {
     "avgLap": "1:41.88",
     "hot": "1:39.38"
+   },
+   "hypercar:toyota": {
+    "avgLap": "1:41.76",
+    "hot": "1:39.27"
    },
    "hypercar:isotta": {
     "avgLap": "1:41.93",
@@ -2228,37 +2240,37 @@
     "avgLap": "1:44.41",
     "hot": "1:41.86"
    },
-   "gt3:corvette": {
-    "avgLap": "2:00.70",
-    "hot": "1:57.74"
-   },
    "gt3:bmw": {
     "avgLap": "2:00.36",
     "hot": "1:57.41"
    },
-   "gt3:porsche": {
-    "avgLap": "2:00.45",
-    "hot": "1:57.50"
-   },
-   "gt3:aston": {
-    "avgLap": "2:00.58",
-    "hot": "1:57.63"
+   "gt3:corvette": {
+    "avgLap": "2:00.70",
+    "hot": "1:57.74"
    },
    "gt3:ferrari": {
     "avgLap": "2:00.55",
     "hot": "1:57.60"
    },
+   "gt3:aston": {
+    "avgLap": "2:00.58",
+    "hot": "1:57.63"
+   },
+   "gt3:porsche": {
+    "avgLap": "2:00.45",
+    "hot": "1:57.50"
+   },
    "gt3:ford": {
     "avgLap": "2:00.66",
     "hot": "1:57.71"
    },
-   "gt3:mclaren": {
-    "avgLap": "2:00.62",
-    "hot": "1:57.67"
-   },
    "gt3:mercedes": {
     "avgLap": "2:00.57",
     "hot": "1:57.62"
+   },
+   "gt3:mclaren": {
+    "avgLap": "2:00.62",
+    "hot": "1:57.67"
    },
    "gt3:lexus": {
     "avgLap": "2:00.71",
@@ -2276,29 +2288,29 @@
     "avgLap": "1:44.65",
     "hot": "1:42.09"
    },
-   "hypercar:bmw": {
-    "avgLap": "1:44.60",
-    "hot": "1:42.04"
-   },
    "hypercar:genesis": {
     "avgLap": "1:44.39",
     "hot": "1:41.83"
    },
-   "hypercar:peugeot": {
-    "avgLap": "1:44.66",
-    "hot": "1:42.10"
+   "hypercar:bmw": {
+    "avgLap": "1:44.60",
+    "hot": "1:42.04"
    },
    "hypercar:ferrari": {
     "avgLap": "1:44.62",
     "hot": "1:42.06"
    },
-   "hypercar:toyota": {
-    "avgLap": "1:44.54",
-    "hot": "1:41.98"
+   "hypercar:peugeot": {
+    "avgLap": "1:44.66",
+    "hot": "1:42.10"
    },
    "hypercar:porsche": {
     "avgLap": "1:44.80",
     "hot": "1:42.23"
+   },
+   "hypercar:toyota": {
+    "avgLap": "1:44.54",
+    "hot": "1:41.98"
    },
    "hypercar:isotta": {
     "avgLap": "1:44.34",
@@ -2396,37 +2408,37 @@
     },
     "hot": "1:58.20"
    },
-   "gt3:corvette": {
-    "avgLap": "2:02.61",
-    "hot": "1:59.61"
-   },
    "gt3:bmw": {
     "avgLap": "2:02.75",
     "hot": "1:59.75"
    },
-   "gt3:porsche": {
+   "gt3:corvette": {
     "avgLap": "2:02.61",
     "hot": "1:59.61"
-   },
-   "gt3:aston": {
-    "avgLap": "2:02.64",
-    "hot": "1:59.64"
    },
    "gt3:ferrari": {
     "avgLap": "2:02.84",
     "hot": "1:59.83"
    },
+   "gt3:aston": {
+    "avgLap": "2:02.64",
+    "hot": "1:59.64"
+   },
+   "gt3:porsche": {
+    "avgLap": "2:02.61",
+    "hot": "1:59.61"
+   },
    "gt3:ford": {
     "avgLap": "2:02.78",
     "hot": "1:59.78"
    },
-   "gt3:mclaren": {
-    "avgLap": "2:02.68",
-    "hot": "1:59.68"
-   },
    "gt3:mercedes": {
     "avgLap": "2:02.85",
     "hot": "1:59.84"
+   },
+   "gt3:mclaren": {
+    "avgLap": "2:02.68",
+    "hot": "1:59.68"
    },
    "gt3:lexus": {
     "avgLap": "2:02.91",
@@ -2444,21 +2456,21 @@
     "avgLap": "1:48.11",
     "hot": "1:45.46"
    },
-   "hypercar:bmw": {
-    "avgLap": "1:48.07",
-    "hot": "1:45.42"
-   },
    "hypercar:genesis": {
     "avgLap": "1:48.50",
     "hot": "1:45.84"
    },
-   "hypercar:peugeot": {
-    "avgLap": "1:48.72",
-    "hot": "1:46.05"
+   "hypercar:bmw": {
+    "avgLap": "1:48.07",
+    "hot": "1:45.42"
    },
    "hypercar:ferrari": {
     "avgLap": "1:47.68",
     "hot": "1:45.04"
+   },
+   "hypercar:peugeot": {
+    "avgLap": "1:48.72",
+    "hot": "1:46.05"
    },
    "hypercar:isotta": {
     "avgLap": "1:48.58",
@@ -2564,37 +2576,37 @@
     },
     "hot": "2:14.97"
    },
-   "gt3:corvette": {
-    "avgLap": "2:20.43",
-    "hot": "2:16.99"
-   },
    "gt3:bmw": {
     "avgLap": "2:20.23",
     "hot": "2:16.79"
    },
-   "gt3:porsche": {
-    "avgLap": "2:20.55",
-    "hot": "2:17.10"
-   },
-   "gt3:aston": {
-    "avgLap": "2:20.25",
-    "hot": "2:16.81"
+   "gt3:corvette": {
+    "avgLap": "2:20.43",
+    "hot": "2:16.99"
    },
    "gt3:ferrari": {
     "avgLap": "2:20.44",
     "hot": "2:17.00"
    },
+   "gt3:aston": {
+    "avgLap": "2:20.25",
+    "hot": "2:16.81"
+   },
+   "gt3:porsche": {
+    "avgLap": "2:20.55",
+    "hot": "2:17.10"
+   },
    "gt3:ford": {
     "avgLap": "2:20.52",
     "hot": "2:17.08"
    },
-   "gt3:mclaren": {
-    "avgLap": "2:20.53",
-    "hot": "2:17.09"
-   },
    "gt3:mercedes": {
     "avgLap": "2:20.70",
     "hot": "2:17.25"
+   },
+   "gt3:mclaren": {
+    "avgLap": "2:20.53",
+    "hot": "2:17.09"
    },
    "gt3:lexus": {
     "avgLap": "2:20.44",
@@ -2612,29 +2624,29 @@
     "avgLap": "2:02.67",
     "hot": "1:59.66"
    },
-   "hypercar:bmw": {
-    "avgLap": "2:02.37",
-    "hot": "1:59.37"
-   },
    "hypercar:genesis": {
     "avgLap": "2:02.26",
     "hot": "1:59.26"
    },
-   "hypercar:peugeot": {
-    "avgLap": "2:02.49",
-    "hot": "1:59.49"
+   "hypercar:bmw": {
+    "avgLap": "2:02.37",
+    "hot": "1:59.37"
    },
    "hypercar:ferrari": {
     "avgLap": "2:02.39",
     "hot": "1:59.39"
    },
-   "hypercar:toyota": {
-    "avgLap": "2:02.34",
-    "hot": "1:59.34"
+   "hypercar:peugeot": {
+    "avgLap": "2:02.49",
+    "hot": "1:59.49"
    },
    "hypercar:porsche": {
     "avgLap": "2:02.51",
     "hot": "1:59.51"
+   },
+   "hypercar:toyota": {
+    "avgLap": "2:02.34",
+    "hot": "1:59.34"
    },
    "lmp3:duqueine": {
     "avgLap": "2:12.72",
@@ -2728,37 +2740,37 @@
     },
     "hot": "2:14.97"
    },
-   "gt3:corvette": {
-    "avgLap": "2:20.43",
-    "hot": "2:16.99"
-   },
    "gt3:bmw": {
     "avgLap": "2:20.23",
     "hot": "2:16.79"
    },
-   "gt3:porsche": {
-    "avgLap": "2:20.55",
-    "hot": "2:17.10"
-   },
-   "gt3:aston": {
-    "avgLap": "2:20.25",
-    "hot": "2:16.81"
+   "gt3:corvette": {
+    "avgLap": "2:20.43",
+    "hot": "2:16.99"
    },
    "gt3:ferrari": {
     "avgLap": "2:20.44",
     "hot": "2:17.00"
    },
+   "gt3:aston": {
+    "avgLap": "2:20.25",
+    "hot": "2:16.81"
+   },
+   "gt3:porsche": {
+    "avgLap": "2:20.55",
+    "hot": "2:17.10"
+   },
    "gt3:ford": {
     "avgLap": "2:20.52",
     "hot": "2:17.08"
    },
-   "gt3:mclaren": {
-    "avgLap": "2:20.53",
-    "hot": "2:17.09"
-   },
    "gt3:mercedes": {
     "avgLap": "2:20.70",
     "hot": "2:17.25"
+   },
+   "gt3:mclaren": {
+    "avgLap": "2:20.53",
+    "hot": "2:17.09"
    },
    "gt3:lexus": {
     "avgLap": "2:20.44",
@@ -2776,29 +2788,29 @@
     "avgLap": "2:02.67",
     "hot": "1:59.66"
    },
-   "hypercar:bmw": {
-    "avgLap": "2:02.37",
-    "hot": "1:59.37"
-   },
    "hypercar:genesis": {
     "avgLap": "2:02.26",
     "hot": "1:59.26"
    },
-   "hypercar:peugeot": {
-    "avgLap": "2:02.49",
-    "hot": "1:59.49"
+   "hypercar:bmw": {
+    "avgLap": "2:02.37",
+    "hot": "1:59.37"
    },
    "hypercar:ferrari": {
     "avgLap": "2:02.39",
     "hot": "1:59.39"
    },
-   "hypercar:toyota": {
-    "avgLap": "2:02.34",
-    "hot": "1:59.34"
+   "hypercar:peugeot": {
+    "avgLap": "2:02.49",
+    "hot": "1:59.49"
    },
    "hypercar:porsche": {
     "avgLap": "2:02.51",
     "hot": "1:59.51"
+   },
+   "hypercar:toyota": {
+    "avgLap": "2:02.34",
+    "hot": "1:59.34"
    },
    "lmp3:duqueine": {
     "avgLap": "2:12.72",
