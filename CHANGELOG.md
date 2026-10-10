@@ -2,10 +2,24 @@
 
 ## v2.5.1 — 2026-10-10
 
-<!-- TODO(hotfix): çoklu düzeltme. Her düzeltme tamamlandıkça buraya "neden"i
-     anlatan bir bölüm ekle (CLAUDE.md §1 veri dürüstlüğü — uydurma madde yok). -->
+Hotfix sürümü — çoklu düzeltme.
 
-Hotfix sürümü — _düzeltmeler hazırlanıyor._
+### "Yarış Ekle" penceresi dışarı tıklayınca kapanıyordu
+
+`RaceForm` backdrop'ı (`components.jsx`) dış tıkta pencereyi kapatıyordu:
+
+```jsx
+<div onClick={() => setRForm(null)} …>        // ← backdrop: her dış tık kapatır
+  <div onClick={(e) => e.stopPropagation()} …> // ← içeride tık yutulur
+```
+
+Pencere uzun bir form: pist seçimi, sınıf/araç, yarış süresi ve başlangıç saati.
+Kullanıcı formu doldururken arka plana kazara tek bir tık **girilen her şeyi
+onaysız siliyordu** — veri kaybı. Diğer modaller (komut paleti, sürüm notu) için
+dış-tık kapatma makul ama dolu bir giriş formu için değil.
+
+Çözüm: backdrop'tan `onClick` kaldırıldı (ve artık işlevsiz kalan iç
+`stopPropagation`). Pencere yalnız sağ üstteki `✕` ve `Vazgeç` ile kapanır.
 
 ## v2.5.0 — 2026-10-10
 

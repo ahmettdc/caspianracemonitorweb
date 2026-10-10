@@ -1293,8 +1293,10 @@ export function RaceEditModal({ rForm, setRForm, t, seasons, onSave, onProceed, 
   const inp = { width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", borderRadius: 10, color: "var(--rc-text)", padding: "11px 12px", fontSize: 13 };
   const curTrackName = trackName(rForm.trackId) || t("Pist seçilmedi");
   return (
-    <div onClick={() => setRForm(null)} style={{ position: "fixed", inset: 0, zIndex: 1030, background: "var(--rc-scrim)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ width: "min(820px,96vw)", maxHeight: "88vh", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
+    {/* Backdrop'ta dış-tık KAPATMA YOK: form uzun (pist/araç/süre/başlangıç) —
+       yanlışlıkla dışarı tıklayınca girilen her şey uçuyordu. Yalnız ✕ ve Vazgeç kapatır. */}
+    <div style={{ position: "fixed", inset: 0, zIndex: 1030, background: "var(--rc-scrim)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
+      <div style={{ width: "min(820px,96vw)", maxHeight: "88vh", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
 
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 20px", borderBottom: "1px solid var(--rc-border)" }}>
           <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".07em", fontSize: 19, fontWeight: 700 }}>{rForm.rid ? t("Yarışı Düzenle") : t("Yarış Ekle")}</span>

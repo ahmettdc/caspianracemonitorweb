@@ -7,13 +7,11 @@ export const CHANGELOG = [
   {
     v: "v2.5.1",
     date: "2026-10-10",
-    // TODO(v2.5.1 hotfix): düzeltmeler tamamlandıkça gerçek maddeleri ekle.
-    // Boş bırakma — her madde "neden"i anlatan bir cümleyle (emoji + BÜYÜK başlık) yazılır.
     tr: [
-      "TODO: v2.5.1 hotfix düzeltmelerini buraya yaz.",
+      "🪟 \"YARIŞ EKLE\" PENCERESİ DIŞARI TIKLAYINCA KAPANIP GİRİLENLERİ UÇURUYORDU. Pencere uzun (pist seçimi, sınıf/araç, yarış süresi, başlangıç saati); formu doldururken arka plana (backdrop) kazara bir tık her şeyi siliyor, onay da sormuyordu. Artık dış tık pencereyi kapatmaz — yalnız sağ üstteki ✕ ve \"Vazgeç\" kapatır.",
     ],
     en: [
-      "TODO: write the v2.5.1 hotfix items here.",
+      "🪟 THE \"ADD RACE\" WINDOW CLOSED ON AN OUTSIDE CLICK AND THREW AWAY WHAT YOU HAD ENTERED. The window is long (track pick, class/car, race duration, start time); while filling the form an accidental click on the backdrop wiped everything, with no confirmation. An outside click no longer closes the window — only the top-right ✕ and \"Cancel\" do.",
     ],
   },
   {
