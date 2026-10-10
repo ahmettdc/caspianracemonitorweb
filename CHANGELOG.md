@@ -1,9 +1,11 @@
 # Changelog
 
-## v2.4.4 — 2026-10-10
+## v2.5.0 — 2026-10-10
 
-Hotfix. Saha bildirimi: *"livetiming'de tarayıcıda sorun yok fakat .exe'de harita
-pencere butonuna basınca ayrı pencerede açılmıyor."*
+Saha sürümü — dört düzeltme/özellik: masaüstünde ayrı harita penceresi,
+spectate feed'inde "Bizim araç" seçimi, dashboard lastik sütununda bileşim
+logosu ve VE tüketim ince ayarı. İlk bildirim: *"livetiming'de tarayıcıda sorun
+yok fakat .exe'de harita pencere butonuna basınca ayrı pencerede açılmıyor."*
 
 ### `⧉ Pencere` düğmesi masaüstünde (.exe) tepkisizdi
 

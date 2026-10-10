@@ -5,7 +5,7 @@
    ============================================================ */
 export const CHANGELOG = [
   {
-    v: "v2.4.4",
+    v: "v2.5.0",
     date: "2026-10-10",
     tr: [
       "🗺️ MASAÜSTÜ UYGULAMASINDA (.exe) \"⧉ PENCERE\" DÜĞMESİ HARİTAYI AYRI PENCEREDE AÇMIYORDU — tıklamaya hiç tepki vermiyordu (tarayıcıda sorunsuz çalışıyor). Sebep: ayrı pencere tarayıcı popup'ına (`window.open`) dayanıyordu; masaüstünü taşıyan WebView2 boş adresli popup OLUŞTURMUYOR, çağrı boş dönüyor ve pencere yolu hiç başlamadan sessizce kesiliyordu. Artık masaüstünde harita GERÇEK bir uygulama penceresinde açılıyor — 2. monitöre taşınabilir, ana pencere hangi sekmede olursa olsun canlı akar. Pencere canlı veriye kendi aboneliğiyle bağlanır ve SALT-OKUYUCUDUR (pist şeklini/sektörü ana pencere yazar; çift yazım yok). Tarayıcı tarafı aynen korundu.",
