@@ -8,10 +8,10 @@ export const CHANGELOG = [
     v: "v2.5.1",
     date: "2026-10-10",
     tr: [
-      "🪟 \"YARIŞ EKLE\" PENCERESİ DIŞARI TIKLAYINCA KAPANIP GİRİLENLERİ UÇURUYORDU. Pencere uzun (pist seçimi, sınıf/araç, yarış süresi, başlangıç saati); formu doldururken arka plana (backdrop) kazara bir tık her şeyi siliyor, onay da sormuyordu. Artık dış tık pencereyi kapatmaz — yalnız sağ üstteki ✕ ve \"Vazgeç\" kapatır.",
+      "🪟 AÇILIR PENCERELER DIŞARI TIKLAYINCA KAPANIP GİRİLENLERİ UÇURUYORDU. Özellikle \"Yarış Ekle\" uzun bir form (pist, sınıf/araç, süre, başlangıç saati); doldururken arka plana (backdrop) kazara bir tık her şeyi siliyor, onay da sormuyordu. Artık tüm pencereler (Yarış Ekle/Düzenle, profil, hava planı, sohbet, kadro uygunluğu, setup karşılaştır/içerik/paylaş, tur geçmişi, lastik seçimi/pit günlüğü, strateji karşılaştır, telemetri içe aktar, takım kur/katıl, onay pencereleri, sürüm notu, güncelleme) yalnız ✕ / Vazgeç / Kapat ile kapanır — dış tık kapatmaz. (Esc kapatması kaldığı yerde korundu.) Komut paleti, açılır seçim listeleri ve görsel büyütücü [lightbox] hariç — oralarda dışarı tık standart ve beklenen davranış.",
     ],
     en: [
-      "🪟 THE \"ADD RACE\" WINDOW CLOSED ON AN OUTSIDE CLICK AND THREW AWAY WHAT YOU HAD ENTERED. The window is long (track pick, class/car, race duration, start time); while filling the form an accidental click on the backdrop wiped everything, with no confirmation. An outside click no longer closes the window — only the top-right ✕ and \"Cancel\" do.",
+      "🪟 POP-UP WINDOWS CLOSED ON AN OUTSIDE CLICK AND THREW AWAY WHAT YOU HAD ENTERED. \"Add Race\" in particular is a long form (track, class/car, duration, start time); while filling it an accidental click on the backdrop wiped everything, with no confirmation. Now every window (Add/Edit Race, profile, weather plan, chat, driver availability, setup compare/content/share, lap history, tyre pick / pit log, strategy compare, telemetry import, create/join team, confirm dialogs, release notes, updater) closes only via ✕ / Cancel / Close — an outside click no longer closes it. (Esc-to-close is kept where it existed.) Exceptions: the command palette, dropdown lists and the image lightbox, where an outside click is the standard, expected dismiss.",
     ],
   },
   {

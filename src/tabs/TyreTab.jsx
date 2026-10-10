@@ -435,7 +435,7 @@ export default function TyreTab({
 
       {tyLog && (
         <>
-          <div onClick={() => setTyLog(false)} style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(10,6,10,.55)", backdropFilter: "blur(2px)", animation: "rcfade .18s ease-out" }} />
+          <div style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(10,6,10,.55)", backdropFilter: "blur(2px)", animation: "rcfade .18s ease-out" }} />
           <div style={{ position: "fixed", left: "50%", top: "50%", transform: "translate(-50%,-50%)", zIndex: 65, width: "min(560px,94vw)", maxHeight: "82vh", display: "flex", flexDirection: "column", overflow: "hidden", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 14, boxShadow: "0 24px 60px rgba(0,0,0,.55)", animation: "rcfade .18s ease-out" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 16px", borderBottom: "1px solid var(--rc-line-soft)" }}>
               <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 14, fontWeight: 700 }}>{t("Lastik defteri")}</span>
@@ -685,7 +685,7 @@ export default function TyreTab({
         const popped = isPop(ri, ci);
         const carr = carriedAt(rows[ri].row, ci);
         return (
-          <div onClick={() => setTyPick(null)} style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(10,6,10,.74)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease-out" }}>
+          <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(10,6,10,.74)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease-out" }}>
             <div onClick={(e) => e.stopPropagation()} style={{ width: "min(560px,95vw)", maxHeight: "86vh", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .22s cubic-bezier(.2,.9,.3,1.05)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "14px 18px", borderBottom: "1px solid var(--rc-border)" }}>
                 <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".07em", fontSize: 17, fontWeight: 700 }}>{t("Lastik seç")}</span>

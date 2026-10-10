@@ -4,22 +4,41 @@
 
 Hotfix sürümü — çoklu düzeltme.
 
-### "Yarış Ekle" penceresi dışarı tıklayınca kapanıyordu
+### Açılır pencereler dışarı tıklayınca kapanıp girilenleri uçuruyordu
 
-`RaceForm` backdrop'ı (`components.jsx`) dış tıkta pencereyi kapatıyordu:
+Tüm modaller aynı backdrop desenini kullanıyordu:
 
 ```jsx
-<div onClick={() => setRForm(null)} …>        // ← backdrop: her dış tık kapatır
-  <div onClick={(e) => e.stopPropagation()} …> // ← içeride tık yutulur
+<div onClick={onClose} …>                       // ← backdrop: her dış tık kapatır
+  <div onClick={(e) => e.stopPropagation()} …>  // ← içeride tık yutulur
 ```
 
-Pencere uzun bir form: pist seçimi, sınıf/araç, yarış süresi ve başlangıç saati.
-Kullanıcı formu doldururken arka plana kazara tek bir tık **girilen her şeyi
-onaysız siliyordu** — veri kaybı. Diğer modaller (komut paleti, sürüm notu) için
-dış-tık kapatma makul ama dolu bir giriş formu için değil.
+Uzun bir formu (ör. "Yarış Ekle": pist, sınıf/araç, süre, başlangıç) doldururken
+arka plana kazara tek bir tık **girilen her şeyi onaysız siliyordu** — veri kaybı.
 
-Çözüm: backdrop'tan `onClick` kaldırıldı (ve artık işlevsiz kalan iç
-`stopPropagation`). Pencere yalnız sağ üstteki `✕` ve `Vazgeç` ile kapanır.
+Çözüm: kapatma düğmesi (`✕` / `Vazgeç` / `Kapat`) olan **tüm** pencerelerin
+backdrop `onClick`'i kaldırıldı. Esc kapatması olduğu yerde korundu. Değişen
+pencereler:
+
+- `components.jsx`: RaceForm, AdminModal, VersionModal, ChatModal,
+  SetupContentModal, SetupCompareModal, `wxmodal` ×2, takım kur/katıl modalı,
+  onay/prompt penceresi (`onCancel`)
+- `App.jsx`: profil, hava planı (`wxModal`), setup yükle (`suUpOpen`)
+- `tabs/`: LiveTab (tur geçmişi), DriversTab (uygunluk), TeleTab (içe aktar + büyüt),
+  TyreTab (pit günlüğü + lastik seçimi), StratCompTab, TrackMap (büyüt)
+- `UpdateModal.jsx`: `forced` değilken dış-tık kapatma da kaldırıldı (✕ zaten var)
+
+**Bilerek dokunulmayanlar** — dışarı tık oralarda doğru/beklenen davranış, kaldırmak
+bozardı:
+
+- **Komut paleti** (`CommandPalette`): kapatma düğmesi yok; click-away + Esc ile
+  kapanan bir başlatıcı.
+- **Açılır seçim listeleri** (`imgsel-back`, `role="listbox"`): dış tık tek
+  kapanma yolu; kaldırılsa menü açık kalırdı.
+- **Görsel büyütücü** (`lightbox`, DashTab): tam ekran görsel; her yere tıkla-kapat
+  evrensel davranış, kaybolacak veri yok, ✕'i de var.
+
+Not: backdrop dış-tık davranışı başından saf JSX'te; köprüye (oyun PC'si) temas yok.
 
 ## v2.5.0 — 2026-10-10
 

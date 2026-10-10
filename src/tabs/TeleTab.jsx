@@ -704,7 +704,7 @@ ${svgs}
       </>)}
 
       {big && cmpData?.hasMap && (
-        <div className="wxmodal" onClick={() => setBig(false)} role="dialog" aria-modal="true">
+        <div className="wxmodal" role="dialog" aria-modal="true">
           <div className="wxmbox map" onClick={(e) => e.stopPropagation()}>
             <div className="wxmhead">
               <span><Icon name="harita" size={14} /> {t("Pist Haritası")}</span>
@@ -1177,7 +1177,7 @@ export default function TeleTab({
 
       {/* Telemetri yükle penceresi */}
       {impOpen && (
-        <div onClick={() => setImpOpen(false)} role="dialog" aria-modal="true"
+        <div role="dialog" aria-modal="true"
           style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(10,6,10,.78)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
           <div onClick={(e) => e.stopPropagation()}
             style={{ width: "min(760px,96vw)", maxHeight: "90vh", display: "flex", flexDirection: "column", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .22s cubic-bezier(.2,.9,.3,1.05)" }}>
