@@ -5,6 +5,18 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v2.5.1",
+    date: "2026-10-10",
+    // TODO(v2.5.1 hotfix): düzeltmeler tamamlandıkça gerçek maddeleri ekle.
+    // Boş bırakma — her madde "neden"i anlatan bir cümleyle (emoji + BÜYÜK başlık) yazılır.
+    tr: [
+      "TODO: v2.5.1 hotfix düzeltmelerini buraya yaz.",
+    ],
+    en: [
+      "TODO: write the v2.5.1 hotfix items here.",
+    ],
+  },
+  {
     v: "v2.5.0",
     date: "2026-10-10",
     tr: [

@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.5.1 — 2026-10-10
+
+<!-- TODO(hotfix): çoklu düzeltme. Her düzeltme tamamlandıkça buraya "neden"i
+     anlatan bir bölüm ekle (CLAUDE.md §1 veri dürüstlüğü — uydurma madde yok). -->
+
+Hotfix sürümü — _düzeltmeler hazırlanıyor._
+
 ## v2.5.0 — 2026-10-10
 
 Saha sürümü — dört düzeltme/özellik: masaüstünde ayrı harita penceresi,
