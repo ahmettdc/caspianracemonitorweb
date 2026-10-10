@@ -289,22 +289,32 @@ pub fn run() {
     // Pencereyi (X) kapatınca uygulama kapanmasın — gizle, sistem tepsisinde
     // çalışmaya devam etsin (canlı köprü veri akışı kesilmesin). Gerçek çıkış
     // yalnız tepsi menüsündeki "Çıkış" iledir.
-    .on_window_event(|window, event| match event {
-      // (X) → kapatma yerine gizle; sistem tepsisinde çalışmaya devam et.
-      tauri::WindowEvent::CloseRequested { api, .. } => {
-        let _ = window.hide();
-        api.prevent_close();
-        // Sürüş Modu (v1.4.99): pencere gizlendi → ön yüz ağır render'ı durdursun
-        // (köprü modül-global state'ten yazmaya devam eder; mühendis başka PC'de görür).
-        let _ = window.emit("win-visible", false);
+    .on_window_event(|window, event| {
+      // Bu özel davranış (tepsiye gizleme + render duraklatma sinyalleri) YALNIZ ana
+      // pencere içindir. ⧉ harita gibi ek pencereler (label "rc-map") normal davranır:
+      // (X) gerçekten kapatır (tekrar açılabilsin — gizli kalıp "zaten açık" sanılmasın)
+      // ve odak değişimi global win-focus yaymaz (ana pencerenin ağır render'ını
+      // map penceresinin odağı duraklatmasın).
+      if window.label() != "main" {
+        return;
       }
-      // Odak değişimi: tam-ekran oyunun arkasına düşme / minimize / geri gelme.
-      // Ön yüz, köprü CANLI oyun verisi yazarken (sürüş PC'si yarışta) odak yokken
-      // ağır render'ı durdurur; ikinci monitörde izleyen mühendisi etkilemez.
-      tauri::WindowEvent::Focused(focused) => {
-        let _ = window.emit("win-focus", *focused);
+      match event {
+        // (X) → kapatma yerine gizle; sistem tepsisinde çalışmaya devam et.
+        tauri::WindowEvent::CloseRequested { api, .. } => {
+          let _ = window.hide();
+          api.prevent_close();
+          // Sürüş Modu (v1.4.99): pencere gizlendi → ön yüz ağır render'ı durdursun
+          // (köprü modül-global state'ten yazmaya devam eder; mühendis başka PC'de görür).
+          let _ = window.emit("win-visible", false);
+        }
+        // Odak değişimi: tam-ekran oyunun arkasına düşme / minimize / geri gelme.
+        // Ön yüz, köprü CANLI oyun verisi yazarken (sürüş PC'si yarışta) odak yokken
+        // ağır render'ı durdurur; ikinci monitörde izleyen mühendisi etkilemez.
+        tauri::WindowEvent::Focused(focused) => {
+          let _ = window.emit("win-focus", *focused);
+        }
+        _ => {}
       }
-      _ => {}
     })
     .setup(|app| {
       if cfg!(debug_assertions) {

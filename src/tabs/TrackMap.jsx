@@ -12,6 +12,7 @@ import { observeSector, sectorFractions, sectorRanges,
 import { emptyCurve, observeCurve, timeFracOf, curveOf,
   pitOutPoints } from "../pitOut";
 import { pitRequested } from "../liveStatus";
+import { isTauri } from "../tauriEnv";
 import { liveTrackSave, liveTrackSubscribe,
   liveTrackSecSave, liveTrackSecSubscribe,
   liveTrackPitSave, liveTrackPitSubscribe } from "../storage";
@@ -54,8 +55,8 @@ const cx = 260, cy = 262;       // merkez
 const R = 236;                  // dış halka yarıçapı
 const PAD = 148;                // iç şekil yarım-uzanımı (px)
 
-export default function TrackMap({ t, field, session, trackLength, tid, trackKey,
-  canSave, topSlot, classFilter = null }) {
+export default function TrackMap({ t, field, session, trackLength, tid, rid, trackKey,
+  canSave, topSlot, classFilter = null, embed = false }) {
   const [zoom, setZoom] = useState(false);   // ⛶ büyük pencere (tam ekran overlay)
   const [, bump] = useState(0);              // paylaşımlı şekil gelince yeniden çiz
   const svgRef = useRef(null);               // küçük karttaki canlı svg
@@ -89,7 +90,43 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
      CSS geçişleri çalışıyor ve güncelleme tam veri geldiğinde oluyor — zamanlayıcı
      yok, Expand ile birebir aynı akıcılık. */
   const guardRef = useRef(0);   // pencere-kapandı yoklayıcısının id'si (tek olmalı)
+  /* ⧉ Masaüstü (.exe) yolu.
+     `window.open("", …)` WebView2'de popup OLUŞTURMAZ → null döner → aşağıdaki
+     portal yolu hiç başlamaz ve buton SESSİZCE tepkisiz kalır (saha bildirimi,
+     v2.4.4). WebView2'de ayrı pencere = ayrı webview = ayrı DOM → React portalı
+     oraya edilemez (portal yolu web'e özgü kalır). Onun yerine GERÇEK bir Tauri
+     penceresi açıyoruz: içinde uygulama `?view=map` modunda yalnız haritayı,
+     canlı düğüme (tid/rid) KENDİ aboneliğiyle çizer — ana pencereden bağımsız,
+     2. monitöre taşınabilir. Pencere salt-okuyucudur (canSave=false → şekil/sektör
+     çift yazıcı yok). Yeni REST/thread yok, yayın hızı değişmedi; maliyet yalnız
+     butona basınca bir kerelik ikinci webview (pit duvarı yolu, sürüş PC'si değil). */
+  const openTauriMap = async () => {
+    try {
+      const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
+      const label = "rc-map";
+      /* Zaten açıksa YENİDEN KURMA, öne getir (web'deki aynı-ad davranışının karşılığı). */
+      const existing = await WebviewWindow.getByLabel(label);
+      if (existing) {
+        try { await existing.unminimize(); } catch { /* yoksay */ }
+        try { await existing.setFocus(); } catch { /* yoksay */ }
+        return;
+      }
+      let lang = "en";
+      try { lang = localStorage.getItem("crm-lang") || "en"; } catch { /* yoksay */ }
+      const q = new URLSearchParams({ view: "map", tid: tid || "", rid: rid || "", lang });
+      const win = new WebviewWindow(label, {
+        url: `index.html?${q.toString()}`,
+        title: `${t("Pist Haritası")} · ${session?.trackName || ""}`,
+        width: 820, height: 880, minWidth: 420, minHeight: 460,
+      });
+      /* Oluşturma hatası (ör. izin eksik) sessiz kalmasın — günlüğe düşsün. */
+      win.once("tauri://error", (e) => console.warn("harita penceresi açılamadı:", e?.payload));
+    } catch (err) {
+      console.warn("harita penceresi açılamadı:", err?.message);
+    }
+  };
   const openWin = () => {
+    if (isTauri) { openTauriMap(); return; }
     /* Pencere zaten açıksa YENİDEN KURMA, öne getir. window.open aynı ADLA çağrılınca
        mevcut pencereyi yeniden kullanır; burada erken dönmezsek o pencereye ikinci bir
        kap eklenir ve ikinci bir yoklayıcı başlar (eskisi hiç durmaz → sızıntı). */
@@ -664,7 +701,9 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
   </>);
 
   return (<>
-    <div className="card" data-tour="livemap" style={{ marginBottom: 12 }}>
+    <div className="card" data-tour="livemap" style={{ marginBottom: embed ? 0 : 12,
+      ...(embed ? { height: "100vh", border: 0, borderRadius: 0,
+        display: "flex", flexDirection: "column" } : {}) }}>
       {/* en üstte gömülü içerik (strateji şeridi) — ayrı kart yerine harita kutusunda.
           Modal açıkken kart gövdesi (topSlot + svg) RENDER EDİLMEZ: modal kartı
           zaten örtüyor; eskiden iki SVG ağacı + iki StrategyBar her canlı karede
@@ -674,17 +713,23 @@ export default function TrackMap({ t, field, session, trackLength, tid, trackKey
         <Icon name="harita" size={16} /> {t("Pist Haritası")}
         <span className="hint" style={{ margin: 0, fontWeight: 400 }}>{count}</span>
         {filterChip}
+        {/* Büyüt/Pencere düğmeleri yalnız gömülü-olmayan (normal kart) görünümde:
+            ayrı harita penceresinin İÇİNDE tekrar "Pencere" açmak anlamsız. */}
+        {!embed && (<>
         <button className="act" style={{ marginLeft: "auto", fontSize: 11, padding: "3px 10px" }}
           title={t("Haritayı tam ekranda aç")}
           onClick={() => setZoom(true)}><Icon name="buyut" size={12} /> {t("Büyüt")}</button>
         <button className="act" style={{ fontSize: 11, padding: "3px 10px" }}
           title={t("Haritayı ayrı pencerede aç")}
           onClick={openWin}>⧉ {t("Pencere")}</button>
+        </>)}
       </h2>
       {!zoom && (
-        <div style={{ display: "flex", justifyContent: "center", position: "relative" }}>
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center",
+          position: "relative", ...(embed ? { flex: 1, minHeight: 0 } : {}) }}>
           {conditionBadge}
-          <svg ref={svgRef} viewBox="0 0 520 520" width="100%" style={{ maxWidth: 460 }}
+          <svg ref={svgRef} viewBox="0 0 520 520" width="100%"
+            style={{ maxWidth: embed ? "min(92vw, 88vh)" : 460 }}
             role="img" aria-label={t("Canlı pist haritası")}>{svgKids}</svg>
         </div>
       )}

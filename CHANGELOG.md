@@ -1,5 +1,191 @@
 # Changelog
 
+## v2.5.0 — 2026-10-10
+
+Saha sürümü — dört düzeltme/özellik: masaüstünde ayrı harita penceresi,
+spectate feed'inde "Bizim araç" seçimi, dashboard lastik sütununda bileşim
+logosu ve VE tüketim ince ayarı. İlk bildirim: *"livetiming'de tarayıcıda sorun
+yok fakat .exe'de harita pencere butonuna basınca ayrı pencerede açılmıyor."*
+
+### `⧉ Pencere` düğmesi masaüstünde (.exe) tepkisizdi
+
+Ayrı harita penceresi `TrackMap.openWin`'de tarayıcı popup'ına dayanıyordu:
+
+```js
+const w = window.open("", "rc-map-" + (trackKey || "map"), "width=760,height=800");
+if (!w) return;   // ← WebView2'de w HER ZAMAN null → sessizce çık
+```
+
+Tarayıcıda bu popup aynı JS bağlamını paylaşır, canlı SVG `createPortal` ile içine
+basılır ve bedavaya canlı akar. Masaüstünü taşıyan **WebView2 boş URL'li popup
+OLUŞTURMAZ** → `window.open` `null` döner → `if (!w) return;` ile pencere yolu hiç
+başlamadan kesilir. Düğme bu yüzden .exe'de tamamen tepkisiz görünüyordu.
+
+Portal yolu web'e özgü: WebView2'de ayrı pencere = ayrı webview = ayrı DOM, oraya
+React portalı edilemez. Her karede SVG'yi string kopyalamak ise v2.3.0'da bilinçle
+terk edilen yöntem (düğümler silinip kurulduğu için araç noktalarının `transition`'ı
+ölüyor, noktalar zıplıyordu).
+
+### Çözüm — gerçek Tauri penceresi, bağımsız abonelik
+
+Masaüstünde `openWin` artık `window.open` yerine gerçek bir `WebviewWindow` açıyor;
+pencere uygulamayı `?view=map&tid=…&rid=…` moduyla yükler ve yeni `MapWindow`
+bileşeni **yalnız** haritayı render eder:
+
+- Canlı düğüme (`teams/{tid}/live/{rid}`) **kendi aboneliğiyle** bağlanır — LiveTab
+  ile aynı türetim (`field = live.field`, `session = live.session`). Böylece pencere
+  ana pencereden bağımsızdır: 2. monitöre taşınabilir, ana pencere hangi sekmede
+  olursa olsun akar. React render ettiği için araç noktalarının geçişi korunur.
+- **Salt-okuyucu**: `TrackMap`'e `canSave={false}` geçilir — pist şeklini/sektörü/pit
+  gözlemlerini ana pencere zaten yazar, çift yazıcı olmaz (veri dürüstlüğü).
+- Oturum Firebase'de origin başına kalıcı; ikinci pencere aynı origin'i paylaştığı
+  için ana pencerenin oturumunu otomatik geri yükler (abonelik `watchAuth` kullanıcı
+  gelene kadar beklenir).
+
+`TrackMap`'e küçük bir `embed` modu eklendi (butonsuz, pencereyi dolduran SVG);
+mevcut kart görünümü ve testleri etkilenmez (`embed` varsayılan `false`).
+
+### Oyun PC'si maliyeti (CLAUDE.md §0)
+
+Köprüye (`bridge/`) hiç dokunulmadı: yeni REST yok, yeni thread yok, yayın hızı
+değişmedi. Bu tümüyle izleyici/pit-duvarı tarafının bir penceresidir; maliyet
+yalnız düğmeye basınca bir kerelik ikinci webview'dir (sürüş PC'si değil).
+
+### Dokunulan yerler
+
+`src/tabs/TrackMap.jsx` (Tauri pencere yolu + `embed` modu + `rid` prop) ·
+`src/MapWindow.jsx` (yeni) · `src/main.jsx` (`?view=map` yönlendirme, lazy) ·
+`src/tabs/LiveTab.jsx` (`rid` geçişi) ·
+`src-tauri/capabilities/default.json` (pencere oluşturma izni).
+
+### Spectate feed'inde "bizim araç" seçilemiyordu
+
+Saha durumu: *"şu an Erdem sürüyor, Savaş spectate girdi; veriyi spectate'ten
+aldığı için aracımızı seçemiyoruz; Poz·Sınıf'a basınca GT3'e çekmiyor,
+karşılaştırma çalışmıyor."*
+
+Canlı timing'in "bizim araç"ı tek bir kaynaktan geliyordu: oyunun **`isPlayer`**
+bayrağı (paylaşımlı bellekteki yerel/izlenen araç). Köprü bir **spectator'ın**
+(Savaş) ekranından besleniyorsa bu bayrak ya hiç yok ya da spectate kamerasının o
+an izlediği araca işaret ediyor — takımın yarışan aracına (Erdem) değil. Sonuç:
+
+- `meRow = field.find(c => c.isPlayer)` → `null`,
+- `playerClass` → tanımsız → **"Poz·Sınıf" başlığı tıklanabilir süzgeç butonu bile
+  olmuyor** (düz yazıya düşüyor), GT3'e çekmiyor,
+- satır tıklaması yalnız `meRow && !isPlayer` iken açıldığından **karşılaştırma
+  tablosu** hiç açılmıyor, **Relative** düğmesi çıkmıyor, harita vurgusu yok.
+
+**Çözüm — elle "Bizim araç" seçici.** Canlı timing araç çubuğuna HER ZAMAN görünen
+bir seçici eklendi. Kullanıcı aracını (ör. #34) sabitler; `meRow`, `playerClass`,
+sınıf süzgeci, Relative, pist haritası vurgusu ve karşılaştırma artık `isPlayer`
+yerine (ya da onunla birlikte) bu seçimden beslenir:
+
+- **Numaraya göre** eşleşir — endurance'ta numara stint boyunca sabit, pilot
+  değişse de bozulmaz (numara yoksa `carKey` yedeği).
+- **Cihaza özel**, oda başına `localStorage` (`caspian.myCar.<rid>`). Takıma
+  YAZILMAZ: yayıncı/izleyici farklı araç izleyebilir, Firebase yazımı/kural
+  değişikliği/kare maliyeti yok.
+- Oyun gerçekten bir `isPlayer` aracı veriyorsa **varsayılan yine odur** —
+  seçici "Otomatik (oyuncu)".
+- Veri dürüstlüğü (§1): oyunun vermediği "bizim araç" bilgisini uydurmuyoruz,
+  kullanıcı söylüyor. `isMe` KİMLİK tabanlı olduğundan pin yokken eski `isPlayer`
+  davranışı birebir korunur.
+
+`isPlayer` → `isMe(c)` değişimi vurgulama/karşılaştırma yollarında; seçici +
+seçim durumu `src/tabs/LiveTab.jsx`'te. Regresyon testi: `liveTabV244.render.test.jsx`
+(spectate'te seçici sunulur; sabitlenince süzgeç aktifleşir ve satır vurgulanır;
+eşleşme pilot değişiminden bağımsız).
+
+### Dashboard STINT PROGRAMI → LASTİK sütununda bileşim logosu
+
+`stintTyre(i)` o stintin 4 köşesine girilen kodlardan baskın olanı verir. Kod iki
+türden biridir: **bileşim harfi** (`W`=Wet, `S/M/H`) ya da **set numarası** (5, 13…).
+Yeni `TyreCell`: kod `compoundInfo(code).cls` ile bir bileşime çözülüyorsa
+(`W/S/M/H` veya tam ad) canlı timing'le aynı `assets/tyre-compound/<cls>.png`
+logosunu çizer; değilse (set numarası) sayıyı **aynen** bırakır.
+
+Set numarasını logoya **çevirmiyoruz**: bu projede set→bileşim eşlemesi veride yok,
+"5" → bir bileşim logosu demek uydurma olur (§1). Logo yüklenmezse `onError` ile
+gizlenir. Test: `dashTyreCell.render.test.jsx` (W/S/M/H → doğru logo; sayı → logo
+yok, metin; boş → "—").
+
+### "VE tüketim · %/tur" +/− adımı 0,1 → 0,01
+
+Yarış dataları kartındaki `stepField(st.consumption, …, 0.1, 2)` adımı 0,1'di. Değer
+iki ondalıklı (2,42) olduğundan +/− son basamağı atlıyordu (2,42 → 2,52). Adım 0,01'e
+indirildi → ±0,01 ince ayar (2,42 → 2,43); büyük değişiklik için alana doğrudan
+yazılır. `fuelRatio` zaten 0,01'di, dokunulmadı; yalnızca `consumption` değişti.
+
+### Canlı timing ceza sütunu kesirli cezaları göstermiyordu
+
+Saha bildirimi: *"live timing cezaları göstermiyor, normalde Erdem Akyol 1.75"* —
+değer LMU'nun kendi standings ekranında görünüyor (yani REST'ten geliyor).
+
+İki ayrı sorun vardı:
+
+1. **Kırpma.** `lmu_api.py` REST standings cezasını `int(float(c.get("penalties")))`
+   ile okuyordu → **1.75 → 1**. Gerçek değer kayboluyordu.
+2. **Kavram karışması.** `rf2_source._apply` bu değeri `max(int(mNum), int(st))` ile
+   **`penalties`** (BEKLEYEN drive-through sayısı; `mNumPenalties`, servis edilince
+   0'a düşen) alanına yazıyordu. Oysa standings cezası (cut/puan) **farklı bir
+   kavram** ve kalıcı bir toplamdır — bekleyen-ceza sayacına sokulunca hem yanlış
+   okunuyor hem sahte bir kırmızı "•" (bekleyen) üretiyordu.
+
+Düzeltme:
+
+- `lmu_api.py`: ceza **float** okunur, 2 ondalığa yuvarlanır (`1.75` korunur).
+- `rf2_source._apply`: REST değeri **`penaltiesTotal`'a yetkili toplam** olarak
+  yazılır; `penalties` (shmem bekleyen) **ezilmez** → kırmızı "•" yalnız gerçek
+  drive-through'da yanar.
+- Aggregator: `penaltiesTotal` REST'ten geldiyse ona dokunmaz; gelmediyse (REST
+  kapalı/eski köprü) shmem **yükselen-kenar toplamını** yazar (yedek, tamsayı).
+- Frontend (`LiveTab`): `penaltiesTotal` kesirli olabilir → sayı olduğu gibi
+  basılır ("1.75"). Kod değişmedi (zaten `${tot}`); yalnız yorum güncellendi.
+
+**Kapsam:** Bu cezalar oyunun paylaşımlı belleğinde yok, yalnız **REST standings**'te
+var. Spectate/yayın PC'sinde **REST kapalıysa** görünmezler (VE% ve gerçek takım adı
+gibi) — bu bir config konusudur, kod değil.
+
+**§0 denetimi:** yeni REST çağrısı yok (aynı standings alanı), yeni thread yok, hz
+değişmedi, kare boyutu ~aynı (int→float). Köprüye dokunan değişiklik olduğundan
+**bridge .exe yeniden derlenip dağıtılmalı.**
+
+Testler: `test_lmu_api.py` (1.75 kırpılmaz, metin kesir, yuvarlama) ·
+`test_aggregator.py` (REST değeri yetkili ve kesirli kalır; REST + shmem bekleyen
+birlikte; REST yoksa shmem yedeği).
+
+### Canlı timing'de "Bırakanları gizle" (DNF/DSQ)
+
+Saha bildirimi: *"turlar bakarken zor oluyor, yarış dışı kalanları listeden
+çıkarsak bir yolla"*. Uzun gridde bırakmış araçlar (satır soluk) araya karışıp
+tur okumayı zorlaştırıyordu.
+
+Araç çubuğuna, yalnız sahada DNF/DSQ varken görünen bir toggle eklendi
+(`hideRetired`, cihaza özel `localStorage: caspian.hideRetired`). Açıkken
+`isRetired(c)` olan araçlar standings **ve** Relative listesinden çıkar; başlık
+"`· N gizli`" yazar. Süzme `rows → liveRows` aşamasında yapılır — **rekor/sektör/
+sınıf hesapları `fieldAll`'dan (tüm saha)** devam eder, yani bırakan aracın en iyi
+turu hâlâ sınıf rekoru sayılır (veri dürüstlüğü). Test: `liveTabV244.render.test.jsx`
+(kapalı→görünür+toggle; açık→satır düşer, "N gizli" notu; DNF yoksa toggle yok).
+
+### Tur geçmişinde her tur "OUT LAP" görünüyordu
+
+Saha bildirimi: *"hepsinde out lap diyo bug olabilir mi"*. #34'ün 148 turluk geçmişinde
+her satır "OUT LAP" damgalı; en hızlı **1:19.46**, turlar ~**1:31** (hepsi **ISLAK**).
+
+Kök neden: `LapsModal`'da `const isOut = best > 0 && sec > best * 1.10` — out/in lap
+işareti **en iyi tura** göre veriliyordu. En iyi tur KURU'da atılıp (1:19) stint ISLAK
+başlayınca, ıslak turlar (1:31 — 12-16 sn yavaş) `best*1.10` (≈1:27.4) eşiğini aşıyor →
+**hepsi "OUT LAP"**.
+
+Düzeltme: eşik artık **o turların MEDYANINA** göre (`normalLapBaseline`, yeni saf
+fonksiyon `liveLaps.js`). Out/in lap'ler azınlıkta ve yavaş olduğundan medyanı
+kaydırmaz; medyan stintin "normal" turunu temsil eder (ıslaksa ıslak, kuruysa kuru) →
+yalnız gerçekten yavaş (pit çıkışı/incident) turlar işaretlenir. Best, "en hızlı"
+göstergesi ve gap sütunu için aynen kullanılmaya devam eder. Test:
+`liveLaps.test.js` (medyan tek/çift, eleme; kuru-best + ıslak-turlar senaryosu:
+ıslak turlar out lap SAYILMAZ, 105 sn'lik gerçek out lap işaretlenir).
+
 ## v2.4.3 — 2026-09-11
 
 v2.4.2'nin devamı. Saha bildirimi: *"windows'ta tam ekran böyle görünüyor eski

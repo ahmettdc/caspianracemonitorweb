@@ -50,8 +50,13 @@ def _pen(car):
 def test_ceza_standings_ten_okunur():
     # LMU cut/puan cezaları shmem mNumPenalties'e yansımıyor — REST yetkili kaynak
     assert _pen({"driverName": "A", "penalties": 1}) == 1
-    assert _pen({"driverName": "A", "penalties": 2.0}) == 2      # float da gelebilir
+    assert _pen({"driverName": "A", "penalties": 2.0}) == 2
     assert _pen({"driverName": "A", "penalties": 0}) == 0
+    # KESİRLİ ceza KIRPILMAZ (v2.5.0): oyunun standings'i 1.75 gösteriyorsa 1.75 kalır.
+    # Eskiden int(float(...)) ile 1'e düşüyor, gerçek değer kayboluyordu.
+    assert _pen({"driverName": "A", "penalties": 1.75}) == 1.75
+    assert _pen({"driverName": "A", "penalties": "0.5"}) == 0.5   # metin kesir de çözülür
+    assert _pen({"driverName": "A", "penalties": 1.7549}) == 1.75  # 2 ondalığa yuvarlanır
 
 
 def test_ceza_eksik_gecersizde_none():

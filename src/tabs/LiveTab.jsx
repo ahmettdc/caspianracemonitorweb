@@ -9,7 +9,7 @@ import { DESKTOP_RELEASE_URL, BRIDGE_EXE_URL, ASSET, classId, classAccent, brand
 import { isTauri } from "../tauriEnv";
 import { liveLapsSubscribe, liveSecSubscribe, liveDrvSubscribe, liveTyreSubscribe,
   liveCondSubscribe, liveHistoryClearAll, serverNow } from "../storage";
-import { driverAtLap, parseLapCond, capLapEntries } from "../liveLaps";
+import { driverAtLap, parseLapCond, capLapEntries, normalLapBaseline } from "../liveLaps";
 import { detectFlashes, carKey } from "../liveFlash";
 import { binKey } from "../trackShape";
 import { demoLive } from "../liveDemo";
@@ -257,6 +257,9 @@ function LapsModal({ t, tid, rid, row, canEdit, demo, onClose }) {
       .filter((e) => e.sec > 0).sort((a, b) => a.n - b.n)
     : [];
   const best = entries.length ? Math.min(...entries.map((e) => e.sec)) : 0;
+  /* out/in lap eşiği için "normal tur" tabanı = MEDYAN (best DEĞİL). best kuruda
+     atılmışsa ıslak turların hepsini out lap sanma hatasını önler (bkz. normalLapBaseline). */
+  const lapBase = normalLapBaseline(entries.map((e) => e.sec));
   const avg = entries.length ? entries.reduce((a, e) => a + e.sec, 0) / entries.length : 0;
   const items = entries.slice().reverse();
   /* pilot avatar rengi — ada göre kararlı palet (fişteki DRV_COL karşılığı) */
@@ -284,7 +287,7 @@ function LapsModal({ t, tid, rid, row, canEdit, demo, onClose }) {
           {lapMap != null && !items.length && <div style={{ padding: "16px 20px", color: "var(--rc-text-3)", fontSize: 12.5 }}>{t("Henüz tamamlanmış tur yok.")}</div>}
           {items.map(({ n, sec }) => {
             const isBest = sec > 0 && sec === best;
-            const isOut = best > 0 && sec > best * 1.10;
+            const isOut = lapBase > 0 && sec > lapBase * 1.10;
             const sc = secMap && secMap[n] ? String(secMap[n]).split(",").map(Number) : null;
             const drv = driverAtLap(drvMap, n) || row.driver;
             const swap = !!driverAtLap(drvMap, n) && driverAtLap(drvMap, n) !== driverAtLap(drvMap, n - 1);
@@ -433,6 +436,18 @@ export default function LiveTab({ t, live: liveProp, canEdit,
   const [avgMode, setAvgMode] = useState(false);   // AVG5 ↔ AVG tek sütun geçişi
   const [gapMode, setGapMode] = useState(false);   // Gap ↔ Aralık tek sütun geçişi
   const [secOpen, setSecOpen] = useState(true);    // Sektör sütunu aç/kapa (başlıktan)
+  /* BIRAKANLARI GİZLE (v2.5.0): uzun listede turları tararken yarışı bırakmış
+     (DNF/DSQ) araçlar araya karışıp okumayı zorlaştırıyor. Toggle onları standings
+     ve relative listesinden çıkarır. Rekor/sektör/sınıf hesapları TÜM sahadan devam
+     eder (bırakan aracın en iyi turu hâlâ rekor sayılır). CİHAZA ÖZEL tercih. */
+  const [hideRetired, setHideRetired] = useState(() => {
+    try { return localStorage.getItem("caspian.hideRetired") === "1"; } catch { return false; }
+  });
+  const toggleHideRetired = () => setHideRetired((v) => {
+    const nx = !v;
+    try { localStorage.setItem("caspian.hideRetired", nx ? "1" : "0"); } catch { /* yoksay */ }
+    return nx;
+  });
   /* v2.3.0 — sıralama: {key,dir}. key null → köprünün YARIŞ SIRASI (varsayılan).
      Arama: pilot/takım/no/araç/sınıf üzerinden süzer (liveSort.matchQuery). */
   const [sort, setSort] = useState({ key: null, dir: "asc" });
@@ -443,6 +458,33 @@ export default function LiveTab({ t, live: liveProp, canEdit,
   const [relMode, setRelMode] = useState(false);
   const [side, setSide] = useState(true);          // sağ yan panel (harita/kendi araç/strateji) aç/kapa
   const [cmpCar, setCmpCar] = useState(null);      // satıra tıklayınca kendi pilotla karşılaştırma
+  /* "BİZİM ARAÇ" elle seçimi (v2.4.4). Köprü SPECTATE/yayın feed'inden besleniyorsa
+     oyunun "player" aracı (isPlayer) bizim yarışan aracımız DEĞİL — spectator'ın
+     izlediği/döngülediği araç (ya da hiç yok). O zaman meRow/playerClass çözülmez →
+     "Poz·Sınıf" süzgeci GT3'e çekmez, karşılaştırma tablosu açılmaz. Kullanıcı aracını
+     elle sabitler; CİHAZA ÖZEL (localStorage), oda başına — yayıncı/izleyici farklı
+     araç izleyebildiği için takıma YAZILMAZ. Oyun vermeyen bir veriyi uydurmuyoruz
+     (CLAUDE.md §1): seçim kullanıcıdan. */
+  const myCarLS = (r) => `caspian.myCar.${r || ""}`;
+  const [myCarSel, setMyCarSel] = useState(() => {   // {num, key} | null — ilk render'da senkron oku
+    try { return JSON.parse(localStorage.getItem(myCarLS(rid)) || "null"); } catch { return null; }
+  });
+  // oda değişince (başka yarışa geçiş) o odanın seçimini yükle
+  useEffect(() => {
+    try { setMyCarSel(JSON.parse(localStorage.getItem(myCarLS(rid)) || "null")); }
+    catch { setMyCarSel(null); }
+  }, [rid]);
+  const pinMyCar = (c) => {
+    // Anahtar: önce NUMARA (#34 — stint boyunca sabit, pilot değişse de bozulmaz),
+    // yoksa carKey. İkisi de yoksa sabitlenemez.
+    const sel = c ? { num: c.number ?? null, key: carKey(c) } : null;
+    setMyCarSel(sel);
+    try {
+      const k = myCarLS(rid);
+      if (sel) localStorage.setItem(k, JSON.stringify(sel));
+      else localStorage.removeItem(k);
+    } catch { /* yoksay */ }
+  };
   // DEMO: yerel sahte veri (oyun/köprü/Firebase gerekmez) — UI düzenlemek için
   const [demo, setDemo] = useState(false);
   const [demoData, setDemoData] = useState(null);
@@ -571,7 +613,18 @@ export default function LiveTab({ t, live: liveProp, canEdit,
   const fieldAll = Array.isArray(live.field) ? live.field : [];
   /* KARŞILAŞTIRMA: kendi pilot satırı (meRow) varsa başka satıra tıklayınca alt
      tepside kendi pilotumuzla kıyaslanır. cmpCar snapshot; taze kareden tazelenir. */
-  const meRow = fieldAll.find((c) => c.isPlayer) || null;
+  /* meRow = ELLE sabitlenen araç (varsa, taze kareden numara/carKey ile eşlenir) →
+     yoksa oyunun player aracı (isPlayer). isMe KİMLİK tabanlı: shown satırları
+     fieldAll nesnelerini taşıdığından `c === meRow` eski isPlayer davranışını birebir
+     korur (pin yokken meRow zaten isPlayer satırıdır). */
+  const matchMyCar = (c) => {
+    if (!myCarSel) return false;
+    if (myCarSel.num != null && c.number != null) return String(c.number) === String(myCarSel.num);
+    return myCarSel.key != null && carKey(c) === myCarSel.key;
+  };
+  const meRow = (myCarSel ? fieldAll.find(matchMyCar) : null)
+    || fieldAll.find((c) => c.isPlayer) || null;
+  const isMe = (c) => meRow != null && c === meRow;
   const cmpFresh = cmpCar
     ? (fieldAll.find((c) => carKey(c) === carKey(cmpCar)) || cmpCar) : null;
   const ageSec = Math.max(0, Math.round((serverNow() - live.ts) / 1000));
@@ -592,7 +645,7 @@ export default function LiveTab({ t, live: liveProp, canEdit,
     const cid = classId(c.carClass);
     if (!(classFastest[cid] > 0) || c.bestSec < classFastest[cid]) classFastest[cid] = c.bestSec;
   }
-  const playerClass = classId(fieldAll.find((c) => c.isPlayer)?.carClass);
+  const playerClass = classId(meRow?.carClass);
   const classCounts = {};
   const rows = fieldAll.map((c, i) => {
     const id = classId(c.carClass);
@@ -616,8 +669,11 @@ export default function LiveTab({ t, live: liveProp, canEdit,
      TÜM sahadan hesaplanır: "kendi sınıfım" süzgeci açıkken de rekor gerçek
      rekordur (süzülmüş listenin en iyisi değil). */
   const classBest = classBestSectors(fieldAll);
+  /* Bırakanları gizle: standings VE relative listesinden DNF/DSQ araçları çıkar
+     (rekor/sektör hesapları yukarıda TÜM sahadan yapıldı, etkilenmez). */
+  const liveRows = hideRetired ? rows.filter((r) => !isRetired(r.c)) : rows;
   const classRows = myClassOnly && playerClass
-    ? rows.filter((r) => r.id === playerClass) : rows;
+    ? liveRows.filter((r) => r.id === playerClass) : liveRows;
   /* RELATIVE açıkken metin araması UYGULANMAZ: "etrafımdaki araçlar"ın bir de
      ada göre süzülmesi anlamsız bir kesişim üretir (arama kutusu da gizlenir). */
   const relOn = relMode && !!meRow && Number(s.trackLength) > 0;
@@ -628,7 +684,7 @@ export default function LiveTab({ t, live: liveProp, canEdit,
      0.4 sn önündeki GT3 satırı görünmez oluyor, ±3 penceresi ise çok daha
      uzaktaki aynı-sınıf araçlarla doluyordu. Sınıf süzgeci standings ve harita
      için geçerliliğini koruyor; relative satırlarında sınıf rengi zaten var. */
-  const rel = relOn ? relativeRows(rows, meRow, s.trackLength, 3, 3) : null;
+  const rel = relOn ? relativeRows(liveRows, meRow, s.trackLength, 3, 3) : null;
   /* satır → relatif saniye (Gap sütunu yerine çizilir). Anahtar olarak SATIR
      NESNESİ kullanılır, carKey DEĞİL: carKey null dönebilir (lapKey/carId/driver
      üçü de yoksa) ve iki böyle satır aynı kovaya düşüp birbirinin farkını
@@ -685,7 +741,7 @@ export default function LiveTab({ t, live: liveProp, canEdit,
           {/* Saha başlık çubuğu (bayrak · sıcaklık · yağış · ıslaklık · tutuş) */}
           <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: "1px solid var(--rc-border)", flexWrap: "wrap" }}>
             <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 15, fontWeight: 700 }}>{t("Saha")}</span>
-            <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>{fieldAll.length} {t("araç")} · {clsCount} {t("sınıf")}</span>
+            <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>{fieldAll.length} {t("araç")} · {clsCount} {t("sınıf")}{hideRetired && fieldAll.some((c) => isRetired(c)) ? ` · ${fieldAll.filter((c) => isRetired(c)).length} ${t("gizli")}` : ""}</span>
             <span className={`livebadge ${conn.cls}`} data-tour="liveconn"><i /> {t(conn.lbl)} · {ageSec}s</span>
 
             <span style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", paddingLeft: 16, marginLeft: 2, borderLeft: "1px solid var(--rc-border)" }}>
@@ -759,6 +815,44 @@ export default function LiveTab({ t, live: liveProp, canEdit,
                   )}
                 </span>
               )}
+              {/* BİZİM ARAÇ seçici (v2.4.4) — HER ZAMAN görünür: spectate/yayın feed'inde
+                  isPlayer bizim aracımız olmadığından (ya da hiç yokken) kullanıcı elle
+                  seçebilsin. Seçim meRow/playerClass'ı, dolayısıyla sınıf süzgecini,
+                  RELATIVE'i, haritayı ve karşılaştırmayı besler. */}
+              {fieldAll.length > 0 && (() => {
+                const curVal = myCarSel ? String(myCarSel.num ?? myCarSel.key ?? "") : "";
+                const opts = [...fieldAll].sort((a, b) =>
+                  (a.number != null ? Number(a.number) : 9999) - (b.number != null ? Number(b.number) : 9999));
+                const vals = new Set(opts.map((c) => String(c.number ?? carKey(c))));
+                return (
+                  <label style={{ display: "inline-flex", alignItems: "center", gap: 5,
+                    fontSize: 11, color: myCarSel ? "var(--teal)" : "var(--rc-text-3)" }}
+                    title={t("Spectate/yayın feed'inde kendi aracımızı elle seç — sınıf süzgeci, Relative ve karşılaştırma bundan beslenir")}>
+                    <Icon name="arac" size={12} /> {t("Bizim araç")}
+                    <select value={curVal}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (!v) { pinMyCar(null); return; }
+                        const c = fieldAll.find((x) => String(x.number ?? carKey(x)) === v);
+                        pinMyCar(c || null);
+                      }}
+                      style={{ fontSize: 11, padding: "2px 6px", borderRadius: 8,
+                        border: `1px solid ${myCarSel ? "var(--teal)" : "var(--rc-border)"}`,
+                        background: "var(--rc-surface-3)", color: "var(--rc-text)", maxWidth: 170 }}>
+                      <option value="">{t("Otomatik (oyuncu)")}</option>
+                      {/* sabitlenen araç şu an sahada değilse (garaj/feed dışı) yine görünsün */}
+                      {curVal && !vals.has(curVal) && (
+                        <option value={curVal}>{`#${myCarSel.num ?? "?"} ${t("(beklemede)")}`}</option>
+                      )}
+                      {opts.map((c) => {
+                        const val = String(c.number ?? carKey(c));
+                        const lbl = `${c.number != null ? `#${c.number} ` : ""}${c.driver || c.team || c.vehicleName || "—"}`;
+                        return <option key={val} value={val}>{lbl}</option>;
+                      })}
+                    </select>
+                  </label>
+                );
+              })()}
               {/* RELATIVE (v2.3.0) — yalnız kendi aracımız sahadayken ve pist uzunluğu
                   biliniyorken anlamlı; yoksa düğme gizlenir (tıklayıp boş liste görmesin). */}
               {!!meRow && Number(s.trackLength) > 0 && (
@@ -768,6 +862,16 @@ export default function LiveTab({ t, live: liveProp, canEdit,
                   style={{ fontSize: 11, padding: "3px 10px",
                     ...(relMode && { borderColor: "var(--teal)", color: "var(--teal)" }) }}>
                   <Icon name="harita" size={12} /> {t("Relative")}</button>
+              )}
+              {/* BIRAKANLARI GİZLE — yalnız sahada DNF/DSQ varken göster (yoksa
+                  tıklayıp hiçbir şey değişmesin). Tercih cihazda saklanır. */}
+              {fieldAll.some((c) => isRetired(c)) && (
+                <button className={`act${hideRetired ? " on" : ""}`}
+                  onClick={toggleHideRetired}
+                  title={t("Yarışı bırakanları (DNF/DSQ) listeden gizle")}
+                  style={{ fontSize: 11, padding: "3px 10px",
+                    ...(hideRetired && { borderColor: "var(--teal)", color: "var(--teal)" }) }}>
+                  {hideRetired ? t("Bırakanlar gizli") : t("Bırakanları gizle")}</button>
               )}
               {demoBtn}
               {document.fullscreenEnabled && (
@@ -839,12 +943,12 @@ export default function LiveTab({ t, live: liveProp, canEdit,
                        animasyonu yeniden başlıyordu). Stabil key ile React satırı
                        taşır. */
                     <tr key={carKey(c) ?? (c.pos ?? i)}
-                      onClick={meRow && !c.isPlayer ? () => setCmpCar((p) => (p && carKey(p) === carKey(c) ? null : c)) : undefined}
-                      className={[c.isPlayer ? "live" : "",
+                      onClick={meRow && !isMe(c) ? () => setCmpCar((p) => (p && carKey(p) === carKey(c) ? null : c)) : undefined}
+                      className={[isMe(c) ? "live" : "",
                         fl === "purple" ? "flashpurple" : fl === "green" ? "flashgreen" : ""]
                         .filter(Boolean).join(" ")}
-                      style={{ ...(!c.isPlayer && acc ? { borderLeft: `3px solid ${acc}` } : {}),
-                        ...(meRow && !c.isPlayer ? { cursor: "pointer" } : {}),
+                      style={{ ...(!isMe(c) && acc ? { borderLeft: `3px solid ${acc}` } : {}),
+                        ...(meRow && !isMe(c) ? { cursor: "pointer" } : {}),
                         /* Bırakmış araç yarışmıyor → satır soluk. Veri donduğu için
                            gap/tur değerleri olduğu gibi kalır, yanıltmasın. */
                         ...(retired ? { opacity: 0.45 } : {}),
@@ -853,7 +957,7 @@ export default function LiveTab({ t, live: liveProp, canEdit,
                           (sınıf renginde) + yön oku. Sınıf logosu (HY/GT3) yok. */}
                       <td style={{ whiteSpace: "nowrap" }}>
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                          <b style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 18, lineHeight: 1, color: c.isPlayer ? "var(--rc-brand-bright)" : "var(--rc-text)" }}>{c.pos ?? i + 1}</b>
+                          <b style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 18, lineHeight: 1, color: isMe(c) ? "var(--rc-brand-bright)" : "var(--rc-text)" }}>{c.pos ?? i + 1}</b>
                           <span style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 1, lineHeight: 1 }}>
                             {id && <b style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 11.5, color: acc || "var(--rc-text-3)" }}>{classPos}</b>}
                             <span style={{ fontSize: 8.5, lineHeight: 1 }}>
@@ -893,7 +997,7 @@ export default function LiveTab({ t, live: liveProp, canEdit,
                               Kendi satırımız 0 → "—" (kendimize göre fark yok). */}
                           {relOn ? (() => {
                             const rs = relBy.get(row);
-                            if (c.isPlayer) return <span style={{ color: "var(--rc-brand-bright)", fontWeight: 700 }}>—</span>;
+                            if (isMe(c)) return <span style={{ color: "var(--rc-brand-bright)", fontWeight: 700 }}>—</span>;
                             if (rs == null) return <span style={{ color: "var(--dim)" }}>—</span>;
                             return <span style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700,
                               color: rs < 0 ? "var(--rc-warn)" : "var(--teal)" }}>
@@ -906,7 +1010,7 @@ export default function LiveTab({ t, live: liveProp, canEdit,
                                 : gap(c.gapSec))}</span>
                           )}
                           <span style={{ width: 54, height: 4, background: "var(--rc-line-soft)", borderRadius: 2, overflow: "hidden" }}>
-                            <i style={{ display: "block", height: "100%", width: `${Math.round(Math.min(1, (c.gapSec || 0) / maxGap) * 100)}%`, background: c.isPlayer ? "var(--rc-brand-bright)" : (acc || "var(--rc-text-3)") }} />
+                            <i style={{ display: "block", height: "100%", width: `${Math.round(Math.min(1, (c.gapSec || 0) / maxGap) * 100)}%`, background: isMe(c) ? "var(--rc-brand-bright)" : (acc || "var(--rc-text-3)") }} />
                           </span>
                         </span>
                       </td>
@@ -950,12 +1054,16 @@ export default function LiveTab({ t, live: liveProp, canEdit,
                           (1) `mNumPenalties` incident DEĞİL, BEKLEYEN ceza sayısıdır;
                           (2) ceza servis edilince 0'a düştüğü için ekran temizleniyordu;
                           (3) tamsayı sayaç ondalıklı çarpan gibi gösteriliyordu ("1.0x").
-                          Artık kümülatif toplam (penaltiesTotal) gösterilir; bekleyen ceza
-                          varsa kırmızı + "•" ile işaretlenir. Gerçek incident (temas/cut)
-                          sayısı bu veri yolunda YOKTUR (bkz. bridge/rf2_source.py başlığı). */}
+                          Artık toplam (penaltiesTotal) gösterilir; bekleyen ceza varsa
+                          kırmızı + "•" ile işaretlenir. v2.5.0: penaltiesTotal, REST
+                          standings'in gösterdiği YETKİLİ değerdir (cut/puan dahil) ve
+                          KESİRLİ olabilir (ör. 1.75) → sayı olduğu gibi basılır. REST
+                          kapalıyken cut/puan cezaları GÖRÜNMEZ (shmem'de yok); o zaman
+                          penaltiesTotal shmem yükselen-kenar toplamına düşer (tamsayı).
+                          Gerçek incident (temas/cut) sayısı bu veri yolunda YOKTUR. */}
                       {(() => {
-                        const out = c.penalties || 0;              // anlık bekleyen
-                        const tot = c.penaltiesTotal ?? out;       // kümülatif (eski köprü → yedek)
+                        const out = c.penalties || 0;              // anlık bekleyen (shmem, tamsayı)
+                        const tot = c.penaltiesTotal ?? out;       // yetkili toplam (REST) / shmem yedeği
                         return (
                           <td className="mono" style={{ textAlign: "right", fontSize: 12.5,
                             color: out > 0 ? "var(--red)" : tot > 0 ? "var(--yellow)" : "var(--dim)",
@@ -1056,7 +1164,7 @@ export default function LiveTab({ t, live: liveProp, canEdit,
                    field HÂLÂ TAM geçiliyor — harita şekli/sektör/pit gözlemleri
                    tüm sahadan birikmeli, yalnız ÇİZİLEN araçlar süzülür. */
                 <TrackMap t={t} field={fieldAll} session={s} trackLength={s.trackLength}
-                  tid={tid} trackKey={binKey(s.trackName, s.trackLength)} canSave={canEdit}
+                  tid={tid} rid={rid} trackKey={binKey(s.trackName, s.trackLength)} canSave={canEdit}
                   classFilter={myClassOnly && playerClass ? playerClass : null} />
               )}
               {own && <OwnCar t={t} own={own} liveFuelObs={liveFuelObs} topSrc={ownTopSrc} />}

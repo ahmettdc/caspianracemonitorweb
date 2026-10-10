@@ -1,10 +1,19 @@
-import { StrictMode, Component } from "react";
+import { StrictMode, Component, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
 import { ConfirmHost, Icon } from "./components.jsx";
 import { isTauri } from "./tauriEnv";
 import { css } from "./styles";
 import { installChatDiag } from "./chatDiag";
+
+/* ⧉ Ayrı pist haritası penceresi (yalnız masaüstü .exe; bkz. TrackMap.openTauriMap).
+   lazy: TrackMap + bağımlılıkları yalnız bu pencere açılınca yüklenir — ANA giriş
+   paketi (web dahil) büyümesin. */
+const MapWindow = lazy(() => import("./MapWindow.jsx"));
+const isMapView = (() => {
+  try { return new URLSearchParams(window.location.search).get("view") === "map"; }
+  catch { return false; }
+})();
 
 /* Tema CSS'i boot'ta BİR KEZ <head>'e basılır. Eskiden her gate dalı kendi
    <style>{css}</style>'ını taşıyordu → her ekran geçişinde ~80 KB CSS'in
@@ -84,8 +93,9 @@ class ErrorBoundary extends Component {
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <ErrorBoundary>
-      <App />
-      <ConfirmHost />
+      {isMapView
+        ? <Suspense fallback={null}><MapWindow /></Suspense>
+        : <><App /><ConfirmHost /></>}
     </ErrorBoundary>
   </StrictMode>
 );

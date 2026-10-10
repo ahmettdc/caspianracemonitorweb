@@ -25,8 +25,10 @@
             finishStatus (0/1/2/3 = yok/bitirdi/DNF/DSQ), pitState (0..4, 1=pit talebi),
             speedKph (anlık, scoring'den), topSpeed (seans en yükseği — Aggregator),
             vePerLap, avg5Sec, avgSec, stintSec, laps, lapsFrom, lapNums, lapKey, isPlayer}
-  (penalties = ANLIK bekleyen ceza (mNumPenalties; servis edilince 0'a düşer),
-   penaltiesTotal = seans boyunca KÜMÜLATİF ceza (Aggregator yükselen kenar sayımı).
+  (penalties = ANLIK bekleyen ceza (mNumPenalties; servis edilince 0'a düşer; tamsayı),
+   penaltiesTotal = YETKİLİ ceza toplamı: REST standings değeri (oyunun kendi ekranında
+   gösterdiği, cut/puan dahil, KESİRLİ olabilen — ör. 1.75) varsa ODUR; yoksa shmem
+   yükselen-kenar sayımı (yedek). REST kapalıyken cut/puan cezaları GÖRÜNMEZ (shmem'de yok).
    NOT: gerçek "incident" (temas + track-cut) sayısı bu transport'ta YOKTUR — LMU'nun
    results-stream metni yalnız NATIVE LMU_Data arayüzünde bulunur; rF2 eklenti yolunda
    TinyPedal da incidents()=0 döndürür. Bu yüzden ceza ile incident karıştırılmamalı.)
@@ -914,10 +916,14 @@ class RF2Source:
                 if st.get("number"):
                     rec["number"] = st["number"]
                 if st.get("penalties") is not None:
-                    # cut/puan cezaları yalnız REST'te görünür (mNumPenalties saymıyor);
-                    # iki kaynağın BÜYÜĞÜ gösterilir (drive-through shmem'de de var)
-                    rec["penalties"] = max(int(rec.get("penalties") or 0),
-                                           int(st["penalties"]))
+                    # LMU standings'in GÖSTERDİĞİ ceza = oyunun kendi ekranındaki yetkili
+                    # değer; cut/puan cezaları buradadır ve KESİRLİ olabilir (ör. 1.75).
+                    # Bu, mNumPenalties'ten (BEKLEYEN drive-through sayısı) FARKLI bir
+                    # kavram → onu EZMEYİZ (kırmızı "•" yalnız gerçek bekleyen cezada
+                    # yansın). Yetkili TOPLAM olarak penaltiesTotal'a yazarız. Eskiden
+                    # int()'le 1.75→1'e kırpılıp bekleyen-ceza sayacına sokuluyordu:
+                    # hem değer yanlıştı hem de sahte bir "bekleyen ceza" gösteriyordu.
+                    rec["penaltiesTotal"] = float(st["penalties"])
                 # marka: araç kataloğundan (vehicleName ile); takım/numara yedek
                 cat = self.lmu.lookup(rec.get("vehicleName"), drv)
                 if cat.get("manufacturer"):
@@ -1160,7 +1166,12 @@ class Aggregator:
             elif cur_pen > prev_pen:
                 self.pen_total[key] = self.pen_total.get(key, 0) + (cur_pen - prev_pen)
                 self.prev_pen[key] = cur_pen
-            r["penaltiesTotal"] = self.pen_total.get(key, 0)
+            # REST standings TOPLAMI (oyunun gösterdiği, kesirli olabilen yetkili değer)
+            # _apply'da zaten yazıldıysa ona DOKUNMA; yoksa shmem yükselen-kenar toplamını
+            # yaz (yedek — REST kapalı/eski köprü). Yükselen-kenar bookkeeping'i yukarıda
+            # her hâlükârda çalıştı, yedek sıcak kalsın.
+            if r.get("penaltiesTotal") is None:
+                r["penaltiesTotal"] = self.pen_total.get(key, 0)
 
             # SEANS EN YÜKSEK HIZI — koşan maksimum (ceza sayacıyla aynı desen).
             # ÜST SINIR KORUMASI: paylaşımlı bellek yırtık okunduğunda saçma bir

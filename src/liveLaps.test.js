@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { lapNumbersOf, capLapEntries, driverAtLap, parseLapCond } from "./liveLaps.js";
+import { lapNumbersOf, capLapEntries, driverAtLap, parseLapCond,
+  normalLapBaseline } from "./liveLaps.js";
 
 /* Tur numarası eşlemesi — kalıcı livelaps/livepos/livesec düğümlerine YAZILAN
    anahtarları belirler; hata kalıcı veri bozulması demektir (append-only). */
@@ -115,5 +116,43 @@ describe("parseLapCond", () => {
     expect(parseLapCond("")).toBeNull();
     expect(parseLapCond(null)).toBeNull();
     expect(parseLapCond("abc")).toBeNull();      // temp "abc" → null, diğerleri yok
+  });
+});
+
+/* ---- normalLapBaseline: out/in lap eşiği için MEDYAN taban (best değil) ---- */
+describe("normalLapBaseline (out lap eşiği — koşul-dayanıklı)", () => {
+  const median = normalLapBaseline;
+
+  it("tek sayıda → ortadaki, çift sayıda → iki ortanın ortalaması", () => {
+    expect(median([90, 91, 92])).toBe(91);
+    expect(median([90, 92])).toBe(91);
+    expect(median([91])).toBe(91);
+  });
+
+  it("sıralı olmayan girdiyi sıralar, 0/negatif/geçersizi eler", () => {
+    expect(median([92, 90, 91])).toBe(91);
+    expect(median([91, 0, -5, 92, 90])).toBe(91);     // 0/negatif atılır → [90,91,92]
+    expect(median([91, "x", null, 93])).toBe(92);     // geçersiz atılır → [91,93]
+  });
+
+  it("boş / hepsi geçersiz → 0", () => {
+    expect(median([])).toBe(0);
+    expect(median([0, -1, "x", null])).toBe(0);
+    expect(median(null)).toBe(0);
+  });
+
+  it("SAHA HATASI: best kuruda, turlar ıslak → ıslak turlar out lap SAYILMAZ", () => {
+    // best 79.46 (kuru) · ıslak turlar ~91.5 · bir gerçek out lap 105
+    const wet = [91.9, 92.6, 91.3, 91.6, 92.1, 91.5, 105.0, 91.7, 79.46];
+    const base = median(wet);
+    // medyan ıslak turlardan (~91.6) gelir, kuru best'ten DEĞİL
+    expect(base).toBeGreaterThan(88);
+    expect(base).toBeLessThan(95);
+    // normal ıslak tur %10 eşiğini AŞMAZ (eskiden best*1.10=87.4 ile hepsi aşıyordu)
+    expect(91.9 > base * 1.10).toBe(false);
+    // gerçek out lap (105) AŞAR → doğru işaretlenir
+    expect(105.0 > base * 1.10).toBe(true);
+    // kıyas: eski best-tabanlı eşik ıslak turu yanlışça out lap sayardı
+    expect(91.9 > 79.46 * 1.10).toBe(true);
   });
 });

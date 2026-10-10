@@ -2,7 +2,30 @@ import { fmtHMS, WX, wxId } from "../engine";
 import { WetIcon } from "../WetIcon";
 import { ASSET, AV, TRACK_ASSET, PIT_LANE_TIMES, CAR_CLASSES, trackName, carName, fuelView } from "../constants";
 import { carImageSrc } from "../teamAssets";
+import { compoundInfo } from "../tyreCompound";
 import { Tyre, Bolt, Icon } from "../components";
+
+/* STINT PROGRAMI → LASTİK hücresi (v2.4.4).
+   Kod bir BİLEŞİM ise (W/S/M/H → compoundInfo.cls) küçük bileşim logosunu göster
+   (canlı timing'deki CompoundIcon ile aynı varlıklar: assets/tyre-compound/<cls>.png).
+   Set NUMARASI ise (ör. "5", "13") sayıyı AYNEN bırak — set→bileşim eşlemesi veride
+   YOK, numarayı bir bileşim logosuna çevirmek uydurmak olur (CLAUDE.md §1).
+   Logo yüklenmezse (dosya yok) kısaltma metnine düşer (onError). */
+export function TyreCell({ code, t }) {
+  const info = code ? compoundInfo(code) : null;
+  if (info?.cls) {
+    return (
+      <img src={`${ASSET}tyre-compound/${info.cls}.png`} alt={info.label}
+        title={`${t("Lastik")}: ${info.label}`}
+        onError={(e) => {
+          // dosya yoksa logoyu gizle, hücre boş kalmasın diye başlık kodu taşır
+          e.currentTarget.style.display = "none";
+        }}
+        style={{ height: 18, width: 18, objectFit: "contain", verticalAlign: "middle", display: "inline-block" }} />
+    );
+  }
+  return <>{code || "—"}</>;
+}
 
 /* Dashboard (v2.0 · handoff-spec/ekranlar/03-dashboard.md).
    Hero: araç | pist kartı + 4 KPI + canlı stint bandı. Alt: stint programı tablosu +
@@ -128,7 +151,7 @@ export default function DashTab({
                       </td>
                       <td style={tdB}>{fmtHMS(r.endSec)}</td>
                       <td style={{ ...tdB, color: r.timeLeft < 0 ? "var(--rc-danger)" : "var(--rc-ok)" }}>{fmtHMS(r.timeLeft)}</td>
-                      <td style={{ ...tdB, width: 64, color: "var(--rc-text-2)" }}>{tyre || "—"}</td>
+                      <td style={{ ...tdB, width: 64, color: "var(--rc-text-2)" }}><TyreCell code={tyre} t={t} /></td>
                     </tr>
                   );
                 })}

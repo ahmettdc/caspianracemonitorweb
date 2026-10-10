@@ -1142,6 +1142,22 @@ export const EN = {
   "Hafif köprü · .exe": "Lightweight bridge · .exe",
   "Haritayı ayrı pencerede aç": "Open map in a separate window",
   "Haritayı tam ekranda aç": "Open map fullscreen",
+  // Bırakanları gizle (DNF/DSQ — v2.5.0)
+  "Bırakanları gizle": "Hide retirees",
+  "Bırakanlar gizli": "Retirees hidden",
+  "Yarışı bırakanları (DNF/DSQ) listeden gizle": "Hide retired cars (DNF/DSQ) from the list",
+  // "gizli" zaten tanımlı (bkz. yukarısı) — tekrar EKLENMEZ (yinelenen anahtar testi)
+  // Bizim araç seçici (spectate/yayın feed'i — v2.4.4)
+  "Bizim araç": "Our car",
+  "Otomatik (oyuncu)": "Auto (player)",
+  "(beklemede)": "(pending)",
+  "Spectate/yayın feed'inde kendi aracımızı elle seç — sınıf süzgeci, Relative ve karşılaştırma bundan beslenir":
+    "On a spectate/broadcast feed, pick our car manually — the class filter, Relative and comparison are driven by it",
+  // ⧉ ayrı harita penceresi (MapWindow — yalnız masaüstü .exe)
+  "Oturum doğrulanıyor…": "Signing in…",
+  "Oturum bulunamadı — ana pencereden giriş yapın.": "No session — sign in from the main window.",
+  "Oda bilgisi eksik.": "Room information is missing.",
+  "Harita için canlı konum verisi bekleniyor…": "Waiting for live position data for the map…",
   "Hava geçişi ekle": "Add weather transition",
   "Havuza henüz setup eklenmedi. Aşağıdan yüklediğin dosyalar takımda paylaşılır.": "No setup added to the pool yet. Files you upload below are shared with the team.",
   "Havuza yükle": "Upload to pool",
