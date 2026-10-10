@@ -1497,19 +1497,17 @@ ${bottomBar}
   const [wxPlanT, setWxPlanT] = useState("");    // planlı geçiş: yarış saati
   const [wxModal, setWxModal] = useState(false); // v2.0 Hava geçişi ekle modalı
   const [zoom, setZoom] = useState(null); // "car" | "track" | null — kart büyütme (lightbox)
-  /* LMU referans verisi (Ohne Speed tablosundan gömülü JSON) — 47 KB; giriş/izin
-     ekranlarında gerekmez → yalnız erişim onaylanınca çekilir. */
+  /* LMU referans verisi (lmuportal.com gerçek leaderboard'undan üretilen statik JSON);
+     giriş/izin ekranlarında gerekmez → yalnız erişim onaylanınca çekilir. */
   const [lmuData, setLmuData] = useState(null);
   useEffect(() => {
     if (!access && authReady) return;   // authReady=false (yapılandırmasız dev) → kapı yok, hemen çek
     fetch(`${ASSET}lmu-data.json`).then((r) => (r.ok ? r.json() : null))
       .then((j) => setLmuData(j)).catch(() => {});
   }, [access]);
-  const lmuSuggest = (() => {
-    const d = lmuData?.data?.[st.track];
-    if (!d) return null;
-    return d[`${st.carClass}:${st.car}`] || d[st.carClass] || null;
-  })();
+  /* Veri artık sınıf seviyesinde (araç başına avgLap yok; per-car veriler top[]
+     içinde hotlap olarak). avgLap tohumu = sınıf P1×1.02 → sınıf girdisi yeter. */
+  const lmuSuggest = lmuData?.data?.[st.track]?.[st.carClass] || null;
   /* Strateji Karşılaştırma pist önerisi: seçili pist/sınıf (yoksa mevcut yarışın)
      → pit yolu + ortalama tur. lmuData yüklendikten sonra tanımlı; stratAddBlank
      ve sekme buradan okur. */
@@ -1527,11 +1525,11 @@ ${bottomBar}
     if (lmuSuggest?.avgLap) up({ avgLap: lmuSuggest.avgLap,
       ...(lmuSuggest.consumption != null ? { consumption: lmuSuggest.consumption } : {}) });
   }, [st.track, st.carClass, st.car, lmuData]);
-  /* multiclass: lider turu = seçili lider sınıfın COMPETITIVE (1.01) temposu */
+  /* multiclass: lider turu = seçili lider sınıfın yarış-temposu (avgLap = P1×1.02,
+     lmuportal gerçek P1'den; eski tiers.c101 kaldırıldı — yeni veride tier yok). */
   useEffect(() => {
     if (!st.multiclass) return;
-    const e = lmuData?.data?.[st.track]?.[st.leaderClass];
-    const v = e?.tiers?.c101 || e?.avgLap;
+    const v = lmuData?.data?.[st.track]?.[st.leaderClass]?.avgLap;
     if (v && v !== st.leaderLap) up({ leaderLap: v });
   }, [st.multiclass, st.leaderClass, st.track, lmuData]);
   useEffect(() => {

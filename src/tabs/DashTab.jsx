@@ -250,28 +250,38 @@ export default function DashTab({
               : `${trackName(st.track)}${PIT_LANE_TIMES[st.track] != null ? ` · Pit lane ${PIT_LANE_TIMES[st.track]}s` : ""}`}
           </div>
           {zoom === "car" && (() => {
-            const d = lmuData?.data?.[st.track];
-            const carE = d?.[`${st.carClass}:${st.car}`];
-            const clsE = d?.[st.carClass];
-            const tiers = clsE?.tiers;
-            const hot = carE?.hot || clsE?.hot;
-            if (!tiers && !hot) return null;
-            const ROWS = [
-              ["HOTLAP", hot, "#b06ffc"],
-              ["ALIEN · 100%", tiers?.alien, "#16a34a"],
-              ["COMPETITIVE · 1.01", tiers?.c101, "#65a30d"],
-              ["GOOD · 1.02", tiers?.c102, "#ca8a04"],
-              ["· 1.03", tiers?.c103, "#d97706"],
-              ["MIDPACK · 1.04", tiers?.c104, "#ea580c"],
-              ["· 1.05", tiers?.c105, "#f05252"],
-              ["TAIL-ENDER · 1.06", tiers?.c106, "#dc2626"],
-              ["OFFLINE · 1.07", tiers?.c107, "#991b1b"],
-            ].filter(([, v]) => v);
+            /* lmuportal GERÇEK leaderboard — seçili pist+sınıf için en hızlı turlar.
+               Eski "Ohne Speed" tempo merdiveni (alien/%101…%107, modellenmiş) yerine
+               gerçek kayıtlar (§1: gerçek > modellenmiş). Seçili araç eşleşiyorsa
+               vurgulanır; takım adı üreticiyi belli etmiyorsa vurgulanmaz (uydurma yok). */
+            const e = lmuData?.data?.[st.track]?.[st.carClass];
+            if (!e || !Array.isArray(e.top) || !e.top.length) return null;
+            const p1 = e.p1;
+            const compoundOf = (c) => [...new Set((c || []).map((x) => String(x).split(",").pop()))].join(", ");
             return (
-              <div className="lbtiers" onClick={(e) => e.stopPropagation()} title={lmuData?.source}>
-                {ROWS.map(([lbl, v, col]) => (
-                  <div key={lbl} className="lbtr"><i style={{ background: col }} /><span className="lbl">{lbl}</span><b className="mono" style={{ color: col }}>{v}</b></div>
-                ))}
+              <div className="lbtiers" onClick={(ev) => ev.stopPropagation()} title={lmuData?.source}>
+                {p1 && (
+                  <div className="lbtr" style={{ alignItems: "flex-start", flexWrap: "wrap" }}>
+                    <i style={{ background: "#b06ffc" }} />
+                    <span className="lbl" style={{ color: "#b06ffc", fontWeight: 700 }}>P1 {p1.driver || ""}</span>
+                    <b className="mono" style={{ color: "#b06ffc", fontSize: 15 }}>{p1.lap}</b>
+                    <div style={{ flexBasis: "100%", fontSize: 10, opacity: .6, paddingLeft: 15 }}>
+                      {p1.car}
+                      {Array.isArray(p1.sectors) && <> · {p1.sectors.map((s) => Number(s).toFixed(1)).join(" / ")}</>}
+                      {Array.isArray(p1.compound) && <> · {compoundOf(p1.compound)}</>}
+                    </div>
+                  </div>
+                )}
+                {e.top.slice(1, 10).map((r) => {
+                  const mine = st.car && r.carId === st.car;
+                  return (
+                    <div key={r.rank} className="lbtr" style={mine ? { background: "rgba(150,0,24,.22)", borderRadius: 6 } : undefined}>
+                      <span className="lbl" style={{ opacity: .55, width: 16 }}>{r.rank}</span>
+                      <span className="lbl" style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.driver ? `${r.driver} · ` : ""}{r.car}</span>
+                      <b className="mono">{r.lap}</b>
+                    </div>
+                  );
+                })}
                 <div className="lbsrc">{trackName(st.track)} · {lmuData?.source}</div>
               </div>
             );

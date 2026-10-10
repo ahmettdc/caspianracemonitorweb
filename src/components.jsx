@@ -1267,27 +1267,15 @@ export function VersionModal({ open, onClose, t, lang, onStartGuide }) {
 export function RaceEditModal({ rForm, setRForm, t, seasons, onSave, onProceed, lmuData }) {
   if (!rForm) return null;
   const dataFlow = rForm.flow === "data"; // + Yarış ekle akışı: İlerle → data ekranı
-  /* LMU referans tempoları (Ohne Speed) — seçili pist+araç/sınıf için tier tablosu */
-  const tempoRows = (() => {
-    if (!rForm.trackId || !rForm.carId) return null; // araç seçilmeden gösterme
-    const d = lmuData?.data?.[rForm.trackId];
-    if (!d) return null;
-    const carE = d[`${rForm.carClass}:${rForm.carId}`];
-    const clsE = d[rForm.carClass];
-    const tiers = clsE?.tiers;
-    const hot = carE?.hot || clsE?.hot;
-    if (!tiers && !hot) return null;
-    return [
-      ["HOTLAP", hot, "#b06ffc"],
-      ["ALIEN · 100%", tiers?.alien, "#16a34a"],
-      ["COMPETITIVE · 1.01", tiers?.c101, "#65a30d"],
-      ["GOOD · 1.02", tiers?.c102, "#ca8a04"],
-      ["· 1.03", tiers?.c103, "#d97706"],
-      ["MIDPACK · 1.04", tiers?.c104, "#ea580c"],
-      ["· 1.05", tiers?.c105, "#f05252"],
-      ["TAIL-ENDER · 1.06", tiers?.c106, "#dc2626"],
-      ["OFFLINE · 1.07", tiers?.c107, "#991b1b"],
-    ].filter(([, v]) => v);
+  /* lmuportal GERÇEK leaderboard — seçili pist+sınıf için en hızlı turlar (P1 + top-N).
+     Eski "Ohne Speed" tempo merdiveni (alien/%101…%107, modellenmiş) yerine gerçek
+     kayıtlar: sürücü/takım/tur/sektör/compound (§1: gerçek > modellenmiş). Araç
+     seçilmeden de gösterilir (sınıf board'u); seçili araç varsa eşleşen satır
+     vurgulanır — ama takım adı üreticiyi belli etmiyorsa vurgulanmaz (uydurma yok). */
+  const board = (() => {
+    if (!rForm.trackId || !rForm.carClass) return null;
+    const e = lmuData?.data?.[rForm.trackId]?.[rForm.carClass];
+    return e && Array.isArray(e.top) && e.top.length ? e : null;
   })();
   const lbl = { display: "block", color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 6 };
   const inp = { width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", borderRadius: 10, color: "var(--rc-text)", padding: "11px 12px", fontSize: 13 };
@@ -1413,20 +1401,42 @@ export function RaceEditModal({ rForm, setRForm, t, seasons, onSave, onProceed, 
                 </div>
               </div>
             )}
-            {tempoRows && (
+            {board && (
               <div style={{ border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface-2)", padding: "12px 14px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                  <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".07em", fontSize: 12, fontWeight: 700 }}>{t("Tempolar")}</span>
-                  <span style={{ marginLeft: "auto", fontSize: 9.5, color: "var(--rc-text-4)" }}>{lmuData?.source || "Ohne Speed"}</span>
+                  <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".07em", fontSize: 12, fontWeight: 700 }}>{t("Leaderboard")}</span>
+                  <span style={{ marginLeft: "auto", fontSize: 9.5, color: "var(--rc-text-4)" }}>{lmuData?.source || "lmuportal.com"}</span>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                  {tempoRows.map(([lbl, v, col]) => (
-                    <div key={lbl} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11 }}>
-                      <i style={{ width: 7, height: 7, borderRadius: 2, background: col, flex: "0 0 auto" }} />
-                      <span style={{ color: "var(--rc-text-3)", letterSpacing: ".02em" }}>{lbl}</span>
-                      <b style={{ marginLeft: "auto", fontFamily: "var(--rc-font-mono)", color: col }}>{v}</b>
+                {/* P1 — gerçek en hızlı tur (sektör + compound varsa) */}
+                {board.p1 && (
+                  <div style={{ marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid var(--rc-border)" }}>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                      <span style={{ fontSize: 10, color: "#b06ffc", fontWeight: 700, letterSpacing: ".06em" }}>P1</span>
+                      <b style={{ marginLeft: "auto", fontFamily: "var(--rc-font-mono)", fontSize: 17, color: "#b06ffc" }}>{board.p1.lap}</b>
+                      {board.p1.driver && <span style={{ fontSize: 10.5, color: "var(--rc-text-3)" }}>{board.p1.driver}</span>}
                     </div>
-                  ))}
+                    {board.p1.car && <div style={{ fontSize: 10, color: "var(--rc-text-4)", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{board.p1.car}</div>}
+                    {(Array.isArray(board.p1.sectors) || Array.isArray(board.p1.compound)) && (
+                      <div style={{ fontSize: 9.5, color: "var(--rc-text-4)", marginTop: 3, fontFamily: "var(--rc-font-mono)" }}>
+                        {Array.isArray(board.p1.sectors) && <span>{board.p1.sectors.map((s) => Number(s).toFixed(1)).join(" / ")}</span>}
+                        {Array.isArray(board.p1.compound) && <span> · {[...new Set(board.p1.compound.map((c) => String(c).split(",").pop()))].join(", ")}</span>}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {/* Top-N (P1'den sonrası). Seçili araç eşleşiyorsa vurgulanır. */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  {board.top.slice(1, 8).map((r) => {
+                    const mine = rForm.carId && r.carId === rForm.carId;
+                    return (
+                      <div key={r.rank} style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 10.5, padding: "1px 4px", borderRadius: 5, background: mine ? "rgba(150,0,24,.18)" : "transparent" }}>
+                        <span style={{ color: "var(--rc-text-4)", width: 16, flex: "0 0 auto" }}>{r.rank}</span>
+                        <span style={{ color: "var(--rc-text-3)", width: 24, flex: "0 0 auto" }}>{r.driver || "—"}</span>
+                        <span style={{ color: "var(--rc-text-4)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.car}</span>
+                        <b style={{ marginLeft: "auto", fontFamily: "var(--rc-font-mono)", color: "var(--rc-text-2)", flex: "0 0 auto" }}>{r.lap}</b>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}

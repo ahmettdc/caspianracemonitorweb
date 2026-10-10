@@ -1614,6 +1614,7 @@ export const EN = {
   "pistte": "on track",
   "turu atan pilot": "driver who set the lap",
   "Tempolar": "Pace",
+  "Leaderboard": "Leaderboard",
   "Bu turda geçilen sektörler (anlık)": "Sectors completed this lap (live)",
   "Sektör sütununu gizle": "Hide the sector column",
   "Sektör sütununu göster": "Show the sector column",

@@ -404,7 +404,7 @@ export function strategyOptions(st) {
 /* ---------- pistten otomatik doldurma (v2.4.0) ---------- */
 /* Pist (+ sınıf) seçilince satırın iki alanını GERÇEK kaynaklardan önerir:
      pitLane = PIT_LANE_TIMES[pist]           (LMU Endurance Planner verisi)
-     avgLap  = lmuData.data[pist][sınıf].avgLap ("Ohne Speed" tablosu, ~1.02 "Good")
+     avgLap  = lmuData.data[pist][sınıf].avgLap (lmuportal gerçek P1 × 1.02, "Good" tempo)
    İkisi de AYRI kaynak; biri varsa öbürü olmayabilir → her alan bağımsız null
    döner. UI "veri yok" gösterir, uydurma sayı KOYMAZ (CLAUDE.md §1). Kullanıcı
    önerinin üstüne yazabilir — bu yüzden yalnız "öneri"dir, kilit değil.

@@ -1,9 +1,10 @@
 name: LMU Laptimes Sync
 
-# "Ohne Speed's LMU laptimes" tablosundaki güncel referans tur zamanlarını periyodik
+# lmuportal.com'un GERÇEK leaderboard turlarını (herkese açık Supabase API) periyodik
 # çekip public/assets/lmu-data.json'u yeniden üretir ve değişiklik varsa repoya commit
-# eder. Web uygulaması bu dosyayı fetch ile okur (Dashboard → araç kutusu penceresi).
-# RTDB/secret gerekmez — çıktı statik bir asset.
+# eder. Web uygulaması bu dosyayı fetch ile okur (Dashboard → araç kutusu penceresi +
+# strateji avgLap tohumu). RTDB/secret gerekmez — çıktı statik bir asset, anon JWT
+# herkese açık (RLS korumalı).
 
 on:
   schedule:
@@ -26,7 +27,7 @@ jobs:
         with:
           node-version: 20
 
-      - name: Fetch spreadsheet → lmu-data.json
+      - name: Fetch lmuportal.com leaderboards → lmu-data.json
         run: node scripts/fetch-lmu-laptimes.mjs public/assets/lmu-data.json
 
       - name: Commit if changed
