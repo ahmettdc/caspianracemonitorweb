@@ -1056,7 +1056,7 @@ export default function LiveTab({ t, live: liveProp, canEdit,
                    field HÂLÂ TAM geçiliyor — harita şekli/sektör/pit gözlemleri
                    tüm sahadan birikmeli, yalnız ÇİZİLEN araçlar süzülür. */
                 <TrackMap t={t} field={fieldAll} session={s} trackLength={s.trackLength}
-                  tid={tid} trackKey={binKey(s.trackName, s.trackLength)} canSave={canEdit}
+                  tid={tid} rid={rid} trackKey={binKey(s.trackName, s.trackLength)} canSave={canEdit}
                   classFilter={myClassOnly && playerClass ? playerClass : null} />
               )}
               {own && <OwnCar t={t} own={own} liveFuelObs={liveFuelObs} topSrc={ownTopSrc} />}

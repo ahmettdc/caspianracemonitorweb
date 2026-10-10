@@ -1,5 +1,61 @@
 # Changelog
 
+## v2.4.4 — 2026-10-10
+
+Hotfix. Saha bildirimi: *"livetiming'de tarayıcıda sorun yok fakat .exe'de harita
+pencere butonuna basınca ayrı pencerede açılmıyor."*
+
+### `⧉ Pencere` düğmesi masaüstünde (.exe) tepkisizdi
+
+Ayrı harita penceresi `TrackMap.openWin`'de tarayıcı popup'ına dayanıyordu:
+
+```js
+const w = window.open("", "rc-map-" + (trackKey || "map"), "width=760,height=800");
+if (!w) return;   // ← WebView2'de w HER ZAMAN null → sessizce çık
+```
+
+Tarayıcıda bu popup aynı JS bağlamını paylaşır, canlı SVG `createPortal` ile içine
+basılır ve bedavaya canlı akar. Masaüstünü taşıyan **WebView2 boş URL'li popup
+OLUŞTURMAZ** → `window.open` `null` döner → `if (!w) return;` ile pencere yolu hiç
+başlamadan kesilir. Düğme bu yüzden .exe'de tamamen tepkisiz görünüyordu.
+
+Portal yolu web'e özgü: WebView2'de ayrı pencere = ayrı webview = ayrı DOM, oraya
+React portalı edilemez. Her karede SVG'yi string kopyalamak ise v2.3.0'da bilinçle
+terk edilen yöntem (düğümler silinip kurulduğu için araç noktalarının `transition`'ı
+ölüyor, noktalar zıplıyordu).
+
+### Çözüm — gerçek Tauri penceresi, bağımsız abonelik
+
+Masaüstünde `openWin` artık `window.open` yerine gerçek bir `WebviewWindow` açıyor;
+pencere uygulamayı `?view=map&tid=…&rid=…` moduyla yükler ve yeni `MapWindow`
+bileşeni **yalnız** haritayı render eder:
+
+- Canlı düğüme (`teams/{tid}/live/{rid}`) **kendi aboneliğiyle** bağlanır — LiveTab
+  ile aynı türetim (`field = live.field`, `session = live.session`). Böylece pencere
+  ana pencereden bağımsızdır: 2. monitöre taşınabilir, ana pencere hangi sekmede
+  olursa olsun akar. React render ettiği için araç noktalarının geçişi korunur.
+- **Salt-okuyucu**: `TrackMap`'e `canSave={false}` geçilir — pist şeklini/sektörü/pit
+  gözlemlerini ana pencere zaten yazar, çift yazıcı olmaz (veri dürüstlüğü).
+- Oturum Firebase'de origin başına kalıcı; ikinci pencere aynı origin'i paylaştığı
+  için ana pencerenin oturumunu otomatik geri yükler (abonelik `watchAuth` kullanıcı
+  gelene kadar beklenir).
+
+`TrackMap`'e küçük bir `embed` modu eklendi (butonsuz, pencereyi dolduran SVG);
+mevcut kart görünümü ve testleri etkilenmez (`embed` varsayılan `false`).
+
+### Oyun PC'si maliyeti (CLAUDE.md §0)
+
+Köprüye (`bridge/`) hiç dokunulmadı: yeni REST yok, yeni thread yok, yayın hızı
+değişmedi. Bu tümüyle izleyici/pit-duvarı tarafının bir penceresidir; maliyet
+yalnız düğmeye basınca bir kerelik ikinci webview'dir (sürüş PC'si değil).
+
+### Dokunulan yerler
+
+`src/tabs/TrackMap.jsx` (Tauri pencere yolu + `embed` modu + `rid` prop) ·
+`src/MapWindow.jsx` (yeni) · `src/main.jsx` (`?view=map` yönlendirme, lazy) ·
+`src/tabs/LiveTab.jsx` (`rid` geçişi) ·
+`src-tauri/capabilities/default.json` (pencere oluşturma izni).
+
 ## v2.4.3 — 2026-09-11
 
 v2.4.2'nin devamı. Saha bildirimi: *"windows'ta tam ekran böyle görünüyor eski

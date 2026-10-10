@@ -5,6 +5,16 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v2.4.4",
+    date: "2026-10-10",
+    tr: [
+      "🗺️ MASAÜSTÜ UYGULAMASINDA (.exe) \"⧉ PENCERE\" DÜĞMESİ HARİTAYI AYRI PENCEREDE AÇMIYORDU — tıklamaya hiç tepki vermiyordu (tarayıcıda sorunsuz çalışıyor). Sebep: ayrı pencere tarayıcı popup'ına (`window.open`) dayanıyordu; masaüstünü taşıyan WebView2 boş adresli popup OLUŞTURMUYOR, çağrı boş dönüyor ve pencere yolu hiç başlamadan sessizce kesiliyordu. Artık masaüstünde harita GERÇEK bir uygulama penceresinde açılıyor — 2. monitöre taşınabilir, ana pencere hangi sekmede olursa olsun canlı akar. Pencere canlı veriye kendi aboneliğiyle bağlanır ve SALT-OKUYUCUDUR (pist şeklini/sektörü ana pencere yazar; çift yazım yok). Tarayıcı tarafı aynen korundu.",
+    ],
+    en: [
+      "🗺️ IN THE DESKTOP APP (.exe) THE \"⧉ WINDOW\" BUTTON DID NOT OPEN THE MAP IN A SEPARATE WINDOW — clicking it did nothing (it works fine in the browser). Cause: the separate window relied on a browser popup (`window.open`), but WebView2 (which hosts the desktop app) does NOT create a blank-URL popup, so the call returned empty and the window path was silently cut off before it started. On desktop the map now opens in a REAL app window — it can be dragged to a second monitor and keeps streaming live no matter which tab the main window is on. The window subscribes to the live feed on its own and is READ-ONLY (the main window writes the track shape/sectors; no double-writing). The browser side is unchanged.",
+    ],
+  },
+  {
     v: "v2.4.3",
     date: "2026-09-11",
     tr: [

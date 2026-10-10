@@ -1142,6 +1142,11 @@ export const EN = {
   "Hafif köprü · .exe": "Lightweight bridge · .exe",
   "Haritayı ayrı pencerede aç": "Open map in a separate window",
   "Haritayı tam ekranda aç": "Open map fullscreen",
+  // ⧉ ayrı harita penceresi (MapWindow — yalnız masaüstü .exe)
+  "Oturum doğrulanıyor…": "Signing in…",
+  "Oturum bulunamadı — ana pencereden giriş yapın.": "No session — sign in from the main window.",
+  "Oda bilgisi eksik.": "Room information is missing.",
+  "Harita için canlı konum verisi bekleniyor…": "Waiting for live position data for the map…",
   "Hava geçişi ekle": "Add weather transition",
   "Havuza henüz setup eklenmedi. Aşağıdan yüklediğin dosyalar takımda paylaşılır.": "No setup added to the pool yet. Files you upload below are shared with the team.",
   "Havuza yükle": "Upload to pool",
