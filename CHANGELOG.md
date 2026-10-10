@@ -94,6 +94,19 @@ seçim durumu `src/tabs/LiveTab.jsx`'te. Regresyon testi: `liveTabV244.render.te
 (spectate'te seçici sunulur; sabitlenince süzgeç aktifleşir ve satır vurgulanır;
 eşleşme pilot değişiminden bağımsız).
 
+### Dashboard STINT PROGRAMI → LASTİK sütununda bileşim logosu
+
+`stintTyre(i)` o stintin 4 köşesine girilen kodlardan baskın olanı verir. Kod iki
+türden biridir: **bileşim harfi** (`W`=Wet, `S/M/H`) ya da **set numarası** (5, 13…).
+Yeni `TyreCell`: kod `compoundInfo(code).cls` ile bir bileşime çözülüyorsa
+(`W/S/M/H` veya tam ad) canlı timing'le aynı `assets/tyre-compound/<cls>.png`
+logosunu çizer; değilse (set numarası) sayıyı **aynen** bırakır.
+
+Set numarasını logoya **çevirmiyoruz**: bu projede set→bileşim eşlemesi veride yok,
+"5" → bir bileşim logosu demek uydurma olur (§1). Logo yüklenmezse `onError` ile
+gizlenir. Test: `dashTyreCell.render.test.jsx` (W/S/M/H → doğru logo; sayı → logo
+yok, metin; boş → "—").
+
 ## v2.4.3 — 2026-09-11
 
 v2.4.2'nin devamı. Saha bildirimi: *"windows'ta tam ekran böyle görünüyor eski
