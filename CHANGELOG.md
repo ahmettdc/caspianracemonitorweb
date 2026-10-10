@@ -56,6 +56,44 @@ yalnız düğmeye basınca bir kerelik ikinci webview'dir (sürüş PC'si değil
 `src/tabs/LiveTab.jsx` (`rid` geçişi) ·
 `src-tauri/capabilities/default.json` (pencere oluşturma izni).
 
+### Spectate feed'inde "bizim araç" seçilemiyordu
+
+Saha durumu: *"şu an Erdem sürüyor, Savaş spectate girdi; veriyi spectate'ten
+aldığı için aracımızı seçemiyoruz; Poz·Sınıf'a basınca GT3'e çekmiyor,
+karşılaştırma çalışmıyor."*
+
+Canlı timing'in "bizim araç"ı tek bir kaynaktan geliyordu: oyunun **`isPlayer`**
+bayrağı (paylaşımlı bellekteki yerel/izlenen araç). Köprü bir **spectator'ın**
+(Savaş) ekranından besleniyorsa bu bayrak ya hiç yok ya da spectate kamerasının o
+an izlediği araca işaret ediyor — takımın yarışan aracına (Erdem) değil. Sonuç:
+
+- `meRow = field.find(c => c.isPlayer)` → `null`,
+- `playerClass` → tanımsız → **"Poz·Sınıf" başlığı tıklanabilir süzgeç butonu bile
+  olmuyor** (düz yazıya düşüyor), GT3'e çekmiyor,
+- satır tıklaması yalnız `meRow && !isPlayer` iken açıldığından **karşılaştırma
+  tablosu** hiç açılmıyor, **Relative** düğmesi çıkmıyor, harita vurgusu yok.
+
+**Çözüm — elle "Bizim araç" seçici.** Canlı timing araç çubuğuna HER ZAMAN görünen
+bir seçici eklendi. Kullanıcı aracını (ör. #34) sabitler; `meRow`, `playerClass`,
+sınıf süzgeci, Relative, pist haritası vurgusu ve karşılaştırma artık `isPlayer`
+yerine (ya da onunla birlikte) bu seçimden beslenir:
+
+- **Numaraya göre** eşleşir — endurance'ta numara stint boyunca sabit, pilot
+  değişse de bozulmaz (numara yoksa `carKey` yedeği).
+- **Cihaza özel**, oda başına `localStorage` (`caspian.myCar.<rid>`). Takıma
+  YAZILMAZ: yayıncı/izleyici farklı araç izleyebilir, Firebase yazımı/kural
+  değişikliği/kare maliyeti yok.
+- Oyun gerçekten bir `isPlayer` aracı veriyorsa **varsayılan yine odur** —
+  seçici "Otomatik (oyuncu)".
+- Veri dürüstlüğü (§1): oyunun vermediği "bizim araç" bilgisini uydurmuyoruz,
+  kullanıcı söylüyor. `isMe` KİMLİK tabanlı olduğundan pin yokken eski `isPlayer`
+  davranışı birebir korunur.
+
+`isPlayer` → `isMe(c)` değişimi vurgulama/karşılaştırma yollarında; seçici +
+seçim durumu `src/tabs/LiveTab.jsx`'te. Regresyon testi: `liveTabV244.render.test.jsx`
+(spectate'te seçici sunulur; sabitlenince süzgeç aktifleşir ve satır vurgulanır;
+eşleşme pilot değişiminden bağımsız).
+
 ## v2.4.3 — 2026-09-11
 
 v2.4.2'nin devamı. Saha bildirimi: *"windows'ta tam ekran böyle görünüyor eski

@@ -1142,6 +1142,12 @@ export const EN = {
   "Hafif köprü · .exe": "Lightweight bridge · .exe",
   "Haritayı ayrı pencerede aç": "Open map in a separate window",
   "Haritayı tam ekranda aç": "Open map fullscreen",
+  // Bizim araç seçici (spectate/yayın feed'i — v2.4.4)
+  "Bizim araç": "Our car",
+  "Otomatik (oyuncu)": "Auto (player)",
+  "(beklemede)": "(pending)",
+  "Spectate/yayın feed'inde kendi aracımızı elle seç — sınıf süzgeci, Relative ve karşılaştırma bundan beslenir":
+    "On a spectate/broadcast feed, pick our car manually — the class filter, Relative and comparison are driven by it",
   // ⧉ ayrı harita penceresi (MapWindow — yalnız masaüstü .exe)
   "Oturum doğrulanıyor…": "Signing in…",
   "Oturum bulunamadı — ana pencereden giriş yapın.": "No session — sign in from the main window.",
