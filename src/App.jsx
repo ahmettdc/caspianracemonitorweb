@@ -1922,7 +1922,10 @@ ${bottomBar}
                 {fv.hasVE ? (<>
                   <div style={{ flex: "1 1 150px", minWidth: 0 }}>
                     <label style={lbl}>{t("VE tüketim · %/tur")}</label>
-                    {stepField(st.consumption, (v) => up({ consumption: v }), 0.1, 2)}
+                    {/* adım 0.01: VE tüketimi 2.42 gibi iki ondalıklı; 0.1 adım son
+                        basamağı atlıyordu (2.42→2.52). Kullanıcı ±0.01 ince ayar ister
+                        (büyük sıçrama için alana doğrudan yazılır). */}
+                    {stepField(st.consumption, (v) => up({ consumption: v }), 0.01, 2)}
                   </div>
                   <div style={{ flex: "1 1 150px", minWidth: 0 }}>
                     <label style={lbl}>Fuel ratio · L / %1</label>

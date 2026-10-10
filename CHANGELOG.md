@@ -107,6 +107,13 @@ Set numarasını logoya **çevirmiyoruz**: bu projede set→bileşim eşlemesi v
 gizlenir. Test: `dashTyreCell.render.test.jsx` (W/S/M/H → doğru logo; sayı → logo
 yok, metin; boş → "—").
 
+### "VE tüketim · %/tur" +/− adımı 0,1 → 0,01
+
+Yarış dataları kartındaki `stepField(st.consumption, …, 0.1, 2)` adımı 0,1'di. Değer
+iki ondalıklı (2,42) olduğundan +/− son basamağı atlıyordu (2,42 → 2,52). Adım 0,01'e
+indirildi → ±0,01 ince ayar (2,42 → 2,43); büyük değişiklik için alana doğrudan
+yazılır. `fuelRatio` zaten 0,01'di, dokunulmadı; yalnızca `consumption` değişti.
+
 ## v2.4.3 — 2026-09-11
 
 v2.4.2'nin devamı. Saha bildirimi: *"windows'ta tam ekran böyle görünüyor eski
