@@ -26,7 +26,10 @@ jobs:
       - name: Scrape lmugarage.com → schedule.json
         run: node scripts/scrape-lmu-schedule.mjs schedule.json
 
+      # Soft-exit (kaynak geçici erişilemez) durumunda schedule.json HİÇ yazılmaz;
+      # o zaman bu adım atlanır → RTDB'deki son iyi kopya olduğu gibi kalır.
       - name: Write /lmuSchedule to Firebase RTDB
+        if: hashFiles('schedule.json') != ''
         run: >-
           npx --yes firebase-tools database:set /lmuSchedule schedule.json
           --project caspian-race-control

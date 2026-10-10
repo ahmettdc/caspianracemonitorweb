@@ -35,15 +35,44 @@ async function fetchHtml(path) {
       Accept: "text/html",
     },
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+  if (!res.ok) {
+    // status'ü hataya iliştir: main() geçici (5xx/429) vs kalıcı ayrımını buradan yapar.
+    const e = new Error(`HTTP ${res.status} ${res.statusText}`);
+    e.status = res.status;
+    throw e;
+  }
   return res.text();
 }
 
+// Kaynak sitenin GEÇİCİ erişilemezliği mi? (site bakımda/çökmüş, DNS/timeout/reset, rate-limit)
+// Bunlar bizim hatamız değil ve kendiliğinden düzelir → mail yağdırmaya değmez.
+// Ağ hatasında fetch exception atar ve status olmaz (null) → geçici say.
+// 200 ama 0 yarış (layout değişmiş) BURAYA GİRMEZ: o gerçek sorundur, sert fail kalır.
+function isTransient(err) {
+  if (err.status == null) return true;              // fetch throw ⇒ ağ/DNS/timeout
+  return err.status >= 500 || err.status === 429;   // upstream çökmüş / rate-limit
+}
+
 async function main() {
-  // 1) Birincil: racing-today (daily/weekly). Boşsa tüm çalışma başarısız (ezme yok).
+  // 1) Birincil: racing-today (daily/weekly).
   log(`[lmu] fetch /racing-today`);
-  const today = parseRacingToday(await fetchHtml("/racing-today"));
+  let todayHtml;
+  try {
+    todayHtml = await fetchHtml("/racing-today");
+  } catch (err) {
+    // Site geçici erişilemezse (503 "Back in the garage" vb.): DOSYA YAZMA, RTDB'yi
+    // koru AMA çıkışı 0 bırak → Action yeşil, 15 dk'da bir başarısızlık maili gelmez.
+    // Cron kendiliğinden tekrar dener; site dönünce senkron sessizce düzelir.
+    if (isTransient(err)) {
+      log(`[lmu] kaynak geçici erişilemez (${err.message}) — RTDB korunuyor, çıkış 0 (soft)`);
+      return;
+    }
+    throw err; // kalıcı hata (ör. kalıcı 4xx) → sert fail, haber ver
+  }
+  const today = parseRacingToday(todayHtml);
   if (!today.races.length) {
+    // 200 geldi ama hiç yarış çıkmadı ⇒ layout değişmiş olabilir: bu GERÇEK sorun,
+    // elle bakmak gerekir → bilerek sert fail (mail gelsin). Ezme yine yapılmaz.
     throw new Error("racing-today: 0 races — layout değişmiş olabilir; RTDB'yi ezmiyorum");
   }
 
