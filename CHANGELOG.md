@@ -168,6 +168,24 @@ sınıf hesapları `fieldAll`'dan (tüm saha)** devam eder, yani bırakan aracı
 turu hâlâ sınıf rekoru sayılır (veri dürüstlüğü). Test: `liveTabV244.render.test.jsx`
 (kapalı→görünür+toggle; açık→satır düşer, "N gizli" notu; DNF yoksa toggle yok).
 
+### Tur geçmişinde her tur "OUT LAP" görünüyordu
+
+Saha bildirimi: *"hepsinde out lap diyo bug olabilir mi"*. #34'ün 148 turluk geçmişinde
+her satır "OUT LAP" damgalı; en hızlı **1:19.46**, turlar ~**1:31** (hepsi **ISLAK**).
+
+Kök neden: `LapsModal`'da `const isOut = best > 0 && sec > best * 1.10` — out/in lap
+işareti **en iyi tura** göre veriliyordu. En iyi tur KURU'da atılıp (1:19) stint ISLAK
+başlayınca, ıslak turlar (1:31 — 12-16 sn yavaş) `best*1.10` (≈1:27.4) eşiğini aşıyor →
+**hepsi "OUT LAP"**.
+
+Düzeltme: eşik artık **o turların MEDYANINA** göre (`normalLapBaseline`, yeni saf
+fonksiyon `liveLaps.js`). Out/in lap'ler azınlıkta ve yavaş olduğundan medyanı
+kaydırmaz; medyan stintin "normal" turunu temsil eder (ıslaksa ıslak, kuruysa kuru) →
+yalnız gerçekten yavaş (pit çıkışı/incident) turlar işaretlenir. Best, "en hızlı"
+göstergesi ve gap sütunu için aynen kullanılmaya devam eder. Test:
+`liveLaps.test.js` (medyan tek/çift, eleme; kuru-best + ıslak-turlar senaryosu:
+ıslak turlar out lap SAYILMAZ, 105 sn'lik gerçek out lap işaretlenir).
+
 ## v2.4.3 — 2026-09-11
 
 v2.4.2'nin devamı. Saha bildirimi: *"windows'ta tam ekran böyle görünüyor eski

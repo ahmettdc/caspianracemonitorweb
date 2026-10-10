@@ -89,3 +89,18 @@ export function parseLapCond(str) {
   if (temp == null && wet == null && grip == null) return null;
   return { temp, wet, grip };
 }
+
+/* "Normal tur" tabanı — out/in lap işaretlemek için eşik: MEDYAN (en iyi DEĞİL).
+   NEDEN (saha hatası): out/in lap tespiti `best * 1.10` ile yapılıyordu. En iyi tur
+   KURU'da atılmışsa (ör. 1:19), tüm ISLAK turlar (ör. 1:31 — 12-16 sn yavaş) %10
+   eşiğini aşıyor ve HEPSİ "OUT LAP" damgası yiyordu. Medyan koşuldan bağımsızdır:
+   out/in lap'ler azınlıktadır ve YAVAŞ olduklarından medyanı yukarı kaydırmazlar, yani
+   medyan o stintin "normal" turunu temsil eder (ıslaksa ıslak, kuruysa kuru). Böylece
+   yalnız GERÇEKTEN yavaş (pit çıkışı/incident) turlar işaretlenir. SAF + testli. */
+export function normalLapBaseline(secs) {
+  const v = (Array.isArray(secs) ? secs : [])
+    .map(Number).filter((x) => x > 0).sort((a, b) => a - b);
+  if (!v.length) return 0;
+  const mid = Math.floor(v.length / 2);
+  return v.length % 2 ? v[mid] : (v[mid - 1] + v[mid]) / 2;
+}

@@ -9,7 +9,7 @@ import { DESKTOP_RELEASE_URL, BRIDGE_EXE_URL, ASSET, classId, classAccent, brand
 import { isTauri } from "../tauriEnv";
 import { liveLapsSubscribe, liveSecSubscribe, liveDrvSubscribe, liveTyreSubscribe,
   liveCondSubscribe, liveHistoryClearAll, serverNow } from "../storage";
-import { driverAtLap, parseLapCond, capLapEntries } from "../liveLaps";
+import { driverAtLap, parseLapCond, capLapEntries, normalLapBaseline } from "../liveLaps";
 import { detectFlashes, carKey } from "../liveFlash";
 import { binKey } from "../trackShape";
 import { demoLive } from "../liveDemo";
@@ -257,6 +257,9 @@ function LapsModal({ t, tid, rid, row, canEdit, demo, onClose }) {
       .filter((e) => e.sec > 0).sort((a, b) => a.n - b.n)
     : [];
   const best = entries.length ? Math.min(...entries.map((e) => e.sec)) : 0;
+  /* out/in lap eşiği için "normal tur" tabanı = MEDYAN (best DEĞİL). best kuruda
+     atılmışsa ıslak turların hepsini out lap sanma hatasını önler (bkz. normalLapBaseline). */
+  const lapBase = normalLapBaseline(entries.map((e) => e.sec));
   const avg = entries.length ? entries.reduce((a, e) => a + e.sec, 0) / entries.length : 0;
   const items = entries.slice().reverse();
   /* pilot avatar rengi — ada göre kararlı palet (fişteki DRV_COL karşılığı) */
@@ -284,7 +287,7 @@ function LapsModal({ t, tid, rid, row, canEdit, demo, onClose }) {
           {lapMap != null && !items.length && <div style={{ padding: "16px 20px", color: "var(--rc-text-3)", fontSize: 12.5 }}>{t("Henüz tamamlanmış tur yok.")}</div>}
           {items.map(({ n, sec }) => {
             const isBest = sec > 0 && sec === best;
-            const isOut = best > 0 && sec > best * 1.10;
+            const isOut = lapBase > 0 && sec > lapBase * 1.10;
             const sc = secMap && secMap[n] ? String(secMap[n]).split(",").map(Number) : null;
             const drv = driverAtLap(drvMap, n) || row.driver;
             const swap = !!driverAtLap(drvMap, n) && driverAtLap(drvMap, n) !== driverAtLap(drvMap, n - 1);
