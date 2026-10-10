@@ -1026,12 +1026,16 @@ export default function LiveTab({ t, live: liveProp, canEdit,
                           (1) `mNumPenalties` incident DEĞİL, BEKLEYEN ceza sayısıdır;
                           (2) ceza servis edilince 0'a düştüğü için ekran temizleniyordu;
                           (3) tamsayı sayaç ondalıklı çarpan gibi gösteriliyordu ("1.0x").
-                          Artık kümülatif toplam (penaltiesTotal) gösterilir; bekleyen ceza
-                          varsa kırmızı + "•" ile işaretlenir. Gerçek incident (temas/cut)
-                          sayısı bu veri yolunda YOKTUR (bkz. bridge/rf2_source.py başlığı). */}
+                          Artık toplam (penaltiesTotal) gösterilir; bekleyen ceza varsa
+                          kırmızı + "•" ile işaretlenir. v2.5.0: penaltiesTotal, REST
+                          standings'in gösterdiği YETKİLİ değerdir (cut/puan dahil) ve
+                          KESİRLİ olabilir (ör. 1.75) → sayı olduğu gibi basılır. REST
+                          kapalıyken cut/puan cezaları GÖRÜNMEZ (shmem'de yok); o zaman
+                          penaltiesTotal shmem yükselen-kenar toplamına düşer (tamsayı).
+                          Gerçek incident (temas/cut) sayısı bu veri yolunda YOKTUR. */}
                       {(() => {
-                        const out = c.penalties || 0;              // anlık bekleyen
-                        const tot = c.penaltiesTotal ?? out;       // kümülatif (eski köprü → yedek)
+                        const out = c.penalties || 0;              // anlık bekleyen (shmem, tamsayı)
+                        const tot = c.penaltiesTotal ?? out;       // yetkili toplam (REST) / shmem yedeği
                         return (
                           <td className="mono" style={{ textAlign: "right", fontSize: 12.5,
                             color: out > 0 ? "var(--red)" : tot > 0 ? "var(--yellow)" : "var(--dim)",

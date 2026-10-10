@@ -116,6 +116,44 @@ iki ondalıklı (2,42) olduğundan +/− son basamağı atlıyordu (2,42 → 2,5
 indirildi → ±0,01 ince ayar (2,42 → 2,43); büyük değişiklik için alana doğrudan
 yazılır. `fuelRatio` zaten 0,01'di, dokunulmadı; yalnızca `consumption` değişti.
 
+### Canlı timing ceza sütunu kesirli cezaları göstermiyordu
+
+Saha bildirimi: *"live timing cezaları göstermiyor, normalde Erdem Akyol 1.75"* —
+değer LMU'nun kendi standings ekranında görünüyor (yani REST'ten geliyor).
+
+İki ayrı sorun vardı:
+
+1. **Kırpma.** `lmu_api.py` REST standings cezasını `int(float(c.get("penalties")))`
+   ile okuyordu → **1.75 → 1**. Gerçek değer kayboluyordu.
+2. **Kavram karışması.** `rf2_source._apply` bu değeri `max(int(mNum), int(st))` ile
+   **`penalties`** (BEKLEYEN drive-through sayısı; `mNumPenalties`, servis edilince
+   0'a düşen) alanına yazıyordu. Oysa standings cezası (cut/puan) **farklı bir
+   kavram** ve kalıcı bir toplamdır — bekleyen-ceza sayacına sokulunca hem yanlış
+   okunuyor hem sahte bir kırmızı "•" (bekleyen) üretiyordu.
+
+Düzeltme:
+
+- `lmu_api.py`: ceza **float** okunur, 2 ondalığa yuvarlanır (`1.75` korunur).
+- `rf2_source._apply`: REST değeri **`penaltiesTotal`'a yetkili toplam** olarak
+  yazılır; `penalties` (shmem bekleyen) **ezilmez** → kırmızı "•" yalnız gerçek
+  drive-through'da yanar.
+- Aggregator: `penaltiesTotal` REST'ten geldiyse ona dokunmaz; gelmediyse (REST
+  kapalı/eski köprü) shmem **yükselen-kenar toplamını** yazar (yedek, tamsayı).
+- Frontend (`LiveTab`): `penaltiesTotal` kesirli olabilir → sayı olduğu gibi
+  basılır ("1.75"). Kod değişmedi (zaten `${tot}`); yalnız yorum güncellendi.
+
+**Kapsam:** Bu cezalar oyunun paylaşımlı belleğinde yok, yalnız **REST standings**'te
+var. Spectate/yayın PC'sinde **REST kapalıysa** görünmezler (VE% ve gerçek takım adı
+gibi) — bu bir config konusudur, kod değil.
+
+**§0 denetimi:** yeni REST çağrısı yok (aynı standings alanı), yeni thread yok, hz
+değişmedi, kare boyutu ~aynı (int→float). Köprüye dokunan değişiklik olduğundan
+**bridge .exe yeniden derlenip dağıtılmalı.**
+
+Testler: `test_lmu_api.py` (1.75 kırpılmaz, metin kesir, yuvarlama) ·
+`test_aggregator.py` (REST değeri yetkili ve kesirli kalır; REST + shmem bekleyen
+birlikte; REST yoksa shmem yedeği).
+
 ## v2.4.3 — 2026-09-11
 
 v2.4.2'nin devamı. Saha bildirimi: *"windows'ta tam ekran böyle görünüyor eski

@@ -309,11 +309,13 @@ class LmuApi:
                 ve = round(vf, 1)                    # yüzde olarak gelmiş
             if ve is None:
                 ve = _energy_of(c)                   # toleranslı yedek
-            # Ceza sayısı: LMU'nun cut/puan cezaları paylaşımlı bellekteki
-            # mNumPenalties'e YANSIMIYOR — oyunun kendi standings ekranını besleyen
-            # bu alan yetkili kaynak. Eksik/geçersizse None (shmem değeri kalır).
+            # Ceza: LMU'nun cut/puan cezaları paylaşımlı bellekteki mNumPenalties'e
+            # YANSIMIYOR — oyunun kendi standings ekranını besleyen bu alan yetkili
+            # kaynak. KESİRLİ olabilir (ör. 1.75); eskiden int()'le 1'e kırpılıyordu →
+            # gerçek değer kayboluyordu. Float tut, 2 ondalığa yuvarla (gürültü önlenir).
+            # Eksik/geçersizse None (shmem değeri kalır).
             try:
-                pen = int(float(c.get("penalties")))
+                pen = round(float(c.get("penalties")), 2)
             except (TypeError, ValueError):
                 pen = None
             info = {

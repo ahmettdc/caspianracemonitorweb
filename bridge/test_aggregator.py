@@ -240,6 +240,56 @@ def test_ceza_alani_yoksa_cokmez():
     assert r["penaltiesTotal"] == 0
 
 
+class _PenSrv:
+    """REST standings cezasının _apply'da penaltiesTotal'a yazılmış hâlini taklit eder
+    (oyunun gösterdiği yetkili değer; cut/puan dahil, KESİRLİ olabilir). penalties =
+    shmem BEKLEYEN drive-through (ayrı kavram)."""
+
+    def __init__(self, pen_total, pending=0):
+        self.pen_total = pen_total
+        self.pending = pending
+        self.i = 0
+
+    def read(self):
+        self.i += 1
+        return {"session": {}, "own": None, "field": [{
+            "pos": 1, "carId": 1, "driver": "A", "lapsDone": 1, "lastSec": 100.0,
+            "bestSec": 100.0, "inPits": False,
+            "penalties": self.pending, "penaltiesTotal": self.pen_total}]}
+
+
+def test_ceza_REST_standings_degeri_yetkilidir_ve_kesirli_kalir():
+    """v2.5.0 — SAHA HATASI: "live timing cezaları göstermiyor, Erdem 1.75".
+
+    LMU standings cezası (oyunun ekranında gösterdiği, cut/puan dahil) _apply'da
+    penaltiesTotal'a yazılır ve KESİRLİ olabilir (1.75). Aggregator shmem yükselen-
+    kenar toplamıyla bunu EZMEMELİ — REST yetkilidir. Bekleyen drive-through yoksa
+    (pending=0) kırmızı "•" yanmaz (sarı toplam)."""
+    agg = Aggregator(_PenSrv(1.75, pending=0))
+    r = None
+    for _ in range(3):
+        r = agg.read()["field"][0]
+    assert r["penaltiesTotal"] == 1.75, r["penaltiesTotal"]
+    assert r["penalties"] == 0, r["penalties"]        # bekleyen yok → "•" yanmaz
+
+
+def test_ceza_REST_toplami_ile_shmem_bekleyen_birlikte():
+    """REST toplamı (1.75) + shmem'de GERÇEK bekleyen drive-through (1): toplam REST
+    kalır, bekleyen ayrı alanda korunur (kırmızı "•" için)."""
+    agg = Aggregator(_PenSrv(1.75, pending=1))
+    r = agg.read()["field"][0]
+    assert r["penaltiesTotal"] == 1.75, r["penaltiesTotal"]
+    assert r["penalties"] == 1, r["penalties"]
+
+
+def test_ceza_REST_yoksa_shmem_yedegi_calisir():
+    """REST penaltiesTotal yazmadıysa (REST kapalı/eski köprü) aggregator shmem
+    yükselen-kenar toplamını yazar — eski davranış birebir korunur."""
+    # _Pen yalnız 'penalties' (shmem bekleyen) verir, penaltiesTotal vermez
+    r = _pen_run([0, 0, 1, 1, 0, 0, 1, 1])
+    assert r["penaltiesTotal"] == 2, r["penaltiesTotal"]
+
+
 def test_bayrak_sektor_sarisi_uretilir():
     """v2.2.4 — SAHA HATASI: "oyunda sarı sallanıyor, Live Timing'de göremiyoruz".
 
