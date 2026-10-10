@@ -433,6 +433,18 @@ export default function LiveTab({ t, live: liveProp, canEdit,
   const [avgMode, setAvgMode] = useState(false);   // AVG5 ↔ AVG tek sütun geçişi
   const [gapMode, setGapMode] = useState(false);   // Gap ↔ Aralık tek sütun geçişi
   const [secOpen, setSecOpen] = useState(true);    // Sektör sütunu aç/kapa (başlıktan)
+  /* BIRAKANLARI GİZLE (v2.5.0): uzun listede turları tararken yarışı bırakmış
+     (DNF/DSQ) araçlar araya karışıp okumayı zorlaştırıyor. Toggle onları standings
+     ve relative listesinden çıkarır. Rekor/sektör/sınıf hesapları TÜM sahadan devam
+     eder (bırakan aracın en iyi turu hâlâ rekor sayılır). CİHAZA ÖZEL tercih. */
+  const [hideRetired, setHideRetired] = useState(() => {
+    try { return localStorage.getItem("caspian.hideRetired") === "1"; } catch { return false; }
+  });
+  const toggleHideRetired = () => setHideRetired((v) => {
+    const nx = !v;
+    try { localStorage.setItem("caspian.hideRetired", nx ? "1" : "0"); } catch { /* yoksay */ }
+    return nx;
+  });
   /* v2.3.0 — sıralama: {key,dir}. key null → köprünün YARIŞ SIRASI (varsayılan).
      Arama: pilot/takım/no/araç/sınıf üzerinden süzer (liveSort.matchQuery). */
   const [sort, setSort] = useState({ key: null, dir: "asc" });
@@ -654,8 +666,11 @@ export default function LiveTab({ t, live: liveProp, canEdit,
      TÜM sahadan hesaplanır: "kendi sınıfım" süzgeci açıkken de rekor gerçek
      rekordur (süzülmüş listenin en iyisi değil). */
   const classBest = classBestSectors(fieldAll);
+  /* Bırakanları gizle: standings VE relative listesinden DNF/DSQ araçları çıkar
+     (rekor/sektör hesapları yukarıda TÜM sahadan yapıldı, etkilenmez). */
+  const liveRows = hideRetired ? rows.filter((r) => !isRetired(r.c)) : rows;
   const classRows = myClassOnly && playerClass
-    ? rows.filter((r) => r.id === playerClass) : rows;
+    ? liveRows.filter((r) => r.id === playerClass) : liveRows;
   /* RELATIVE açıkken metin araması UYGULANMAZ: "etrafımdaki araçlar"ın bir de
      ada göre süzülmesi anlamsız bir kesişim üretir (arama kutusu da gizlenir). */
   const relOn = relMode && !!meRow && Number(s.trackLength) > 0;
@@ -666,7 +681,7 @@ export default function LiveTab({ t, live: liveProp, canEdit,
      0.4 sn önündeki GT3 satırı görünmez oluyor, ±3 penceresi ise çok daha
      uzaktaki aynı-sınıf araçlarla doluyordu. Sınıf süzgeci standings ve harita
      için geçerliliğini koruyor; relative satırlarında sınıf rengi zaten var. */
-  const rel = relOn ? relativeRows(rows, meRow, s.trackLength, 3, 3) : null;
+  const rel = relOn ? relativeRows(liveRows, meRow, s.trackLength, 3, 3) : null;
   /* satır → relatif saniye (Gap sütunu yerine çizilir). Anahtar olarak SATIR
      NESNESİ kullanılır, carKey DEĞİL: carKey null dönebilir (lapKey/carId/driver
      üçü de yoksa) ve iki böyle satır aynı kovaya düşüp birbirinin farkını
@@ -723,7 +738,7 @@ export default function LiveTab({ t, live: liveProp, canEdit,
           {/* Saha başlık çubuğu (bayrak · sıcaklık · yağış · ıslaklık · tutuş) */}
           <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: "1px solid var(--rc-border)", flexWrap: "wrap" }}>
             <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 15, fontWeight: 700 }}>{t("Saha")}</span>
-            <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>{fieldAll.length} {t("araç")} · {clsCount} {t("sınıf")}</span>
+            <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>{fieldAll.length} {t("araç")} · {clsCount} {t("sınıf")}{hideRetired && fieldAll.some((c) => isRetired(c)) ? ` · ${fieldAll.filter((c) => isRetired(c)).length} ${t("gizli")}` : ""}</span>
             <span className={`livebadge ${conn.cls}`} data-tour="liveconn"><i /> {t(conn.lbl)} · {ageSec}s</span>
 
             <span style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", paddingLeft: 16, marginLeft: 2, borderLeft: "1px solid var(--rc-border)" }}>
@@ -844,6 +859,16 @@ export default function LiveTab({ t, live: liveProp, canEdit,
                   style={{ fontSize: 11, padding: "3px 10px",
                     ...(relMode && { borderColor: "var(--teal)", color: "var(--teal)" }) }}>
                   <Icon name="harita" size={12} /> {t("Relative")}</button>
+              )}
+              {/* BIRAKANLARI GİZLE — yalnız sahada DNF/DSQ varken göster (yoksa
+                  tıklayıp hiçbir şey değişmesin). Tercih cihazda saklanır. */}
+              {fieldAll.some((c) => isRetired(c)) && (
+                <button className={`act${hideRetired ? " on" : ""}`}
+                  onClick={toggleHideRetired}
+                  title={t("Yarışı bırakanları (DNF/DSQ) listeden gizle")}
+                  style={{ fontSize: 11, padding: "3px 10px",
+                    ...(hideRetired && { borderColor: "var(--teal)", color: "var(--teal)" }) }}>
+                  {hideRetired ? t("Bırakanlar gizli") : t("Bırakanları gizle")}</button>
               )}
               {demoBtn}
               {document.fullscreenEnabled && (

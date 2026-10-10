@@ -1142,6 +1142,11 @@ export const EN = {
   "Hafif köprü · .exe": "Lightweight bridge · .exe",
   "Haritayı ayrı pencerede aç": "Open map in a separate window",
   "Haritayı tam ekranda aç": "Open map fullscreen",
+  // Bırakanları gizle (DNF/DSQ — v2.5.0)
+  "Bırakanları gizle": "Hide retirees",
+  "Bırakanlar gizli": "Retirees hidden",
+  "Yarışı bırakanları (DNF/DSQ) listeden gizle": "Hide retired cars (DNF/DSQ) from the list",
+  // "gizli" zaten tanımlı (bkz. yukarısı) — tekrar EKLENMEZ (yinelenen anahtar testi)
   // Bizim araç seçici (spectate/yayın feed'i — v2.4.4)
   "Bizim araç": "Our car",
   "Otomatik (oyuncu)": "Auto (player)",

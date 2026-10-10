@@ -81,3 +81,39 @@ describe("Bizim araç — elle sabitlenince meRow/playerClass çözülür", () =
     expect(html).toMatch(/class="live[ "]/);
   });
 });
+
+describe("Bırakanları gizle (DNF/DSQ) — turları tararken temiz liste", () => {
+  // bir aracı yarıştan BIRAKMIŞ (finishStatus 2 = DNF) yap, benzersiz isim ver
+  const withDnf = patch(demoLive(30), (c, i) =>
+    (i === 0 ? { finishStatus: 2, driver: "Birakan Pilot" } : null));
+
+  it("varsayılan (kapalı): bırakan araç listede görünür ve toggle sunulur", () => {
+    localStorage.removeItem("caspian.hideRetired");
+    const html = render(withDnf, "r-dnf-off");
+    expect(html).toContain("Birakan Pilot");
+    expect(html).toContain("Bırakanları gizle");   // sahada DNF var → düğme çıkar
+  });
+
+  it("açıkken: bırakan araç STANDINGS satırından çıkar (occurrence azalır)", () => {
+    // Not: isim "Bizim araç" açılır menüsünde her hâlükârda listelenir; bu yüzden
+    // tüm html'de yokluğunu değil, STANDINGS satırının gittiğini → occurrence
+    // SAYISININ düştüğünü doğruluyoruz (kapalı: menü + satır; açık: yalnız menü).
+    const occ = (s) => s.split("Birakan Pilot").length - 1;
+    localStorage.removeItem("caspian.hideRetired");
+    const off = render(withDnf, "r-dnf-a");
+    localStorage.setItem("caspian.hideRetired", "1");
+    const on = render(withDnf, "r-dnf-b");
+    expect(occ(on)).toBeLessThan(occ(off));          // satır kalktı
+    expect(on).toContain("Bırakanlar gizli");        // düğmenin açık etiketi
+    expect(on).toContain("gizli");                   // "· N gizli" sayaç notu
+    localStorage.removeItem("caspian.hideRetired");
+  });
+
+  it("sahada hiç DNF/DSQ yoksa toggle gösterilmez", () => {
+    localStorage.removeItem("caspian.hideRetired");
+    const noRetire = patch(demoLive(30), () => ({ finishStatus: 0 }));  // demo #9'u da temizle
+    const html = render(noRetire, "r-nodnf");
+    expect(html).not.toContain("Bırakanları gizle");
+    expect(html).not.toContain("Bırakanlar gizli");
+  });
+});

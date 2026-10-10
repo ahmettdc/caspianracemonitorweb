@@ -154,6 +154,20 @@ Testler: `test_lmu_api.py` (1.75 kırpılmaz, metin kesir, yuvarlama) ·
 `test_aggregator.py` (REST değeri yetkili ve kesirli kalır; REST + shmem bekleyen
 birlikte; REST yoksa shmem yedeği).
 
+### Canlı timing'de "Bırakanları gizle" (DNF/DSQ)
+
+Saha bildirimi: *"turlar bakarken zor oluyor, yarış dışı kalanları listeden
+çıkarsak bir yolla"*. Uzun gridde bırakmış araçlar (satır soluk) araya karışıp
+tur okumayı zorlaştırıyordu.
+
+Araç çubuğuna, yalnız sahada DNF/DSQ varken görünen bir toggle eklendi
+(`hideRetired`, cihaza özel `localStorage: caspian.hideRetired`). Açıkken
+`isRetired(c)` olan araçlar standings **ve** Relative listesinden çıkar; başlık
+"`· N gizli`" yazar. Süzme `rows → liveRows` aşamasında yapılır — **rekor/sektör/
+sınıf hesapları `fieldAll`'dan (tüm saha)** devam eder, yani bırakan aracın en iyi
+turu hâlâ sınıf rekoru sayılır (veri dürüstlüğü). Test: `liveTabV244.render.test.jsx`
+(kapalı→görünür+toggle; açık→satır düşer, "N gizli" notu; DNF yoksa toggle yok).
+
 ## v2.4.3 — 2026-09-11
 
 v2.4.2'nin devamı. Saha bildirimi: *"windows'ta tam ekran böyle görünüyor eski
