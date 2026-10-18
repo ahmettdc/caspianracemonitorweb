@@ -952,6 +952,7 @@ export const EN = {
   "otomatik işaretlendi": "auto-marked",
   "oyunda": "in game", "planda": "in plan", "işaretli": "marked", "pit": "pit stops",
   "Canlı": "Live", "geçişi ekle": "add transition",
+  "Zemin değişti": "Track changed", "planı güncelle": "update the plan", "Uygula": "Apply",
   "Canlı AVG5": "Live AVG5", "uygula": "apply",
   "Araç pit yoluna girince PIT otomatik işaretlenir (yalnız canlı kaynağı yazan PC tetikler)":
     "PIT is marked automatically when the car enters the pit lane (only the PC writing the live feed triggers it)",

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { DEFAULT_STATE } from "./engine.js";
 import { detectPitEntry, clockDriftSec, alignedStartMs, weatherSuggestion,
-  avgLapSuggestion, isFrameFresh } from "./liveSync.js";
+  avgLapSuggestion, isFrameFresh, showWxBanner } from "./liveSync.js";
 
 const st = (over = {}) => ({ ...DEFAULT_STATE, raceTime: "2:00:00",
   raceStartMs: 1_000_000, avgLap: "3:59.50", weatherLog: [], ...over });
@@ -56,6 +56,23 @@ describe("clockDriftSec / alignedStartMs — oyun saati otorite", () => {
     const ses = raceSes({ timeLeftSec: 3600 });
     const s2 = st({ raceStartMs: alignedStartMs(st(), ses, now) });
     expect(Math.abs(clockDriftSec(s2, ses, now))).toBeLessThanOrEqual(0);
+  });
+});
+
+describe("showWxBanner — üst ıslaklık bildirimi", () => {
+  const sug = { id: "damp", label: "Damp" };
+  it("öneri var + yetki var + kapatılmadı → gösterilir", () => {
+    expect(showWxBanner(sug, null, true)).toBe(true);
+  });
+  it("yetki yoksa gösterilmez", () => {
+    expect(showWxBanner(sug, null, false)).toBe(false);
+  });
+  it("öneri yoksa gösterilmez", () => {
+    expect(showWxBanner(null, null, true)).toBe(false);
+  });
+  it("aynı kademe kapatıldıysa gösterilmez; kademe değişince yeniden çıkar", () => {
+    expect(showWxBanner(sug, "damp", true)).toBe(false);          // damp kapatıldı
+    expect(showWxBanner({ id: "wet", label: "Wet" }, "damp", true)).toBe(true); // damp→wet
   });
 });
 

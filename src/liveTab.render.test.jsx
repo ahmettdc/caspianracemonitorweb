@@ -42,4 +42,23 @@ describe("LiveTab render (v1.4.74)", () => {
   it("boş saha ile çökmez", () => {
     expect(render({ ...demoLive(30), field: [] })).toContain("Tutuş");
   });
+
+  /* Üst ıslaklık bildirim çubuğu (v2.5.x): wxSug varken + canEdit → animasyonlu
+     çubuk "Zemin değişti → <kademe>" + Uygula. Yetki yoksa/öneri yoksa çıkmaz. */
+  const wxSug = { id: "damp", label: "Damp", rain: 0, wetness: 8 };
+  const renderW = (props) => renderToStaticMarkup(
+    <LiveTab t={t} live={demoLive(30)} tid="x" rid="y" {...props} />);
+
+  it("#4 ıslaklık değişince üst bildirim çubuğu çıkar (canEdit + wxSug)", () => {
+    const html = renderW({ canEdit: true, wxSug, onApplyWx: () => {} });
+    expect(html).toContain("Zemin değişti");
+    expect(html).toContain("Damp");
+    expect(html).toContain("Uygula");
+    expect(html).toContain("wxdrop");            // slide-down animasyonu
+  });
+
+  it("#4b yetki yoksa veya öneri yoksa çubuk çıkmaz", () => {
+    expect(renderW({ canEdit: false, wxSug })).not.toContain("Zemin değişti");
+    expect(renderW({ canEdit: true, wxSug: null })).not.toContain("Zemin değişti");
+  });
 });

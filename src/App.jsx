@@ -3857,7 +3857,7 @@ ${bottomBar}
           {tab === "live" && <LiveTab t={t} live={live} liveFuelObs={liveFuelObs}
             lapCapture={lapCapture}
             canEdit={canEditTeam} tid={curTeam} rid={curRace}
-            isAdmin={isAdmin}
+            isAdmin={isAdmin} wxSug={wxSug} onApplyWx={pickWx}
             ownTopSrc={carImageSrc(teamData?.assets, st.carClass, st.car, "top")} />}
 
           {tab === "tyre" && (

@@ -2,6 +2,18 @@
 
 ## v2.5.2 — 2026-10-18
 
+### Canlı timing: üst ıslaklık bildirim çubuğu
+
+Zemin kademesi (damp/ıslak/kuru) plandan ayrışınca, canlı timing'in üstünde
+animasyonlu bir bildirim çubuğu beliriyor (`wxdrop` + tier renginde `wxpulse`
+glow). Önceden öneri yalnız alt paneldeki "Hava durumu" çipindeydi → sahaya
+odakken kaçırılıp geçiş geç ekleniyordu. Tek tık **Uygula** plana geçişi ekler
+(mevcut `pickWx`), ✕ kapatır; kademe değişince yeniden çıkar. **Oto-uygulamaz,
+sorar** (§1 — anlık okuma dalgalanabilir). Veri zaten akıştaki `session.wetness`'ten
+(`wxSug`) → **oyun PC'sine/köprüye ek yük yok (§0)**. Görünürlük mantığı saf +
+testli: `liveSync.showWxBanner`. UI: `LiveTab.jsx` (üst çubuk), `App.jsx` (prop
+geçişi), `styles.js` (keyframe'ler).
+
 ### Resmi Yarışlar (takvim): lmugarage → lmuportal
 
 lmugarage.com çalışmadığı için Resmi Yarışlar sekmesi boşalmıştı (yaklaşan yarış
