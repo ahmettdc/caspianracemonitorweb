@@ -3317,7 +3317,7 @@ ${bottomBar}
   const raceCur = curRace ? races[curRace] : null;
   const racePast = !!(raceCur && isRacePast(raceCur, Date.now()));
   const raceValid = !!(raceCur && !racePast);
-  const RACE_NEED = ["dash", "stint", "code80", "live", "tyre", "fuel"];
+  const RACE_NEED = ["dash", "stint", "code80", "live", "tyre", "fuel", "drivers"];
   const rcInfo = races[curRace] || {};
   const raceTitle = rcInfo.name || trackName(rcInfo.trackId || st.track) || t("Yarış");
   const raceSub = [rcInfo.round ? `R${rcInfo.round}` : "", trackName(rcInfo.trackId || st.track),
@@ -3928,7 +3928,7 @@ ${bottomBar}
               readOnly={!canEdit} />
           )}
 
-          {tab === "drivers" && (
+          {tab === "drivers" && raceValid && (
             <DriversTab t={t} st={st} up={up} driverPlan={driverPlan}
               fmtClock={fmtClock} removeDriver={removeDriver} teamDrivers={teamDrivers}
               addPoolDriver={addPoolDriver} assignDriver={assignDriver} teamData={teamData}
