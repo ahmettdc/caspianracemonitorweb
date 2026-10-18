@@ -138,6 +138,12 @@ describe("applyQuickTyre", () => {
     const r = applyQuickTyre(s, 1, "new4");
     expect(r).toBe(s); // aynı referans → değişmedi
   });
+  it("wet4: 4 köşe W; limit dolu olsa bile engellenmez (wet sınırsız)", () => {
+    const s = base({ tyreLimit: 4 }); // kuru lastik hakkı bitmiş
+    const r = applyQuickTyre(s, 0, "wet4");
+    expect(r.tyreStints[0]).toEqual(["W", "W", "W", "W"]);
+    expect(r).not.toBe(s); // uygulandı (engellenmedi)
+  });
 });
 
 describe("tur/override reducer'ları", () => {
