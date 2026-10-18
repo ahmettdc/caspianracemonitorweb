@@ -3306,12 +3306,17 @@ ${bottomBar}
      sol ray. Değerler fişteki dinamik stil objelerinden birebir; hex → var(--rc-*). */
   /* ---- v2.0 yarış üst çubuğu (handoff-spec/ekranlar/00-yaris-ust-cubugu.md) ---- */
   const isRace = ["live", "dash", "stint", "fuel", "tyre", "drivers", "stratcomp"].includes(tab);
-  /* Seçili yarış GEÇERLİ mi: curRace listedeki bir yarışı gösteriyor mu? Yarış
-     silinince curRace o id'yi göstermeye devam edebiliyor (races[curRace] boş) ama
-     st eski yarışı tutuyor → Dashboard/Stint/Live'da FANTOM "yarış" çıkıyor, Live
-     eski veriyle karışabiliyordu. Bu durumda yarışa bağlı sekmeler boş-durum kartı
-     gösterir (CLAUDE.md §1: olmayan yarışı "varmış gibi" göstermeyiz). */
-  const raceValid = !!(curRace && races[curRace]);
+  /* Seçili yarış GEÇERLİ mi: curRace listedeki bir yarışı gösteriyor mu VE o yarış
+     bitmiş değil mi? İki fantom yolu:
+       (a) yarış silinince curRace dangling kalır (races[curRace] boş),
+       (b) aktif/yaklaşan yarış yokken defaultPick EN SON GEÇMİŞ yarışı otomatik açar
+           (Dash/Stint'e tıklayınca eski 24h Le Mans "varmış gibi" çıkar — saha bunu
+           bildirdi). İkisinde de st eski yarışı tutuyor → fantom.
+     Geçerli yarış yoksa (ya da bitmişse) yarışa bağlı sekmeler boş-durum kartı
+     gösterir (CLAUDE.md §1: olmayan/biten yarışı "varmış gibi" çizmeyiz). */
+  const raceCur = curRace ? races[curRace] : null;
+  const racePast = !!(raceCur && isRacePast(raceCur, Date.now()));
+  const raceValid = !!(raceCur && !racePast);
   const RACE_NEED = ["dash", "stint", "code80", "live", "tyre", "fuel"];
   const rcInfo = races[curRace] || {};
   const raceTitle = rcInfo.name || trackName(rcInfo.trackId || st.track) || t("Yarış");
@@ -3771,7 +3776,7 @@ ${bottomBar}
             <div style={{ padding: "56px 20px", display: "flex", justifyContent: "center", animation: "rcin .26s ease-out" }}>
               <div style={{ maxWidth: 440, textAlign: "center", border: "1px solid var(--rc-border)", borderRadius: 14, background: "var(--rc-surface)", padding: "30px 26px" }}>
                 <div style={{ fontSize: 34, marginBottom: 10 }}>🏁</div>
-                <div style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 19, marginBottom: 8 }}>{t("Seçili yarış yok")}</div>
+                <div style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 19, marginBottom: 8 }}>{racePast ? t("Bu yarış sona erdi") : t("Seçili yarış yok")}</div>
                 <p style={{ margin: "0 0 20px", fontSize: 13, lineHeight: 1.6, color: "var(--rc-text-3)" }}>
                   {t("Bu sekme bir yarış gerektirir. Ana menüden bir yarış seç ya da yeni bir yarış oluştur.")}</p>
                 <button onClick={leaveRace} style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "11px 22px", borderRadius: 10, border: "none", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 13, letterSpacing: ".03em" }}>

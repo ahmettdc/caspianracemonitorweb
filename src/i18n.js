@@ -954,6 +954,7 @@ export const EN = {
   "Canlı": "Live", "geçişi ekle": "add transition",
   "Zemin değişti": "Track changed", "planı güncelle": "update the plan", "Uygula": "Apply",
   "Seçili yarış yok": "No race selected",
+  "Bu yarış sona erdi": "This race has ended",
   "Bu sekme bir yarış gerektirir. Ana menüden bir yarış seç ya da yeni bir yarış oluştur.": "This tab needs a race. Pick a race from the main menu or create a new one.",
   "Canlı AVG5": "Live AVG5", "uygula": "apply",
   "Araç pit yoluna girince PIT otomatik işaretlenir (yalnız canlı kaynağı yazan PC tetikler)":
