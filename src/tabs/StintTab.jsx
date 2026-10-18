@@ -80,9 +80,9 @@ export default function StintTab({
             <button onClick={() => quickTyre(0, "carry")}>{t("Qual ile başla")}</button>
             <button disabled={tyreInfo.available < 4} onClick={() => quickTyre(0, "new4")}>{t("4 yeni")}</button>
             {/* 4 WET: ıslakta başlama. Wet lastik SINIRSIZ (lastik bütçesine sayılmaz)
-                → asla disable değil. applyQuickTyre "wet4" = ["W","W","W","W"]. */}
-            <button onClick={() => quickTyre(0, "wet4")} title={t("4 wet lastik (sınırsız)")}
-              style={{ color: "#2E86DE", borderColor: "#2E86DE" }}>Wet</button>
+                → asla disable değil. applyQuickTyre "wet4" = ["W","W","W","W"].
+                Stil diğer hızlı seçim düğmeleriyle aynı (.pitopt). */}
+            <button onClick={() => quickTyre(0, "wet4")} title={t("4 wet lastik (sınırsız)")}>Wet</button>
             <button disabled={tyreInfo.available < 2} onClick={() => quickTyre(0, "fronts")}>{t("2 yeni ön")}</button>
             <button disabled={tyreInfo.available < 2} onClick={() => quickTyre(0, "rears")}>{t("2 yeni arka")}</button>
             <button disabled={tyreInfo.available < 2} onClick={() => quickTyre(0, "lefts")}>{t("2 yeni sol")}</button>

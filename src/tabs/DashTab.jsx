@@ -5,23 +5,33 @@ import { carImageSrc } from "../teamAssets";
 import { compoundInfo } from "../tyreCompound";
 import { Tyre, Bolt, Icon } from "../components";
 
-/* STINT PROGRAMI → LASTİK hücresi (v2.4.4).
-   Kod bir BİLEŞİM ise (W/S/M/H → compoundInfo.cls) küçük bileşim logosunu göster
-   (canlı timing'deki CompoundIcon ile aynı varlıklar: assets/tyre-compound/<cls>.png).
-   Set NUMARASI ise (ör. "5", "13") sayıyı AYNEN bırak — set→bileşim eşlemesi veride
-   YOK, numarayı bir bileşim logosuna çevirmek uydurmak olur (CLAUDE.md §1).
-   Logo yüklenmezse (dosya yok) kısaltma metnine düşer (onError). */
-export function TyreCell({ code, t }) {
-  const info = code ? compoundInfo(code) : null;
+/* STINT PROGRAMI → LASTİK hücresi (v2.5.x).
+   PLAN modelinde lastik iki türdür: ISLAK ("W") ve KURU (set numarası, ör. "5"/"13").
+   - Islak/bileşim kodu (W/S/M/H → compoundInfo.cls) → bileşim logosu
+     (assets/tyre-compound/<cls>.png).
+   - Kuru set numarası → KURU/slick lastik logosu (Tyre = assets/tyre.png). Plan'da
+     numara HER ZAMAN kuru demektir (tek alternatif "W") → "kuru" göstermek uydurma
+     DEĞİL; spesifik bileşim (soft/medium/hard) İDDİA ETMİYORUZ, yalnız kuru/ıslak
+     ayrımını gösteriyoruz. Bu hücre yalnız PLAN verisiyle beslenir (canlı/oyun seti
+     değil → §1 güvende; v2.5.0'daki "numarayı çevirme" kaydı canlı veri içindi).
+   used=true (lastik önceki stint/qual'dan TAŞINMIŞ = kullanılmış) → logo SOLUK.
+   Logo yüklenmezse (dosya yok) onError gizler. */
+export function TyreCell({ code, t, used = false }) {
+  const raw = String(code ?? "").trim();
+  const info = raw ? compoundInfo(raw) : null;
+  const dim = used ? { opacity: 0.4 } : null;
   if (info?.cls) {
     return (
       <img src={`${ASSET}tyre-compound/${info.cls}.png`} alt={info.label}
-        title={`${t("Lastik")}: ${info.label}`}
-        onError={(e) => {
-          // dosya yoksa logoyu gizle, hücre boş kalmasın diye başlık kodu taşır
-          e.currentTarget.style.display = "none";
-        }}
-        style={{ height: 18, width: 18, objectFit: "contain", verticalAlign: "middle", display: "inline-block" }} />
+        title={`${t("Lastik")}: ${info.label}${used ? ` · ${t("kullanılmış")}` : ""}`}
+        onError={(e) => { e.currentTarget.style.display = "none"; }}
+        style={{ height: 18, width: 18, objectFit: "contain", verticalAlign: "middle", display: "inline-block", ...dim }} />
+    );
+  }
+  if (/^\d+$/.test(raw)) {   // kuru set numarası → kuru/slick lastik logosu
+    return (
+      <span title={`${t("Lastik")}: ${t("Kuru")}${used ? ` · ${t("kullanılmış")}` : ""}`}
+        style={{ display: "inline-flex", ...dim }}><Tyre size={18} /></span>
     );
   }
   return <>{code || "—"}</>;
@@ -54,6 +64,16 @@ export default function DashTab({
     const m = {};
     codes.forEach((c) => { m[c] = (m[c] || 0) + 1; });
     return Object.entries(m).sort((a, b) => b[1] - a[1])[0][0];
+  };
+  /* Kuru set i. stintte "kullanılmış" mı: aynı set numarası daha önceki bir stintte
+     ya da qual'da geçtiyse taşınmış/kullanılmış demektir (logo soluk gösterilir).
+     Yalnız kuru set numaraları için anlamlı; "W" (ıslak) izlenmez. */
+  const tyreUsed = (i, code) => {
+    if (!/^\d+$/.test(String(code).trim())) return false;
+    const seen = (arr) => (arr || []).some((x) => String(x).trim() === String(code).trim());
+    if (seen(st.tyreQual)) return true;
+    for (let j = 0; j < i; j++) if (seen(st.tyreStints[j])) return true;
+    return false;
   };
 
   const card = { border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)", overflow: "hidden" };
@@ -151,7 +171,7 @@ export default function DashTab({
                       </td>
                       <td style={tdB}>{fmtHMS(r.endSec)}</td>
                       <td style={{ ...tdB, color: r.timeLeft < 0 ? "var(--rc-danger)" : "var(--rc-ok)" }}>{fmtHMS(r.timeLeft)}</td>
-                      <td style={{ ...tdB, width: 64, color: "var(--rc-text-2)" }}><TyreCell code={tyre} t={t} /></td>
+                      <td style={{ ...tdB, width: 64, color: "var(--rc-text-2)" }}><TyreCell code={tyre} t={t} used={tyreUsed(i, tyre)} /></td>
                     </tr>
                   );
                 })}

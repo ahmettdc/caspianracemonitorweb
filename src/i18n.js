@@ -1564,6 +1564,7 @@ export const EN = {
   "S1 start lastikleri": "S1 starting tyres",
   "4 yeni": "4 new",
   "4 wet lastik (sınırsız)": "4 wet tyres (unlimited)",
+  "kullanılmış": "used",
   "2 yeni arka": "2 new rear",
   "2 yeni sol": "2 new left",
   "1 yeni": "1 new",
