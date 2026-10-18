@@ -2,6 +2,23 @@
 
 ## v2.5.2 — 2026-10-18
 
+### Resmi Yarışlar (takvim): lmugarage → lmuportal
+
+lmugarage.com çalışmadığı için Resmi Yarışlar sekmesi boşalmıştı (yaklaşan yarış
+yok, eski kayıtlar kalıyordu). Takvim artık **lmuportal.com'un herkese açık Supabase
+API'sinden** çekiliyor:
+
+- `race_event` (+ `race_series`) → daily / weekly / special
+- `championship_event` (+ `championship_series`) → championship (pist `round_name`'den)
+
+Yalnız canlı + yaklaşan (`race_ends_at >= now`) çekilir; durum client-side hesaplanır.
+Çıktı `/lmuSchedule` şekli aynı tutuldu → `ScheduleTab`, `lmuSchedule.js`,
+`useLmuSchedule` değişmeden çalışır. Dönüşüm saf + testli modülde:
+`src/lmuScheduleMap.js`. Eski lmugarage HTML parser'ı (`src/lmuParse.js`) ve testi
+kaldırıldı (ölü kod). §1: pist/tarih çözülemeyen kayıt listeye girmez.
+
+### Araç tur zamanları kaynağı değişti
+
 Araç tur zamanları kaynağı değişti: eski "Ohne Speed" Google tablosu (küratörlü,
 modellenmiş tempo merdiveni: alien ~%100, %101…%107) yerine **lmuportal.com'un
 herkese açık Supabase API'si** — sürücülerin gerçekten kaydettiği leaderboard

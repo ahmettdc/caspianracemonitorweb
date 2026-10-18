@@ -26,6 +26,7 @@ export const EN = {
   "başlıyor": "starting",
   "Güvenlik derecesi şartı": "Safety rating requirement",
   "lmugarage'da aç": "Open on lmugarage",
+  "lmuportal'da aç": "Open on lmuportal",
   "Bu yarışa planla": "Plan this race",
   "Planla": "Plan",
   "Resmi seans başı": "Official session start",

@@ -3,7 +3,7 @@
    ------------------------------------------------------------
    Hero (sıradaki resmi yarış) + özet + arama/seri/sınıf/pist/SR filtreleri +
    GÜN gruplu ajanda satırları. Türetme SAF (src/lmuSchedule.js) + useMemo.
-   Renkler var(--rc-*). Kaynak: lmugarage.com (resmi olmayan topluluk projesi).
+   Renkler var(--rc-*). Kaynak: lmuportal.com (resmi olmayan topluluk projesi).
    ============================================================ */
 import { useState, useEffect, useMemo } from "react";
 import { TRACKS, TRACK_ASSET, ASSET, AV } from "../constants";
@@ -130,7 +130,7 @@ export default function ScheduleTab({ t, lang = "tr", races = [], updatedAt, loa
     <div style={{ padding: "18px 20px 40px", fontFamily: "var(--rc-font-ui)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
         <h2 style={{ margin: 0, fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".06em", fontSize: 22, fontWeight: 700 }}>{t("Resmi Yarışlar")}</h2>
-        <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>{updatedAt ? `${t("Güncellendi")} ${fmtClock(updatedAt, lang)} · ` : ""}{t("kaynak")} <a {...extHref("https://lmugarage.com")} style={{ color: "var(--rc-brand-bright)" }}>lmugarage.com</a></span>
+        <span style={{ color: "var(--rc-text-3)", fontSize: 12 }}>{updatedAt ? `${t("Güncellendi")} ${fmtClock(updatedAt, lang)} · ` : ""}{t("kaynak")} <a {...extHref("https://lmuportal.com")} style={{ color: "var(--rc-brand-bright)" }}>lmuportal.com</a></span>
       </div>
 
       {/* hero + özet */}
@@ -235,7 +235,7 @@ export default function ScheduleTab({ t, lang = "tr", races = [], updatedAt, loa
                   {r.sr && <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 11, textTransform: "uppercase", letterSpacing: ".05em", padding: "3px 9px", borderRadius: 8, border: "1px solid var(--rc-border-strong)", color: "var(--rc-text-2)", flex: "0 0 auto", whiteSpace: "nowrap" }}>SR {r.sr}</span>}
                   <span style={{ fontFamily: "var(--rc-font-display)", fontSize: 12.5, color: live ? "var(--rc-ok)" : "var(--rc-text-3)", flex: "0 0 auto", whiteSpace: "nowrap", minWidth: 54, textAlign: "right" }}>{live ? t("başlıyor") : countdown(r.startMs, now, t)}</span>
                   <span style={{ display: "flex", gap: 6, flex: "0 0 auto" }}>
-                    {r.url && <a {...extHref(r.url)} title={t("lmugarage'da aç")} style={{ display: "inline-grid", placeItems: "center", width: 32, height: 32, borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", textDecoration: "none", fontSize: 12 }}>↗</a>}
+                    {r.url && <a {...extHref(r.url)} title={t("lmuportal'da aç")} style={{ display: "inline-grid", placeItems: "center", width: 32, height: 32, borderRadius: 9, border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", textDecoration: "none", fontSize: 12 }}>↗</a>}
                     {onPlan && <button onClick={() => onPlan(r)} title={t("Bu yarışa planla")}
                       style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 9, cursor: "pointer", fontSize: 12, whiteSpace: "nowrap",
                         border: `1px solid ${live ? "var(--rc-brand-bright)" : "var(--rc-border)"}`, background: live ? "var(--rc-brand)" : "var(--rc-surface-3)", color: live ? "var(--rc-on-brand)" : "var(--rc-text-2)" }}><Icon name="plan" size={14} /> {t("Planla")}</button>}
