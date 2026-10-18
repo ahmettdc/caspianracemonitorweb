@@ -278,7 +278,7 @@ export function AdminModal({ open, onClose, users, meUid, onToggle, t, lang }) {
     return new Date(ts).toLocaleDateString(lang === "en" ? "en-GB" : "tr-TR", { day: "numeric", month: "short" });
   };
   return (
-    <div onClick={onClose} role="dialog" aria-modal="true"
+    <div role="dialog" aria-modal="true"
       style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(10,6,10,.74)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
       <div onClick={(e) => e.stopPropagation()}
         style={{ width: "min(720px,96vw)", maxHeight: "86vh", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
@@ -1189,7 +1189,7 @@ export function VersionModal({ open, onClose, t, lang, onStartGuide }) {
   const newest = all[0]?.v || CUR;
   const notes = all.filter((c) => !wnV || c.v === wnV);
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 1000, background: "var(--rc-scrim)",
+    <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "var(--rc-scrim)",
       backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
       <div onClick={(e) => e.stopPropagation()} style={{ width: "min(860px,96vw)", height: "min(680px,86vh)",
         background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden",
@@ -1280,9 +1280,11 @@ export function RaceEditModal({ rForm, setRForm, t, seasons, onSave, onProceed, 
   const lbl = { display: "block", color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 6 };
   const inp = { width: "100%", boxSizing: "border-box", background: "var(--rc-surface-3)", border: "1px solid var(--rc-border)", borderRadius: 10, color: "var(--rc-text)", padding: "11px 12px", fontSize: 13 };
   const curTrackName = trackName(rForm.trackId) || t("Pist seçilmedi");
+  // Backdrop'ta dış-tık KAPATMA YOK: form uzun (pist/araç/süre/başlangıç) —
+  // yanlışlıkla dışarı tıklayınca girilen her şey uçuyordu. Yalnız ✕ ve Vazgeç kapatır.
   return (
-    <div onClick={() => setRForm(null)} style={{ position: "fixed", inset: 0, zIndex: 1030, background: "var(--rc-scrim)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ width: "min(820px,96vw)", maxHeight: "88vh", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 1030, background: "var(--rc-scrim)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
+      <div style={{ width: "min(820px,96vw)", maxHeight: "88vh", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
 
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 20px", borderBottom: "1px solid var(--rc-border)" }}>
           <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".07em", fontSize: 19, fontWeight: 700 }}>{rForm.rid ? t("Yarışı Düzenle") : t("Yarış Ekle")}</span>
@@ -1481,7 +1483,7 @@ export function ChatModal({ open, onClose, t, lang, chatSound, toggleChatSound, 
   const metaOf = (c) => (c.id === "team" ? t("takım kanalı") : c.id === "global" ? t("genel kanal") : t("yarışa özel kanal"));
   const lastOf = (c) => { const m = (chatAll?.[c.path] || []); return m[m.length - 1]; };
   return (
-    <div className="rc" onClick={onClose} role="dialog" aria-modal="true"
+    <div className="rc" role="dialog" aria-modal="true"
       style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(10,6,10,.86)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
       {/* v2.2.3 — "Sol KANALLAR paneli görünmüyor" hatasının GERÇEK sebebi.
           v2.2.1/v2.2.2'deki "GPU compositing" teşhisi YANLIŞTI; panel her zaman
@@ -1691,7 +1693,7 @@ export function SetupContentModal({ open, su, onClose, t, onDownload, onAddCompa
     border: `1px solid ${on ? "var(--rc-brand-bright)" : "var(--rc-border)"}`, background: on ? "rgba(150,0,24,.22)" : "var(--rc-surface-3)", color: on ? "var(--rc-text)" : "var(--rc-text-2)" });
   const carTitle = carName(su.cls, su.car) || su.car || "—";
   return (
-    <div onClick={onClose} role="dialog" aria-modal="true"
+    <div role="dialog" aria-modal="true"
       style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(10,6,10,.78)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
       <div onClick={(e) => e.stopPropagation()}
         style={{ width: "min(880px,96vw)", maxHeight: "90vh", display: "flex", flexDirection: "column", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .22s cubic-bezier(.2,.9,.3,1.05)" }}>
@@ -1874,7 +1876,7 @@ export function SetupCompareModal({ open, a, b, onClose, t }) {
     </div>
   );
   return (
-    <div onClick={onClose} role="dialog" aria-modal="true"
+    <div role="dialog" aria-modal="true"
       style={{ position: "fixed", inset: 0, zIndex: 1010, background: "rgba(10,6,10,.8)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
       <div onClick={(e) => e.stopPropagation()}
         style={{ width: "min(940px,96vw)", maxHeight: "92vh", display: "flex", flexDirection: "column", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .22s cubic-bezier(.2,.9,.3,1.05)" }}>
@@ -1962,7 +1964,7 @@ export function SetupModal({ open, onClose, t, suUpOpen, setSuUpOpen, suList, se
   suHasMore, loadMoreSetups, setupForm, setupTable }) {
   if (!open) return null;
   return (
-    <div className="wxmodal" onClick={onClose}>
+    <div className="wxmodal">
       <div className="wxmbox" style={{ width: "min(1080px,97vw)" }}
         onClick={(e) => e.stopPropagation()}>
         <div className="wxmhead">
@@ -2114,7 +2116,7 @@ export function CreateJoinModal({ open, onClose, user, t, userName,
   );
 
   return (
-    <div style={overlay} onClick={onClose}>
+    <div style={overlay}>
       <div style={box} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "18px 22px", borderBottom: "1px solid var(--rc-border)" }}>
           <h2 style={{ margin: 0, ...disp, fontSize: 20 }}>{t("Takıma Bağlan")}</h2>
@@ -2652,7 +2654,7 @@ export function TeamModal({ open, onClose, user, t, lang, myTeams, curTeam, setC
   const astKey = astCar ? carAssetKey(astCls, astCar) : "";
   const astCustom = (angle) => teamData?.assets?.cars?.[astKey]?.[angle] || "";
   return (
-        <div className="wxmodal" onClick={onClose}>
+        <div className="wxmodal">
           <div className="wxmbox" style={{ width: "min(680px,95vw)" }}
             onClick={(e) => e.stopPropagation()}>
             <div className="wxmhead">
@@ -2959,7 +2961,7 @@ export function ConfirmHost() {
   const accent = danger ? "var(--rc-danger)" : "var(--rc-brand-bright)";
 
   return (
-    <div style={overlay} onClick={onCancel}>
+    <div style={overlay}>
       <div style={box} onClick={(e) => e.stopPropagation()}>
         <div style={{ padding: "22px 22px 18px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
           <span style={{ width: 44, height: 44, borderRadius: 12, display: "grid", placeItems: "center",

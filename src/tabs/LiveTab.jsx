@@ -271,7 +271,7 @@ function LapsModal({ t, tid, rid, row, canEdit, demo, onClose }) {
     try { await liveHistoryClearAll(tid, rid); setCleared(true); } catch { /* yoksay */ }
   };
   return (
-    <div onClick={onClose} role="dialog" aria-modal="true"
+    <div role="dialog" aria-modal="true"
       style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(10,6,10,.74)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
       <div onClick={(e) => e.stopPropagation()}
         style={{ width: "min(880px,96vw)", maxHeight: "84vh", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>

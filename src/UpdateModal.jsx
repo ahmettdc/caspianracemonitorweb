@@ -109,7 +109,7 @@ export default function UpdateModal({
   };
 
   return (
-    <div className="rc" onClick={forced ? undefined : onClose} role="dialog" aria-modal="true"
+    <div className="rc" role="dialog" aria-modal="true"
       aria-label={t.title}
       style={{ position: "fixed", inset: 0, zIndex: 1090, display: "flex", alignItems: "center",
         justifyContent: "center", padding: 24, isolation: "isolate",

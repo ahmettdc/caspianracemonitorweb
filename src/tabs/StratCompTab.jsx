@@ -680,7 +680,7 @@ export function RowEditModal({ t, row, idx, res, warns = [], carList = [],
   carClasses = [], clsSel, opts = [], carSrc, onUp, onDel, onSeedInto, onClose }) {
   const hideOnErr = (e) => { e.currentTarget.style.display = "none"; };
   return (
-      <div onClick={() => onClose()}
+      <div
         style={{ position: "fixed", inset: 0, zIndex: 100, background: "var(--rc-scrim-strong)",
           display: "flex", alignItems: "center", justifyContent: "center", padding: 32 }}>
         <div onClick={(e) => e.stopPropagation()}

@@ -1373,7 +1373,7 @@ ${bottomBar}
           .map((w) => w[0]).slice(0, 2).join("") || (user.email || "?")[0]).toUpperCase();
         const lbl = { display: "block", color: "var(--rc-text-3)", fontSize: 10, textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 6 };
         return (
-        <div className="rc" onClick={() => setProfOpen(false)} role="dialog" aria-modal="true"
+        <div className="rc" role="dialog" aria-modal="true"
           style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(10,6,10,.74)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
           <div onClick={(e) => e.stopPropagation()}
             style={{ width: "min(680px,96vw)", maxHeight: "86vh", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
@@ -1607,7 +1607,7 @@ ${bottomBar}
       up({ weatherLog: log }); setWxModal(false); setWxPlanT("");
     };
     return (
-      <div onClick={() => setWxModal(false)} style={{ position: "fixed", inset: 0, zIndex: 1000, background: "var(--rc-scrim)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
+      <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "var(--rc-scrim)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
         <div onClick={(e) => e.stopPropagation()} style={{ width: "min(720px,96vw)", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .24s cubic-bezier(.2,.9,.3,1.1)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 20px", borderBottom: "1px solid var(--rc-border)" }}>
             <span style={{ fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".07em", fontSize: 19, fontWeight: 700 }}>{t("Hava geçişi ekle")}</span>
@@ -3835,7 +3835,7 @@ ${bottomBar}
 
               {/* Setup yükle — modal */}
               {suUpOpen && (
-                <div onClick={() => setSuUpOpen(false)} role="dialog" aria-modal="true"
+                <div role="dialog" aria-modal="true"
                   style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(10,6,10,.78)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, animation: "rcfade .18s ease" }}>
                   <div onClick={(e) => e.stopPropagation()}
                     style={{ width: "min(760px,96vw)", maxHeight: "90vh", display: "flex", flexDirection: "column", background: "var(--rc-surface)", border: "1px solid var(--rc-border-strong)", borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 70px rgba(0,0,0,.6)", animation: "rcpop .22s cubic-bezier(.2,.9,.3,1.05)" }}>
