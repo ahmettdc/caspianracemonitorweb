@@ -953,6 +953,8 @@ export const EN = {
   "oyunda": "in game", "planda": "in plan", "işaretli": "marked", "pit": "pit stops",
   "Canlı": "Live", "geçişi ekle": "add transition",
   "Zemin değişti": "Track changed", "planı güncelle": "update the plan", "Uygula": "Apply",
+  "Seçili yarış yok": "No race selected",
+  "Bu sekme bir yarış gerektirir. Ana menüden bir yarış seç ya da yeni bir yarış oluştur.": "This tab needs a race. Pick a race from the main menu or create a new one.",
   "Canlı AVG5": "Live AVG5", "uygula": "apply",
   "Araç pit yoluna girince PIT otomatik işaretlenir (yalnız canlı kaynağı yazan PC tetikler)":
     "PIT is marked automatically when the car enters the pit lane (only the PC writing the live feed triggers it)",
