@@ -1,5 +1,47 @@
 # Changelog
 
+## v2.5.2 — 2026-10-18
+
+Araç tur zamanları kaynağı değişti: eski "Ohne Speed" Google tablosu (küratörlü,
+modellenmiş tempo merdiveni: alien ~%100, %101…%107) yerine **lmuportal.com'un
+herkese açık Supabase API'si** — sürücülerin gerçekten kaydettiği leaderboard
+turları. İlk bildirim: *"lmugarage çalışmıyor, resmi yarışları çekemiyoruz;
+onun yerine lmuportal.com'u kullanalım."*
+
+### Kaynak: Google Sheet CSV → lmuportal Supabase (gerçek leaderboard)
+
+`scripts/fetch-lmu-laptimes.mjs` artık `db.lmuportal.space` (PostgREST) üzerinden
+iki tablo okur:
+
+- `race_series_leaderboard_current` — rotasyondaki pistlerin canlı sıralaması
+  (sürücü, takım, tur, **sektörler**, **lastik bileşimi**, DR/SR). ~1500 satır,
+  iki sayfa.
+- `race_series.fastest_laps` — tüm serilerdeki sınıf P1'leri; canlı leaderboard
+  yalnız ~9 pisti verdiğinden geniş pist kapsamı (19 pist) bununla tamamlanır.
+
+Anon JWT herkese açık (istemci bundle'ında da aynısı, RLS korumalı) — gizli
+değil, yeni secret gerekmez. Günlük GitHub Action (04:17 UTC) değişmedi; "0
+üretilirse dosyayı ezme" güvenliği korundu.
+
+Dönüşüm mantığı saf, bağımsız ve testli modülde: `src/lmuLaptimes.js`
+(`buildLaptimes`, `mergeLaptimes`, `applyTrackAliases`; 16 test).
+
+### Veri dürüstlüğü (CLAUDE.md §1): takım adı üreticiye zorlanmaz
+
+Leaderboard'daki araç alanı çoğunlukla bir takım/livery adıdır ("Garage 59",
+"AF Corse", "Team WRT") ve markayı belirtmez. Uygulamanın araç id'lerine
+(ferrari/bmw…) zorlamak uydurma olurdu → takım adı **aynen** taşınır. Araç id'si
+yalnız livery adı model kodunu açıkça taşıyorsa (499P→ferrari, 911GT3R→porsche,
+963, 9x8…) best-effort eşlenir, aksi halde boş kalır (yalnız satır vurgusu için).
+
+### UI: tempo merdiveni → gerçek leaderboard
+
+Dashboard araç kutusu (lightbox) ve Yarış Ekle önizlemesi, alien/%101…%107
+merdiveni yerine gerçek P1 + ilk sıraları gösterir (sektör/compound, seçili araç
+satırı vurgulu). Strateji Karşılaştırma'nın ortalama tur tohumu (`avgLap`)
+sınıf P1 × 1,02 olarak korunur (modellenmiş, etiketli) — `trackDefaults`
+değişmeden çalışır.
+
 ## v2.5.0 — 2026-10-10
 
 Saha sürümü — dört düzeltme/özellik: masaüstünde ayrı harita penceresi,
