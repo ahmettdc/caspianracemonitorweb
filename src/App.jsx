@@ -3365,6 +3365,19 @@ ${bottomBar}
   const staleDot = feed ? { display: "none" }
     : { width: 6, height: 6, borderRadius: "50%", background: "var(--rc-warn)", flex: "0 0 auto", animation: "rcpulse 1.6s ease-in-out infinite" };
 
+  /* Canlı ıslaklık bildirim çubuğunun (LiveTab) "Uygula"sı — zemin kademesini şu
+     anki yarış saatinden plana işler. ANA RENDER KAPSAMINDA tanımlı (içteki pickWx
+     yardımcıları ayrı kapanışlarda; buradan erişilemez → v2.5.2'de "pickWx is not
+     defined" hatasını bu doğurdu). Mantık pickWx ile aynı; up/st/liveInfo top-level. */
+  const applyLiveWx = (id) => {
+    const el = liveInfo.status === "live" ? Math.max(0, Math.round(liveInfo.elapsed / 1000)) : 0;
+    let past = (st.weatherLog || []).filter((e) => e.t < el - 0.5);
+    const future = (st.weatherLog || []).filter((e) => e.t > el + 0.5);
+    if (el < 1) past = [];
+    const log = [...past, { t: el, w: id, src: "live" }, ...future].sort((a, b) => a.t - b.t);
+    up({ weather: id, weatherLog: log });
+  };
+
   return (
     <div className="rc">
       {updateModal}
@@ -3857,7 +3870,7 @@ ${bottomBar}
           {tab === "live" && <LiveTab t={t} live={live} liveFuelObs={liveFuelObs}
             lapCapture={lapCapture}
             canEdit={canEditTeam} tid={curTeam} rid={curRace}
-            isAdmin={isAdmin} wxSug={wxSug} onApplyWx={pickWx}
+            isAdmin={isAdmin} wxSug={wxSug} onApplyWx={applyLiveWx}
             ownTopSrc={carImageSrc(teamData?.assets, st.carClass, st.car, "top")} />}
 
           {tab === "tyre" && (
