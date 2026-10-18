@@ -3317,7 +3317,7 @@ ${bottomBar}
   const raceCur = curRace ? races[curRace] : null;
   const racePast = !!(raceCur && isRacePast(raceCur, Date.now()));
   const raceValid = !!(raceCur && !racePast);
-  const RACE_NEED = ["dash", "stint", "code80", "live", "tyre", "fuel", "drivers"];
+  const RACE_NEED = ["dash", "stint", "code80", "live", "tyre", "fuel", "drivers", "stratcomp"];
   const rcInfo = races[curRace] || {};
   const raceTitle = rcInfo.name || trackName(rcInfo.trackId || st.track) || t("Yarış");
   const raceSub = [rcInfo.round ? `R${rcInfo.round}` : "", trackName(rcInfo.trackId || st.track),
@@ -3916,7 +3916,7 @@ ${bottomBar}
               readOnly={!canEdit} />
           )}
 
-          {tab === "stratcomp" && (
+          {tab === "stratcomp" && raceValid && (
             <StratCompTab t={t} st={st} plan={racePlan}
               tracks={TRACKS} carClasses={CAR_CLASSES}
               trackDefs={stratDefs} lmuReady={!!lmuData}
