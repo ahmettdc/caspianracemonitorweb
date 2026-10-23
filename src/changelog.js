@@ -5,6 +5,20 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v2.5.2",
+    date: "2026-10-18",
+    tr: [
+      "🛞 DASHBOARD STINT PROGRAMI → LASTİK sütununda KURU set artık sayı yerine kuru lastik logosu gösteriyor; lastik önceki stint/qual'dan TAŞINMIŞSA (kullanılmış) logo SOLUK çiziliyor. Islak zaten bileşim logosuyla görünüyordu. (Plan modelinde set numarası = kuru, 'W' = ıslak; spesifik bileşim iddia edilmez.) Ayrıca S1 başlangıç lastiklerindeki 'Wet' düğmesi diğer hızlı seçimlerle aynı renge getirildi.",
+      "🏁 SİLİNEN/SEÇİLİ OLMAYAN YARIŞTA DASHBOARD/STINT/LIVE ARTIK FANTOM YARIŞ GÖSTERMİYOR. Bir yarış silinince seçim o yarışı göstermeye devam edebiliyor, eski veri \"yarış varmış gibi\" (ör. rastgele bir 24h Le Mans) görünüyor, Canlı'ya basınca da sorun çıkıyordu. Artık geçerli bir yarış yoksa bu sekmeler net bir \"Seçili yarış yok\" kartı + Ana Menü düğmesi gösteriyor (olmayan yarışı varmış gibi çizmiyoruz).",
+      "🌧️ CANLI TIMING'DE ZEMİN ISLANINCA/KURUYUNCA ARTIK SAHANIN ÜSTÜNDE ANIMASYONLU BİR BİLDİRİM ÇUBUĞU ÇIKIYOR. Önceden zemin kademesi (damp/ıslak/kuru) değiştiğinde öneri yalnız alt paneldeki \"Hava durumu\" kartında bir çipti; sahaya/tabloya odaklanınca kaçırılıp geçiş 5-6 dk geç ekleniyordu. Artık ıslaklık kademesi plandan ayrışır ayrılmaz üstte \"Zemin değişti → <kademe>\" çubuğu beliriyor; tek tık \"Uygula\" ile geçiş plana eklenir, ✕ ile kapatılır. Kademe tekrar değişince (ör. damp→ıslak) yeniden çıkar. Oto-uygulamaz, SORAR (anlık okuma dalgalanabilir — karar sizde). Ek oyun/köprü yükü yok: zaten akmakta olan ıslaklık verisinden çıkar.",
+    ],
+    en: [
+      "🛞 ON THE DASHBOARD STINT PROGRAM → TYRES column, a DRY set now shows a dry tyre logo instead of the set number; if the tyre is CARRIED from a previous stint/qual (used), the logo is DIMMED. Wet already showed its compound logo. (In the plan model a set number means dry, 'W' means wet; we don't claim a specific compound.) Also, the 'Wet' button in the S1 starting tyres now matches the other quick-select buttons' color.",
+      "🏁 DASHBOARD/STINT/LIVE NO LONGER SHOW A PHANTOM RACE WHEN NONE IS SELECTED OR THE RACE WAS DELETED. After a race was deleted the selection could keep pointing at it, so stale data appeared as if a race existed (e.g. a random 24h Le Mans), and opening Live misbehaved. Now, with no valid race, these tabs show a clean \"No race selected\" card with a Main Menu button (we don't draw a race that isn't there).",
+      "🌧️ IN LIVE TIMING, WHEN THE TRACK GETS WET OR DRIES OUT, AN ANIMATED BANNER NOW DROPS IN ABOVE THE FIELD. Previously the change of condition (damp/wet/dry) was only a chip in the lower \"Weather\" card, so while focused on the timing table you'd miss it and add the transition 5-6 minutes late. Now, the moment the wetness tier diverges from the plan, a \"Track changed → <tier>\" banner appears at the top; one tap on \"Apply\" adds the transition to the plan, ✕ dismisses it. It reappears when the tier changes again (e.g. damp→wet). It does NOT auto-apply — it asks (a momentary reading can fluctuate, so you decide). No extra game/bridge cost: it's derived from the wetness data already streaming.",
+    ],
+  },
+  {
     v: "v2.5.1",
     date: "2026-10-10",
     tr: [

@@ -3308,6 +3308,18 @@ ${bottomBar}
      sol ray. Değerler fişteki dinamik stil objelerinden birebir; hex → var(--rc-*). */
   /* ---- v2.0 yarış üst çubuğu (handoff-spec/ekranlar/00-yaris-ust-cubugu.md) ---- */
   const isRace = ["live", "dash", "stint", "fuel", "tyre", "drivers", "stratcomp"].includes(tab);
+  /* Seçili yarış GEÇERLİ mi: curRace listedeki bir yarışı gösteriyor mu VE o yarış
+     bitmiş değil mi? İki fantom yolu:
+       (a) yarış silinince curRace dangling kalır (races[curRace] boş),
+       (b) aktif/yaklaşan yarış yokken defaultPick EN SON GEÇMİŞ yarışı otomatik açar
+           (Dash/Stint'e tıklayınca eski 24h Le Mans "varmış gibi" çıkar — saha bunu
+           bildirdi). İkisinde de st eski yarışı tutuyor → fantom.
+     Geçerli yarış yoksa (ya da bitmişse) yarışa bağlı sekmeler boş-durum kartı
+     gösterir (CLAUDE.md §1: olmayan/biten yarışı "varmış gibi" çizmeyiz). */
+  const raceCur = curRace ? races[curRace] : null;
+  const racePast = !!(raceCur && isRacePast(raceCur, Date.now()));
+  const raceValid = !!(raceCur && !racePast);
+  const RACE_NEED = ["dash", "stint", "code80", "live", "tyre", "fuel", "drivers", "stratcomp"];
   const rcInfo = races[curRace] || {};
   const raceTitle = rcInfo.name || trackName(rcInfo.trackId || st.track) || t("Yarış");
   const raceSub = [rcInfo.round ? `R${rcInfo.round}` : "", trackName(rcInfo.trackId || st.track),
@@ -3366,6 +3378,19 @@ ${bottomBar}
     ? `S${liveInfo.stintIdx + 1}/${totStints}${liveInfo.driver ? ` · ${liveInfo.driver}` : ""}` : "";
   const staleDot = feed ? { display: "none" }
     : { width: 6, height: 6, borderRadius: "50%", background: "var(--rc-warn)", flex: "0 0 auto", animation: "rcpulse 1.6s ease-in-out infinite" };
+
+  /* Canlı ıslaklık bildirim çubuğunun (LiveTab) "Uygula"sı — zemin kademesini şu
+     anki yarış saatinden plana işler. ANA RENDER KAPSAMINDA tanımlı (içteki pickWx
+     yardımcıları ayrı kapanışlarda; buradan erişilemez → v2.5.2'de "pickWx is not
+     defined" hatasını bu doğurdu). Mantık pickWx ile aynı; up/st/liveInfo top-level. */
+  const applyLiveWx = (id) => {
+    const el = liveInfo.status === "live" ? Math.max(0, Math.round(liveInfo.elapsed / 1000)) : 0;
+    let past = (st.weatherLog || []).filter((e) => e.t < el - 0.5);
+    const future = (st.weatherLog || []).filter((e) => e.t > el + 0.5);
+    if (el < 1) past = [];
+    const log = [...past, { t: el, w: id, src: "live" }, ...future].sort((a, b) => a.t - b.t);
+    up({ weather: id, weatherLog: log });
+  };
 
   return (
     <div className="rc">
@@ -3747,7 +3772,22 @@ ${bottomBar}
                 </div>
               ))}
             </div>}>
-          {(tab === "stint" || tab === "code80") && (
+          {/* SEÇİLİ YARIŞ YOK — yarışa bağlı bir sekme açıkken geçerli yarış yoksa
+              (ör. yarış silinmiş, curRace dangling) fantom/eski veri yerine net kart. */}
+          {RACE_NEED.includes(tab) && !raceValid && (
+            <div style={{ padding: "56px 20px", display: "flex", justifyContent: "center", animation: "rcin .26s ease-out" }}>
+              <div style={{ maxWidth: 440, textAlign: "center", border: "1px solid var(--rc-border)", borderRadius: 14, background: "var(--rc-surface)", padding: "30px 26px" }}>
+                <div style={{ fontSize: 34, marginBottom: 10 }}>🏁</div>
+                <div style={{ fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 19, marginBottom: 8 }}>{racePast ? t("Bu yarış sona erdi") : t("Seçili yarış yok")}</div>
+                <p style={{ margin: "0 0 20px", fontSize: 13, lineHeight: 1.6, color: "var(--rc-text-3)" }}>
+                  {t("Bu sekme bir yarış gerektirir. Ana menüden bir yarış seç ya da yeni bir yarış oluştur.")}</p>
+                <button onClick={leaveRace} style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "11px 22px", borderRadius: 10, border: "none", background: "var(--rc-brand)", color: "var(--rc-on-brand)", cursor: "pointer", fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 13, letterSpacing: ".03em" }}>
+                  <Icon name="home" size={15} /> {t("Ana Menü")}</button>
+              </div>
+            </div>
+          )}
+
+          {(tab === "stint" || tab === "code80") && raceValid && (
             <StintTab tab={tab} mode={mode} t={t} st={st} plan={plan} totalVE={totalVE}
               totalFuelL={totalFuelL} timeline={timeline} liveInfo={liveInfo} pitSoon={pitSoon}
               tyreInfo={tyreInfo} quickTyre={quickTyre} bumpLaps={bumpLaps} clearLaps={clearLaps}
@@ -3755,7 +3795,7 @@ ${bottomBar}
               upOvr={upOvr} setRepair={setRepair} />
           )}
 
-          {tab === "dash" && (
+          {tab === "dash" && raceValid && (
             <DashTab t={t} st={st} zoom={zoom} setZoom={setZoom} exportPdf={exportPdf}
               liveInfo={liveInfo} racePlan={racePlan} tyreInfo={tyreInfo} planLsf={planLsf}
               driverPlan={driverPlan} carriedAt={carriedAt} pitSoon={pitSoon} lmuData={lmuData}
@@ -3856,13 +3896,13 @@ ${bottomBar}
             );
           })()}
 
-          {tab === "live" && <LiveTab t={t} live={live} liveFuelObs={liveFuelObs}
+          {tab === "live" && raceValid && <LiveTab t={t} live={live} liveFuelObs={liveFuelObs}
             lapCapture={lapCapture}
             canEdit={canEditTeam} tid={curTeam} rid={curRace}
-            isAdmin={isAdmin}
+            isAdmin={isAdmin} wxSug={wxSug} onApplyWx={applyLiveWx}
             ownTopSrc={carImageSrc(teamData?.assets, st.carClass, st.car, "top")} />}
 
-          {tab === "tyre" && (
+          {tab === "tyre" && raceValid && (
             <TyreTab t={t} st={st} up={up} tyreInfo={tyreInfo} racePlan={racePlan}
               carriedAt={carriedAt} upTyreCell={upTyreCell} quickTyre={quickTyre}
               qsel={qsel} setQsel={setQsel} QSEL_LBL={QSEL_LBL} clearTyres={clearTyres}
@@ -3878,7 +3918,7 @@ ${bottomBar}
               readOnly={!canEdit} />
           )}
 
-          {tab === "stratcomp" && (
+          {tab === "stratcomp" && raceValid && (
             <StratCompTab t={t} st={st} plan={racePlan}
               tracks={TRACKS} carClasses={CAR_CLASSES}
               trackDefs={stratDefs} lmuReady={!!lmuData}
@@ -3890,7 +3930,7 @@ ${bottomBar}
               readOnly={!canEdit} />
           )}
 
-          {tab === "drivers" && (
+          {tab === "drivers" && raceValid && (
             <DriversTab t={t} st={st} up={up} driverPlan={driverPlan}
               fmtClock={fmtClock} removeDriver={removeDriver} teamDrivers={teamDrivers}
               addPoolDriver={addPoolDriver} assignDriver={assignDriver} teamData={teamData}
@@ -3924,7 +3964,7 @@ ${bottomBar}
               onSaveDuckSetup={user ? saveTeleSetup : null} />
           )}
 
-          {tab === "fuel" && (
+          {tab === "fuel" && raceValid && (
             <FuelTab t={t} st={st} up={up} lsf={lsf} autoCd={autoCd}
               setAutoCd={setAutoCd} planLastCd={planLastCd} racePlan={racePlan}
               liveFuelObs={liveFuelObs} applyLiveFuel={applyLiveFuel} canEdit={canEdit} />

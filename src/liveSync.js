@@ -65,6 +65,14 @@ export function weatherSuggestion(session, st) {
     rainLbl: rainLevel(r)?.lbl || "" };
 }
 
+/* Üst ıslaklık bildirim çubuğu görünsün mü? (LiveTab) — düzenleme yetkisi var,
+   geçerli bir öneri (wxSug) var ve BU kademe daha önce kapatılmadı/uygulanmadı.
+   dismissedId: kullanıcının en son kapattığı/uyguladığı kademe id'si. Kademe
+   değişince (ör. damp→wet) yeni id ≠ dismissedId → çubuk yeniden çıkar. SAF. */
+export function showWxBanner(wxSug, dismissedId, canEdit) {
+  return !!(canEdit && wxSug && wxSug.id && wxSug.id !== dismissedId);
+}
+
 /* Canlı AVG5 plandaki "Avg Lap"ten %1'den fazla sapıyorsa öneri (tek tık uygula). */
 export function avgLapSuggestion(own, st) {
   const sec = own?.avg5Sec;

@@ -54,4 +54,10 @@ describe("StintTab — plan uyarıları", () => {
     expect(html).toContain("Plan tamamlanamadı");
     expect(html).toContain("stint sınırı");
   });
+
+  it("S1 başlangıç lastiklerinde Wet seçeneği var", () => {
+    const { html } = draw(mk({}));
+    expect(html).toContain("4 wet lastik (sınırsız)");   // Wet butonunun title'ı
+    expect(html).toMatch(/>Wet</);                        // buton etiketi
+  });
 });

@@ -1075,6 +1075,10 @@ export const css = `
 @keyframes rcin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 @keyframes rcpop{from{opacity:0;transform:translateY(14px) scale(.975)}to{opacity:1;transform:none}}
 @keyframes rcalert{0%,100%{box-shadow:0 0 0 0 rgba(245,178,61,.42)}50%{box-shadow:0 0 0 7px rgba(245,178,61,0)}}
+/* Canlı ıslaklık bildirim çubuğu (LiveTab üstü): yukarıdan iner + tier renginde
+   (currentColor) nabız gibi parlar → sürücü sahaya odakken zemin değişimini kaçırmaz. */
+@keyframes wxdrop{from{opacity:0;transform:translateY(-14px)}to{opacity:1;transform:none}}
+@keyframes wxpulse{0%,100%{box-shadow:0 0 0 0 transparent}50%{box-shadow:0 0 16px 1px currentColor}}
 @keyframes rcpb{0%{background:rgba(55,214,122,.34)}70%{background:rgba(55,214,122,.20)}100%{background:transparent}}
 @keyframes rcpbc{0%{background:rgba(181,139,255,.36)}70%{background:rgba(181,139,255,.22)}100%{background:transparent}}
 /* Güncelleme penceresi (handoff-spec/guncelleme-penceresi-paketi) */

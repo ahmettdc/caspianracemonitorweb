@@ -1,5 +1,36 @@
 # Changelog
 
+## v2.5.2 — 2026-10-18
+
+### Canlı timing: üst ıslaklık bildirim çubuğu
+
+Zemin kademesi (damp/ıslak/kuru) plandan ayrışınca, canlı timing'in üstünde
+animasyonlu bir bildirim çubuğu beliriyor (`wxdrop` + tier renginde `wxpulse`
+glow). Önceden öneri yalnız alt paneldeki "Hava durumu" çipindeydi → sahaya
+odakken kaçırılıp geçiş geç ekleniyordu. Tek tık **Uygula** plana geçişi ekler
+(mevcut `pickWx`), ✕ kapatır; kademe değişince yeniden çıkar. **Oto-uygulamaz,
+sorar** (§1 — anlık okuma dalgalanabilir). Veri zaten akıştaki `session.wetness`'ten
+(`wxSug`) → **oyun PC'sine/köprüye ek yük yok (§0)**. Görünürlük mantığı saf +
+testli: `liveSync.showWxBanner`. UI: `LiveTab.jsx` (üst çubuk), `App.jsx` (prop
+geçişi), `styles.js` (keyframe'ler).
+
+### "Seçili yarış yok" kartı — fantom yarış yerine
+
+Geçerli yarış yokken (silinmiş ya da biten/geçmiş yarış; `curRace` dangling)
+Dashboard/Stint/Live/Yakıt/Lastik/Pilot/Strateji sekmeleri fantom/eski yarış
+(ör. rastgele 24h Le Mans) yerine net bir "Seçili yarış yok / Bu yarış sona
+erdi" kartı + Ana Menü düğmesi gösteriyor. `raceValid = races[curRace] &&
+!isRacePast(...)`. Ayrıca Canlı'da `pickWx is not defined` çökmesi düzeltildi
+(`applyLiveWx` ana render kapsamına alındı). Giriş sayfasındaki çevrilmemiş 5
+metne İngilizce karşılık eklendi.
+
+### Lastik: kuru logo + S1 Wet seçimi
+
+Dashboard stint programı LASTİK sütununda kuru set artık sayı yerine kuru lastik
+logosu (taşınmış/kullanılmışsa soluk); plan modelinde numara = kuru. S1 başlangıç
+lastiklerine "Wet" (4 wet) hızlı seçimi eklendi (reducer zaten destekliyordu),
+rengi diğer düğmelerle aynı.
+
 ## v2.5.1 — 2026-10-10
 
 Hotfix sürümü — çoklu düzeltme.

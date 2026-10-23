@@ -19,6 +19,7 @@ import { sortRows, matchQuery, SORT_DEFAULT_DIR } from "../liveSort";
 import { relativeRows } from "../liveRelative";
 import { finishLabel, isRetired, pitChip } from "../liveStatus";
 import { compoundAxles, parseTyreLog } from "../tyreCompound";
+import { showWxBanner } from "../liveSync";
 import TrackMap from "./TrackMap";
 import PosChart from "./PosChart";
 import StrategyBar from "./StrategyBar";
@@ -427,7 +428,13 @@ function OwnCar({ t, own, liveFuelObs, topSrc = "" }) {
 
 export default function LiveTab({ t, live: liveProp, canEdit,
   liveFuelObs, lapCapture, tid, rid,
-  isAdmin = false, ownTopSrc = "" }) {
+  isAdmin = false, ownTopSrc = "", wxSug = null, onApplyWx }) {
+  /* Canlı ıslaklık bildirimi (v2.5.x): zemin kademesi plandan ayrışınca sahanın
+     ÜSTÜNDE animasyonlu çubuk çıkar → sürücü tabloya odakken "Hava durumu" kartındaki
+     öneri çipini (alt panelde) kaçırmaz. wxDismissed = en son kapatılan/uygulanan
+     kademe; kademe değişince yeniden çıkar. Veri zaten akıştaki session.wetness'ten
+     (wxSug) → oyun PC'sine ek yük yok (CLAUDE.md §0). Oto-uygulamaz, SORAR (§1). */
+  const [wxDismissed, setWxDismissed] = useState(null);
   const [myClassOnly, setMyClassOnly] = useState(false);
   const [big, setBig] = useState(false);
   const [lapsFor, setLapsFor] = useState(null);   // "+" ile açılan tur listesi satırı
@@ -730,6 +737,31 @@ export default function LiveTab({ t, live: liveProp, canEdit,
   const hchipV = { fontFamily: "var(--rc-font-display)", fontSize: 17, fontWeight: 700, lineHeight: 1 };
   return (
     <div data-tour="livecard" ref={rootRef} className={big ? "bigboard" : ""}>
+      {/* ÜST ISLAKLIK BİLDİRİMİ — zemin kademesi plandan ayrışınca (wxSug) animasyonlu
+          çubuk. Tek tık "Uygula" plana geçişi ekler (onApplyWx=pickWx); ✕ kapatır.
+          Kademe değişince (damp→wet) yeniden çıkar. */}
+      {showWxBanner(wxSug, wxDismissed, canEdit) && (
+        <div style={{ color: WEATHER[wxSug.id].col, display: "flex", alignItems: "center", gap: 12,
+          margin: "0 0 12px", padding: "11px 15px", borderRadius: 11,
+          border: `1px solid ${WEATHER[wxSug.id].col}`, background: "var(--rc-surface-2)",
+          animation: "wxdrop .3s ease-out, wxpulse 2.2s ease-in-out infinite" }}>
+          <WetIcon id={wxSug.id} size={24} />
+          <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+            <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 14, color: WEATHER[wxSug.id].col }}>
+              {t("Zemin değişti")} → {t(wxSug.label)}</b>
+            <span style={{ fontSize: 11, color: "var(--rc-text-3)" }}>🌧 %{wxSug.rain} · 💧 %{wxSug.wetness} — {t("planı güncelle")}</span>
+          </span>
+          {onApplyWx && (
+            <button onClick={() => { onApplyWx(wxSug.id); setWxDismissed(wxSug.id); }}
+              style={{ marginLeft: "auto", padding: "9px 18px", borderRadius: 9, cursor: "pointer", flex: "0 0 auto",
+                fontFamily: "var(--rc-font-display)", fontWeight: 700, fontSize: 13, letterSpacing: ".03em",
+                border: "none", background: WEATHER[wxSug.id].col, color: "#0a0f16" }}>{t("Uygula")}</button>
+          )}
+          <button onClick={() => setWxDismissed(wxSug.id)} title={t("Kapat")}
+            style={{ width: 32, height: 32, flex: "0 0 auto", borderRadius: 9, cursor: "pointer",
+              border: "1px solid var(--rc-border)", background: "var(--rc-surface-3)", color: "var(--rc-text-2)", fontSize: 13, ...(onApplyWx ? {} : { marginLeft: "auto" }) }}>✕</button>
+        </div>
+      )}
       {/* v2.1 — handoff-spec/ekranlar/02-canli-timing.md: 2 kolon (sol: Saha başlık +
           tablo + pozisyon grafiği · sağ: harita/kendi araç/strateji yan paneli).
           Görsel düzen fişle birebir; TÜM veriler canlı köprüden gelir (mock değil). */}

@@ -26,15 +26,22 @@ describe("TyreCell — bileşim mi set numarası mı", () => {
     expect(html("Medium")).toContain("tyre-compound/medium.png");
   });
 
-  it("set numarası → sayı aynen, LOGO YOK (uydurma yok)", () => {
-    expect(html("5")).not.toContain("<img");
-    expect(html("5")).toContain("5");
-    expect(html("13")).not.toContain("<img");
-    expect(html("13")).toContain("13");
+  it("set numarası → KURU/slick lastik logosu (tyre.png); sayı metni değil", () => {
+    // plan modelinde numara = kuru (tek alternatif 'W') → kuru logosu gösterilir
+    expect(html("5")).toContain("tyre.png");
+    expect(html("5")).not.toContain(">5<");
+    expect(html("13")).toContain("tyre.png");
   });
 
   it("boş kod → '—'", () => {
     expect(html("")).toContain("—");
     expect(html("")).not.toContain("<img");
+  });
+
+  it("used=true → logo soluk (opacity .4)", () => {
+    const h = renderToStaticMarkup(<TyreCell code="5" t={t} used />);
+    expect(h).toMatch(/opacity:\s*0?\.4/);
+    const dry = renderToStaticMarkup(<TyreCell code="5" t={t} />);
+    expect(dry).not.toMatch(/opacity:\s*0?\.4/);
   });
 });
