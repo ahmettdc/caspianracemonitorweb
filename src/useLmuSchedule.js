@@ -1,5 +1,5 @@
 /* ============================================================
-   useLmuSchedule — lmuportal.com resmi LMU yarış takvimi aboneliği
+   useLmuSchedule — lmugarage.com resmi LMU yarış takvimi aboneliği
    ------------------------------------------------------------
    RTDB /lmuSchedule düğümünü izler (yazan: GitHub Action). useSetups deseniyle
    aynı: yalnız görünürken (active) abone olur → gereksiz indirme yok. Türetilmiş

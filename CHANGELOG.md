@@ -14,62 +14,22 @@ sorar** (§1 — anlık okuma dalgalanabilir). Veri zaten akıştaki `session.we
 testli: `liveSync.showWxBanner`. UI: `LiveTab.jsx` (üst çubuk), `App.jsx` (prop
 geçişi), `styles.js` (keyframe'ler).
 
-### Resmi Yarışlar (takvim): lmugarage → lmuportal
+### "Seçili yarış yok" kartı — fantom yarış yerine
 
-lmugarage.com çalışmadığı için Resmi Yarışlar sekmesi boşalmıştı (yaklaşan yarış
-yok, eski kayıtlar kalıyordu). Takvim artık **lmuportal.com'un herkese açık Supabase
-API'sinden** çekiliyor:
+Geçerli yarış yokken (silinmiş ya da biten/geçmiş yarış; `curRace` dangling)
+Dashboard/Stint/Live/Yakıt/Lastik/Pilot/Strateji sekmeleri fantom/eski yarış
+(ör. rastgele 24h Le Mans) yerine net bir "Seçili yarış yok / Bu yarış sona
+erdi" kartı + Ana Menü düğmesi gösteriyor. `raceValid = races[curRace] &&
+!isRacePast(...)`. Ayrıca Canlı'da `pickWx is not defined` çökmesi düzeltildi
+(`applyLiveWx` ana render kapsamına alındı). Giriş sayfasındaki çevrilmemiş 5
+metne İngilizce karşılık eklendi.
 
-- `race_event` (+ `race_series`) → daily / weekly / special
-- `championship_event` (+ `championship_series`) → championship (pist `round_name`'den)
+### Lastik: kuru logo + S1 Wet seçimi
 
-Yalnız canlı + yaklaşan (`race_ends_at >= now`) çekilir; durum client-side hesaplanır.
-Çıktı `/lmuSchedule` şekli aynı tutuldu → `ScheduleTab`, `lmuSchedule.js`,
-`useLmuSchedule` değişmeden çalışır. Dönüşüm saf + testli modülde:
-`src/lmuScheduleMap.js`. Eski lmugarage HTML parser'ı (`src/lmuParse.js`) ve testi
-kaldırıldı (ölü kod). §1: pist/tarih çözülemeyen kayıt listeye girmez.
-
-### Araç tur zamanları kaynağı değişti
-
-Araç tur zamanları kaynağı değişti: eski "Ohne Speed" Google tablosu (küratörlü,
-modellenmiş tempo merdiveni: alien ~%100, %101…%107) yerine **lmuportal.com'un
-herkese açık Supabase API'si** — sürücülerin gerçekten kaydettiği leaderboard
-turları. İlk bildirim: *"lmugarage çalışmıyor, resmi yarışları çekemiyoruz;
-onun yerine lmuportal.com'u kullanalım."*
-
-### Kaynak: Google Sheet CSV → lmuportal Supabase (gerçek leaderboard)
-
-`scripts/fetch-lmu-laptimes.mjs` artık `db.lmuportal.space` (PostgREST) üzerinden
-iki tablo okur:
-
-- `race_series_leaderboard_current` — rotasyondaki pistlerin canlı sıralaması
-  (sürücü, takım, tur, **sektörler**, **lastik bileşimi**, DR/SR). ~1500 satır,
-  iki sayfa.
-- `race_series.fastest_laps` — tüm serilerdeki sınıf P1'leri; canlı leaderboard
-  yalnız ~9 pisti verdiğinden geniş pist kapsamı (19 pist) bununla tamamlanır.
-
-Anon JWT herkese açık (istemci bundle'ında da aynısı, RLS korumalı) — gizli
-değil, yeni secret gerekmez. Günlük GitHub Action (04:17 UTC) değişmedi; "0
-üretilirse dosyayı ezme" güvenliği korundu.
-
-Dönüşüm mantığı saf, bağımsız ve testli modülde: `src/lmuLaptimes.js`
-(`buildLaptimes`, `mergeLaptimes`, `applyTrackAliases`; 16 test).
-
-### Veri dürüstlüğü (CLAUDE.md §1): takım adı üreticiye zorlanmaz
-
-Leaderboard'daki araç alanı çoğunlukla bir takım/livery adıdır ("Garage 59",
-"AF Corse", "Team WRT") ve markayı belirtmez. Uygulamanın araç id'lerine
-(ferrari/bmw…) zorlamak uydurma olurdu → takım adı **aynen** taşınır. Araç id'si
-yalnız livery adı model kodunu açıkça taşıyorsa (499P→ferrari, 911GT3R→porsche,
-963, 9x8…) best-effort eşlenir, aksi halde boş kalır (yalnız satır vurgusu için).
-
-### UI: tempo merdiveni → gerçek leaderboard
-
-Dashboard araç kutusu (lightbox) ve Yarış Ekle önizlemesi, alien/%101…%107
-merdiveni yerine gerçek P1 + ilk sıraları gösterir (sektör/compound, seçili araç
-satırı vurgulu). Strateji Karşılaştırma'nın ortalama tur tohumu (`avgLap`)
-sınıf P1 × 1,02 olarak korunur (modellenmiş, etiketli) — `trackDefaults`
-değişmeden çalışır.
+Dashboard stint programı LASTİK sütununda kuru set artık sayı yerine kuru lastik
+logosu (taşınmış/kullanılmışsa soluk); plan modelinde numara = kuru. S1 başlangıç
+lastiklerine "Wet" (4 wet) hızlı seçimi eklendi (reducer zaten destekliyordu),
+rengi diğer düğmelerle aynı.
 
 ## v2.5.1 — 2026-10-10
 
