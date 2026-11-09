@@ -1,6 +1,6 @@
 {
  "source": "Ohne Speed's LMU laptimes spreadsheet",
- "updated": "2026-11-06",
+ "updated": "2026-11-09",
  "note": "avgLap='Good ~1.02' temposu. tiers: alien(~100%)..c107. hot=hotlap (Class avgW; araçta kendi en iyi turu). data[pist]['sinif:arac'] araç özel. Otomatik üretildi: scripts/fetch-lmu-laptimes.mjs.",
  "data": {
   "bahrain": {
