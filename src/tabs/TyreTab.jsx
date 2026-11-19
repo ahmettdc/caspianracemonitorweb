@@ -173,7 +173,13 @@ export default function TyreTab({
     return 1;
   };
   const tyRowOps = tyGrid.map((_, ri) => [0, 1, 2, 3].map((ci) => tyOpFlag(ri, ci)));
-  const tyFill = tyGrid.map((row) => row.filter(Boolean).length);
+  /* Satırdaki DEĞİŞEN lastik sayısı = pit işlemi olan köşeler (bayrak > 0).
+     v2.5.3 DÜZELTME: eskiden DOLU hücre sayılıyordu (`row.filter(Boolean)`).
+     Hızlı atama "Sol" önceki satırın sağ numaralarını hücreye yazınca (18, 20 —
+     aynı set, taşıma) satır "4 lastik · +12.0s" gösteriyordu; oysa pit bayrakları
+     (state.pitTyreFlag) bunları doğru olarak "taşı" sayıyor, plan süresi ve KPI
+     doğruydu — yalnız bu satır yazısı yalan söylüyordu (kullanıcı bildirimi). */
+  const tyFill = tyRowOps.map((ops) => ops.filter((o) => o > 0).length);
 
   /* ---- aşınma: TUR başına, KÖŞE başına (fiş) ---- */
   const SL = Number(stintLaps) > 0 ? Number(stintLaps) : TY_STINT_LAPS;

@@ -95,6 +95,21 @@ describe("Lastik ekranı — render (v2.3.1 fişi)", () => {
     expect(idle).toContain("rgba(77,159,255,.06)");
   });
 
+  /* v2.5.3: satır yazısı DOLU hücreyi sayıyordu → önceki satırla aynı numara
+     yazılmış (taşınan) köşeler de "değişim" sayılıp +12.0s çıkıyordu. */
+  it("önceki satırla AYNI numara değişim sayılmaz: 2 yeni + 2 aynı = +4.5s", () => {
+    const st = { ...base.st, tyreStints: [["5", "6", "7", "8"], ["9", "6", "10", "8"]] };
+    const tyreInfo = { ...base.tyreInfo, rows: [
+      { label: "Qual", row: -1, vals: ["1", "2", "3", "4"] },
+      { label: "S1", row: 0, vals: ["5", "6", "7", "8"] },
+      { label: "S2", row: 1, vals: ["9", "6", "10", "8"] },
+    ] };
+    const rowsHtml = render({ st, tyreInfo }).split("<tr").slice(2).map((h) => h.split("</tr>")[0]);
+    expect(rowsHtml[2]).toContain("+4.5s");
+    expect(rowsHtml[2]).not.toContain("+12.0s");
+    expect(rowsHtml[2]).toContain("2 lastik");
+  });
+
   it("Qual turu değişince Qual dişi ona göre hesaplanır (S1 turu değil)", () => {
     const out = render({ st: { ...base.st, tyreQualLaps: 10 } });
     expect(out).toContain("%80");                        // 10 tur × %2
