@@ -1,5 +1,43 @@
 # Changelog
 
+## v2.5.3 — 2026-11-19
+
+Hotfix sürümü — lastik planı ve yakıt senaryoları. Yalnız web arayüzü değişti;
+`bridge/` dokunulmadı → **oyun PC'sine ek yük yok (§0)**: yeni REST/ağ isteği,
+thread veya yayın hızı değişikliği yok, Firebase karesi aynı.
+
+### Lastik dişi satır turuna göre
+
+Diş modeli her satıra `tyStintC` (S1'in `lapsInStint`'i × tur başı aşınma)
+uyguluyordu → Qual seti S1 kadar aşınıyor, kısa son stint tam stint sayılıyordu.
+Yeni saf fonksiyon `tyrePlanCalc.planTreadLaps`: köşe tur-başı oranı × **o satırın**
+turu, set başına **birikimli**; tur bilinmiyorsa aşınma uydurulmaz (0). Qual turu
+yeni alan `tyreQualLaps` (varsayılan 3, Qual satırında ±); stintler planın
+`lapsInStint`'i (satırda yazılı).
+
+### Canlı stint vurgusu
+
+Qual'ın mavi zemini sabit stildi (`ri === 0`), tabloda canlı satır yoktu.
+`TyreTab` artık `liveStintIdx` (üst şeridin "S1/8"ini üreten `liveInfo.stintIdx`)
+alıyor; desen StintTab/DashTab ile aynı. Qual tonu yalnız yarış canlı değilken.
+Plan saati canlı değilken oyunun pit sayacına düşen bir yedek denendi ve
+**bilinçli olarak alınmadı**: planlanan yarıştan saatler önce açık bir test
+seansını gerçek yarış gibi gösterirdi.
+
+### Kısmi değişim satırı
+
+Satır yazısı dolu hücre sayıyordu (`row.filter(Boolean)`); artık pit işlemi olan
+köşeleri (`pitTyreFlag` > 0). `applyQuickTyre` değişmeyen köşeyi önceki satırdan
+kopyalamak yerine boş (taşıma) bırakıyor — pit bayrağı iki hâlde de 0, plan süresi
+değişmez; yalnız yanlış "+12.0s" ve "2× tekrar" rengi gider.
+
+### Yakıt senaryoları kalıcı
+
+Senaryolar `FuelTab`'ın yerel `useState`'indeydi, sekme değişince sıfırlanıyordu.
+Yeni saf modül `fuelScen.js`: girdiler `st.fuelScen`'de, girildikleri tüketimle
+(`base`) birlikte; tüketim değişince **okurken** bayat sayılıp varsayılana döner
+(eski `useEffect` davranışı, paylaşımlı state'e efektle yazmadan).
+
 ## v2.5.2 — 2026-10-18
 
 ### Canlı timing: üst ıslaklık bildirim çubuğu

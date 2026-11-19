@@ -5,6 +5,22 @@
    ============================================================ */
 export const CHANGELOG = [
   {
+    v: "v2.5.3",
+    date: "2026-11-19",
+    tr: [
+      "🛞 LASTİK PLANINDA QUAL SETİ, S1 KADAR TUR ATMIŞ GİBİ AŞINIYORDU. Diş hesabı her satıra S1'in tur sayısını uyguluyordu: Qual'da 3 tur atılan set, S1 27 tur sürdüğü için %77'ye düşüyordu; kısa son stint de tam stint kadar aşınıyordu. Artık Qual satırında bir tur ayarı var (varsayılan 3) ve her stint planın kendi tur sayısıyla aşınıyor (satırda yazar). Aynı set tekrar takılınca önceki kullanımlardan kalan dişle başlar.",
+      "🟥 LASTİK TABLOSU ŞU AN HANGİ STİNTTE OLDUĞUNU GÖSTERMİYORDU. Qual satırının mavi zemini sabit bir süstü; yarış S1'deyken Qual seçiliymiş gibi görünüyordu. Artık yarış sürerken o anki stint satırı Stint/Dashboard sekmeleriyle aynı şekilde vurgulanıyor (zemin, sol çizgi, yeşil nokta). Yarış başlamadan önce Qual'ın mavisi kalır.",
+      "⏱️ 2 LASTİK DEĞİŞEN SATIR +12 SN GÖSTERİYORDU. Hızlı atama \"Sol\" değişmeyen sağ köşelere önceki satırın set numaralarını kopyalıyordu; satır yazısı dolu hücre saydığı için \"4 lastik · +12.0s\" çıkıyor, setler de \"2× tekrar\" sarısına boyanıyordu. Planın pit süresi ve üstteki toplam zaten doğruydu. Artık satır yalnız gerçekten değişen lastikleri sayıyor (+4.5s · 2 lastik) ve hızlı atama değişmeyen köşeleri boş (⟳ taşınan) bırakıyor. Eski planlarda yazılı kalan kopya numaralar için o satırda hızlı atamayı bir kez daha yapmanız yeterli.",
+      "⛽ YAKIT SENARYOLARI SEKME DEĞİŞİNCE SIFIRLANIYORDU. Planlanan/Tasarruflu/Agresif kutularına yazılanlar yalnız ekranın geçici hafızasındaydı. Artık proje kaydına yazılıyor: sekme değişse, sayfa yenilense de kalıyor ve takımla paylaşılıyor. Tüketim değişince (ör. \"Yakıt modeline uygula\") senaryolar eskisi gibi yeni tüketime göre yeniden hesaplanır.",
+    ],
+    en: [
+      "🛞 IN THE TYRE PLAN, THE QUAL SET WORE AS IF IT HAD RUN AS MANY LAPS AS S1. The tread model applied S1's lap count to every row: a set used for 3 laps in qualifying dropped to 77% because S1 was 27 laps long, and a short final stint wore like a full one. The Qual row now has a lap setting (default 3) and every stint wears by its own planned lap count (shown on the row). A set that is fitted again starts from the tread left after its earlier use.",
+      "🟥 THE TYRE TABLE DID NOT SHOW WHICH STINT IS RUNNING. The Qual row's blue background was a fixed decoration, so while the race was in S1 it looked as if Qual was selected. While the race runs, the current stint row is now highlighted the same way as on the Stint/Dashboard tabs (background, left bar, green dot). Before the race starts, Qual keeps its blue tint.",
+      "⏱️ A ROW CHANGING 2 TYRES SHOWED +12 S. The \"Lefts\" quick assign copied the previous row's set numbers into the unchanged right corners; the row text counted filled cells, so it read \"4 tyres · +12.0s\" and painted the sets in the \"2× repeat\" yellow. The plan's pit time and the total at the top were already correct. The row now counts only tyres that really change (+4.5s · 2 tyres) and quick assign leaves unchanged corners empty (⟳ carried). For copied numbers left in older plans, just run the quick assign on that row once more.",
+      "⛽ FUEL SCENARIOS RESET WHEN YOU SWITCHED TABS. Values typed into Planned/Saving/Aggressive lived only in the screen's temporary memory. They are now saved to the project: they survive tab switches and page reloads, and the team sees them. When consumption changes (e.g. \"Apply to fuel model\"), the scenarios are recalculated from the new consumption as before.",
+    ],
+  },
+  {
     v: "v2.5.2",
     date: "2026-10-18",
     tr: [
