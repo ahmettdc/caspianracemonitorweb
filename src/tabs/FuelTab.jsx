@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
 import { fmtHMS, lastStintFuel, WX } from "../engine";
 import { fuelView } from "../constants";
 import { Bolt, Icon } from "../components";
+import { resolveScen, setScen as writeScen } from "../fuelScen";
 
 /* Son stint yakıtı (v2.0 · handoff-spec/ekranlar/05-yakit.md). Kalan süreye göre
    VE/yakıt ihtiyacı + canlıdan öğren + senaryo karşılaştırması. Türetilmiş değerler
@@ -28,13 +28,10 @@ export default function FuelTab({ t, st, up, lsf, autoCd, setAutoCd, planLastCd,
   const consShown = (pct) => fv.hasVE ? pct : +toL(pct).toFixed(2);
   const consStore = (shown) => fv.hasVE ? shown : (ratio > 0 ? +(Number(shown) / ratio).toFixed(4) : shown);
 
-  const [scen, setScen] = useState(() => ({
-    plan: cons, save: +(cons * 0.95).toFixed(2), push: +(cons * 1.08).toFixed(2),
-  }));
-  /* Tüketim değişince (ör. 'Yakıt modeline uygula') senaryolar donmasın — türet. */
-  useEffect(() => {
-    setScen((s) => ({ ...s, plan: cons, save: +(cons * 0.95).toFixed(2), push: +(cons * 1.08).toFixed(2) }));
-  }, [cons]);
+  /* Senaryolar PROJE STATE'inde (st.fuelScen) — v2.5.3'e kadar yerel useState'teydi
+     ve sekme değişince sıfırlanıyordu (kullanıcı bildirimi). Tüketim değişince
+     varsayılana dönme davranışı fuelScen.js'te, yazmadan çözülür. */
+  const scen = resolveScen(cons, st.fuelScen);
 
   const card = { border: "1px solid var(--rc-border)", borderRadius: 12, background: "var(--rc-surface)", padding: "15px 16px" };
   const hdT = { fontFamily: "var(--rc-font-display)", textTransform: "uppercase", letterSpacing: ".08em", fontSize: 14, fontWeight: 700 };
@@ -124,7 +121,7 @@ export default function FuelTab({ t, st, up, lsf, autoCd, setAutoCd, planLastCd,
                     <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--rc-text-2)" }}>{f.label}</span>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 5, flex: "0 0 auto" }}>
                       <input type="number" step="0.01" value={consShown(scen[f.id])} readOnly={readOnly}
-                        onChange={(e) => { const v = parseFloat(e.target.value); if (isFinite(v)) setScen((s) => ({ ...s, [f.id]: consStore(v) })); }}
+                        onChange={(e) => { if (readOnly) return; const v = parseFloat(e.target.value); if (isFinite(v)) up({ fuelScen: writeScen(cons, st.fuelScen, f.id, consStore(v)) }); }}
                         style={{ width: 62, textAlign: "right", background: "var(--rc-surface-2)", border: `1px solid ${readOnly ? "var(--rc-border)" : "var(--rc-border-strong)"}`, borderRadius: 7, color: "var(--rc-text)", padding: "4px 7px", fontFamily: "var(--rc-font-display)", fontSize: 13, fontWeight: 700, opacity: readOnly ? .6 : 1 }} />
                       <span style={{ fontSize: 10, color: "var(--rc-text-3)" }}>{unit}</span>
                     </span>

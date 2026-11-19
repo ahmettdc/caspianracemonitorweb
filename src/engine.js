@@ -107,6 +107,9 @@ export const DEFAULT_STATE = {
   fuelRatio: 0.86,     // L / %1 — gerçek yakıt karşılığı
   consumption: 8.97,   // %/tur — virtual energy tüketimi
   extraLap: 1,
+  /* v2.5.3 — Yakıt sekmesi senaryo girdileri {base, plan?, save?, push?} (dahili %).
+     null = tüketimden türet. Ayrıntı: fuelScen.js. */
+  fuelScen: null,
   lastStintCountdown: "0:08:10",
   code80TimeLeft: "1:48:30",
   code80LastStint: "0:18:11",
