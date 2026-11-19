@@ -3913,6 +3913,8 @@ ${bottomBar}
                  stint uzunluğu (ölçülen tur-başı aşınmayı stinte çevirmek için) */
               ownTyres={live?.own?.tyres} lastLapNo={live?.own?.lapsDone}
               stintLaps={racePlan.rows[0]?.lapsInStint}
+              /* Canlı stint satırını vurgulamak için (üst şeridin "S1/8"i ile aynı kaynak) */
+              liveStintIdx={liveInfo.status === "live" ? liveInfo.stintIdx : null}
               /* v2.3.1 tasarım fişi: izleyici modunda yazma eylemleri görsel
                  olarak da pasif (cursor not-allowed, opaklık .45). */
               readOnly={!canEdit} />

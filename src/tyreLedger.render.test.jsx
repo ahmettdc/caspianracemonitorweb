@@ -82,6 +82,19 @@ describe("Lastik ekranı — render (v2.3.1 fişi)", () => {
     expect(out).toContain("%74");
   });
 
+  /* v2.5.3: Qual'ın mavi zemini sabitti → yarış S1'deyken Qual "seçili" görünüyordu. */
+  it("canlı stint satırı vurgulanır, Qual tonu canlıyken kalkar", () => {
+    const live = render({ liveStintIdx: 0 });             // S1 pistte
+    const rowsHtml = live.split("<tr").slice(2);          // thead satırını atla
+    expect(rowsHtml[1]).toContain('data-live="1"');       // S1
+    expect(rowsHtml[1]).toContain("var(--rc-brand-bright)");
+    expect(rowsHtml[0]).not.toContain('data-live="1"');   // Qual
+    expect(live).not.toContain("rgba(77,159,255,.06)");
+    const idle = render();                                // yarış canlı değil
+    expect(idle).not.toContain('data-live="1"');
+    expect(idle).toContain("rgba(77,159,255,.06)");
+  });
+
   it("Qual turu değişince Qual dişi ona göre hesaplanır (S1 turu değil)", () => {
     const out = render({ st: { ...base.st, tyreQualLaps: 10 } });
     expect(out).toContain("%80");                        // 10 tur × %2

@@ -72,7 +72,7 @@ const r1 = (v) => Math.round(v * 10) / 10;
 export default function TyreTab({
   t, st, up, tyreInfo, racePlan, carriedAt, upTyreCell, quickTyre,
   qsel, setQsel, QSEL_LBL, clearTyres, tid, rid, lapKey,
-  ownTyres, lastLapNo, stintLaps, readOnly = false,
+  ownTyres, lastLapNo, stintLaps, liveStintIdx = null, readOnly = false,
 }) {
   /* Lastik defteri — köprünün livetyre kaydı (v2.3.0). Elle giriş yok. */
   const [tyreLog, setTyreLog] = useState(null);
@@ -99,6 +99,13 @@ export default function TyreTab({
 
   const ledger = buildLedger(tyreLog, lapMap);
   const sum = ledgerSummary(ledger);
+
+  /* CANLI SATIR (v2.5.3). Qual satırının mavi zemini sabit bir stildi
+     (`ri === 0`) ve tabloda "şu an hangi stint" vurgusu hiç yoktu → yarış S1'deyken
+     Qual seçiliymiş gibi görünüyordu (kullanıcı bildirimi). Kaynak, üst şeridin
+     "S1/8"ini üreten liveInfo.stintIdx; vurgu deseni StintTab/DashTab ile aynı.
+     Yarış canlı değilken (önce/sonra) vurgu yok; Qual tonu yalnız o zaman kalır. */
+  const liveRi = Number.isInteger(liveStintIdx) && liveStintIdx >= 0 ? liveStintIdx + 1 : null;
 
   /* ---- ızgara: satır 0 = Qual, 1..n = S1..Sn (gerçek plandan) ---- */
   const rows = tyreInfo.rows;
@@ -514,10 +521,16 @@ export default function TyreTab({
             </tr></thead>
             <tbody>
               {rows.map((r, ri) => (
-                <tr key={r.label} style={{ background: ri === 0 ? "rgba(77,159,255,.06)" : "transparent" }}>
+                <tr key={r.label} data-live={ri === liveRi ? "1" : undefined}
+                  style={{ background: ri === liveRi ? "rgba(150,0,24,.20)" : ri === 0 && liveRi == null ? "rgba(77,159,255,.06)" : "transparent",
+                    borderLeft: `3px solid ${ri === liveRi ? "var(--rc-brand-bright)" : "transparent"}` }}>
                   <td style={{ padding: "9px 14px", borderBottom: "1px solid var(--rc-line-soft)", textAlign: "left", whiteSpace: "nowrap" }}>
                     <span style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                      <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 17, fontWeight: 700 }}>{r.label}</b>
+                      <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 17, fontWeight: 700,
+                        color: liveRi == null || ri === liveRi ? "var(--rc-text)" : "var(--rc-text-3)" }}>{r.label}</b>
+                      {ri === liveRi && (
+                        <i title={t("pistte")} style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: "var(--rc-ok)", boxShadow: "0 0 6px var(--rc-ok)" }} />
+                      )}
                       {/* Satırın tur sayısı diş hesabının girdisidir → görünür olmalı.
                           Qual'ınki kullanıcıdan (oyun planlamada vermez), stintlerinki plandan. */}
                       {ri === 0 ? (
