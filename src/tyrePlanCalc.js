@@ -77,6 +77,44 @@ export function planTread(tyreQual, tyreStints, wearPerStint) {
   }));
 }
 
+/* ---- SATIR TURUNA DUYARLI DİŞ MODELİ (v2.5.3) ----
+   planTread her satıra AYNI "stint başı aşınma"yı uyguluyordu ve TyreTab bunu
+   S1'in tur sayısından türetiyordu. Sonuç (kullanıcı bildirimi): Qual'da 3 tur
+   atılan set, S1 27 tur sürdüğü için Qual'da 27 tur koşmuş gibi %77'ye iniyordu;
+   kısa son stint de tam stint kadar aşınıyordu. Kök neden: aşınma TUR başına
+   ölçülür ama satırların tur sayısı birbirinden farklıdır.
+   Burada aşınma = köşenin tur başı oranı × O SATIRIN tur sayısı ve set başına
+   BİRİKİR (önceki kullanımlar eşit varsayılmaz).
+   grid     : effectiveGrid çıktısı (satır 0 = Qual, taşıma çözülmüş)
+   wearLapC : 4 köşe × tur başı aşınma (0..1)
+   rowLaps  : satır başına tur sayısı (Qual dahil). Eksik/geçersiz → 0 tur:
+              tur sayısı bilinmiyorsa aşınma UYDURULMAZ.
+   Dönüş: planTread ile aynı hücre şekli + `wear` (bu satırda aşınan diş) ve
+   `laps` (bu satırın tur sayısı). */
+export function planTreadLaps(grid, wearLapC, rowLaps) {
+  const g = Array.isArray(grid) ? grid : [];
+  const wc = [0, 1, 2, 3].map((i) => {
+    const v = Number((Array.isArray(wearLapC) ? wearLapC : [])[i]);
+    return Number.isFinite(v) && v > 0 ? v : 0;
+  });
+  const lapsOf = (ri) => {
+    const v = Number((Array.isArray(rowLaps) ? rowLaps : [])[ri]);
+    return Number.isFinite(v) && v > 0 ? v : 0;
+  };
+  const seen = new Map();          // set → { uses, acc (birikmiş aşınma) }
+  return g.map((row, ri) => (Array.isArray(row) ? row : []).map((raw, ci) => {
+    const id = String(raw ?? "").trim();
+    if (!isDrySet(id)) return null;
+    const prev = seen.get(id) || { uses: 0, acc: 0 };
+    const laps = lapsOf(ri);
+    const wear = wc[ci] * laps;
+    const start = 1 - prev.acc;
+    const end = start - wear;
+    seen.set(id, { uses: prev.uses + 1, acc: prev.acc + wear });
+    return { id, uses: prev.uses, start, end, wear, laps, fresh: prev.uses === 0, blowout: end < 0 };
+  }));
+}
+
 /* Değişim süresi: bir tarafı değiştirmek (1–2 lastik) dört lastikten belirgin
    ucuzdur — TinyPedal da eşiği 2/3'te koyuyor. */
 export function changeTimeOf(n, t12, t34) {

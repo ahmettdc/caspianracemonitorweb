@@ -123,6 +123,10 @@ export const DEFAULT_STATE = {
      Boş bırakılırsa tyreWearPerStint köşe eğilimiyle ölçeklenip tura bölünür
      (TyreTab TY_WEAR_BIAS); 8'in üstündeki değer eski stint-bazlı kayıttır. */
   tyreWearC: [],
+  /* v2.5.3 — Qual'da başlangıç setiyle atılan tur. Diş hesabı Qual satırını bu
+     turla aşındırır; eskiden S1'in tur sayısıyla aşındırıyordu (Qual'da 3 tur
+     atılan set "27 tur koşmuş" görünüyordu). Oyun bunu planlamada vermez. */
+  tyreQualLaps: 3,
   /* Patlak işaretleri: {"satır:köşe": true} — satır 0 = Qual. İşaretli hücrede
      set yarış içinde patlamıştır, yeniden kullanılamaz. */
   tyrePop: {},

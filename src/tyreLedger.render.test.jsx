@@ -17,11 +17,11 @@ const { default: TyreTab } = await import("./tabs/TyreTab.jsx");
 const t = (s) => s;
 const base = {
   t,
-  /* tyreWearC + stintLaps birlikte diş adımını %20'ye sabitler → beklenen
-     değerler deterministik (1. kullanım %80, 2. kullanım %60). */
+  /* tyreWearC %2/tur + satır turları (Qual 3, stintler 10) → beklenen değerler
+     deterministik: Qual %94, taşınan S1 %74 (3+10 tur × %2). */
   st: { tyreLimit: 8, tyreQual: ["1", "2", "3", "4"],
     tyreStints: [["", "", "", ""], ["5", "6", "", ""]],
-    tyreWearPerStint: 30, tyreWearC: [2, 2, 2, 2], tyrePop: {},
+    tyreWearPerStint: 30, tyreWearC: [2, 2, 2, 2], tyrePop: {}, tyreQualLaps: 3,
     tyreChangeT12: 4.5, tyreChangeT34: 12 },
   up: () => {},
   tyreInfo: {
@@ -37,6 +37,7 @@ const base = {
   upTyreCell: () => {}, quickTyre: () => {},
   qsel: {}, setQsel: () => {}, QSEL_LBL: {}, clearTyres: () => {},
   stintLaps: 10,
+  racePlan: { rows: [{ lapsInStint: 10 }, { lapsInStint: 10 }] },
 };
 const render = (extra = {}) => renderToStaticMarkup(<TyreTab {...base} {...extra} />);
 
@@ -72,11 +73,21 @@ describe("Lastik ekranı — render (v2.3.1 fişi)", () => {
     for (const c of ["FL", "FR", "RL", "RR"]) expect(out).toContain(c);
   });
 
-  /* Diş barı: dolu kısım stint SONUNDA kalan diş, yanındaki sayı aynı değer. */
-  it("hücre altında diş yüzdesi yazıyor (1. kullanım %80, taşınan 2. stint %60)", () => {
+  /* Diş barı: dolu kısım stint SONUNDA kalan diş, yanındaki sayı aynı değer.
+     v2.5.3: Qual satırı KENDİ turuyla (3) aşınır — eskiden S1'in turuyla (10)
+     aşınıp %80 yazıyordu (kullanıcı bildirimi: "Qual'da 27 tur gitmiş gibi"). */
+  it("hücre altında diş yüzdesi yazıyor (Qual 3 tur %94, taşınan S1 %74)", () => {
     const out = render();
-    expect(out).toContain("%80");
-    expect(out).toContain("%60");
+    expect(out).toContain("%94");
+    expect(out).toContain("%74");
+  });
+
+  it("Qual turu değişince Qual dişi ona göre hesaplanır (S1 turu değil)", () => {
+    const out = render({ st: { ...base.st, tyreQualLaps: 10 } });
+    expect(out).toContain("%80");                        // 10 tur × %2
+    expect(out).toContain("%60");                        // + S1 10 tur
+    const old = render({ st: { ...base.st, tyreQualLaps: undefined } });
+    expect(old).toContain("%94");                         // eski kayıt → varsayılan 3 tur
   });
 
   it("aşınma 0 iken diş barı ÇİZİLMEZ (sahte kesinlik yok)", () => {

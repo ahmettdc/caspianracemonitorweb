@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { isDrySet, effectiveGrid, planTread, changeTimeOf, totalChangeTime,
-  measuredWear, popRows, popBlockedAt } from "./tyrePlanCalc";
+  measuredWear, popRows, popBlockedAt, planTreadLaps } from "./tyrePlanCalc";
 
 describe("isDrySet", () => {
   it("W bir SET DEĞİL (yer tutucu) — diş hesabına girmez", () => {
@@ -180,5 +180,58 @@ describe("popBlockedAt", () => {
     expect(popBlockedAt(null, "1", 2)).toBe(false);
     expect(popBlockedAt(m, "", 2)).toBe(false);
     expect(popBlockedAt(m, undefined, 2)).toBe(false);
+  });
+});
+
+describe("planTreadLaps (v2.5.3 — satır turuna duyarlı diş)", () => {
+  const W = [0.01, 0.01, 0.01, 0.01];          // köşe başı %1/tur
+
+  it("KULLANICI HATASI: Qual 3 tur, S1 27 tur → Qual seti %97 kalır, %73 değil", () => {
+    const grid = effectiveGrid(["1", "2", "3", "4"], [["5", "6", "7", "8"]]);
+    const g = planTreadLaps(grid, W, [3, 27]);
+    expect(g[0][0].end).toBeCloseTo(0.97, 6);
+    expect(g[0][0].laps).toBe(3);
+    expect(g[1][0].fresh).toBe(true);
+    expect(g[1][0].end).toBeCloseTo(0.73, 6);
+  });
+
+  it("aşınma set başına BİRİKİR: Qual seti sona dönünce Qual turları düşülmüş başlar", () => {
+    const grid = effectiveGrid(["1", "2", "3", "4"],
+      [["5", "6", "7", "8"], ["1", "2", "3", "4"]]);
+    const g = planTreadLaps(grid, W, [3, 27, 10]);
+    expect(g[2][0].fresh).toBe(false);
+    expect(g[2][0].uses).toBe(1);
+    expect(g[2][0].start).toBeCloseTo(0.97, 6);
+    expect(g[2][0].end).toBeCloseTo(0.87, 6);   // kısa son stint: 10 tur, 27 değil
+  });
+
+  it("taşınan set satır turları toplamıyla aşınır", () => {
+    const grid = effectiveGrid(["1", "2", "3", "4"], [["", "", "", ""]]);
+    const g = planTreadLaps(grid, W, [3, 20]);
+    expect(g[1][0].start).toBeCloseTo(0.97, 6);
+    expect(g[1][0].end).toBeCloseTo(0.77, 6);
+  });
+
+  it("köşe başına ayrı oran uygulanır", () => {
+    const grid = effectiveGrid(["1", "2", "3", "4"], []);
+    const g = planTreadLaps(grid, [0.02, 0.01, 0, 0.01], [5]);
+    expect(g[0][0].end).toBeCloseTo(0.90, 6);
+    expect(g[0][1].end).toBeCloseTo(0.95, 6);
+    expect(g[0][2].end).toBe(1);
+  });
+
+  it("tur bilinmiyorsa aşınma UYDURULMAZ (0 tur), wet/boş null", () => {
+    const grid = effectiveGrid(["1", "W", "", "4"], [["", "", "", ""]]);
+    const g = planTreadLaps(grid, W, [null]);
+    expect(g[0][0].end).toBe(1);
+    expect(g[1][0].end).toBe(1);
+    expect(g[0][1]).toBeNull();
+    expect(g[0][2]).toBeNull();
+  });
+
+  it("kapasite aşımı blowout işaretlenir", () => {
+    const grid = effectiveGrid(["1", "2", "3", "4"], [["", "", "", ""]]);
+    const g = planTreadLaps(grid, [0.05, 0.05, 0.05, 0.05], [3, 25]);
+    expect(g[1][0].blowout).toBe(true);
   });
 });
