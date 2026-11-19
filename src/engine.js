@@ -107,6 +107,9 @@ export const DEFAULT_STATE = {
   fuelRatio: 0.86,     // L / %1 — gerçek yakıt karşılığı
   consumption: 8.97,   // %/tur — virtual energy tüketimi
   extraLap: 1,
+  /* v2.5.3 — Yakıt sekmesi senaryo girdileri {base, plan?, save?, push?} (dahili %).
+     null = tüketimden türet. Ayrıntı: fuelScen.js. */
+  fuelScen: null,
   lastStintCountdown: "0:08:10",
   code80TimeLeft: "1:48:30",
   code80LastStint: "0:18:11",
@@ -123,6 +126,10 @@ export const DEFAULT_STATE = {
      Boş bırakılırsa tyreWearPerStint köşe eğilimiyle ölçeklenip tura bölünür
      (TyreTab TY_WEAR_BIAS); 8'in üstündeki değer eski stint-bazlı kayıttır. */
   tyreWearC: [],
+  /* v2.5.3 — Qual'da başlangıç setiyle atılan tur. Diş hesabı Qual satırını bu
+     turla aşındırır; eskiden S1'in tur sayısıyla aşındırıyordu (Qual'da 3 tur
+     atılan set "27 tur koşmuş" görünüyordu). Oyun bunu planlamada vermez. */
+  tyreQualLaps: 3,
   /* Patlak işaretleri: {"satır:köşe": true} — satır 0 = Qual. İşaretli hücrede
      set yarış içinde patlamıştır, yeniden kullanılamaz. */
   tyrePop: {},

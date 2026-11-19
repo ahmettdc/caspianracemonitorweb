@@ -20,7 +20,7 @@ import { Icon } from "../components";
 import { liveTyreSubscribe, liveWearSubscribe, liveLapsSubscribe } from "../storage";
 import { wearSeries, wearRates, limitingCorner } from "../lapWear";
 import { buildLedger, ledgerSummary, planChanges, comparePlan } from "../tyreLedger";
-import { popRows, popBlockedAt } from "../tyrePlanCalc";
+import { popRows, popBlockedAt, planTreadLaps } from "../tyrePlanCalc";
 
 const CORNERS = ["FL", "FR", "RL", "RR"];
 
@@ -64,12 +64,15 @@ const COMP_COL = (comp) => {
 const TY_WEAR_BIAS = [1.15, 0.92, 1.05, 0.88];
 /* Plan yoksa stint turu bilinmez; fişin kendi sabiti yedek olarak kullanılır. */
 const TY_STINT_LAPS = 19;
+/* Qual'da bu setle atılan tur (v2.5.3). Oyun bunu planlama anında vermez —
+   kullanıcı girer; eski kayıtlarda alan yoksa tipik bir sıralama (3 tur). */
+const TY_QUAL_LAPS = 3;
 const r1 = (v) => Math.round(v * 10) / 10;
 
 export default function TyreTab({
-  t, st, up, tyreInfo, carriedAt, upTyreCell, quickTyre,
+  t, st, up, tyreInfo, racePlan, carriedAt, upTyreCell, quickTyre,
   qsel, setQsel, QSEL_LBL, clearTyres, tid, rid, lapKey,
-  ownTyres, lastLapNo, stintLaps, readOnly = false,
+  ownTyres, lastLapNo, stintLaps, liveStintIdx = null, readOnly = false,
 }) {
   /* Lastik defteri — köprünün livetyre kaydı (v2.3.0). Elle giriş yok. */
   const [tyreLog, setTyreLog] = useState(null);
@@ -96,6 +99,13 @@ export default function TyreTab({
 
   const ledger = buildLedger(tyreLog, lapMap);
   const sum = ledgerSummary(ledger);
+
+  /* CANLI SATIR (v2.5.3). Qual satırının mavi zemini sabit bir stildi
+     (`ri === 0`) ve tabloda "şu an hangi stint" vurgusu hiç yoktu → yarış S1'deyken
+     Qual seçiliymiş gibi görünüyordu (kullanıcı bildirimi). Kaynak, üst şeridin
+     "S1/8"ini üreten liveInfo.stintIdx; vurgu deseni StintTab/DashTab ile aynı.
+     Yarış canlı değilken (önce/sonra) vurgu yok; Qual tonu yalnız o zaman kalır. */
+  const liveRi = Number.isInteger(liveStintIdx) && liveStintIdx >= 0 ? liveStintIdx + 1 : null;
 
   /* ---- ızgara: satır 0 = Qual, 1..n = S1..Sn (gerçek plandan) ---- */
   const rows = tyreInfo.rows;
@@ -163,7 +173,13 @@ export default function TyreTab({
     return 1;
   };
   const tyRowOps = tyGrid.map((_, ri) => [0, 1, 2, 3].map((ci) => tyOpFlag(ri, ci)));
-  const tyFill = tyGrid.map((row) => row.filter(Boolean).length);
+  /* Satırdaki DEĞİŞEN lastik sayısı = pit işlemi olan köşeler (bayrak > 0).
+     v2.5.3 DÜZELTME: eskiden DOLU hücre sayılıyordu (`row.filter(Boolean)`).
+     Hızlı atama "Sol" önceki satırın sağ numaralarını hücreye yazınca (18, 20 —
+     aynı set, taşıma) satır "4 lastik · +12.0s" gösteriyordu; oysa pit bayrakları
+     (state.pitTyreFlag) bunları doğru olarak "taşı" sayıyor, plan süresi ve KPI
+     doğruydu — yalnız bu satır yazısı yalan söylüyordu (kullanıcı bildirimi). */
+  const tyFill = tyRowOps.map((ops) => ops.filter((o) => o > 0).length);
 
   /* ---- aşınma: TUR başına, KÖŞE başına (fiş) ---- */
   const SL = Number(stintLaps) > 0 ? Number(stintLaps) : TY_STINT_LAPS;
@@ -179,7 +195,22 @@ export default function TyreTab({
     tyreWearC: tyWearC.map((v, j) => (j === i ? Math.max(0, Math.min(20, r1(v + d))) : v)),
   });
 
-  /* diş modeli — boş hücre taşımadır, devralınan setin dişinden hesaplanır */
+  /* diş modeli — boş hücre taşımadır, devralınan setin dişinden hesaplanır.
+     v2.5.3 DÜZELTME: eskiden her satır `tyStintC` ile, yani S1'in tur sayısı ×
+     tur başı aşınma ile aşınıyordu. Qual'da 3 tur atılan set, S1 27 tur sürüyor
+     diye Qual'da 27 tur koşmuş sayılıp %77'ye düşüyordu (kullanıcı bildirimi);
+     kısa son stint de tam stint kadar aşınıyordu. Artık her satır KENDİ turuyla:
+     Qual = tyreQualLaps, Sn = planın o stint için hesapladığı lapsInStint. */
+  const qualLaps = (() => {
+    const v = Number(st.tyreQualLaps);
+    return Number.isFinite(v) && v >= 0 ? Math.round(v) : TY_QUAL_LAPS;
+  })();
+  const setQualLaps = (d) => !readOnly && up({ tyreQualLaps: Math.max(0, Math.min(30, qualLaps + d)) });
+  const planRows = Array.isArray(racePlan?.rows) ? racePlan.rows : [];
+  /* Plan satırı yoksa (olmamalı — ızgara plandan türüyor) SL yedeği: eski
+     davranışla aynı, bilinmeyen satır için tur uydurulmaz ama sıfır da yazılmaz. */
+  const rowLaps = tyGrid.map((_, ri) => (ri === 0 ? qualLaps
+    : (Number(planRows[ri - 1]?.lapsInStint) > 0 ? Number(planRows[ri - 1].lapsInStint) : SL)));
   const tyEffGrid = (() => {
     const cur = (tyGrid[0] || ["", "", "", ""]).slice();
     const out = [cur.slice()];
@@ -189,18 +220,7 @@ export default function TyreTab({
     }
     return out;
   })();
-  const tyTread = (() => {
-    const seen = new Map();
-    return tyEffGrid.map((row) => row.map((id, ci) => {
-      if (!id || id === "W") return null;
-      const uses = seen.get(id) || 0;
-      seen.set(id, uses + 1);
-      const w = tyStintC[ci];
-      const start = 1 - w * uses;
-      const end = start - w;
-      return { id, uses, start, end, wear: w, fresh: uses === 0, blowout: end < 0 };
-    }));
-  })();
+  const tyTread = planTreadLaps(tyEffGrid, tyWearCF, rowLaps);
 
   const t12 = Number.isFinite(Number(st.tyreChangeT12)) ? Number(st.tyreChangeT12) : 4.5;
   const t34 = Number.isFinite(Number(st.tyreChangeT34)) ? Number(st.tyreChangeT34) : 12;
@@ -507,10 +527,32 @@ export default function TyreTab({
             </tr></thead>
             <tbody>
               {rows.map((r, ri) => (
-                <tr key={r.label} style={{ background: ri === 0 ? "rgba(77,159,255,.06)" : "transparent" }}>
+                <tr key={r.label} data-live={ri === liveRi ? "1" : undefined}
+                  style={{ background: ri === liveRi ? "rgba(150,0,24,.20)" : ri === 0 && liveRi == null ? "rgba(77,159,255,.06)" : "transparent",
+                    borderLeft: `3px solid ${ri === liveRi ? "var(--rc-brand-bright)" : "transparent"}` }}>
                   <td style={{ padding: "9px 14px", borderBottom: "1px solid var(--rc-line-soft)", textAlign: "left", whiteSpace: "nowrap" }}>
                     <span style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                      <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 17, fontWeight: 700 }}>{r.label}</b>
+                      <b style={{ fontFamily: "var(--rc-font-display)", fontSize: 17, fontWeight: 700,
+                        color: liveRi == null || ri === liveRi ? "var(--rc-text)" : "var(--rc-text-3)" }}>{r.label}</b>
+                      {ri === liveRi && (
+                        <i title={t("pistte")} style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: "var(--rc-ok)", boxShadow: "0 0 6px var(--rc-ok)" }} />
+                      )}
+                      {/* Satırın tur sayısı diş hesabının girdisidir → görünür olmalı.
+                          Qual'ınki kullanıcıdan (oyun planlamada vermez), stintlerinki plandan. */}
+                      {ri === 0 ? (
+                        <span title={t("Qual'da bu setle atılan tur — diş hesabı buna göre")}
+                          style={{ display: "inline-flex", alignItems: "center", fontSize: 10.5, color: "var(--rc-text-3)", border: "1px solid var(--rc-line-soft)", borderRadius: 7, background: "var(--rc-surface-6)" }}>
+                          <button onClick={() => setQualLaps(-1)} aria-label={t("Qual turu −1")}
+                            style={{ width: 18, height: 20, border: "none", background: "transparent", lineHeight: 1, color: readOnly ? "var(--rc-border-strong)" : "var(--rc-text-3)", cursor: readOnly ? "not-allowed" : "pointer", fontSize: 12 }}>−</button>
+                          <b style={{ minWidth: 14, textAlign: "center", fontFamily: "var(--rc-font-display)", fontSize: 12, color: "var(--rc-text-2)" }}>{qualLaps}</b>
+                          <button onClick={() => setQualLaps(1)} aria-label={t("Qual turu +1")}
+                            style={{ width: 18, height: 20, border: "none", background: "transparent", lineHeight: 1, color: readOnly ? "var(--rc-border-strong)" : "var(--rc-text-3)", cursor: readOnly ? "not-allowed" : "pointer", fontSize: 12 }}>+</button>
+                          <span style={{ paddingRight: 6 }}>{t("tur")}</span>
+                        </span>
+                      ) : (
+                        <span title={t("Planlanan stint turu — diş hesabı buna göre")}
+                          style={{ fontSize: 10.5, color: "var(--rc-text-5)" }}>{rowLaps[ri]} {t("tur")}</span>
+                      )}
                     </span>
                   </td>
                   {r.vals.map((raw, ci) => {
@@ -552,7 +594,7 @@ export default function TyreTab({
                         {trOn && (
                           <div title={pop ? `${CORNERS[ci]} · ${t("bu stintte patladı — set")} ${v || carried} ${t("yarış dışı, sonrası plansız pit")}`
                             : tr.blowout ? t("Plan bu seti kapasitesinin ötesinde çalıştırıyor")
-                              : `${tr.fresh ? t("Yeni") : `%${Math.round(tr.start * 100)}`} → %${Math.round(tr.end * 100)} · ${t("bu setin")} ${tr.uses + 1}. ${t("stinti")} · ${CORNERS[ci]} ${t("aşınması")} %${tyWearC[ci].toFixed(1)}/${t("tur")}`}
+                              : `${tr.fresh ? t("Yeni") : `%${Math.round(tr.start * 100)}`} → %${Math.round(tr.end * 100)} · ${t("bu setin")} ${tr.uses + 1}. ${t("stinti")} · ${tr.laps} ${t("tur")} × ${CORNERS[ci]} %${tyWearC[ci].toFixed(1)}/${t("tur")}`}
                             style={{ display: "flex", alignItems: "center", gap: 4, width: 62, margin: "5px auto 0" }}>
                             <span style={{ flex: "1 1 auto", minWidth: 0, height: 5, borderRadius: 3, overflow: "hidden", background: bad ? "rgba(255,77,94,.22)" : "rgba(243,234,236,.10)" }}>
                               <span style={{ display: "block", height: "100%", borderRadius: 3, width: bad ? "100%" : `${trPct}%`,

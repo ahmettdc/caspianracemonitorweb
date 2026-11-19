@@ -17,11 +17,11 @@ const { default: TyreTab } = await import("./tabs/TyreTab.jsx");
 const t = (s) => s;
 const base = {
   t,
-  /* tyreWearC + stintLaps birlikte diş adımını %20'ye sabitler → beklenen
-     değerler deterministik (1. kullanım %80, 2. kullanım %60). */
+  /* tyreWearC %2/tur + satır turları (Qual 3, stintler 10) → beklenen değerler
+     deterministik: Qual %94, taşınan S1 %74 (3+10 tur × %2). */
   st: { tyreLimit: 8, tyreQual: ["1", "2", "3", "4"],
     tyreStints: [["", "", "", ""], ["5", "6", "", ""]],
-    tyreWearPerStint: 30, tyreWearC: [2, 2, 2, 2], tyrePop: {},
+    tyreWearPerStint: 30, tyreWearC: [2, 2, 2, 2], tyrePop: {}, tyreQualLaps: 3,
     tyreChangeT12: 4.5, tyreChangeT34: 12 },
   up: () => {},
   tyreInfo: {
@@ -37,6 +37,7 @@ const base = {
   upTyreCell: () => {}, quickTyre: () => {},
   qsel: {}, setQsel: () => {}, QSEL_LBL: {}, clearTyres: () => {},
   stintLaps: 10,
+  racePlan: { rows: [{ lapsInStint: 10 }, { lapsInStint: 10 }] },
 };
 const render = (extra = {}) => renderToStaticMarkup(<TyreTab {...base} {...extra} />);
 
@@ -72,11 +73,49 @@ describe("Lastik ekranı — render (v2.3.1 fişi)", () => {
     for (const c of ["FL", "FR", "RL", "RR"]) expect(out).toContain(c);
   });
 
-  /* Diş barı: dolu kısım stint SONUNDA kalan diş, yanındaki sayı aynı değer. */
-  it("hücre altında diş yüzdesi yazıyor (1. kullanım %80, taşınan 2. stint %60)", () => {
+  /* Diş barı: dolu kısım stint SONUNDA kalan diş, yanındaki sayı aynı değer.
+     v2.5.3: Qual satırı KENDİ turuyla (3) aşınır — eskiden S1'in turuyla (10)
+     aşınıp %80 yazıyordu (kullanıcı bildirimi: "Qual'da 27 tur gitmiş gibi"). */
+  it("hücre altında diş yüzdesi yazıyor (Qual 3 tur %94, taşınan S1 %74)", () => {
     const out = render();
-    expect(out).toContain("%80");
-    expect(out).toContain("%60");
+    expect(out).toContain("%94");
+    expect(out).toContain("%74");
+  });
+
+  /* v2.5.3: Qual'ın mavi zemini sabitti → yarış S1'deyken Qual "seçili" görünüyordu. */
+  it("canlı stint satırı vurgulanır, Qual tonu canlıyken kalkar", () => {
+    const live = render({ liveStintIdx: 0 });             // S1 pistte
+    const rowsHtml = live.split("<tr").slice(2);          // thead satırını atla
+    expect(rowsHtml[1]).toContain('data-live="1"');       // S1
+    expect(rowsHtml[1]).toContain("var(--rc-brand-bright)");
+    expect(rowsHtml[0]).not.toContain('data-live="1"');   // Qual
+    expect(live).not.toContain("rgba(77,159,255,.06)");
+    const idle = render();                                // yarış canlı değil
+    expect(idle).not.toContain('data-live="1"');
+    expect(idle).toContain("rgba(77,159,255,.06)");
+  });
+
+  /* v2.5.3: satır yazısı DOLU hücreyi sayıyordu → önceki satırla aynı numara
+     yazılmış (taşınan) köşeler de "değişim" sayılıp +12.0s çıkıyordu. */
+  it("önceki satırla AYNI numara değişim sayılmaz: 2 yeni + 2 aynı = +4.5s", () => {
+    const st = { ...base.st, tyreStints: [["5", "6", "7", "8"], ["9", "6", "10", "8"]] };
+    const tyreInfo = { ...base.tyreInfo, rows: [
+      { label: "Qual", row: -1, vals: ["1", "2", "3", "4"] },
+      { label: "S1", row: 0, vals: ["5", "6", "7", "8"] },
+      { label: "S2", row: 1, vals: ["9", "6", "10", "8"] },
+    ] };
+    const rowsHtml = render({ st, tyreInfo }).split("<tr").slice(2).map((h) => h.split("</tr>")[0]);
+    expect(rowsHtml[2]).toContain("+4.5s");
+    expect(rowsHtml[2]).not.toContain("+12.0s");
+    expect(rowsHtml[2]).toContain("2 lastik");
+  });
+
+  it("Qual turu değişince Qual dişi ona göre hesaplanır (S1 turu değil)", () => {
+    const out = render({ st: { ...base.st, tyreQualLaps: 10 } });
+    expect(out).toContain("%80");                        // 10 tur × %2
+    expect(out).toContain("%60");                        // + S1 10 tur
+    const old = render({ st: { ...base.st, tyreQualLaps: undefined } });
+    expect(old).toContain("%94");                         // eski kayıt → varsayılan 3 tur
   });
 
   it("aşınma 0 iken diş barı ÇİZİLMEZ (sahte kesinlik yok)", () => {

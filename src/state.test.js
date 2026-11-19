@@ -133,6 +133,21 @@ describe("applyQuickTyre", () => {
     expect(applyQuickTyre(s, 1, "carry").tyreStints[1]).toEqual(["5", "6", "7", "8"]);
     expect(applyQuickTyre(s, 1, "clear").tyreStints[1]).toEqual(["", "", "", ""]);
   });
+  /* v2.5.3 kullanıcı bildirimi: "2 yeni sol dedik, sağa 2 eski ekledi, +12 sn". */
+  it("lefts: yalnız sol köşelere taze set; sağ köşeler BOŞ (taşıma), kopya yazılmaz", () => {
+    const s = base({ tyreLimit: 26 });
+    s.tyreStints[0] = ["5", "6", "7", "8"];
+    const r = applyQuickTyre(s, 1, "lefts");
+    expect(r.tyreStints[1]).toEqual(["9", "", "10", ""]);
+    expect(r.pits[0].tyres.filter((f) => f > 0).length).toBe(2);   // 2 lastik → ucuz kademe
+    expect(carriedTyre(r, 1, 1)).toBe("6");                        // sağ ön taşınıyor
+  });
+  it("fronts/rears/tek teker de değişmeyen köşeyi boş bırakır", () => {
+    const s = base({ tyreLimit: 26 });
+    s.tyreStints[0] = ["5", "6", "7", "8"];
+    expect(applyQuickTyre(s, 1, "fronts").tyreStints[1]).toEqual(["9", "10", "", ""]);
+    expect(applyQuickTyre(s, 1, "rr").tyreStints[1]).toEqual(["", "", "", "9"]);
+  });
   it("limit aşımında değişmeden döner", () => {
     const s = base({ tyreLimit: 4 }); // qual 1-4 dolu, yeni yer yok
     const r = applyQuickTyre(s, 1, "new4");

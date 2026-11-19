@@ -157,8 +157,12 @@ export function applyQuickTyre(s0, rowIdx, action) {
   else if (action === "carry") row = [...prev];
   else if (action === "wet4") row = ["W", "W", "W", "W"];
   else if (action === "qual4") row = s.tyreQual.map((v) => String(v || "").trim());
-  else row = [0, 1, 2, 3].map((ci) =>
-    FRESH_AT.includes(ci) ? fresh() : String(prev[ci] || "").trim());
+  /* Değişmeyen köşe BOŞ kalır (= taşıma, carriedTyre semantiği). v2.5.3'e kadar
+     önceki satırın numarası hücreye kopyalanıyordu: pit bayrağı yine "taşı"
+     çıkıyordu ama tablo aynı seti iki kez yazılmış sayıp "2× tekrar" sarısına
+     boyuyor, satır yazısı da 4 lastik / +12 sn gösteriyordu (kullanıcı bildirimi:
+     "2 yeni sol dedik, sağa 2 eski ekledi"). Pit süresi değişmez — iki hâl de 0. */
+  else row = [0, 1, 2, 3].map((ci) => (FRESH_AT.includes(ci) ? fresh() : ""));
   const tyreStints = s.tyreStints.map((r, i) => (i === rowIdx ? row : r));
   /* pit bayrakları tablodan türetilir; komşu hücreler değiştiği için SONRAKİ
      pit'ler de tazelenir (eski kod yalnız önceki pit'i güncelleyip sonrakileri
